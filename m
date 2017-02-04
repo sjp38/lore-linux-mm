@@ -1,71 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 91EFF6B0033
-	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 08:53:03 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 101so44351908iom.7
-        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 05:53:03 -0800 (PST)
-Received: from nm6-vm4.bullet.mail.ne1.yahoo.com (nm6-vm4.bullet.mail.ne1.yahoo.com. [98.138.91.166])
-        by mx.google.com with ESMTPS id o204si990619itb.59.2017.02.04.05.53.02
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B43836B0038
+	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 09:52:09 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id q3so55505672qtf.4
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 06:52:09 -0800 (PST)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id q69si21484261qki.161.2017.02.04.06.52.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Feb 2017 05:53:02 -0800 (PST)
-Date: Sat, 4 Feb 2017 13:53:01 +0000 (UTC)
-From: Shantanu Goel <sgoel01@yahoo.com>
-Reply-To: Shantanu Goel <sgoel01@yahoo.com>
-Message-ID: <1837390276.846271.1486216381871@mail.yahoo.com>
-Subject: [PATCH] vmscan: Skip slab scan when LRU size is zero
+        Sat, 04 Feb 2017 06:52:08 -0800 (PST)
+Received: by mail-qk0-x243.google.com with SMTP id 11so2646721qkl.0
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 06:52:08 -0800 (PST)
+Date: Sat, 4 Feb 2017 09:52:03 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH] slub: make sysfs directories for memcg sub-caches optional
+Message-ID: <20170204145203.GB26958@mtj.duckdns.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_Part_846270_2097412131.1486216381871"
-References: <1837390276.846271.1486216381871.ref@mail.yahoo.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, kernel-team@fb.com
 
-------=_Part_846270_2097412131.1486216381871
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+SLUB creates a per-cache directory under /sys/kernel/slab which hosts
+a bunch of debug files.  Usually, there aren't that many caches on a
+system and this doesn't really matter; however, if memcg is in use,
+each cache can have per-cgroup sub-caches.  SLUB creates the same
+directories for these sub-caches under /sys/kernel/slab/$CACHE/cgroup.
 
-Hi,
+Unfortunately, because there can be a lot of cgroups, active or
+draining, the product of the numbers of caches, cgroups and files in
+each directory can reach a very high number - hundreds of thousands is
+commonplace.  Millions and beyond aren't difficult to reach either.
 
-I am running 4.9.7 and noticed the slab was being scanned very aggressively (200K objects scanned for 1K LRU pages).  Turning on tracing in do_shrink_slab() revealed it was sometimes being called with a LRU size of zero causing the LRU scan ratio to be very large.  The attached patch skips shrinking the slab when the LRU size is zero.  After applying the patch the slab size I no longer see the extremely large object scan values.
+What's under /sys/kernel/slab is primarily for debugging and the
+information and control on the a root cache already cover its
+sub-caches.  While having a separate directory for each sub-cache can
+be helpful for development, it doesn't make much sense to pay this
+amount of overhead by default.
 
+This patch introduces a boot parameter slub_memcg_sysfs which
+determines whether to create sysfs directories for per-memcg
+sub-caches.  It also adds CONFIG_SLUB_MEMCG_SYSFS_ON which determines
+the boot parameter's default value and defaults to 0.
 
-Trace output when LRU size is 0:
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+---
+ Documentation/kernel-parameters.txt |    8 ++++++++
+ init/Kconfig                        |   14 ++++++++++++++
+ mm/slub.c                           |   29 ++++++++++++++++++++++++++---
+ 3 files changed, 48 insertions(+), 3 deletions(-)
 
-
-kswapd0-93    [005] .... 49736.760169: mm_shrink_slab_start: scan_shadow_nodes+0x0/0x50 ffffffff94e6e460: nid: 0 objects to shrink 59291940 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 0 cache items 20 delta 1280 total_scan 40
-kswapd0-93    [005] .... 49736.760207: mm_shrink_slab_start: super_cache_scan+0x0/0x1a0 ffff9d79ce488cc0: nid: 0 objects to shrink 22740669 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 0 cache items 1 delta 64 total_scan 2
-kswapd0-93    [005] .... 49736.760216: mm_shrink_slab_start: super_cache_scan+0x0/0x1a0 ffff9d79db59ecc0: nid: 0 objects to shrink 79098834 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 0 cache items 642 delta 41088 total_scan 1284
-kswapd0-93    [005] .... 49736.760769: mm_shrink_slab_start: super_cache_scan+0x0/0x1a0 ffff9d79ce488cc0: nid: 0 objects to shrink 22740729 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 0 cache items 1 delta 64 total_scan 2
-kswapd0-93    [005] .... 49736.766125: mm_shrink_slab_start: scan_shadow_nodes+0x0/0x50 ffffffff94e6e460: nid: 0 objects to shrink 59293180 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 0 cache items 32 delta 2048 total_scan 64
-
-Thanks,
-Shantanu
-------=_Part_846270_2097412131.1486216381871
-Content-Type: text/x-patch
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="0001-vmscan-do-not-shrink-slab-if-LRU-size-is-0.patch"
-Content-ID: <048b8230-d3c2-0ddd-f122-83d2649820e2@yahoo.com>
-
-RnJvbSA5NzgxN2ZjNzFlMWZkMGU4ZmUzZjM4NWIwMGRkMTZlZDY0ZjY1NWFiIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBTaGFudGFudSBHb2VsIDxzZ29lbDAxQHlhaG9vLmNvbT4KRGF0
-ZTogRnJpLCAzIEZlYiAyMDE3IDE1OjA1OjU3IC0wNTAwClN1YmplY3Q6IFtQQVRDSF0gdm1zY2Fu
-OiBkbyBub3Qgc2hyaW5rIHNsYWIgaWYgTFJVIHNpemUgaXMgMAoKU29tZSBtZW1jZydzIG1heSBu
-b3QgaGF2ZSBhbnkgTFJVIHBhZ2VzIGluIHRoZW0gc28Kc2hyaW5rX3NsYWIgaW5jb3JyZWN0bHkg
-ZW5kcyB1cCBmcmVlJ2luZyBhIGh1Z2UgcG9ydGlvbgpvZiB0aGUgc2xhYi4KClNpZ25lZC1vZmYt
-Ynk6IFNoYW50YW51IEdvZWwgPHNnb2VsMDFAeWFob28uY29tPgotLS0KIG1tL3Ztc2Nhbi5jIHwg
-MyArKysKIDEgZmlsZSBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKykKCmRpZmYgLS1naXQgYS9tbS92
-bXNjYW4uYyBiL21tL3Ztc2Nhbi5jCmluZGV4IDQyMDViM2UuLjc2ODI0NjkgMTAwNjQ0Ci0tLSBh
-L21tL3Ztc2Nhbi5jCisrKyBiL21tL3Ztc2Nhbi5jCkBAIC00NDUsNiArNDQ1LDkgQEAgc3RhdGlj
-IHVuc2lnbmVkIGxvbmcgc2hyaW5rX3NsYWIoZ2ZwX3QgZ2ZwX21hc2ssIGludCBuaWQsCiAJaWYg
-KG1lbWNnICYmICghbWVtY2dfa21lbV9lbmFibGVkKCkgfHwgIW1lbV9jZ3JvdXBfb25saW5lKG1l
-bWNnKSkpCiAJCXJldHVybiAwOwogCisJaWYgKG5yX2VsaWdpYmxlID09IDApCisJCXJldHVybiAw
-OworCiAJaWYgKG5yX3NjYW5uZWQgPT0gMCkKIAkJbnJfc2Nhbm5lZCA9IFNXQVBfQ0xVU1RFUl9N
-QVg7CiAKLS0gCjIuNy40Cgo=
-
-------=_Part_846270_2097412131.1486216381871--
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -3517,6 +3517,14 @@ bytes respectively. Such letter suffixes
+ 			last alloc / free. For more information see
+ 			Documentation/vm/slub.txt.
+ 
++	slub_memcg_sysfs=	[MM, SLUB]
++			Determines whether to enable sysfs directories for
++			memory cgroup sub-caches. 1 to enable, 0 to disable.
++			The default is determined by CONFIG_SLUB_MEMCG_SYSFS_ON.
++			Enabling this can lead to a very high number of	debug
++			directories and files being created under
++			/sys/kernel/slub.
++
+ 	slub_max_order= [MM, SLUB]
+ 			Determines the maximum allowed order for slabs.
+ 			A high setting may cause OOMs due to memory
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1786,6 +1786,20 @@ config SLUB_DEBUG
+ 	  SLUB sysfs support. /sys/slab will not exist and there will be
+ 	  no support for cache validation etc.
+ 
++config SLUB_MEMCG_SYSFS_ON
++	default n
++	bool "Enable memcg SLUB sysfs support by default" if EXPERT
++	depends on SLUB && SYSFS && MEMCG
++	help
++	  SLUB creates a directory under /sys/kernel/slab for each
++	  allocation cache to host info and debug files. If memory
++	  cgroup is enabled, each cache can have per memory cgroup
++	  caches. SLUB can create the same sysfs directories for these
++	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
++	  to a very high number of debug files being created. This is
++	  controlled by slub_memcg_sysfs boot parameter and this
++	  config option determines the parameter's default value.
++
+ config COMPAT_BRK
+ 	bool "Disable heap randomization"
+ 	default y
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4700,6 +4700,22 @@ enum slab_stat_type {
+ #define SO_OBJECTS	(1 << SL_OBJECTS)
+ #define SO_TOTAL	(1 << SL_TOTAL)
+ 
++#ifdef CONFIG_MEMCG
++static bool memcg_sysfs_enabled = IS_ENABLED(CONFIG_SLUB_MEMCG_SYSFS_ON);
++
++static int __init setup_slub_memcg_sysfs(char *str)
++{
++	int v;
++
++	if (get_option(&str, &v) > 0)
++		memcg_sysfs_enabled = v;
++
++	return 1;
++}
++
++__setup("slub_memcg_sysfs=", setup_slub_memcg_sysfs);
++#endif
++
+ static ssize_t show_slab_objects(struct kmem_cache *s,
+ 			    char *buf, unsigned long flags)
+ {
+@@ -5603,8 +5619,14 @@ static int sysfs_slab_add(struct kmem_ca
+ {
+ 	int err;
+ 	const char *name;
++	struct kset *kset = cache_kset(s);
+ 	int unmergeable = slab_unmergeable(s);
+ 
++	if (!kset) {
++		kobject_init(&s->kobj, &slab_ktype);
++		return 0;
++	}
++
+ 	if (unmergeable) {
+ 		/*
+ 		 * Slabcache can never be merged so we can use the name proper.
+@@ -5621,7 +5643,7 @@ static int sysfs_slab_add(struct kmem_ca
+ 		name = create_unique_id(s);
+ 	}
+ 
+-	s->kobj.kset = cache_kset(s);
++	s->kobj.kset = kset;
+ 	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
+ 	if (err)
+ 		goto out;
+@@ -5631,7 +5653,7 @@ static int sysfs_slab_add(struct kmem_ca
+ 		goto out_del_kobj;
+ 
+ #ifdef CONFIG_MEMCG
+-	if (is_root_cache(s)) {
++	if (is_root_cache(s) && memcg_sysfs_enabled) {
+ 		s->memcg_kset = kset_create_and_add("cgroup", NULL, &s->kobj);
+ 		if (!s->memcg_kset) {
+ 			err = -ENOMEM;
+@@ -5673,7 +5695,8 @@ static void sysfs_slab_remove(struct kme
+ 		return;
+ 
+ #ifdef CONFIG_MEMCG
+-	kset_unregister(s->memcg_kset);
++	if (s->memcg_kset)
++		kset_unregister(s->memcg_kset);
+ #endif
+ 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
+ 	kobject_del(&s->kobj);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
