@@ -1,68 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 72EFD6B0033
-	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 01:38:29 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 204so47950759pfx.1
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 22:38:29 -0800 (PST)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTP id u88si27608997pfi.55.2017.02.03.22.38.27
-        for <linux-mm@kvack.org>;
-        Fri, 03 Feb 2017 22:38:28 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <cover.1486163864.git.shli@fb.com> <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com>
-In-Reply-To: <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com>
-Subject: Re: [PATCH V2 2/7] mm: move MADV_FREE pages into LRU_INACTIVE_FILE list
-Date: Sat, 04 Feb 2017 14:38:07 +0800
-Message-ID: <007e01d27eb1$3f98dee0$beca9ca0$@alibaba-inc.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2737A6B0033
+	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 03:27:29 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so9006629wmi.6
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 00:27:29 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v13si20772676wrc.50.2017.02.04.00.27.27
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 04 Feb 2017 00:27:27 -0800 (PST)
+Subject: Re: [PATCH] mm, slab: rename kmalloc-node cache to kmalloc-<size>
+References: <201702041041.pT43t4Op%fengguang.wu@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9128099d-16fc-0adc-42f0-f286522ebec0@suse.cz>
+Date: Sat, 4 Feb 2017 09:27:21 +0100
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+In-Reply-To: <201702041041.pT43t4Op%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Shaohua Li' <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Kernel-team@fb.com, danielmicay@gmail.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: kbuild test robot <lkp@intel.com>, kbuild-all@01.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-On February 04, 2017 7:33 AM Shaohua Li wrote: 
-> @@ -1404,6 +1401,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  		set_pmd_at(mm, addr, pmd, orig_pmd);
->  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
->  	}
-> +
-> +	mark_page_lazyfree(page);
->  	ret = true;
->  out:
->  	spin_unlock(ptl);
-
-<snipped>
-
-> -void deactivate_page(struct page *page)
-> -{
-> -	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-> -		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
-> +void mark_page_lazyfree(struct page *page)
-> + {
-> +	if (PageLRU(page) && PageAnon(page) && PageSwapBacked(page) &&
-> +	    !PageUnevictable(page)) {
-> +		struct pagevec *pvec = &get_cpu_var(lru_lazyfree_pvecs);
+On 4.2.2017 3:26, kbuild test robot wrote:
+> Hi Vlastimil,
 > 
->  		get_page(page);
->  		if (!pagevec_add(pvec, page) || PageCompound(page))
-> -			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-> -		put_cpu_var(lru_deactivate_pvecs);
-> +			pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
-> +		put_cpu_var(lru_lazyfree_pvecs);
->  	}
->  }
+> [auto build test WARNING on mmotm/master]
+> [also build test WARNING on v4.10-rc6]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-You are not adding it but would you please try to fix or avoid flipping
-preempt count with page table lock hold?
+Hi,
 
-thanks
-Hillf
+there are no warnings below?
 
+Vlastimil
+
+> 
+> url:    https://github.com/0day-ci/linux/commits/Vlastimil-Babka/mm-slab-rename-kmalloc-node-cache-to-kmalloc-size/20170204-021843
+> base:   git://git.cmpxchg.org/linux-mmotm.git master
+> config: i386-allmodconfig
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         make ARCH=i386  allmodconfig
+>         make ARCH=i386 
+> 
+> All warnings (new ones prefixed by >>):
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
