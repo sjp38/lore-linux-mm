@@ -1,56 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2737A6B0033
-	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 03:27:29 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c85so9006629wmi.6
-        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 00:27:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v13si20772676wrc.50.2017.02.04.00.27.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF066B0033
+	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 05:33:58 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so9755078wmi.6
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 02:33:58 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id t10si1177031wmb.160.2017.02.04.02.33.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 04 Feb 2017 00:27:27 -0800 (PST)
-Subject: Re: [PATCH] mm, slab: rename kmalloc-node cache to kmalloc-<size>
-References: <201702041041.pT43t4Op%fengguang.wu@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9128099d-16fc-0adc-42f0-f286522ebec0@suse.cz>
-Date: Sat, 4 Feb 2017 09:27:21 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 04 Feb 2017 02:33:57 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id v77so10205838wmv.0
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 02:33:56 -0800 (PST)
+Date: Sat, 4 Feb 2017 13:33:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3 03/12] mm: fix handling PTE-mapped THPs in
+ page_referenced()
+Message-ID: <20170204103353.GA8013@node.shutemov.name>
+References: <20170129173858.45174-1-kirill.shutemov@linux.intel.com>
+ <20170129173858.45174-4-kirill.shutemov@linux.intel.com>
+ <20170202152655.GB22823@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <201702041041.pT43t4Op%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170202152655.GB22823@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>, kbuild-all@01.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 4.2.2017 3:26, kbuild test robot wrote:
-> Hi Vlastimil,
+On Thu, Feb 02, 2017 at 04:26:56PM +0100, Michal Hocko wrote:
+> On Sun 29-01-17 20:38:49, Kirill A. Shutemov wrote:
+> > For PTE-mapped THP page_check_address_transhuge() is not adequate: it
+> > cannot find all relevant PTEs, only the first one. It means we can miss
+> > some references of the page and it can result in suboptimal decisions by
+> > vmscan.
+> > 
+> > Let's switch it to page_vma_mapped_walk().
+> > 
+> > I don't think it's subject for stable@: it's not fatal. The only side
+> > effect is that THP can be swapped out when it shouldn't.
 > 
-> [auto build test WARNING on mmotm/master]
-> [also build test WARNING on v4.10-rc6]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> Please be more specific about the situation when this happens and how a
+> user can recognize this is going on. In other words when should I
+> consider backporting this series.
 
-Hi,
+The first you need huge PMD to get split with split_huge_pmd(). It can
+happen due to munmap(), mprotect(), mremap(), etc. After split_huge_pmd()
+we have THP mapped with bunch of PTEs instead of single PMD.
 
-there are no warnings below?
+The bug is that the kernel only sees pte_young() on the PTEs that maps the
+first 4k, but not the rest. So if your access pattern touches the THP, but
+not the first 4k, the page can be reclaimed unfairly and possibly
+re-faulted from swap soon after.
 
-Vlastimil
+I don't think it's visible to user, except as unneeded swap-out/swap-in in
+on rare occasion.
 
-> 
-> url:    https://github.com/0day-ci/linux/commits/Vlastimil-Babka/mm-slab-rename-kmalloc-node-cache-to-kmalloc-size/20170204-021843
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> config: i386-allmodconfig
-> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
-> reproduce:
->         make ARCH=i386  allmodconfig
->         make ARCH=i386 
-> 
-> All warnings (new ones prefixed by >>):
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> 
+> Also the interface is quite awkward imho. Why cannot we provide a
+> callback into page_vma_mapped_walk and call it for each pte/pmd that
+> matters to the given page? Wouldn't that be much easier than the loop
+> around page_vma_mapped_walk iterator?
+
+I don't agree that interface with call back would be easier. You would
+also need to pass down additional context with packing/unpacking it on
+both ends. I don't think it makes interface less awkward.
+
+But it's matter of taste.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
