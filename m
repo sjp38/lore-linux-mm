@@ -1,92 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F02D66B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 19:07:26 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id e4so39317346pfg.4
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 16:07:26 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 28si26722495pfp.31.2017.02.03.16.07.25
+	by kanga.kvack.org (Postfix) with ESMTP id 263CD6B0033
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 21:27:38 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 80so44213640pfy.2
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 18:27:38 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d9si22385987pge.193.2017.02.03.18.27.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Feb 2017 16:07:26 -0800 (PST)
-Subject: Re: [PATCH] mm: replace FAULT_FLAG_SIZE with parameter to huge_fault
-References: <201702040648.oOjnlEcm%fengguang.wu@intel.com>
- <2020f442-8e77-cf14-a6b1-b4b00d0da80b@intel.com>
- <CAPcyv4hmswhXsnS9q1Ut76f3-a2h5Hx7XYkS1iNyak8wG9VuEw@mail.gmail.com>
- <CAPcyv4hVqxedr9sEigw0Xsr_SoMAnvPrmPNOrX7QYNuCz=DRQA@mail.gmail.com>
-From: Dave Jiang <dave.jiang@intel.com>
-Message-ID: <86962573-01b7-4ce7-182e-7a77f183cf0e@intel.com>
-Date: Fri, 3 Feb 2017 17:07:24 -0700
+        Fri, 03 Feb 2017 18:27:37 -0800 (PST)
+Date: Sat, 4 Feb 2017 10:26:37 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH] mm, slab: rename kmalloc-node cache to kmalloc-<size>
+Message-ID: <201702041041.pT43t4Op%fengguang.wu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hVqxedr9sEigw0Xsr_SoMAnvPrmPNOrX7QYNuCz=DRQA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170203181008.24898-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, linux-ext4 <linux-ext4@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-On 02/03/2017 05:00 PM, Dan Williams wrote:
-> On Fri, Feb 3, 2017 at 3:26 PM, Dan Williams <dan.j.williams@intel.com> wrote:
->> On Fri, Feb 3, 2017 at 3:25 PM, Dave Jiang <dave.jiang@intel.com> wrote:
->>> On 02/03/2017 03:56 PM, kbuild test robot wrote:
->>>> Hi Dave,
->>>>
->>>> [auto build test ERROR on mmotm/master]
->>>> [cannot apply to linus/master linux/master v4.10-rc6 next-20170203]
->>>> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->>>
->>> This one is a bit odd. I just pulled mmotm tree master branch and built
->>> with the attached .config and it passed for me (and I don't see this
->>> commit in the master branch). I also built linux-next with this patch on
->>> top and it also passes with attached .config. Looking at the err log
->>> below it seems the code has a mix of partial from before and after the
->>> patch. I'm rather confused about it....
->>
->> This is a false positive. It tried to build it against latest mainline
->> instead of linux-next.
-> 
-> On second look it seems I ended up with a duplicate
-> ext4_huge_dax_fault after "git am" when I apply this on top of
-> next-20170202.  The following fixes it up for me and tests fine:
+Hi Vlastimil,
 
-I think it's missing this patch from Ross
-http://marc.info/?l=linux-mm&m=148581319303697&w=2
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.10-rc6]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-> 
-> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-> index f8f4f6d068e5..e8ab46efc4f9 100644
-> --- a/fs/ext4/file.c
-> +++ b/fs/ext4/file.c
-> @@ -276,27 +276,6 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
->         return result;
->  }
-> 
-> -static int
-> -ext4_dax_huge_fault(struct vm_fault *vmf)
-> -{
-> -       int result;
-> -       struct inode *inode = file_inode(vmf->vma->vm_file);
-> -       struct super_block *sb = inode->i_sb;
-> -       bool write = vmf->flags & FAULT_FLAG_WRITE;
-> -
-> -       if (write) {
-> -               sb_start_pagefault(sb);
-> -               file_update_time(vmf->vma->vm_file);
-> -       }
-> -       down_read(&EXT4_I(inode)->i_mmap_sem);
-> -       result = dax_iomap_fault(vmf, &ext4_iomap_ops);
-> -       up_read(&EXT4_I(inode)->i_mmap_sem);
-> -       if (write)
-> -               sb_end_pagefault(sb);
-> -
-> -       return result;
-> -}
-> -
->  static int ext4_dax_fault(struct vm_fault *vmf)
->  {
->         return ext4_dax_huge_fault(vmf, PE_SIZE_PTE);
-> 
+url:    https://github.com/0day-ci/linux/commits/Vlastimil-Babka/mm-slab-rename-kmalloc-node-cache-to-kmalloc-size/20170204-021843
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: i386-allmodconfig
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        make ARCH=i386  allmodconfig
+        make ARCH=i386 
+
+All warnings (new ones prefixed by >>):
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
