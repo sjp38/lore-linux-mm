@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 85E486B0253
-	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 11:29:02 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 194so58051183pgd.7
-        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 08:29:02 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id d67si28667158pfe.39.2017.02.04.08.29.00
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BFEB6B0033
+	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 11:45:27 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y143so58711882pfb.6
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 08:45:27 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id a204si28706913pfa.101.2017.02.04.08.45.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Feb 2017 08:29:00 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id 204so4768589pge.2
-        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 08:29:00 -0800 (PST)
-Date: Sun, 5 Feb 2017 00:27:34 +0800
+        Sat, 04 Feb 2017 08:45:24 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id y143so3763608pfb.1
+        for <linux-mm@kvack.org>; Sat, 04 Feb 2017 08:45:24 -0800 (PST)
+Date: Sun, 5 Feb 2017 00:45:22 +0800
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [lkp-robot] [mm/memblock]  cc4a913fa5:
  WARNING:at_mm/memblock.c:#__next_mem_pfn_range
-Message-ID: <20170204162734.GA30242@WeideMBP.lan>
+Message-ID: <20170204164522.GA46683@WeideMBP.lan>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20170127015922.36249-2-richard.weiyang@gmail.com>
  <20170203014449.GO17561@yexl-desktop>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="opJtzjQTFsWo+cga"
+	protocol="application/pgp-signature"; boundary="C7zPtVaVf+AK4Oqc"
 Content-Disposition: inline
 In-Reply-To: <20170203014449.GO17561@yexl-desktop>
 Sender: owner-linux-mm@kvack.org
@@ -30,7 +30,7 @@ To: kernel test robot <xiaolong.ye@intel.com>
 Cc: Wei Yang <richard.weiyang@gmail.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lkp@01.org
 
 
---opJtzjQTFsWo+cga
+--C7zPtVaVf+AK4Oqc
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
@@ -44,6 +44,12 @@ use NUMA_NO_NODE instead of MAX_NUMNODES in for_each_mem_pfn_range()")
 >url: https://github.com/0day-ci/linux/commits/Wei-Yang/mm-memblock-use-NUM=
 A_NO_NODE-instead-of-MAX_NUMNODES-as-default-node_id/20170127-100339
 >
+
+Hmm... The commit itself is to switch the MAX_NUMNODES to NUMA_NO_NODE and
+warning the potential users. And no functional change.
+
+So the warning itself is the reason for the failure?
+
 >
 >in testcase: trinity
 >with following parameters:
@@ -122,20 +128,6 @@ sts.git
 >        bin/lkp qemu -k <bzImage> job-script  # job-script is attached in =
 this email
 >
-
-Hi, Xiaolong
-
-Thanks for your test.
-
-The warning on __next_mem_pfn_range() is expected. While the real problem
-seems to be in the 8250 serial port driver. At least which complains in dme=
-sg.
-
-I am trying to reproduce this, while looks your guest is a 32-bit version. =
-So
-do I have to use a 32-bit guest or you have a 64-bit version test environme=
-nt?
-
 >
 >
 >Thanks,
@@ -4897,28 +4889,28 @@ c4a913fa513cdac8777c2714e6388465691faf8/modules.cgz'
 Wei Yang
 Help you, Help me
 
---opJtzjQTFsWo+cga
+--C7zPtVaVf+AK4Oqc
 Content-Type: application/pgp-signature; name="signature.asc"
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBCAAGBQJYlgD2AAoJEKcLNpZP5cTdwxYP/0884C/hYg3P+3on+ZfkQGry
-EqUdwG25YOZnUMIIpsGsEXv3gFuAQ+a5VtZrq6FaoIB7HRjWunnaDVM8gq5ogUDs
-RnQrQPZfpIAYeu5sqy4bvgB2vE+quLhdXZfj58DiNmaFumHjd8+c/OGA593jRs5W
-N3fQR5YJ1DHWqwY+q3zoW3LmtqWtbzEPmzkKL/Om2Zoaz8Ee4kFzD0ZGmTZPY7+i
-vTSXAh9B5OkzdLPFpTTIjrAVWTXMhpth662G+K5JBBzg0eE+txlwfhHz760LKcoZ
-kLAIU7a644Ld1wQ51eO+o/89WWL4Noeet2tBlB5JUl/vIsV6BSpQMcTDBo22SqLY
-vVoAOvuae0PwBXX5t3DBzjoDQCR9NVU8a7+tsfFe2IdphrRf6GT6H7/s7TiQQ9Wh
-vSu/TscYA6cuJ41gwCrFAK57/X0mmm+CD0uuRjGLegO+h4w4G/nbFowhKI9za2Lq
-3o28yatLPL2pgFRpQqgCTtH0BNJo5aMXuCVX/ICN/0FVfOYZFzpCpKigSo+xGoNU
-iVKBfPV+L2VLn2Q+Q1aBnFqKTGhOzR4Rh/dZbJ9uAgJtAnVNGcdi1rzWxy/JCATz
-jt5fR/1SQ71yJefG7gz/wx/CzG39pmZWJZxiWScsbcgkwJR8WA2XZFFfN//43U2d
-rsvDKrwR67RxWPazIH+c
-=U9nK
+iQIcBAEBCAAGBQJYlgUiAAoJEKcLNpZP5cTd0LYQAJ8FprE4rzt+ZjnC4E0ua5I/
+9/ERrAi8D4zooWleZLI/WolsmhaNX89UVLX2v176Y48LmE3/LeuxeuHtZ+yPdcUY
+tF73arpYEPI+S9f38CnxNRA6mAtsJDCiBFQobly+nv0VECoezRlPh9LTOX9ZOf8j
+TfPY01dZ2BO4Cp9nFYgk90AKjvvVQTgxhgMgDRt2f7uYlX5jA5976Q8X1wLskovy
+Etkd8cWi122abtx69ezQVqJtM9Wi/ph5oCW6wOuR0iBZeK/jWpQcvkbPoe0vaXue
+pKlnw9KXJot8RuLDBC3agbMmNa5Xd1XxmG8Nol1cXDIFgIUs+ad8DEoUfqTg6WfA
+cpS158yQ0YEuubrs2jDZOVswHYqfBOY3Xkcd1A3FAXw9os2077IvpoVmb00uScxf
+ArxyGm1CDvadg89uWixshUTDuvi6ZHyjn9NSQ6wMwM/vcTI2ihRLL726C1OfsAKK
+aEo1ifz7fMumd3orIdMOQ64+tp9EIIQIV1+FW03qZnK2y9icb5U3Qq/NQrbS3Bga
+ZvT/b0btnQw8tV1zxQkkWh331spGE+hOhmchMWndW9IcH5mvj/MF8Wn0Np/LicI5
+LNvP5bFbldNY5ZKV4+WgilvD1pag/gzh6RNaAvxSb0KKumbQKCx6P6Wdztmzgrmu
+MajFeennFAcrIwnh4GMe
+=s5Ae
 -----END PGP SIGNATURE-----
 
---opJtzjQTFsWo+cga--
+--C7zPtVaVf+AK4Oqc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
