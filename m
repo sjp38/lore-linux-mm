@@ -1,84 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C1B46B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 18:44:59 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id v184so40059400pgv.6
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 15:44:59 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 10si22055504pgg.262.2017.02.03.15.44.58
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A6F6B0033
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 19:00:51 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id v85so31135141oia.4
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 16:00:51 -0800 (PST)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id 108si11379503otu.26.2017.02.03.16.00.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Feb 2017 15:44:58 -0800 (PST)
-From: "Xiong, Jinshan" <jinshan.xiong@intel.com>
-Subject: Re: [lustre-devel] [PATCH] mm: Avoid returning VM_FAULT_RETRY from
- ->page_mkwrite handlers
-Date: Fri, 3 Feb 2017 23:44:57 +0000
-Message-ID: <E91BA9E8-7469-46BB-B3B2-072F95D061EE@intel.com>
-References: <20170203150729.15863-1-jack@suse.cz>
-In-Reply-To: <20170203150729.15863-1-jack@suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <34CE369AB4B4544490D6A81D93492FFA@intel.com>
-Content-Transfer-Encoding: base64
+        Fri, 03 Feb 2017 16:00:50 -0800 (PST)
+Received: by mail-oi0-x22c.google.com with SMTP id u143so20165314oif.3
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 16:00:50 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <CAPcyv4hmswhXsnS9q1Ut76f3-a2h5Hx7XYkS1iNyak8wG9VuEw@mail.gmail.com>
+References: <201702040648.oOjnlEcm%fengguang.wu@intel.com> <2020f442-8e77-cf14-a6b1-b4b00d0da80b@intel.com>
+ <CAPcyv4hmswhXsnS9q1Ut76f3-a2h5Hx7XYkS1iNyak8wG9VuEw@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 3 Feb 2017 16:00:49 -0800
+Message-ID: <CAPcyv4hVqxedr9sEigw0Xsr_SoMAnvPrmPNOrX7QYNuCz=DRQA@mail.gmail.com>
+Subject: Re: [PATCH] mm: replace FAULT_FLAG_SIZE with parameter to huge_fault
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, "cluster-devel@redhat.com" <cluster-devel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew
- Morton <akpm@linux-foundation.org>, "lustre-devel@lists.lustre.org" <lustre-devel@lists.lustre.org>
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, linux-ext4 <linux-ext4@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-SGkgSmFuLA0KDQpUaGFua3MgZm9yIHRoZSBwYXRjaC4gDQoNClRoZSBwcm9wb3NlZCBwYXRjaCBz
-aG91bGQgYmUgYWJsZSB0byBmaXggdGhlIHByb2JsZW0sIGhvd2V2ZXIsIGRvIHlvdSB0aGluayBp
-dCB3b3VsZCBiZSBhIGJldHRlciBhcHByb2FjaCBieSByZXZpc2luZyBpdCBhczoNCg0K4oCmDQpj
-YXNlIC1FQUdBSU46DQoJaWYgKHZtZi0+ZmxhZ3MgJiBGQVVMVF9GTEFHX0FMTE9XX1JFVFJZKSB7
-DQoJCXVwX3JlYWQoJm1tLT5tbWFwX3NlbSk7DQoJCXJldHVybiBWTV9GQVVMVF9SRVRSWTsNCgl9
-DQoJcmV0dXJuIFZNX0ZBVUxUX05PUEFHRTsNCuKApg0KDQpUaGlzIHdheSBpdCBjYW4gcmV0cnkg
-ZmF1bHQgcm91dGluZSBpbiBtbSBpbnN0ZWFkIG9mIGxldHRpbmcgQ1BVIGhhdmUgYSBuZXcgZmF1
-bHQgYWNjZXNzLg0KDQpUaGFua3MsDQpKaW5zaGFuDQoNCj4gT24gRmViIDMsIDIwMTcsIGF0IDc6
-MDcgQU0sIEphbiBLYXJhIDxqYWNrQHN1c2UuY3o+IHdyb3RlOg0KPiANCj4gU29tZSAtPnBhZ2Vf
-bWt3cml0ZSBoYW5kbGVycyBtYXkgcmV0dXJuIFZNX0ZBVUxUX1JFVFJZIGFzIGl0cyByZXR1cm4N
-Cj4gY29kZSAoR0ZTMiBvciBMdXN0cmUgY2FuIGRlZmluaXRlbHkgZG8gdGhpcykuIEhvd2V2ZXIg
-Vk1fRkFVTFRfUkVUUlkNCj4gZnJvbSAtPnBhZ2VfbWt3cml0ZSBpcyBjb21wbGV0ZWx5IHVuaGFu
-ZGxlZCBieSB0aGUgbW0gY29kZSBhbmQgcmVzdWx0cw0KPiBpbiBsb2NraW5nIGFuZCB3cml0ZWFi
-bHkgbWFwcGluZyB0aGUgcGFnZSB3aGljaCBkZWZpbml0ZWx5IGlzIG5vdCB3aGF0DQo+IHRoZSBj
-YWxsZXIgd2FudGVkLiBGaXggTHVzdHJlIGFuZCBibG9ja19wYWdlX21rd3JpdGVfcmV0KCkgdXNl
-ZCBieSBvdGhlcg0KPiBmaWxlc3lzdGVtcyAobm90YWJseSBHRlMyKSB0byByZXR1cm4gVk1fRkFV
-TFRfTk9QQUdFIGluc3RlYWQgd2hpY2gNCj4gcmVzdWx0cyBpbiBiYWlsaW5nIG91dCBmcm9tIHRo
-ZSBmYXVsdCBjb2RlLCB0aGUgQ1BVIHRoZW4gcmV0cmllcyB0aGUNCj4gYWNjZXNzLCBhbmQgd2Ug
-ZmF1bHQgYWdhaW4gZWZmZWN0aXZlbHkgZG9pbmcgd2hhdCB0aGUgaGFuZGxlciB3YW50ZWQuDQo+
-IA0KPiBDQzogbHVzdHJlLWRldmVsQGxpc3RzLmx1c3RyZS5vcmcNCj4gQ0M6IGNsdXN0ZXItZGV2
-ZWxAcmVkaGF0LmNvbQ0KPiBSZXBvcnRlZC1ieTogQWwgVmlybyA8dmlyb0BaZW5JVi5saW51eC5v
-cmcudWs+DQo+IFNpZ25lZC1vZmYtYnk6IEphbiBLYXJhIDxqYWNrQHN1c2UuY3o+DQo+IC0tLQ0K
-PiBkcml2ZXJzL3N0YWdpbmcvbHVzdHJlL2x1c3RyZS9sbGl0ZS9sbGl0ZV9tbWFwLmMgfCA0ICst
-LS0NCj4gaW5jbHVkZS9saW51eC9idWZmZXJfaGVhZC5oICAgICAgICAgICAgICAgICAgICAgIHwg
-NCArLS0tDQo+IDIgZmlsZXMgY2hhbmdlZCwgMiBpbnNlcnRpb25zKCspLCA2IGRlbGV0aW9ucygt
-KQ0KPiANCj4gZGlmZiAtLWdpdCBhL2RyaXZlcnMvc3RhZ2luZy9sdXN0cmUvbHVzdHJlL2xsaXRl
-L2xsaXRlX21tYXAuYyBiL2RyaXZlcnMvc3RhZ2luZy9sdXN0cmUvbHVzdHJlL2xsaXRlL2xsaXRl
-X21tYXAuYw0KPiBpbmRleCBlZTAxZjIwZDhiMTEuLjlhZmE2YmVjM2U2ZiAxMDA2NDQNCj4gLS0t
-IGEvZHJpdmVycy9zdGFnaW5nL2x1c3RyZS9sdXN0cmUvbGxpdGUvbGxpdGVfbW1hcC5jDQo+ICsr
-KyBiL2RyaXZlcnMvc3RhZ2luZy9sdXN0cmUvbHVzdHJlL2xsaXRlL2xsaXRlX21tYXAuYw0KPiBA
-QCAtMzkwLDE1ICszOTAsMTMgQEAgc3RhdGljIGludCBsbF9wYWdlX21rd3JpdGUoc3RydWN0IHZt
-X2FyZWFfc3RydWN0ICp2bWEsIHN0cnVjdCB2bV9mYXVsdCAqdm1mKQ0KPiAJCXJlc3VsdCA9IFZN
-X0ZBVUxUX0xPQ0tFRDsNCj4gCQlicmVhazsNCj4gCWNhc2UgLUVOT0RBVEE6DQo+ICsJY2FzZSAt
-RUFHQUlOOg0KPiAJY2FzZSAtRUZBVUxUOg0KPiAJCXJlc3VsdCA9IFZNX0ZBVUxUX05PUEFHRTsN
-Cj4gCQlicmVhazsNCj4gCWNhc2UgLUVOT01FTToNCj4gCQlyZXN1bHQgPSBWTV9GQVVMVF9PT007
-DQo+IAkJYnJlYWs7DQo+IC0JY2FzZSAtRUFHQUlOOg0KPiAtCQlyZXN1bHQgPSBWTV9GQVVMVF9S
-RVRSWTsNCj4gLQkJYnJlYWs7DQo+IAlkZWZhdWx0Og0KPiAJCXJlc3VsdCA9IFZNX0ZBVUxUX1NJ
-R0JVUzsNCj4gCQlicmVhazsNCj4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvYnVmZmVyX2hl
-YWQuaCBiL2luY2x1ZGUvbGludXgvYnVmZmVyX2hlYWQuaA0KPiBpbmRleCBkNjdhYjgzODIzYWQu
-Ljc5NTkxYzM2NjBjYyAxMDA2NDQNCj4gLS0tIGEvaW5jbHVkZS9saW51eC9idWZmZXJfaGVhZC5o
-DQo+ICsrKyBiL2luY2x1ZGUvbGludXgvYnVmZmVyX2hlYWQuaA0KPiBAQCAtMjQzLDEyICsyNDMs
-MTAgQEAgc3RhdGljIGlubGluZSBpbnQgYmxvY2tfcGFnZV9ta3dyaXRlX3JldHVybihpbnQgZXJy
-KQ0KPiB7DQo+IAlpZiAoZXJyID09IDApDQo+IAkJcmV0dXJuIFZNX0ZBVUxUX0xPQ0tFRDsNCj4g
-LQlpZiAoZXJyID09IC1FRkFVTFQpDQo+ICsJaWYgKGVyciA9PSAtRUZBVUxUIHx8IGVyciA9PSAt
-RUFHQUlOKQ0KPiAJCXJldHVybiBWTV9GQVVMVF9OT1BBR0U7DQo+IAlpZiAoZXJyID09IC1FTk9N
-RU0pDQo+IAkJcmV0dXJuIFZNX0ZBVUxUX09PTTsNCj4gLQlpZiAoZXJyID09IC1FQUdBSU4pDQo+
-IC0JCXJldHVybiBWTV9GQVVMVF9SRVRSWTsNCj4gCS8qIC1FTk9TUEMsIC1FRFFVT1QsIC1FSU8g
-Li4uICovDQo+IAlyZXR1cm4gVk1fRkFVTFRfU0lHQlVTOw0KPiB9DQo+IC0tIA0KPiAyLjEwLjIN
-Cj4gDQo+IF9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fDQo+
-IGx1c3RyZS1kZXZlbCBtYWlsaW5nIGxpc3QNCj4gbHVzdHJlLWRldmVsQGxpc3RzLmx1c3RyZS5v
-cmcNCj4gaHR0cDovL2xpc3RzLmx1c3RyZS5vcmcvbGlzdGluZm8uY2dpL2x1c3RyZS1kZXZlbC1s
-dXN0cmUub3JnDQoNCg==
+On Fri, Feb 3, 2017 at 3:26 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> On Fri, Feb 3, 2017 at 3:25 PM, Dave Jiang <dave.jiang@intel.com> wrote:
+>> On 02/03/2017 03:56 PM, kbuild test robot wrote:
+>>> Hi Dave,
+>>>
+>>> [auto build test ERROR on mmotm/master]
+>>> [cannot apply to linus/master linux/master v4.10-rc6 next-20170203]
+>>> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+>>
+>> This one is a bit odd. I just pulled mmotm tree master branch and built
+>> with the attached .config and it passed for me (and I don't see this
+>> commit in the master branch). I also built linux-next with this patch on
+>> top and it also passes with attached .config. Looking at the err log
+>> below it seems the code has a mix of partial from before and after the
+>> patch. I'm rather confused about it....
+>
+> This is a false positive. It tried to build it against latest mainline
+> instead of linux-next.
+
+On second look it seems I ended up with a duplicate
+ext4_huge_dax_fault after "git am" when I apply this on top of
+next-20170202.  The following fixes it up for me and tests fine:
+
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index f8f4f6d068e5..e8ab46efc4f9 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -276,27 +276,6 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
+        return result;
+ }
+
+-static int
+-ext4_dax_huge_fault(struct vm_fault *vmf)
+-{
+-       int result;
+-       struct inode *inode = file_inode(vmf->vma->vm_file);
+-       struct super_block *sb = inode->i_sb;
+-       bool write = vmf->flags & FAULT_FLAG_WRITE;
+-
+-       if (write) {
+-               sb_start_pagefault(sb);
+-               file_update_time(vmf->vma->vm_file);
+-       }
+-       down_read(&EXT4_I(inode)->i_mmap_sem);
+-       result = dax_iomap_fault(vmf, &ext4_iomap_ops);
+-       up_read(&EXT4_I(inode)->i_mmap_sem);
+-       if (write)
+-               sb_end_pagefault(sb);
+-
+-       return result;
+-}
+-
+ static int ext4_dax_fault(struct vm_fault *vmf)
+ {
+        return ext4_dax_huge_fault(vmf, PE_SIZE_PTE);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
