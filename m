@@ -1,103 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C86576B0069
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 09:35:22 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id g13so81899571otd.5
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 06:35:22 -0800 (PST)
-Received: from mail-ot0-x241.google.com (mail-ot0-x241.google.com. [2607:f8b0:4003:c0f::241])
-        by mx.google.com with ESMTPS id y45si354718oty.217.2017.02.06.06.35.22
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB3B6B0253
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 09:35:37 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id k15so86785505qtg.5
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 06:35:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x37si608535qtb.142.2017.02.06.06.35.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Feb 2017 06:35:22 -0800 (PST)
-Received: by mail-ot0-x241.google.com with SMTP id f9so10543238otd.0
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 06:35:22 -0800 (PST)
+        Mon, 06 Feb 2017 06:35:36 -0800 (PST)
+Date: Mon, 6 Feb 2017 09:35:33 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170206143533.GC57865@bfoster.bfoster>
+References: <20170130085546.GF8443@dhcp22.suse.cz>
+ <20170202101415.GE22806@dhcp22.suse.cz>
+ <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
+ <20170203145009.GB19325@dhcp22.suse.cz>
+ <20170203172403.GG45388@bfoster.bfoster>
+ <201702061529.ABC60444.FFFJOOHLVQSMtO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20170206132410.GC10298@dhcp22.suse.cz>
-References: <1486383850-30444-1-git-send-email-vinmenon@codeaurora.org>
- <1486383850-30444-2-git-send-email-vinmenon@codeaurora.org>
- <20170206124037.GA10298@dhcp22.suse.cz> <CAOaiJ-kf+1xO9R5u33-JADpNpHiyyfbq0CKY014E8L+ErKioDA@mail.gmail.com>
- <20170206132410.GC10298@dhcp22.suse.cz>
-From: vinayak menon <vinayakm.list@gmail.com>
-Date: Mon, 6 Feb 2017 20:05:21 +0530
-Message-ID: <CAOaiJ-ksqOr8T0KRN8eP-YmvCsXOwF6_z=gvQEtaC5mhMt7tvA@mail.gmail.com>
-Subject: Re: [PATCH 2/2 RESEND] mm: vmpressure: fix sending wrong events on underflow
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201702061529.ABC60444.FFFJOOHLVQSMtO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org
 
-On Mon, Feb 6, 2017 at 6:54 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Mon 06-02-17 18:39:03, vinayak menon wrote:
->> On Mon, Feb 6, 2017 at 6:10 PM, Michal Hocko <mhocko@kernel.org> wrote:
->> > On Mon 06-02-17 17:54:10, Vinayak Menon wrote:
->> > [...]
->> >> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
->> >> index 149fdf6..3281b34 100644
->> >> --- a/mm/vmpressure.c
->> >> +++ b/mm/vmpressure.c
->> >> @@ -112,8 +112,10 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
->> >>                                                   unsigned long reclaimed)
->> >>  {
->> >>       unsigned long scale = scanned + reclaimed;
->> >> -     unsigned long pressure;
->> >> +     unsigned long pressure = 0;
->> >>
->> >> +     if (reclaimed >= scanned)
->> >> +             goto out;
->> >
->> > This deserves a comment IMHO. Besides that, why shouldn't we normalize
->> > the result already in vmpressure()? Please note that the tree == true
->> > path will aggregate both scanned and reclaimed and that already skews
->> > numbers.
->> Sure. Will add a comment.
->> IIUC, normalizing in vmpressure() means something like this which you
->> mentioned in one
->> of your previous emails right ?
->>
->> + if (reclaimed > scanned)
->> +          reclaimed = scanned;
->
-> yes or scanned = reclaimed.
->
->> Considering a scan window of 512 pages and without above piece of
->> code, if the first scanning is of a THP page
->> Scan=1,Reclaimed=512
->> If the next 511 scans results in 0 reclaimed pages
->> total_scan=512,Reclaimed=512 => vmpressure 0
->
-> I am not sure I understand. What do you mean by next scans? We do not
-> modify counters outside of vmpressure? If you mean next iteration of
-> shrink_node's loop then this changeshouldn't make a difference, no?
->
-By scan I meant pages scanned by shrink_node_memcg/shrink_list which is passed
-as nr_scanned to vmpressure.
-The calculation of pressure for tree is done at the end of
-vmpressure_win and it is that
-calculation which underflows. With this patch we want only the
-underflow to be avoided. But
-if we make (reclaimed = scanned) in vmpressure(), we change the
-vmpressure value even
-when there is no underflow right ?
-Rewriting the above e.g again.
-First call to vmpressure with nr_scanned=1 and nr_reclaimed=512 (THP)
-Second call to vmpressure with nr_scanned=511 and nr_reclaimed=0
-In the second call vmpr->tree_scanned becomes equal to vmpressure_win
-and the work
-is scheduled and it will calculate the vmpressure as 0 because
-tree_reclaimed = 512
+On Mon, Feb 06, 2017 at 03:29:24PM +0900, Tetsuo Handa wrote:
+> Brian Foster wrote:
+> > On Fri, Feb 03, 2017 at 03:50:09PM +0100, Michal Hocko wrote:
+> > > [Let's CC more xfs people]
+> > > 
+> > > On Fri 03-02-17 19:57:39, Tetsuo Handa wrote:
+> > > [...]
+> > > > (1) I got an assertion failure.
+> > > 
+> > > I suspect this is a result of
+> > > http://lkml.kernel.org/r/20170201092706.9966-2-mhocko@kernel.org
+> > > I have no idea what the assert means though.
+> > > 
+> > > > 
+> > > > [  969.626518] Killed process 6262 (oom-write) total-vm:2166856kB, anon-rss:1128732kB, file-rss:4kB, shmem-rss:0kB
+> > > > [  969.958307] oom_reaper: reaped process 6262 (oom-write), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+> > > > [  972.114644] XFS: Assertion failed: oldlen > newlen, file: fs/xfs/libxfs/xfs_bmap.c, line: 2867
+> > 
+> > Indirect block reservation underrun on delayed allocation extent merge.
+> > These are extra blocks are used for the inode bmap btree when a delalloc
+> > extent is converted to physical blocks. We're in a case where we expect
+> > to only ever free excess blocks due to a merge of extents with
+> > independent reservations, but a situation occurs where we actually need
+> > blocks and hence the assert fails. This can occur if an extent is merged
+> > with one that has a reservation less than the expected worst case
+> > reservation for its size (due to previous extent splits due to hole
+> > punches, for example). Therefore, I think the core expectation that
+> > xfs_bmap_add_extent_hole_delay() will always have enough blocks
+> > pre-reserved is invalid.
+> > 
+> > Can you describe the workload that reproduces this? FWIW, I think the
+> > way xfs_bmap_add_extent_hole_delay() currently works is likely broken
+> > and have a couple patches to fix up indlen reservation that I haven't
+> > posted yet. The diff that deals with this particular bit is appended.
+> > Care to give that a try?
+> 
+> The workload is to write to a single file on XFS from 10 processes demonstrated at
+> http://lkml.kernel.org/r/201512052133.IAE00551.LSOQFtMFFVOHOJ@I-love.SAKURA.ne.jp
+> using "while :; do ./oom-write; done" loop on a VM with 4CPUs / 2048MB RAM.
+> With this XFS_FILBLKS_MIN() change applied, I no longer hit assertion failures.
+> 
 
-Similarly, if scanned is made equal to reclaimed in vmpressure()
-itself as you had suggested,
-First call to vmpressure with nr_scanned=1 and nr_reclaimed=512 (THP)
-And in vmpressure, we make nr_scanned=1 and nr_reclaimed=1
-Second call to vmpressure with nr_scanned=511 and nr_reclaimed=0
-In the second call vmpr->tree_scanned becomes equal to vmpressure_win
-and the work
-is scheduled and it will calculate the vmpressure as critical, because
-tree_reclaimed = 1
+Thanks for testing. Well, that's an interesting workload. I couldn't
+reproduce on a few quick tries in a similarly configured vm.
 
-So it makes a difference, no?
+Normally I'd expect to see this kind of thing on a hole punching
+workload or dealing with large, sparse files that make use of
+speculative preallocation (post-eof blocks allocated in anticipation of
+file extending writes). I'm wondering if what is happening here is that
+the appending writes and file closes due to oom kills are generating
+speculative preallocs and prealloc truncates, respectively, and that
+causes prealloc extents at the eof boundary to be split up and then
+re-merged by surviving appending writers.
+
+/tmp/file _is_ on an XFS filesystem in your test, correct? If so and if
+you still have the output file from a test that reproduced, could you
+get the 'xfs_io -c "fiemap -v" <file>' output?
+
+I suppose another possibility is that prealloc occurs, write failure(s)
+leads to extent splits via unmapping the target range of the write, and
+then surviving writers generate the warning on a delalloc extent merge..
+
+Brian
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
