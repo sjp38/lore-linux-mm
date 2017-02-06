@@ -1,69 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 740856B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 10:39:26 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y143so109486731pfb.6
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 07:39:26 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y15si995011plh.287.2017.02.06.07.39.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B1EE76B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 10:43:48 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so109649149pgc.2
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 07:43:48 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id 5si1012657plc.226.2017.02.06.07.43.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Feb 2017 07:39:25 -0800 (PST)
-Date: Mon, 6 Feb 2017 07:39:23 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 4/6] xfs: use memalloc_nofs_{save,restore} instead of
- memalloc_noio*
-Message-ID: <20170206153923.GL2267@bombadil.infradead.org>
-References: <20170206140718.16222-1-mhocko@kernel.org>
- <20170206140718.16222-5-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170206140718.16222-5-mhocko@kernel.org>
+        Mon, 06 Feb 2017 07:43:47 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id 204so9391787pge.2
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 07:43:47 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm/page_alloc: return 0 in case this node has no page within the zone
+Date: Mon,  6 Feb 2017 23:43:14 +0800
+Message-Id: <20170206154314.15705-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Mon, Feb 06, 2017 at 03:07:16PM +0100, Michal Hocko wrote:
-> +++ b/fs/xfs/xfs_buf.c
-> @@ -442,17 +442,17 @@ _xfs_buf_map_pages(
->  		bp->b_addr = NULL;
->  	} else {
->  		int retried = 0;
-> -		unsigned noio_flag;
-> +		unsigned nofs_flag;
->  
->  		/*
->  		 * vm_map_ram() will allocate auxillary structures (e.g.
->  		 * pagetables) with GFP_KERNEL, yet we are likely to be under
->  		 * GFP_NOFS context here. Hence we need to tell memory reclaim
-> -		 * that we are in such a context via PF_MEMALLOC_NOIO to prevent
-> +		 * that we are in such a context via PF_MEMALLOC_NOFS to prevent
->  		 * memory reclaim re-entering the filesystem here and
->  		 * potentially deadlocking.
->  		 */
+The whole memory space is divided into several zones and nodes may have no
+page in some zones. In this case, the __absent_pages_in_range() would
+return 0, since the range it is searching for is an empty range.
 
-This comment feels out of date ... how about:
+Also this happens more often to those nodes with higher memory range when
+there are more nodes, which is a trend for future architectures.
 
-		/*
-		 * vm_map_ram will allocate auxiliary structures (eg page
-		 * tables) with GFP_KERNEL.  If that tries to reclaim memory
-		 * by calling back into this filesystem, we may deadlock.
-		 * Prevent that by setting the NOFS flag.
-		 */
+This patch checks the zone range after clamp and adjustment, return 0 if
+the range is an empty range.
 
-> -		noio_flag = memalloc_noio_save();
-> +		nofs_flag = memalloc_nofs_save();
->  		do {
->  			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
->  						-1, PAGE_KERNEL);
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/page_alloc.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-Also, I think it shows that this is the wrong place in XFS to be calling
-memalloc_nofs_save().  I'm not arguing against including this patch;
-it's a step towards where we want to be.  I also don't know XFS well
-enough to know where to set that flag ;-)  Presumably when we start a
-transaction ... ?
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6de9440e3ae2..51c60c0eadcb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5521,6 +5521,11 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+ 	adjust_zone_range_for_zone_movable(nid, zone_type,
+ 			node_start_pfn, node_end_pfn,
+ 			&zone_start_pfn, &zone_end_pfn);
++
++	/* If this node has no page within this zone, return 0. */
++	if (zone_start_pfn == zone_end_pfn)
++		return 0;
++
+ 	nr_absent = __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+ 
+ 	/*
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
