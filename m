@@ -1,126 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 575556B0253
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2017 22:39:03 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y143so94866009pfb.6
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 19:39:03 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id h3si32498594pfa.267.2017.02.05.19.39.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Feb 2017 19:39:02 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v6 4/4] mm/hotplug: enable memory hotplug for non-lru
- movable pages
-Date: Mon, 6 Feb 2017 03:29:57 +0000
-Message-ID: <20170206032951.GA1659@hori1.linux.bs1.fc.nec.co.jp>
-References: <1486108770-630-1-git-send-email-xieyisheng1@huawei.com>
- <1486108770-630-5-git-send-email-xieyisheng1@huawei.com>
-In-Reply-To: <1486108770-630-5-git-send-email-xieyisheng1@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <03C08A2C52A13443BB961E9BE8DC9A69@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD8486B0033
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2017 23:03:02 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so95340174pgc.2
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 20:03:02 -0800 (PST)
+Received: from out0-142.mail.aliyun.com (out0-142.mail.aliyun.com. [140.205.0.142])
+        by mx.google.com with ESMTP id r14si32578192pli.158.2017.02.05.20.03.01
+        for <linux-mm@kvack.org>;
+        Sun, 05 Feb 2017 20:03:01 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170205161252.85004-1-zi.yan@sent.com> <20170205161252.85004-4-zi.yan@sent.com>
+In-Reply-To: <20170205161252.85004-4-zi.yan@sent.com>
+Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in zap_pmd_range()
+Date: Mon, 06 Feb 2017 12:02:54 +0800
+Message-ID: <001101d2802d$e4ec9800$aec5c800$@alibaba-inc.com>
 MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "minchan@kernel.org" <minchan@kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "arbab@linux.vnet.ibm.com" <arbab@linux.vnet.ibm.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "vkuznets@redhat.com" <vkuznets@redhat.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>
+To: 'Zi Yan' <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, 'Zi Yan' <ziy@nvidia.com>
 
-On Fri, Feb 03, 2017 at 03:59:30PM +0800, Yisheng Xie wrote:
-> We had considered all of the non-lru pages as unmovable before commit
-> bda807d44454 ("mm: migrate: support non-lru movable page migration").  Bu=
-t
-> now some of non-lru pages like zsmalloc, virtio-balloon pages also become
-> movable.  So we can offline such blocks by using non-lru page migration.
->=20
-> This patch straightforwardly adds non-lru migration code, which means
-> adding non-lru related code to the functions which scan over pfn and
-> collect pages to be migrated and isolate them before migration.
->=20
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Hanjun Guo <guohanjun@huawei.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
-> Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
-> Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
-> Cc: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/memory_hotplug.c | 28 +++++++++++++++++-----------
->  mm/page_alloc.c     |  8 ++++++--
->  2 files changed, 23 insertions(+), 13 deletions(-)
->=20
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index ca2723d..ea1be08 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1516,10 +1516,10 @@ int test_pages_in_a_zone(unsigned long start_pfn,=
- unsigned long end_pfn)
->  }
-> =20
->  /*
-> - * Scan pfn range [start,end) to find movable/migratable pages (LRU page=
-s
-> - * and hugepages). We scan pfn because it's much easier than scanning ov=
-er
-> - * linked list. This function returns the pfn of the first found movable
-> - * page if it's found, otherwise 0.
-> + * Scan pfn range [start,end) to find movable/migratable pages (LRU page=
-s,
-> + * non-lru movable pages and hugepages). We scan pfn because it's much
-> + * easier than scanning over linked list. This function returns the pfn
-> + * of the first found movable page if it's found, otherwise 0.
->   */
->  static unsigned long scan_movable_pages(unsigned long start, unsigned lo=
-ng end)
+
+On February 06, 2017 12:13 AM Zi Yan wrote: 
+> 
+> @@ -1233,33 +1233,31 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+>  				struct zap_details *details)
 >  {
-> @@ -1530,6 +1530,8 @@ static unsigned long scan_movable_pages(unsigned lo=
-ng start, unsigned long end)
->  			page =3D pfn_to_page(pfn);
->  			if (PageLRU(page))
->  				return pfn;
-> +			if (__PageMovable(page))
-> +				return pfn;
->  			if (PageHuge(page)) {
->  				if (page_huge_active(page))
->  					return pfn;
-> @@ -1606,21 +1608,25 @@ static struct page *new_node_page(struct page *pa=
-ge, unsigned long private,
->  		if (!get_page_unless_zero(page))
->  			continue;
->  		/*
-> -		 * We can skip free pages. And we can only deal with pages on
-> -		 * LRU.
-> +		 * We can skip free pages. And we can deal with pages on
-> +		 * LRU and non-lru movable pages.
->  		 */
-> -		ret =3D isolate_lru_page(page);
-> +		if (PageLRU(page))
-> +			ret =3D isolate_lru_page(page);
-> +		else
-> +			ret =3D isolate_movable_page(page, ISOLATE_UNEVICTABLE);
->  		if (!ret) { /* Success */
->  			put_page(page);
->  			list_add_tail(&page->lru, &source);
->  			move_pages--;
-> -			inc_node_page_state(page, NR_ISOLATED_ANON +
-> -					    page_is_file_cache(page));
-> +			if (!__PageMovable(page))
+>  	pmd_t *pmd;
+> +	spinlock_t *ptl;
+>  	unsigned long next;
+> 
+>  	pmd = pmd_offset(pud, addr);
+> +	ptl = pmd_lock(vma->vm_mm, pmd);
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+>  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+>  			if (next - addr != HPAGE_PMD_SIZE) {
+>  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
+>  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
+> -				__split_huge_pmd(vma, pmd, addr, false, NULL);
+> -			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
+> -				goto next;
+> +				__split_huge_pmd_locked(vma, pmd, addr, false);
+> +			} else if (__zap_huge_pmd_locked(tlb, vma, pmd, addr))
+> +				continue;
+>  			/* fall through */
+>  		}
+> -		/*
+> -		 * Here there can be other concurrent MADV_DONTNEED or
+> -		 * trans huge page faults running, and if the pmd is
+> -		 * none or trans huge it can change under us. This is
+> -		 * because MADV_DONTNEED holds the mmap_sem in read
+> -		 * mode.
+> -		 */
+> -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> -			goto next;
+> +
+> +		if (pmd_none_or_clear_bad(pmd))
+> +			continue;
+> +		spin_unlock(ptl);
+>  		next = zap_pte_range(tlb, vma, pmd, addr, next, details);
+> -next:
+>  		cond_resched();
+> +		spin_lock(ptl);
+>  	} while (pmd++, addr = next, addr != end);
 
-If this check is identical with "if (PageLRU(page))" in this context,
-PageLRU(page) looks better because you already add same "if" above.
+spin_lock() is appointed to the bench of pmd_lock().
 
-Otherwise, looks good to me.
-
-Thanks,
-Naoya Horiguchi=
+> +	spin_unlock(ptl);
+> 
+>  	return addr;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
