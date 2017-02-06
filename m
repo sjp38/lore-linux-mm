@@ -1,131 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F2E336B0033
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2017 14:23:01 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id jz4so14091914wjb.5
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 11:23:01 -0800 (PST)
-Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
-        by mx.google.com with ESMTP id v203si5224821wmb.51.2017.02.05.11.23.00
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 151B06B0033
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2017 20:38:52 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id j82so69802593oih.6
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 17:38:52 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id t128si13534365oie.322.2017.02.05.17.38.49
         for <linux-mm@kvack.org>;
-        Sun, 05 Feb 2017 11:23:00 -0800 (PST)
-From: Willy Tarreau <w@1wt.eu>
-Subject: [PATCH 3.10 046/319] x86/mm: Disable preemption during CR3 read+write
-Date: Sun,  5 Feb 2017 20:20:33 +0100
-Message-Id: <1486322486-8024-17-git-send-email-w@1wt.eu>
-In-Reply-To: <1486322486-8024-1-git-send-email-w@1wt.eu>
-References: <1486322486-8024-1-git-send-email-w@1wt.eu>
+        Sun, 05 Feb 2017 17:38:50 -0800 (PST)
+Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
+References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
+ <1486111347-112972-1-git-send-email-zhouxianrong@huawei.com>
+ <20170205142100.GA9611@bbox>
+From: zhouxianrong <zhouxianrong@huawei.com>
+Message-ID: <2f6e188c-5358-eeab-44ab-7634014af651@huawei.com>
+Date: Mon, 6 Feb 2017 09:28:18 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=latin1
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170205142100.GA9611@bbox>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux@roeck-us.net
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Willy Tarreau <w@1wt.eu>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, willy@infradead.org, iamjoonsoo.kim@lge.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
 
-There's a subtle preemption race on UP kernels:
+On 2017/2/5 22:21, Minchan Kim wrote:
+> Hi zhouxianrong,
+>
+> On Fri, Feb 03, 2017 at 04:42:27PM +0800, zhouxianrong@huawei.com wrote:
+>> From: zhouxianrong <zhouxianrong@huawei.com>
+>>
+>> test result as listed below:
+>>
+>> zero   pattern_char pattern_short pattern_int pattern_long total   (unit)
+>> 162989 14454        3534          23516       2769         3294399 (page)
+>>
+>> statistics for the result:
+>>
+>>         zero  pattern_char  pattern_short  pattern_int  pattern_long
+>> AVERAGE 0.745696298 0.085937175 0.015957701 0.131874915 0.020533911
+>> STDEV   0.035623777 0.016892402 0.004454534 0.021657123 0.019420072
+>> MAX     0.973813421 0.222222222 0.021409518 0.211812245 0.176512625
+>> MIN     0.645431905 0.004634398 0           0           0
+>
+> The description in old version was better for justifying same page merging
+> feature.
+>
+>>
+>> Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
+>> ---
+>>  drivers/block/zram/zram_drv.c |  124 +++++++++++++++++++++++++++++++----------
+>>  drivers/block/zram/zram_drv.h |   11 ++--
+>>  2 files changed, 103 insertions(+), 32 deletions(-)
+>>
+>> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+>> index e5ab7d9..6a8c9c5 100644
+>> --- a/drivers/block/zram/zram_drv.c
+>> +++ b/drivers/block/zram/zram_drv.c
+>> @@ -95,6 +95,17 @@ static void zram_clear_flag(struct zram_meta *meta, u32 index,
+>>  	meta->table[index].value &= ~BIT(flag);
+>>  }
+>>
+>> +static inline void zram_set_element(struct zram_meta *meta, u32 index,
+>> +			unsigned long element)
+>> +{
+>> +	meta->table[index].element = element;
+>> +}
+>> +
+>> +static inline void zram_clear_element(struct zram_meta *meta, u32 index)
+>> +{
+>> +	meta->table[index].element = 0;
+>> +}
+>> +
+>>  static size_t zram_get_obj_size(struct zram_meta *meta, u32 index)
+>>  {
+>>  	return meta->table[index].value & (BIT(ZRAM_FLAG_SHIFT) - 1);
+>> @@ -167,31 +178,78 @@ static inline void update_used_max(struct zram *zram,
+>>  	} while (old_max != cur_max);
+>>  }
+>>
+>> -static bool page_zero_filled(void *ptr)
+>> +static inline void zram_fill_page(char *ptr, unsigned long value)
+>> +{
+>> +	int i;
+>> +	unsigned long *page = (unsigned long *)ptr;
+>> +
+>> +	if (likely(value == 0)) {
+>> +		clear_page(ptr);
+>> +	} else {
+>> +		for (i = 0; i < PAGE_SIZE / sizeof(*page); i++)
+>> +			page[i] = value;
+>> +	}
+>> +}
+>> +
+>> +static inline void zram_fill_page_partial(char *ptr, unsigned int size,
+>> +		unsigned long value)
+>> +{
+>> +	int i;
+>> +	unsigned long *page;
+>> +
+>> +	if (likely(value == 0)) {
+>> +		memset(ptr, 0, size);
+>> +		return;
+>> +	}
+>> +
+>> +	i = ((unsigned long)ptr) % sizeof(*page);
+>> +	if (i) {
+>> +		while (i < sizeof(*page)) {
+>> +			*ptr++ = (value >> (i * 8)) & 0xff;
+>> +			--size;
+>> +			++i;
+>> +		}
+>> +	}
+>> +
+>
+> I don't think we need this part because block layer works with sector
+> size or multiple times of it so it must be aligned unsigned long.
+>
+>
+>
+>
+> .
+>
 
-Usually current->mm (and therefore mm->pgd) stays the same during the
-lifetime of a task so it does not matter if a task gets preempted during
-the read and write of the CR3.
+Minchan and Matthew Wilcox:
 
-But then, there is this scenario on x86-UP:
+1. right, but users could open /dev/block/zram0 file and do any read operations.
 
-TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
+2. about endian operation for long, the modification is trivial and low efficient.
+    i have not better method. do you have any good idea for this?
 
- -> mmput()
- -> exit_mmap()
- -> tlb_finish_mmu()
- -> tlb_flush_mmu()
- -> tlb_flush_mmu_tlbonly()
- -> tlb_flush()
- -> flush_tlb_mm_range()
- -> __flush_tlb_up()
- -> __flush_tlb()
- ->  __native_flush_tlb()
+3. the below should be modified.
 
-At this point current->mm is NULL but current->active_mm still points to
-the "old" mm.
+static inline bool zram_meta_get(struct zram *zram)
+@@ -495,11 +553,17 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
 
-Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-own mm so CR3 has changed.
+  	/* Free all pages that are still in this zram device */
+  	for (index = 0; index < num_pages; index++) {
+-		unsigned long handle = meta->table[index].handle;
++		unsigned long handle;
++
++		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
++		handle = meta->table[index].handle;
 
-Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-mm and so CR3 remains unchanged. Once taskA gets active it continues
-where it was interrupted and that means it writes its old CR3 value
-back. Everything is fine because userland won't need its memory
-anymore.
+-		if (!handle)
++		if (!handle || zram_test_flag(meta, index, ZRAM_SAME)) {
++			bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+  			continue;
++		}
 
-Now the fun part:
++		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+  		zs_free(meta->mem_pool, handle);
+  	}
 
-Let's preempt taskA one more time and get back to taskB. This
-time switch_mm() won't do a thing because oldmm (->active_mm)
-is the same as mm (as per context_switch()). So we remain
-with a bad CR3 / PGD and return to userland.
+@@ -511,7 +575,7 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+  static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
+  {
+  	size_t num_pages;
+-	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
++	struct zram_meta *meta = kzalloc(sizeof(*meta), GFP_KERNEL);
 
-The next thing that happens is handle_mm_fault() with an address for
-the execution of its code in userland. handle_mm_fault() realizes that
-it has a PTE with proper rights so it returns doing nothing. But the
-CPU looks at the wrong PGD and insists that something is wrong and
-faults again. And again. And one more timea?|
-
-This pagefault circle continues until the scheduler gets tired of it and
-puts another task on the CPU. It gets little difficult if the task is a
-RT task with a high priority. The system will either freeze or it gets
-fixed by the software watchdog thread which usually runs at RT-max prio.
-But waiting for the watchdog will increase the latency of the RT task
-which is no good.
-
-Fix this by disabling preemption across the critical code section.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
-[ Prettified the changelog. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Willy Tarreau <w@1wt.eu>
----
- arch/x86/include/asm/tlbflush.h | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 50a7fc0..fb32858 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -17,7 +17,14 @@
- 
- static inline void __native_flush_tlb(void)
- {
-+	/*
-+	 * If current->mm == NULL then we borrow a mm which may change during a
-+	 * task switch and therefore we must not be preempted while we write CR3
-+	 * back:
-+	 */
-+	preempt_disable();
- 	native_write_cr3(native_read_cr3());
-+	preempt_enable();
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
--- 
-2.8.0.rc2.1.gbe9624a
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
