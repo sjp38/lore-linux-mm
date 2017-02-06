@@ -1,77 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 741566B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 17:24:23 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id x4so22025788wme.3
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 14:24:23 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id v203si9705337wmb.51.2017.02.06.14.24.22
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DC196B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 17:26:44 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id c7so21510529wjb.7
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 14:26:44 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id g109si2594784wrd.9.2017.02.06.14.26.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Feb 2017 14:24:22 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 1CA1F9892E
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 22:24:22 +0000 (UTC)
-Date: Mon, 6 Feb 2017 22:24:21 +0000
+        Mon, 06 Feb 2017 14:26:43 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id E7EA298B1E
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 22:26:42 +0000 (UTC)
+Date: Mon, 6 Feb 2017 22:26:42 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
-Message-ID: <20170206222421.wgrd3gih6hugvraf@techsingularity.net>
-References: <719282122.1183240.1486298780546.ref@mail.yahoo.com>
- <719282122.1183240.1486298780546@mail.yahoo.com>
- <20170206161715.sfz6lm3vmahlnxx6@techsingularity.net>
- <3a10b870-2dd6-74c2-75c8-92823e2ba4e1@suse.cz>
+Subject: Re: [PATCH] mm/autonuma: don't use set_pte_at when updating protnone
+ ptes
+Message-ID: <20170206222642.u2e5ip4h2udaehr4@techsingularity.net>
+References: <1486400776-28114-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <3a10b870-2dd6-74c2-75c8-92823e2ba4e1@suse.cz>
+In-Reply-To: <1486400776-28114-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Shantanu Goel <sgoel01@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Feb 06, 2017 at 06:43:08PM +0100, Vlastimil Babka wrote:
-> On 02/06/2017 05:17 PM, Mel Gorman wrote:
+On Mon, Feb 06, 2017 at 10:36:16PM +0530, Aneesh Kumar K.V wrote:
+> Architectures like ppc64, use privilege access bit to mark pte non accessible.
+> This implies that kernel can do a copy_to_user to an address marked for numa fault.
+> This also implies that there can be a parallel hardware update for the pte.
+> set_pte_at cannot be used in such scenarios. Hence switch the pte
+> update to use ptep_get_and_clear and set_pte_at combination.
 > 
-> > > 
-> > > Thanks,
-> > > Shantanu
-> > 
-> > > From 46f2e4b02ac263bf50d69cdab3bcbd7bcdea7415 Mon Sep 17 00:00:00 2001
-> > > From: Shantanu Goel <sgoel01@yahoo.com>
-> > > Date: Sat, 4 Feb 2017 19:07:53 -0500
-> > > Subject: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
-> > > 
-> > > The check in prepare_kswapd_sleep needs to match the one in balance_pgdat
-> > > since the latter will return as soon as any one of the zones in the
-> > > classzone is above the watermark.  This is specially important for
-> > > higher order allocations since balance_pgdat will typically reset
-> > > the order to zero relying on compaction to create the higher order
-> > > pages.  Without this patch, prepare_kswapd_sleep fails to wake up
-> > > kcompactd since the zone balance check fails.
-> > > 
-> > > Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
-> > 
-> > I don't recall specifically why I made that change but I've no objections
-> > to the patch so;
-> > 
-> > Acked-by: Mel Gorman <mgorman@techsingularity.net>
-> > 
-> > However, note that there is a slight risk that kswapd will sleep for a
-> > short interval early due to a very small zone such as ZONE_DMA. If this
-> > is a general problem then it'll manifest as less kswapd reclaim and more
-> > direct reclaim. If it turns out this is an issue then a revert will not
-> > be the right fix. Instead, all the checks for zone_balance will need to
-> > account for the only balanced zone being a tiny percentage of memory in
-> > the node.
-> 
-> Hopefully the lowmem reserves should take care of this in that case? They
-> easily make a low zone inaccessible even when fully free. Unless the small
-> zone is high one though, such as Normal zone on system with only 4GB memory,
-> so most of it is in DMA32.
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-More than likely, it'll be ok. It'll simply be something to check if
-direct reclaim goes through the roof and it bisects to this patch for
-some reason.
+Yeah, ok. The main thing is that it still avoids doing an unnecessary TLB
+flush so
+
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
 -- 
 Mel Gorman
