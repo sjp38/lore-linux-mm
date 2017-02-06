@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 150096B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 09:26:46 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id d185so107669437pgc.2
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 06:26:46 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id e7si844793pfa.53.2017.02.06.06.26.45
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D71D6B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 09:34:54 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id q124so19791676wmg.2
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 06:34:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i47si1178534wra.8.2017.02.06.06.34.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Feb 2017 06:26:45 -0800 (PST)
-Date: Mon, 6 Feb 2017 06:26:41 -0800
-From: Matthew Wilcox <willy@infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Feb 2017 06:34:53 -0800 (PST)
+Date: Mon, 6 Feb 2017 15:34:50 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 1/6] lockdep: allow to disable reclaim lockup detection
-Message-ID: <20170206142641.GG2267@bombadil.infradead.org>
+Message-ID: <20170206143449.GD10298@dhcp22.suse.cz>
 References: <20170206140718.16222-1-mhocko@kernel.org>
  <20170206140718.16222-2-mhocko@kernel.org>
+ <20170206142641.GG2267@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170206140718.16222-2-mhocko@kernel.org>
+In-Reply-To: <20170206142641.GG2267@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Feb 06, 2017 at 03:07:13PM +0100, Michal Hocko wrote:
-> While we are at it also make sure that the radix tree doesn't
-> accidentaly override tags stored in the upper part of the gfp_mask.
+On Mon 06-02-17 06:26:41, Matthew Wilcox wrote:
+> On Mon, Feb 06, 2017 at 03:07:13PM +0100, Michal Hocko wrote:
+> > While we are at it also make sure that the radix tree doesn't
+> > accidentaly override tags stored in the upper part of the gfp_mask.
+> 
+> > diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> > index 9dc093d5ef39..7550be09f9d6 100644
+> > --- a/lib/radix-tree.c
+> > +++ b/lib/radix-tree.c
+> > @@ -2274,6 +2274,8 @@ static int radix_tree_cpu_dead(unsigned int cpu)
+> >  void __init radix_tree_init(void)
+> >  {
+> >  	int ret;
+> > +
+> > +	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
+> >  	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
+> >  			sizeof(struct radix_tree_node), 0,
+> >  			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+> 
+> That's going to have a conceptual conflict with some patches I have
+> in flight.  I'll take this part through my radix tree patch collection.
 
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index 9dc093d5ef39..7550be09f9d6 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -2274,6 +2274,8 @@ static int radix_tree_cpu_dead(unsigned int cpu)
->  void __init radix_tree_init(void)
->  {
->  	int ret;
-> +
-> +	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
->  	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
->  			sizeof(struct radix_tree_node), 0,
->  			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+This part is not needed for the patch, strictly speaking but I wanted to
+make the code more future proof.
 
-That's going to have a conceptual conflict with some patches I have
-in flight.  I'll take this part through my radix tree patch collection.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
