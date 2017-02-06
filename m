@@ -1,70 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A906B0253
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 01:31:13 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id d185so97736423pgc.2
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 22:31:13 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id g21si28139540pgj.268.2017.02.05.22.31.12
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 14C876B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 02:44:45 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id y140so73958016oie.2
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 23:44:45 -0800 (PST)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id x66si13883922oia.49.2017.02.05.23.44.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 05 Feb 2017 22:31:12 -0800 (PST)
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages per zone
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170130085546.GF8443@dhcp22.suse.cz>
-	<20170202101415.GE22806@dhcp22.suse.cz>
-	<201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
-	<20170203145009.GB19325@dhcp22.suse.cz>
-	<20170203172403.GG45388@bfoster.bfoster>
-In-Reply-To: <20170203172403.GG45388@bfoster.bfoster>
-Message-Id: <201702061529.ABC60444.FFFJOOHLVQSMtO@I-love.SAKURA.ne.jp>
-Date: Mon, 6 Feb 2017 15:29:24 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Feb 2017 23:44:44 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
+ zap_pmd_range()
+Date: Mon, 6 Feb 2017 07:43:38 +0000
+Message-ID: <20170206074337.GB30339@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-4-zi.yan@sent.com>
+In-Reply-To: <20170205161252.85004-4-zi.yan@sent.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <F1C5985498852C44AE6F94C76DEECC99@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bfoster@redhat.com, mhocko@kernel.org
-Cc: david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org
+To: Zi Yan <zi.yan@sent.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
 
-Brian Foster wrote:
-> On Fri, Feb 03, 2017 at 03:50:09PM +0100, Michal Hocko wrote:
-> > [Let's CC more xfs people]
-> > 
-> > On Fri 03-02-17 19:57:39, Tetsuo Handa wrote:
-> > [...]
-> > > (1) I got an assertion failure.
-> > 
-> > I suspect this is a result of
-> > http://lkml.kernel.org/r/20170201092706.9966-2-mhocko@kernel.org
-> > I have no idea what the assert means though.
-> > 
-> > > 
-> > > [  969.626518] Killed process 6262 (oom-write) total-vm:2166856kB, anon-rss:1128732kB, file-rss:4kB, shmem-rss:0kB
-> > > [  969.958307] oom_reaper: reaped process 6262 (oom-write), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> > > [  972.114644] XFS: Assertion failed: oldlen > newlen, file: fs/xfs/libxfs/xfs_bmap.c, line: 2867
-> 
-> Indirect block reservation underrun on delayed allocation extent merge.
-> These are extra blocks are used for the inode bmap btree when a delalloc
-> extent is converted to physical blocks. We're in a case where we expect
-> to only ever free excess blocks due to a merge of extents with
-> independent reservations, but a situation occurs where we actually need
-> blocks and hence the assert fails. This can occur if an extent is merged
-> with one that has a reservation less than the expected worst case
-> reservation for its size (due to previous extent splits due to hole
-> punches, for example). Therefore, I think the core expectation that
-> xfs_bmap_add_extent_hole_delay() will always have enough blocks
-> pre-reserved is invalid.
-> 
-> Can you describe the workload that reproduces this? FWIW, I think the
-> way xfs_bmap_add_extent_hole_delay() currently works is likely broken
-> and have a couple patches to fix up indlen reservation that I haven't
-> posted yet. The diff that deals with this particular bit is appended.
-> Care to give that a try?
+On Sun, Feb 05, 2017 at 11:12:41AM -0500, Zi Yan wrote:
+> From: Zi Yan <ziy@nvidia.com>
+>=20
+> Originally, zap_pmd_range() checks pmd value without taking pmd lock.
+> This can cause pmd_protnone entry not being freed.
+>=20
+> Because there are two steps in changing a pmd entry to a pmd_protnone
+> entry. First, the pmd entry is cleared to a pmd_none entry, then,
+> the pmd_none entry is changed into a pmd_protnone entry.
+> The racy check, even with barrier, might only see the pmd_none entry
+> in zap_pmd_range(), thus, the mapping is neither split nor zapped.
+>=20
+> Later, in free_pmd_range(), pmd_none_or_clear() will see the
+> pmd_protnone entry and clear it as a pmd_bad entry. Furthermore,
+> since the pmd_protnone entry is not properly freed, the corresponding
+> deposited pte page table is not freed either.
+>=20
+> This causes memory leak or kernel crashing, if VM_BUG_ON() is enabled.
+>=20
+> This patch relies on __split_huge_pmd_locked() and
+> __zap_huge_pmd_locked().
+>=20
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  mm/memory.c | 24 +++++++++++-------------
+>  1 file changed, 11 insertions(+), 13 deletions(-)
+>=20
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 3929b015faf7..7cfdd5208ef5 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1233,33 +1233,31 @@ static inline unsigned long zap_pmd_range(struct =
+mmu_gather *tlb,
+>  				struct zap_details *details)
+>  {
+>  	pmd_t *pmd;
+> +	spinlock_t *ptl;
+>  	unsigned long next;
+> =20
+>  	pmd =3D pmd_offset(pud, addr);
+> +	ptl =3D pmd_lock(vma->vm_mm, pmd);
 
-The workload is to write to a single file on XFS from 10 processes demonstrated at
-http://lkml.kernel.org/r/201512052133.IAE00551.LSOQFtMFFVOHOJ@I-love.SAKURA.ne.jp
-using "while :; do ./oom-write; done" loop on a VM with 4CPUs / 2048MB RAM.
-With this XFS_FILBLKS_MIN() change applied, I no longer hit assertion failures.
+If USE_SPLIT_PMD_PTLOCKS is true, pmd_lock() returns different ptl for
+each pmd. The following code runs over pmds within [addr, end) with
+a single ptl (of the first pmd,) so I suspect this locking really works.
+Maybe pmd_lock() should be called inside while loop?
+
+Thanks,
+Naoya Horiguchi
+
+>  	do {
+>  		next =3D pmd_addr_end(addr, end);
+>  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+>  			if (next - addr !=3D HPAGE_PMD_SIZE) {
+>  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
+>  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
+> -				__split_huge_pmd(vma, pmd, addr, false, NULL);
+> -			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
+> -				goto next;
+> +				__split_huge_pmd_locked(vma, pmd, addr, false);
+> +			} else if (__zap_huge_pmd_locked(tlb, vma, pmd, addr))
+> +				continue;
+>  			/* fall through */
+>  		}
+> -		/*
+> -		 * Here there can be other concurrent MADV_DONTNEED or
+> -		 * trans huge page faults running, and if the pmd is
+> -		 * none or trans huge it can change under us. This is
+> -		 * because MADV_DONTNEED holds the mmap_sem in read
+> -		 * mode.
+> -		 */
+> -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> -			goto next;
+> +
+> +		if (pmd_none_or_clear_bad(pmd))
+> +			continue;
+> +		spin_unlock(ptl);
+>  		next =3D zap_pte_range(tlb, vma, pmd, addr, next, details);
+> -next:
+>  		cond_resched();
+> +		spin_lock(ptl);
+>  	} while (pmd++, addr =3D next, addr !=3D end);
+> +	spin_unlock(ptl);
+> =20
+>  	return addr;
+>  }
+> --=20
+> 2.11.0
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
