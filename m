@@ -1,92 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5876B0253
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 05:39:24 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c85so18572733wmi.6
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 02:39:24 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 13si422845wrw.52.2017.02.06.02.39.20
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CAB6B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 06:31:08 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id 36so78467399otx.0
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 03:31:08 -0800 (PST)
+Received: from mail-ot0-x244.google.com (mail-ot0-x244.google.com. [2607:f8b0:4003:c0f::244])
+        by mx.google.com with ESMTPS id o204si178613oif.190.2017.02.06.03.31.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Feb 2017 02:39:20 -0800 (PST)
-Date: Mon, 6 Feb 2017 11:39:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
- per zone
-Message-ID: <20170206103918.GD3097@dhcp22.suse.cz>
-References: <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
- <20170130085546.GF8443@dhcp22.suse.cz>
- <20170202101415.GE22806@dhcp22.suse.cz>
- <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
- <20170203145548.GC19325@dhcp22.suse.cz>
- <201702051943.CFB35412.OOSJVtLFOFQHMF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Feb 2017 03:31:07 -0800 (PST)
+Received: by mail-ot0-x244.google.com with SMTP id 36so10010727otx.3
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 03:31:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201702051943.CFB35412.OOSJVtLFOFQHMF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170203145947.GD19325@dhcp22.suse.cz>
+References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
+ <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
+ <20170202104422.GF22806@dhcp22.suse.cz> <20170202104808.GG22806@dhcp22.suse.cz>
+ <CAOaiJ-nyZtgrCHjkGJeG3nhGFes5Y7go3zZwa3SxGrZV=LV0ag@mail.gmail.com>
+ <20170202115222.GH22806@dhcp22.suse.cz> <CAOaiJ-=pCUzaVbte-+QiQoN_XtB0KFbcB40yjU9r7OV8VOkmFg@mail.gmail.com>
+ <20170202160145.GK22806@dhcp22.suse.cz> <CAOaiJ-=O_SkaYry4Lay8LidvC11sTukchE_p6P4mKm=fgJz1Dg@mail.gmail.com>
+ <20170203145947.GD19325@dhcp22.suse.cz>
+From: vinayak menon <vinayakm.list@gmail.com>
+Date: Mon, 6 Feb 2017 17:01:06 +0530
+Message-ID: <CAOaiJ-kxVo+0x_sFmMqsqeyNLS-UsM2GSdcEBoLVcvuf4W6TLw@mail.gmail.com>
+Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to vmpressure
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, peterz@infradead.org
-Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Sun 05-02-17 19:43:07, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> I got same warning with ext4. Maybe we need to check carefully.
-> 
-> [  511.215743] =====================================================
-> [  511.218003] WARNING: RECLAIM_FS-safe -> RECLAIM_FS-unsafe lock order detected
-> [  511.220031] 4.10.0-rc6-next-20170202+ #500 Not tainted
-> [  511.221689] -----------------------------------------------------
-> [  511.223579] a.out/49302 [HC0[0]:SC0[0]:HE1:SE1] is trying to acquire:
-> [  511.225533]  (cpu_hotplug.dep_map){++++++}, at: [<ffffffff810a1477>] get_online_cpus+0x37/0x80
-> [  511.227795] 
-> [  511.227795] and this task is already holding:
-> [  511.230082]  (jbd2_handle){++++-.}, at: [<ffffffff813a8be7>] start_this_handle+0x1a7/0x590
-> [  511.232592] which would create a new lock dependency:
-> [  511.234192]  (jbd2_handle){++++-.} -> (cpu_hotplug.dep_map){++++++}
-> [  511.235966] 
-> [  511.235966] but this new dependency connects a RECLAIM_FS-irq-safe lock:
-> [  511.238563]  (jbd2_handle){++++-.}
-> [  511.238564] 
-> [  511.238564] ... which became RECLAIM_FS-irq-safe at:
-> [  511.242078]   
-> [  511.242084] [<ffffffff811089db>] __lock_acquire+0x34b/0x1640
-> [  511.244495] [<ffffffff8110a119>] lock_acquire+0xc9/0x250
-> [  511.246697] [<ffffffff813b3525>] jbd2_log_wait_commit+0x55/0x1d0
-[...]
-> [  511.276216] to a RECLAIM_FS-irq-unsafe lock:
-> [  511.278128]  (cpu_hotplug.dep_map){++++++}
-> [  511.278130] 
-> [  511.278130] ... which became RECLAIM_FS-irq-unsafe at:
-> [  511.281809] ...
-> [  511.281811]   
-> [  511.282598] [<ffffffff81108141>] mark_held_locks+0x71/0x90
-> [  511.284854] [<ffffffff8110ab6f>] lockdep_trace_alloc+0x6f/0xd0
-> [  511.287218] [<ffffffff812744c8>] kmem_cache_alloc_node_trace+0x48/0x3b0
-> [  511.289755] [<ffffffff810cfa65>] __smpboot_create_thread.part.2+0x35/0xf0
-> [  511.292329] [<ffffffff810d0026>] smpboot_create_threads+0x66/0x90
-[...]
-> [  511.317867] other info that might help us debug this:
-> [  511.317867] 
-> [  511.320920]  Possible interrupt unsafe locking scenario:
-> [  511.320920] 
-> [  511.323218]        CPU0                    CPU1
-> [  511.324622]        ----                    ----
-> [  511.325973]   lock(cpu_hotplug.dep_map);
-> [  511.327246]                                local_irq_disable();
-> [  511.328870]                                lock(jbd2_handle);
-> [  511.330483]                                lock(cpu_hotplug.dep_map);
-> [  511.332259]   <Interrupt>
-> [  511.333187]     lock(jbd2_handle);
+On Fri, Feb 3, 2017 at 8:29 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 03-02-17 10:56:42, vinayak menon wrote:
+>> On Thu, Feb 2, 2017 at 9:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>> >
+>> > Why would you like to chose and kill a task when the slab reclaim can
+>> > still make sufficient progres? Are you sure that the slab contribution
+>> > to the stats makes all the above happening?
+>> >
+>> I agree that a task need not be killed if sufficient progress is made
+>> in reclaiming
+>> memory say from slab. But here it looks like we have an impact because of just
+>> increasing the reclaimed without touching the scanned. It could be because of
+>> disimilar costs or not adding adding cost. I agree that vmpressure is
+>> only a reasonable
+>> estimate which does not already include few other costs, but I am not
+>> sure whether it is ok
+>> to add another element which further increases that disparity.
+>> We noticed this problem when moving from 3.18 to 4.4 kernel version. With the
+>> same workload, the vmpressure events differ between 3.18 and 4.4 causing the
+>> above mentioned problem. And with this patch on 4.4 we get the same results
+>> as in 3,18. So the slab contribution to stats is making a difference.
+>
+> Please document that in the changelog along with description of the
+> workload that is affected. Ideally also add some data from /proc/vmstat
+> so that we can see the reclaim activity.
 
-Peter, is there any way how to tell the lockdep that this is in fact
-reclaim safe? The direct reclaim only does the trylock and backs off so
-we cannot deadlock here.
+Sure, I will add these to the changelog.
 
-Or am I misinterpreting the trace?
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Vinayak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
