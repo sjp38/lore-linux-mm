@@ -1,121 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 14C876B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 02:44:45 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id y140so73958016oie.2
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 23:44:45 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id x66si13883922oia.49.2017.02.05.23.44.43
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 09FC06B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 03:10:16 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id kq3so16738003wjc.1
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 00:10:15 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w91si41080931wrb.163.2017.02.06.00.10.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Feb 2017 23:44:44 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
- zap_pmd_range()
-Date: Mon, 6 Feb 2017 07:43:38 +0000
-Message-ID: <20170206074337.GB30339@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170205161252.85004-1-zi.yan@sent.com>
- <20170205161252.85004-4-zi.yan@sent.com>
-In-Reply-To: <20170205161252.85004-4-zi.yan@sent.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <F1C5985498852C44AE6F94C76DEECC99@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Feb 2017 00:10:10 -0800 (PST)
+Date: Mon, 6 Feb 2017 09:10:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] mm, vmscan: consider eligible zones in get_scan_count
+Message-ID: <20170206081006.GA3085@dhcp22.suse.cz>
+References: <20170117103702.28542-1-mhocko@kernel.org>
+ <20170117103702.28542-3-mhocko@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170117103702.28542-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Trevor Cordes <trevor@tecnopolis.ca>
 
-On Sun, Feb 05, 2017 at 11:12:41AM -0500, Zi Yan wrote:
-> From: Zi Yan <ziy@nvidia.com>
->=20
-> Originally, zap_pmd_range() checks pmd value without taking pmd lock.
-> This can cause pmd_protnone entry not being freed.
->=20
-> Because there are two steps in changing a pmd entry to a pmd_protnone
-> entry. First, the pmd entry is cleared to a pmd_none entry, then,
-> the pmd_none entry is changed into a pmd_protnone entry.
-> The racy check, even with barrier, might only see the pmd_none entry
-> in zap_pmd_range(), thus, the mapping is neither split nor zapped.
->=20
-> Later, in free_pmd_range(), pmd_none_or_clear() will see the
-> pmd_protnone entry and clear it as a pmd_bad entry. Furthermore,
-> since the pmd_protnone entry is not properly freed, the corresponding
-> deposited pte page table is not freed either.
->=20
-> This causes memory leak or kernel crashing, if VM_BUG_ON() is enabled.
->=20
-> This patch relies on __split_huge_pmd_locked() and
-> __zap_huge_pmd_locked().
->=20
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+Hi Andrew,
+it turned out that this is not a theoretical issue after all. Trevor
+(added to the CC) was seeing pre-mature OOM killer triggering [1]
+bisected to b2e18757f2c9 ("mm, vmscan: begin reclaiming pages on a
+per-node basis").
+After some going back and forth it turned out that b4536f0c829c ("mm,
+memcg: fix the active list aging for lowmem requests when memcg is
+enabled") helped a lot but it wasn't sufficient on its own. We also
+need this patch to make the oom behavior stable again. So I suggest
+backporting this to stable as well. Could you update the changelog as
+follows?
+
+The patch would need to be tweaked a bit to apply to 4.10 and older
+but I will do that as soon as it hits the Linus tree in the next merge
+window.
+
+[1] http://lkml.kernel.org/r/20170111103243.GA27795@pog.tecnopolis.ca
+
+On Tue 17-01-17 11:37:01, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> get_scan_count considers the whole node LRU size when
+> - doing SCAN_FILE due to many page cache inactive pages
+> - calculating the number of pages to scan
+> 
+> in both cases this might lead to unexpected behavior especially on 32b
+> systems where we can expect lowmem memory pressure very often.
+> 
+> A large highmem zone can easily distort SCAN_FILE heuristic because
+> there might be only few file pages from the eligible zones on the node
+> lru and we would still enforce file lru scanning which can lead to
+> trashing while we could still scan anonymous pages.
+> 
+> The later use of lruvec_lru_size can be problematic as well. Especially
+> when there are not many pages from the eligible zones. We would have to
+> skip over many pages to find anything to reclaim but shrink_node_memcg
+> would only reduce the remaining number to scan by SWAP_CLUSTER_MAX
+> at maximum. Therefore we can end up going over a large LRU many times
+> without actually having chance to reclaim much if anything at all. The
+> closer we are out of memory on lowmem zone the worse the problem will
+> be.
+> 
+> Fix this by filtering out all the ineligible zones when calculating the
+> lru size for both paths and consider only sc->reclaim_idx zones.
+> 
+
+Fixes: b2e18757f2c9 ("mm, vmscan: begin reclaiming pages on a per-node basis")
+Cc: stable # 4.8+
+Tested-by: Trevor Cordes <trevor@tecnopolis.ca>
+
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  mm/memory.c | 24 +++++++++++-------------
->  1 file changed, 11 insertions(+), 13 deletions(-)
->=20
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 3929b015faf7..7cfdd5208ef5 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1233,33 +1233,31 @@ static inline unsigned long zap_pmd_range(struct =
-mmu_gather *tlb,
->  				struct zap_details *details)
->  {
->  	pmd_t *pmd;
-> +	spinlock_t *ptl;
->  	unsigned long next;
-> =20
->  	pmd =3D pmd_offset(pud, addr);
-> +	ptl =3D pmd_lock(vma->vm_mm, pmd);
-
-If USE_SPLIT_PMD_PTLOCKS is true, pmd_lock() returns different ptl for
-each pmd. The following code runs over pmds within [addr, end) with
-a single ptl (of the first pmd,) so I suspect this locking really works.
-Maybe pmd_lock() should be called inside while loop?
-
-Thanks,
-Naoya Horiguchi
-
->  	do {
->  		next =3D pmd_addr_end(addr, end);
->  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
->  			if (next - addr !=3D HPAGE_PMD_SIZE) {
->  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
->  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
-> -				__split_huge_pmd(vma, pmd, addr, false, NULL);
-> -			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
-> -				goto next;
-> +				__split_huge_pmd_locked(vma, pmd, addr, false);
-> +			} else if (__zap_huge_pmd_locked(tlb, vma, pmd, addr))
-> +				continue;
->  			/* fall through */
->  		}
-> -		/*
-> -		 * Here there can be other concurrent MADV_DONTNEED or
-> -		 * trans huge page faults running, and if the pmd is
-> -		 * none or trans huge it can change under us. This is
-> -		 * because MADV_DONTNEED holds the mmap_sem in read
-> -		 * mode.
-> -		 */
-> -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-> -			goto next;
-> +
-> +		if (pmd_none_or_clear_bad(pmd))
-> +			continue;
-> +		spin_unlock(ptl);
->  		next =3D zap_pte_range(tlb, vma, pmd, addr, next, details);
-> -next:
->  		cond_resched();
-> +		spin_lock(ptl);
->  	} while (pmd++, addr =3D next, addr !=3D end);
-> +	spin_unlock(ptl);
-> =20
->  	return addr;
->  }
-> --=20
+>  mm/vmscan.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index aed39dc272c0..ffac8fa7bdd8 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2235,7 +2235,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  	 * system is under heavy pressure.
+>  	 */
+>  	if (!inactive_list_is_low(lruvec, true, sc, false) &&
+> -	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES) >> sc->priority) {
+> +	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+>  		scan_balance = SCAN_FILE;
+>  		goto out;
+>  	}
+> @@ -2302,7 +2302,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  			unsigned long size;
+>  			unsigned long scan;
+>  
+> -			size = lruvec_lru_size(lruvec, lru, MAX_NR_ZONES);
+> +			size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+>  			scan = size >> sc->priority;
+>  
+>  			if (!scan && pass && force_scan)
+> -- 
 > 2.11.0
-> =
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
