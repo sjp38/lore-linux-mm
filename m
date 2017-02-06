@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 251F06B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 04:24:21 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id x4so18307475wme.3
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 01:24:21 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 889216B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 05:34:31 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v77so18468513wmv.5
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 02:34:31 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 17si7306091wmu.159.2017.02.06.01.24.17
+        by mx.google.com with ESMTPS id t10si7510969wmb.160.2017.02.06.02.34.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Feb 2017 01:24:17 -0800 (PST)
-Date: Mon, 6 Feb 2017 10:24:15 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Avoid returning VM_FAULT_RETRY from ->page_mkwrite
- handlers
-Message-ID: <20170206092415.GD4004@quack2.suse.cz>
-References: <20170203150729.15863-1-jack@suse.cz>
- <20170203152054.6ee9f8a920e6d0ac8a93d2b9@linux-foundation.org>
+        Mon, 06 Feb 2017 02:34:30 -0800 (PST)
+Date: Mon, 6 Feb 2017 11:34:25 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170206103424.GC3097@dhcp22.suse.cz>
+References: <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
+ <20170130085546.GF8443@dhcp22.suse.cz>
+ <20170202101415.GE22806@dhcp22.suse.cz>
+ <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
+ <20170203145548.GC19325@dhcp22.suse.cz>
+ <201702051943.CFB35412.OOSJVtLFOFQHMF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170203152054.6ee9f8a920e6d0ac8a93d2b9@linux-foundation.org>
+In-Reply-To: <201702051943.CFB35412.OOSJVtLFOFQHMF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lustre-devel@lists.lustre.org, cluster-devel@redhat.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, peterz@infradead.org
 
-On Fri 03-02-17 15:20:54, Andrew Morton wrote:
-> On Fri,  3 Feb 2017 16:07:29 +0100 Jan Kara <jack@suse.cz> wrote:
-> 
-> > Some ->page_mkwrite handlers may return VM_FAULT_RETRY as its return
-> > code (GFS2 or Lustre can definitely do this). However VM_FAULT_RETRY
-> > from ->page_mkwrite is completely unhandled by the mm code and results
-> > in locking and writeably mapping the page which definitely is not what
-> > the caller wanted. Fix Lustre and block_page_mkwrite_ret() used by other
-> > filesystems (notably GFS2) to return VM_FAULT_NOPAGE instead which
-> > results in bailing out from the fault code, the CPU then retries the
-> > access, and we fault again effectively doing what the handler wanted.
-> 
-> I'm not getting any sense of the urgency of this fix.  The bug *sounds*
-> bad?  Which kernel versions need fixing?
+On Sun 05-02-17 19:43:07, Tetsuo Handa wrote:
+[...]
+> Below one is also a loop. Maybe we can add __GFP_NOMEMALLOC to GFP_NOWAIT ?
 
-So I did more analysis of GFS2 and Lustre behavior. AFAICS GFS2 returns
-EAGAIN only for truncated page, when we then return with VM_FAULT_RETRY,
-do_page_mkwrite() locks the page, sees it is truncated and bails out
-properly thus silently fixes up the problem. The Lustre bug looks like it
-could actually result in some real problems and the bug is there since the
-initial commit in which Lustre was added in 3.11 (d7e09d0397e84).
+No, GFP_NOWAIT is just too generic to use this flag.
 
-So overall the issue doesn't look like too serious currently but it is
-certainly a serious bug waiting to happen.
+> [  257.781715] Out of memory: Kill process 5171 (a.out) score 842 or sacrifice child
+> [  257.784726] Killed process 5171 (a.out) total-vm:2177096kB, anon-rss:1476488kB, file-rss:4kB, shmem-rss:0kB
+> [  257.787691] a.out(5171): TIF_MEMDIE allocation: order=0 mode=0x1000200(GFP_NOWAIT|__GFP_NOWARN)
+> [  257.789789] CPU: 3 PID: 5171 Comm: a.out Not tainted 4.10.0-rc6-next-20170202+ #500
+> [  257.791784] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
+> [  257.794700] Call Trace:
+> [  257.795690]  dump_stack+0x85/0xc9
+> [  257.797224]  __alloc_pages_slowpath+0xacb/0xe36
+> [  257.798612]  __alloc_pages_nodemask+0x382/0x3d0
+> [  257.799942]  alloc_pages_current+0x97/0x1b0
+> [  257.801236]  __get_free_pages+0x14/0x50
+> [  257.802546]  __tlb_remove_page_size+0x70/0xd0
 
-								Honza
-
+This is bound to MAX_GATHER_BATCH_COUNT which shouldn't be a lot of
+pages (20 or so). We could add __GFP_NOMEMALLOC into tlb_next_batch
+but I am not entirely convinced it is really necessary.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
