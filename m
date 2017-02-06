@@ -1,132 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA5516B0033
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2017 23:34:32 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id v85so71814315oia.4
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 20:34:32 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id g77si13692140otg.222.2017.02.05.20.34.29
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D0176B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 01:17:14 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id s36so73885198otd.3
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2017 22:17:14 -0800 (PST)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id x66si13798937oia.49.2017.02.05.22.17.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 05 Feb 2017 20:34:31 -0800 (PST)
-Subject: Re: [PATCH v6 4/4] mm/hotplug: enable memory hotplug for non-lru
- movable pages
-References: <1486108770-630-1-git-send-email-xieyisheng1@huawei.com>
- <1486108770-630-5-git-send-email-xieyisheng1@huawei.com>
- <20170206032951.GA1659@hori1.linux.bs1.fc.nec.co.jp>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <58cd9f5c-9a66-ea12-89dd-182650dfe323@huawei.com>
-Date: Mon, 6 Feb 2017 12:25:12 +0800
-MIME-Version: 1.0
-In-Reply-To: <20170206032951.GA1659@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Feb 2017 22:17:13 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 01/14] mm: thp: make __split_huge_pmd_locked visible.
+Date: Mon, 6 Feb 2017 06:12:33 +0000
+Message-ID: <20170206061232.GB1659@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-2-zi.yan@sent.com>
+In-Reply-To: <20170205161252.85004-2-zi.yan@sent.com>
+Content-Language: ja-JP
 Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+Content-ID: <8C0CFCE161D53349A854029A7AC4E8C4@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "minchan@kernel.org" <minchan@kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "arbab@linux.vnet.ibm.com" <arbab@linux.vnet.ibm.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "vkuznets@redhat.com" <vkuznets@redhat.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>
+To: Zi Yan <zi.yan@sent.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
 
-Hi Naoya Horiguchi,
-Thanks for reviewing.
+On Sun, Feb 05, 2017 at 11:12:39AM -0500, Zi Yan wrote:
+> From: Zi Yan <ziy@nvidia.com>
+>=20
+> It allows splitting huge pmd while you are holding the pmd lock.
+> It is prepared for future zap_pmd_range() use.
+>=20
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  include/linux/huge_mm.h |  2 ++
+>  mm/huge_memory.c        | 22 ++++++++++++----------
+>  2 files changed, 14 insertions(+), 10 deletions(-)
+>=20
+...
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 03e4566fc226..cd66532ef667 100644
+...
+> @@ -2036,10 +2039,9 @@ void __split_huge_pmd(struct vm_area_struct *vma, =
+pmd_t *pmd,
+>  			clear_page_mlock(page);
+>  	} else if (!pmd_devmap(*pmd))
+>  		goto out;
+> -	__split_huge_pmd_locked(vma, pmd, haddr, freeze);
+> +	__split_huge_pmd_locked(vma, pmd, address, freeze);
 
-On 2017/2/6 11:29, Naoya Horiguchi wrote:
-> On Fri, Feb 03, 2017 at 03:59:30PM +0800, Yisheng Xie wrote:
->> We had considered all of the non-lru pages as unmovable before commit
->> bda807d44454 ("mm: migrate: support non-lru movable page migration").  But
->> now some of non-lru pages like zsmalloc, virtio-balloon pages also become
->> movable.  So we can offline such blocks by using non-lru page migration.
->>
->> This patch straightforwardly adds non-lru migration code, which means
->> adding non-lru related code to the functions which scan over pfn and
->> collect pages to be migrated and isolate them before migration.
->>
->> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Cc: Vlastimil Babka <vbabka@suse.cz>
->> Cc: Andi Kleen <ak@linux.intel.com>
->> Cc: Hanjun Guo <guohanjun@huawei.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> Cc: Mel Gorman <mgorman@techsingularity.net>
->> Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
->> Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
->> Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
->> Cc: Xishi Qiu <qiuxishi@huawei.com>
->> ---
->>  mm/memory_hotplug.c | 28 +++++++++++++++++-----------
->>  mm/page_alloc.c     |  8 ++++++--
->>  2 files changed, 23 insertions(+), 13 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index ca2723d..ea1be08 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1516,10 +1516,10 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
->>  }
->>  
->>  /*
->> - * Scan pfn range [start,end) to find movable/migratable pages (LRU pages
->> - * and hugepages). We scan pfn because it's much easier than scanning over
->> - * linked list. This function returns the pfn of the first found movable
->> - * page if it's found, otherwise 0.
->> + * Scan pfn range [start,end) to find movable/migratable pages (LRU pages,
->> + * non-lru movable pages and hugepages). We scan pfn because it's much
->> + * easier than scanning over linked list. This function returns the pfn
->> + * of the first found movable page if it's found, otherwise 0.
->>   */
->>  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->>  {
->> @@ -1530,6 +1530,8 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->>  			page = pfn_to_page(pfn);
->>  			if (PageLRU(page))
->>  				return pfn;
->> +			if (__PageMovable(page))
->> +				return pfn;
->>  			if (PageHuge(page)) {
->>  				if (page_huge_active(page))
->>  					return pfn;
->> @@ -1606,21 +1608,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
->>  		if (!get_page_unless_zero(page))
->>  			continue;
->>  		/*
->> -		 * We can skip free pages. And we can only deal with pages on
->> -		 * LRU.
->> +		 * We can skip free pages. And we can deal with pages on
->> +		 * LRU and non-lru movable pages.
->>  		 */
->> -		ret = isolate_lru_page(page);
->> +		if (PageLRU(page))
->> +			ret = isolate_lru_page(page);
->> +		else
->> +			ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
->>  		if (!ret) { /* Success */
->>  			put_page(page);
->>  			list_add_tail(&page->lru, &source);
->>  			move_pages--;
->> -			inc_node_page_state(page, NR_ISOLATED_ANON +
->> -					    page_is_file_cache(page));
->> +			if (!__PageMovable(page))
-> 
-> If this check is identical with "if (PageLRU(page))" in this context,
-> PageLRU(page) looks better because you already add same "if" above.
-> 
-After isolated lru page, the PageLRU will be cleared, so use !__PageMovable
-instead here for LRU page's mapping cannot have PAGE_MAPPING_MOVABLE.
+Could you explain what is intended on this change?
+If some caller (f.e. wp_huge_pmd?) could call __split_huge_pmd() with
+address not aligned with pmd border, __split_huge_pmd_locked() results in
+triggering VM_BUG_ON(haddr & ~HPAGE_PMD_MASK).
 
-I have add the comment in PATCH[3/4] HWPOISON: soft offlining for non-lru
-movable page, so I do not add the same comment here.
+Thanks,
+Naoya Horiguchi
 
-Thanks
-Yisheng Xie
-
-> Otherwise, looks good to me.
-> 
-> Thanks,
-> Naoya Horiguchi
-> .
-> 
+>  out:
+>  	spin_unlock(ptl);
+> -	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
+>  }
+> =20
+>  void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long ad=
+dress,
+> --=20
+> 2.11.0
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
