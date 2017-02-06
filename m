@@ -1,151 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 265036B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 07:52:45 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id v77so19075223wmv.5
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 04:52:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j83si7946981wmj.140.2017.02.06.04.52.43
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 85BF06B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 08:02:45 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id d15so46081931qke.1
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 05:02:45 -0800 (PST)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id c41si439269qtc.80.2017.02.06.05.02.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Feb 2017 04:52:43 -0800 (PST)
-Date: Mon, 6 Feb 2017 13:52:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2 v4] mm: vmscan: do not pass reclaimed slab to
- vmpressure
-Message-ID: <20170206125240.GB10298@dhcp22.suse.cz>
-References: <1486383850-30444-1-git-send-email-vinmenon@codeaurora.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Feb 2017 05:02:44 -0800 (PST)
+From: "Zi Yan" <zi.yan@sent.com>
+Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
+ zap_pmd_range()
+Date: Mon, 06 Feb 2017 07:02:41 -0600
+Message-ID: <786096BE-B071-4635-B92F-348BB72D2304@sent.com>
+In-Reply-To: <20170206074337.GB30339@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-4-zi.yan@sent.com>
+ <20170206074337.GB30339@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1486383850-30444-1-git-send-email-vinmenon@codeaurora.org>
+Content-Type: multipart/signed;
+ boundary="=_MailMate_1923E910-9BFF-469F-98A4-9BB5D3293035_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, shashim@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, Zi Yan <ziy@nvidia.com>
 
-On Mon 06-02-17 17:54:09, Vinayak Menon wrote:
-> During global reclaim, the nr_reclaimed passed to vmpressure includes the
-> pages reclaimed from slab.  But the corresponding scanned slab pages is
-> not passed.  This can cause total reclaimed pages to be greater than
-> scanned, causing an unsigned underflow in vmpressure resulting in a
-> critical event being sent to root cgroup.
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-If you switched the ordering then this wouldn't be a problem, right?
+--=_MailMate_1923E910-9BFF-469F-98A4-9BB5D3293035_=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-> It was also noticed that, apart
-> from the underflow, there is an impact to the vmpressure values because of
-> this. While moving from kernel version 3.18 to 4.4, a difference is seen
-> in the vmpressure values for the same workload resulting in a different
-> behaviour of the vmpressure consumer. One such case is of a vmpressure
-> based lowmemorykiller. It is observed that the vmpressure events are
-> received late and less in number resulting in tasks not being killed at
-> the right time. The following numbers show the impact on reclaim activity
-> due to the change in behaviour of lowmemorykiller on a 4GB device. The test
-> launches a number of apps in sequence and repeats it multiple times.
->                       v4.4           v3.18
-> pgpgin                163016456      145617236
-> pgpgout               4366220        4188004
-> workingset_refault    29857868       26781854
-> workingset_activate   6293946        5634625
-> pswpin                1327601        1133912
-> pswpout               3593842        3229602
-> pgalloc_dma           99520618       94402970
-> pgalloc_normal        104046854      98124798
-> pgfree                203772640      192600737
-> pgmajfault            2126962        1851836
-> pgsteal_kswapd_dma    19732899       18039462
-> pgsteal_kswapd_normal 19945336       17977706
-> pgsteal_direct_dma    206757         131376
-> pgsteal_direct_normal 236783         138247
-> pageoutrun            116622         108370
-> allocstall            7220           4684
-> compact_stall         931            856
+On 6 Feb 2017, at 1:43, Naoya Horiguchi wrote:
 
->From this numbers it seems that the memory pressure was higher in 4.4.
-There is ~5% more allocations in 4.4 while we hit the direct reclaim 50%
-more times.
+> On Sun, Feb 05, 2017 at 11:12:41AM -0500, Zi Yan wrote:
+>> From: Zi Yan <ziy@nvidia.com>
+>>
+>> Originally, zap_pmd_range() checks pmd value without taking pmd lock.
+>> This can cause pmd_protnone entry not being freed.
+>>
+>> Because there are two steps in changing a pmd entry to a pmd_protnone
+>> entry. First, the pmd entry is cleared to a pmd_none entry, then,
+>> the pmd_none entry is changed into a pmd_protnone entry.
+>> The racy check, even with barrier, might only see the pmd_none entry
+>> in zap_pmd_range(), thus, the mapping is neither split nor zapped.
+>>
+>> Later, in free_pmd_range(), pmd_none_or_clear() will see the
+>> pmd_protnone entry and clear it as a pmd_bad entry. Furthermore,
+>> since the pmd_protnone entry is not properly freed, the corresponding
+>> deposited pte page table is not freed either.
+>>
+>> This causes memory leak or kernel crashing, if VM_BUG_ON() is enabled.=
 
-But the above doesn't say anything about the number and levels of 
-vmpressure events. Without that it is hard to draw any conclusion here.
+>>
+>> This patch relies on __split_huge_pmd_locked() and
+>> __zap_huge_pmd_locked().
+>>
+>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+>> ---
+>>  mm/memory.c | 24 +++++++++++-------------
+>>  1 file changed, 11 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 3929b015faf7..7cfdd5208ef5 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -1233,33 +1233,31 @@ static inline unsigned long zap_pmd_range(stru=
+ct mmu_gather *tlb,
+>>  				struct zap_details *details)
+>>  {
+>>  	pmd_t *pmd;
+>> +	spinlock_t *ptl;
+>>  	unsigned long next;
+>>
+>>  	pmd =3D pmd_offset(pud, addr);
+>> +	ptl =3D pmd_lock(vma->vm_mm, pmd);
+>
+> If USE_SPLIT_PMD_PTLOCKS is true, pmd_lock() returns different ptl for
+> each pmd. The following code runs over pmds within [addr, end) with
+> a single ptl (of the first pmd,) so I suspect this locking really works=
+=2E
+> Maybe pmd_lock() should be called inside while loop?
 
-It would be also more than useful to say how much the slab reclaim
-really contributed.
+According to include/linux/mm.h, pmd_lockptr() first gets the page the pm=
+d is in,
+using mask =3D ~(PTRS_PER_PMD * sizeof(pmd_t) -1) =3D 0xfffffffffffff000 =
+and virt_to_page().
+Then, ptlock_ptr() gets spinlock_t either from page->ptl (split case) or
+mm->page_table_lock (not split case).
 
-> This is a regression introduced by commit 6b4f7799c6a5 ("mm: vmscan:
-> invoke slab shrinkers from shrink_zone()").
+It seems to me that all PMDs in one page table page share a single spinlo=
+ck. Let me know
+if I misunderstand any code.
 
-I am not really sure this is a regression, though. Maybe your heuristic
-which consumes events is just too fragile?
+But your suggestion can avoid holding the pmd lock for long without cond_=
+sched(),
+I can move the spinlock inside the loop.
 
-> So do not consider reclaimed slab pages for vmpressure calculation. The
-> reclaimed pages from slab can be excluded because the freeing of a page
-> by slab shrinking depends on each slab's object population, making the
-> cost model (i.e. scan:free) different from that of LRU.  Also, not every
-> shrinker accounts the pages it reclaims.
+Thanks.
 
-Yeah, this is really messy and not 100% correct. The reclaim cost model
-for slab is completely different to the reclaim but the concern here is
-that we can trigger higher vmpressure levels even though there _is_ a
-reclaim progress. This should be at least mentioned in the changelog so
-that people know that this aspect has been considered.
+diff --git a/mm/memory.c b/mm/memory.c
+index 5299b261c4b4..ff61d45eaea7 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1260,31 +1260,34 @@ static inline unsigned long zap_pmd_range(struct =
+mmu_gather *tlb,
+                                struct zap_details *details)
+ {
+        pmd_t *pmd;
+-       spinlock_t *ptl;
++       spinlock_t *ptl =3D NULL;
+        unsigned long next;
 
-> Fixes: 6b4f7799c6a5 ("mm: vmscan: invoke slab shrinkers from shrink_zone()")
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
-> Cc: Shiraz Hashim <shashim@codeaurora.org>
-> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
-> ---
->  mm/vmscan.c | 17 ++++++++++++-----
->  1 file changed, 12 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 947ab6f..8969f8e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2594,16 +2594,23 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  				    sc->nr_scanned - nr_scanned,
->  				    node_lru_pages);
->  
-> +		/*
-> +		 * Record the subtree's reclaim efficiency. The reclaimed
-> +		 * pages from slab is excluded here because the corresponding
-> +		 * scanned pages is not accounted. Moreover, freeing a page
-> +		 * by slab shrinking depends on each slab's object population,
-> +		 * making the cost model (i.e. scan:free) different from that
-> +		 * of LRU.
-> +		 */
-> +		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
-> +			   sc->nr_scanned - nr_scanned,
-> +			   sc->nr_reclaimed - nr_reclaimed);
-> +
->  		if (reclaim_state) {
->  			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
->  			reclaim_state->reclaimed_slab = 0;
->  		}
->  
-> -		/* Record the subtree's reclaim efficiency */
-> -		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
-> -			   sc->nr_scanned - nr_scanned,
-> -			   sc->nr_reclaimed - nr_reclaimed);
-> -
->  		if (sc->nr_reclaimed - nr_reclaimed)
->  			reclaimable = true;
->  
-> -- 
-> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-> member of the Code Aurora Forum, hosted by The Linux Foundation
-> 
+        pmd =3D pmd_offset(pud, addr);
+-       ptl =3D pmd_lock(vma->vm_mm, pmd);
+        do {
++               ptl =3D pmd_lock(vma->vm_mm, pmd);
+                next =3D pmd_addr_end(addr, end);
+                if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devm=
+ap(*pmd)) {
+                        if (next - addr !=3D HPAGE_PMD_SIZE) {
+                                VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
+                                    !rwsem_is_locked(&tlb->mm->mmap_sem),=
+ vma);
+                                __split_huge_pmd_locked(vma, pmd, addr, f=
+alse);
+-                       } else if (__zap_huge_pmd_locked(tlb, vma, pmd, a=
+ddr))
+-                               continue;
++                       } else if (__zap_huge_pmd_locked(tlb, vma, pmd, a=
+ddr)) {
++                               spin_unlock(ptl);
++                               goto next;
++                       }
+                        /* fall through */
+                }
 
--- 
-Michal Hocko
-SUSE Labs
+-               if (pmd_none_or_clear_bad(pmd))
+-                       continue;
++               if (pmd_none_or_clear_bad(pmd)) {
++                       spin_unlock(ptl);
++                       goto next;
++               }
+                spin_unlock(ptl);
+                next =3D zap_pte_range(tlb, vma, pmd, addr, next, details=
+);
++next:
+                cond_resched();
+-               spin_lock(ptl);
+        } while (pmd++, addr =3D next, addr !=3D end);
+-       spin_unlock(ptl);
+
+        return addr;
+ }
+
+
+>
+> Thanks,
+> Naoya Horiguchi
+>
+>>  	do {
+>>  		next =3D pmd_addr_end(addr, end);
+>>  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+>>  			if (next - addr !=3D HPAGE_PMD_SIZE) {
+>>  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
+>>  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
+>> -				__split_huge_pmd(vma, pmd, addr, false, NULL);
+>> -			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
+>> -				goto next;
+>> +				__split_huge_pmd_locked(vma, pmd, addr, false);
+>> +			} else if (__zap_huge_pmd_locked(tlb, vma, pmd, addr))
+>> +				continue;
+>>  			/* fall through */
+>>  		}
+>> -		/*
+>> -		 * Here there can be other concurrent MADV_DONTNEED or
+>> -		 * trans huge page faults running, and if the pmd is
+>> -		 * none or trans huge it can change under us. This is
+>> -		 * because MADV_DONTNEED holds the mmap_sem in read
+>> -		 * mode.
+>> -		 */
+>> -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+>> -			goto next;
+>> +
+>> +		if (pmd_none_or_clear_bad(pmd))
+>> +			continue;
+>> +		spin_unlock(ptl);
+>>  		next =3D zap_pte_range(tlb, vma, pmd, addr, next, details);
+>> -next:
+>>  		cond_resched();
+>> +		spin_lock(ptl);
+>>  	} while (pmd++, addr =3D next, addr !=3D end);
+>> +	spin_unlock(ptl);
+>>
+>>  	return addr;
+>>  }
+>> -- =
+
+>> 2.11.0
+>>
+
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_1923E910-9BFF-469F-98A4-9BB5D3293035_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJYmHPyAAoJEEGLLxGcTqbMdOYIAI0LUUfHkCPYpBQcT6ADHVna
+Qdp5Y2P3OSkgJwaGikXPb9g33GZYN0MzXa6g60FWbjNrAW5ITM9zJmEKnHIiy8Ju
+L/b92wVAVIs4caOOPTr53LQzELZIfXAGskN4L4q5Km93r2n6rsEVdrghTGF7S6VZ
+cePtEkloV4XH3cTwq8ARR7+4uaVsOVjUZmxi/hAt9qT/qzQOkuAM+WzLXM9OMFIm
+DclrvR04kXKGPdXRkMg75UzTF2ESaukeA1FKycRTrOxtgust6O/XZQUu8sniACAx
+S0ddEt+5S1EwGhMiRRSDF3R8alJ+VtmTbI9Swfrnw/jw4TRJliMjvZm/TtuLY/U=
+=Ho+z
+-----END PGP SIGNATURE-----
+
+--=_MailMate_1923E910-9BFF-469F-98A4-9BB5D3293035_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
