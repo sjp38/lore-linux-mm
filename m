@@ -1,65 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 97CAB6B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 06:31:08 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id 36so78467399otx.0
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 03:31:08 -0800 (PST)
-Received: from mail-ot0-x244.google.com (mail-ot0-x244.google.com. [2607:f8b0:4003:c0f::244])
-        by mx.google.com with ESMTPS id o204si178613oif.190.2017.02.06.03.31.07
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA916B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 06:51:56 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id h7so17895699wjy.6
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 03:51:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h26si620307wrb.231.2017.02.06.03.51.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Feb 2017 03:31:07 -0800 (PST)
-Received: by mail-ot0-x244.google.com with SMTP id 36so10010727otx.3
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 03:31:07 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Feb 2017 03:51:55 -0800 (PST)
+Subject: Re: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
+References: <719282122.1183240.1486298780546.ref@mail.yahoo.com>
+ <719282122.1183240.1486298780546@mail.yahoo.com>
+ <20170206083128.GC3085@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2f0f6c5e-4b55-24f0-2452-e958da1796f7@suse.cz>
+Date: Mon, 6 Feb 2017 12:51:35 +0100
 MIME-Version: 1.0
-In-Reply-To: <20170203145947.GD19325@dhcp22.suse.cz>
-References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
- <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
- <20170202104422.GF22806@dhcp22.suse.cz> <20170202104808.GG22806@dhcp22.suse.cz>
- <CAOaiJ-nyZtgrCHjkGJeG3nhGFes5Y7go3zZwa3SxGrZV=LV0ag@mail.gmail.com>
- <20170202115222.GH22806@dhcp22.suse.cz> <CAOaiJ-=pCUzaVbte-+QiQoN_XtB0KFbcB40yjU9r7OV8VOkmFg@mail.gmail.com>
- <20170202160145.GK22806@dhcp22.suse.cz> <CAOaiJ-=O_SkaYry4Lay8LidvC11sTukchE_p6P4mKm=fgJz1Dg@mail.gmail.com>
- <20170203145947.GD19325@dhcp22.suse.cz>
-From: vinayak menon <vinayakm.list@gmail.com>
-Date: Mon, 6 Feb 2017 17:01:06 +0530
-Message-ID: <CAOaiJ-kxVo+0x_sFmMqsqeyNLS-UsM2GSdcEBoLVcvuf4W6TLw@mail.gmail.com>
-Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to vmpressure
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20170206083128.GC3085@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Shantanu Goel <sgoel01@yahoo.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Fri, Feb 3, 2017 at 8:29 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 03-02-17 10:56:42, vinayak menon wrote:
->> On Thu, Feb 2, 2017 at 9:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
->> >
->> > Why would you like to chose and kill a task when the slab reclaim can
->> > still make sufficient progres? Are you sure that the slab contribution
->> > to the stats makes all the above happening?
->> >
->> I agree that a task need not be killed if sufficient progress is made
->> in reclaiming
->> memory say from slab. But here it looks like we have an impact because of just
->> increasing the reclaimed without touching the scanned. It could be because of
->> disimilar costs or not adding adding cost. I agree that vmpressure is
->> only a reasonable
->> estimate which does not already include few other costs, but I am not
->> sure whether it is ok
->> to add another element which further increases that disparity.
->> We noticed this problem when moving from 3.18 to 4.4 kernel version. With the
->> same workload, the vmpressure events differ between 3.18 and 4.4 causing the
->> above mentioned problem. And with this patch on 4.4 we get the same results
->> as in 3,18. So the slab contribution to stats is making a difference.
->
-> Please document that in the changelog along with description of the
-> workload that is affected. Ideally also add some data from /proc/vmstat
-> so that we can see the reclaim activity.
+On 02/06/2017 09:31 AM, Michal Hocko wrote:
+> [CC Vlastimil]
 
-Sure, I will add these to the changelog.
+Hmm, we should rather add Mel as this is due to his patches.
 
-Thanks,
-Vinayak
+> On Sun 05-02-17 12:46:20, Shantanu Goel wrote:
+>> Hi,
+>>
+>> On 4.9.7 kswapd is failing to wake up kcompactd due to a mismatch in the zone balance check between balance_pgdat() and prepare_kswapd_sleep().  balance_pgdat() returns as soon as a single zone satisfies the allocation but prepare_kswapd_sleep() requires all zones to do the same.  This causes prepare_kswapd_sleep() to never succeed except in the order == 0 case and consequently, wakeup_kcompactd() is never called.  On my machine prior to apply this patch, the state of compaction from /proc/vmstat looked this way after a day and a half of uptime:
+>>
+>> compact_migrate_scanned 240496
+>> compact_free_scanned 76238632
+>> compact_isolated 123472
+>> compact_stall 1791
+>> compact_fail 29
+>> compact_success 1762
+>> compact_daemon_wake 0
+>>
+>>
+>> After applying the patch and about 10 hours of uptime the state looks like this:
+>>
+>> compact_migrate_scanned 59927299
+>> compact_free_scanned 2021075136
+>> compact_isolated 640926
+>> compact_stall 4
+>> compact_fail 2
+>> compact_success 2
+>> compact_daemon_wake 5160
+>>
+>>
+>> Thanks,
+>> Shantanu
+> 
+>> From 46f2e4b02ac263bf50d69cdab3bcbd7bcdea7415 Mon Sep 17 00:00:00 2001
+>> From: Shantanu Goel <sgoel01@yahoo.com>
+>> Date: Sat, 4 Feb 2017 19:07:53 -0500
+>> Subject: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
+>>
+>> The check in prepare_kswapd_sleep needs to match the one in balance_pgdat
+>> since the latter will return as soon as any one of the zones in the
+>> classzone is above the watermark.
+
+This seems to be since commit 86c79f6b5426ce ("mm: vmscan: do not
+reclaim from kswapd if there is any eligible zone")
+
+>  This is specially important for
+>> higher order allocations since balance_pgdat will typically reset
+>> the order to zero relying on compaction to create the higher order
+>> pages.  Without this patch, prepare_kswapd_sleep fails to wake up
+>> kcompactd since the zone balance check fails.
+>>
+>> Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
+>> ---
+>>  mm/vmscan.c | 6 +++---
+>>  1 file changed, 3 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 7682469..11899ff 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -3142,11 +3142,11 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+>>  		if (!managed_zone(zone))
+>>  			continue;
+>>  
+>> -		if (!zone_balanced(zone, order, classzone_idx))
+>> -			return false;
+>> +		if (zone_balanced(zone, order, classzone_idx))
+>> +			return true;
+>>  	}
+>>  
+>> -	return true;
+>> +	return false;
+
+Looks like this restores the logic that was changed by 38087d9b03609
+("mm, vmscan: simplify the logic deciding whether kswapd sleeps").
+Probably from the same node reclaim series than the commit above.
+I'm not sure if this part of commit 38087d9b03609 was intentional
+though, as changelog doesn't mention it, and it wasn't there until the
+last, v9, posting. In that light the fix looks like the right thing to
+do, but maybe Mel can remember what was behind this...
+
+>>  }
+>>  
+>>  /*
+>> -- 
+>> 2.7.4
+>>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
