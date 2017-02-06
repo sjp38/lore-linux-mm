@@ -1,69 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D416B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 03:59:32 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v77so18036114wmv.5
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 00:59:32 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 251F06B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 04:24:21 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id x4so18307475wme.3
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 01:24:21 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x61si93739wrb.295.2017.02.06.00.59.29
+        by mx.google.com with ESMTPS id 17si7306091wmu.159.2017.02.06.01.24.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Feb 2017 00:59:30 -0800 (PST)
-Date: Mon, 6 Feb 2017 09:59:27 +0100
+        Mon, 06 Feb 2017 01:24:17 -0800 (PST)
+Date: Mon, 6 Feb 2017 10:24:15 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [lustre-devel] [PATCH] mm: Avoid returning VM_FAULT_RETRY from
- ->page_mkwrite handlers
-Message-ID: <20170206085927.GC4004@quack2.suse.cz>
+Subject: Re: [PATCH] mm: Avoid returning VM_FAULT_RETRY from ->page_mkwrite
+ handlers
+Message-ID: <20170206092415.GD4004@quack2.suse.cz>
 References: <20170203150729.15863-1-jack@suse.cz>
- <E91BA9E8-7469-46BB-B3B2-072F95D061EE@intel.com>
+ <20170203152054.6ee9f8a920e6d0ac8a93d2b9@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <E91BA9E8-7469-46BB-B3B2-072F95D061EE@intel.com>
+In-Reply-To: <20170203152054.6ee9f8a920e6d0ac8a93d2b9@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Xiong, Jinshan" <jinshan.xiong@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Al Viro <viro@ZenIV.linux.org.uk>, "cluster-devel@redhat.com" <cluster-devel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "lustre-devel@lists.lustre.org" <lustre-devel@lists.lustre.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lustre-devel@lists.lustre.org, cluster-devel@redhat.com
 
-Hi Xiong,
-
-On Fri 03-02-17 23:44:57, Xiong, Jinshan wrote:
-> Thanks for the patch. 
+On Fri 03-02-17 15:20:54, Andrew Morton wrote:
+> On Fri,  3 Feb 2017 16:07:29 +0100 Jan Kara <jack@suse.cz> wrote:
 > 
-> The proposed patch should be able to fix the problem, however, do you
-> think it would be a better approach by revising it as:
-> 
-> a?|
-> case -EAGAIN:
-> 	if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
-> 		up_read(&mm->mmap_sem);
-> 		return VM_FAULT_RETRY;
-> 	}
-> 	return VM_FAULT_NOPAGE;
-> a?|
-> 
-> This way it can retry fault routine in mm instead of letting CPU have a
-> new fault access.
-
-Well, we could do that but IMHO that is a negligible benefit not worth the
-complications in the code. After all these retries should better be rare or
-you have bigger problems with your fault handler... What would be
-worthwhile is something like:
-
-	if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
-		up_read(&mm->mmap_sem);
-		<wait for condition causing EAGAIN to resolve>
-		return VM_FAULT_RETRY;
-	}
-
-However that wait is specific to the fault handler so we cannot do that in
-the generic code.
-
-								Honza
-
-> > On Feb 3, 2017, at 7:07 AM, Jan Kara <jack@suse.cz> wrote:
-> > 
 > > Some ->page_mkwrite handlers may return VM_FAULT_RETRY as its return
 > > code (GFS2 or Lustre can definitely do this). However VM_FAULT_RETRY
 > > from ->page_mkwrite is completely unhandled by the mm code and results
@@ -72,63 +36,22 @@ the generic code.
 > > filesystems (notably GFS2) to return VM_FAULT_NOPAGE instead which
 > > results in bailing out from the fault code, the CPU then retries the
 > > access, and we fault again effectively doing what the handler wanted.
-> > 
-> > CC: lustre-devel@lists.lustre.org
-> > CC: cluster-devel@redhat.com
-> > Reported-by: Al Viro <viro@ZenIV.linux.org.uk>
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> > drivers/staging/lustre/lustre/llite/llite_mmap.c | 4 +---
-> > include/linux/buffer_head.h                      | 4 +---
-> > 2 files changed, 2 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/drivers/staging/lustre/lustre/llite/llite_mmap.c b/drivers/staging/lustre/lustre/llite/llite_mmap.c
-> > index ee01f20d8b11..9afa6bec3e6f 100644
-> > --- a/drivers/staging/lustre/lustre/llite/llite_mmap.c
-> > +++ b/drivers/staging/lustre/lustre/llite/llite_mmap.c
-> > @@ -390,15 +390,13 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > 		result = VM_FAULT_LOCKED;
-> > 		break;
-> > 	case -ENODATA:
-> > +	case -EAGAIN:
-> > 	case -EFAULT:
-> > 		result = VM_FAULT_NOPAGE;
-> > 		break;
-> > 	case -ENOMEM:
-> > 		result = VM_FAULT_OOM;
-> > 		break;
-> > -	case -EAGAIN:
-> > -		result = VM_FAULT_RETRY;
-> > -		break;
-> > 	default:
-> > 		result = VM_FAULT_SIGBUS;
-> > 		break;
-> > diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-> > index d67ab83823ad..79591c3660cc 100644
-> > --- a/include/linux/buffer_head.h
-> > +++ b/include/linux/buffer_head.h
-> > @@ -243,12 +243,10 @@ static inline int block_page_mkwrite_return(int err)
-> > {
-> > 	if (err == 0)
-> > 		return VM_FAULT_LOCKED;
-> > -	if (err == -EFAULT)
-> > +	if (err == -EFAULT || err == -EAGAIN)
-> > 		return VM_FAULT_NOPAGE;
-> > 	if (err == -ENOMEM)
-> > 		return VM_FAULT_OOM;
-> > -	if (err == -EAGAIN)
-> > -		return VM_FAULT_RETRY;
-> > 	/* -ENOSPC, -EDQUOT, -EIO ... */
-> > 	return VM_FAULT_SIGBUS;
-> > }
-> > -- 
-> > 2.10.2
-> > 
-> > _______________________________________________
-> > lustre-devel mailing list
-> > lustre-devel@lists.lustre.org
-> > http://lists.lustre.org/listinfo.cgi/lustre-devel-lustre.org
 > 
+> I'm not getting any sense of the urgency of this fix.  The bug *sounds*
+> bad?  Which kernel versions need fixing?
+
+So I did more analysis of GFS2 and Lustre behavior. AFAICS GFS2 returns
+EAGAIN only for truncated page, when we then return with VM_FAULT_RETRY,
+do_page_mkwrite() locks the page, sees it is truncated and bails out
+properly thus silently fixes up the problem. The Lustre bug looks like it
+could actually result in some real problems and the bug is there since the
+initial commit in which Lustre was added in 3.11 (d7e09d0397e84).
+
+So overall the issue doesn't look like too serious currently but it is
+certainly a serious bug waiting to happen.
+
+								Honza
+
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
