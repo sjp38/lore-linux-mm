@@ -1,82 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FDC36B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 11:41:34 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id c7so26804275wjb.7
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:41:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m3si5682388wrb.72.2017.02.07.08.41.33
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 431E46B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 11:54:55 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id p22so7249248qka.0
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:54:55 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b24si3383521qkb.2.2017.02.07.08.54.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 08:41:33 -0800 (PST)
-Date: Tue, 7 Feb 2017 17:41:30 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-Message-ID: <20170207164130.GY5065@dhcp22.suse.cz>
-References: <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz>
- <20170207102809.awh22urqmfrav5r6@techsingularity.net>
- <20170207103552.GH5065@dhcp22.suse.cz>
- <20170207113435.6xthczxt2cx23r4t@techsingularity.net>
- <20170207114327.GI5065@dhcp22.suse.cz>
- <20170207123708.GO5065@dhcp22.suse.cz>
- <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
- <20170207141911.GR5065@dhcp22.suse.cz>
- <20170207153459.GV5065@dhcp22.suse.cz>
- <20170207162224.elnrlgibjegswsgn@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Feb 2017 08:54:54 -0800 (PST)
+Date: Tue, 7 Feb 2017 11:54:51 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170207165451.GE7512@bfoster.bfoster>
+References: <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
+ <20170203145009.GB19325@dhcp22.suse.cz>
+ <20170203172403.GG45388@bfoster.bfoster>
+ <201702061529.ABC60444.FFFJOOHLVQSMtO@I-love.SAKURA.ne.jp>
+ <20170206143533.GC57865@bfoster.bfoster>
+ <201702071930.EJJ69255.SQOMVLJOFtOHFF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170207162224.elnrlgibjegswsgn@techsingularity.net>
+In-Reply-To: <201702071930.EJJ69255.SQOMVLJOFtOHFF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org
 
-On Tue 07-02-17 16:22:24, Mel Gorman wrote:
-> On Tue, Feb 07, 2017 at 04:34:59PM +0100, Michal Hocko wrote:
-> > > But we do not care about the whole cpu hotplug code. The only part we
-> > > really do care about is the race inside drain_pages_zone and that will
-> > > run in an atomic context on the specific CPU.
+On Tue, Feb 07, 2017 at 07:30:54PM +0900, Tetsuo Handa wrote:
+> Brian Foster wrote:
+> > > The workload is to write to a single file on XFS from 10 processes demonstrated at
+> > > http://lkml.kernel.org/r/201512052133.IAE00551.LSOQFtMFFVOHOJ@I-love.SAKURA.ne.jp
+> > > using "while :; do ./oom-write; done" loop on a VM with 4CPUs / 2048MB RAM.
+> > > With this XFS_FILBLKS_MIN() change applied, I no longer hit assertion failures.
 > > > 
-> > > You are absolutely right that using the mutex is safe as well but the
-> > > hotplug path is already littered with locks and adding one more to the
-> > > picture doesn't sound great to me. So I would really like to not use a
-> > > lock if that is possible and safe (with a big fat comment of course).
 > > 
-> > And with the full changelog. I hope I haven't missed anything this time.
-> > ---
-> > From 8c6af3116520251cc4ec2213f0a4ed2544bb4365 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Tue, 7 Feb 2017 16:08:35 +0100
-> > Subject: [PATCH] mm, page_alloc: do not depend on cpu hotplug locks inside the
-> >  allocator
-> > 
-> > <SNIP>
-> >
-> > Reported-by: Dmitry Vyukov <dvyukov@google.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > Thanks for testing. Well, that's an interesting workload. I couldn't
+> > reproduce on a few quick tries in a similarly configured vm.
 > 
-> Not that I can think of. It's almost identical to the diff I posted with
-> the exception of the mutex in the cpu hotplug teardown path. I agree that
-> in the current implementation that it should be unnecessary even if I
-> thought it would be more robust against any other hotplug churn.
+> It takes 10 to 15 minutes. Maybe some size threshold involved?
+> 
+> > /tmp/file _is_ on an XFS filesystem in your test, correct? If so and if
+> > you still have the output file from a test that reproduced, could you
+> > get the 'xfs_io -c "fiemap -v" <file>' output?
+> 
+> Here it is.
+> 
+> [  720.199748] 0 pages HighMem/MovableOnly
+> [  720.199749] 150524 pages reserved
+> [  720.199749] 0 pages cma reserved
+> [  720.199750] 0 pages hwpoisoned
+> [  722.187335] XFS: Assertion failed: oldlen > newlen, file: fs/xfs/libxfs/xfs_bmap.c, line: 2867
+> [  722.201784] ------------[ cut here ]------------
+...
+> 
+> # ls -l /tmp/file
+> -rw------- 1 kumaneko kumaneko 43426648064 Feb  7 19:25 /tmp/file
+> # xfs_io -c "fiemap -v" /tmp/file
+> /tmp/file:
+>  EXT: FILE-OFFSET          BLOCK-RANGE            TOTAL FLAGS
+>    0: [0..262015]:         358739712..359001727  262016   0x0
+...
+>  187: [84810808..84901119]: 110211736..110302047   90312   0x1
 
-I am always nervous when seeing hotplug locks being used in low level
-code. It has bitten us several times already and those deadlocks are
-quite hard to spot when reviewing the code and very rare to hit so they
-tend to live for a long time.
+Ok, from the size of the file I realized that I missed you were running
+in a loop the first time around. I tried playing with it some more and
+still haven't been able to reproduce.
 
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+Anyways, the patch intended to fix this has been reviewed[1] and queued
+for the next release, so it's probably not a big deal since you've
+already verified it. Thanks again.
 
-Thanks! I will wait for Tejun to confirm my assumptions are correct and
-post the patch to Andrew if there are no further problems spotted. Btw.
-this will also get rid of another lockdep report which seem to be false
-possitive though
-http://lkml.kernel.org/r/20170203145548.GC19325@dhcp22.suse.cz
+Brian
 
--- 
-Michal Hocko
-SUSE Labs
+[1] http://www.spinics.net/lists/linux-xfs/msg04083.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
