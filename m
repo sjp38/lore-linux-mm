@@ -1,113 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BBBA6B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 16:29:39 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id d15so81741834qke.1
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 13:29:39 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c41si3941673qtc.80.2017.02.07.13.29.38
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2266B0253
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 16:38:41 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d123so167841939pfd.0
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 13:38:41 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id r80si5226560pfa.30.2017.02.07.13.38.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 13:29:38 -0800 (PST)
-Date: Tue, 7 Feb 2017 22:29:35 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mprotect: drop overprotective lock_pte_protection()
-Message-ID: <20170207212935.GL25530@redhat.com>
-References: <20170207143347.123871-1-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170207143347.123871-1-kirill.shutemov@linux.intel.com>
+        Tue, 07 Feb 2017 13:38:40 -0800 (PST)
+Date: Tue, 7 Feb 2017 13:38:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, slab: rename kmalloc-node cache to kmalloc-<size>
+Message-Id: <20170207133839.f6b1f1befe4468770991f5e0@linux-foundation.org>
+In-Reply-To: <201702080139.e2GzXRQt%fengguang.wu@intel.com>
+References: <20170203181008.24898-1-vbabka@suse.cz>
+	<201702080139.e2GzXRQt%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <lkp@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-On Tue, Feb 07, 2017 at 05:33:47PM +0300, Kirill A. Shutemov wrote:
-> lock_pte_protection() uses pmd_lock() to make sure that we have stable
-> PTE page table before walking pte range.
+On Wed, 8 Feb 2017 01:15:17 +0800 kbuild test robot <lkp@intel.com> wrote:
+
+> Hi Vlastimil,
 > 
-> That's not necessary. We only need to make sure that PTE page table is
-> established. It cannot vanish under us as long as we hold mmap_sem at
-> least for read.
+> [auto build test WARNING on mmotm/master]
+> [also build test WARNING on v4.10-rc7 next-20170207]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 > 
-> And we already have helper for that -- pmd_trans_unstable().
+> url:    https://github.com/0day-ci/linux/commits/Vlastimil-Babka/mm-slab-rename-kmalloc-node-cache-to-kmalloc-size/20170204-021843
+> base:   git://git.cmpxchg.org/linux-mmotm.git master
+> config: arm-allyesconfig (attached as .config)
+> compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
+> reproduce:
+>         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=arm 
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/mprotect.c | 43 ++++++++++++-------------------------------
->  1 file changed, 12 insertions(+), 31 deletions(-)
+> All warnings (new ones prefixed by >>):
 > 
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index f9c07f54dd62..e919e4613eab 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -33,34 +33,6 @@
->  
->  #include "internal.h"
->  
-> -/*
-> - * For a prot_numa update we only hold mmap_sem for read so there is a
-> - * potential race with faulting where a pmd was temporarily none. This
-> - * function checks for a transhuge pmd under the appropriate lock. It
-> - * returns a pte if it was successfully locked or NULL if it raced with
-> - * a transhuge insertion.
-> - */
-> -static pte_t *lock_pte_protection(struct vm_area_struct *vma, pmd_t *pmd,
-> -			unsigned long addr, int prot_numa, spinlock_t **ptl)
-> -{
-> -	pte_t *pte;
-> -	spinlock_t *pmdl;
-> -
-> -	/* !prot_numa is protected by mmap_sem held for write */
-> -	if (!prot_numa)
-> -		return pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
-> -
-> -	pmdl = pmd_lock(vma->vm_mm, pmd);
-> -	if (unlikely(pmd_trans_huge(*pmd) || pmd_none(*pmd))) {
-> -		spin_unlock(pmdl);
-> -		return NULL;
-> -	}
-> -
-> -	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
-> -	spin_unlock(pmdl);
-> -	return pte;
-> -}
-> -
->  static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  		unsigned long addr, unsigned long end, pgprot_t newprot,
->  		int dirty_accountable, int prot_numa)
-> @@ -71,7 +43,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  	unsigned long pages = 0;
->  	int target_node = NUMA_NO_NODE;
->  
-> -	pte = lock_pte_protection(vma, pmd, addr, prot_numa, &ptl);
-> +	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->  	if (!pte)
+> >> WARNING: mm/built-in.o(.text+0x3b49c): Section mismatch in reference from the function get_kmalloc_cache_name() to the (unknown reference) .init.rodata:(unknown)
+>    The function get_kmalloc_cache_name() references
+>    the (unknown reference) __initconst (unknown).
+>    This is often because get_kmalloc_cache_name lacks a __initconst
+>    annotation or the annotation of (unknown) is wrong.
 
-I cleaned it up too but I moved the pmd_trans_unstable in the caller
-above instead of the callee, otherwise it's the same.
+yup, thanks.
 
->  
-> @@ -177,8 +149,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
->  			if (next - addr != HPAGE_PMD_SIZE) {
->  				__split_huge_pmd(vma, pmd, addr, false, NULL);
-> -				if (pmd_trans_unstable(pmd))
-> -					continue;
-
-Agree it can be removed too, but I only removed lock_pte_protection in
-my version.
-
-If you prefer this version to be merged so we don't have to cleanup
-the above superfluous check in a incremental patch that's fine of
-course, otherwise at runtime they're equivalent as far as I can
-tell. The version in -mm is here.
-
-https://git.kernel.org/cgit/linux/kernel/git/mhocko/mm.git/commit/?h=auto-latest&id=d84ff4e4985f397ca4ecfe7ec029c45c6f2b9906
-
-Thanks,
-Andrea
+--- a/mm/slab_common.c~mm-slab-rename-kmalloc-node-cache-to-kmalloc-size-fix
++++ a/mm/slab_common.c
+@@ -935,7 +935,7 @@ static struct {
+ 	{"kmalloc-67108864", 67108864}
+ };
+ 
+-const char *get_kmalloc_cache_name(int index)
++const char * __init get_kmalloc_cache_name(int index)
+ {
+ 	return kmalloc_info[index].name;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
