@@ -1,114 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B4796B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:34:58 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id f144so150604481pfa.3
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:34:58 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id s5si4226746pgh.144.2017.02.07.06.34.57
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B200B6B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:53:00 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id kq3so26124938wjc.1
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:53:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 31si5279362wrj.324.2017.02.07.06.52.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 06:34:57 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mprotect: drop overprotective lock_pte_protection()
-Date: Tue,  7 Feb 2017 17:33:47 +0300
-Message-Id: <20170207143347.123871-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Feb 2017 06:52:59 -0800 (PST)
+Date: Tue, 7 Feb 2017 15:52:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2 v4] mm: vmscan: do not pass reclaimed slab to
+ vmpressure
+Message-ID: <20170207145257.GT5065@dhcp22.suse.cz>
+References: <1486383850-30444-1-git-send-email-vinmenon@codeaurora.org>
+ <20170206125240.GB10298@dhcp22.suse.cz>
+ <CAOaiJ-=ovwZ53nqNLRtP=sCY=+4s1-1r_soBXvam42bxDeUdAQ@mail.gmail.com>
+ <20170207081002.GB5065@dhcp22.suse.cz>
+ <CAOaiJ-ndDnkm2qL0M9gqhnR8szzDxiRG2_KkaYAM+9hAkq_m5A@mail.gmail.com>
+ <20170207121744.GM5065@dhcp22.suse.cz>
+ <CAOaiJ-=B7d9uAkXPdA-F2NFtY4p43xQPG4Pozv3NY9BahFaO3A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOaiJ-=B7d9uAkXPdA-F2NFtY4p43xQPG4Pozv3NY9BahFaO3A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: vinayak menon <vinayakm.list@gmail.com>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-lock_pte_protection() uses pmd_lock() to make sure that we have stable
-PTE page table before walking pte range.
+On Tue 07-02-17 18:46:55, vinayak menon wrote:
+> On Tue, Feb 7, 2017 at 5:47 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Tue 07-02-17 16:39:15, vinayak menon wrote:
+[...]
+> >> Starting to kill at the right time helps in recovering memory at a
+> >> faster rate than waiting for the reclaim to complete. Yes, we may
+> >> be able to modify lowmemorykiller to cope with this problem. But
+> >> the actual problem this patch tried to fix was the vmpressure event
+> >> regression.
+> >
+> > I am not happy about the regression but you should try to understand
+> > that we might end up with another report a month later for a different
+> > consumer of events.
+>
+> I understand that. But this was the way vmpressure had worked until the
+> regression and IMHO adding reclaimed slab just increases the noise in
+> vmpressure.
 
-That's not necessary. We only need to make sure that PTE page table is
-established. It cannot vanish under us as long as we hold mmap_sem at
-least for read.
+I would argue the previous behavior was wrong as well.
 
-And we already have helper for that -- pmd_trans_unstable().
+> > I believe that the vmpressure needs some serious rethought and come with
+> > a more realistic and stable metric.
+>
+> Okay. I agree. So you are suggesting to drop the patch ?
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/mprotect.c | 43 ++++++++++++-------------------------------
- 1 file changed, 12 insertions(+), 31 deletions(-)
+Unless there is a strong reason to keep it. Your test case seems to be
+rather artificial and the behavior is not much better after your patch.
+So rather than tunning the broken behavior for a particular test case
+I would welcome rethinking the whole thing.
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index f9c07f54dd62..e919e4613eab 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -33,34 +33,6 @@
- 
- #include "internal.h"
- 
--/*
-- * For a prot_numa update we only hold mmap_sem for read so there is a
-- * potential race with faulting where a pmd was temporarily none. This
-- * function checks for a transhuge pmd under the appropriate lock. It
-- * returns a pte if it was successfully locked or NULL if it raced with
-- * a transhuge insertion.
-- */
--static pte_t *lock_pte_protection(struct vm_area_struct *vma, pmd_t *pmd,
--			unsigned long addr, int prot_numa, spinlock_t **ptl)
--{
--	pte_t *pte;
--	spinlock_t *pmdl;
--
--	/* !prot_numa is protected by mmap_sem held for write */
--	if (!prot_numa)
--		return pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
--
--	pmdl = pmd_lock(vma->vm_mm, pmd);
--	if (unlikely(pmd_trans_huge(*pmd) || pmd_none(*pmd))) {
--		spin_unlock(pmdl);
--		return NULL;
--	}
--
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
--	spin_unlock(pmdl);
--	return pte;
--}
--
- static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable, int prot_numa)
-@@ -71,7 +43,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	unsigned long pages = 0;
- 	int target_node = NUMA_NO_NODE;
- 
--	pte = lock_pte_protection(vma, pmd, addr, prot_numa, &ptl);
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	if (!pte)
- 		return 0;
- 
-@@ -177,8 +149,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
- 			if (next - addr != HPAGE_PMD_SIZE) {
- 				__split_huge_pmd(vma, pmd, addr, false, NULL);
--				if (pmd_trans_unstable(pmd))
--					continue;
- 			} else {
- 				int nr_ptes = change_huge_pmd(vma, pmd, addr,
- 						newprot, prot_numa);
-@@ -195,6 +165,17 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 			}
- 			/* fall through, the trans huge pmd just split */
- 		}
-+
-+		/*
-+		 * For prot_numa update we only hold mmap_sem for read so there
-+		 * is a potential race with faulting where a pmd was
-+		 * temporarily none.
-+		 * Make sure we have PTE page table, before moving forward.
-+		 * Page tables cannot go away under us as long as we hold
-+		 * mmap_sem at least for read.
-+		 */
-+		if (pmd_trans_unstable(pmd))
-+			continue;
- 		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
- 				 dirty_accountable, prot_numa);
- 		pages += this_pages;
+That being said I am not nacking the patch so if others think that this
+is a reasonable thing to do for now I will not stand in the way.
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
