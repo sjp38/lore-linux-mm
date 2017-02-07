@@ -1,66 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF196B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 11:56:57 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id f9so115593761otd.4
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:56:57 -0800 (PST)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id i13si1945900otb.178.2017.02.07.08.56.56
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9155A6B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 12:03:22 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id o65so141182585yba.3
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 09:03:22 -0800 (PST)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id t202si1323506ywg.292.2017.02.07.09.03.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 08:56:56 -0800 (PST)
-Received: by mail-oi0-x22d.google.com with SMTP id u143so67974047oif.3
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:56:56 -0800 (PST)
+        Tue, 07 Feb 2017 09:03:21 -0800 (PST)
+Received: by mail-yw0-x241.google.com with SMTP id q71so9877606ywg.3
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 09:03:21 -0800 (PST)
+Date: Tue, 7 Feb 2017 12:03:19 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+Message-ID: <20170207170319.GA6164@htj.duckdns.org>
+References: <20170207094300.cuxfqi35wflk5nr5@techsingularity.net>
+ <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz>
+ <20170207102809.awh22urqmfrav5r6@techsingularity.net>
+ <20170207103552.GH5065@dhcp22.suse.cz>
+ <20170207113435.6xthczxt2cx23r4t@techsingularity.net>
+ <20170207114327.GI5065@dhcp22.suse.cz>
+ <20170207123708.GO5065@dhcp22.suse.cz>
+ <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
+ <20170207141911.GR5065@dhcp22.suse.cz>
+ <20170207153459.GV5065@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170207084411.GA527@node.shutemov.name>
-References: <148615748258.43180.1690152053774975329.stgit@djiang5-desk3.ch.intel.com>
- <20170206143648.GA461@infradead.org> <CAPcyv4jHYR2-_SgD7a6ab5vWigYsDoSb7FZdTchP8Xg+BF-2yg@mail.gmail.com>
- <20170206172731.GA17515@infradead.org> <CAPcyv4hiwWebCT=qPccKqaQKAHydMYsg9+=pYh=SPkNzakLc1A@mail.gmail.com>
- <20170207084411.GA527@node.shutemov.name>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 7 Feb 2017 08:56:56 -0800
-Message-ID: <CAPcyv4h1LvbEqBi=F=BTtLrHHOvAH3MU2OBDs444-dzwNyupFQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: replace FAULT_FLAG_SIZE with parameter to huge_fault
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170207153459.GV5065@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ext4 <linux-ext4@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Feb 7, 2017 at 12:44 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Mon, Feb 06, 2017 at 09:30:22AM -0800, Dan Williams wrote:
->> On Mon, Feb 6, 2017 at 9:27 AM, Christoph Hellwig <hch@infradead.org> wrote:
->> > On Mon, Feb 06, 2017 at 08:24:48AM -0800, Dan Williams wrote:
->> >> > Also can be use this opportunity
->> >> > to fold ->huge_fault into ->fault?
->
-> BTW, for tmpfs we already use ->fault for both small and huge pages.
-> If ->fault returned THP, core mm look if it's possible to map the page as
-> huge in this particular VMA (due to size/alignment). If yes mm maps the
-> page with PMD, if not fallback to PTE.
->
-> I think it would be nice to do the same for DAX: filesystem provides core
-> mm with largest page this part of file can be mapped with (base aligned
-> address + lenght for DAX) and core mm sort out the rest.
+Hello,
 
-For DAX we would need plumb pfn_t into the core mm so that we have the
-PFN_DEV and PFN_MAP flags beyond the raw pfn.
+Sorry about the delay.
 
->
->> >> Hmm, yes, just need a scheme to not attempt huge_faults on pte-only handlers.
->> >
->> > Do we need anything more than checking vma->vm_flags for VM_HUGETLB?
->>
->> s/VM_HUGETLB/VM_HUGEPAGE/
->>
->> ...but yes as long as we specify that a VM_HUGEPAGE handler must
->> minimally handle pud and pmd.
->
-> VM_HUGEPAGE is result of MADV_HUGEPAGE. It's not required to have THP in
-> the VMA.
+On Tue, Feb 07, 2017 at 04:34:59PM +0100, Michal Hocko wrote:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c3358d4f7932..b6411816787a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2343,7 +2343,16 @@ void drain_local_pages(struct zone *zone)
+>  
+>  static void drain_local_pages_wq(struct work_struct *work)
+>  {
+> +	/*
+> +	 * drain_all_pages doesn't use proper cpu hotplug protection so
+> +	 * we can race with cpu offline when the WQ can move this from
+> +	 * a cpu pinned worker to an unbound one. We can operate on a different
+> +	 * cpu which is allright but we also have to make sure to not move to
+> +	 * a different one.
+> +	 */
+> +	preempt_disable();
+>  	drain_local_pages(NULL);
+> +	preempt_enable();
+>  }
+>  
+>  /*
+> @@ -2379,12 +2388,6 @@ void drain_all_pages(struct zone *zone)
+>  	}
+>  
+>  	/*
+> -	 * As this can be called from reclaim context, do not reenter reclaim.
+> -	 * An allocation failure can be handled, it's simply slower
+> -	 */
+> -	get_online_cpus();
+> -
+> -	/*
+>  	 * We don't care about racing with CPU hotplug event
+>  	 * as offline notification will cause the notified
+>  	 * cpu to drain that CPU pcps and on_each_cpu_mask
+> @@ -2423,7 +2426,6 @@ void drain_all_pages(struct zone *zone)
+>  	for_each_cpu(cpu, &cpus_with_pcps)
+>  		flush_work(per_cpu_ptr(&pcpu_drain, cpu));
+>  
+> -	put_online_cpus();
+>  	mutex_unlock(&pcpu_drain_mutex);
 
-Filesystem-DAX and Device-DAX specify VM_HUGEPAGE by default.
+I think this would work; however, a more canonical way would be
+something along the line of...
+
+  drain_all_pages()
+  {
+	  ...
+	  spin_lock();
+	  for_each_possible_cpu() {
+		  if (this cpu should get drained) {
+			  queue_work_on(this cpu's work);
+		  }
+	  }
+	  spin_unlock();
+	  ...
+  }
+
+  offline_hook()
+  {
+	  spin_lock();
+	  this cpu should get drained = false;
+	  spin_unlock();
+	  queue_work_on(this cpu's work);
+	  flush_work(this cpu's work);
+  }
+
+I think what workqueue should do is automatically flush in-flight CPU
+work items on CPU offline and erroring out on queue_work_on() on
+offline CPUs.  And we now actually can do that because we have lifted
+the guarantee that queue_work() is local CPU affine some releases ago.
+I'll look into it soonish.
+
+For the time being, either approach should be fine.  The more
+canonical one might be a bit less surprising but the
+preempt_disable/enable() change is short and sweet and completely fine
+for the case at hand.
+
+Please feel free to add
+
+Acked-by: Tejun Heo <tj@kernel.org>
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
