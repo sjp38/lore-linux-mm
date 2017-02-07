@@ -1,62 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 751856B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 13:07:33 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 204so159555937pfx.1
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 10:07:33 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 68si4741127pft.186.2017.02.07.10.07.32
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEA06B0069
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 13:08:12 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id d13so117552066oib.3
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 10:08:12 -0800 (PST)
+Received: from mail-ot0-x229.google.com (mail-ot0-x229.google.com. [2607:f8b0:4003:c0f::229])
+        by mx.google.com with ESMTPS id r186si2044931oig.9.2017.02.07.10.08.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 10:07:32 -0800 (PST)
-Subject: Re: [RFC V2 12/12] mm: Tag VMA with VM_CDM flag explicitly during
- mbind(MPOL_BIND)
-References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
- <20170130033602.12275-13-khandual@linux.vnet.ibm.com>
- <26a17cd1-dd50-43b9-03b1-dd967466a273@intel.com>
- <e03e62e2-54fa-b0ce-0b58-5db7393f8e3c@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <bfb7f080-6f0a-743f-654b-54f41443e44a@intel.com>
-Date: Tue, 7 Feb 2017 10:07:28 -0800
+        Tue, 07 Feb 2017 10:08:11 -0800 (PST)
+Received: by mail-ot0-x229.google.com with SMTP id 73so92416126otj.0
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 10:08:11 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <e03e62e2-54fa-b0ce-0b58-5db7393f8e3c@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170207174042.GB5578@node.shutemov.name>
+References: <148615748258.43180.1690152053774975329.stgit@djiang5-desk3.ch.intel.com>
+ <20170206143648.GA461@infradead.org> <CAPcyv4jHYR2-_SgD7a6ab5vWigYsDoSb7FZdTchP8Xg+BF-2yg@mail.gmail.com>
+ <20170206172731.GA17515@infradead.org> <CAPcyv4hiwWebCT=qPccKqaQKAHydMYsg9+=pYh=SPkNzakLc1A@mail.gmail.com>
+ <20170207084411.GA527@node.shutemov.name> <CAPcyv4h1LvbEqBi=F=BTtLrHHOvAH3MU2OBDs444-dzwNyupFQ@mail.gmail.com>
+ <20170207174042.GB5578@node.shutemov.name>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 7 Feb 2017 10:08:11 -0800
+Message-ID: <CAPcyv4h1+LbuG6K1Q=ERQ+52Ui12LBmZ4N5iEd96KfeqFy8AcA@mail.gmail.com>
+Subject: Re: [PATCH] mm: replace FAULT_FLAG_SIZE with parameter to huge_fault
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ext4 <linux-ext4@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 01/30/2017 08:36 PM, Anshuman Khandual wrote:
-> On 01/30/2017 11:24 PM, Dave Hansen wrote:
->> On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
->>> +		if ((new_pol->mode == MPOL_BIND)
->>> +			&& nodemask_has_cdm(new_pol->v.nodes))
->>> +			set_vm_cdm(vma);
->> So, if you did:
+On Tue, Feb 7, 2017 at 9:40 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> On Tue, Feb 07, 2017 at 08:56:56AM -0800, Dan Williams wrote:
+>> On Tue, Feb 7, 2017 at 12:44 AM, Kirill A. Shutemov
+>> <kirill@shutemov.name> wrote:
+>> > On Mon, Feb 06, 2017 at 09:30:22AM -0800, Dan Williams wrote:
+>> >> On Mon, Feb 6, 2017 at 9:27 AM, Christoph Hellwig <hch@infradead.org> wrote:
+>> >> > On Mon, Feb 06, 2017 at 08:24:48AM -0800, Dan Williams wrote:
+>> >> >> > Also can be use this opportunity
+>> >> >> > to fold ->huge_fault into ->fault?
+>> >
+>> > BTW, for tmpfs we already use ->fault for both small and huge pages.
+>> > If ->fault returned THP, core mm look if it's possible to map the page as
+>> > huge in this particular VMA (due to size/alignment). If yes mm maps the
+>> > page with PMD, if not fallback to PTE.
+>> >
+>> > I think it would be nice to do the same for DAX: filesystem provides core
+>> > mm with largest page this part of file can be mapped with (base aligned
+>> > address + lenght for DAX) and core mm sort out the rest.
 >>
->> 	mbind(addr, PAGE_SIZE, MPOL_BIND, all_nodes, ...);
->> 	mbind(addr, PAGE_SIZE, MPOL_BIND, one_non_cdm_node, ...);
+>> For DAX we would need plumb pfn_t into the core mm so that we have the
+>> PFN_DEV and PFN_MAP flags beyond the raw pfn.
+>
+> Sounds good to me.
+>
+>> >> >> Hmm, yes, just need a scheme to not attempt huge_faults on pte-only handlers.
+>> >> >
+>> >> > Do we need anything more than checking vma->vm_flags for VM_HUGETLB?
+>> >>
+>> >> s/VM_HUGETLB/VM_HUGEPAGE/
+>> >>
+>> >> ...but yes as long as we specify that a VM_HUGEPAGE handler must
+>> >> minimally handle pud and pmd.
+>> >
+>> > VM_HUGEPAGE is result of MADV_HUGEPAGE. It's not required to have THP in
+>> > the VMA.
 >>
->> You end up with a VMA that can never have KSM done on it, etc...  Even
->> though there's no good reason for it.  I guess /proc/$pid/smaps might be
->> able to help us figure out what was going on here, but that still seems
->> like an awful lot of damage.
-> 
-> Agreed, this VMA should not remain tagged after the second call. It does
-> not make sense. For this kind of scenarios we can re-evaluate the VMA
-> tag every time the nodemask change is attempted. But if we are looking for
-> some runtime re-evaluation then we need to steal some cycles are during
-> general VMA processing opportunity points like merging and split to do
-> the necessary re-evaluation. Should do we do these kind two kinds of
-> re-evaluation to be more optimal ?
+>> Filesystem-DAX and Device-DAX specify VM_HUGEPAGE by default.
+>
+> But why? Looks like abuse of the flag.
 
-I'm still unconvinced that you *need* detection like this.  Scanning big
-VMAs is going to be really painful.
-
-I thought I asked before but I can't find it in this thread.  But, we
-have explicit interfaces for disabling KSM and khugepaged.  Why do we
-need implicit ones like this in addition to those?
+Good question, that's been there since DAX was initially added and I
+don't see a good reason for it currently. I'll take a look at what you
+have for huge-tmpfs support.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
