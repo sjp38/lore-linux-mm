@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AF6C56B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 04:45:59 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id c7so24238942wjb.7
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 01:45:59 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g10si4357333wrc.189.2017.02.07.01.45.58
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D4FEE6B0069
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 04:46:15 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r18so24353254wmd.1
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 01:46:15 -0800 (PST)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id l2si4389580wrc.6.2017.02.07.01.46.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 01:45:58 -0800 (PST)
-Date: Tue, 7 Feb 2017 10:45:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: return 0 in case this node has no page
- within the zone
-Message-ID: <20170207094557.GE5065@dhcp22.suse.cz>
-References: <20170206154314.15705-1-richard.weiyang@gmail.com>
+        Tue, 07 Feb 2017 01:46:14 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 7B70398BAE
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:46:14 +0000 (UTC)
+Date: Tue, 7 Feb 2017 09:46:13 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+Message-ID: <20170207094613.svdhedw6u6cuvgif@techsingularity.net>
+References: <CACT4Y+asbKDni4RBavNf0-HwApTXjbbNko9eQbU6zCOgB2Yvnw@mail.gmail.com>
+ <c7658ace-23ae-227a-2ea9-7e6bd1c8c761@suse.cz>
+ <CACT4Y+ZT+_L3deDUcmBkr_Pr3KdCdLv6ON=2QHbK5YnBxJfLDg@mail.gmail.com>
+ <CACT4Y+Z-juavN8s+5sc-PB0rbqy4zmsRpc6qZBg3C7z3topLTw@mail.gmail.com>
+ <20170206220530.apvuknbagaf2rdlw@techsingularity.net>
+ <20170207084855.GC5065@dhcp22.suse.cz>
+ <614e9873-c894-de42-a38a-1798fc0be039@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170206154314.15705-1-richard.weiyang@gmail.com>
+In-Reply-To: <614e9873-c894-de42-a38a-1798fc0be039@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon 06-02-17 23:43:14, Wei Yang wrote:
-> The whole memory space is divided into several zones and nodes may have no
-> page in some zones. In this case, the __absent_pages_in_range() would
-> return 0, since the range it is searching for is an empty range.
+On Tue, Feb 07, 2017 at 10:23:31AM +0100, Vlastimil Babka wrote:
 > 
-> Also this happens more often to those nodes with higher memory range when
-> there are more nodes, which is a trend for future architectures.
-
-I do not understand this part. Why would we see more zones with zero pfn
-range in higher memory ranges.
-
-> This patch checks the zone range after clamp and adjustment, return 0 if
-> the range is an empty range.
-
-I assume the whole point of this patch is to save
-__absent_pages_in_range which iterates over all memblock regions, right?
-Is there any reason why for_each_mem_pfn_range cannot be changed to
-honor the given start/end pfns instead? I can imagine that a small zone
-would see a similar pointless iterations...
-
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  mm/page_alloc.c | 5 +++++
->  1 file changed, 5 insertions(+)
+> > cpu offlining. I have to check the code but my impression was that WQ
+> > code will ignore the cpu requested by the work item when the cpu is
+> > going offline. If the offline happens while the worker function already
+> > executes then it has to wait as we run with preemption disabled so we
+> > should be safe here. Or am I missing something obvious?
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6de9440e3ae2..51c60c0eadcb 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5521,6 +5521,11 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
->  	adjust_zone_range_for_zone_movable(nid, zone_type,
->  			node_start_pfn, node_end_pfn,
->  			&zone_start_pfn, &zone_end_pfn);
-> +
-> +	/* If this node has no page within this zone, return 0. */
-> +	if (zone_start_pfn == zone_end_pfn)
-> +		return 0;
-> +
->  	nr_absent = __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
->  
->  	/*
-> -- 
-> 2.11.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Tejun suggested an alternative solution to avoiding get_online_cpus() in
+> this thread:
+> https://lkml.kernel.org/r/<20170123170329.GA7820@htj.duckdns.org>
+
+I was hoping it would not really be necessary to sync against the cpu
+offline callback if we know we don't really have to guarantee we run on
+the correct CPU.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
