@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 675FC6B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 10:41:15 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id m98so115043874iod.2
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 07:41:15 -0800 (PST)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id g199si12062735ioe.8.2017.02.07.07.41.14
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 119646B025E
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 10:41:24 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id c7so26417115wjb.7
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 07:41:24 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e8si5441340wrc.310.2017.02.07.07.41.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 07:41:14 -0800 (PST)
-Received: by mail-io0-x236.google.com with SMTP id l66so92923853ioi.1
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 07:41:14 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Feb 2017 07:41:22 -0800 (PST)
+Date: Tue, 7 Feb 2017 16:41:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: return 0 in case this node has no page
+ within the zone
+Message-ID: <20170207154120.GW5065@dhcp22.suse.cz>
+References: <20170206154314.15705-1-richard.weiyang@gmail.com>
+ <20170207094557.GE5065@dhcp22.suse.cz>
+ <20170207153247.GB31837@WeideMBP.lan>
 MIME-Version: 1.0
-In-Reply-To: <20170207140707.20824-1-sean@erifax.org>
-References: <20170207140707.20824-1-sean@erifax.org>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Tue, 7 Feb 2017 07:41:13 -0800
-Message-ID: <CAJcbSZEKdgpuTYWO4R-KP3c2fsi-8OKyE=JhF1e83n+SYLrxAQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/slub: Fix random_seq offset destruction
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170207153247.GB31837@WeideMBP.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sean Rees <sean@erifax.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 7, 2017 at 6:07 AM, Sean Rees <sean@erifax.org> wrote:
-> Bailout early from init_cache_random_seq if s->random_seq is already
-> initialised. This prevents destroying the previously computed random_seq
-> offsets later in the function.
->
-> If the offsets are destroyed, then shuffle_freelist will truncate
-> page->freelist to just the first object (orphaning the rest).
->
-> This fixes https://bugzilla.kernel.org/show_bug.cgi?id=177551.
->
-> Signed-off-by: Sean Rees <sean@erifax.org>
+On Tue 07-02-17 23:32:47, Wei Yang wrote:
+> On Tue, Feb 07, 2017 at 10:45:57AM +0100, Michal Hocko wrote:
+[...]
+> >Is there any reason why for_each_mem_pfn_range cannot be changed to
+> >honor the given start/end pfns instead? I can imagine that a small zone
+> >would see a similar pointless iterations...
+> >
+> 
+> Hmm... No special reason, just not thought about this implementation. And
+> actually I just do the similar thing as in zone_spanned_pages_in_node(), in
+> which also return 0 when there is no overlap.
+> 
+> BTW, I don't get your point. You wish to put the check in
+> for_each_mem_pfn_range() definition?
 
-Please add:
-
-Fixes: 210e7a43fa90 ("mm: SLUB freelist randomization")
-
-> ---
->  mm/slub.c | 4 ++++
->  1 file changed, 4 insertions(+)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 7aa6f43..7ec0a96 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1422,6 +1422,10 @@ static int init_cache_random_seq(struct kmem_cache *s)
->         int err;
->         unsigned long i, count = oo_objects(s->oo);
->
-> +       /* Bailout if already initialised */
-> +       if (s->random_seq)
-> +               return 0;
-> +
->         err = cache_random_seq_create(s, count, GFP_KERNEL);
->         if (err) {
->                 pr_err("SLUB: Unable to initialize free list for %s\n",
-> --
-> 2.9.3
->
-
-Otherwise, looks good to me.
-
-Reviewed-by: Thomas Garnier <thgarnie@google.com>
-
+My point was that you are handling one special case (an empty zone) but
+the underlying problem is that __absent_pages_in_range might be wasting
+cycles iterating over memblocks that are way outside of the given pfn
+range. At least this is my understanding. If you fix that you do not
+need the special case, right?
 -- 
-Thomas
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
