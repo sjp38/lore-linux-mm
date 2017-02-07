@@ -1,74 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 040046B0253
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 12:40:46 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c85so26695035wmi.6
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 09:40:45 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id g130si13006726wma.147.2017.02.07.09.40.44
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 04FBF6B0253
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 12:45:40 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r18so26833215wmd.1
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 09:45:39 -0800 (PST)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id x61si5873945wrb.295.2017.02.07.09.45.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 09:40:44 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id r18so29722914wmd.3
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 09:40:44 -0800 (PST)
-Date: Tue, 7 Feb 2017 20:40:42 +0300
+        Tue, 07 Feb 2017 09:45:38 -0800 (PST)
+Received: by mail-wr0-x241.google.com with SMTP id o16so6186770wra.2
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 09:45:38 -0800 (PST)
+Date: Tue, 7 Feb 2017 20:45:36 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: replace FAULT_FLAG_SIZE with parameter to huge_fault
-Message-ID: <20170207174042.GB5578@node.shutemov.name>
-References: <148615748258.43180.1690152053774975329.stgit@djiang5-desk3.ch.intel.com>
- <20170206143648.GA461@infradead.org>
- <CAPcyv4jHYR2-_SgD7a6ab5vWigYsDoSb7FZdTchP8Xg+BF-2yg@mail.gmail.com>
- <20170206172731.GA17515@infradead.org>
- <CAPcyv4hiwWebCT=qPccKqaQKAHydMYsg9+=pYh=SPkNzakLc1A@mail.gmail.com>
- <20170207084411.GA527@node.shutemov.name>
- <CAPcyv4h1LvbEqBi=F=BTtLrHHOvAH3MU2OBDs444-dzwNyupFQ@mail.gmail.com>
+Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
+ zap_pmd_range()
+Message-ID: <20170207174536.GC5578@node.shutemov.name>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-4-zi.yan@sent.com>
+ <20170207141956.GA4789@node.shutemov.name>
+ <5899E389.3040801@cs.rutgers.edu>
+ <20170207163734.GA5578@node.shutemov.name>
+ <589A0090.3050406@cs.rutgers.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4h1LvbEqBi=F=BTtLrHHOvAH3MU2OBDs444-dzwNyupFQ@mail.gmail.com>
+In-Reply-To: <589A0090.3050406@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ext4 <linux-ext4@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Zi Yan <zi.yan@sent.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <ziy@nvidia.com>
 
-On Tue, Feb 07, 2017 at 08:56:56AM -0800, Dan Williams wrote:
-> On Tue, Feb 7, 2017 at 12:44 AM, Kirill A. Shutemov
-> <kirill@shutemov.name> wrote:
-> > On Mon, Feb 06, 2017 at 09:30:22AM -0800, Dan Williams wrote:
-> >> On Mon, Feb 6, 2017 at 9:27 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> >> > On Mon, Feb 06, 2017 at 08:24:48AM -0800, Dan Williams wrote:
-> >> >> > Also can be use this opportunity
-> >> >> > to fold ->huge_fault into ->fault?
-> >
-> > BTW, for tmpfs we already use ->fault for both small and huge pages.
-> > If ->fault returned THP, core mm look if it's possible to map the page as
-> > huge in this particular VMA (due to size/alignment). If yes mm maps the
-> > page with PMD, if not fallback to PTE.
-> >
-> > I think it would be nice to do the same for DAX: filesystem provides core
-> > mm with largest page this part of file can be mapped with (base aligned
-> > address + lenght for DAX) and core mm sort out the rest.
+On Tue, Feb 07, 2017 at 11:14:56AM -0600, Zi Yan wrote:
 > 
-> For DAX we would need plumb pfn_t into the core mm so that we have the
-> PFN_DEV and PFN_MAP flags beyond the raw pfn.
-
-Sounds good to me.
-
-> >> >> Hmm, yes, just need a scheme to not attempt huge_faults on pte-only handlers.
-> >> >
-> >> > Do we need anything more than checking vma->vm_flags for VM_HUGETLB?
-> >>
-> >> s/VM_HUGETLB/VM_HUGEPAGE/
-> >>
-> >> ...but yes as long as we specify that a VM_HUGEPAGE handler must
-> >> minimally handle pud and pmd.
-> >
-> > VM_HUGEPAGE is result of MADV_HUGEPAGE. It's not required to have THP in
-> > the VMA.
 > 
-> Filesystem-DAX and Device-DAX specify VM_HUGEPAGE by default.
+> Kirill A. Shutemov wrote:
+> > On Tue, Feb 07, 2017 at 09:11:05AM -0600, Zi Yan wrote:
+> >>>> This causes memory leak or kernel crashing, if VM_BUG_ON() is enabled.
+> >>> The problem is that numabalancing calls change_huge_pmd() under
+> >>> down_read(mmap_sem), not down_write(mmap_sem) as the rest of users do.
+> >>> It makes numabalancing the only code path beyond page fault that can turn
+> >>> pmd_none() into pmd_trans_huge() under down_read(mmap_sem).
+> >>>
+> >>> This can lead to race when MADV_DONTNEED miss THP. That's not critical for
+> >>> pagefault vs. MADV_DONTNEED race as we will end up with clear page in that
+> >>> case. Not so much for change_huge_pmd().
+> >>>
+> >>> Looks like we need pmdp_modify() or something to modify protection bits
+> >>> inplace, without clearing pmd.
+> >>>
+> >>> Not sure how to get crash scenario.
+> >>>
+> >>> BTW, Zi, have you observed the crash? Or is it based on code inspection?
+> >>> Any backtraces?
+> >> The problem should be very rare in the upstream kernel. I discover the
+> >> problem in my customized kernel which does very frequent page migration
+> >> and uses numa_protnone.
+> >>
+> >> The crash scenario I guess is like:
+> >> 1. A huge page pmd entry is in the middle of being changed into either a
+> >> pmd_protnone or a pmd_migration_entry. It is cleared to pmd_none.
+> >>
+> >> 2. At the same time, the application frees the vma this page belongs to.
+> > 
+> > Em... no.
+> > 
+> > This shouldn't be possible: your 1. must be done under down_read(mmap_sem).
+> > And we only be able to remove vma under down_write(mmap_sem), so the
+> > scenario should be excluded.
+> > 
+> > What do I miss?
+> 
+> You are right. This problem will not happen in the upstream kernel.
+> 
+> The problem comes from my customized kernel, where I migrate pages away
+> instead of reclaiming them when memory is under pressure. I did not take
+> any mmap_sem when I migrate pages. So I got this error.
+> 
+> It is a false alarm. Sorry about that. Thanks for clarifying the problem.
 
-But why? Looks like abuse of the flag.
+I think there's still a race between MADV_DONTNEED and
+change_huge_pmd(.prot_numa=1) resulting in skipping THP by
+zap_pmd_range(). It need to be addressed.
+
+And MADV_FREE requires a fix.
+
+So, minus one non-bug, plus two bugs. 
 
 -- 
  Kirill A. Shutemov
