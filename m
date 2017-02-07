@@ -1,77 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A62CE6B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 02:17:30 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id i10so2238412wrb.0
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 23:17:30 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e44si3916626wre.209.2017.02.06.23.17.29
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D18B6B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 03:06:44 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d185so138545412pgc.2
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 00:06:44 -0800 (PST)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id b27si3326356pgn.86.2017.02.07.00.06.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Feb 2017 23:17:29 -0800 (PST)
-Date: Tue, 7 Feb 2017 08:17:25 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/6] xfs: use memalloc_nofs_{save,restore} instead of
- memalloc_noio*
-Message-ID: <20170207071724.GA3022@dhcp22.suse.cz>
-References: <20170206140718.16222-1-mhocko@kernel.org>
- <20170206140718.16222-5-mhocko@kernel.org>
- <20170206153923.GL2267@bombadil.infradead.org>
- <20170206174415.GA20731@dhcp22.suse.cz>
- <20170206183237.GE3580@birch.djwong.org>
- <20170206184743.GB20731@dhcp22.suse.cz>
- <20170206225150.GB12125@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170206225150.GB12125@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Feb 2017 00:06:43 -0800 (PST)
+Received: by mail-pg0-x231.google.com with SMTP id v184so36667499pgv.3
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 00:06:43 -0800 (PST)
+From: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Subject: [PATCH v32 01/13] memblock: add memblock_clear_nomap()
+Date: Tue,  7 Feb 2017 17:08:09 +0900
+Message-Id: <20170207080810.5890-1-takahiro.akashi@linaro.org>
+In-Reply-To: <20170207080601.5816-1-takahiro.akashi@linaro.org>
+References: <20170207080601.5816-1-takahiro.akashi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
+Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
 
-On Tue 07-02-17 09:51:50, Dave Chinner wrote:
-> On Mon, Feb 06, 2017 at 07:47:43PM +0100, Michal Hocko wrote:
-> > On Mon 06-02-17 10:32:37, Darrick J. Wong wrote:
-[...]
-> > > I prefer to keep the "...yet we are likely to be under GFP_NOFS..."
-> > > wording of the old comment because it captures the uncertainty of
-> > > whether or not we actually are already under NOFS.  If someone actually
-> > > has audited this code well enough to know for sure then yes let's change
-> > > the comment, but I haven't gone that far.
-> > 
-> > I believe we can drop the memalloc_nofs_save then as well because either
-> > we are called from a potentially dangerous context and thus we are in
-> > the nofs scope we we do not need the protection at all.
-> 
-> No, absolutely not. "Belief" is not a sufficient justification for
-> removing low level deadlock avoidance infrastructure. This code
-> needs to remain in _xfs_buf_map_pages() until a full audit of the
-> caller paths is done and we're 100% certain that there are no
-> lurking deadlocks.
+This function, with a combination of memblock_mark_nomap(), will be used
+in a later kdump patch for arm64 when it temporarily isolates some range
+of memory from the other memory blocks in order to create a specific
+kernel mapping at boot time.
 
-Exactly. I was actually refering to "If someone actually has audited
-this code" above... So I definitely do not want to justify anything
-based on the belief
+Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+---
+ include/linux/memblock.h |  1 +
+ mm/memblock.c            | 12 ++++++++++++
+ 2 files changed, 13 insertions(+)
 
-> For example, I'm pretty sure we can call into _xfs_buf_map_pages()
-> outside of a transaction context but with an inode ILOCK held
-> exclusively. If we then recurse into memory reclaim and try to run a
-> transaction during reclaim, we have an inverted ILOCK vs transaction
-> locking order. i.e. we are not allowed to call xfs_trans_reserve()
-> with an ILOCK held as that can deadlock the log:  log full, locked
-> inode pins tail of log, inode cannot be flushed because ILOCK is
-> held by caller waiting for log space to become available....
-> 
-> i.e. there are certain situations where holding a ILOCK is a
-> deadlock vector. See xfs_lock_inodes() for an example of the lengths
-> we go to avoid ILOCK based log deadlocks like this...
-
-Thanks for the reference. This is really helpful!
-
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 5b759c9acf97..5f7825752b15 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -92,6 +92,7 @@ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
++int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
+ ulong choose_memblock_flags(void);
+ 
+ /* Low level functions */
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 7608bc305936..07c85ec2c035 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -814,6 +814,18 @@ int __init_memblock memblock_mark_nomap(phys_addr_t base, phys_addr_t size)
+ }
+ 
+ /**
++ * memblock_clear_nomap - Clear flag MEMBLOCK_NOMAP for a specified region.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * Return 0 on success, -errno on failure.
++ */
++int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t size)
++{
++	return memblock_setclr_flag(base, size, 0, MEMBLOCK_NOMAP);
++}
++
++/**
+  * __next_reserved_mem_region - next function for for_each_reserved_region()
+  * @idx: pointer to u64 loop variable
+  * @out_start: ptr to phys_addr_t for start address of the region, can be %NULL
 -- 
-Michal Hocko
-SUSE Labs
+2.11.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
