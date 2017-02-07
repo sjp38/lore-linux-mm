@@ -1,89 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3F86B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 21:53:00 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id d185so129905970pgc.2
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 18:53:00 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id u22si2583727plk.137.2017.02.06.18.52.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Feb 2017 18:52:59 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] swapfile: initialize spinlock for swap_cluster_info
-References: <1486434945-29753-1-git-send-email-minchan@kernel.org>
-Date: Tue, 07 Feb 2017 10:52:57 +0800
-In-Reply-To: <1486434945-29753-1-git-send-email-minchan@kernel.org> (Minchan
-	Kim's message of "Tue, 7 Feb 2017 11:35:45 +0900")
-Message-ID: <87vasmg19y.fsf@yhuang-dev.intel.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DEC36B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 21:54:35 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so129309905pfa.3
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 18:54:35 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id v5si2575339pgg.234.2017.02.06.18.54.33
+        for <linux-mm@kvack.org>;
+        Mon, 06 Feb 2017 18:54:34 -0800 (PST)
+Date: Tue, 7 Feb 2017 11:54:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
+Message-ID: <20170207025426.GA1528@bbox>
+References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
+ <1486111347-112972-1-git-send-email-zhouxianrong@huawei.com>
+ <20170205142100.GA9611@bbox>
+ <2f6e188c-5358-eeab-44ab-7634014af651@huawei.com>
+ <20170206234805.GA12188@bbox>
+ <ba64f168-72f5-65c3-c88c-7a59e57b20aa@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <ba64f168-72f5-65c3-c88c-7a59e57b20aa@huawei.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tim Chen <tim.c.chen@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>
+To: zhouxianrong <zhouxianrong@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, willy@infradead.org, iamjoonsoo.kim@lge.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
-Hi, Minchan,
+On Tue, Feb 07, 2017 at 10:20:57AM +0800, zhouxianrong wrote:
 
-Minchan Kim <minchan@kernel.org> writes:
+< snip >
 
-> We changed swap_cluster_info lock from bit_spin_lock to spinlock
-> so we need to initialize the spinlock before the using. Otherwise,
-> lockdep is broken.
->
-> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >>3. the below should be modified.
+> >>
+> >>static inline bool zram_meta_get(struct zram *zram)
+> >>@@ -495,11 +553,17 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+> >>
+> >> 	/* Free all pages that are still in this zram device */
+> >> 	for (index = 0; index < num_pages; index++) {
+> >>-		unsigned long handle = meta->table[index].handle;
+> >>+		unsigned long handle;
+> >>+
+> >>+		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+> >>+		handle = meta->table[index].handle;
+> >>
+> >>-		if (!handle)
+> >>+		if (!handle || zram_test_flag(meta, index, ZRAM_SAME)) {
+> >>+			bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> >> 			continue;
+> >>+		}
+> >>
+> >>+		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> >> 		zs_free(meta->mem_pool, handle);
+> >
+> >Could you explain why we need this modification?
+> >
+> >> 	}
+> >>
+> >>@@ -511,7 +575,7 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+> >> static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
+> >> {
+> >> 	size_t num_pages;
+> >>-	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
+> >>+	struct zram_meta *meta = kzalloc(sizeof(*meta), GFP_KERNEL);
+> >
+> >Ditto
+> >
+> >>
+> >>
+> >
+> >.
+> >
+> 
+> because of union of handle and element, i think a non-zero element (other than handle) is prevented from freeing.
+> if zram_meta_get was modified, zram_meta_alloc did so.
 
-Good catch!  Thanks a lot for your fixing!
+Right. Thanks but I don't see why we need the locking in there and modification of
+zram_meta_alloc.
 
-Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
+Isn't it enough with this?
 
-Best Regards,
-Huang, Ying
-
-> ---
-> Andrew,
-> I think it's no worth to add this patch to separate commit.
-> If you don't mind, it's okay to fold this patch to mm-swap-add-cluster-lock-v5.
-> Thanks.
->
->  mm/swapfile.c | 9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 1fc1824140e1..5ac2cb40dbd3 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -2762,6 +2762,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  
->  	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
->  		int cpu;
-> +		unsigned long ci, nr_cluster;
->  
->  		p->flags |= SWP_SOLIDSTATE;
->  		/*
-> @@ -2769,13 +2770,17 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  		 * SSD
->  		 */
->  		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
-> +		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
->  
-> -		cluster_info = vzalloc(DIV_ROUND_UP(maxpages,
-> -			SWAPFILE_CLUSTER) * sizeof(*cluster_info));
-> +		cluster_info = vzalloc(nr_cluster * sizeof(*cluster_info));
->  		if (!cluster_info) {
->  			error = -ENOMEM;
->  			goto bad_swap;
->  		}
-> +
-> +		for (ci = 0; ci < nr_cluster; ci++)
-> +			spin_lock_init(&((cluster_info + ci)->lock));
-> +
->  		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
->  		if (!p->percpu_cluster) {
->  			error = -ENOMEM;
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index c20b05a84f21..a25d34a8af19 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -425,8 +425,11 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+ 	/* Free all pages that are still in this zram device */
+ 	for (index = 0; index < num_pages; index++) {
+ 		unsigned long handle = meta->table[index].handle;
+-
+-		if (!handle)
++		/*
++		 * No memory is allocated for same element filled pages.
++		 * Simply clear same page flag.
++		 */
++		if (!handle || zram_test_flag(meta, index, ZRAM_SAME))
+ 			continue;
+ 
+ 		zs_free(meta->mem_pool, handle);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
