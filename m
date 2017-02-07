@@ -1,102 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 470EA6B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 04:53:23 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id ez4so24324092wjd.2
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 01:53:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u16si4399482wru.73.2017.02.07.01.53.21
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 740D56B0069
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 04:54:13 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id h7so24303712wjy.6
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 01:54:13 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id n10si4366389wrb.298.2017.02.07.01.54.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 01:53:22 -0800 (PST)
-Date: Tue, 7 Feb 2017 10:53:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-Message-ID: <20170207095320.GF5065@dhcp22.suse.cz>
-References: <CACT4Y+asbKDni4RBavNf0-HwApTXjbbNko9eQbU6zCOgB2Yvnw@mail.gmail.com>
- <c7658ace-23ae-227a-2ea9-7e6bd1c8c761@suse.cz>
- <CACT4Y+ZT+_L3deDUcmBkr_Pr3KdCdLv6ON=2QHbK5YnBxJfLDg@mail.gmail.com>
- <CACT4Y+Z-juavN8s+5sc-PB0rbqy4zmsRpc6qZBg3C7z3topLTw@mail.gmail.com>
- <20170206220530.apvuknbagaf2rdlw@techsingularity.net>
- <20170207084855.GC5065@dhcp22.suse.cz>
- <614e9873-c894-de42-a38a-1798fc0be039@suse.cz>
+        Tue, 07 Feb 2017 01:54:12 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 0CE13989FC
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:54:12 +0000 (UTC)
+Date: Tue, 7 Feb 2017 09:54:10 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
+Message-ID: <20170207095410.6xflcfktwlofbg3f@techsingularity.net>
+References: <719282122.1183240.1486298780546.ref@mail.yahoo.com>
+ <719282122.1183240.1486298780546@mail.yahoo.com>
+ <20170206161715.sfz6lm3vmahlnxx6@techsingularity.net>
+ <68644e18-ed8d-0559-4ac2-fb3162f6ba67@yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <614e9873-c894-de42-a38a-1798fc0be039@suse.cz>
+In-Reply-To: <68644e18-ed8d-0559-4ac2-fb3162f6ba67@yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Shantanu Goel <sgoel01@yahoo.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue 07-02-17 10:23:31, Vlastimil Babka wrote:
-> On 02/07/2017 09:48 AM, Michal Hocko wrote:
-> > On Mon 06-02-17 22:05:30, Mel Gorman wrote:
-> >>> Unfortunately it does not seem to help.
-> >>
-> >> I'm a little stuck on how to best handle this. get_online_cpus() can
-> >> halt forever if the hotplug operation is holding the mutex when calling
-> >> pcpu_alloc. One option would be to add a try_get_online_cpus() helper which
-> >> trylocks the mutex. However, given that drain is so unlikely to actually
-> >> make that make a difference when racing against parallel allocations,
-> >> I think this should be acceptable.
-> >>
-> >> Any objections?
-> >>
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index 3b93879990fd..a3192447e906 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -3432,7 +3432,17 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-> >>  	 */
-> >>  	if (!page && !drained) {
-> >>  		unreserve_highatomic_pageblock(ac, false);
-> >> -		drain_all_pages(NULL);
-> >> +
-> >> +		/*
-> >> +		 * Only drain from contexts allocating for user allocations.
-> >> +		 * Kernel allocations could be holding a CPU hotplug-related
-> >> +		 * mutex, particularly hot-add allocating per-cpu structures
-> >> +		 * while hotplug-related mutex's are held which would prevent
-> >> +		 * get_online_cpus ever returning.
-> >> +		 */
-> >> +		if (gfp_mask & __GFP_HARDWALL)
-> >> +			drain_all_pages(NULL);
-> >> +
+On Mon, Feb 06, 2017 at 07:16:46PM -0500, Shantanu Goel wrote:
+> > However, note that there is a slight risk that kswapd will sleep for a
+> > short interval early due to a very small zone such as ZONE_DMA. If this
+> > is a general problem then it'll manifest as less kswapd reclaim and more
+> > direct reclaim. If it turns out this is an issue then a revert will not
+> > be the right fix. Instead, all the checks for zone_balance will need to
+> > account for the only balanced zone being a tiny percentage of memory in
+> > the node.
 > > 
-> > This wouldn't work AFAICS. If you look at the lockdep splat, the path
-> > which reverses the locking order (takes pcpu_alloc_mutex prior to
-> > cpu_hotplug.lock is bpf_array_alloc_percpu which is GFP_USER and thus
-> > __GFP_HARDWALL.
-> > 
-> > I believe we shouldn't pull any dependency on the hotplug locks inside
-> > the allocator. This is just too fragile! Can we simply drop the
-> > get_online_cpus()? Why do we need it, anyway? Say we are racing with the
 > 
-> It was added after I noticed in review that queue_work_on() has a
-> comment that caller must ensure that cpu can't go away, and wondered
-> about it.
-
-Ohh, I haven't noticed the comment. Thanks for pointing it out. I still
-do not see what would a missing get_online_cpus mean for queuing.
-
-> Also noted that a similar lru_add_drain_all() does it too.
+> I see your point.  Perhaps we can introduce a constraint that
+> ensures the balanced zones constitute say 1/4 or 1/2 of
+> memory in the classzone?  I believe there used to be such
+> a constraint at one time for higher order allocations.
 > 
-> > cpu offlining. I have to check the code but my impression was that WQ
-> > code will ignore the cpu requested by the work item when the cpu is
-> > going offline. If the offline happens while the worker function already
-> > executes then it has to wait as we run with preemption disabled so we
-> > should be safe here. Or am I missing something obvious?
-> 
-> Tejun suggested an alternative solution to avoiding get_online_cpus() in
-> this thread:
-> https://lkml.kernel.org/r/<20170123170329.GA7820@htj.duckdns.org>
 
-OK, so we have page_alloc_cpu_notify which also does drain_pages so all
-we have to do to make sure they do not race is to synchronize there.
+There was but it was fairly complex and I'd rather avoid it if at all
+possible and certainly not without data backing it up.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
