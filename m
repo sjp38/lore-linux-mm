@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C74E56B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 08:56:36 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id h7so25721683wjy.6
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 05:56:36 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e2si5124440wra.193.2017.02.07.05.56.35
+	by kanga.kvack.org (Postfix) with ESMTP id 8C3746B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 08:58:00 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id h7so25729765wjy.6
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 05:58:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z22si5131262wrc.201.2017.02.07.05.57.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 05:56:35 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v17Ds5rU019373
-	for <linux-mm@kvack.org>; Tue, 7 Feb 2017 08:56:34 -0500
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28fesx2c8e-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:56:33 -0500
-Received: from localhost
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 7 Feb 2017 23:56:31 +1000
-Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 03F722CE8057
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 00:56:28 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v17DuJZJ6094876
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 00:56:27 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v17Dttn1011354
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 00:55:55 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in zap_pmd_range()
-In-Reply-To: <20170206160751.GA29962@node.shutemov.name>
-References: <20170205161252.85004-1-zi.yan@sent.com> <20170205161252.85004-4-zi.yan@sent.com> <20170206160751.GA29962@node.shutemov.name>
-Date: Tue, 07 Feb 2017 19:25:30 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Feb 2017 05:57:59 -0800 (PST)
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+References: <20170206220530.apvuknbagaf2rdlw@techsingularity.net>
+ <20170207084855.GC5065@dhcp22.suse.cz>
+ <20170207094300.cuxfqi35wflk5nr5@techsingularity.net>
+ <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz>
+ <20170207102809.awh22urqmfrav5r6@techsingularity.net>
+ <20170207103552.GH5065@dhcp22.suse.cz>
+ <20170207113435.6xthczxt2cx23r4t@techsingularity.net>
+ <20170207114327.GI5065@dhcp22.suse.cz> <20170207123708.GO5065@dhcp22.suse.cz>
+ <0bbc50c4-b18a-a510-ba75-4d7415f15e82@suse.cz>
+ <20170207124835.GP5065@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c9b07372-b3ff-0011-ccf8-ff08c99cd45d@suse.cz>
+Date: Tue, 7 Feb 2017 14:57:56 +0100
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87bmueqf59.fsf@skywalker.in.ibm.com>
+In-Reply-To: <20170207124835.GP5065@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@sent.com>, mgorman@techsingularity.net, riel@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, Zi Yan <ziy@nvidia.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+On 02/07/2017 01:48 PM, Michal Hocko wrote:
+> On Tue 07-02-17 13:43:39, Vlastimil Babka wrote:
+> [...]
+>> > Anyway, shouldn't be it sufficient to disable preemption
+>> > on drain_local_pages_wq? The CPU hotplug callback will not preempt us
+>> > and so we cannot work on the same cpus, right?
+>>
+>> I thought the problem here was that the callback races with the work item
+>> that has been migrated to a different cpu. Once we are not working on the
+>> local cpu, disabling preempt/irq's won't help?
+>
+> If the worker is racing with the callback than only one of can run on a
+> _particular_ cpu. So they cannot race. Or am I missing something?
 
-> On Sun, Feb 05, 2017 at 11:12:41AM -0500, Zi Yan wrote:
->> From: Zi Yan <ziy@nvidia.com>
->> 
->> Originally, zap_pmd_range() checks pmd value without taking pmd lock.
->> This can cause pmd_protnone entry not being freed.
->> 
->> Because there are two steps in changing a pmd entry to a pmd_protnone
->> entry. First, the pmd entry is cleared to a pmd_none entry, then,
->> the pmd_none entry is changed into a pmd_protnone entry.
->> The racy check, even with barrier, might only see the pmd_none entry
->> in zap_pmd_range(), thus, the mapping is neither split nor zapped.
->
-> That's definately a good catch.
->
-> But I don't agree with the solution. Taking pmd lock on each
-> zap_pmd_range() is a significant hit by scalability of the code path.
-> Yes, split ptl lock helps, but it would be nice to avoid the lock in first
-> place.
->
-> Can we fix change_huge_pmd() instead? Is there a reason why we cannot
-> setup the pmd_protnone() atomically?
->
-> Mel? Rik?
->
-
-I am also trying to fixup the usage of set_pte_at on ptes that are
-valid/present (that this autonuma ptes). I guess what we are missing is a
-variant of pte update routines that can atomically update a pte without
-clearing it and that also doesn't do a tlb flush ?
-
--aneesh
+Ah I forgot that migrated work item will in fact run on local cpu. So looks like 
+nobody should race with the callback indeed (assuming that when the callback is 
+called, the cpu in question already isn't executing workqueue workers).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
