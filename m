@@ -1,81 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 431E46B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 11:54:55 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id p22so7249248qka.0
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:54:55 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b24si3383521qkb.2.2017.02.07.08.54.54
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 986766B0069
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 11:55:56 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id 101so117265167iom.7
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:55:56 -0800 (PST)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id e192si12249705iof.103.2017.02.07.08.55.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 08:54:54 -0800 (PST)
-Date: Tue, 7 Feb 2017 11:54:51 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
- per zone
-Message-ID: <20170207165451.GE7512@bfoster.bfoster>
-References: <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
- <20170203145009.GB19325@dhcp22.suse.cz>
- <20170203172403.GG45388@bfoster.bfoster>
- <201702061529.ABC60444.FFFJOOHLVQSMtO@I-love.SAKURA.ne.jp>
- <20170206143533.GC57865@bfoster.bfoster>
- <201702071930.EJJ69255.SQOMVLJOFtOHFF@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201702071930.EJJ69255.SQOMVLJOFtOHFF@I-love.SAKURA.ne.jp>
+        Tue, 07 Feb 2017 08:55:55 -0800 (PST)
+Date: Tue, 7 Feb 2017 10:55:51 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+In-Reply-To: <20170207164130.GY5065@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org>
+References: <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz> <20170207102809.awh22urqmfrav5r6@techsingularity.net> <20170207103552.GH5065@dhcp22.suse.cz> <20170207113435.6xthczxt2cx23r4t@techsingularity.net> <20170207114327.GI5065@dhcp22.suse.cz>
+ <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net>
+ <20170207164130.GY5065@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Feb 07, 2017 at 07:30:54PM +0900, Tetsuo Handa wrote:
-> Brian Foster wrote:
-> > > The workload is to write to a single file on XFS from 10 processes demonstrated at
-> > > http://lkml.kernel.org/r/201512052133.IAE00551.LSOQFtMFFVOHOJ@I-love.SAKURA.ne.jp
-> > > using "while :; do ./oom-write; done" loop on a VM with 4CPUs / 2048MB RAM.
-> > > With this XFS_FILBLKS_MIN() change applied, I no longer hit assertion failures.
-> > > 
-> > 
-> > Thanks for testing. Well, that's an interesting workload. I couldn't
-> > reproduce on a few quick tries in a similarly configured vm.
-> 
-> It takes 10 to 15 minutes. Maybe some size threshold involved?
-> 
-> > /tmp/file _is_ on an XFS filesystem in your test, correct? If so and if
-> > you still have the output file from a test that reproduced, could you
-> > get the 'xfs_io -c "fiemap -v" <file>' output?
-> 
-> Here it is.
-> 
-> [  720.199748] 0 pages HighMem/MovableOnly
-> [  720.199749] 150524 pages reserved
-> [  720.199749] 0 pages cma reserved
-> [  720.199750] 0 pages hwpoisoned
-> [  722.187335] XFS: Assertion failed: oldlen > newlen, file: fs/xfs/libxfs/xfs_bmap.c, line: 2867
-> [  722.201784] ------------[ cut here ]------------
-...
-> 
-> # ls -l /tmp/file
-> -rw------- 1 kumaneko kumaneko 43426648064 Feb  7 19:25 /tmp/file
-> # xfs_io -c "fiemap -v" /tmp/file
-> /tmp/file:
->  EXT: FILE-OFFSET          BLOCK-RANGE            TOTAL FLAGS
->    0: [0..262015]:         358739712..359001727  262016   0x0
-...
->  187: [84810808..84901119]: 110211736..110302047   90312   0x1
+On Tue, 7 Feb 2017, Michal Hocko wrote:
 
-Ok, from the size of the file I realized that I missed you were running
-in a loop the first time around. I tried playing with it some more and
-still haven't been able to reproduce.
+> I am always nervous when seeing hotplug locks being used in low level
+> code. It has bitten us several times already and those deadlocks are
+> quite hard to spot when reviewing the code and very rare to hit so they
+> tend to live for a long time.
 
-Anyways, the patch intended to fix this has been reviewed[1] and queued
-for the next release, so it's probably not a big deal since you've
-already verified it. Thanks again.
+Yep. Hotplug events are pretty significant. Using stop_machine_XXXX() etc
+would be advisable and that would avoid the taking of locks and get rid of all the
+ocmplexity, reduce the code size and make the overall system much more
+reliable.
 
-Brian
+Thomas?
 
-[1] http://www.spinics.net/lists/linux-xfs/msg04083.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
