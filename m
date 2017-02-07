@@ -1,67 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5106B0253
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 18:52:53 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c73so124493942pfb.7
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 15:52:53 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s21si2139506pgh.403.2017.02.06.15.52.52
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E163E6B0033
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 19:16:48 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id j13so94242664iod.6
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 16:16:48 -0800 (PST)
+Received: from nm25-vm6.bullet.mail.ne1.yahoo.com (nm25-vm6.bullet.mail.ne1.yahoo.com. [98.138.91.118])
+        by mx.google.com with ESMTPS id e3si5784852ith.24.2017.02.06.16.16.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Feb 2017 15:52:52 -0800 (PST)
-Date: Mon, 6 Feb 2017 15:52:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [v2,2/5] userfaultfd: non-cooperative: add event for memory
- unmaps
-Message-Id: <20170206155251.f98b9ce54a4e1e1c5be50b48@linux-foundation.org>
-In-Reply-To: <20170205184629.GA28665@roeck-us.net>
-References: <1485542673-24387-3-git-send-email-rppt@linux.vnet.ibm.com>
-	<20170205184629.GA28665@roeck-us.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 06 Feb 2017 16:16:47 -0800 (PST)
+Subject: Re: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
+References: <719282122.1183240.1486298780546.ref@mail.yahoo.com>
+ <719282122.1183240.1486298780546@mail.yahoo.com>
+ <20170206161715.sfz6lm3vmahlnxx6@techsingularity.net>
+From: Shantanu Goel <sgoel01@yahoo.com>
+Message-ID: <68644e18-ed8d-0559-4ac2-fb3162f6ba67@yahoo.com>
+Date: Mon, 6 Feb 2017 19:16:46 -0500
+MIME-Version: 1.0
+In-Reply-To: <20170206161715.sfz6lm3vmahlnxx6@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun, 5 Feb 2017 10:46:29 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
+Hi,
 
-> On Fri, Jan 27, 2017 at 08:44:30PM +0200, Mike Rapoport wrote:
-> > When a non-cooperative userfaultfd monitor copies pages in the background,
-> > it may encounter regions that were already unmapped. Addition of
-> > UFFD_EVENT_UNMAP allows the uffd monitor to track precisely changes in the
-> > virtual memory layout.
-> > 
-> > Since there might be different uffd contexts for the affected VMAs, we
-> > first should create a temporary representation for the unmap event for each
-> > uffd context and then notify them one by one to the appropriate userfault
-> > file descriptors.
-> > 
-> > The event notification occurs after the mmap_sem has been released.
-> > 
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> 
-> Just in case 0day didn't report it yet, this patch causes build errors
-> with various architectures.
-> 
-> mm/nommu.c:1201:15: error: conflicting types for 'do_mmap'
->  unsigned long do_mmap(struct file *file,
->                ^
-> In file included from mm/nommu.c:19:0:
-> 	include/linux/mm.h:2095:22: note:
-> 		previous declaration of 'do_mmap' was here
-> 
-> mm/nommu.c:1580:5: error: conflicting types for 'do_munmap'
-> int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
->     ^
-> In file included from mm/nommu.c:19:0:
-> 	include/linux/mm.h:2099:12: note:
-> 		previous declaration of 'do_munmap' was here
+On 02/06/2017 11:17 AM, Mel Gorman wrote:
 
-This was fixed in
-http://ozlabs.org/~akpm/mmots/broken-out/userfaultfd-non-cooperative-add-event-for-memory-unmaps-fix.patch?
+> On Sun, Feb 05, 2017 at 12:46:20PM +0000, Shantanu Goel wrote:
+>> On 4.9.7 kswapd is failing to wake up kcompactd due to a mismatch in the zone balance check between balance_pgdat() and prepare_kswapd_sleep().  balance_pgdat() returns as soon as a single zone satisfies the allocation but prepare_kswapd_sleep() requires all zones to do the same.  This causes prepare_kswapd_sleep() to never succeed except in the order == 0 case and consequently, wakeup_kcompactd() is never called.  On my machine prior to apply this patch, the state of compaction from /proc/vmstat looked this way after a day and a half of uptime:
+>>
+>> compact_migrate_scanned 240496
+>> compact_free_scanned 76238632
+>> compact_isolated 123472
+>> compact_stall 1791
+>> compact_fail 29
+>> compact_success 1762
+>> compact_daemon_wake 0
+>>
+>>
+>> After applying the patch and about 10 hours of uptime the state looks like this:
+>>
+>> compact_migrate_scanned 59927299
+>> compact_free_scanned 2021075136
+>> compact_isolated 640926
+>> compact_stall 4
+>> compact_fail 2
+>> compact_success 2
+>> compact_daemon_wake 5160
+>>
+> This should be in the changelog of the patch itself and the patch should
+> be inline instead of being an attachment.
+
+Will do and resubmit in a separate email.
+
+>> Thanks,
+>> Shantanu
+>>  From 46f2e4b02ac263bf50d69cdab3bcbd7bcdea7415 Mon Sep 17 00:00:00 2001
+>> From: Shantanu Goel <sgoel01@yahoo.com>
+>> Date: Sat, 4 Feb 2017 19:07:53 -0500
+>> Subject: [PATCH] vmscan: fix zone balance check in prepare_kswapd_sleep
+>>
+>> The check in prepare_kswapd_sleep needs to match the one in balance_pgdat
+>> since the latter will return as soon as any one of the zones in the
+>> classzone is above the watermark.  This is specially important for
+>> higher order allocations since balance_pgdat will typically reset
+>> the order to zero relying on compaction to create the higher order
+>> pages.  Without this patch, prepare_kswapd_sleep fails to wake up
+>> kcompactd since the zone balance check fails.
+>>
+>> Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
+> I don't recall specifically why I made that change but I've no objections
+> to the patch so;
+>
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+>
+> However, note that there is a slight risk that kswapd will sleep for a
+> short interval early due to a very small zone such as ZONE_DMA. If this
+> is a general problem then it'll manifest as less kswapd reclaim and more
+> direct reclaim. If it turns out this is an issue then a revert will not
+> be the right fix. Instead, all the checks for zone_balance will need to
+> account for the only balanced zone being a tiny percentage of memory in
+> the node.
+>
+
+I see your point.  Perhaps we can introduce a constraint that
+ensures the balanced zones constitute say 1/4 or 1/2 of
+memory in the classzone?  I believe there used to be such
+a constraint at one time for higher order allocations.
+
+
+Thanks,
+Shantanu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
