@@ -1,95 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 43D5A6B0033
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2017 23:57:27 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 201so133735020pfw.5
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 20:57:27 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id w71si2854633pfj.282.2017.02.06.20.57.25
-        for <linux-mm@kvack.org>;
-        Mon, 06 Feb 2017 20:57:26 -0800 (PST)
-Date: Tue, 7 Feb 2017 13:57:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
-Message-ID: <20170207045722.GA2215@bbox>
-References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
- <1486111347-112972-1-git-send-email-zhouxianrong@huawei.com>
- <20170205142100.GA9611@bbox>
- <2f6e188c-5358-eeab-44ab-7634014af651@huawei.com>
- <20170206234805.GA12188@bbox>
- <ba64f168-72f5-65c3-c88c-7a59e57b20aa@huawei.com>
- <20170207025426.GA1528@bbox>
- <d8e06f0a-75b0-41cf-4ff2-c3bb1310fa24@huawei.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A62CE6B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 02:17:30 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id i10so2238412wrb.0
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2017 23:17:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e44si3916626wre.209.2017.02.06.23.17.29
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Feb 2017 23:17:29 -0800 (PST)
+Date: Tue, 7 Feb 2017 08:17:25 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/6] xfs: use memalloc_nofs_{save,restore} instead of
+ memalloc_noio*
+Message-ID: <20170207071724.GA3022@dhcp22.suse.cz>
+References: <20170206140718.16222-1-mhocko@kernel.org>
+ <20170206140718.16222-5-mhocko@kernel.org>
+ <20170206153923.GL2267@bombadil.infradead.org>
+ <20170206174415.GA20731@dhcp22.suse.cz>
+ <20170206183237.GE3580@birch.djwong.org>
+ <20170206184743.GB20731@dhcp22.suse.cz>
+ <20170206225150.GB12125@dastard>
 MIME-Version: 1.0
-In-Reply-To: <d8e06f0a-75b0-41cf-4ff2-c3bb1310fa24@huawei.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170206225150.GB12125@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong <zhouxianrong@huawei.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, willy@infradead.org, iamjoonsoo.kim@lge.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Feb 07, 2017 at 11:24:40AM +0800, zhouxianrong wrote:
+On Tue 07-02-17 09:51:50, Dave Chinner wrote:
+> On Mon, Feb 06, 2017 at 07:47:43PM +0100, Michal Hocko wrote:
+> > On Mon 06-02-17 10:32:37, Darrick J. Wong wrote:
+[...]
+> > > I prefer to keep the "...yet we are likely to be under GFP_NOFS..."
+> > > wording of the old comment because it captures the uncertainty of
+> > > whether or not we actually are already under NOFS.  If someone actually
+> > > has audited this code well enough to know for sure then yes let's change
+> > > the comment, but I haven't gone that far.
+> > 
+> > I believe we can drop the memalloc_nofs_save then as well because either
+> > we are called from a potentially dangerous context and thus we are in
+> > the nofs scope we we do not need the protection at all.
 > 
-> 
-> On 2017/2/7 10:54, Minchan Kim wrote:
-> >On Tue, Feb 07, 2017 at 10:20:57AM +0800, zhouxianrong wrote:
-> >
-> >< snip >
-> >
-> >>>>3. the below should be modified.
-> >>>>
-> >>>>static inline bool zram_meta_get(struct zram *zram)
-> >>>>@@ -495,11 +553,17 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
-> >>>>
-> >>>>	/* Free all pages that are still in this zram device */
-> >>>>	for (index = 0; index < num_pages; index++) {
-> >>>>-		unsigned long handle = meta->table[index].handle;
-> >>>>+		unsigned long handle;
-> >>>>+
-> >>>>+		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
-> >>>>+		handle = meta->table[index].handle;
-> >>>>
-> >>>>-		if (!handle)
-> >>>>+		if (!handle || zram_test_flag(meta, index, ZRAM_SAME)) {
-> >>>>+			bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-> >>>>			continue;
-> >>>>+		}
-> >>>>
-> >>>>+		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-> >>>>		zs_free(meta->mem_pool, handle);
-> >>>
-> >>>Could you explain why we need this modification?
-> >>>
-> >>>>	}
-> >>>>
-> >>>>@@ -511,7 +575,7 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
-> >>>>static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
-> >>>>{
-> >>>>	size_t num_pages;
-> >>>>-	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
-> >>>>+	struct zram_meta *meta = kzalloc(sizeof(*meta), GFP_KERNEL);
-> >>>
-> >>>Ditto
-> >>>
-> >>>>
-> >>>>
-> >>>
-> >>>.
-> >>>
-> >>
-> >>because of union of handle and element, i think a non-zero element (other than handle) is prevented from freeing.
-> >>if zram_meta_get was modified, zram_meta_alloc did so.
-> >
-> >Right. Thanks but I don't see why we need the locking in there and modification of
-> >zram_meta_alloc.
-> >
-> >Isn't it enough with this?
-> 
-> i am afraid someone do reset_store, so did lock.
+> No, absolutely not. "Belief" is not a sufficient justification for
+> removing low level deadlock avoidance infrastructure. This code
+> needs to remain in _xfs_buf_map_pages() until a full audit of the
+> caller paths is done and we're 100% certain that there are no
+> lurking deadlocks.
 
-reset_store is protected by zram->claim and and init_done so I don't
-think so.
+Exactly. I was actually refering to "If someone actually has audited
+this code" above... So I definitely do not want to justify anything
+based on the belief
+
+> For example, I'm pretty sure we can call into _xfs_buf_map_pages()
+> outside of a transaction context but with an inode ILOCK held
+> exclusively. If we then recurse into memory reclaim and try to run a
+> transaction during reclaim, we have an inverted ILOCK vs transaction
+> locking order. i.e. we are not allowed to call xfs_trans_reserve()
+> with an ILOCK held as that can deadlock the log:  log full, locked
+> inode pins tail of log, inode cannot be flushed because ILOCK is
+> held by caller waiting for log space to become available....
+> 
+> i.e. there are certain situations where holding a ILOCK is a
+> deadlock vector. See xfs_lock_inodes() for an example of the lengths
+> we go to avoid ILOCK based log deadlocks like this...
+
+Thanks for the reference. This is really helpful!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
