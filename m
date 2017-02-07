@@ -1,66 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B9E8E6B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:19:14 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id x4so25684797wme.3
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:19:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t2si12332304wmt.152.2017.02.07.06.19.13
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B8F086B0069
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:19:59 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id v67so2953087wrb.4
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:19:59 -0800 (PST)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id s26si12363142wma.12.2017.02.07.06.19.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 06:19:13 -0800 (PST)
-Date: Tue, 7 Feb 2017 15:19:11 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-Message-ID: <20170207141911.GR5065@dhcp22.suse.cz>
-References: <20170206220530.apvuknbagaf2rdlw@techsingularity.net>
- <20170207084855.GC5065@dhcp22.suse.cz>
- <20170207094300.cuxfqi35wflk5nr5@techsingularity.net>
- <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz>
- <20170207102809.awh22urqmfrav5r6@techsingularity.net>
- <20170207103552.GH5065@dhcp22.suse.cz>
- <20170207113435.6xthczxt2cx23r4t@techsingularity.net>
- <20170207114327.GI5065@dhcp22.suse.cz>
- <20170207123708.GO5065@dhcp22.suse.cz>
- <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Feb 2017 06:19:58 -0800 (PST)
+Received: by mail-wr0-x244.google.com with SMTP id 89so5731746wrr.1
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:19:58 -0800 (PST)
+Date: Tue, 7 Feb 2017 17:19:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
+ zap_pmd_range()
+Message-ID: <20170207141956.GA4789@node.shutemov.name>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-4-zi.yan@sent.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
+In-Reply-To: <20170205161252.85004-4-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Zi Yan <zi.yan@sent.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, Zi Yan <ziy@nvidia.com>
 
-On Tue 07-02-17 13:58:46, Mel Gorman wrote:
-> On Tue, Feb 07, 2017 at 01:37:08PM +0100, Michal Hocko wrote:
-[...]
-> > Anyway, shouldn't be it sufficient to disable preemption
-> > on drain_local_pages_wq?
+On Sun, Feb 05, 2017 at 11:12:41AM -0500, Zi Yan wrote:
+> From: Zi Yan <ziy@nvidia.com>
 > 
-> That would be sufficient for a hot-removed CPU moving the drain request
-> to another CPU and avoiding any scheduling events.
+> Originally, zap_pmd_range() checks pmd value without taking pmd lock.
+> This can cause pmd_protnone entry not being freed.
 > 
-> > The CPU hotplug callback will not preempt us
-> > and so we cannot work on the same cpus, right?
-> > 
-> 
-> I don't see a specific guarantee that it cannot be preempted and it
-> would depend on an the exact cpu hotplug implementation which is subject
-> to quite a lot of change.
+> Because there are two steps in changing a pmd entry to a pmd_protnone
+> entry. First, the pmd entry is cleared to a pmd_none entry, then,
+> the pmd_none entry is changed into a pmd_protnone entry.
+> The racy check, even with barrier, might only see the pmd_none entry
+> in zap_pmd_range(), thus, the mapping is neither split nor zapped.
 
-But we do not care about the whole cpu hotplug code. The only part we
-really do care about is the race inside drain_pages_zone and that will
-run in an atomic context on the specific CPU.
+Okay, this only can happen to MADV_DONTNEED as we hold
+down_write(mmap_sem) for the rest of zap_pmd_range() and whoever modifies
+page tables has to hold at least down_read(mmap_sem) or exclude parallel
+modification in other ways.
 
-You are absolutely right that using the mutex is safe as well but the
-hotplug path is already littered with locks and adding one more to the
-picture doesn't sound great to me. So I would really like to not use a
-lock if that is possible and safe (with a big fat comment of course).
+See 1a5a9906d4e8 ("mm: thp: fix pmd_bad() triggering in code paths holding
+mmap_sem read mode") for more details.
+
++Andrea.
+
+> Later, in free_pmd_range(), pmd_none_or_clear() will see the
+> pmd_protnone entry and clear it as a pmd_bad entry. Furthermore,
+> since the pmd_protnone entry is not properly freed, the corresponding
+> deposited pte page table is not freed either.
+
+free_pmd_range() should be fine: we only free page tables after vmas gone
+(under down_write(mmap_sem() in exit_mmap() and unmap_region()) or after
+pagetables moved (under down_write(mmap_sem) in shift_arg_pages()).
+
+> This causes memory leak or kernel crashing, if VM_BUG_ON() is enabled.
+
+The problem is that numabalancing calls change_huge_pmd() under
+down_read(mmap_sem), not down_write(mmap_sem) as the rest of users do.
+It makes numabalancing the only code path beyond page fault that can turn
+pmd_none() into pmd_trans_huge() under down_read(mmap_sem).
+
+This can lead to race when MADV_DONTNEED miss THP. That's not critical for
+pagefault vs. MADV_DONTNEED race as we will end up with clear page in that
+case. Not so much for change_huge_pmd().
+
+Looks like we need pmdp_modify() or something to modify protection bits
+inplace, without clearing pmd.
+
+Not sure how to get crash scenario.
+
+BTW, Zi, have you observed the crash? Or is it based on code inspection?
+Any backtraces?
+
+Ouch! madvise_free_huge_pmd() is broken too. We shouldn't clear pmd in the
+middle of it as we only hold down_read(mmap_sem). I guess we need a helper
+to clear both access and dirty bits.
+Minchan, could you look into it?
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
