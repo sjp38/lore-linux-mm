@@ -1,111 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 837F16B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:12:54 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id h10so113662115ith.2
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:12:54 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0135.outbound.protection.outlook.com. [104.47.42.135])
-        by mx.google.com with ESMTPS id o93si11786115ioi.151.2017.02.07.06.12.53
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B9E8E6B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 09:19:14 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id x4so25684797wme.3
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 06:19:14 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t2si12332304wmt.152.2017.02.07.06.19.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 06:12:53 -0800 (PST)
-From: Zi Yan <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
- zap_pmd_range()
-Date: Tue, 7 Feb 2017 08:12:43 -0600
-Message-ID: <366917AD-792F-40E7-BC20-978A13EABB73@cs.rutgers.edu>
-In-Reply-To: <87bmueqf59.fsf@skywalker.in.ibm.com>
-References: <20170205161252.85004-1-zi.yan@sent.com>
- <20170205161252.85004-4-zi.yan@sent.com>
- <20170206160751.GA29962@node.shutemov.name>
- <87bmueqf59.fsf@skywalker.in.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Feb 2017 06:19:13 -0800 (PST)
+Date: Tue, 7 Feb 2017 15:19:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+Message-ID: <20170207141911.GR5065@dhcp22.suse.cz>
+References: <20170206220530.apvuknbagaf2rdlw@techsingularity.net>
+ <20170207084855.GC5065@dhcp22.suse.cz>
+ <20170207094300.cuxfqi35wflk5nr5@techsingularity.net>
+ <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz>
+ <20170207102809.awh22urqmfrav5r6@techsingularity.net>
+ <20170207103552.GH5065@dhcp22.suse.cz>
+ <20170207113435.6xthczxt2cx23r4t@techsingularity.net>
+ <20170207114327.GI5065@dhcp22.suse.cz>
+ <20170207123708.GO5065@dhcp22.suse.cz>
+ <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-	boundary="=_MailMate_5B4C82F0-AB41-4B85-9D32-50E7A4C06C9F_=";
-	micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, mgorman@techsingularity.net, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <ziy@nvidia.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
---=_MailMate_5B4C82F0-AB41-4B85-9D32-50E7A4C06C9F_=
-Content-Type: text/plain; markup=markdown
+On Tue 07-02-17 13:58:46, Mel Gorman wrote:
+> On Tue, Feb 07, 2017 at 01:37:08PM +0100, Michal Hocko wrote:
+[...]
+> > Anyway, shouldn't be it sufficient to disable preemption
+> > on drain_local_pages_wq?
+> 
+> That would be sufficient for a hot-removed CPU moving the drain request
+> to another CPU and avoiding any scheduling events.
+> 
+> > The CPU hotplug callback will not preempt us
+> > and so we cannot work on the same cpus, right?
+> > 
+> 
+> I don't see a specific guarantee that it cannot be preempted and it
+> would depend on an the exact cpu hotplug implementation which is subject
+> to quite a lot of change.
 
-On 7 Feb 2017, at 7:55, Aneesh Kumar K.V wrote:
+But we do not care about the whole cpu hotplug code. The only part we
+really do care about is the race inside drain_pages_zone and that will
+run in an atomic context on the specific CPU.
 
-> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
->
->> On Sun, Feb 05, 2017 at 11:12:41AM -0500, Zi Yan wrote:
->>> From: Zi Yan <ziy@nvidia.com>
->>>
->>> Originally, zap_pmd_range() checks pmd value without taking pmd lock.
->>> This can cause pmd_protnone entry not being freed.
->>>
->>> Because there are two steps in changing a pmd entry to a pmd_protnone
->>> entry. First, the pmd entry is cleared to a pmd_none entry, then,
->>> the pmd_none entry is changed into a pmd_protnone entry.
->>> The racy check, even with barrier, might only see the pmd_none entry
->>> in zap_pmd_range(), thus, the mapping is neither split nor zapped.
->>
->> That's definately a good catch.
->>
->> But I don't agree with the solution. Taking pmd lock on each
->> zap_pmd_range() is a significant hit by scalability of the code path.
->> Yes, split ptl lock helps, but it would be nice to avoid the lock in first
->> place.
->>
->> Can we fix change_huge_pmd() instead? Is there a reason why we cannot
->> setup the pmd_protnone() atomically?
->>
->> Mel? Rik?
->>
->
-> I am also trying to fixup the usage of set_pte_at on ptes that are
-> valid/present (that this autonuma ptes). I guess what we are missing is a
-> variant of pte update routines that can atomically update a pte without
-> clearing it and that also doesn't do a tlb flush ?
+You are absolutely right that using the mutex is safe as well but the
+hotplug path is already littered with locks and adding one more to the
+picture doesn't sound great to me. So I would really like to not use a
+lock if that is possible and safe (with a big fat comment of course).
 
-I think so. The key point is to have a atomic PTE update function instead
-of current two-step pte/pmd_get_clear() then set_pte/pmd_at(). We can always
-add a wrapper to include TLB flush, once we have this atomic update function.
-
-I used xchg() to replace xxx_get_clear() & set_xxx_at() in pmd_protnone(),
-set_pmd_migration_entry(), and remove_pmd_migration(),
-then ran my test overnight. I did not see kernel crashing nor data corruption.
-So I think the atomic PTE/PMD update function works without taking locks
-in zap_pmd_range().
-
-Aneesh, in your patch of fixing PowerPC's autonuma pte problem, why didn't you
-use atomic operations? Is there any limitation on PowerPC?
-
-My question is why current kernel uses xxx_get_clear() and set_xxx_at()
-in the first place? Is there any limitation I do not know?
-
-
-Thanks.
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_5B4C82F0-AB41-4B85-9D32-50E7A4C06C9F_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJYmdXbAAoJEEGLLxGcTqbMVT8H/3V4BbjxZ4uVRS/AShwtEkt6
-WvRTuQwnf/U3W8Oti/LgqgBNG6xm/tR9o3FSwr7XJ1tORO64GNGH3sxdZuWyt0U+
-ekvggYYDrVvZDTe0Zu+lcvrClT1uQwL/+4NKG/MIu6cbuxzgZ8PbdFcOFCwDKbaj
-KmZ4XKjScDlKQdNYOjLWnFyE84gDi9+gvMgassx/O67e/PAYS48h4UjwjsRYETH/
-UxyUWhLTlSss1HTGpSCZfudcM65ZsZrRNUSNjPISM++ALzqDdMCR2otRC+Q2UCTo
-LQwhurA8frjkPmfx/yG1ntwrFuuuxs7MmOu7/Kbwhswe5O2kK4PYdJOXJzlEYUQ=
-=Lv/q
------END PGP SIGNATURE-----
-
---=_MailMate_5B4C82F0-AB41-4B85-9D32-50E7A4C06C9F_=--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
