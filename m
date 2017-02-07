@@ -1,176 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CD086B0033
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 16:09:24 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id h7so28366003wjy.6
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 13:09:24 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id i21si431385wmc.94.2017.02.07.13.09.23
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 23E706B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 16:12:18 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c85so27699066wmi.6
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 13:12:18 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c27si6490708wra.304.2017.02.07.13.12.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Feb 2017 13:09:23 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id v77so30522053wmv.0
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 13:09:23 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Feb 2017 13:12:16 -0800 (PST)
+Date: Tue, 7 Feb 2017 22:12:12 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] mm: move pcp and lru-pcp drainging into vmstat_wq
-Date: Tue,  7 Feb 2017 22:09:08 +0100
-Message-Id: <20170207210908.530-1-mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170207211211.GB19351@dhcp22.suse.cz>
+References: <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
+ <20170130085546.GF8443@dhcp22.suse.cz>
+ <20170202101415.GE22806@dhcp22.suse.cz>
+ <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
+ <20170203145548.GC19325@dhcp22.suse.cz>
+ <201702051943.CFB35412.OOSJVtLFOFQHMF@I-love.SAKURA.ne.jp>
+ <20170206103918.GD3097@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170206103918.GD3097@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, peterz@infradead.org
+Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon 06-02-17 11:39:18, Michal Hocko wrote:
+> On Sun 05-02-17 19:43:07, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > I got same warning with ext4. Maybe we need to check carefully.
+> > 
+> > [  511.215743] =====================================================
+> > [  511.218003] WARNING: RECLAIM_FS-safe -> RECLAIM_FS-unsafe lock order detected
+> > [  511.220031] 4.10.0-rc6-next-20170202+ #500 Not tainted
+> > [  511.221689] -----------------------------------------------------
+> > [  511.223579] a.out/49302 [HC0[0]:SC0[0]:HE1:SE1] is trying to acquire:
+> > [  511.225533]  (cpu_hotplug.dep_map){++++++}, at: [<ffffffff810a1477>] get_online_cpus+0x37/0x80
+> > [  511.227795] 
+> > [  511.227795] and this task is already holding:
+> > [  511.230082]  (jbd2_handle){++++-.}, at: [<ffffffff813a8be7>] start_this_handle+0x1a7/0x590
+> > [  511.232592] which would create a new lock dependency:
+> > [  511.234192]  (jbd2_handle){++++-.} -> (cpu_hotplug.dep_map){++++++}
+> > [  511.235966] 
+> > [  511.235966] but this new dependency connects a RECLAIM_FS-irq-safe lock:
+> > [  511.238563]  (jbd2_handle){++++-.}
+> > [  511.238564] 
+> > [  511.238564] ... which became RECLAIM_FS-irq-safe at:
+> > [  511.242078]   
+> > [  511.242084] [<ffffffff811089db>] __lock_acquire+0x34b/0x1640
+> > [  511.244495] [<ffffffff8110a119>] lock_acquire+0xc9/0x250
+> > [  511.246697] [<ffffffff813b3525>] jbd2_log_wait_commit+0x55/0x1d0
+> [...]
+> > [  511.276216] to a RECLAIM_FS-irq-unsafe lock:
+> > [  511.278128]  (cpu_hotplug.dep_map){++++++}
+> > [  511.278130] 
+> > [  511.278130] ... which became RECLAIM_FS-irq-unsafe at:
+> > [  511.281809] ...
+> > [  511.281811]   
+> > [  511.282598] [<ffffffff81108141>] mark_held_locks+0x71/0x90
+> > [  511.284854] [<ffffffff8110ab6f>] lockdep_trace_alloc+0x6f/0xd0
+> > [  511.287218] [<ffffffff812744c8>] kmem_cache_alloc_node_trace+0x48/0x3b0
+> > [  511.289755] [<ffffffff810cfa65>] __smpboot_create_thread.part.2+0x35/0xf0
+> > [  511.292329] [<ffffffff810d0026>] smpboot_create_threads+0x66/0x90
+> [...]
+> > [  511.317867] other info that might help us debug this:
+> > [  511.317867] 
+> > [  511.320920]  Possible interrupt unsafe locking scenario:
+> > [  511.320920] 
+> > [  511.323218]        CPU0                    CPU1
+> > [  511.324622]        ----                    ----
+> > [  511.325973]   lock(cpu_hotplug.dep_map);
+> > [  511.327246]                                local_irq_disable();
+> > [  511.328870]                                lock(jbd2_handle);
+> > [  511.330483]                                lock(cpu_hotplug.dep_map);
+> > [  511.332259]   <Interrupt>
+> > [  511.333187]     lock(jbd2_handle);
+> 
+> Peter, is there any way how to tell the lockdep that this is in fact
+> reclaim safe? The direct reclaim only does the trylock and backs off so
+> we cannot deadlock here.
+> 
+> Or am I misinterpreting the trace?
 
-We currently have 2 specific WQ_RECLAIM workqueues. One for updating
-pcp stats vmstat_wq and one dedicated to drain per cpu lru caches. This
-seems more than necessary because both can run on a single WQ. Both
-do not block on locks requiring a memory allocation nor perform any
-allocations themselves. We will save one rescuer thread this way.
+This is moot - http://lkml.kernel.org/r/20170207201950.20482-1-mhocko@kernel.org
 
-On the other hand drain_all_pages queues work on the system wq which
-doesn't have rescuer and so this depend on memory allocation (when all
-workers are stuck allocating and new ones cannot be created). This is
-not critical as there should be somebody invoking the OOM killer (e.g.
-the forking worker) and get the situation unstuck and eventually
-performs the draining. Quite annoying though. This worker should be
-using WQ_RECLAIM as well. We can reuse the same one as for lru draining
-and vmstat.
-
-Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-
-Hi,
-Tetsuo has noted that drain_all_pages doesn't use WQ_RECLAIM [1]
-and asked whether we can move the worker to the vmstat_wq which is
-WQ_RECLAIM. I think the deadlock he has described shouldn't happen but
-it would be really better to have the rescuer. I also think that we do
-not really need 2 or more workqueues and also pull lru draining in.
-
-What do you think? Please note I haven't tested it yet.
-
-[1] http://lkml.kernel.org/r/201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp
-
- mm/internal.h   |  6 ++++++
- mm/page_alloc.c |  2 +-
- mm/swap.c       | 20 +-------------------
- mm/vmstat.c     | 11 ++++++-----
- 4 files changed, 14 insertions(+), 25 deletions(-)
-
-diff --git a/mm/internal.h b/mm/internal.h
-index ccfc2a2969f4..9ecafefe33ba 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -498,4 +498,10 @@ extern const struct trace_print_flags pageflag_names[];
- extern const struct trace_print_flags vmaflag_names[];
- extern const struct trace_print_flags gfpflag_names[];
- 
-+/*
-+ * only for MM internal work items which do not depend on
-+ * any allocations or locks which might depend on allocations
-+ */
-+extern struct workqueue_struct *vmstat_wq;
-+
- #endif	/* __MM_INTERNAL_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6c48053bcd81..0c0a7c38cd91 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2419,7 +2419,7 @@ void drain_all_pages(struct zone *zone)
- 	for_each_cpu(cpu, &cpus_with_pcps) {
- 		struct work_struct *work = per_cpu_ptr(&pcpu_drain, cpu);
- 		INIT_WORK(work, drain_local_pages_wq);
--		schedule_work_on(cpu, work);
-+		queue_work_on(cpu, vmstat_wq, work);
- 	}
- 	for_each_cpu(cpu, &cpus_with_pcps)
- 		flush_work(per_cpu_ptr(&pcpu_drain, cpu));
-diff --git a/mm/swap.c b/mm/swap.c
-index c4910f14f957..23f09d6dd212 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -670,24 +670,6 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
- 
- static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
--/*
-- * lru_add_drain_wq is used to do lru_add_drain_all() from a WQ_MEM_RECLAIM
-- * workqueue, aiding in getting memory freed.
-- */
--static struct workqueue_struct *lru_add_drain_wq;
--
--static int __init lru_init(void)
--{
--	lru_add_drain_wq = alloc_workqueue("lru-add-drain", WQ_MEM_RECLAIM, 0);
--
--	if (WARN(!lru_add_drain_wq,
--		"Failed to create workqueue lru_add_drain_wq"))
--		return -ENOMEM;
--
--	return 0;
--}
--early_initcall(lru_init);
--
- void lru_add_drain_all(void)
- {
- 	static DEFINE_MUTEX(lock);
-@@ -707,7 +689,7 @@ void lru_add_drain_all(void)
- 		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
- 		    need_activate_page_drain(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
--			queue_work_on(cpu, lru_add_drain_wq, work);
-+			queue_work_on(cpu, vmstat_wq, work);
- 			cpumask_set_cpu(cpu, &has_work);
- 		}
- 	}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 69f9aff39a2e..fc9c2d9f014b 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1548,8 +1548,8 @@ static const struct file_operations proc_vmstat_file_operations = {
- };
- #endif /* CONFIG_PROC_FS */
- 
-+struct workqueue_struct *vmstat_wq;
- #ifdef CONFIG_SMP
--static struct workqueue_struct *vmstat_wq;
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
- 
-@@ -1715,7 +1715,6 @@ static void __init start_shepherd_timer(void)
- 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
- 			vmstat_update);
- 
--	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
- 	schedule_delayed_work(&shepherd,
- 		round_jiffies_relative(sysctl_stat_interval));
- }
-@@ -1763,9 +1762,11 @@ static int vmstat_cpu_dead(unsigned int cpu)
- 
- static int __init setup_vmstat(void)
- {
--#ifdef CONFIG_SMP
--	int ret;
-+	int ret = 0;
-+
-+	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
- 
-+#ifdef CONFIG_SMP
- 	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
- 					NULL, vmstat_cpu_dead);
- 	if (ret < 0)
-@@ -1789,7 +1790,7 @@ static int __init setup_vmstat(void)
- 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
- 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
- #endif
--	return 0;
-+	return ret;
- }
- module_init(setup_vmstat)
- 
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
