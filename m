@@ -1,132 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BAFF96B0069
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 07:08:12 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id o16so2712494wra.2
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 04:08:12 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 106406B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 07:09:57 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u63so24993078wmu.0
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 04:09:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z39si4820735wrz.96.2017.02.07.04.08.11
+        by mx.google.com with ESMTPS id 17si11965219wms.53.2017.02.07.04.09.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 04:08:11 -0800 (PST)
-Date: Tue, 7 Feb 2017 13:08:10 +0100
+        Tue, 07 Feb 2017 04:09:55 -0800 (PST)
+Date: Tue, 7 Feb 2017 13:09:54 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-Message-ID: <20170207120810.GK5065@dhcp22.suse.cz>
-References: <CACT4Y+Z-juavN8s+5sc-PB0rbqy4zmsRpc6qZBg3C7z3topLTw@mail.gmail.com>
- <20170206220530.apvuknbagaf2rdlw@techsingularity.net>
- <20170207084855.GC5065@dhcp22.suse.cz>
- <20170207094300.cuxfqi35wflk5nr5@techsingularity.net>
- <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz>
- <20170207102809.awh22urqmfrav5r6@techsingularity.net>
- <20170207103552.GH5065@dhcp22.suse.cz>
- <20170207113435.6xthczxt2cx23r4t@techsingularity.net>
- <20170207114327.GI5065@dhcp22.suse.cz>
- <2539ac25-7e15-f91f-83ba-10556eb0360b@suse.cz>
+Subject: Re: [PATCH 2/2 RESEND] mm: vmpressure: fix sending wrong events on
+ underflow
+Message-ID: <20170207120954.GL5065@dhcp22.suse.cz>
+References: <1486383850-30444-1-git-send-email-vinmenon@codeaurora.org>
+ <1486383850-30444-2-git-send-email-vinmenon@codeaurora.org>
+ <20170206124037.GA10298@dhcp22.suse.cz>
+ <CAOaiJ-kf+1xO9R5u33-JADpNpHiyyfbq0CKY014E8L+ErKioDA@mail.gmail.com>
+ <20170206132410.GC10298@dhcp22.suse.cz>
+ <CAOaiJ-ksqOr8T0KRN8eP-YmvCsXOwF6_z=gvQEtaC5mhMt7tvA@mail.gmail.com>
+ <20170206151203.GF10298@dhcp22.suse.cz>
+ <CAOaiJ-kehYcq=XSS+J2p-tZbPWa_Z33Pey9Af-EhWMop-P7Q=A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2539ac25-7e15-f91f-83ba-10556eb0360b@suse.cz>
+In-Reply-To: <CAOaiJ-kehYcq=XSS+J2p-tZbPWa_Z33Pey9Af-EhWMop-P7Q=A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: vinayak menon <vinayakm.list@gmail.com>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Tue 07-02-17 12:54:48, Vlastimil Babka wrote:
-> On 02/07/2017 12:43 PM, Michal Hocko wrote:
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 3b93879990fd..7af165d308c4 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -2342,7 +2342,14 @@ void drain_local_pages(struct zone *zone)
-> > > 
-> > >  static void drain_local_pages_wq(struct work_struct *work)
-> > >  {
-> > > +	/*
-> > > +	 * Ordinarily a drain operation is bound to a CPU but may be unbound
-> > > +	 * after a CPU hotplug operation so it's necessary to disable
-> > > +	 * preemption for the drain to stabilise the CPU ID.
-> > > +	 */
-> > > +	preempt_disable();
-> > >  	drain_local_pages(NULL);
-> > > +	preempt_enable_no_resched();
-> > >  }
-> > > 
-> > >  /*
+On Tue 07-02-17 16:47:18, vinayak menon wrote:
+> On Mon, Feb 6, 2017 at 8:42 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Mon 06-02-17 20:05:21, vinayak menon wrote:
 > > [...]
-> > > @@ -6711,7 +6714,16 @@ static int page_alloc_cpu_dead(unsigned int cpu)
-> > >  {
-> > > 
-> > >  	lru_add_drain_cpu(cpu);
-> > > +
-> > > +	/*
-> > > +	 * A per-cpu drain via a workqueue from drain_all_pages can be
-> > > +	 * rescheduled onto an unrelated CPU. That allows the hotplug
-> > > +	 * operation and the drain to potentially race on the same
-> > > +	 * CPU. Serialise hotplug versus drain using pcpu_drain_mutex
-> > > +	 */
-> > > +	mutex_lock(&pcpu_drain_mutex);
-> > >  	drain_pages(cpu);
-> > > +	mutex_unlock(&pcpu_drain_mutex);
-> > 
-> > You cannot put sleepable lock inside the preempt disbaled section...
-> > We can make it a spinlock right?
-> 
-> Could we do flush_work() with a spinlock? Sounds bad too.
+> >> By scan I meant pages scanned by shrink_node_memcg/shrink_list
+> >> which is passed as nr_scanned to vmpressure.  The calculation of
+> >> pressure for tree is done at the end of vmpressure_win and it is
+> >> that calculation which underflows. With this patch we want only the
+> >> underflow to be avoided. But if we make (reclaimed = scanned) in
+> >> vmpressure(), we change the vmpressure value even when there is no
+> >> underflow right ?
+> >>
+> >> Rewriting the above e.g again.  First call to vmpressure with
+> >> nr_scanned=1 and nr_reclaimed=512 (THP) Second call to vmpressure
+> >> with nr_scanned=511 and nr_reclaimed=0 In the second call
+> >> vmpr->tree_scanned becomes equal to vmpressure_win and the work
+> >> is scheduled and it will calculate the vmpressure as 0 because
+> >> tree_reclaimed = 512
+> >>
+> >> Similarly, if scanned is made equal to reclaimed in vmpressure()
+> >> itself as you had suggested, First call to vmpressure with
+> >> nr_scanned=1 and nr_reclaimed=512 (THP) And in vmpressure, we
+> >> make nr_scanned=1 and nr_reclaimed=1 Second call to vmpressure
+> >> with nr_scanned=511 and nr_reclaimed=0 In the second call
+> >> vmpr->tree_scanned becomes equal to vmpressure_win and the work is
+> >> scheduled and it will calculate the vmpressure as critical, because
+> >> tree_reclaimed = 1
+> >>
+> >> So it makes a difference, no?
+> >
+> > OK, I see what you meant. Thanks for the clarification. And you are
+> > right that normalizing nr_reclaimed to nr_scanned is a wrong thing to
+> > do because that just doesn't aggregate the real work done. Normalizing
+> > nr_scanned to nr_reclaimed should be better - or it would be even better
+> > to count the scanned pages properly...
+> >
+> With the slab reclaimed issue fixed separately, only the THP case exists AFAIK.
+> In the case of THP, as I understand from one of Minchan's reply, the scan is
+> actually 1. i.e. Only a single huge page is scanned to get 512 reclaimed pages.
+> So the cost involved was scanning a single page.
+> In that case, there is no need to normalize the nr_scanned, no?
 
-We surely cannot. I thought the lock would be gone in drain_all_pages,
-we would deadlock with the lock there anyway... But it is true that we
-would need a way to only allow one caller to get in. This is getting
-messier and messier...
+Strictly speaking it is not but it has weird side effects when we
+basically lie about vmpressure_win.
 
-> Maybe we could just use the fact that the whole drain happens with disabled
-> irq's and obtain the current cpu under that protection?
-
-preempt_disable should be enough, no? The CPU callback is not called
-from an IRQ context, right?
----
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1ee49474207e..4a9a65479435 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2343,7 +2343,16 @@ void drain_local_pages(struct zone *zone)
- 
- static void drain_local_pages_wq(struct work_struct *work)
- {
-+	/*
-+	 * drain_all_pages doesn't use proper cpu hotplug protection so
-+	 * we can race with cpu offline when the WQ can move this from
-+	 * a cpu pinned worker to an unbound one. We can operate on a different
-+	 * cpu which is allright but we also have to make sure to not move to
-+	 * a different one.
-+	 */
-+	preempt_disable();
- 	drain_local_pages(NULL);
-+	preempt_enable();
- }
- 
- /*
-@@ -2379,12 +2388,6 @@ void drain_all_pages(struct zone *zone)
- 	}
- 
- 	/*
--	 * As this can be called from reclaim context, do not reenter reclaim.
--	 * An allocation failure can be handled, it's simply slower
--	 */
--	get_online_cpus();
--
--	/*
- 	 * We don't care about racing with CPU hotplug event
- 	 * as offline notification will cause the notified
- 	 * cpu to drain that CPU pcps and on_each_cpu_mask
-@@ -2423,7 +2426,6 @@ void drain_all_pages(struct zone *zone)
- 	for_each_cpu(cpu, &cpus_with_pcps)
- 		flush_work(per_cpu_ptr(&pcpu_drain, cpu));
- 
--	put_online_cpus();
- 	mutex_unlock(&pcpu_drain_mutex);
- }
- 
 -- 
 Michal Hocko
 SUSE Labs
