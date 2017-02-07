@@ -1,54 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 119646B025E
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 10:41:24 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id c7so26417115wjb.7
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 07:41:24 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e8si5441340wrc.310.2017.02.07.07.41.22
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BE516B0033
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2017 11:09:10 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 14so155164280pgg.4
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2017 08:09:10 -0800 (PST)
+Received: from nm23-vm6.bullet.mail.gq1.yahoo.com (nm23-vm6.bullet.mail.gq1.yahoo.com. [98.136.217.85])
+        by mx.google.com with ESMTPS id b25si4459176pfl.96.2017.02.07.08.09.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Feb 2017 07:41:22 -0800 (PST)
-Date: Tue, 7 Feb 2017 16:41:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: return 0 in case this node has no page
- within the zone
-Message-ID: <20170207154120.GW5065@dhcp22.suse.cz>
-References: <20170206154314.15705-1-richard.weiyang@gmail.com>
- <20170207094557.GE5065@dhcp22.suse.cz>
- <20170207153247.GB31837@WeideMBP.lan>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Feb 2017 08:09:09 -0800 (PST)
+Date: Tue, 7 Feb 2017 16:09:07 +0000 (UTC)
+From: Jim Mostek <jimmostek@yahoo.com>
+Reply-To: Jim Mostek <jimmostek@yahoo.com>
+Message-ID: <843987263.3966583.1486483747633@mail.yahoo.com>
+Subject: LSF/MM Question
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170207153247.GB31837@WeideMBP.lan>
+Content-Type: multipart/alternative;
+	boundary="----=_Part_3966582_1386458366.1486483747632"
+References: <843987263.3966583.1486483747633.ref@mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>
 
-On Tue 07-02-17 23:32:47, Wei Yang wrote:
-> On Tue, Feb 07, 2017 at 10:45:57AM +0100, Michal Hocko wrote:
-[...]
-> >Is there any reason why for_each_mem_pfn_range cannot be changed to
-> >honor the given start/end pfns instead? I can imagine that a small zone
-> >would see a similar pointless iterations...
-> >
-> 
-> Hmm... No special reason, just not thought about this implementation. And
-> actually I just do the similar thing as in zone_spanned_pages_in_node(), in
-> which also return 0 when there is no overlap.
-> 
-> BTW, I don't get your point. You wish to put the check in
-> for_each_mem_pfn_range() definition?
+------=_Part_3966582_1386458366.1486483747632
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-My point was that you are handling one special case (an empty zone) but
-the underlying problem is that __absent_pages_in_range might be wasting
-cycles iterating over memblocks that are way outside of the given pfn
-range. At least this is my understanding. If you fix that you do not
-need the special case, right?
--- 
-Michal Hocko
-SUSE Labs
+
+wondering about the upcoming Linux Storage Filesystem & MM summint in March. LSF/MM Question
+
+What presentations are there so far?
+
+Thanks,
+
+Jim Mostekjimmostek@yahoo.comjim.mostek@quantum.com
+
+------=_Part_3966582_1386458366.1486483747632
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+<html><head></head><body><div style="color:#000; background-color:#fff; font-family:HelveticaNeue, Helvetica Neue, Helvetica, Arial, Lucida Grande, sans-serif;font-size:16px"><div id="yui_3_16_0_ym19_1_1486483689512_3550" dir="ltr"><br id="yui_3_16_0_ym19_1_1486483689512_3606">wondering about the upcoming Linux Storage Filesystem &amp; MM summint in March. LSF/MM Question<br id="yui_3_16_0_ym19_1_1486483689512_3607"><br id="yui_3_16_0_ym19_1_1486483689512_3608">What presentations are there so far?<br id="yui_3_16_0_ym19_1_1486483689512_3609"><br id="yui_3_16_0_ym19_1_1486483689512_3610">Thanks,<br id="yui_3_16_0_ym19_1_1486483689512_3611"><br id="yui_3_16_0_ym19_1_1486483689512_3612">Jim Mostek</div><div dir="ltr" id="yui_3_16_0_ym19_1_1486483689512_3613">jimmostek@yahoo.com</div><div dir="ltr">jim.mostek@quantum.com<br></div></div></body></html>
+------=_Part_3966582_1386458366.1486483747632--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
