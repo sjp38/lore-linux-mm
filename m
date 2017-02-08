@@ -1,86 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5404D6B0033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:27:53 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id r141so31471133wmg.4
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:27:53 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id o9si2752051wmo.21.2017.02.08.07.27.52
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2255728089F
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 11:17:24 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id c25so139474595qtg.2
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 08:17:24 -0800 (PST)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id j13si5923280qta.134.2017.02.08.08.17.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Feb 2017 07:27:52 -0800 (PST)
-Date: Wed, 8 Feb 2017 16:27:47 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] mm, page_alloc: only use per-cpu allocator for irq-safe
- requests -fix v2
-In-Reply-To: <20170208152200.ydlvia2c7lm7ln3t@techsingularity.net>
-Message-ID: <alpine.DEB.2.20.1702081627380.3536@nanos>
-References: <20170208152200.ydlvia2c7lm7ln3t@techsingularity.net>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Feb 2017 08:17:23 -0800 (PST)
+Date: Wed, 8 Feb 2017 10:17:19 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+In-Reply-To: <20170208152106.GP5686@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1702081011460.4938@east.gentwo.org>
+References: <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos> <20170208073527.GA5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org> <20170208152106.GP5686@dhcp22.suse.cz>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 8 Feb 2017, Mel Gorman wrote:
+On Wed, 8 Feb 2017, Michal Hocko wrote:
 
-> preempt_enable_no_resched() was used based on review feedback that had
-> no strong objection at the time. The thinking was that it avoided adding
-> a preemption point where one didn't exist before so the feedback was
-> applied. This reasoning was wrong.
-> 
-> There was an indirect preemption point as explained by Thomas Gleixner where
-> an interrupt could set_need_resched() followed by preempt_enable being
-> a preemption point that matters. This use of preempt_enable_no_resched
-> is bad from both a mainline and RT perspective and a violation of the
-> preemption mechanism. Peter Zijlstra noted that "the only acceptable use
-> of preempt_enable_no_resched() is if the next statement is a schedule()
-> variant".
-> 
-> The usage was outright broken and I should have stuck to preempt_enable()
-> as it was originally developed. It's known from previous tests
-> that there was no detectable difference to the performance by using
-> preempt_enable_no_resched().
-> 
-> This is a fix to the mmotm patch
-> mm-page_alloc-only-use-per-cpu-allocator-for-irq-safe-requests.patch
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> I have no idea what you are trying to say and how this is related to the
+> deadlock we are discussing here. We certainly do not need to add
+> stop_machine the problem. And yeah, dropping get_online_cpus was
+> possible after considering all fallouts.
 
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+This is not the first time get_online_cpus() causes problems due to the
+need to support hotplug for processors. Hotplugging is not happening
+frequently (which is low balling it. Actually the frequency of the hotplug
+events on almost all systems is zero) so the constant check is a useless
+overhead and causes trouble for development. In particular
+get_online_cpus() is often needed in sections that need to hold locks.
 
-> ---
->  mm/page_alloc.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index eaecb4b145e6..2a36dad03dac 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2520,7 +2520,7 @@ void free_hot_cold_page(struct page *page, bool cold)
->  	}
->  
->  out:
-> -	preempt_enable_no_resched();
-> +	preempt_enable();
->  }
->  
->  /*
-> @@ -2686,7 +2686,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
->  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
->  		zone_statistics(preferred_zone, zone);
->  	}
-> -	preempt_enable_no_resched();
-> +	preempt_enable();
->  	return page;
->  }
->  
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
+So lets get rid of it. The severity, frequency and rarity of processor
+hotplug events would justify only allowing adding and removal of
+processors through the stop_machine_xx mechanism. With that in place the
+processor masks can be used without synchronization and the locking issues
+all over the kernel would become simpler.
+
+It is likely that this will even improve the hotplug code because the
+easier form of synchronization (you have a piece of code that executed
+while the OS is in stop state) would allow to make more significant
+changes to the software environment. F.e. one could think about removing
+memory segments as well as maybe per cpu segments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
