@@ -1,87 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6760028089F
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 15:19:10 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id v73so176625363ywg.2
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:19:10 -0800 (PST)
-Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
-        by mx.google.com with ESMTPS id c4si2338117ywe.473.2017.02.08.12.19.09
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 170B228089F
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 15:51:47 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id d38so84694305uad.4
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:51:47 -0800 (PST)
+Received: from mail-ua0-x234.google.com (mail-ua0-x234.google.com. [2607:f8b0:400c:c08::234])
+        by mx.google.com with ESMTPS id 62si2659985uaj.27.2017.02.08.12.51.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 12:19:09 -0800 (PST)
-Received: by mail-yw0-x241.google.com with SMTP id l16so12742897ywb.2
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:19:09 -0800 (PST)
-Date: Wed, 8 Feb 2017 15:19:07 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH] block: fix double-free in the failure path of cgwb_bdi_init()
-Message-ID: <20170208201907.GC25826@htj.duckdns.org>
-References: <CACT4Y+ZsX1gQHdr7+tqhhB6CeKHBU=4VTMDj-meNbZ=uEPLKWA@mail.gmail.com>
+        Wed, 08 Feb 2017 12:51:46 -0800 (PST)
+Received: by mail-ua0-x234.google.com with SMTP id 35so119073235uak.1
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:51:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+ZsX1gQHdr7+tqhhB6CeKHBU=4VTMDj-meNbZ=uEPLKWA@mail.gmail.com>
+In-Reply-To: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
+References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 8 Feb 2017 12:51:24 -0800
+Message-ID: <CALCETrVfah6AFG5mZDjVcRrdXKL=07+WC9ES9ZKU90XqVpWCOg@mail.gmail.com>
+Subject: Re: PCID review?
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, xiakaixu@huawei.com, Vlastimil Babka <vbabka@suse.cz>, Joe Perches <joe@perches.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>
+To: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-When !CONFIG_CGROUP_WRITEBACK, bdi has single bdi_writeback_congested
-at bdi->wb_congested.  cgwb_bdi_init() allocates it with kzalloc() and
-doesn't do further initialization.  This usually works fine as the
-reference count gets bumped to 1 by wb_init() and the put from
-wb_exit() releases it.
+On Tue, Feb 7, 2017 at 10:56 AM, Andy Lutomirski <luto@kernel.org> wrote:
+> Quite a few people have expressed interest in enabling PCID on (x86)
+> Linux.  Here's the code:
+>
+> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/log/?h=x86/pcid
+>
+> The main hold-up is that the code needs to be reviewed very carefully.
+> It's quite subtle.  In particular, "x86/mm: Try to preserve old TLB
+> entries using PCID" ought to be looked at carefully to make sure the
+> locking is right, but there are plenty of other ways this this could
+> all break.
+>
+> Anyone want to take a look or maybe scare up some other reviewers?
+> (Kees, you seemed *really* excited about getting this in.)
 
-However, when wb_init() fails, it puts the wb base ref automatically
-freeing the wb and the explicit kfree() in cgwb_bdi_init() error path
-ends up trying to free the same pointer the second time causing a
-double-free.
+Nadav pointed out that this doesn't work right with
+ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH.  Mel, here's the issue:
 
-Fix it by explicitly initilizing the refcnt to 1 and putting the base
-ref from cgwb_bdi_destroy().
+I want to add ASID (Intel calls it PCID) support to x86.  This means
+that "flush the TLB on a given CPU" will no longer be a particularly
+well defined operation because it's not clear which ASID tag to flush.
+Instead there's "flush the TLB for a given mm on a given CPU".
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
-Fixes: a13f35e87140 ("writeback: don't embed root bdi_writeback_congested in bdi_writeback")
-Cc: stable@vger.kernel.org # v4.2+
----
-Hello,
+If I'm understanding the batched flush code, all it's trying to do is
+to flush more than one mm at a time.  Would it make sense to add a new
+arch API to flush more than one mm?  Presumably it would take a linked
+list, and the batched flush code would fall back to flushing in pieces
+if it can't allocate a new linked list node when needed.
 
-ISTR seeing another fix for this bug but can't find it right now.  If
-I'm imagining things, please apply this one.  If not, either one is
-fine.
-
-Thanks.
-
- mm/backing-dev.c |    9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 3bfed5ab..61b3407 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -758,15 +758,20 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
- 	if (!bdi->wb_congested)
- 		return -ENOMEM;
- 
-+	atomic_set(&bdi->wb_congested->refcnt, 1);
-+
- 	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
- 	if (err) {
--		kfree(bdi->wb_congested);
-+		wb_congested_put(bdi->wb_congested);
- 		return err;
- 	}
- 	return 0;
- }
- 
--static void cgwb_bdi_destroy(struct backing_dev_info *bdi) { }
-+static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
-+{
-+	wb_congested_put(bdi->wb_congested);
-+}
- 
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
+Thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
