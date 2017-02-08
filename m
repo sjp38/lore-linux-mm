@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 170B228089F
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 15:51:47 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id d38so84694305uad.4
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:51:47 -0800 (PST)
-Received: from mail-ua0-x234.google.com (mail-ua0-x234.google.com. [2607:f8b0:400c:c08::234])
-        by mx.google.com with ESMTPS id 62si2659985uaj.27.2017.02.08.12.51.45
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0685C28089F
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 15:53:21 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id q20so1096091ioi.0
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:53:21 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id o138si15867243iod.30.2017.02.08.12.53.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 12:51:46 -0800 (PST)
-Received: by mail-ua0-x234.google.com with SMTP id 35so119073235uak.1
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:51:45 -0800 (PST)
+        Wed, 08 Feb 2017 12:53:20 -0800 (PST)
+Subject: Re: [PATCH] block: fix double-free in the failure path of
+ cgwb_bdi_init()
+References: <CACT4Y+ZsX1gQHdr7+tqhhB6CeKHBU=4VTMDj-meNbZ=uEPLKWA@mail.gmail.com>
+ <20170208201907.GC25826@htj.duckdns.org>
+From: Jens Axboe <axboe@fb.com>
+Message-ID: <66bc2094-3f13-91da-41c2-78fa1e8a81e8@fb.com>
+Date: Wed, 8 Feb 2017 13:52:52 -0700
 MIME-Version: 1.0
-In-Reply-To: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
-References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 8 Feb 2017 12:51:24 -0800
-Message-ID: <CALCETrVfah6AFG5mZDjVcRrdXKL=07+WC9ES9ZKU90XqVpWCOg@mail.gmail.com>
-Subject: Re: PCID review?
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20170208201907.GC25826@htj.duckdns.org>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Tejun Heo <tj@kernel.org>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, xiakaixu@huawei.com, Vlastimil Babka <vbabka@suse.cz>, Joe Perches <joe@perches.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>
 
-On Tue, Feb 7, 2017 at 10:56 AM, Andy Lutomirski <luto@kernel.org> wrote:
-> Quite a few people have expressed interest in enabling PCID on (x86)
-> Linux.  Here's the code:
->
-> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/log/?h=x86/pcid
->
-> The main hold-up is that the code needs to be reviewed very carefully.
-> It's quite subtle.  In particular, "x86/mm: Try to preserve old TLB
-> entries using PCID" ought to be looked at carefully to make sure the
-> locking is right, but there are plenty of other ways this this could
-> all break.
->
-> Anyone want to take a look or maybe scare up some other reviewers?
-> (Kees, you seemed *really* excited about getting this in.)
+On 02/08/2017 01:19 PM, Tejun Heo wrote:
+> When !CONFIG_CGROUP_WRITEBACK, bdi has single bdi_writeback_congested
+> at bdi->wb_congested.  cgwb_bdi_init() allocates it with kzalloc() and
+> doesn't do further initialization.  This usually works fine as the
+> reference count gets bumped to 1 by wb_init() and the put from
+> wb_exit() releases it.
+> 
+> However, when wb_init() fails, it puts the wb base ref automatically
+> freeing the wb and the explicit kfree() in cgwb_bdi_init() error path
+> ends up trying to free the same pointer the second time causing a
+> double-free.
+> 
+> Fix it by explicitly initilizing the refcnt to 1 and putting the base
+> ref from cgwb_bdi_destroy().
 
-Nadav pointed out that this doesn't work right with
-ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH.  Mel, here's the issue:
+Queued up for 4.11.
 
-I want to add ASID (Intel calls it PCID) support to x86.  This means
-that "flush the TLB on a given CPU" will no longer be a particularly
-well defined operation because it's not clear which ASID tag to flush.
-Instead there's "flush the TLB for a given mm on a given CPU".
-
-If I'm understanding the batched flush code, all it's trying to do is
-to flush more than one mm at a time.  Would it make sense to add a new
-arch API to flush more than one mm?  Presumably it would take a linked
-list, and the batched flush code would fall back to flushing in pieces
-if it can't allocate a new linked list node when needed.
-
-Thoughts?
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
