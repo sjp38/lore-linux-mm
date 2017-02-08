@@ -1,97 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A6AB46B0033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:04:45 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id d201so99683386qkg.2
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:04:45 -0800 (PST)
-Received: from mx4-phx2.redhat.com (mx4-phx2.redhat.com. [209.132.183.25])
-        by mx.google.com with ESMTPS id n132si5769225qka.227.2017.02.08.07.04.44
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FA716B0033
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:06:52 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 101so147817298iom.7
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:06:52 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id q135si14916219iod.130.2017.02.08.07.06.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Feb 2017 07:04:44 -0800 (PST)
-Date: Wed, 8 Feb 2017 10:04:39 -0500 (EST)
-From: Jerome Glisse <jglisse@redhat.com>
-Message-ID: <1808730857.1637296.1486566279643.JavaMail.zimbra@redhat.com>
-In-Reply-To: <bfb7f080-6f0a-743f-654b-54f41443e44a@intel.com>
-References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com> <20170130033602.12275-13-khandual@linux.vnet.ibm.com> <26a17cd1-dd50-43b9-03b1-dd967466a273@intel.com> <e03e62e2-54fa-b0ce-0b58-5db7393f8e3c@linux.vnet.ibm.com> <bfb7f080-6f0a-743f-654b-54f41443e44a@intel.com>
-Subject: Re: [RFC V2 12/12] mm: Tag VMA with VM_CDM flag explicitly during
- mbind(MPOL_BIND)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Feb 2017 07:06:51 -0800 (PST)
+Date: Wed, 8 Feb 2017 09:06:47 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+In-Reply-To: <alpine.DEB.2.20.1702072319200.8117@nanos>
+Message-ID: <alpine.DEB.2.20.1702080906100.3955@east.gentwo.org>
+References: <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz> <20170207102809.awh22urqmfrav5r6@techsingularity.net> <20170207103552.GH5065@dhcp22.suse.cz> <20170207113435.6xthczxt2cx23r4t@techsingularity.net> <20170207114327.GI5065@dhcp22.suse.cz>
+ <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh kumar <aneesh.kumar@linux.vnet.ibm.com>, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dan j williams <dan.j.williams@intel.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-> On 01/30/2017 08:36 PM, Anshuman Khandual wrote:
-> > On 01/30/2017 11:24 PM, Dave Hansen wrote:
-> >> On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
-> >>> +=09=09if ((new_pol->mode =3D=3D MPOL_BIND)
-> >>> +=09=09=09&& nodemask_has_cdm(new_pol->v.nodes))
-> >>> +=09=09=09set_vm_cdm(vma);
-> >> So, if you did:
-> >>
-> >> =09mbind(addr, PAGE_SIZE, MPOL_BIND, all_nodes, ...);
-> >> =09mbind(addr, PAGE_SIZE, MPOL_BIND, one_non_cdm_node, ...);
-> >>
-> >> You end up with a VMA that can never have KSM done on it, etc...  Even
-> >> though there's no good reason for it.  I guess /proc/$pid/smaps might =
-be
-> >> able to help us figure out what was going on here, but that still seem=
-s
-> >> like an awful lot of damage.
-> >=20
-> > Agreed, this VMA should not remain tagged after the second call. It doe=
-s
-> > not make sense. For this kind of scenarios we can re-evaluate the VMA
-> > tag every time the nodemask change is attempted. But if we are looking =
-for
-> > some runtime re-evaluation then we need to steal some cycles are during
-> > general VMA processing opportunity points like merging and split to do
-> > the necessary re-evaluation. Should do we do these kind two kinds of
-> > re-evaluation to be more optimal ?
->=20
-> I'm still unconvinced that you *need* detection like this.  Scanning big
-> VMAs is going to be really painful.
->=20
-> I thought I asked before but I can't find it in this thread.  But, we
-> have explicit interfaces for disabling KSM and khugepaged.  Why do we
-> need implicit ones like this in addition to those?
->=20
+On Tue, 7 Feb 2017, Thomas Gleixner wrote:
 
-I said it in other part of the thread i think the vma flag is a no go. Beca=
-use
-it try to set something that is orthogonal to vma. That you want some vma t=
-o
-use device memory on new allocation is a valid policy for a vma to have. Bu=
-t to
-have a flag that say various kernel subsystem hey my memory is special skip=
- me
-is wrong.
+> > Yep. Hotplug events are pretty significant. Using stop_machine_XXXX() etc
+> > would be advisable and that would avoid the taking of locks and get rid of all the
+> > ocmplexity, reduce the code size and make the overall system much more
+> > reliable.
+>
+> Huch? stop_machine() is horrible and heavy weight. Don't go there, there
+> must be simpler solutions than that.
 
-The fact that you want to exclude device memory from KSM or autonuma is val=
-id but
-it should be done at struct page level ie KSM or autonuma should check the =
-type
-of page before doing anything. For CDM pages they would skip. It could be t=
-he flags
-idea that was discussed.
-
-The overhead of doing it at page level is far lower than trying to manage a=
- vma
-flags with all the issue related to vma merging, splitting and lifetime of =
-such
-flags. Moreover this flags is an all or nothing, it does not consider the c=
-ase
-where you have as much regular page as CDM page in a vma. It would block re=
-gular
-page from under going the usual KSM/autonuma ...
-
-I do strongly believe that this vma flag is a bad idea.
-
-Cheers,
-J=C3=A9r=C3=B4me
+Inserting or removing hardware is a heavy process. This would help quite a
+bit with these issues for loops over active cpus.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
