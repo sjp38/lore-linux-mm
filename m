@@ -1,49 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B1A346B0033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 09:40:02 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r18so31352900wmd.1
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 06:40:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l11si9341718wrb.215.2017.02.08.06.40.01
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 921A86B0033
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 09:56:27 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id an2so33500360wjc.3
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 06:56:27 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id i74si2649754wmh.85.2017.02.08.06.56.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Feb 2017 06:40:01 -0800 (PST)
-Date: Wed, 8 Feb 2017 15:39:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: return 0 in case this node has no page
- within the zone
-Message-ID: <20170208143959.GN5686@dhcp22.suse.cz>
-References: <20170206154314.15705-1-richard.weiyang@gmail.com>
- <20170207094557.GE5065@dhcp22.suse.cz>
- <20170207153247.GB31837@WeideMBP.lan>
- <20170207154120.GW5065@dhcp22.suse.cz>
- <20170208140518.GA67800@WeideMacBook-Pro.local>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Feb 2017 06:56:26 -0800 (PST)
+Date: Wed, 8 Feb 2017 15:56:22 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] mm, page_alloc: only use per-cpu allocator for irq-safe
+ requests -fix
+In-Reply-To: <20170208143128.25ahymqlyspjcixu@techsingularity.net>
+Message-ID: <alpine.DEB.2.20.1702081550440.3536@nanos>
+References: <20170208143128.25ahymqlyspjcixu@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170208140518.GA67800@WeideMacBook-Pro.local>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
 
-On Wed 08-02-17 22:05:18, Wei Yang wrote:
-[...]
-> BTW, the ZONE_MOVABLE handling looks strange to me and the comment "Treat
-> pages to be ZONE_MOVABLE in ZONE_NORMAL as absent pages and vice versa" is
-> hard to understand. From the code point of view, if zone_type is ZONE_NORMAL,
-> each memblock region between zone_start_pfn and zone_end_pfn would be treated
-> as absent pages if it is not mirrored. Do you have some hint on this?
+On Wed, 8 Feb 2017, Mel Gorman wrote:
 
-Not really, sorry, this area is full of awkward and subtle code when new
-changes build on top of previous awkwardness/surprises. Any cleanup
-would be really appreciated. That is the reason I didn't like the
-initial check all that much.
+> preempt_enable_no_resched() was used based on review feedback that had no
+> strong objection at the time. It avoided introducing a preemption point
+> where one didn't exist before which was marginal at best.
 
--- 
-Michal Hocko
-SUSE Labs
+Actually local_irq_enable() _IS_ a preemption point, indirect but still:
+
+   local_irq_disable()
+   ....
+--> HW interrupt is raised
+   ....
+   local_irq_enable()
+
+   handle_irq()
+	set_need_resched()
+   ret_from_irq()
+     preempt()
+
+while with preempt_disable that looks like this:
+
+   preempt_disable()
+   ....
+--> HW interrupt is raised
+   handle_irq()
+	set_need_resched()
+   ret_from_irq()
+   ....
+   preempt_enable()
+      preempt()
+
+Now if you use preempt_enable_no_resched() then you miss the preemption and
+depending on the actual code path you might run something which takes ages
+without hitting a preemption point after that.
+
+It's not only a problem for RT. It's also in mainline a violation of the
+preemption mechanism.
+
+Thanks,
+
+	tglx
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
