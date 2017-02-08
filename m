@@ -1,33 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 28B196B0069
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:13:16 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id m98so147399092iod.2
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:13:16 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id j4si14989781iob.29.2017.02.08.07.13.15
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C8896B0033
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:21:10 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id v77so31230231wmv.5
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:21:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m87si2806065wmc.35.2017.02.08.07.21.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 07:13:15 -0800 (PST)
-Date: Wed, 8 Feb 2017 09:13:14 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm, slab: rename kmalloc-node cache to kmalloc-<size>
-In-Reply-To: <d3a1f708-efdd-98c3-9c26-dab600501679@suse.cz>
-Message-ID: <alpine.DEB.2.20.1702080912560.3955@east.gentwo.org>
-References: <20170203181008.24898-1-vbabka@suse.cz> <201702080139.e2GzXRQt%fengguang.wu@intel.com> <20170207133839.f6b1f1befe4468770991f5e0@linux-foundation.org> <d3a1f708-efdd-98c3-9c26-dab600501679@suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Feb 2017 07:21:09 -0800 (PST)
+Date: Wed, 8 Feb 2017 16:21:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+Message-ID: <20170208152106.GP5686@dhcp22.suse.cz>
+References: <20170207123708.GO5065@dhcp22.suse.cz>
+ <20170207135846.usfrn7e4znjhmogn@techsingularity.net>
+ <20170207141911.GR5065@dhcp22.suse.cz>
+ <20170207153459.GV5065@dhcp22.suse.cz>
+ <20170207162224.elnrlgibjegswsgn@techsingularity.net>
+ <20170207164130.GY5065@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org>
+ <alpine.DEB.2.20.1702072319200.8117@nanos>
+ <20170208073527.GA5686@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Matthew Wilcox <willy@linux.intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 8 Feb 2017, Vlastimil Babka wrote:
+On Wed 08-02-17 09:11:06, Cristopher Lameter wrote:
+> On Wed, 8 Feb 2017, Michal Hocko wrote:
+> 
+> > > Huch? stop_machine() is horrible and heavy weight. Don't go there, there
+> > > must be simpler solutions than that.
+> >
+> > Absolutely agreed. We are in the page allocator path so using the
+> > stop_machine* is just ridiculous. And, in fact, there is a much simpler
+> > solution [1]
+> 
+> That is nonsense. stop_machine would be used when adding removing a
+> processor. There would be no need to synchronize when looping over active
+> cpus anymore. get_online_cpus() etc would be removed from the hot
+> path since the cpu masks are guaranteed to be stable.
 
-> I was going to implement Christoph's suggestion and export the whole structure
-> in mm/slab.h, but gcc was complaining that I'm redefining it, until I created a
-> typedef first. Is it worth the trouble? Below is how it would look like.
+I have no idea what you are trying to say and how this is related to the
+deadlock we are discussing here. We certainly do not need to add
+stop_machine the problem. And yeah, dropping get_online_cpus was
+possible after considering all fallouts.
 
-Looks good to me.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
