@@ -1,105 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C276B0033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 09:15:01 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id an2so33253654wjc.3
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 06:15:01 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f38si9262840wrf.325.2017.02.08.06.14.59
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 68EAF6B0033
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 09:31:30 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id jz4so33260993wjb.5
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 06:31:30 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id a2si2633002wmd.120.2017.02.08.06.31.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 06:14:59 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v18EEq3W144241
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 09:14:58 -0500
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com [125.16.236.2])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28g1rw83yj-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 Feb 2017 09:14:57 -0500
-Received: from localhost
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 8 Feb 2017 19:44:13 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 355523940033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 19:44:10 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v18EEAiU43384868
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 19:44:10 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v18EE8Y4005094
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 19:44:09 +0530
-Subject: Re: [RFC V2 12/12] mm: Tag VMA with VM_CDM flag explicitly during
- mbind(MPOL_BIND)
-References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
- <20170130033602.12275-13-khandual@linux.vnet.ibm.com>
- <26a17cd1-dd50-43b9-03b1-dd967466a273@intel.com>
- <e03e62e2-54fa-b0ce-0b58-5db7393f8e3c@linux.vnet.ibm.com>
- <bfb7f080-6f0a-743f-654b-54f41443e44a@intel.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 8 Feb 2017 19:43:54 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Feb 2017 06:31:29 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 093E798ECD
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 14:31:29 +0000 (UTC)
+Date: Wed, 8 Feb 2017 14:31:28 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, page_alloc: only use per-cpu allocator for irq-safe
+ requests -fix
+Message-ID: <20170208143128.25ahymqlyspjcixu@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <bfb7f080-6f0a-743f-654b-54f41443e44a@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <941c2b32-7bd8-56e7-a8d5-c103cab121d1@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
 
-On 02/07/2017 11:37 PM, Dave Hansen wrote:
->> On 01/30/2017 11:24 PM, Dave Hansen wrote:
->>> On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
->>>> +		if ((new_pol->mode == MPOL_BIND)
->>>> +			&& nodemask_has_cdm(new_pol->v.nodes))
->>>> +			set_vm_cdm(vma);
->>> So, if you did:
->>>
->>> 	mbind(addr, PAGE_SIZE, MPOL_BIND, all_nodes, ...);
->>> 	mbind(addr, PAGE_SIZE, MPOL_BIND, one_non_cdm_node, ...);
->>>
->>> You end up with a VMA that can never have KSM done on it, etc...  Even
->>> though there's no good reason for it.  I guess /proc/$pid/smaps might be
->>> able to help us figure out what was going on here, but that still seems
->>> like an awful lot of damage.
->> Agreed, this VMA should not remain tagged after the second call. It does
->> not make sense. For this kind of scenarios we can re-evaluate the VMA
->> tag every time the nodemask change is attempted. But if we are looking for
->> some runtime re-evaluation then we need to steal some cycles are during
->> general VMA processing opportunity points like merging and split to do
->> the necessary re-evaluation. Should do we do these kind two kinds of
->> re-evaluation to be more optimal ?
-> I'm still unconvinced that you *need* detection like this.  Scanning big
-> VMAs is going to be really painful.
-> 
-> I thought I asked before but I can't find it in this thread.  But, we
-> have explicit interfaces for disabling KSM and khugepaged.  Why do we
-> need implicit ones like this in addition to those?
+preempt_enable_no_resched() was used based on review feedback that had no
+strong objection at the time. It avoided introducing a preemption point
+where one didn't exist before which was marginal at best.
 
-Missed the discussion we had on this last time around I think. My bad, sorry
-about that. IIUC we can disable KSM through madvise() call, in fact I guess
-its disabled by default and need to be enabled. We can just have a similar
-interface to disable auto NUMA for a specific VMA or we can handle it page
-by page basis with something like this.
+However, it is hazardous to the RT tree according to Thomas Gleixner
+and is a violation of its expected use according to Peter Zijlstra. In
+Peter's own words "the only acceptable use of preempt_enable_no_resched()
+is if the next statement is a schedule() variant".
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 1099d35..101dfd9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3518,6 +3518,9 @@ static int do_numa_page(struct vm_fault *vmf)
-                goto out;
-        }
+The impact of using preempt_enable in this particular
+fast path is negligible. This is a fix to the mmotm patch
+mm-page_alloc-only-use-per-cpu-allocator-for-irq-safe-requests.patch
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/page_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index eaecb4b145e6..2a36dad03dac 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2520,7 +2520,7 @@ void free_hot_cold_page(struct page *page, bool cold)
+ 	}
  
-+       if (is_cdm_node(page_to_nid(page)))
-+               goto out;
-+
-        /* Migrate to the requested node */
-        migrated = migrate_misplaced_page(page, vma, target_nid);
-        if (migrated) {
-
-I am still looking into these aspects. BTW have posted the minimum set of
-CDM patches which defines and isolates CDM node.
+ out:
+-	preempt_enable_no_resched();
++	preempt_enable();
+ }
+ 
+ /*
+@@ -2686,7 +2686,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+ 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+ 		zone_statistics(preferred_zone, zone);
+ 	}
+-	preempt_enable_no_resched();
++	preempt_enable();
+ 	return page;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
