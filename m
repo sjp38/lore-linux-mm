@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A64928089F
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 11:52:17 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v184so200702533pgv.6
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 08:52:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f8si7552109pli.56.2017.02.08.08.52.16
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 455C028089F
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 12:18:14 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id gt1so34460857wjc.0
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 09:18:14 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p4si3111689wmp.14.2017.02.08.09.18.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 08:52:16 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v18GmwCc144046
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 11:52:16 -0500
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28g0c7tr09-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 Feb 2017 11:52:15 -0500
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 8 Feb 2017 09:52:15 -0700
-Date: Wed, 8 Feb 2017 08:52:11 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: PCID review?
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
- <20170207210651.GB30506@linux.vnet.ibm.com>
- <CALCETrWA9vXktpw=56CoMhoqPQ6qSJbptUSTEeaW3vRCbVTvig@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Feb 2017 09:18:12 -0800 (PST)
+Subject: Re: [PATCH 3/3] mm: Enable Buddy allocation isolation for CDM nodes
+References: <20170208140148.16049-1-khandual@linux.vnet.ibm.com>
+ <20170208140148.16049-4-khandual@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8ef1de25-d4fd-482c-c55e-df93d0730484@suse.cz>
+Date: Wed, 8 Feb 2017 18:18:09 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrWA9vXktpw=56CoMhoqPQ6qSJbptUSTEeaW3vRCbVTvig@mail.gmail.com>
-Message-Id: <20170208165211.GQ30506@linux.vnet.ibm.com>
+In-Reply-To: <20170208140148.16049-4-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Wed, Feb 08, 2017 at 08:25:16AM -0800, Andy Lutomirski wrote:
-> On Tue, Feb 7, 2017 at 1:06 PM, Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> > On Tue, Feb 07, 2017 at 10:56:59AM -0800, Andy Lutomirski wrote:
-> >> Quite a few people have expressed interest in enabling PCID on (x86)
-> >> Linux.  Here's the code:
-> >>
-> >> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/log/?h=x86/pcid
-> >>
-> >> The main hold-up is that the code needs to be reviewed very carefully.
-> >> It's quite subtle.  In particular, "x86/mm: Try to preserve old TLB
-> >> entries using PCID" ought to be looked at carefully to make sure the
-> >> locking is right, but there are plenty of other ways this this could
-> >> all break.
-> >>
-> >> Anyone want to take a look or maybe scare up some other reviewers?
-> >> (Kees, you seemed *really* excited about getting this in.)
-> >
-> > Cool!
-> >
-> > So I can drop 61ec4c556b0d "rcu: Maintain special bits at bottom of
-> > ->dynticks counter", correct?
-> 
-> Nope.  That's a different optimization.  If you consider that patch
-> ready, want to email me, the dynticks folks, and linux-mm as a
-> reminder?
+On 02/08/2017 03:01 PM, Anshuman Khandual wrote:
+> This implements allocation isolation for CDM nodes in buddy allocator by
+> discarding CDM memory zones all the time except in the cases where the gfp
+> flag has got __GFP_THISNODE or the nodemask contains CDM nodes in cases
+> where it is non NULL (explicit allocation request in the kernel or user
+> process MPOL_BIND policy based requests).
+>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
+>  mm/page_alloc.c | 19 +++++++++++++++++++
+>  1 file changed, 19 insertions(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 40908de..7d8c82a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -64,6 +64,7 @@
+>  #include <linux/page_owner.h>
+>  #include <linux/kthread.h>
+>  #include <linux/memcontrol.h>
+> +#include <linux/node.h>
+>
+>  #include <asm/sections.h>
+>  #include <asm/tlbflush.h>
+> @@ -2908,6 +2909,24 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>  		struct page *page;
+>  		unsigned long mark;
+>
+> +		/*
+> +		 * CDM nodes get skipped if the requested gfp flag
+> +		 * does not have __GFP_THISNODE set or the nodemask
+> +		 * does not have any CDM nodes in case the nodemask
+> +		 * is non NULL (explicit allocation requests from
+> +		 * kernel or user process MPOL_BIND policy which has
+> +		 * CDM nodes).
+> +		 */
+> +		if (is_cdm_node(zone->zone_pgdat->node_id)) {
+> +			if (!(gfp_mask & __GFP_THISNODE)) {
+> +				if (!ac->nodemask)
+> +					continue;
+> +
+> +				if (!nodemask_has_cdm(*ac->nodemask))
+> +					continue;
 
-Hmmm...  Good point.  I never have gotten any review feedback, and I
-don't have a specific test for it.  Let me take another look at it.
-There is probably something still broken.
+nodemask_has_cdm() looks quite expensive, combined with the loop here that's 
+O(n^2). But I don't understand why you need it. If there is no cdm node in the 
+nodemask, then we never reach this code with a cdm node, because the zonelist 
+iterator already checks the nodemask? Am I missing something?
 
-							Thanx, Paul
+> +			}
+> +		}
+> +
+>  		if (cpusets_enabled() &&
+>  			(alloc_flags & ALLOC_CPUSET) &&
+>  			!__cpuset_zone_allowed(zone, gfp_mask))
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
