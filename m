@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 085266B0038
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 18:07:22 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id v184so208037143pgv.6
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 15:07:21 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f8si8349864pln.60.2017.02.08.15.07.20
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D11AE6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 18:08:48 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id 101so5464023iom.7
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 15:08:48 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d76si3056531ith.121.2017.02.08.15.08.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 15:07:20 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v18N4Goj107266
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 18:07:20 -0500
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28g80237m1-1
+        Wed, 08 Feb 2017 15:08:48 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v18N4GYv060650
+	for <linux-mm@kvack.org>; Wed, 8 Feb 2017 18:08:47 -0500
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28g0tc68em-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 Feb 2017 18:07:20 -0500
+	for <linux-mm@kvack.org>; Wed, 08 Feb 2017 18:08:47 -0500
 Received: from localhost
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <gwshan@linux.vnet.ibm.com>;
-	Thu, 9 Feb 2017 09:07:17 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id E9DB93578053
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 10:07:15 +1100 (EST)
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v18N77lu30671046
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2017 10:07:15 +1100
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v18N6hqP029964
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2017 10:06:43 +1100
-Date: Thu, 9 Feb 2017 10:06:18 +1100
+	Thu, 9 Feb 2017 09:08:44 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 9286E3578052
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 10:08:41 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v18N8XkA34734166
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2017 10:08:41 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v18N89Vl006667
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2017 10:08:09 +1100
+Date: Thu, 9 Feb 2017 10:07:44 +1100
 From: Gavin Shan <gwshan@linux.vnet.ibm.com>
 Subject: Re: [PATCH] mm/page_alloc: Fix nodes for reclaim in fast path
 Reply-To: Gavin Shan <gwshan@linux.vnet.ibm.com>
@@ -39,7 +39,7 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20170208100850.GD5686@dhcp22.suse.cz>
-Message-Id: <20170208230618.GA4142@gwshan>
+Message-Id: <20170208230744.GB4142@gwshan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
@@ -60,42 +60,22 @@ On Wed, Feb 08, 2017 at 11:08:50AM +0100, Michal Hocko wrote:
 >enforced the zone_reclaim by reducing the RECLAIM_DISTANCE, now you are
 >building on top of that. Having RECLAIM_DISTANCE == LOCAL_DISTANCE is
 >really confusing. What are distances of other nodes (in other words what
->does numactl --hardware tells)? I am wondering whether we shouldn't
->rather revert 56608209d34b as the node_reclaim (these days) is not
->enabled by default anymore.
->
+>does numactl --hardware tells)?
 
-Michael, Yeah, it's a bit confusing. Let me try to summarize the history:
-the code 56608209d34b (2.6.35) depends, which is shown in its commit log,
-was removed by 957f822a0ab9 (3.10). Since then, the code change introduced
-by 56608209d34b (2.6.35) becomes obsoleted. However, the local pagecache
-(with @node_reclaim_mode turned on manually) was able to be shrinked at
-that point (3.10) until 5f7a75acdb24 (3.16) was merged. This patch fixes
-the issue introduced by 5f7a75acdb24 and needs go to 3.16+. Hope this
-makes things more clear, not more confusing :-)
+oops, missed to paste the output from numactl:
 
-Yes, I already planned to set PowerPC specific RECLAIM_DISTANCE to 30, same
-value to the generic one, as I said in the last reply of the thread:
-https://patchwork.ozlabs.org/patch/718830/
-
->
->> Fixes: 5f7a75acdb24 ("mm: page_alloc: do not cache reclaim distances")
->> Cc: <stable@vger.kernel.org> # v3.16+
->> Signed-off-by: Gavin Shan <gwshan@linux.vnet.ibm.com>
->
->anyway the patch looks OK as it brings the previous behavior back. Not
->that I would be entirely happy about that behavior as it is quite nasty
->- e.g. it will trigger direct reclaim from the allocator fast path way
->too much and basically skip the kswapd wake up most of the time if there
->is anything reclaimable... But this used to be there before as well.
->
->Acked-by: Michal Hocko <mhocko@suse.com>
->
->but I would really like to get rid of the ppc specific RECLAIM_DISTANCE
->if possible as well.
->
-
-Yes, I will post one patch for this and you will be copied.
+# numactl --hardware
+available: 2 nodes (0,8)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79
+node 0 size: 130703 MB
+node 0 free: 127424 MB
+node 8 cpus: 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159
+node 8 size: 130647 MB
+node 8 free: 130038 MB
+node distances:
+node   0   8 
+  0:  10  40 
+  8:  40  10 
 
 Thanks,
 Gavin
