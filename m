@@ -1,79 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EDD2B28089F
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 13:19:35 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id z143so172170618ywz.7
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 10:19:35 -0800 (PST)
-Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
-        by mx.google.com with ESMTPS id 76si2253667ybe.201.2017.02.08.10.19.35
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6760028089F
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 15:19:10 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id v73so176625363ywg.2
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:19:10 -0800 (PST)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id c4si2338117ywe.473.2017.02.08.12.19.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 10:19:35 -0800 (PST)
-Received: by mail-yw0-x244.google.com with SMTP id u68so12493323ywg.0
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 10:19:35 -0800 (PST)
-Date: Wed, 8 Feb 2017 13:19:32 -0500
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH]
- mm-page_alloc-use-static-global-work_struct-for-draining-per-cpu-pages-fix
-Message-ID: <20170208181932.GA25826@htj.duckdns.org>
-References: <20170207202755.24571-1-mhocko@kernel.org>
- <201702080524.R4RBmup3%fengguang.wu@intel.com>
- <20170207141420.ab4de727ed05ddd41602f73f@linux-foundation.org>
+        Wed, 08 Feb 2017 12:19:09 -0800 (PST)
+Received: by mail-yw0-x241.google.com with SMTP id l16so12742897ywb.2
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 12:19:09 -0800 (PST)
+Date: Wed, 8 Feb 2017 15:19:07 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH] block: fix double-free in the failure path of cgwb_bdi_init()
+Message-ID: <20170208201907.GC25826@htj.duckdns.org>
+References: <CACT4Y+ZsX1gQHdr7+tqhhB6CeKHBU=4VTMDj-meNbZ=uEPLKWA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170207141420.ab4de727ed05ddd41602f73f@linux-foundation.org>
+In-Reply-To: <CACT4Y+ZsX1gQHdr7+tqhhB6CeKHBU=4VTMDj-meNbZ=uEPLKWA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <lkp@intel.com>, Michal Hocko <mhocko@kernel.org>, kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Jens Axboe <axboe@fb.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, xiakaixu@huawei.com, Vlastimil Babka <vbabka@suse.cz>, Joe Perches <joe@perches.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>
 
-Hello, Andrew.
+When !CONFIG_CGROUP_WRITEBACK, bdi has single bdi_writeback_congested
+at bdi->wb_congested.  cgwb_bdi_init() allocates it with kzalloc() and
+doesn't do further initialization.  This usually works fine as the
+reference count gets bumped to 1 by wb_init() and the put from
+wb_exit() releases it.
 
-On Tue, Feb 07, 2017 at 02:14:20PM -0800, Andrew Morton wrote:
-> >      extern __PCPU_DUMMY_ATTRS char __pcpu_unique_##name;  \
-> >                                     ^
-> 
-> huh, yes.  The DEFINE_PER_CPU() macro is broken.
+However, when wb_init() fails, it puts the wb base ref automatically
+freeing the wb and the explicit kfree() in cgwb_bdi_init() error path
+ends up trying to free the same pointer the second time causing a
+double-free.
 
-Yeah, that was the trade off I had to take with percpu vars to force
-s390 and alpha to generate long references (GOT based addressing) for
-percpu variables; otherwise, they generate memory deref which is too
-limited to access the special percpu addresses.  It's explained in
-include/linux/percpu-defs.h.
+Fix it by explicitly initilizing the refcnt to 1 and putting the base
+ref from cgwb_bdi_destroy().
 
-> If you do
-> 
-> foo()
-> {
-> 	static DEFINE_PER_CPU(int, bar);
-> }
-> 
-> then it won't compile, as described here.  It should.
-> 
-> And if you do
-> 
-> static DEFINE_PER_CPU(int, bar);
-> 
-> then you still get global symbols (__pcpu_unique_bar).
-> 
-> The kernel does the above thing in, umm, 466 places and afaict they're
-> all broken.  If two code sites ever use the same identifier, they'll
-> get linkage errors.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Reported-by: Dmitry Vyukov <dvyukov@google.com>
+Fixes: a13f35e87140 ("writeback: don't embed root bdi_writeback_congested in bdi_writeback")
+Cc: stable@vger.kernel.org # v4.2+
+---
+Hello,
 
-So, we have CONFIG_DEBUG_FORCE_WEAK_PER_CPU to catch those cases on
-archs other than s390 or alpha.
-
-> huh.  Seems hard to fix.
-
-This was the only way I could come up with to support alpha and s390.
-All the restrictions are there to ensure that.  If we can do s390 and
-alpha w/o the global weak reference, neither restriction is necessary.
+ISTR seeing another fix for this bug but can't find it right now.  If
+I'm imagining things, please apply this one.  If not, either one is
+fine.
 
 Thanks.
 
--- 
-tejun
+ mm/backing-dev.c |    9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 3bfed5ab..61b3407 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -758,15 +758,20 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
+ 	if (!bdi->wb_congested)
+ 		return -ENOMEM;
+ 
++	atomic_set(&bdi->wb_congested->refcnt, 1);
++
+ 	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+ 	if (err) {
+-		kfree(bdi->wb_congested);
++		wb_congested_put(bdi->wb_congested);
+ 		return err;
+ 	}
+ 	return 0;
+ }
+ 
+-static void cgwb_bdi_destroy(struct backing_dev_info *bdi) { }
++static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
++{
++	wb_congested_put(bdi->wb_congested);
++}
+ 
+ #endif	/* CONFIG_CGROUP_WRITEBACK */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
