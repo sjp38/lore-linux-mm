@@ -1,52 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F386B0033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 08:37:34 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id ez4so32978397wjd.2
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 05:37:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e191si2462148wmf.158.2017.02.08.05.37.33
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F15666B0033
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 08:45:21 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id h56so135615426qtc.1
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 05:45:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h41si5611929qtc.301.2017.02.08.05.45.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Feb 2017 05:37:33 -0800 (PST)
-Date: Wed, 8 Feb 2017 14:37:32 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] vmscan: Skip slab scan when LRU size is zero
-Message-ID: <20170208133732.GM5686@dhcp22.suse.cz>
-References: <1837390276.846271.1486216381871.ref@mail.yahoo.com>
- <1837390276.846271.1486216381871@mail.yahoo.com>
- <20170206083028.GB3085@dhcp22.suse.cz>
- <16b94242-095e-ac71-cb27-a20f2f2c2100@yahoo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Feb 2017 05:45:21 -0800 (PST)
+Date: Wed, 8 Feb 2017 14:45:18 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mprotect: drop overprotective lock_pte_protection()
+Message-ID: <20170208134518.GM25530@redhat.com>
+References: <20170207143347.123871-1-kirill.shutemov@linux.intel.com>
+ <20170207134454.7af755ae379ca9d016b5c15a@linux-foundation.org>
+ <20170208120421.GE5578@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <16b94242-095e-ac71-cb27-a20f2f2c2100@yahoo.com>
+In-Reply-To: <20170208120421.GE5578@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shantanu Goel <sgoel01@yahoo.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 06-02-17 19:47:49, Shantanu Goel wrote:
-[...]
-> #                              _-----=> irqs-off
-> #                             / _----=> need-resched
-> #                            | / _---=> hardirq/softirq
-> #                            || / _--=> preempt-depth
-> #                            ||| /     delay
-> #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
-> #              | |       |   ||||       |         |
-[...]
-All previous entries are for super_cache_scan so they will not tell us
-much about the previous state of scan_shadow_nodes so this output seems
-incomplete. Could you also enable mm_shrink_slab_end tracepoint please?
+On Wed, Feb 08, 2017 at 03:04:21PM +0300, Kirill A. Shutemov wrote:
+> On Tue, Feb 07, 2017 at 01:44:54PM -0800, Andrew Morton wrote:
+> > On Tue,  7 Feb 2017 17:33:47 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > 
+> > > lock_pte_protection() uses pmd_lock() to make sure that we have stable
+> > > PTE page table before walking pte range.
+> > > 
+> > > That's not necessary. We only need to make sure that PTE page table is
+> > > established. It cannot vanish under us as long as we hold mmap_sem at
+> > > least for read.
+> > > 
+> > > And we already have helper for that -- pmd_trans_unstable().
+> > 
+> > http://ozlabs.org/~akpm/mmots/broken-out/mm-mprotect-use-pmd_trans_unstable-instead-of-taking-the-pmd_lock.patch
+> > already did this?
+> 
+> Right. Except, it doesn't drop unneeded pmd_trans_unstable(pmd) check after
+> __split_huge_pmd().
+> 
+> Could you fold this part of my patch into Andrea's?
 
->          kswapd0-93    [005] .... 49736.760169: mm_shrink_slab_start:
-> scan_shadow_nodes+0x0/0x50 ffffffff94e6e460: nid: 0 objects to shrink
-> 59291940 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 0 cache items 20 delta
-> 1280 total_scan 40
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+
+> 
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index f9c07f54dd62..e919e4613eab 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -177,8 +149,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+>  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+>  			if (next - addr != HPAGE_PMD_SIZE) {
+>  				__split_huge_pmd(vma, pmd, addr, false, NULL);
+> -				if (pmd_trans_unstable(pmd))
+> -					continue;
+>  			} else {
+>  				int nr_ptes = change_huge_pmd(vma, pmd, addr,
+>  						newprot, prot_numa);
+
+Yes this check was an harmless noop, but it's definitely good to clean
+up this bit too after the other more important change that has a
+positive runtime effect, or it could be a source of confusion to the
+reader if left in there.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
