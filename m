@@ -1,40 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FA716B0033
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:06:52 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 101so147817298iom.7
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:06:52 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id q135si14916219iod.130.2017.02.08.07.06.51
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DCA66B0033
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2017 10:11:09 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id j13so147392807iod.6
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 07:11:09 -0800 (PST)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id b101si14935810ioj.150.2017.02.08.07.11.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Feb 2017 07:06:51 -0800 (PST)
-Date: Wed, 8 Feb 2017 09:06:47 -0600 (CST)
+        Wed, 08 Feb 2017 07:11:08 -0800 (PST)
+Date: Wed, 8 Feb 2017 09:11:06 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-In-Reply-To: <alpine.DEB.2.20.1702072319200.8117@nanos>
-Message-ID: <alpine.DEB.2.20.1702080906100.3955@east.gentwo.org>
-References: <2cdef192-1939-d692-1224-8ff7d7ff7203@suse.cz> <20170207102809.awh22urqmfrav5r6@techsingularity.net> <20170207103552.GH5065@dhcp22.suse.cz> <20170207113435.6xthczxt2cx23r4t@techsingularity.net> <20170207114327.GI5065@dhcp22.suse.cz>
- <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
- <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos>
+In-Reply-To: <20170208073527.GA5686@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org>
+References: <20170207113435.6xthczxt2cx23r4t@techsingularity.net> <20170207114327.GI5065@dhcp22.suse.cz> <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz>
+ <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz> <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos> <20170208073527.GA5686@dhcp22.suse.cz>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 7 Feb 2017, Thomas Gleixner wrote:
+On Wed, 8 Feb 2017, Michal Hocko wrote:
 
-> > Yep. Hotplug events are pretty significant. Using stop_machine_XXXX() etc
-> > would be advisable and that would avoid the taking of locks and get rid of all the
-> > ocmplexity, reduce the code size and make the overall system much more
-> > reliable.
+> > Huch? stop_machine() is horrible and heavy weight. Don't go there, there
+> > must be simpler solutions than that.
 >
-> Huch? stop_machine() is horrible and heavy weight. Don't go there, there
-> must be simpler solutions than that.
+> Absolutely agreed. We are in the page allocator path so using the
+> stop_machine* is just ridiculous. And, in fact, there is a much simpler
+> solution [1]
 
-Inserting or removing hardware is a heavy process. This would help quite a
-bit with these issues for loops over active cpus.
+That is nonsense. stop_machine would be used when adding removing a
+processor. There would be no need to synchronize when looping over active
+cpus anymore. get_online_cpus() etc would be removed from the hot
+path since the cpu masks are guaranteed to be stable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
