@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0E56B0388
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 04:19:03 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id w107so16831680ota.6
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 01:19:03 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id h20si4414212oib.88.2017.02.09.01.19.02
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A66256B0389
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 04:19:53 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id v96so18145665ioi.5
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 01:19:53 -0800 (PST)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id n5si17336934iof.45.2017.02.09.01.19.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Feb 2017 01:19:02 -0800 (PST)
+        Thu, 09 Feb 2017 01:19:52 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 08/14] mm: thp: enable thp migration in generic path
-Date: Thu, 9 Feb 2017 09:15:29 +0000
-Message-ID: <20170209091528.GB15649@hori1.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH v3 09/14] mm: thp: check pmd migration entry in common
+ path
+Date: Thu, 9 Feb 2017 09:16:16 +0000
+Message-ID: <20170209091616.GA15890@hori1.linux.bs1.fc.nec.co.jp>
 References: <20170205161252.85004-1-zi.yan@sent.com>
- <20170205161252.85004-9-zi.yan@sent.com>
-In-Reply-To: <20170205161252.85004-9-zi.yan@sent.com>
+ <20170205161252.85004-10-zi.yan@sent.com>
+In-Reply-To: <20170205161252.85004-10-zi.yan@sent.com>
 Content-Language: ja-JP
 Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <5B16B48F351C804596FCEC8BC9D6205D@gisp.nec.co.jp>
+Content-ID: <8C60792A6CFDD14897F248AF5F16A804@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
@@ -26,367 +27,802 @@ List-ID: <linux-mm.kvack.org>
 To: Zi Yan <zi.yan@sent.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
 
-On Sun, Feb 05, 2017 at 11:12:46AM -0500, Zi Yan wrote:
+On Sun, Feb 05, 2017 at 11:12:47AM -0500, Zi Yan wrote:
 > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >=20
-> This patch adds thp migration's core code, including conversions
-> between a PMD entry and a swap entry, setting PMD migration entry,
-> removing PMD migration entry, and waiting on PMD migration entries.
->=20
-> This patch makes it possible to support thp migration.
-> If you fail to allocate a destination page as a thp, you just split
-> the source thp as we do now, and then enter the normal page migration.
-> If you succeed to allocate destination thp, you enter thp migration.
-> Subsequent patches actually enable thp migration for each caller of
-> page migration by allowing its get_new_page() callback to
-> allocate thps.
+> If one of callers of page migration starts to handle thp,
+> memory management code start to see pmd migration entry, so we need
+> to prepare for it before enabling. This patch changes various code
+> point which checks the status of given pmds in order to prevent race
+> between thp migration and the pmd-related works.
 >=20
 > ChangeLog v1 -> v2:
-> - support pte-mapped thp, doubly-mapped thp
+> - introduce pmd_related() (I know the naming is not good, but can't
+>   think up no better name. Any suggesntion is welcomed.)
 >=20
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >=20
 > ChangeLog v2 -> v3:
-> - use page_vma_mapped_walk()
+> - add is_swap_pmd()
+> - a pmd entry should be is_swap_pmd(), pmd_trans_huge(), pmd_devmap(),
+>   or pmd_none()
+
+(nitpick) ... or normal pmd pointing to pte pages?
+
+> - use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear()
+> - flush_cache_range() while set_pmd_migration_entry()
+> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() return
+>   true on pmd_migration_entry, so that migration entries are not
+>   treated as pmd page table entries.
 >=20
 > Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 > ---
->  arch/x86/include/asm/pgtable_64.h |   2 +
->  include/linux/swapops.h           |  70 +++++++++++++++++-
->  mm/huge_memory.c                  | 151 ++++++++++++++++++++++++++++++++=
-++----
->  mm/migrate.c                      |  29 +++++++-
->  mm/page_vma_mapped.c              |  13 +++-
->  mm/pgtable-generic.c              |   3 +-
->  mm/rmap.c                         |  14 +++-
->  7 files changed, 259 insertions(+), 23 deletions(-)
+>  arch/x86/mm/gup.c             |  4 +--
+>  fs/proc/task_mmu.c            | 22 ++++++++-----
+>  include/asm-generic/pgtable.h | 71 -------------------------------------=
+---
+>  include/linux/huge_mm.h       | 21 ++++++++++--
+>  include/linux/swapops.h       | 74 +++++++++++++++++++++++++++++++++++++=
+++++
+>  mm/gup.c                      | 20 ++++++++++--
+>  mm/huge_memory.c              | 76 ++++++++++++++++++++++++++++++++++++-=
+------
+>  mm/madvise.c                  |  2 ++
+>  mm/memcontrol.c               |  2 ++
+>  mm/memory.c                   |  9 +++--
+>  mm/memory_hotplug.c           | 13 +++++++-
+>  mm/mempolicy.c                |  1 +
+>  mm/mprotect.c                 |  6 ++--
+>  mm/mremap.c                   |  2 +-
+>  mm/pagewalk.c                 |  2 ++
+>  15 files changed, 221 insertions(+), 104 deletions(-)
 >=20
-...
+> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+> index 0d4fb3ebbbac..78a153d90064 100644
+> --- a/arch/x86/mm/gup.c
+> +++ b/arch/x86/mm/gup.c
+> @@ -222,9 +222,9 @@ static int gup_pmd_range(pud_t pud, unsigned long add=
+r, unsigned long end,
+>  		pmd_t pmd =3D *pmdp;
+> =20
+>  		next =3D pmd_addr_end(addr, end);
+> -		if (pmd_none(pmd))
+> +		if (!pmd_present(pmd))
+>  			return 0;
+> -		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
+> +		if (unlikely(pmd_large(pmd))) {
+>  			/*
+>  			 * NUMA hinting faults need to be handled in the GUP
+>  			 * slowpath for accounting purposes and so that they
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 6c07c7813b26..1e64d6898c68 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -596,7 +596,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long =
+addr, unsigned long end,
+> =20
+>  	ptl =3D pmd_trans_huge_lock(pmd, vma);
+>  	if (ptl) {
+> -		smaps_pmd_entry(pmd, addr, walk);
+> +		if (pmd_present(*pmd))
+> +			smaps_pmd_entry(pmd, addr, walk);
+>  		spin_unlock(ptl);
+>  		return 0;
+>  	}
+> @@ -929,6 +930,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned =
+long addr,
+>  			goto out;
+>  		}
+> =20
+> +		if (!pmd_present(*pmd))
+> +			goto out;
+> +
+>  		page =3D pmd_page(*pmd);
+> =20
+>  		/* Clear accessed and referenced bits. */
+> @@ -1208,19 +1212,19 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigne=
+d long addr, unsigned long end,
+>  	if (ptl) {
+>  		u64 flags =3D 0, frame =3D 0;
+>  		pmd_t pmd =3D *pmdp;
+> +		struct page *page;
+> =20
+>  		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
+>  			flags |=3D PM_SOFT_DIRTY;
+> =20
+> -		/*
+> -		 * Currently pmd for thp is always present because thp
+> -		 * can not be swapped-out, migrated, or HWPOISONed
+> -		 * (split in such cases instead.)
+> -		 * This if-check is just to prepare for future implementation.
+> -		 */
+> -		if (pmd_present(pmd)) {
+> -			struct page *page =3D pmd_page(pmd);
+> +		if (is_pmd_migration_entry(pmd)) {
+> +			swp_entry_t entry =3D pmd_to_swp_entry(pmd);
+> =20
+> +			frame =3D swp_type(entry) |
+> +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+> +			page =3D migration_entry_to_page(entry);
+> +		} else if (pmd_present(pmd)) {
+> +			page =3D pmd_page(pmd);
+>  			if (page_mapcount(page) =3D=3D 1)
+>  				flags |=3D PM_MMAP_EXCLUSIVE;
+> =20
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.=
+h
+> index b71a431ed649..6cf9e9b5a7be 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -726,77 +726,6 @@ static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
+>  #ifndef arch_needs_pgtable_deposit
+>  #define arch_needs_pgtable_deposit() (false)
+>  #endif
+> -/*
+> - * This function is meant to be used by sites walking pagetables with
+> - * the mmap_sem hold in read mode to protect against MADV_DONTNEED and
+> - * transhuge page faults. MADV_DONTNEED can convert a transhuge pmd
+> - * into a null pmd and the transhuge page fault can convert a null pmd
+> - * into an hugepmd or into a regular pmd (if the hugepage allocation
+> - * fails). While holding the mmap_sem in read mode the pmd becomes
+> - * stable and stops changing under us only if it's not null and not a
+> - * transhuge pmd. When those races occurs and this function makes a
+> - * difference vs the standard pmd_none_or_clear_bad, the result is
+> - * undefined so behaving like if the pmd was none is safe (because it
+> - * can return none anyway). The compiler level barrier() is critically
+> - * important to compute the two checks atomically on the same pmdval.
+> - *
+> - * For 32bit kernels with a 64bit large pmd_t this automatically takes
+> - * care of reading the pmd atomically to avoid SMP race conditions
+> - * against pmd_populate() when the mmap_sem is hold for reading by the
+> - * caller (a special atomic read not done by "gcc" as in the generic
+> - * version above, is also needed when THP is disabled because the page
+> - * fault can populate the pmd from under us).
+> - */
+> -static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
+> -{
+> -	pmd_t pmdval =3D pmd_read_atomic(pmd);
+> -	/*
+> -	 * The barrier will stabilize the pmdval in a register or on
+> -	 * the stack so that it will stop changing under the code.
+> -	 *
+> -	 * When CONFIG_TRANSPARENT_HUGEPAGE=3Dy on x86 32bit PAE,
+> -	 * pmd_read_atomic is allowed to return a not atomic pmdval
+> -	 * (for example pointing to an hugepage that has never been
+> -	 * mapped in the pmd). The below checks will only care about
+> -	 * the low part of the pmd with 32bit PAE x86 anyway, with the
+> -	 * exception of pmd_none(). So the important thing is that if
+> -	 * the low part of the pmd is found null, the high part will
+> -	 * be also null or the pmd_none() check below would be
+> -	 * confused.
+> -	 */
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	barrier();
+> -#endif
+> -	if (pmd_none(pmdval) || pmd_trans_huge(pmdval))
+> -		return 1;
+> -	if (unlikely(pmd_bad(pmdval))) {
+> -		pmd_clear_bad(pmd);
+> -		return 1;
+> -	}
+> -	return 0;
+> -}
+> -
+> -/*
+> - * This is a noop if Transparent Hugepage Support is not built into
+> - * the kernel. Otherwise it is equivalent to
+> - * pmd_none_or_trans_huge_or_clear_bad(), and shall only be called in
+> - * places that already verified the pmd is not none and they want to
+> - * walk ptes while holding the mmap sem in read mode (write mode don't
+> - * need this). If THP is not enabled, the pmd can't go away under the
+> - * code even if MADV_DONTNEED runs, but if THP is enabled we need to
+> - * run a pmd_trans_unstable before walking the ptes after
+> - * split_huge_page_pmd returns (because it may have run when the pmd
+> - * become null, but then a page fault can map in a THP and not a
+> - * regular page).
+> - */
+> -static inline int pmd_trans_unstable(pmd_t *pmd)
+> -{
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	return pmd_none_or_trans_huge_or_clear_bad(pmd);
+> -#else
+> -	return 0;
+> -#endif
+> -}
+> =20
+>  #ifndef CONFIG_NUMA_BALANCING
+>  /*
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 83a8d42f9d55..c2e5a4eab84a 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -131,7 +131,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd=
+_t *pmd,
+>  #define split_huge_pmd(__vma, __pmd, __address)				\
+>  	do {								\
+>  		pmd_t *____pmd =3D (__pmd);				\
+> -		if (pmd_trans_huge(*____pmd)				\
+> +		if (is_swap_pmd(*____pmd) || pmd_trans_huge(*____pmd)	\
+>  					|| pmd_devmap(*____pmd))	\
+>  			__split_huge_pmd(__vma, __pmd, __address,	\
+>  						false, NULL);		\
+> @@ -162,12 +162,18 @@ extern spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd=
+,
+>  		struct vm_area_struct *vma);
+>  extern spinlock_t *__pud_trans_huge_lock(pud_t *pud,
+>  		struct vm_area_struct *vma);
+> +
+> +static inline int is_swap_pmd(pmd_t pmd)
+> +{
+> +	return !pmd_none(pmd) && !pmd_present(pmd);
+> +}
+> +
+>  /* mmap_sem must be held on entry */
+>  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
+>  		struct vm_area_struct *vma)
+>  {
+>  	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
+> -	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
+> +	if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
+>  		return __pmd_trans_huge_lock(pmd, vma);
+>  	else
+>  		return NULL;
+> @@ -192,6 +198,12 @@ struct page *follow_devmap_pmd(struct vm_area_struct=
+ *vma, unsigned long addr,
+>  		pmd_t *pmd, int flags);
+>  struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long=
+ addr,
+>  		pud_t *pud, int flags);
+> +static inline int hpage_order(struct page *page)
+> +{
+> +	if (unlikely(PageTransHuge(page)))
+> +		return HPAGE_PMD_ORDER;
+> +	return 0;
+> +}
+> =20
+>  extern int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t orig_pmd);
+> =20
+> @@ -232,6 +244,7 @@ static inline bool thp_migration_supported(void)
+>  #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
+> =20
+>  #define hpage_nr_pages(x) 1
+> +#define hpage_order(x) 0
+> =20
+>  #define transparent_hugepage_enabled(__vma) 0
+> =20
+> @@ -274,6 +287,10 @@ static inline void vma_adjust_trans_huge(struct vm_a=
+rea_struct *vma,
+>  					 long adjust_next)
+>  {
+>  }
+> +static inline int is_swap_pmd(pmd_t pmd)
+> +{
+> +	return 0;
+> +}
+>  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
+>  		struct vm_area_struct *vma)
+>  {
+> diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+> index 6625bea13869..50e4aa7e7ff9 100644
+> --- a/include/linux/swapops.h
+> +++ b/include/linux/swapops.h
+> @@ -229,6 +229,80 @@ static inline int is_pmd_migration_entry(pmd_t pmd)
+>  }
+>  #endif
+> =20
+> +/*
+> + * This function is meant to be used by sites walking pagetables with
+> + * the mmap_sem hold in read mode to protect against MADV_DONTNEED and
+> + * transhuge page faults. MADV_DONTNEED can convert a transhuge pmd
+> + * into a null pmd and the transhuge page fault can convert a null pmd
+> + * into an hugepmd or into a regular pmd (if the hugepage allocation
+> + * fails). While holding the mmap_sem in read mode the pmd becomes
+> + * stable and stops changing under us only if it's not null and not a
+> + * transhuge pmd. When those races occurs and this function makes a
+> + * difference vs the standard pmd_none_or_clear_bad, the result is
+> + * undefined so behaving like if the pmd was none is safe (because it
+> + * can return none anyway). The compiler level barrier() is critically
+> + * important to compute the two checks atomically on the same pmdval.
+> + *
+> + * For 32bit kernels with a 64bit large pmd_t this automatically takes
+> + * care of reading the pmd atomically to avoid SMP race conditions
+> + * against pmd_populate() when the mmap_sem is hold for reading by the
+> + * caller (a special atomic read not done by "gcc" as in the generic
+> + * version above, is also needed when THP is disabled because the page
+> + * fault can populate the pmd from under us).
+> + */
+> +static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
+> +{
+> +	pmd_t pmdval =3D pmd_read_atomic(pmd);
+> +	/*
+> +	 * The barrier will stabilize the pmdval in a register or on
+> +	 * the stack so that it will stop changing under the code.
+> +	 *
+> +	 * When CONFIG_TRANSPARENT_HUGEPAGE=3Dy on x86 32bit PAE,
+> +	 * pmd_read_atomic is allowed to return a not atomic pmdval
+> +	 * (for example pointing to an hugepage that has never been
+> +	 * mapped in the pmd). The below checks will only care about
+> +	 * the low part of the pmd with 32bit PAE x86 anyway, with the
+> +	 * exception of pmd_none(). So the important thing is that if
+> +	 * the low part of the pmd is found null, the high part will
+> +	 * be also null or the pmd_none() check below would be
+> +	 * confused.
+> +	 */
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	barrier();
+> +#endif
+> +	if (pmd_none(pmdval) || pmd_trans_huge(pmdval)
+> +			|| is_pmd_migration_entry(pmdval))
+> +		return 1;
+> +	if (unlikely(pmd_bad(pmdval))) {
+> +		pmd_clear_bad(pmd);
+> +		return 1;
+> +	}
+> +	return 0;
+> +}
+> +
+> +/*
+> + * This is a noop if Transparent Hugepage Support is not built into
+> + * the kernel. Otherwise it is equivalent to
+> + * pmd_none_or_trans_huge_or_clear_bad(), and shall only be called in
+> + * places that already verified the pmd is not none and they want to
+> + * walk ptes while holding the mmap sem in read mode (write mode don't
+> + * need this). If THP is not enabled, the pmd can't go away under the
+> + * code even if MADV_DONTNEED runs, but if THP is enabled we need to
+> + * run a pmd_trans_unstable before walking the ptes after
+> + * split_huge_page_pmd returns (because it may have run when the pmd
+> + * become null, but then a page fault can map in a THP and not a
+> + * regular page).
+> + */
+> +static inline int pmd_trans_unstable(pmd_t *pmd)
+> +{
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	return pmd_none_or_trans_huge_or_clear_bad(pmd);
+> +#else
+> +	return 0;
+> +#endif
+> +}
+> +
+> +
+
+These functions are page table or thp matter, so putting them in swapops.h
+looks weird to me. Maybe you can avoid this code transfer by using !pmd_pre=
+sent
+instead of is_pmd_migration_entry?
+And we have to consider renaming pmd_none_or_trans_huge_or_clear_bad(),
+I like a simple name like __pmd_trans_unstable(), but if you have an idea,
+that's great.
+
+>  #ifdef CONFIG_MEMORY_FAILURE
+> =20
+>  extern atomic_long_t num_poisoned_pages __read_mostly;
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 1e67461b2733..82e0304e5d29 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -274,6 +274,13 @@ struct page *follow_page_mask(struct vm_area_struct =
+*vma,
+>  	}
+>  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+>  		return no_page_table(vma, flags);
+> +	if (!pmd_present(*pmd)) {
+> +retry:
+> +		if (likely(!(flags & FOLL_MIGRATION)))
+> +			return no_page_table(vma, flags);
+> +		pmd_migration_entry_wait(mm, pmd);
+> +		goto retry;
+> +	}
+>  	if (pmd_devmap(*pmd)) {
+>  		ptl =3D pmd_lock(mm, pmd);
+>  		page =3D follow_devmap_pmd(vma, address, pmd, flags);
+> @@ -285,6 +292,15 @@ struct page *follow_page_mask(struct vm_area_struct =
+*vma,
+>  		return follow_page_pte(vma, address, pmd, flags);
+> =20
+>  	ptl =3D pmd_lock(mm, pmd);
+> +	if (unlikely(!pmd_present(*pmd))) {
+> +retry_locked:
+> +		if (likely(!(flags & FOLL_MIGRATION))) {
+> +			spin_unlock(ptl);
+> +			return no_page_table(vma, flags);
+> +		}
+> +		pmd_migration_entry_wait(mm, pmd);
+> +		goto retry_locked;
+> +	}
+>  	if (unlikely(!pmd_trans_huge(*pmd))) {
+>  		spin_unlock(ptl);
+>  		return follow_page_pte(vma, address, pmd, flags);
+> @@ -340,7 +356,7 @@ static int get_gate_page(struct mm_struct *mm, unsign=
+ed long address,
+>  	pud =3D pud_offset(pgd, address);
+>  	BUG_ON(pud_none(*pud));
+>  	pmd =3D pmd_offset(pud, address);
+> -	if (pmd_none(*pmd))
+> +	if (!pmd_present(*pmd))
+>  		return -EFAULT;
+>  	VM_BUG_ON(pmd_trans_huge(*pmd));
+>  	pte =3D pte_offset_map(pmd, address);
+> @@ -1368,7 +1384,7 @@ static int gup_pmd_range(pud_t pud, unsigned long a=
+ddr, unsigned long end,
+>  		pmd_t pmd =3D READ_ONCE(*pmdp);
+> =20
+>  		next =3D pmd_addr_end(addr, end);
+> -		if (pmd_none(pmd))
+> +		if (!pmd_present(pmd))
+>  			return 0;
+> =20
+>  		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
 > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 6893c47428b6..fd54bbdc16cf 100644
+> index fd54bbdc16cf..4ac923539372 100644
 > --- a/mm/huge_memory.c
 > +++ b/mm/huge_memory.c
-> @@ -1613,20 +1613,51 @@ int __zap_huge_pmd_locked(struct mmu_gather *tlb,=
- struct vm_area_struct *vma,
->  		atomic_long_dec(&tlb->mm->nr_ptes);
->  		tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
->  	} else {
-> -		struct page *page =3D pmd_page(orig_pmd);
-> -		page_remove_rmap(page, true);
-> -		VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
-> -		VM_BUG_ON_PAGE(!PageHead(page), page);
-> -		if (PageAnon(page)) {
-> -			pgtable_t pgtable;
-> -			pgtable =3D pgtable_trans_huge_withdraw(tlb->mm, pmd);
-> -			pte_free(tlb->mm, pgtable);
-> -			atomic_long_dec(&tlb->mm->nr_ptes);
-> -			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-> +		struct page *page;
-> +		int migration =3D 0;
+> @@ -897,6 +897,21 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct m=
+m_struct *src_mm,
+> =20
+>  	ret =3D -EAGAIN;
+>  	pmd =3D *src_pmd;
 > +
-> +		if (!is_pmd_migration_entry(orig_pmd)) {
-> +			page =3D pmd_page(orig_pmd);
-> +			VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
-> +			VM_BUG_ON_PAGE(!PageHead(page), page);
-> +			page_remove_rmap(page, true);
-
-> +			if (PageAnon(page)) {
-> +				pgtable_t pgtable;
+> +	if (unlikely(is_pmd_migration_entry(pmd))) {
+> +		swp_entry_t entry =3D pmd_to_swp_entry(pmd);
 > +
-> +				pgtable =3D pgtable_trans_huge_withdraw(tlb->mm,
-> +								      pmd);
-> +				pte_free(tlb->mm, pgtable);
-> +				atomic_long_dec(&tlb->mm->nr_ptes);
-> +				add_mm_counter(tlb->mm, MM_ANONPAGES,
-> +					       -HPAGE_PMD_NR);
-> +			} else {
-> +				if (arch_needs_pgtable_deposit())
-> +					zap_deposited_table(tlb->mm, pmd);
-> +				add_mm_counter(tlb->mm, MM_FILEPAGES,
-> +					       -HPAGE_PMD_NR);
-> +			}
-
-This block is exactly equal to the one in else block below,
-So you can factor out into some function.
-
->  		} else {
-> -			if (arch_needs_pgtable_deposit())
-> -				zap_deposited_table(tlb->mm, pmd);
-> -			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
-> +			swp_entry_t entry;
+> +		if (is_write_migration_entry(entry)) {
+> +			make_migration_entry_read(&entry);
+> +			pmd =3D swp_entry_to_pmd(entry);
+> +			set_pmd_at(src_mm, addr, src_pmd, pmd);
+> +		}
+> +		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+> +		ret =3D 0;
+> +		goto out_unlock;
+> +	}
+> +	WARN_ONCE(!pmd_present(pmd), "Uknown non-present format on pmd.\n");
 > +
-> +			entry =3D pmd_to_swp_entry(orig_pmd);
-> +			page =3D pfn_to_page(swp_offset(entry));
-
-> +			if (PageAnon(page)) {
-> +				pgtable_t pgtable;
+>  	if (unlikely(!pmd_trans_huge(pmd))) {
+>  		pte_free(dst_mm, pgtable);
+>  		goto out_unlock;
+> @@ -1203,6 +1218,9 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t=
+ orig_pmd)
+>  	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
+>  		goto out_unlock;
+> =20
+> +	if (unlikely(!pmd_present(orig_pmd)))
+> +		goto out_unlock;
 > +
-> +				pgtable =3D pgtable_trans_huge_withdraw(tlb->mm,
-> +								      pmd);
-> +				pte_free(tlb->mm, pgtable);
-> +				atomic_long_dec(&tlb->mm->nr_ptes);
-> +				add_mm_counter(tlb->mm, MM_ANONPAGES,
-> +					       -HPAGE_PMD_NR);
-> +			} else {
-> +				if (arch_needs_pgtable_deposit())
-> +					zap_deposited_table(tlb->mm, pmd);
-> +				add_mm_counter(tlb->mm, MM_FILEPAGES,
-> +					       -HPAGE_PMD_NR);
-> +			}
-
-> +			free_swap_and_cache(entry); /* waring in failure? */
-> +			migration =3D 1;
+>  	page =3D pmd_page(orig_pmd);
+>  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+>  	/*
+> @@ -1337,7 +1355,15 @@ struct page *follow_trans_huge_pmd(struct vm_area_=
+struct *vma,
+>  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+>  		goto out;
+> =20
+> -	page =3D pmd_page(*pmd);
+> +	if (is_pmd_migration_entry(*pmd)) {
+> +		swp_entry_t entry;
+> +
+> +		entry =3D pmd_to_swp_entry(*pmd);
+> +		page =3D pfn_to_page(swp_offset(entry));
+> +		if (!is_migration_entry(entry))
+> +			goto out;
+> +	} else
+> +		page =3D pmd_page(*pmd);
+>  	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
+>  	if (flags & FOLL_TOUCH)
+>  		touch_pmd(vma, addr, pmd);
+> @@ -1533,6 +1559,9 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, =
+struct vm_area_struct *vma,
+>  	if (is_huge_zero_pmd(orig_pmd))
+>  		goto out;
+> =20
+> +	if (unlikely(!pmd_present(orig_pmd)))
+> +		goto out;
+> +
+>  	page =3D pmd_page(orig_pmd);
+>  	/*
+>  	 * If other processes are mapping this page, we couldn't discard
+> @@ -1659,7 +1688,8 @@ int __zap_huge_pmd_locked(struct mmu_gather *tlb, s=
+truct vm_area_struct *vma,
+>  			free_swap_and_cache(entry); /* waring in failure? */
+>  			migration =3D 1;
 >  		}
->  		tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
+> -		tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
+> +		if (!migration)
+> +			tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
 >  	}
-> @@ -2634,3 +2665,97 @@ static int __init split_huge_pages_debugfs(void)
->  }
->  late_initcall(split_huge_pages_debugfs);
->  #endif
+> =20
+>  	return 1;
+> @@ -1775,10 +1805,22 @@ int change_huge_pmd(struct vm_area_struct *vma, p=
+md_t *pmd,
+>  		 * data is likely to be read-cached on the local CPU and
+>  		 * local/remote hits to the zero page are not interesting.
+>  		 */
+> -		if (prot_numa && is_huge_zero_pmd(*pmd)) {
+> -			spin_unlock(ptl);
+> -			return ret;
+> -		}
+> +		if (prot_numa && is_huge_zero_pmd(*pmd))
+> +			goto unlock;
 > +
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
-> +		struct page *page)
-> +{
-> +	struct vm_area_struct *vma =3D pvmw->vma;
-> +	struct mm_struct *mm =3D vma->vm_mm;
-> +	unsigned long address =3D pvmw->address;
-> +	pmd_t pmdval;
-> +	swp_entry_t entry;
+> +		if (is_pmd_migration_entry(*pmd)) {
+> +			swp_entry_t entry =3D pmd_to_swp_entry(*pmd);
 > +
-> +	if (pvmw->pmd && !pvmw->pte) {
-> +		pmd_t pmdswp;
+> +			if (is_write_migration_entry(entry)) {
+> +				pmd_t newpmd;
 > +
-> +		mmu_notifier_invalidate_range_start(mm, address,
-> +				address + HPAGE_PMD_SIZE);
+> +				make_migration_entry_read(&entry);
+> +				newpmd =3D swp_entry_to_pmd(entry);
+> +				set_pmd_at(mm, addr, pmd, newpmd);
+> +			}
+> +			goto unlock;
+> +		} else if (!pmd_present(*pmd))
+> +			WARN_ONCE(1, "Uknown non-present format on pmd.\n");
+> =20
+>  		if (!prot_numa || !pmd_protnone(*pmd)) {
+>  			entry =3D pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+> @@ -1790,6 +1832,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd=
+_t *pmd,
+>  			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
+>  					pmd_write(entry));
+>  		}
+> +unlock:
+>  		spin_unlock(ptl);
+>  	}
+> =20
+> @@ -1806,7 +1849,8 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struc=
+t vm_area_struct *vma)
+>  {
+>  	spinlock_t *ptl;
+>  	ptl =3D pmd_lock(vma->vm_mm, pmd);
+> -	if (likely(pmd_trans_huge(*pmd) || pmd_devmap(*pmd)))
+> +	if (likely(is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) ||
+> +			pmd_devmap(*pmd)))
+>  		return ptl;
+>  	spin_unlock(ptl);
+>  	return NULL;
+> @@ -1924,7 +1968,7 @@ void __split_huge_pmd_locked(struct vm_area_struct =
+*vma, pmd_t *pmd,
+>  	struct page *page;
+>  	pgtable_t pgtable;
+>  	pmd_t _pmd;
+> -	bool young, write, dirty, soft_dirty;
+> +	bool young, write, dirty, soft_dirty, pmd_migration;
+>  	unsigned long addr;
+>  	int i;
+>  	unsigned long haddr =3D address & HPAGE_PMD_MASK;
+> @@ -1932,7 +1976,8 @@ void __split_huge_pmd_locked(struct vm_area_struct =
+*vma, pmd_t *pmd,
+>  	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
+>  	VM_BUG_ON_VMA(vma->vm_start > haddr, vma);
+>  	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PMD_SIZE, vma);
+> -	VM_BUG_ON(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd));
+> +	VM_BUG_ON(!is_pmd_migration_entry(*pmd) && !pmd_trans_huge(*pmd)
+> +				&& !pmd_devmap(*pmd));
+> =20
+>  	count_vm_event(THP_SPLIT_PMD);
+> =20
+> @@ -1960,7 +2005,14 @@ void __split_huge_pmd_locked(struct vm_area_struct=
+ *vma, pmd_t *pmd,
+>  		goto out;
+>  	}
+> =20
+> -	page =3D pmd_page(*pmd);
+> +	pmd_migration =3D is_pmd_migration_entry(*pmd);
+> +	if (pmd_migration) {
+> +		swp_entry_t entry;
+> +
+> +		entry =3D pmd_to_swp_entry(*pmd);
+> +		page =3D pfn_to_page(swp_offset(entry));
+> +	} else
+> +		page =3D pmd_page(*pmd);
+>  	VM_BUG_ON_PAGE(!page_count(page), page);
+>  	page_ref_add(page, HPAGE_PMD_NR - 1);
+>  	write =3D pmd_write(*pmd);
+> @@ -1979,7 +2031,7 @@ void __split_huge_pmd_locked(struct vm_area_struct =
+*vma, pmd_t *pmd,
+>  		 * transferred to avoid any possibility of altering
+>  		 * permissions across VMAs.
+>  		 */
+> -		if (freeze) {
+> +		if (freeze || pmd_migration) {
+>  			swp_entry_t swp_entry;
+>  			swp_entry =3D make_migration_entry(page + i, write);
+>  			entry =3D swp_entry_to_pte(swp_entry);
+> @@ -2077,7 +2129,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, p=
+md_t *pmd,
+>  		page =3D pmd_page(*pmd);
+>  		if (PageMlocked(page))
+>  			clear_page_mlock(page);
+> -	} else if (!pmd_devmap(*pmd))
+> +	} else if (!(pmd_devmap(*pmd) || is_pmd_migration_entry(*pmd)))
+>  		goto out;
+>  	__split_huge_pmd_locked(vma, pmd, address, freeze);
+>  out:
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index e424a06e9f2b..0497a502351f 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -310,6 +310,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigne=
+d long addr,
+>  	unsigned long next;
+> =20
+>  	next =3D pmd_addr_end(addr, end);
+> +	if (!pmd_present(*pmd))
+> +		return 0;
+>  	if (pmd_trans_huge(*pmd))
+>  		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
+>  			goto next;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 44fb1e80701a..09bce3f0d622 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4633,6 +4633,8 @@ static enum mc_target_type get_mctgt_type_thp(struc=
+t vm_area_struct *vma,
+>  	struct page *page =3D NULL;
+>  	enum mc_target_type ret =3D MC_TARGET_NONE;
+> =20
+> +	if (unlikely(!pmd_present(pmd)))
+> +		return ret;
+>  	page =3D pmd_page(pmd);
+>  	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
+>  	if (!(mc.flags & MOVE_ANON))
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 7cfdd5208ef5..bf10b19e02d3 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -999,7 +999,8 @@ static inline int copy_pmd_range(struct mm_struct *ds=
+t_mm, struct mm_struct *src
+>  	src_pmd =3D pmd_offset(src_pud, addr);
+>  	do {
+>  		next =3D pmd_addr_end(addr, end);
+> -		if (pmd_trans_huge(*src_pmd) || pmd_devmap(*src_pmd)) {
+> +		if (is_swap_pmd(*src_pmd) || pmd_trans_huge(*src_pmd)
+> +			|| pmd_devmap(*src_pmd)) {
+>  			int err;
+>  			VM_BUG_ON_VMA(next-addr !=3D HPAGE_PMD_SIZE, vma);
+>  			err =3D copy_huge_pmd(dst_mm, src_mm,
+> @@ -1240,7 +1241,7 @@ static inline unsigned long zap_pmd_range(struct mm=
+u_gather *tlb,
+>  	ptl =3D pmd_lock(vma->vm_mm, pmd);
+>  	do {
+>  		next =3D pmd_addr_end(addr, end);
+> -		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+> +		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+>  			if (next - addr !=3D HPAGE_PMD_SIZE) {
+>  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
+>  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
+> @@ -3697,6 +3698,10 @@ static int __handle_mm_fault(struct vm_area_struct=
+ *vma, unsigned long address,
+>  		pmd_t orig_pmd =3D *vmf.pmd;
+> =20
+>  		barrier();
+> +		if (unlikely(is_pmd_migration_entry(orig_pmd))) {
+> +			pmd_migration_entry_wait(mm, vmf.pmd);
+> +			return 0;
+> +		}
+>  		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+>  			vmf.flags |=3D FAULT_FLAG_SIZE_PMD;
+>  			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 19b460acb5e1..9cb4c83151a8 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
 
-Don't you have to put mmu_notifier_invalidate_range_* outside this if block=
-?
+Changes on mm/memory_hotplug.c should be with patch 14/14?
+# If that's right, definition of hpage_order() also should go to 14/14.
 
 Thanks,
 Naoya Horiguchi
 
-> +
-> +		flush_cache_range(vma, address, address + HPAGE_PMD_SIZE);
-> +		pmdval =3D pmdp_huge_clear_flush(vma, address, pvmw->pmd);
-> +		if (pmd_dirty(pmdval))
-> +			set_page_dirty(page);
-> +		entry =3D make_migration_entry(page, pmd_write(pmdval));
-> +		pmdswp =3D swp_entry_to_pmd(entry);
-> +		set_pmd_at(mm, address, pvmw->pmd, pmdswp);
-> +		page_remove_rmap(page, true);
-> +		put_page(page);
-> +
-> +		mmu_notifier_invalidate_range_end(mm, address,
-> +				address + HPAGE_PMD_SIZE);
-> +	} else { /* pte-mapped thp */
-> +		pte_t pteval;
-> +		struct page *subpage =3D page - page_to_pfn(page) + pte_pfn(*pvmw->pte=
-);
-> +		pte_t swp_pte;
-> +
-> +		pteval =3D ptep_clear_flush(vma, address, pvmw->pte);
-> +		if (pte_dirty(pteval))
-> +			set_page_dirty(subpage);
-> +		entry =3D make_migration_entry(subpage, pte_write(pteval));
-> +		swp_pte =3D swp_entry_to_pte(entry);
-> +		set_pte_at(mm, address, pvmw->pte, swp_pte);
-> +		page_remove_rmap(subpage, false);
-> +		put_page(subpage);
-> +	}
-> +}
-> +
-> +void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page=
- *new)
-> +{
-> +	struct vm_area_struct *vma =3D pvmw->vma;
-> +	struct mm_struct *mm =3D vma->vm_mm;
-> +	unsigned long address =3D pvmw->address;
-> +	swp_entry_t entry;
-> +
-> +	/* PMD-mapped THP  */
-> +	if (pvmw->pmd && !pvmw->pte) {
-> +		unsigned long mmun_start =3D address & HPAGE_PMD_MASK;
-> +		unsigned long mmun_end =3D mmun_start + HPAGE_PMD_SIZE;
-> +		pmd_t pmde;
-> +
-> +		entry =3D pmd_to_swp_entry(*pvmw->pmd);
-> +		get_page(new);
-> +		pmde =3D pmd_mkold(mk_huge_pmd(new, vma->vm_page_prot));
-> +		if (is_write_migration_entry(entry))
-> +			pmde =3D maybe_pmd_mkwrite(pmde, vma);
-> +
-> +		flush_cache_range(vma, mmun_start, mmun_end);
-> +		page_add_anon_rmap(new, vma, mmun_start, true);
-> +		pmdp_huge_clear_flush_notify(vma, mmun_start, pvmw->pmd);
-> +		set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
-> +		flush_tlb_range(vma, mmun_start, mmun_end);
-> +		if (vma->vm_flags & VM_LOCKED)
-> +			mlock_vma_page(new);
-> +		update_mmu_cache_pmd(vma, address, pvmw->pmd);
-> +
-> +	} else { /* pte-mapped thp */
-> +		pte_t pte;
-> +		pte_t *ptep =3D pvmw->pte;
-> +
-> +		entry =3D pte_to_swp_entry(*pvmw->pte);
-> +		get_page(new);
-> +		pte =3D pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
-> +		if (pte_swp_soft_dirty(*pvmw->pte))
-> +			pte =3D pte_mksoft_dirty(pte);
-> +		if (is_write_migration_entry(entry))
-> +			pte =3D maybe_mkwrite(pte, vma);
-> +		flush_dcache_page(new);
-> +		set_pte_at(mm, address, ptep, pte);
-> +		if (PageAnon(new))
-> +			page_add_anon_rmap(new, vma, address, false);
-> +		else
-> +			page_add_file_rmap(new, false);
-> +		update_mmu_cache(vma, address, ptep);
-> +	}
-> +}
-> +#endif
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 95e8580dc902..84181a3668c6 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -214,6 +214,12 @@ static int remove_migration_pte(struct page *page, s=
-truct vm_area_struct *vma,
->  		new =3D page - pvmw.page->index +
->  			linear_page_index(vma, pvmw.address);
+> @@ -1570,6 +1570,7 @@ static struct page *new_node_page(struct page *page=
+, unsigned long private,
+>  	int nid =3D page_to_nid(page);
+>  	nodemask_t nmask =3D node_states[N_MEMORY];
+>  	struct page *new_page =3D NULL;
+> +	unsigned int order =3D 0;
 > =20
-> +		/* PMD-mapped THP migration entry */
-> +		if (!PageHuge(page) && PageTransCompound(page)) {
-> +			remove_migration_pmd(&pvmw, new);
-> +			continue;
-> +		}
+>  	/*
+>  	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+> @@ -1580,6 +1581,11 @@ static struct page *new_node_page(struct page *pag=
+e, unsigned long private,
+>  		return alloc_huge_page_node(page_hstate(compound_head(page)),
+>  					next_node_in(nid, nmask));
+> =20
+> +	if (thp_migration_supported() && PageTransHuge(page)) {
+> +		order =3D hpage_order(page);
+> +		gfp_mask |=3D GFP_TRANSHUGE;
+> +	}
 > +
->  		get_page(new);
->  		pte =3D pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
->  		if (pte_swp_soft_dirty(*pvmw.pte))
-> @@ -327,6 +333,27 @@ void migration_entry_wait_huge(struct vm_area_struct=
- *vma,
->  	__migration_entry_wait(mm, pte, ptl);
+>  	node_clear(nid, nmask);
+> =20
+>  	if (PageHighMem(page)
+> @@ -1593,6 +1599,9 @@ static struct page *new_node_page(struct page *page=
+, unsigned long private,
+>  		new_page =3D __alloc_pages(gfp_mask, 0,
+>  					node_zonelist(nid, gfp_mask));
+> =20
+> +	if (new_page && order =3D=3D hpage_order(page))
+> +		prep_transhuge_page(new_page);
+> +
+>  	return new_page;
 >  }
 > =20
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)
-> +{
-> +	spinlock_t *ptl;
-> +	struct page *page;
-> +
-> +	ptl =3D pmd_lock(mm, pmd);
-> +	if (!is_pmd_migration_entry(*pmd))
-> +		goto unlock;
-> +	page =3D migration_entry_to_page(pmd_to_swp_entry(*pmd));
-> +	if (!get_page_unless_zero(page))
-> +		goto unlock;
-> +	spin_unlock(ptl);
-> +	wait_on_page_locked(page);
-> +	put_page(page);
-> +	return;
-> +unlock:
-> +	spin_unlock(ptl);
-> +}
-> +#endif
-> +
->  #ifdef CONFIG_BLOCK
->  /* Returns true if all buffers are successfully locked */
->  static bool buffer_migrate_lock_buffers(struct buffer_head *head,
-> @@ -1085,7 +1112,7 @@ static ICE_noinline int unmap_and_move(new_page_t g=
-et_new_page,
->  		goto out;
->  	}
+> @@ -1622,7 +1631,9 @@ do_migrate_range(unsigned long start_pfn, unsigned =
+long end_pfn)
+>  			if (isolate_huge_page(page, &source))
+>  				move_pages -=3D 1 << compound_order(head);
+>  			continue;
+> -		}
+> +		} else if (thp_migration_supported() && PageTransHuge(page))
+> +			pfn =3D page_to_pfn(compound_head(page))
+> +				+ hpage_nr_pages(page) - 1;
 > =20
-> -	if (unlikely(PageTransHuge(page))) {
-> +	if (unlikely(PageTransHuge(page) && !PageTransHuge(newpage))) {
->  		lock_page(page);
->  		rc =3D split_huge_page(page);
->  		unlock_page(page);
-> diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-> index a23001a22c15..0ed3aee62d50 100644
-> --- a/mm/page_vma_mapped.c
-> +++ b/mm/page_vma_mapped.c
-> @@ -137,16 +137,23 @@ bool page_vma_mapped_walk(struct page_vma_mapped_wa=
-lk *pvmw)
->  	if (!pud_present(*pud))
->  		return false;
->  	pvmw->pmd =3D pmd_offset(pud, pvmw->address);
-> -	if (pmd_trans_huge(*pvmw->pmd)) {
-> +	if (pmd_trans_huge(*pvmw->pmd) || is_pmd_migration_entry(*pvmw->pmd)) {
->  		pvmw->ptl =3D pmd_lock(mm, pvmw->pmd);
-> -		if (!pmd_present(*pvmw->pmd))
-> -			return not_found(pvmw);
->  		if (likely(pmd_trans_huge(*pvmw->pmd))) {
->  			if (pvmw->flags & PVMW_MIGRATION)
->  				return not_found(pvmw);
->  			if (pmd_page(*pvmw->pmd) !=3D page)
->  				return not_found(pvmw);
->  			return true;
-> +		} else if (!pmd_present(*pvmw->pmd)) {
-> +			if (unlikely(is_migration_entry(pmd_to_swp_entry(*pvmw->pmd)))) {
-> +				swp_entry_t entry =3D pmd_to_swp_entry(*pvmw->pmd);
-> +
-> +				if (migration_entry_to_page(entry) !=3D page)
-> +					return not_found(pvmw);
-> +				return true;
-> +			}
-> +			return not_found(pvmw);
->  		} else {
->  			/* THP pmd was split under us: handle on pte level */
->  			spin_unlock(pvmw->ptl);
-> diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-> index 4ed5908c65b0..9d550a8a0c71 100644
-> --- a/mm/pgtable-generic.c
-> +++ b/mm/pgtable-generic.c
-> @@ -118,7 +118,8 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vm=
-a, unsigned long address,
->  {
->  	pmd_t pmd;
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-> -	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-> +	VM_BUG_ON(pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
-> +		  !pmd_devmap(*pmdp));
->  	pmd =3D pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
->  	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
->  	return pmd;
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 16789b936e3a..b33216668fa4 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1304,6 +1304,7 @@ static int try_to_unmap_one(struct page *page, stru=
-ct vm_area_struct *vma,
->  	struct rmap_private *rp =3D arg;
->  	enum ttu_flags flags =3D rp->flags;
+>  		if (!get_page_unless_zero(page))
+>  			continue;
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 5cc6a99918ab..021ff13b9a7a 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -94,6 +94,7 @@
+>  #include <linux/mm_inline.h>
+>  #include <linux/mmu_notifier.h>
+>  #include <linux/printk.h>
+> +#include <linux/swapops.h>
 > =20
-> +
->  	/* munlock has nothing to gain from examining un-locked vmas */
->  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
->  		return SWAP_AGAIN;
-> @@ -1314,12 +1315,19 @@ static int try_to_unmap_one(struct page *page, st=
-ruct vm_area_struct *vma,
->  	}
+>  #include <asm/tlbflush.h>
+>  #include <asm/uaccess.h>
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 98acf7d5cef2..bfbe66798a7a 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -150,7 +150,9 @@ static inline unsigned long change_pmd_range(struct v=
+m_area_struct *vma,
+>  		unsigned long this_pages;
 > =20
->  	while (page_vma_mapped_walk(&pvmw)) {
-> +		/* THP migration */
-> +		if (flags & TTU_MIGRATION) {
-> +			if (!PageHuge(page) && PageTransCompound(page)) {
-> +				set_pmd_migration_entry(&pvmw, page);
-> +				continue;
-> +			}
-> +		}
-> +		/* Unexpected PMD-mapped THP */
-> +		VM_BUG_ON_PAGE(!pvmw.pte, page);
-> +
->  		subpage =3D page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
->  		address =3D pvmw.address;
+>  		next =3D pmd_addr_end(addr, end);
+> -		if (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
+> +		if (!pmd_present(*pmd))
+> +			continue;
+> +		if (!is_swap_pmd(*pmd) && !pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
+>  				&& pmd_none_or_clear_bad(pmd))
+>  			continue;
 > =20
-> -		/* Unexpected PMD-mapped THP? */
-> -		VM_BUG_ON_PAGE(!pvmw.pte, page);
-> -
->  		/*
->  		 * If the page is mlock()d, we cannot swap it out.
->  		 * If it's recently referenced (perhaps page_referenced
+> @@ -160,7 +162,7 @@ static inline unsigned long change_pmd_range(struct v=
+m_area_struct *vma,
+>  			mmu_notifier_invalidate_range_start(mm, mni_start, end);
+>  		}
+> =20
+> -		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+> +		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+>  			if (next - addr !=3D HPAGE_PMD_SIZE) {
+>  				__split_huge_pmd(vma, pmd, addr, false, NULL);
+>  				if (pmd_trans_unstable(pmd))
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index 8233b0105c82..5d537ce12adc 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -213,7 +213,7 @@ unsigned long move_page_tables(struct vm_area_struct =
+*vma,
+>  		new_pmd =3D alloc_new_pmd(vma->vm_mm, vma, new_addr);
+>  		if (!new_pmd)
+>  			break;
+> -		if (pmd_trans_huge(*old_pmd)) {
+> +		if (is_swap_pmd(*old_pmd) || pmd_trans_huge(*old_pmd)) {
+>  			if (extent =3D=3D HPAGE_PMD_SIZE) {
+>  				bool moved;
+>  				/* See comment in move_ptes() */
+> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+> index 03761577ae86..114fc2b5a370 100644
+> --- a/mm/pagewalk.c
+> +++ b/mm/pagewalk.c
+> @@ -2,6 +2,8 @@
+>  #include <linux/highmem.h>
+>  #include <linux/sched.h>
+>  #include <linux/hugetlb.h>
+> +#include <linux/swap.h>
+> +#include <linux/swapops.h>
+> =20
+>  static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long =
+end,
+>  			  struct mm_walk *walk)
 > --=20
 > 2.11.0
 > =
