@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 29DD46B0387
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 06:42:51 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id c7so165699wjb.7
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 03:42:51 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id z96si12565580wrb.48.2017.02.09.03.42.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 047486B0387
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 07:00:06 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 201so1493613pfw.5
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 04:00:05 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 13si9883630pfl.237.2017.02.09.04.00.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Feb 2017 03:42:49 -0800 (PST)
-Date: Thu, 9 Feb 2017 12:42:44 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-In-Reply-To: <alpine.DEB.2.20.1702082109530.13608@east.gentwo.org>
-Message-ID: <alpine.DEB.2.20.1702091240000.3604@nanos>
-References: <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
- <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos> <20170208073527.GA5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org> <20170208152106.GP5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702081011460.4938@east.gentwo.org>
- <alpine.DEB.2.20.1702081838560.3536@nanos> <alpine.DEB.2.20.1702082109530.13608@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Feb 2017 04:00:05 -0800 (PST)
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Subject: [PATCH 1/2 v2] mm: vmpressure: fix sending wrong events on underflow
+Date: Thu,  9 Feb 2017 17:29:36 +0530
+Message-Id: <1486641577-11685-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, shashim@codeaurora.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vinayak Menon <vinmenon@codeaurora.org>
 
-On Wed, 8 Feb 2017, Christoph Lameter wrote:
-> On Wed, 8 Feb 2017, Thomas Gleixner wrote:
-> 
-> > There is a world outside yours. Hotplug is actually used frequently for
-> > power purposes in some scenarios.
-> 
-> The usual case does not inolve hotplug.
+At the end of a window period, if the reclaimed pages
+is greater than scanned, an unsigned underflow can
+result in a huge pressure value and thus a critical event.
+Reclaimed pages is found to go higher than scanned because
+of the addition of reclaimed slab pages to reclaimed in
+shrink_node without a corresponding increment to scanned
+pages. Minchan Kim mentioned that this can also happen in
+the case of a THP page where the scanned is 1 and reclaimed
+could be 512.
 
-We do not care about your definition of "usual". The kernel serves _ALL_
-use cases.
+Acked-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+---
+v2: Adding a comment and reordering the patches
+    as per Michal's suggestion
 
-> > It will improve nothing. The stop machine context is extremly limited and
-> > you cannot do complex things there at all. Not to talk about the inability
-> > of taking a simple mutex which would immediately deadlock the machine.
-> 
-> You do not need to do complex things. Basically flipping some cpu mask
-> bits will do it. stop machine ensures that code is not
-> executing on the processors when the bits are flipped. That will ensure
-> that there is no need to do any get_online_cpu() nastiness in critical VM
-> paths since we are guaranteed not to be executing them.
+ mm/vmpressure.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-And how does that solve the problem at hand? Not at all:
-
-CPU 0	     	  	    CPU 1
-
-for_each_online_cpu(cpu)
- ==> cpu = 1
-			    stop_machine()
-			    set_cpu_online(1, false)
- queue_work(cpu1)
-
-Thanks,
-
-	tglx
-
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 149fdf6..6063581 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -112,9 +112,16 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 						    unsigned long reclaimed)
+ {
+ 	unsigned long scale = scanned + reclaimed;
+-	unsigned long pressure;
++	unsigned long pressure = 0;
+ 
+ 	/*
++	 * reclaimed can be greater than scanned in cases
++	 * like THP, where the scanned is 1 and reclaimed
++	 * could be 512
++	 */
++	if (reclaimed >= scanned)
++		goto out;
++	/*
+ 	 * We calculate the ratio (in percents) of how many pages were
+ 	 * scanned vs. reclaimed in a given time frame (window). Note that
+ 	 * time is in VM reclaimer's "ticks", i.e. number of pages
+@@ -124,6 +131,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 	pressure = scale - (reclaimed * scale / scanned);
+ 	pressure = pressure * 100 / scale;
+ 
++out:
+ 	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
+ 		 scanned, reclaimed);
+ 
+-- 
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
