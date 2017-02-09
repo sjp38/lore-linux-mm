@@ -1,73 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 049FF28089F
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 01:33:26 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 204so221873730pge.5
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 22:33:25 -0800 (PST)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id 1si9243286plw.105.2017.02.08.22.33.23
-        for <linux-mm@kvack.org>;
-        Wed, 08 Feb 2017 22:33:25 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <cover.1486163864.git.shli@fb.com> <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com> <007e01d27eb1$3f98dee0$beca9ca0$@alibaba-inc.com>
-In-Reply-To: <007e01d27eb1$3f98dee0$beca9ca0$@alibaba-inc.com>
-Subject: Re: [PATCH V2 2/7] mm: move MADV_FREE pages into LRU_INACTIVE_FILE list
-Date: Thu, 09 Feb 2017 14:33:03 +0800
-Message-ID: <00d601d2829e$5e7930d0$1b6b9270$@alibaba-inc.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F55D28089F
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 02:05:26 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y143so223393075pfb.6
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 23:05:26 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id b84si9308223pfl.88.2017.02.08.23.05.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Feb 2017 23:05:25 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id 75so17127166pgf.3
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 23:05:25 -0800 (PST)
+Date: Thu, 9 Feb 2017 16:05:43 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v2] mm/zsmalloc: fix comment in zsmalloc
+Message-ID: <20170209070543.GA9995@jagdpanzerIV.localdomain>
+References: <1486620822-36826-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1486620822-36826-1-git-send-email-xieyisheng1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Shaohua Li' <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Kernel-team@fb.com, danielmicay@gmail.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, guohanjun@huawei.com
 
+On (02/09/17 14:13), Yisheng Xie wrote:
+> The class index and fullness group are not encoded in (first)page->mapping
+> any more, after commit 3783689a1aa8 ("zsmalloc: introduce zspage
+> structure"). Instead, they are store in struct zspage. Just delete this
+> unneeded comment.
+> 
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> Suggested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Hanjun Guo <guohanjun@huawei.com>
+> ---
+> v2:
+>  * just delete the comment for it is no need anymore, suggested by Sergey.
 
-On February 04, 2017 2:38 PM Hillf Danton wrote: 
-> 
-> On February 04, 2017 7:33 AM Shaohua Li wrote:
-> > @@ -1404,6 +1401,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >  		set_pmd_at(mm, addr, pmd, orig_pmd);
-> >  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> >  	}
-> > +
-> > +	mark_page_lazyfree(page);
-> >  	ret = true;
-> >  out:
-> >  	spin_unlock(ptl);
-> 
-> <snipped>
-> 
-> > -void deactivate_page(struct page *page)
-> > -{
-> > -	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-> > -		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
-> > +void mark_page_lazyfree(struct page *page)
-> > + {
-> > +	if (PageLRU(page) && PageAnon(page) && PageSwapBacked(page) &&
-> > +	    !PageUnevictable(page)) {
-> > +		struct pagevec *pvec = &get_cpu_var(lru_lazyfree_pvecs);
-> >
-> >  		get_page(page);
-> >  		if (!pagevec_add(pvec, page) || PageCompound(page))
-> > -			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-> > -		put_cpu_var(lru_deactivate_pvecs);
-> > +			pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
-> > +		put_cpu_var(lru_lazyfree_pvecs);
-> >  	}
-> >  }
-> 
-> You are not adding it but would you please try to fix or avoid flipping
-> preempt count with page table lock hold?
-> 
-preempt_en/disable are embedded in spin_lock/unlock, so please
-ignore my noise.
+thanks for the patch.
 
-thanks
-Hillf
+my "suggestion" was just a side note, nothing more. I'm fine with the
+"fix the comment" patch that Andrew has added to mmotm.
+we need Minchan's opinion on this, until he speaks out let's have V1
+("fix the comment") applied.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
