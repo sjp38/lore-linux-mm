@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F3F6B0387
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 09:01:01 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id e137so26079864itc.0
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 06:01:01 -0800 (PST)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id p200si17901866ioe.86.2017.02.09.06.01.00
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A7B6B0387
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 09:17:53 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y143so6368207pfb.6
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 06:17:53 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id 197si10172003pgd.70.2017.02.09.06.17.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Feb 2017 06:01:00 -0800 (PST)
-Date: Thu, 9 Feb 2017 08:00:57 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-In-Reply-To: <alpine.DEB.2.20.1702091240000.3604@nanos>
-Message-ID: <alpine.DEB.2.20.1702090759370.22559@east.gentwo.org>
-References: <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
- <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos> <20170208073527.GA5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org> <20170208152106.GP5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702081011460.4938@east.gentwo.org>
- <alpine.DEB.2.20.1702081838560.3536@nanos> <alpine.DEB.2.20.1702082109530.13608@east.gentwo.org> <alpine.DEB.2.20.1702091240000.3604@nanos>
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 09 Feb 2017 06:17:52 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id f144so318414pfa.2
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 06:17:52 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm/page_alloc: remove redundant init code for ZONE_MOVABLE
+Date: Thu,  9 Feb 2017 22:17:31 +0800
+Message-Id: <20170209141731.60208-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Thu, 9 Feb 2017, Thomas Gleixner wrote:
+arch_zone_lowest/highest_possible_pfn[] is set to 0 and [ZONE_MOVABLE] is
+skipped in the loop. No need to reset them to 0 again.
 
-> And how does that solve the problem at hand? Not at all:
->
-> CPU 0	     	  	    CPU 1
->
-> for_each_online_cpu(cpu)
->  ==> cpu = 1
-> 			    stop_machine()
-> 			    set_cpu_online(1, false)
->  queue_work(cpu1)
->
-> Thanks,
+This patch just removes the redundant code.
 
-Well thats not how I remember stop_machine does work. Doesnt it stop the
-processing on all cpus otherwise its not a real usable stop.
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/page_alloc.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-The stop_machine would need to ensure that all cpus cease processing
-before proceeding.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 51c60c0eadcb..cc9695d14226 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6279,8 +6279,6 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 
+ 		start_pfn = end_pfn;
+ 	}
+-	arch_zone_lowest_possible_pfn[ZONE_MOVABLE] = 0;
+-	arch_zone_highest_possible_pfn[ZONE_MOVABLE] = 0;
+ 
+ 	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
+ 	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
