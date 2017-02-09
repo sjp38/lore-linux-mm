@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F8006B0388
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 08:41:29 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 204so4904581pge.5
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 05:41:29 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 1si10074060pgr.272.2017.02.09.05.41.27
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CE1776B0389
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 08:41:33 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id an2so865732wjc.3
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 05:41:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y11si12870060wrc.320.2017.02.09.05.41.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Feb 2017 05:41:28 -0800 (PST)
+        Thu, 09 Feb 2017 05:41:32 -0800 (PST)
+Date: Thu, 9 Feb 2017 14:41:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [RFC] 3.10 kernel- oom with about 24G free memory
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <20170209134131.GJ10257@dhcp22.suse.cz>
 References: <9a22aefd-dfb8-2e4c-d280-fc172893bcb4@huawei.com>
-	<20170209132628.GI10257@dhcp22.suse.cz>
-In-Reply-To: <20170209132628.GI10257@dhcp22.suse.cz>
-Message-Id: <201702092241.FEH35923.tOMJVHLSFFQOFO@I-love.SAKURA.ne.jp>
-Date: Thu, 9 Feb 2017 22:41:11 +0900
-Mime-Version: 1.0
+ <20170209132628.GI10257@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170209132628.GI10257@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, xieyisheng1@huawei.com
-Cc: vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hanjun Guo <guohanjun@huawei.com>
 
-Michal Hocko wrote:
+On Thu 09-02-17 14:26:28, Michal Hocko wrote:
 > On Thu 09-02-17 20:54:49, Yisheng Xie wrote:
 > > Hi all,
 > > I get an oom on a linux 3.10 kvm guest OS. when it triggers the oom
@@ -60,13 +61,17 @@ Michal Hocko wrote:
 > is memcg aware and mem_cgroup_out_of_memory initializes oom_control
 > properly. Is this Vanilla kernel?
 
-No. Google says kernel-3.10.0-229.42.1.105.x86_64.rpm at
-http://developer.huawei.com/ict/site-euleros/euleros/repo/yum/os/base/2.1/updates/1/Packages/ .
+I have only now noticed this is 3.10 rather than 4.10 kernel.
 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
+There we simply do
+dump_header(NULL, gfp_mask, order, NULL, nodemask);
+
+so memcg is NULL and that's why we report global counters. You need
+2415b9f5cb04 ("memcg: print cgroup information when system panics due to
+panic_on_oom")
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
