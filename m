@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FF266B0387
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 11:39:32 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id o16so8835963wra.2
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 08:39:32 -0800 (PST)
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A9F86B0388
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 11:39:33 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id ez4so1938113wjd.2
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 08:39:33 -0800 (PST)
 Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
-        by mx.google.com with ESMTP id c133si6780830wme.80.2017.02.09.08.39.31
+        by mx.google.com with ESMTP id p69si13460607wrb.124.2017.02.09.08.39.32
         for <linux-mm@kvack.org>;
-        Thu, 09 Feb 2017 08:39:31 -0800 (PST)
+        Thu, 09 Feb 2017 08:39:32 -0800 (PST)
 From: Maxime Ripard <maxime.ripard@free-electrons.com>
-Subject: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-Date: Thu,  9 Feb 2017 17:39:14 +0100
-Message-Id: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
+Subject: [PATCH 1/8] ARM: sun8i: Fix the mali clock rate
+Date: Thu,  9 Feb 2017 17:39:15 +0100
+Message-Id: <4830ced34cc83058f7cad123be67fecc624a99d6.1486655917.git-series.maxime.ripard@free-electrons.com>
+In-Reply-To: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
+References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
+In-Reply-To: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
+References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Maxime Ripard <maxime.ripard@free-electrons.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 
-Hi,
+The Mali clock rate was improperly assumed to be 408MHz, while it was
+really 384Mhz, 408MHz being the "extreme" frequency, and definitely not
+stable.
 
-This serie is building on the recently merged bindings for the ARM Mali
-Utgard GPU.
+Switch for the stable, correct frequency for the GPU.
 
-The two features that are supported with this serie are DVFS and the fbdev
-support. The first one uses devfreq and is pretty standard, the only
-addition being the generic OPP mechanism we have, plus some DT and Kconfig
-patches.
+Signed-off-by: Maxime Ripard <maxime.ripard@free-electrons.com>
+---
+ arch/arm/boot/dts/sun8i-a23-a33.dtsi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Running on framebuffer is a bit more tedious, since we need to access the
-CMA memory region size and base. This is quite trivial to do as well
-through the memory-region bindings, but require to export a few symbols
-along the way to make sure our module builds properly.
-
-Let me know what you think,
-Maxime
-
-Maxime Ripard (8):
-  ARM: sun8i: Fix the mali clock rate
-  dt-bindings: gpu: mali: Add optional memory-region
-  mm: cma: Export a few symbols
-  drm/sun4i: Grab reserved memory region
-  ARM: sun8i: a33: Add shared display memory pool
-  dt-bindings: gpu: mali: Add optional OPPs
-  ARM: sunxi: Select PM_OPP
-  ARM: sun8i: a33: Add the Mali OPPs
-
- Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt |  8 ++-
- arch/arm/boot/dts/sun8i-a23-a33.dtsi                      |  2 +-
- arch/arm/boot/dts/sun8i-a33.dtsi                          | 34 ++++++++-
- arch/arm/mach-sunxi/Kconfig                               |  1 +-
- drivers/base/dma-contiguous.c                             |  1 +-
- drivers/gpu/drm/sun4i/sun4i_drv.c                         | 19 ++--
- mm/cma.c                                                  |  2 +-
- 7 files changed, 61 insertions(+), 6 deletions(-)
-
-base-commit: a2138ce584d59571dd18a6cf3417cb90be7625d8
+diff --git a/arch/arm/boot/dts/sun8i-a23-a33.dtsi b/arch/arm/boot/dts/sun8i-a23-a33.dtsi
+index 35008b78d899..8a880ecc4dda 100644
+--- a/arch/arm/boot/dts/sun8i-a23-a33.dtsi
++++ b/arch/arm/boot/dts/sun8i-a23-a33.dtsi
+@@ -495,7 +495,7 @@
+ 			resets = <&ccu RST_BUS_GPU>;
+ 
+ 			assigned-clocks = <&ccu CLK_GPU>;
+-			assigned-clock-rates = <408000000>;
++			assigned-clock-rates = <384000000>;
+ 		};
+ 
+ 		gic: interrupt-controller@01c81000 {
 -- 
 git-series 0.8.11
 
