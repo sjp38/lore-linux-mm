@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 238D528089F
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 64DDF4405A0
 	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 11:39:35 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id kq3so1954432wjc.1
+Received: by mail-wm0-f71.google.com with SMTP id t18so4676650wmt.7
         for <linux-mm@kvack.org>; Thu, 09 Feb 2017 08:39:35 -0800 (PST)
 Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
-        by mx.google.com with ESMTP id n19si13466269wra.126.2017.02.09.08.39.33
+        by mx.google.com with ESMTP id j133si6762781wma.124.2017.02.09.08.39.34
         for <linux-mm@kvack.org>;
         Thu, 09 Feb 2017 08:39:34 -0800 (PST)
 From: Maxime Ripard <maxime.ripard@free-electrons.com>
-Subject: [PATCH 6/8] dt-bindings: gpu: mali: Add optional OPPs
-Date: Thu,  9 Feb 2017 17:39:20 +0100
-Message-Id: <29cb6b892a6e7002d2f6271157a5efa648b0dd9b.1486655917.git-series.maxime.ripard@free-electrons.com>
+Subject: [PATCH 7/8] ARM: sunxi: Select PM_OPP
+Date: Thu,  9 Feb 2017 17:39:21 +0100
+Message-Id: <e1424c55f3f8b1176f24a446936d189b00383a4c.1486655917.git-series.maxime.ripard@free-electrons.com>
 In-Reply-To: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
 References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
 In-Reply-To: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
@@ -21,28 +21,27 @@ List-ID: <linux-mm.kvack.org>
 To: Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Maxime Ripard <maxime.ripard@free-electrons.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 
-The operating-points-v2 binding gives a way to provide the OPP of the GPU.
-Let's use it.
+Device frequency scaling is implemented through devfreq in the kernel,
+which requires CONFIG_PM_OPP.
+
+Let's select it.
 
 Signed-off-by: Maxime Ripard <maxime.ripard@free-electrons.com>
 ---
- Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt | 4 ++++
- 1 file changed, 4 insertions(+), 0 deletions(-)
+ arch/arm/mach-sunxi/Kconfig | 1 +
+ 1 file changed, 1 insertion(+), 0 deletions(-)
 
-diff --git a/Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt b/Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt
-index 88df4a276607..2b6243e730f6 100644
---- a/Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt
-+++ b/Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt
-@@ -39,6 +39,10 @@ Optional properties:
-     Memory region to allocate from, as defined in
-     Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
- 
-+  - operating-points-v2:
-+    Operating Points for the GPU, as defined in
-+    Documentation/devicetree/bindings/opp/opp.txt
-+
- Vendor-specific bindings
- ------------------------
+diff --git a/arch/arm/mach-sunxi/Kconfig b/arch/arm/mach-sunxi/Kconfig
+index b9863f9a35fa..58153cdf025b 100644
+--- a/arch/arm/mach-sunxi/Kconfig
++++ b/arch/arm/mach-sunxi/Kconfig
+@@ -6,6 +6,7 @@ menuconfig ARCH_SUNXI
+ 	select GENERIC_IRQ_CHIP
+ 	select GPIOLIB
+ 	select PINCTRL
++	select PM_OPP
+ 	select SUN4I_TIMER
+ 	select RESET_CONTROLLER
  
 -- 
 git-series 0.8.11
