@@ -1,77 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE1776B0389
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 08:41:33 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id an2so865732wjc.3
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 05:41:33 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y11si12870060wrc.320.2017.02.09.05.41.32
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CB3F6B0388
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 08:50:04 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id z67so5498524pgb.0
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 05:50:04 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a21si10091154pfh.246.2017.02.09.05.50.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Feb 2017 05:41:32 -0800 (PST)
-Date: Thu, 9 Feb 2017 14:41:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] 3.10 kernel- oom with about 24G free memory
-Message-ID: <20170209134131.GJ10257@dhcp22.suse.cz>
-References: <9a22aefd-dfb8-2e4c-d280-fc172893bcb4@huawei.com>
- <20170209132628.GI10257@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Feb 2017 05:50:03 -0800 (PST)
+Date: Thu, 9 Feb 2017 14:50:02 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 1/3 staging-next] android: Collect statistics from
+ lowmemorykiller
+Message-ID: <20170209135002.GA22952@kroah.com>
+References: <9febd4f7-a0a7-5f52-e67b-df3163814ac5@sonymobile.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170209132628.GI10257@dhcp22.suse.cz>
+In-Reply-To: <9febd4f7-a0a7-5f52-e67b-df3163814ac5@sonymobile.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hanjun Guo <guohanjun@huawei.com>
+To: peter enderborg <peter.enderborg@sonymobile.com>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Riley Andrews <riandrews@android.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu 09-02-17 14:26:28, Michal Hocko wrote:
-> On Thu 09-02-17 20:54:49, Yisheng Xie wrote:
-> > Hi all,
-> > I get an oom on a linux 3.10 kvm guest OS. when it triggers the oom
-> > it have about 24G free memory(and host OS have about 10G free memory)
-> > and watermark is sure ok.
-> > 
-> > I also check about about memcg limit value, also cannot find the
-> > root cause.
-> > 
-> > Is there anybody ever meet similar problem and have any idea about it?
-> > 
-> > Any comment is more than welcome!
-> > 
-> > Thanks
-> > Yisheng Xie
-> > 
-> > -------------
-> > [   81.234289] DefSch0200 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
-> > [   81.234295] DefSch0200 cpuset=/ mems_allowed=0
-> > [   81.234299] CPU: 3 PID: 8284 Comm: DefSch0200 Tainted: G           O E ----V-------   3.10.0-229.42.1.105.x86_64 #1
-> > [   81.234301] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20161111_105425-HGH1000008200 04/01/2014
-> > [   81.234303]  ffff880ae2900000 000000002b3489d7 ffff880b6cec7c58 ffffffff81608d3d
-> > [   81.234307]  ffff880b6cec7ce8 ffffffff81603d1c 0000000000000000 ffff880b6cd09000
-> > [   81.234311]  ffff880b6cec7cd8 000000002b3489d7 ffff880b6cec7ce0 ffffffff811bdd77
-> > [   81.234314] Call Trace:
-> > [   81.234323]  [<ffffffff81608d3d>] dump_stack+0x19/0x1b
-> > [   81.234327]  [<ffffffff81603d1c>] dump_header+0x8e/0x214
-> > [   81.234333]  [<ffffffff811bdd77>] ? mem_cgroup_iter+0x177/0x2b0
-> > [   81.234339]  [<ffffffff8115d83e>] check_panic_on_oom+0x2e/0x60
-> > [   81.234342]  [<ffffffff811c17bf>] mem_cgroup_oom_synchronize+0x34f/0x580
+On Thu, Feb 09, 2017 at 02:21:45PM +0100, peter enderborg wrote:
+> This collects stats for shrinker calls and how much
+> waste work we do within the lowmemorykiller.
 > 
-> OK, so this is a memcg OOM killer which panics because the configuration
-> says so. The OOM report doesn't say so and that is the bug. dump_header
-> is memcg aware and mem_cgroup_out_of_memory initializes oom_control
-> properly. Is this Vanilla kernel?
+> Signed-off-by: Peter Enderborg <peter.enderborg@sonymobile.com>
+> ---
+>  drivers/staging/android/Kconfig                 | 11 ++++
+>  drivers/staging/android/Makefile                |  1 +
+>  drivers/staging/android/lowmemorykiller.c       |  9 ++-
+>  drivers/staging/android/lowmemorykiller_stats.c | 85 +++++++++++++++++++++++++
+>  drivers/staging/android/lowmemorykiller_stats.h | 29 +++++++++
+>  5 files changed, 134 insertions(+), 1 deletion(-)
+>  create mode 100644 drivers/staging/android/lowmemorykiller_stats.c
+>  create mode 100644 drivers/staging/android/lowmemorykiller_stats.h
+> 
+> diff --git a/drivers/staging/android/Kconfig b/drivers/staging/android/Kconfig
+> index 6c00d6f..96e86c7 100644
+> --- a/drivers/staging/android/Kconfig
+> +++ b/drivers/staging/android/Kconfig
+> @@ -24,6 +24,17 @@ config ANDROID_LOW_MEMORY_KILLER
+>        scripts (/init.rc), and it defines priority values with minimum free memory size
+>        for each priority.
+> 
+> +config ANDROID_LOW_MEMORY_KILLER_STATS
+> +    bool "Android Low Memory Killer: collect statistics"
+> +    depends on ANDROID_LOW_MEMORY_KILLER
+> +    default n
+> +    help
+> +      Create a file in /proc/lmkstats that includes
+> +      collected statistics about kills, scans and counts
+> +      and  interaction with the shrinker. Its content
+> +      will be different depeding on lmk implementation used.
+> +
+> +
+>  source "drivers/staging/android/ion/Kconfig"
+> 
+>  endif # if ANDROID
+> diff --git a/drivers/staging/android/Makefile b/drivers/staging/android/Makefile
+> index 7ed1be7..d710eb2 100644
+> --- a/drivers/staging/android/Makefile
+> +++ b/drivers/staging/android/Makefile
+> @@ -4,3 +4,4 @@ obj-y                    += ion/
+> 
+>  obj-$(CONFIG_ASHMEM)            += ashmem.o
+>  obj-$(CONFIG_ANDROID_LOW_MEMORY_KILLER)    += lowmemorykiller.o
+> +obj-$(CONFIG_ANDROID_LOW_MEMORY_KILLER_STATS)    += lowmemorykiller_stats.o
+> diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+> index ec3b665..15c1b38 100644
+> --- a/drivers/staging/android/lowmemorykiller.c
+> +++ b/drivers/staging/android/lowmemorykiller.c
+> @@ -42,6 +42,7 @@
+>  #include <linux/rcupdate.h>
+>  #include <linux/profile.h>
+>  #include <linux/notifier.h>
+> +#include "lowmemorykiller_stats.h"
+> 
+>  static u32 lowmem_debug_level = 1;
+>  static short lowmem_adj[6] = {
+> @@ -72,6 +73,7 @@ static unsigned long lowmem_deathpending_timeout;
+>  static unsigned long lowmem_count(struct shrinker *s,
+>                    struct shrink_control *sc)
+>  {
+> +    lmk_inc_stats(LMK_COUNT);
+>      return global_node_page_state(NR_ACTIVE_ANON) +
+>          global_node_page_state(NR_ACTIVE_FILE) +
+>          global_node_page_state(NR_INACTIVE_ANON) +
 
-I have only now noticed this is 3.10 rather than 4.10 kernel.
+Your patch is corrupted and can not be applied :(
 
-There we simply do
-dump_header(NULL, gfp_mask, order, NULL, nodemask);
+all of them are like this.
 
-so memcg is NULL and that's why we report global counters. You need
-2415b9f5cb04 ("memcg: print cgroup information when system panics due to
-panic_on_oom")
--- 
-Michal Hocko
-SUSE Labs
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
