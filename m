@@ -1,74 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F4C36B0387
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 11:12:52 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id y7so8758021wrc.7
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 08:12:52 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u23si13347997wrc.274.2017.02.09.08.12.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Feb 2017 08:12:50 -0800 (PST)
-Date: Thu, 9 Feb 2017 17:12:46 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-In-Reply-To: <alpine.DEB.2.20.1702090940190.23960@east.gentwo.org>
-Message-ID: <alpine.DEB.2.20.1702091708270.3604@nanos>
-References: <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
- <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos> <20170208073527.GA5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org> <20170208152106.GP5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702081011460.4938@east.gentwo.org>
- <alpine.DEB.2.20.1702081838560.3536@nanos> <alpine.DEB.2.20.1702082109530.13608@east.gentwo.org> <alpine.DEB.2.20.1702091240000.3604@nanos> <alpine.DEB.2.20.1702090759370.22559@east.gentwo.org> <alpine.DEB.2.20.1702091548300.3604@nanos>
- <alpine.DEB.2.20.1702090940190.23960@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 8FF266B0387
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 11:39:32 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id o16so8835963wra.2
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 08:39:32 -0800 (PST)
+Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
+        by mx.google.com with ESMTP id c133si6780830wme.80.2017.02.09.08.39.31
+        for <linux-mm@kvack.org>;
+        Thu, 09 Feb 2017 08:39:31 -0800 (PST)
+From: Maxime Ripard <maxime.ripard@free-electrons.com>
+Subject: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
+Date: Thu,  9 Feb 2017 17:39:14 +0100
+Message-Id: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Maxime Ripard <maxime.ripard@free-electrons.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 
-On Thu, 9 Feb 2017, Christoph Lameter wrote:
-> On Thu, 9 Feb 2017, Thomas Gleixner wrote:
-> 
-> > > The stop_machine would need to ensure that all cpus cease processing
-> > > before proceeding.
-> >
-> > Ok. I try again:
-> >
-> > CPU 0	     	  	    CPU 1
-> > for_each_online_cpu(cpu)
-> >   ==> cpu = 1
-> >  			    stop_machine()
-> >
-> > Stops processing on all CPUs by preempting the current execution and
-> > forcing them into a high priority busy loop with interrupts disabled.
-> 
-> Exactly that means we are outside of the sections marked with
-> get_online_cpous().
-> 
-> > It does exactly what you describe. It stops processing on all other cpus
-> > until release, but that does not invalidate any data on those cpus.
-> 
-> Why would it need to invalidate any data? The change of the cpu masks
-> would need to be done when the machine is stopped. This sounds exactly
-> like what we need and much of it is already there.
+Hi,
 
-You are just not getting it, really.
+This serie is building on the recently merged bindings for the ARM Mali
+Utgard GPU.
 
-The problem is that this for_each_online_cpu() is racy against a concurrent
-hot unplug and therefor can queue stuff for a not longer online cpu. That's
-what the mm folks tried to avoid by preventing a CPU hotplug operation
-before entering that loop.
+The two features that are supported with this serie are DVFS and the fbdev
+support. The first one uses devfreq and is pretty standard, the only
+addition being the generic OPP mechanism we have, plus some DT and Kconfig
+patches.
 
-> Lets get rid of get_online_cpus() etc.
+Running on framebuffer is a bit more tedious, since we need to access the
+CMA memory region size and base. This is quite trivial to do as well
+through the memory-region bindings, but require to export a few symbols
+along the way to make sure our module builds properly.
 
-And that solves what?
+Let me know what you think,
+Maxime
 
-Can you please start to understand the scope of the whole hotplug machinery
-including the requirements for get_online_cpus() before you waste
-everybodys time with your uninformed and halfbaken proposals?
+Maxime Ripard (8):
+  ARM: sun8i: Fix the mali clock rate
+  dt-bindings: gpu: mali: Add optional memory-region
+  mm: cma: Export a few symbols
+  drm/sun4i: Grab reserved memory region
+  ARM: sun8i: a33: Add shared display memory pool
+  dt-bindings: gpu: mali: Add optional OPPs
+  ARM: sunxi: Select PM_OPP
+  ARM: sun8i: a33: Add the Mali OPPs
 
-Thanks,
+ Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt |  8 ++-
+ arch/arm/boot/dts/sun8i-a23-a33.dtsi                      |  2 +-
+ arch/arm/boot/dts/sun8i-a33.dtsi                          | 34 ++++++++-
+ arch/arm/mach-sunxi/Kconfig                               |  1 +-
+ drivers/base/dma-contiguous.c                             |  1 +-
+ drivers/gpu/drm/sun4i/sun4i_drv.c                         | 19 ++--
+ mm/cma.c                                                  |  2 +-
+ 7 files changed, 61 insertions(+), 6 deletions(-)
 
-	tglx
+base-commit: a2138ce584d59571dd18a6cf3417cb90be7625d8
+-- 
+git-series 0.8.11
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
