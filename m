@@ -1,84 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CE62C6B0387
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 09:53:09 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 89so8538687wrr.1
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 06:53:09 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id w7si13096707wrb.207.2017.02.09.06.53.08
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B40C6B0387
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 10:08:05 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id y140so6180174oie.2
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 07:08:05 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0106.outbound.protection.outlook.com. [104.47.32.106])
+        by mx.google.com with ESMTPS id n187si4742265oih.239.2017.02.09.07.08.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Feb 2017 06:53:08 -0800 (PST)
-Date: Thu, 9 Feb 2017 15:53:02 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
-In-Reply-To: <alpine.DEB.2.20.1702090759370.22559@east.gentwo.org>
-Message-ID: <alpine.DEB.2.20.1702091548300.3604@nanos>
-References: <20170207123708.GO5065@dhcp22.suse.cz> <20170207135846.usfrn7e4znjhmogn@techsingularity.net> <20170207141911.GR5065@dhcp22.suse.cz> <20170207153459.GV5065@dhcp22.suse.cz> <20170207162224.elnrlgibjegswsgn@techsingularity.net> <20170207164130.GY5065@dhcp22.suse.cz>
- <alpine.DEB.2.20.1702071053380.16150@east.gentwo.org> <alpine.DEB.2.20.1702072319200.8117@nanos> <20170208073527.GA5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702080906540.3955@east.gentwo.org> <20170208152106.GP5686@dhcp22.suse.cz> <alpine.DEB.2.20.1702081011460.4938@east.gentwo.org>
- <alpine.DEB.2.20.1702081838560.3536@nanos> <alpine.DEB.2.20.1702082109530.13608@east.gentwo.org> <alpine.DEB.2.20.1702091240000.3604@nanos> <alpine.DEB.2.20.1702090759370.22559@east.gentwo.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 09 Feb 2017 07:08:04 -0800 (PST)
+From: Zi Yan <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH v3 04/14] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to
+ bit 1
+Date: Thu, 9 Feb 2017 09:07:56 -0600
+Message-ID: <A8EB8880-24C8-4134-96B7-BB6D5027AC60@cs.rutgers.edu>
+In-Reply-To: <20170209091458.GA15649@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-5-zi.yan@sent.com>
+ <20170209091458.GA15649@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed;
+	boundary="=_MailMate_A5B4B13E-8536-4F97-B856-4812B7FBFA18_=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>
 
-On Thu, 9 Feb 2017, Christoph Lameter wrote:
+--=_MailMate_A5B4B13E-8536-4F97-B856-4812B7FBFA18_=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-> On Thu, 9 Feb 2017, Thomas Gleixner wrote:
-> 
-> > And how does that solve the problem at hand? Not at all:
-> >
-> > CPU 0	     	  	    CPU 1
-> >
-> > for_each_online_cpu(cpu)
-> >  ==> cpu = 1
-> > 			    stop_machine()
-> > 			    set_cpu_online(1, false)
-> >  queue_work(cpu1)
-> >
-> > Thanks,
-> 
-> Well thats not how I remember stop_machine does work. Doesnt it stop the
-> processing on all cpus otherwise its not a real usable stop.
-> 
-> The stop_machine would need to ensure that all cpus cease processing
-> before proceeding.
+On 9 Feb 2017, at 3:14, Naoya Horiguchi wrote:
 
-Ok. I try again:
+> On Sun, Feb 05, 2017 at 11:12:42AM -0500, Zi Yan wrote:
+>> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>
+>> pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid
+>> false negative return when it races with thp spilt
+>> (during which _PAGE_PRESENT is temporary cleared.) I don't think that
+>> dropping _PAGE_PSE check in pmd_present() works well because it can
+>> hurt optimization of tlb handling in thp split.
+>> In the current kernel, bits 1-4 are not used in non-present format
+>> since commit 00839ee3b299 ("x86/mm: Move swap offset/type up in PTE to=
 
-CPU 0	     	  	    CPU 1
-for_each_online_cpu(cpu)
-  ==> cpu = 1
- 			    stop_machine()
+>> work around erratum"). So let's move _PAGE_SWP_SOFT_DIRTY to bit 1.
+>> Bit 7 is used as reserved (always clear), so please don't use it for
+>> other purpose.
+>>
+>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>
+>> ChangeLog v3:
+>> - Move _PAGE_SWP_SOFT_DIRTY to bit 1, it was placed at bit 6. Because
+>> some CPUs might accidentally set bit 5 or 6.
+>>
+>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+>> ---
+>
+> More documenting will be helpful, could you do like follows?
 
-Stops processing on all CPUs by preempting the current execution and
-forcing them into a high priority busy loop with interrupts disabled.
+Sure. Thanks for helping.
 
-   context_switch()
-   stomper_thread()
-	busyloop()
+>
+> Thanks,
+> Naoya Horiguchi
+> ---
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Sun, 5 Feb 2017 11:12:42 -0500
+> Subject: [PATCH] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to bit 1=
 
-	     	    	      set_cpu_online(1, false)
+>
+> pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid
+> false negative return when it races with thp spilt
+> (during which _PAGE_PRESENT is temporary cleared.) I don't think that
+> dropping _PAGE_PSE check in pmd_present() works well because it can
+> hurt optimization of tlb handling in thp split.
+> In the current kernel, bits 1-4 are not used in non-present format
+> since commit 00839ee3b299 ("x86/mm: Move swap offset/type up in PTE to
+> work around erratum"). So let's move _PAGE_SWP_SOFT_DIRTY to bit 1.
+> Bit 7 is used as reserved (always clear), so please don't use it for
+> other purpose.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  arch/x86/include/asm/pgtable_64.h    | 12 +++++++++---
+>  arch/x86/include/asm/pgtable_types.h | 10 +++++-----
+>  2 files changed, 14 insertions(+), 8 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/p=
+gtable_64.h
+> index 73c7ccc38912..07c98c85cc96 100644
+> --- a/arch/x86/include/asm/pgtable_64.h
+> +++ b/arch/x86/include/asm/pgtable_64.h
+> @@ -157,15 +157,21 @@ static inline int pgd_large(pgd_t pgd) { return 0=
+; }
+>  /*
+>   * Encode and de-code a swap entry
+>   *
+> - * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit numbe=
+r
+> - * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names=
 
-			    stop_machine end()
-			      release busy looping CPUs
+> - * | OFFSET (14->63) | TYPE (9-13)  |0|X|X|X| X| X|X|X|0| <- swp entry=
 
-   context_switch
+> + * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit numb=
+er
+> + * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit name=
+s
+> + * | OFFSET (14->63) | TYPE (9-13)  |0|0|X|X| X| X|X|SD|0| <- swp entr=
+y
+>   *
+>   * G (8) is aliased and used as a PROT_NONE indicator for
+>   * !present ptes.  We need to start storing swap entries above
+>   * there.  We also need to avoid using A and D because of an
+>   * erratum where they can be incorrectly set by hardware on
+>   * non-present PTEs.
+> + *
+> + * SD (1) in swp entry is used to store soft dirty bit, which helps us=
 
-Resumes operation at the preemption point. cpu is still 1
+> + * remember soft dirty over page migration.
+> + *
+> + * Bit 7 in swp entry should be 0 because pmd_present checks not only =
+P,
+> + * but G.
+>   */
+>  #define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
+>  #define SWP_TYPE_BITS 5
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/as=
+m/pgtable_types.h
+> index 8b4de22d6429..3695abd58ef6 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -97,15 +97,15 @@
+>  /*
+>   * Tracking soft dirty bit when a page goes to a swap is tricky.
+>   * We need a bit which can be stored in pte _and_ not conflict
+> - * with swap entry format. On x86 bits 6 and 7 are *not* involved
+> - * into swap entry computation, but bit 6 is used for nonlinear
+> - * file mapping, so we borrow bit 7 for soft dirty tracking.
+> + * with swap entry format. On x86 bits 1-4 are *not* involved
+> + * into swap entry computation, but bit 7 is used for thp migration,
+> + * so we borrow bit 1 for soft dirty tracking.
+>   *
+>   * Please note that this bit must be treated as swap dirty page
+> - * mark if and only if the PTE has present bit clear!
+> + * mark if and only if the PTE/PMD has present bit clear!
+>   */
+>  #ifdef CONFIG_MEM_SOFT_DIRTY
+> -#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
+> +#define _PAGE_SWP_SOFT_DIRTY	_PAGE_RW
+>  #else
+>  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
+>  #endif
+> -- =
 
-   queue_work(cpu == 1)
+> 2.7.4
 
-It does exactly what you describe. It stops processing on all other cpus
-until release, but that does not invalidate any data on those cpus.
 
-It's been that way forever.
+--
+Best Regards
+Yan Zi
 
-Thanks,
+--=_MailMate_A5B4B13E-8536-4F97-B856-4812B7FBFA18_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
 
-	tglx
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJYnIXMAAoJEEGLLxGcTqbMCvoH/3Q4pBypQF0iKmapJ0dHlavV
+euz08mB8HaBtSkRIrYl7zlaDBDesM1nm07gYXZHOFwBBRSljWf+Osy557y0f29Pu
+NyLHMgDahTT95U2SOfSyD+LArdP9rTLl9djsBUKDrzGaM+ljIGFia3WLN563KqRq
+PczDNB49VhPRc/bsQaA39an8OK9hd0k7uXS2O7b61N5omXqGgaJ43lzxaynhpaZ8
+IANA22IRSF21tltJlj3iqL2Wa9UwMrbxF0uM8l/heS0QzC/Psc5UnHidm5w7gXLY
+rMiPeNe+9VQJBy4lNBq3GoPjDELm8crCLi1B8N2G4o4JpkkhGN0dIiwrJYEnqSY=
+=HqSG
+-----END PGP SIGNATURE-----
+
+--=_MailMate_A5B4B13E-8536-4F97-B856-4812B7FBFA18_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
