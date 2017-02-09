@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE2B528089F
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 01:22:58 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 201so223134413pfw.5
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 22:22:58 -0800 (PST)
-Received: from out0-136.mail.aliyun.com (out0-136.mail.aliyun.com. [140.205.0.136])
-        by mx.google.com with ESMTP id x5si9220733pgf.20.2017.02.08.22.22.57
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 049FF28089F
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 01:33:26 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 204so221873730pge.5
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2017 22:33:25 -0800 (PST)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id 1si9243286plw.105.2017.02.08.22.33.23
         for <linux-mm@kvack.org>;
-        Wed, 08 Feb 2017 22:22:57 -0800 (PST)
+        Wed, 08 Feb 2017 22:33:25 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170208152200.ydlvia2c7lm7ln3t@techsingularity.net>
-In-Reply-To: <20170208152200.ydlvia2c7lm7ln3t@techsingularity.net>
-Subject: Re: [PATCH] mm, page_alloc: only use per-cpu allocator for irq-safe requests -fix v2
-Date: Thu, 09 Feb 2017 14:22:52 +0800
-Message-ID: <00d201d2829c$f233b630$d69b2290$@alibaba-inc.com>
+References: <cover.1486163864.git.shli@fb.com> <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com> <007e01d27eb1$3f98dee0$beca9ca0$@alibaba-inc.com>
+In-Reply-To: <007e01d27eb1$3f98dee0$beca9ca0$@alibaba-inc.com>
+Subject: Re: [PATCH V2 2/7] mm: move MADV_FREE pages into LRU_INACTIVE_FILE list
+Date: Thu, 09 Feb 2017 14:33:03 +0800
+Message-ID: <00d601d2829e$5e7930d0$1b6b9270$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -22,64 +22,52 @@ Content-Transfer-Encoding: 7bit
 Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mel Gorman' <mgorman@techsingularity.net>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Thomas Gleixner' <tglx@linutronix.de>, 'Peter Zijlstra' <peterz@infradead.org>, 'Michal Hocko' <mhocko@kernel.org>, 'Vlastimil Babka' <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Ingo Molnar' <mingo@kernel.org>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Shaohua Li' <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Kernel-team@fb.com, danielmicay@gmail.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
 
-On February 08, 2017 11:22 PM Mel Gorman wrote: 
+On February 04, 2017 2:38 PM Hillf Danton wrote: 
 > 
-> preempt_enable_no_resched() was used based on review feedback that had
-> no strong objection at the time. The thinking was that it avoided adding
-> a preemption point where one didn't exist before so the feedback was
-> applied. This reasoning was wrong.
+> On February 04, 2017 7:33 AM Shaohua Li wrote:
+> > @@ -1404,6 +1401,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> >  		set_pmd_at(mm, addr, pmd, orig_pmd);
+> >  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> >  	}
+> > +
+> > +	mark_page_lazyfree(page);
+> >  	ret = true;
+> >  out:
+> >  	spin_unlock(ptl);
 > 
-> There was an indirect preemption point as explained by Thomas Gleixner where
-> an interrupt could set_need_resched() followed by preempt_enable being
-> a preemption point that matters. This use of preempt_enable_no_resched
-> is bad from both a mainline and RT perspective and a violation of the
-> preemption mechanism. Peter Zijlstra noted that "the only acceptable use
-> of preempt_enable_no_resched() is if the next statement is a schedule()
-> variant".
+> <snipped>
 > 
-> The usage was outright broken and I should have stuck to preempt_enable()
-> as it was originally developed. It's known from previous tests
-> that there was no detectable difference to the performance by using
-> preempt_enable_no_resched().
+> > -void deactivate_page(struct page *page)
+> > -{
+> > -	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
+> > -		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
+> > +void mark_page_lazyfree(struct page *page)
+> > + {
+> > +	if (PageLRU(page) && PageAnon(page) && PageSwapBacked(page) &&
+> > +	    !PageUnevictable(page)) {
+> > +		struct pagevec *pvec = &get_cpu_var(lru_lazyfree_pvecs);
+> >
+> >  		get_page(page);
+> >  		if (!pagevec_add(pvec, page) || PageCompound(page))
+> > -			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
+> > -		put_cpu_var(lru_deactivate_pvecs);
+> > +			pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
+> > +		put_cpu_var(lru_lazyfree_pvecs);
+> >  	}
+> >  }
 > 
-> This is a fix to the mmotm patch
-> mm-page_alloc-only-use-per-cpu-allocator-for-irq-safe-requests.patch
+> You are not adding it but would you please try to fix or avoid flipping
+> preempt count with page table lock hold?
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
-Thanks for fixing it.
+preempt_en/disable are embedded in spin_lock/unlock, so please
+ignore my noise.
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-
->  mm/page_alloc.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index eaecb4b145e6..2a36dad03dac 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2520,7 +2520,7 @@ void free_hot_cold_page(struct page *page, bool cold)
->  	}
-> 
->  out:
-> -	preempt_enable_no_resched();
-> +	preempt_enable();
->  }
-> 
->  /*
-> @@ -2686,7 +2686,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
->  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
->  		zone_statistics(preferred_zone, zone);
->  	}
-> -	preempt_enable_no_resched();
-> +	preempt_enable();
->  	return page;
->  }
-> 
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
