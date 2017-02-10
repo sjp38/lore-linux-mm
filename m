@@ -1,121 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E84AF6B0387
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 19:23:37 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id c80so46628992iod.4
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 16:23:37 -0800 (PST)
-Received: from mail-io0-x232.google.com (mail-io0-x232.google.com. [2607:f8b0:4001:c06::232])
-        by mx.google.com with ESMTPS id 11si664588itk.88.2017.02.09.16.23.36
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 647E16B0038
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2017 20:14:39 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id y7so10073359wrc.7
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 17:14:39 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id 2si101004wrr.147.2017.02.09.17.14.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Feb 2017 16:23:36 -0800 (PST)
-Received: by mail-io0-x232.google.com with SMTP id l66so38740571ioi.1
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 16:23:36 -0800 (PST)
-From: Andreas Dilger <adilger@dilger.ca>
-Message-Id: <7D35EB8E-29F8-41DA-BB46-8BCF7B6C5A72@dilger.ca>
-Content-Type: multipart/signed;
- boundary="Apple-Mail=_8EE802F7-5284-4DAC-9401-3B192B06662C";
- protocol="application/pgp-signature"; micalg=pgp-sha1
-Mime-Version: 1.0 (Mac OS X Mail 10.2 \(3259\))
-Subject: Re: [PATCHv6 11/37] HACK: readahead: alloc huge pages, if allowed
-Date: Thu, 9 Feb 2017 17:23:31 -0700
-In-Reply-To: <20170209233436.GZ2267@bombadil.infradead.org>
-References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
- <20170126115819.58875-12-kirill.shutemov@linux.intel.com>
- <20170209233436.GZ2267@bombadil.infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Feb 2017 17:14:38 -0800 (PST)
+Subject: Re: [RFC] 3.10 kernel- oom with about 24G free memory
+References: <9a22aefd-dfb8-2e4c-d280-fc172893bcb4@huawei.com>
+ <20170209132628.GI10257@dhcp22.suse.cz>
+ <20170209134131.GJ10257@dhcp22.suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <ff8b1a0e-690e-74b5-3324-b99994591268@huawei.com>
+Date: Fri, 10 Feb 2017 09:13:58 +0800
+MIME-Version: 1.0
+In-Reply-To: <20170209134131.GJ10257@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hanjun Guo <guohanjun@huawei.com>
 
+hi Michal,
+Thanks for your comment.
 
---Apple-Mail=_8EE802F7-5284-4DAC-9401-3B192B06662C
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=us-ascii
+On 2017/2/9 21:41, Michal Hocko wrote:
+> On Thu 09-02-17 14:26:28, Michal Hocko wrote:
+>> On Thu 09-02-17 20:54:49, Yisheng Xie wrote:
+>>> Hi all,
+>>> I get an oom on a linux 3.10 kvm guest OS. when it triggers the oom
+>>> it have about 24G free memory(and host OS have about 10G free memory)
+>>> and watermark is sure ok.
+>>>
+>>> I also check about about memcg limit value, also cannot find the
+>>> root cause.
+>>>
+>>> Is there anybody ever meet similar problem and have any idea about it?
+>>>
+>>> Any comment is more than welcome!
+>>>
+>>> Thanks
+>>> Yisheng Xie
+>>>
+>>> -------------
+>>> [   81.234289] DefSch0200 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+>>> [   81.234295] DefSch0200 cpuset=/ mems_allowed=0
+>>> [   81.234299] CPU: 3 PID: 8284 Comm: DefSch0200 Tainted: G           O E ----V-------   3.10.0-229.42.1.105.x86_64 #1
+>>> [   81.234301] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20161111_105425-HGH1000008200 04/01/2014
+>>> [   81.234303]  ffff880ae2900000 000000002b3489d7 ffff880b6cec7c58 ffffffff81608d3d
+>>> [   81.234307]  ffff880b6cec7ce8 ffffffff81603d1c 0000000000000000 ffff880b6cd09000
+>>> [   81.234311]  ffff880b6cec7cd8 000000002b3489d7 ffff880b6cec7ce0 ffffffff811bdd77
+>>> [   81.234314] Call Trace:
+>>> [   81.234323]  [<ffffffff81608d3d>] dump_stack+0x19/0x1b
+>>> [   81.234327]  [<ffffffff81603d1c>] dump_header+0x8e/0x214
+>>> [   81.234333]  [<ffffffff811bdd77>] ? mem_cgroup_iter+0x177/0x2b0
+>>> [   81.234339]  [<ffffffff8115d83e>] check_panic_on_oom+0x2e/0x60
+>>> [   81.234342]  [<ffffffff811c17bf>] mem_cgroup_oom_synchronize+0x34f/0x580
+>>
+>> OK, so this is a memcg OOM killer which panics because the configuration
+>> says so. The OOM report doesn't say so and that is the bug. dump_header
+>> is memcg aware and mem_cgroup_out_of_memory initializes oom_control
+>> properly. Is this Vanilla kernel?
+That means we should raise the limit of that memcg to avoid memcg OOM killer, right?
 
-On Feb 9, 2017, at 4:34 PM, Matthew Wilcox <willy@infradead.org> wrote:
->=20
-> On Thu, Jan 26, 2017 at 02:57:53PM +0300, Kirill A. Shutemov wrote:
->> Most page cache allocation happens via readahead (sync or async), so =
-if
->> we want to have significant number of huge pages in page cache we =
-need
->> to find a ways to allocate them from readahead.
->>=20
->> Unfortunately, huge pages doesn't fit into current readahead design:
->> 128 max readahead window, assumption on page size, PageReadahead() to
->> track hit/miss.
->>=20
->> I haven't found a ways to get it right yet.
->>=20
->> This patch just allocates huge page if allowed, but doesn't really
->> provide any readahead if huge page is allocated. We read out 2M a =
-time
->> and I would expect spikes in latancy without readahead.
->>=20
->> Therefore HACK.
->>=20
->> Having that said, I don't think it should prevent huge page support =
-to
->> be applied. Future will show if lacking readahead is a big deal with
->> huge pages in page cache.
->>=20
->> Any suggestions are welcome.
->=20
-> Well ... what if we made readahead 2 hugepages in size for inodes =
-which
-> are using huge pages?  That's only 8x our current readahead window, =
-and
-> if you're asking for hugepages, you're accepting that IOs are going to
-> be larger, and you probably have the kind of storage system which can
-> handle doing larger IOs.
+> 
+> I have only now noticed this is 3.10 rather than 4.10 kernel.
+> 
+> There we simply do
+> dump_header(NULL, gfp_mask, order, NULL, nodemask);
+> 
+> so memcg is NULL and that's why we report global counters. You need
+> 2415b9f5cb04 ("memcg: print cgroup information when system panics due to
+> panic_on_oom")
+> 
+I will add this patch to check the memory stat of that memcg.
 
-It would be nice if the bdi had a parameter for the maximum readahead =
-size.
-Currently, readahead is capped at 2MB chunks by =
-force_page_cache_readahead()
-even if bdi->ra_pages and bdi->io_pages are much larger.
+Thanks again for your help.
 
-It should be up to the filesystem to decide how large the readahead =
-chunks
-are rather than imposing some policy in the MM code.  For high-speed =
-(network)
-storage access it is better to have at least 4MB read chunks, for RAID =
-storage
-it is desirable to have stripe-aligned readahead to avoid read inflation =
-when
-verifying the parity.  Any fixed size will eventually be inadequate as =
-disks
-and filesystems change, so it may as well be a per-bdi tunable that can =
-be set
-by the filesystem as needed, or possibly with a mount option if needed.
+Thanks.
+Yisheng Xie
 
-
-Cheers, Andreas
-
-
-
-
-
-
---Apple-Mail=_8EE802F7-5284-4DAC-9401-3B192B06662C
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename=signature.asc
-Content-Type: application/pgp-signature;
-	name=signature.asc
-Content-Description: Message signed with OpenPGP
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - http://gpgtools.org
-
-iD8DBQFYnQgEpIg59Q01vtYRAtFGAKDvCrR8jSY6QOy14QScouQScGbDSgCeLM1U
-CiznnCvh2NZhwkFRHNE+RvI=
-=rebT
------END PGP SIGNATURE-----
-
---Apple-Mail=_8EE802F7-5284-4DAC-9401-3B192B06662C--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
