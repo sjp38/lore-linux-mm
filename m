@@ -1,46 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9A26B0389
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 08:23:26 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id x4so10834037wme.3
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:23:26 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 718A76B0389
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 08:27:30 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id r18so10879316wmd.1
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:27:30 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t185si1188665wmt.113.2017.02.10.05.23.24
+        by mx.google.com with ESMTPS id s19si2171174wrb.39.2017.02.10.05.27.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Feb 2017 05:23:25 -0800 (PST)
-Date: Fri, 10 Feb 2017 14:23:23 +0100
+        Fri, 10 Feb 2017 05:27:29 -0800 (PST)
+Date: Fri, 10 Feb 2017 14:27:27 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2 3/7] mm: reclaim MADV_FREE pages
-Message-ID: <20170210132323.GL10893@dhcp22.suse.cz>
+Subject: Re: [PATCH V2 5/7] mm: add vmstat account for MADV_FREE pages
+Message-ID: <20170210132727.GM10893@dhcp22.suse.cz>
 References: <cover.1486163864.git.shli@fb.com>
- <9426fa2cf9fe320a15bfb20744c451eb6af1710a.1486163864.git.shli@fb.com>
+ <d12c1b4b571817c0f05a57cc062d91d1a336fce5.1486163864.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9426fa2cf9fe320a15bfb20744c451eb6af1710a.1486163864.git.shli@fb.com>
+In-Reply-To: <d12c1b4b571817c0f05a57cc062d91d1a336fce5.1486163864.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@fb.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Fri 03-02-17 15:33:19, Shaohua Li wrote:
-> When memory pressure is high, we free MADV_FREE pages. If the pages are
-> not dirty in pte, the pages could be freed immediately. Otherwise we
-> can't reclaim them. We put the pages back to anonumous LRU list (by
-> setting SwapBacked flag) and the pages will be reclaimed in normal
-> swapout way.
-> 
-> We use normal page reclaim policy. Since MADV_FREE pages are put into
-> inactive file list, such pages and inactive file pages are reclaimed
-> according to their age. This is expected, because we don't want to
-> reclaim too many MADV_FREE pages before used once pages.
+On Fri 03-02-17 15:33:21, Shaohua Li wrote:
+> Show MADV_FREE pages info in proc/sysfs files.
 
-Ohh, so this is where the convoluted part sits ;) I thought we just
-check for references/dirty bit and make lazy free page regular anon
-again and activate it. lazyfree checks in shrink_page_list seem to
-be quite excessive to me. Maybe I am just oversimplifying it, though.
- 
+How are we going to use this information? Why it isn't sufficient to
+watch for lazyfree events? I mean this adds quite some code and it is
+not clear (at least from the changelog) we we need this information.
+
 > Cc: Michal Hocko <mhocko@suse.com>
 > Cc: Minchan Kim <minchan@kernel.org>
 > Cc: Hugh Dickins <hughd@google.com>
@@ -50,176 +40,232 @@ be quite excessive to me. Maybe I am just oversimplifying it, though.
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Signed-off-by: Shaohua Li <shli@fb.com>
 > ---
->  mm/rmap.c   |  4 ++++
->  mm/vmscan.c | 43 +++++++++++++++++++++++++++++++------------
->  2 files changed, 35 insertions(+), 12 deletions(-)
+>  drivers/base/node.c       |  2 ++
+>  fs/proc/meminfo.c         |  1 +
+>  include/linux/mm_inline.h | 31 ++++++++++++++++++++++++++++---
+>  include/linux/mmzone.h    |  2 ++
+>  mm/page_alloc.c           |  7 +++++--
+>  mm/vmscan.c               |  9 +++++++--
+>  mm/vmstat.c               |  2 ++
+>  7 files changed, 47 insertions(+), 7 deletions(-)
 > 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index c8d6204..5f05926 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1554,6 +1554,10 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  			dec_mm_counter(mm, MM_ANONPAGES);
->  			rp->lazyfreed++;
->  			goto discard;
-> +		} else if (flags & TTU_LZFREE) {
-> +			set_pte_at(mm, address, pte, pteval);
-> +			ret = SWAP_FAIL;
-> +			goto out_unmap;
->  		}
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 5548f96..9138db8 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -71,6 +71,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+>  		       "Node %d Active(file):   %8lu kB\n"
+>  		       "Node %d Inactive(file): %8lu kB\n"
+>  		       "Node %d Unevictable:    %8lu kB\n"
+> +		       "Node %d LazyFree:       %8lu kB\n"
+>  		       "Node %d Mlocked:        %8lu kB\n",
+>  		       nid, K(i.totalram),
+>  		       nid, K(i.freeram),
+> @@ -84,6 +85,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+>  		       nid, K(node_page_state(pgdat, NR_ACTIVE_FILE)),
+>  		       nid, K(node_page_state(pgdat, NR_INACTIVE_FILE)),
+>  		       nid, K(node_page_state(pgdat, NR_UNEVICTABLE)),
+> +		       nid, K(node_page_state(pgdat, NR_LAZYFREE)),
+>  		       nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));
 >  
->  		if (swap_duplicate(entry) < 0) {
+>  #ifdef CONFIG_HIGHMEM
+> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+> index 8a42849..b2e7b31 100644
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -80,6 +80,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>  	show_val_kb(m, "Active(file):   ", pages[LRU_ACTIVE_FILE]);
+>  	show_val_kb(m, "Inactive(file): ", pages[LRU_INACTIVE_FILE]);
+>  	show_val_kb(m, "Unevictable:    ", pages[LRU_UNEVICTABLE]);
+> +	show_val_kb(m, "LazyFree:       ", global_node_page_state(NR_LAZYFREE));
+>  	show_val_kb(m, "Mlocked:        ", global_page_state(NR_MLOCK));
+>  
+>  #ifdef CONFIG_HIGHMEM
+> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+> index fdded06..3e496de 100644
+> --- a/include/linux/mm_inline.h
+> +++ b/include/linux/mm_inline.h
+> @@ -48,25 +48,50 @@ static __always_inline void update_lru_size(struct lruvec *lruvec,
+>  #endif
+>  }
+>  
+> +static __always_inline void __update_lazyfree_size(struct lruvec *lruvec,
+> +				enum zone_type zid, int nr_pages)
+> +{
+> +	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> +
+> +	__mod_node_page_state(pgdat, NR_LAZYFREE, nr_pages);
+> +	__mod_zone_page_state(&pgdat->node_zones[zid], NR_ZONE_LAZYFREE,
+> +				nr_pages);
+> +}
+> +
+>  static __always_inline void add_page_to_lru_list(struct page *page,
+>  				struct lruvec *lruvec, enum lru_list lru)
+>  {
+> -	update_lru_size(lruvec, lru, page_zonenum(page), hpage_nr_pages(page));
+> +	enum zone_type zid = page_zonenum(page);
+> +	int nr_pages = hpage_nr_pages(page);
+> +
+> +	if (lru == LRU_INACTIVE_FILE && page_is_lazyfree(page))
+> +		__update_lazyfree_size(lruvec, zid, nr_pages);
+> +	update_lru_size(lruvec, lru, zid, nr_pages);
+>  	list_add(&page->lru, &lruvec->lists[lru]);
+>  }
+>  
+>  static __always_inline void add_page_to_lru_list_tail(struct page *page,
+>  				struct lruvec *lruvec, enum lru_list lru)
+>  {
+> -	update_lru_size(lruvec, lru, page_zonenum(page), hpage_nr_pages(page));
+> +	enum zone_type zid = page_zonenum(page);
+> +	int nr_pages = hpage_nr_pages(page);
+> +
+> +	if (lru == LRU_INACTIVE_FILE && page_is_lazyfree(page))
+> +		__update_lazyfree_size(lruvec, zid, nr_pages);
+> +	update_lru_size(lruvec, lru, zid, nr_pages);
+>  	list_add_tail(&page->lru, &lruvec->lists[lru]);
+>  }
+>  
+>  static __always_inline void del_page_from_lru_list(struct page *page,
+>  				struct lruvec *lruvec, enum lru_list lru)
+>  {
+> +	enum zone_type zid = page_zonenum(page);
+> +	int nr_pages = hpage_nr_pages(page);
+> +
+>  	list_del(&page->lru);
+> -	update_lru_size(lruvec, lru, page_zonenum(page), -hpage_nr_pages(page));
+> +	if (lru == LRU_INACTIVE_FILE && page_is_lazyfree(page))
+> +		__update_lazyfree_size(lruvec, zid, -nr_pages);
+> +	update_lru_size(lruvec, lru, zid, -nr_pages);
+>  }
+>  
+>  /**
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 338a786a..78985f1 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -118,6 +118,7 @@ enum zone_stat_item {
+>  	NR_ZONE_INACTIVE_FILE,
+>  	NR_ZONE_ACTIVE_FILE,
+>  	NR_ZONE_UNEVICTABLE,
+> +	NR_ZONE_LAZYFREE,
+>  	NR_ZONE_WRITE_PENDING,	/* Count of dirty, writeback and unstable pages */
+>  	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
+>  	NR_SLAB_RECLAIMABLE,
+> @@ -147,6 +148,7 @@ enum node_stat_item {
+>  	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
+>  	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
+>  	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
+> +	NR_LAZYFREE,		/*  "     "     "   "       "         */
+>  	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+>  	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+>  	NR_PAGES_SCANNED,	/* pages scanned since last reclaim */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 11b4cd4..d0ff8c2 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4453,7 +4453,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+>  		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+>  		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+> -		" free:%lu free_pcp:%lu free_cma:%lu\n",
+> +		" free:%lu free_pcp:%lu free_cma:%lu lazy_free:%lu\n",
+>  		global_node_page_state(NR_ACTIVE_ANON),
+>  		global_node_page_state(NR_INACTIVE_ANON),
+>  		global_node_page_state(NR_ISOLATED_ANON),
+> @@ -4472,7 +4472,8 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  		global_page_state(NR_BOUNCE),
+>  		global_page_state(NR_FREE_PAGES),
+>  		free_pcp,
+> -		global_page_state(NR_FREE_CMA_PAGES));
+> +		global_page_state(NR_FREE_CMA_PAGES),
+> +		global_node_page_state(NR_LAZYFREE));
+>  
+>  	for_each_online_pgdat(pgdat) {
+>  		if (show_mem_node_skip(filter, pgdat->node_id, nodemask))
+> @@ -4484,6 +4485,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  			" active_file:%lukB"
+>  			" inactive_file:%lukB"
+>  			" unevictable:%lukB"
+> +			" lazy_free:%lukB"
+>  			" isolated(anon):%lukB"
+>  			" isolated(file):%lukB"
+>  			" mapped:%lukB"
+> @@ -4506,6 +4508,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  			K(node_page_state(pgdat, NR_ACTIVE_FILE)),
+>  			K(node_page_state(pgdat, NR_INACTIVE_FILE)),
+>  			K(node_page_state(pgdat, NR_UNEVICTABLE)),
+> +			K(node_page_state(pgdat, NR_LAZYFREE)),
+>  			K(node_page_state(pgdat, NR_ISOLATED_ANON)),
+>  			K(node_page_state(pgdat, NR_ISOLATED_FILE)),
+>  			K(node_page_state(pgdat, NR_FILE_MAPPED)),
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 947ab6f..b304a84 100644
+> index b304a84..1a98467 100644
 > --- a/mm/vmscan.c
 > +++ b/mm/vmscan.c
-> @@ -864,7 +864,7 @@ static enum page_references page_check_references(struct page *page,
->  		return PAGEREF_RECLAIM;
->  
->  	if (referenced_ptes) {
-> -		if (PageSwapBacked(page))
-> +		if (PageSwapBacked(page) || PageAnon(page))
->  			return PAGEREF_ACTIVATE;
->  		/*
->  		 * All mapped pages start out with page table
-> @@ -903,7 +903,7 @@ static enum page_references page_check_references(struct page *page,
->  
->  /* Check if a page is dirty or under writeback */
->  static void page_check_dirty_writeback(struct page *page,
-> -				       bool *dirty, bool *writeback)
-> +			bool *dirty, bool *writeback, bool lazyfree)
+> @@ -1442,7 +1442,8 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+>   * be complete before mem_cgroup_update_lru_size due to a santity check.
+>   */
+>  static __always_inline void update_lru_sizes(struct lruvec *lruvec,
+> -			enum lru_list lru, unsigned long *nr_zone_taken)
+> +			enum lru_list lru, unsigned long *nr_zone_taken,
+> +			unsigned long *nr_zone_lazyfree)
 >  {
->  	struct address_space *mapping;
+>  	int zid;
 >  
-> @@ -911,7 +911,7 @@ static void page_check_dirty_writeback(struct page *page,
->  	 * Anonymous pages are not handled by flushers and must be written
->  	 * from reclaim context. Do not stall reclaim based on them
->  	 */
-> -	if (!page_is_file_cache(page)) {
-> +	if (!page_is_file_cache(page) || lazyfree) {
->  		*dirty = false;
->  		*writeback = false;
->  		return;
-> @@ -971,7 +971,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		int may_enter_fs;
->  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
->  		bool dirty, writeback;
-> -		bool lazyfree = false;
-> +		bool lazyfree;
->  		int ret = SWAP_SUCCESS;
+> @@ -1450,6 +1451,7 @@ static __always_inline void update_lru_sizes(struct lruvec *lruvec,
+>  		if (!nr_zone_taken[zid])
+>  			continue;
 >  
->  		cond_resched();
-> @@ -986,6 +986,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> +		__update_lazyfree_size(lruvec, zid, -nr_zone_lazyfree[zid]);
+>  		__update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
+>  #ifdef CONFIG_MEMCG
+>  		mem_cgroup_update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
+> @@ -1486,6 +1488,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	struct list_head *src = &lruvec->lists[lru];
+>  	unsigned long nr_taken = 0;
+>  	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
+> +	unsigned long nr_zone_lazyfree[MAX_NR_ZONES] = { 0 };
+>  	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
+>  	unsigned long skipped = 0, total_skipped = 0;
+>  	unsigned long scan, nr_pages;
+> @@ -1517,6 +1520,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			nr_pages = hpage_nr_pages(page);
+>  			nr_taken += nr_pages;
+>  			nr_zone_taken[page_zonenum(page)] += nr_pages;
+> +			if (page_is_lazyfree(page))
+> +				nr_zone_lazyfree[page_zonenum(page)] += nr_pages;
+>  			list_move(&page->lru, dst);
+>  			break;
 >  
->  		sc->nr_scanned++;
+> @@ -1560,7 +1565,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	*nr_scanned = scan + total_skipped;
+>  	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan,
+>  				    scan, skipped, nr_taken, mode, lru);
+> -	update_lru_sizes(lruvec, lru, nr_zone_taken);
+> +	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_zone_lazyfree);
+>  	return nr_taken;
+>  }
 >  
-> +		lazyfree = page_is_lazyfree(page);
-> +
->  		if (unlikely(!page_evictable(page)))
->  			goto cull_mlocked;
->  
-> @@ -993,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			goto keep_locked;
->  
->  		/* Double the slab pressure for mapped and swapcache pages */
-> -		if (page_mapped(page) || PageSwapCache(page))
-> +		if ((page_mapped(page) || PageSwapCache(page)) && !lazyfree)
->  			sc->nr_scanned++;
->  
->  		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
-> @@ -1005,7 +1007,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 * will stall and start writing pages if the tail of the LRU
->  		 * is all dirty unqueued pages.
->  		 */
-> -		page_check_dirty_writeback(page, &dirty, &writeback);
-> +		page_check_dirty_writeback(page, &dirty, &writeback, lazyfree);
->  		if (dirty || writeback)
->  			nr_dirty++;
->  
-> @@ -1107,6 +1109,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			; /* try to reclaim the page below */
->  		}
->  
-> +		/* lazyfree page could be freed directly */
-> +		if (lazyfree) {
-> +			if (unlikely(PageTransHuge(page)) &&
-> +			    split_huge_page_to_list(page, page_list))
-> +				goto keep_locked;
-> +			goto unmap_page;
-> +		}
-> +
->  		/*
->  		 * Anonymous process memory has backing store?
->  		 * Try to allocate it some swap space here.
-> @@ -1116,7 +1126,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  				goto keep_locked;
->  			if (!add_to_swap(page, page_list))
->  				goto activate_locked;
-> -			lazyfree = true;
->  			may_enter_fs = 1;
->  
->  			/* Adding to swap updated mapping */
-> @@ -1128,12 +1137,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		}
->  
->  		VM_BUG_ON_PAGE(PageTransHuge(page), page);
-> -
-> +unmap_page:
->  		/*
->  		 * The page is mapped into the page tables of one or more
->  		 * processes. Try to unmap it here.
->  		 */
-> -		if (page_mapped(page) && mapping) {
-> +		if (page_mapped(page) && (mapping || lazyfree)) {
->  			switch (ret = try_to_unmap(page, lazyfree ?
->  				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
->  				(ttu_flags | TTU_BATCH_FLUSH))) {
-> @@ -1145,7 +1154,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			case SWAP_MLOCK:
->  				goto cull_mlocked;
->  			case SWAP_LZFREE:
-> -				goto lazyfree;
-> +				/* follow __remove_mapping for reference */
-> +				if (page_ref_freeze(page, 1)) {
-> +					if (!PageDirty(page))
-> +						goto lazyfree;
-> +					else
-> +						page_ref_unfreeze(page, 1);
-> +				}
-> +				goto keep_locked;
->  			case SWAP_SUCCESS:
->  				; /* try to free the page below */
->  			}
-> @@ -1257,10 +1273,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			}
->  		}
->  
-> -lazyfree:
->  		if (!mapping || !__remove_mapping(mapping, page, true))
->  			goto keep_locked;
-> -
-> +lazyfree:
->  		/*
->  		 * At this point, we have no other references and there is
->  		 * no way to pick any more up (removed from LRU, removed
-> @@ -1285,6 +1300,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  cull_mlocked:
->  		if (PageSwapCache(page))
->  			try_to_free_swap(page);
-> +		if (lazyfree)
-> +			SetPageSwapBacked(page);
->  		unlock_page(page);
->  		list_add(&page->lru, &ret_pages);
->  		continue;
-> @@ -1294,6 +1311,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
->  			try_to_free_swap(page);
->  		VM_BUG_ON_PAGE(PageActive(page), page);
-> +		if (lazyfree)
-> +			SetPageSwapBacked(page);
->  		SetPageActive(page);
->  		pgactivate++;
->  keep_locked:
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 7774196..a70b52d 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -926,6 +926,7 @@ const char * const vmstat_text[] = {
+>  	"nr_zone_inactive_file",
+>  	"nr_zone_active_file",
+>  	"nr_zone_unevictable",
+> +	"nr_zone_lazyfree",
+>  	"nr_zone_write_pending",
+>  	"nr_mlock",
+>  	"nr_slab_reclaimable",
+> @@ -952,6 +953,7 @@ const char * const vmstat_text[] = {
+>  	"nr_inactive_file",
+>  	"nr_active_file",
+>  	"nr_unevictable",
+> +	"nr_lazyfree",
+>  	"nr_isolated_anon",
+>  	"nr_isolated_file",
+>  	"nr_pages_scanned",
 > -- 
 > 2.9.3
 > 
