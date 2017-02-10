@@ -1,87 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 662986B0388
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 03:53:01 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id s10so43236860itb.7
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 00:53:01 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id e41si1330951ioj.215.2017.02.10.00.52.59
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 367EC6B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 04:05:05 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r18so9069812wmd.1
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 01:05:05 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 1si1300353wrh.309.2017.02.10.01.05.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Feb 2017 00:53:00 -0800 (PST)
-Subject: Re: [RFC] 3.10 kernel- oom with about 24G free memory
-References: <9a22aefd-dfb8-2e4c-d280-fc172893bcb4@huawei.com>
- <20170209132628.GI10257@dhcp22.suse.cz>
- <20170209134131.GJ10257@dhcp22.suse.cz>
- <ff8b1a0e-690e-74b5-3324-b99994591268@huawei.com>
- <20170210070930.GA9346@dhcp22.suse.cz>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <7d01fea5-66d6-b6ac-918d-19ec8a15dbaf@huawei.com>
-Date: Fri, 10 Feb 2017 16:48:58 +0800
+        Fri, 10 Feb 2017 01:05:03 -0800 (PST)
+Date: Fri, 10 Feb 2017 10:05:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2 v5] mm: vmscan: do not pass reclaimed slab to
+ vmpressure
+Message-ID: <20170210090501.GE10893@dhcp22.suse.cz>
+References: <1486641577-11685-1-git-send-email-vinmenon@codeaurora.org>
+ <1486641577-11685-2-git-send-email-vinmenon@codeaurora.org>
+ <20170209122007.GG10257@dhcp22.suse.cz>
+ <CAOaiJ-nJWeMWeY1S5rBmC3M1EiT+HbiLcPwEMZsDMHemhGO0jA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170210070930.GA9346@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOaiJ-nJWeMWeY1S5rBmC3M1EiT+HbiLcPwEMZsDMHemhGO0jA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hanjun Guo <guohanjun@huawei.com>
+To: vinayak menon <vinayakm.list@gmail.com>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-Hi Michal,
-
-Thanks for comment!
-On 2017/2/10 15:09, Michal Hocko wrote:
-> On Fri 10-02-17 09:13:58, Yisheng Xie wrote:
->> hi Michal,
->> Thanks for your comment.
->>
->> On 2017/2/9 21:41, Michal Hocko wrote:
->>> On Thu 09-02-17 14:26:28, Michal Hocko wrote:
->>>> On Thu 09-02-17 20:54:49, Yisheng Xie wrote:
->>>>> Hi all,
->>>>> I get an oom on a linux 3.10 kvm guest OS. when it triggers the oom
->>>>> it have about 24G free memory(and host OS have about 10G free memory)
->>>>> and watermark is sure ok.
->>>>>
->>>>> I also check about about memcg limit value, also cannot find the
->>>>> root cause.
->>>>>
->>>>> Is there anybody ever meet similar problem and have any idea about it?
->>>>>
->>>>> Any comment is more than welcome!
->>>>>
->>>>> Thanks
->>>>> Yisheng Xie
->>>>>
->>>>> -------------
->>>>> [   81.234289] DefSch0200 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
->>>>> [   81.234295] DefSch0200 cpuset=/ mems_allowed=0
->>>>> [   81.234299] CPU: 3 PID: 8284 Comm: DefSch0200 Tainted: G           O E ----V-------   3.10.0-229.42.1.105.x86_64 #1
->>>>> [   81.234301] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20161111_105425-HGH1000008200 04/01/2014
->>>>> [   81.234303]  ffff880ae2900000 000000002b3489d7 ffff880b6cec7c58 ffffffff81608d3d
->>>>> [   81.234307]  ffff880b6cec7ce8 ffffffff81603d1c 0000000000000000 ffff880b6cd09000
->>>>> [   81.234311]  ffff880b6cec7cd8 000000002b3489d7 ffff880b6cec7ce0 ffffffff811bdd77
->>>>> [   81.234314] Call Trace:
->>>>> [   81.234323]  [<ffffffff81608d3d>] dump_stack+0x19/0x1b
->>>>> [   81.234327]  [<ffffffff81603d1c>] dump_header+0x8e/0x214
->>>>> [   81.234333]  [<ffffffff811bdd77>] ? mem_cgroup_iter+0x177/0x2b0
->>>>> [   81.234339]  [<ffffffff8115d83e>] check_panic_on_oom+0x2e/0x60
->>>>> [   81.234342]  [<ffffffff811c17bf>] mem_cgroup_oom_synchronize+0x34f/0x580
->>>>
->>>> OK, so this is a memcg OOM killer which panics because the configuration
->>>> says so. The OOM report doesn't say so and that is the bug. dump_header
->>>> is memcg aware and mem_cgroup_out_of_memory initializes oom_control
->>>> properly. Is this Vanilla kernel?
->>
->> That means we should raise the limit of that memcg to avoid memcg OOM killer, right?
+On Fri 10-02-17 14:15:20, vinayak menon wrote:
+> On Thu, Feb 9, 2017 at 5:50 PM, Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > I have already said I will _not_ NAK the patch but we need a much better
+> > description and justification why the older behavior was better to
+> > consider this a regression before this can be merged. It is hard to
+> > expect that the underlying implementation of the vmpressure will stay
+> > carved in stone and there might be changes in this area in the future. I
+> > want to hear why we believe that the tested workload is sufficiently
+> > universal and we won't see another report in few months because somebody
+> > else will see higher vmpressure levels even though we make reclaim
+> > progress. I have asked those questions already but it seems those were
+> > ignored.
 > 
-> Why do you configure the system to panic on memcg OOM in the first
-> place. This is a wrong thing to do in 99% of cases.
-For our production think it should use reboot to recovery the system when OOM,
-instead of killing user's key process. Maybe not the right thing.
+> The tested workload is not universal. The lowmemorykiller example was used just
+> to mention the effect of vmpressure change on one of the workloads. 
 
-Thanks
-Yisheng Xie
+My point is whether this workload even matters. AFAIU the test benefits
+from killing as quickly as possible, right? So it directly benefits from
+seeing critical events as soon as possible even when the reclaim makes
+progress.
+
+> I can drop the reclaim stats and just keep the stats of change
+> observed in vmpressure critical events.  I am not sure whether we
+> would see another issue reported with this patch. We may because
+> someone would have written a code that works with this new vmpressure
+> values. I am not sure whether that matters because the core issue
+> is whether the kernel is reporting the right values.
+
+Right. THe right values is a bit fuzzy, though.
+
+> This could be
+> termed as a regression because,
+> 
+> 1) Accounting only reclaimed pages to a model which works on scanned
+> and reclaimed seems like a wrong thing. It is just adding noise to
+> it. There could be issues with vmpressure implementation, but it at
+> least gives an estimate on what the pressure on LRU is. There are many
+> other shrinkers like zsmalloc which does not report reclaimed pages,
+> and when add those also in a similar fashion without considering the
+> cost part, vmpressure values would always remain low. So util we
+> have a way to give correct information to vmpressure about non-LRU
+> reclaimers, I feel its better to keep it in its original form.
+
+Yeah, I understand that the current cost model is far from ideal and it
+needs fixing. My main question would be whether the model would be much
+better if we exclude pages freed from the slab shrinkers. I can only say
+it would be more pesimistic that way. Is this a good thing? If yes, why?
+ 
+> 2) As Minchan mentioned, the cost model is different and thus adding
+> slab reclaimed would not be the right thing to do at this point.
+> 
+> But if you feel we don't have to fix this now and that it is better
+> to fix the core problems with vmpressure first, that's ok.
+
+Yes, I believe we should reconsider how we calculate the pressure
+levels. This seems a larger project but definitely something we need. I
+do not have a good ideas how to do this properly
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
