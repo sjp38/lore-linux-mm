@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B4606B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 08:35:08 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id c7so8859107wjb.7
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:35:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a204si1234443wmd.77.2017.02.10.05.35.06
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 722336B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:53:06 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id b145so31642825pfb.3
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 06:53:06 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 23si1876861pfi.14.2017.02.10.06.53.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Feb 2017 05:35:07 -0800 (PST)
-Date: Fri, 10 Feb 2017 14:35:05 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2 7/7] mm: add a separate RSS for MADV_FREE pages
-Message-ID: <20170210133504.GO10893@dhcp22.suse.cz>
-References: <cover.1486163864.git.shli@fb.com>
- <123396e3b523e8716dfc6fc87a5cea0c124ff29d.1486163864.git.shli@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Feb 2017 06:53:05 -0800 (PST)
+Date: Fri, 10 Feb 2017 06:51:58 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCHv6 11/37] HACK: readahead: alloc huge pages, if allowed
+Message-ID: <20170210145158.GA2267@bombadil.infradead.org>
+References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
+ <20170126115819.58875-12-kirill.shutemov@linux.intel.com>
+ <20170209233436.GZ2267@bombadil.infradead.org>
+ <7D35EB8E-29F8-41DA-BB46-8BCF7B6C5A72@dilger.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <123396e3b523e8716dfc6fc87a5cea0c124ff29d.1486163864.git.shli@fb.com>
+In-Reply-To: <7D35EB8E-29F8-41DA-BB46-8BCF7B6C5A72@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-On Fri 03-02-17 15:33:23, Shaohua Li wrote:
-> Add a separate RSS for MADV_FREE pages. The pages are charged into
-> MM_ANONPAGES (because they are mapped anon pages) and also charged into
-> the MM_LAZYFREEPAGES. /proc/pid/statm will have an extra field to
-> display the RSS, which userspace can use to determine the RSS excluding
-> MADV_FREE pages.
+On Thu, Feb 09, 2017 at 05:23:31PM -0700, Andreas Dilger wrote:
+> On Feb 9, 2017, at 4:34 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> > Well ... what if we made readahead 2 hugepages in size for inodes which
+> > are using huge pages?  That's only 8x our current readahead window, and
+> > if you're asking for hugepages, you're accepting that IOs are going to
+> > be larger, and you probably have the kind of storage system which can
+> > handle doing larger IOs.
 > 
-> The basic idea is to increment the RSS in madvise and decrement in unmap
-> or page reclaim. There is one limitation. If a page is shared by two
-> processes, since madvise only has mm cotext of current process, it isn't
-> convenient to charge the RSS for both processes. So we don't charge the
-> RSS if the mapcount isn't 1. On the other hand, fork can make a
-> MADV_FREE page shared by two processes. To make things consistent, we
-> uncharge the RSS from the source mm in fork.
+> It would be nice if the bdi had a parameter for the maximum readahead size.
+> Currently, readahead is capped at 2MB chunks by force_page_cache_readahead()
+> even if bdi->ra_pages and bdi->io_pages are much larger.
 > 
-> A new flag is added to indicate if a page is accounted into the RSS. We
-> can't use SwapBacked flag to do the determination because we can't
-> guarantee the page has SwapBacked flag cleared in madvise. We are
-> reusing mappedtodisk flag which should not be set for Anon pages.
-> 
-> There are a couple of other places we need to uncharge the RSS,
-> activate_page and mark_page_accessed. activate_page is used by swap,
-> where MADV_FREE pages are already not in lazyfree state before going
-> into swap. mark_page_accessed is mainly used for file pages, but there
-> are several places it's used by anonymous pages. I fixed gup, but not
-> some gpu drivers and kvm. If the drivers use MADV_FREE, we might have
-> inprecise RSS accounting.
-> 
-> Please note, the accounting is never going to be precise. MADV_FREE page
-> could be written by userspace without notification to the kernel. The
-> page can't be reclaimed like other clean lazyfree pages. The page isn't
-> real lazyfree page. But since kernel isn't aware of this, the page is
-> still accounted as lazyfree, thus the accounting could be incorrect.
+> It should be up to the filesystem to decide how large the readahead chunks
+> are rather than imposing some policy in the MM code.  For high-speed (network)
+> storage access it is better to have at least 4MB read chunks, for RAID storage
+> it is desirable to have stripe-aligned readahead to avoid read inflation when
+> verifying the parity.  Any fixed size will eventually be inadequate as disks
+> and filesystems change, so it may as well be a per-bdi tunable that can be set
+> by the filesystem as needed, or possibly with a mount option if needed.
 
-This is all quite complex and as you say unprecise already. From the
-description it is not even clear why do we need it at all. Why is
-/proc/<pid>/smaps insufficient? I am also not fun of a new page flag -
-even though you managed to recycle an existing one which is a plus.
+I think the filesystem should provide a hint, but ultimately it needs to
+be up to the MM to decide how far to readahead.  The filesystem doesn't
+(and shouldn't) have the global view into how much memory is available
+for readahead, nor should it be tracking how well this app is being
+served by readahead.
 
-Thanks
--- 
-Michal Hocko
-SUSE Labs
+That 2MB chunk restriction is allegedly there "so that we don't pin too
+much memory at once".  Maybe that should be scaled with the amount of
+memory in the system (pinning 2MB of a 256MB system is a bit different
+from pinning 2MB of a 1TB memory system).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
