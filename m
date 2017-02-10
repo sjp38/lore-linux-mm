@@ -1,84 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7766B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:34:59 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id v184so42729277pgv.6
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 02:34:59 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b84si1294626pfl.88.2017.02.10.02.34.58
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D0BB96B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 06:01:59 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id v77so9697578wmv.5
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 03:01:59 -0800 (PST)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id x7si777193wmf.1.2017.02.10.03.01.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 02:34:58 -0800 (PST)
-Date: Fri, 10 Feb 2017 11:34:56 +0100
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 1/3 staging-next] android: Collect statistics from
- lowmemorykiller
-Message-ID: <20170210103456.GA16086@kroah.com>
-References: <9febd4f7-a0a7-5f52-e67b-df3163814ac5@sonymobile.com>
- <20170209192640.GC31906@dhcp22.suse.cz>
- <20170209200737.GB11098@kroah.com>
- <20170209205407.GF31906@dhcp22.suse.cz>
- <845d420f-dd26-fb48-c8ef-10ca1995daf8@sonymobile.com>
- <20170210075149.GA17166@kroah.com>
- <b6236b07-3fbd-4f58-f7bb-97847ec8ad7f@sonymobile.com>
+        Fri, 10 Feb 2017 03:01:58 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id B285F1C1D7E
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 11:01:57 +0000 (GMT)
+Date: Fri, 10 Feb 2017 11:01:57 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: PCID review?
+Message-ID: <20170210110157.dlejz7szrj3r3pwq@techsingularity.net>
+References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
+ <CALCETrVfah6AFG5mZDjVcRrdXKL=07+WC9ES9ZKU90XqVpWCOg@mail.gmail.com>
+ <20170209001042.ahxmoqegr6h74mle@techsingularity.net>
+ <CALCETrUiUnZ1AWHjx8-__t0DUwryys9O95GABhhpG9AnHwrg9Q@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <b6236b07-3fbd-4f58-f7bb-97847ec8ad7f@sonymobile.com>
+In-Reply-To: <CALCETrUiUnZ1AWHjx8-__t0DUwryys9O95GABhhpG9AnHwrg9Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sonymobile.com>
-Cc: devel@driverdev.osuosl.org, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, Feb 10, 2017 at 10:05:12AM +0100, peter enderborg wrote:
-> On 02/10/2017 08:51 AM, Greg Kroah-Hartman wrote:
-> > On Fri, Feb 10, 2017 at 08:21:32AM +0100, peter enderborg wrote:
-> >> Im not speaking for google, but I think there is a work ongoing to
-> >> replace this with user-space code.
-> > Really?  I have not heard this at all, any pointers to whom in Google is
-> > doing it?
+On Thu, Feb 09, 2017 at 06:46:57PM -0800, Andy Lutomirski wrote:
+> > try_to_unmap_flush then flushes the entire TLB as the cost of targetted
+> > a specific page to flush was so high (both maintaining the PFNs and the
+> > individual flush operations).
+> 
+> I could just maybe make it possible to remotely poke a CPU to record
+> which mms need flushing, but the possible races there are a bit
+> terrifying.
+> 
+
+The overhead is concerning. You may incur a remote cache miss accessing the
+data which is costly or you have to send an IPI which is also severe. You
+could attempt to do the same as the scheduler and directly modify if the
+CPUs share cache and IPI otherwise but you're looking at a lot of overhead
+either way.
+
 > >
-> I think it was mention some of the google conferences. The idea
-> is the lmkd that uses memory pressure events to trigger this.
-> From git log in lmkd i think Colin Cross is involved.
+> >> Would it make sense to add a new
+> >> arch API to flush more than one mm?  Presumably it would take a linked
+> >> list, and the batched flush code would fall back to flushing in pieces
+> >> if it can't allocate a new linked list node when needed.
+> >>
+> >
+> > Conceptually it's ok but the details are a headache.
+> >
+> > The defer code would need to maintain a list of mm's (or ASIDs) that is
+> > unbounded in size to match the number of IPIs sent as the current code as
+> > opposed to a simple cpumask. There are SWAP_CLUSTER_MAX pages to consider
+> > with each page potentially mapped by an arbitrary number of MMs. The same
+> > mm's could exist on multiple lists for each active kswapd instance and
+> > direct reclaimer.
+> >
+> > As multiple reclaimers are interested in the same mm, that pretty much
+> > rules out linking them off mm_struct unless the locking would serialise
+> > the parallel reclaimers and prevent an mm existing on more than one list
+> > at a time. You could try allowing multiple tasks to share the one list
+> > (not sure how to find that list quickly) but each entry would have to
+> > be locked and as each user can flush at any time, multiple reclaimers
+> > potentially have to block while an IPI is being sent. It's hard to see
+> > how this could be scaled to match the existing code.
+> >
+> > It would be easier to track via an array stored in task_struct but the
+> > number of MMs is unknown in advance so all you can do is guess a reasonable
+> > size. It would have to flush if the array files resulting in more IPIs
+> > than the current code depending on how many MMs map the list of pages.
+> 
+> What if I just allocate a smallish array on the stack and then extend
+> with kmalloc(GFP_ATOMIC) as needed?  An allocation failure would just
+> force an immediate flush, so there shouldn't be any deadlock risk.
+> 
 
-Great, care to add him to this thread?
+It won't deadlock but it's an atomic allocation (which accesses reserves)
+at the time when we are definitely reclaiming with a fallback being an IPI
+the current code would avoid. It'll indirectly increase risks of other
+atomic allocation failures although that risk is slight. The allocation
+in that context will still raise eyebrows and it made me wince. I know I
+recently considered doing an atomic allocation under similar circumstances
+but it was fine to completely fail the allocation and a day later, I got
+rid of it anyway.
 
-> >> Until then we have to polish this version as good as we can. It is
-> >> essential for android as it is now.
-> > But if no one is willing to do the work to fix the reported issues, why
-> > should it remain? 
-> It is needed by billions of phones.
+> Anyway, I need to rework the arch code to make this work at all.
+> Currently I'm taking a spinlock per mm when flushing that mm, but that
+> would mean I need to *sort* the list to flush more than one at a time,
+> and that just sounds nasty.  I can probably get rid of the spinlock.
+> 
 
-Well, something is needed, not necessarily this solution :)
+That all sounds fairly nasty. Don't get me wrong, I think you can make
+it functionally work but it's a severe uphill battle.
 
-> >  Can you do the work here? 
-> No. Change the kernel is only one small part of the solution.
+The key concern that it'll be evaluated against is that any complexity has
+to be less than doing a "batched full TLB flush and refill". The refill is
+expected to be cheap as the page table structures are likely to be cache hot.
+It was way cheaper than trying to be clever about flushing individual TLB
+entries. I recognise that you'll be trying to balance this against processes
+that are carefully isolated that do not want interference from unrelated
+processes doing a TLB flush but it'll be hard to prove that it's worth it.
 
-Why can't you work on the whole thing?
+It's almost certain that this will be Linus' primary concern
+given his contributions to similar conversations in the past
+(e.g. https://lkml.org/lkml/2015/6/25/666). It's also likely to be of
+major concern to Ingo (e.g. https://lkml.org/lkml/2015/6/9/276) as he had
+valid objections against clever flushing at the time the batching was
+introduced. Based on previous experience, I have my own concerns but I
+don't count as I'm highlighing them now :P
 
-> >  You're already working on
-> > fixing some of the issues in a differnt way, why not do the "real work"
-> > here instead for everyone to benifit from?
-> The long term solution is something from AOSP.  As you know
-> we tried to contribute this to AOSP.  As OEM we can't turn android
-> upside down.  It has to be a step by step.
+The outcome of the TLB batch flushiing discussion was that it was way
+cheaper to flush the full TLB and take the refill cost than flushing
+individual pages which had the cost of tracking the PFNs and the cost of
+each individual page flush operation.
 
-I posted in AOSP that you should post the patches here as AOSP shouldn't
-be taking patches that the community rejects.  There's no reason you
-can't also provide the "fix the userspace side" patches into AOSP at the
-same time, and provide the "correct" solution here as well.  The kernel
-community doesn't care abotu AOSP, nor should anyone expect it to.  You
-are going to have to work across both boundries/communities in order to
-resolve this properly.
+The current code is basically "build a cpumask and flush the TLB for
+multiple entries". We're talking about complex tracking of mm's with
+difficult locking, potential remote cache misses, potentially more IPIs or
+alternatively doing allocations from reclaim context. It'll be difficult
+to prove that doing this in the name of flushing ASID is cheaper and
+universally a good idea than just flushing the entire TLB.
 
-If not, as the kernel developers have pointed out, the in-kernel stuff
-will probably be removed as it's causing problems for the upstream
-developers, and no one is stepping up to fix it "correctly".
-
-thanks,
-
-greg k-h
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
