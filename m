@@ -1,67 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F07986B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:33:22 -0500 (EST)
-Received: by mail-yw0-f197.google.com with SMTP id z143so48943149ywz.7
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:33:22 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id b79si705539ywe.85.2017.02.10.09.33.21
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B62876B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:43:31 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id u25so34851186qki.3
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:43:31 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id v3si1768754qtc.39.2017.02.10.09.43.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 09:33:22 -0800 (PST)
-Date: Fri, 10 Feb 2017 09:33:04 -0800
+        Fri, 10 Feb 2017 09:43:31 -0800 (PST)
+Date: Fri, 10 Feb 2017 09:43:07 -0800
 From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH V2 2/7] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
- list
-Message-ID: <20170210173303.GB86050@shli-mbp.local>
+Subject: Re: [PATCH V2 3/7] mm: reclaim MADV_FREE pages
+Message-ID: <20170210174307.GC86050@shli-mbp.local>
 References: <cover.1486163864.git.shli@fb.com>
- <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com>
- <20170210130236.GK10893@dhcp22.suse.cz>
+ <9426fa2cf9fe320a15bfb20744c451eb6af1710a.1486163864.git.shli@fb.com>
+ <20170210065839.GD25078@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170210130236.GK10893@dhcp22.suse.cz>
+In-Reply-To: <20170210065839.GD25078@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, mhocko@suse.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Fri, Feb 10, 2017 at 02:02:36PM +0100, Michal Hocko wrote:
-> On Fri 03-02-17 15:33:18, Shaohua Li wrote:
-> > Userspace indicates MADV_FREE pages could be freed without pageout, so
-> > it pretty much likes used once file pages. For such pages, we'd like to
-> > reclaim them once there is memory pressure. Also it might be unfair
-> > reclaiming MADV_FREE pages always before used once file pages and we
-> > definitively want to reclaim the pages before other anonymous and file
-> > pages.
+On Fri, Feb 10, 2017 at 03:58:39PM +0900, Minchan Kim wrote:
+> On Fri, Feb 03, 2017 at 03:33:19PM -0800, Shaohua Li wrote:
+> > When memory pressure is high, we free MADV_FREE pages. If the pages are
+> > not dirty in pte, the pages could be freed immediately. Otherwise we
+> > can't reclaim them. We put the pages back to anonumous LRU list (by
+> > setting SwapBacked flag) and the pages will be reclaimed in normal
+> > swapout way.
 > > 
-> > To speed up MADV_FREE pages reclaim, we put the pages into
-> > LRU_INACTIVE_FILE list. The rationale is LRU_INACTIVE_FILE list is tiny
-> > nowadays and should be full of used once file pages. Reclaiming
-> > MADV_FREE pages will not have much interfere of anonymous and active
-> > file pages. And the inactive file pages and MADV_FREE pages will be
-> > reclaimed according to their age, so we don't reclaim too many MADV_FREE
-> > pages too. Putting the MADV_FREE pages into LRU_INACTIVE_FILE_LIST also
-> > means we can reclaim the pages without swap support. This idea is
-> > suggested by Johannes.
+> > We use normal page reclaim policy. Since MADV_FREE pages are put into
+> > inactive file list, such pages and inactive file pages are reclaimed
+> > according to their age. This is expected, because we don't want to
+> > reclaim too many MADV_FREE pages before used once pages.
 > > 
-> > We also clear the pages SwapBacked flag to indicate they are MADV_FREE
-> > pages.
-> 
-> I like this. I have expected this to be more convoluted but it looks
-> quite straightforward. I didn't get to do a really deep review and add
-> my acked-by but from a quick look there do not seem to be any surprises.
-> I was worried about vmstat accounting. There are some places which
-> isolate page from LRU and account based on the LRU and later use
-> page_is_file_cache to tell which LRU this was. This should work fine,
-> though, because you never touch pages which are off-lru.
-> 
-> That being said I do not see any major issues. There might be some minor
-> things and this will need a lot of testing but it is definitely a move
-> into right direction. I hope to do the deeper review after I get back
-> from vacation (20th Feb).
-
-Sweat! Thanks for your time! 
 > > Cc: Michal Hocko <mhocko@suse.com>
 > > Cc: Minchan Kim <minchan@kernel.org>
 > > Cc: Hugh Dickins <hughd@google.com>
@@ -69,17 +45,155 @@ Sweat! Thanks for your time!
 > > Cc: Rik van Riel <riel@redhat.com>
 > > Cc: Mel Gorman <mgorman@techsingularity.net>
 > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Shaohua Li <shli@fb.com>
+> > ---
+> >  mm/rmap.c   |  4 ++++
+> >  mm/vmscan.c | 43 +++++++++++++++++++++++++++++++------------
+> >  2 files changed, 35 insertions(+), 12 deletions(-)
+> > 
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index c8d6204..5f05926 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1554,6 +1554,10 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> >  			dec_mm_counter(mm, MM_ANONPAGES);
+> >  			rp->lazyfreed++;
+> >  			goto discard;
+> > +		} else if (flags & TTU_LZFREE) {
+> > +			set_pte_at(mm, address, pte, pteval);
+> > +			ret = SWAP_FAIL;
+> > +			goto out_unmap;
 > 
-> I guess
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> trivial:
 > 
-> would be appropriate.
+> How about this?
+> 
+> if (flags && TTU_LZFREE) {
+> 	if (PageDirty(page)) {
+> 		set_pte_at(XXX);
+> 		ret = SWAP_FAIL;
+> 		goto out_unmap;
+> 	} else {
+> 		dec_mm_counter(mm, MM_ANONPAGES);
+> 		rp->lazyfreed++;
+> 		goto discard;
+> 	}
+> }
+ok
+ 
+> >  		}
+> >  
+> >  		if (swap_duplicate(entry) < 0) {
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 947ab6f..b304a84 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -864,7 +864,7 @@ static enum page_references page_check_references(struct page *page,
+> >  		return PAGEREF_RECLAIM;
+> >  
+> >  	if (referenced_ptes) {
+> > -		if (PageSwapBacked(page))
+> > +		if (PageSwapBacked(page) || PageAnon(page))
+> 
+> If anyone accesses MADV_FREEed range with load op, not store,
+> why shouldn't we discard that pages?
 
-Sure, will add in next post and will add 'the patches are based on Minchan's
-patches' too.
+Don't have strong opinion about this, userspace probably shouldn't do this. I'm
+ok to delete it if you insist.
+
+> >  			return PAGEREF_ACTIVATE;
+> >  		/*
+> >  		 * All mapped pages start out with page table
+> > @@ -903,7 +903,7 @@ static enum page_references page_check_references(struct page *page,
+> >  
+> >  /* Check if a page is dirty or under writeback */
+> >  static void page_check_dirty_writeback(struct page *page,
+> > -				       bool *dirty, bool *writeback)
+> > +			bool *dirty, bool *writeback, bool lazyfree)
+> >  {
+> >  	struct address_space *mapping;
+> >  
+> > @@ -911,7 +911,7 @@ static void page_check_dirty_writeback(struct page *page,
+> >  	 * Anonymous pages are not handled by flushers and must be written
+> >  	 * from reclaim context. Do not stall reclaim based on them
+> >  	 */
+> > -	if (!page_is_file_cache(page)) {
+> > +	if (!page_is_file_cache(page) || lazyfree) {
+> 
+> tivial:
+> 
+> We can check it with PageLazyFree in here rather than passing lazyfree
+> argument. It's consistent like page_is_file_cache in here.
+
+ok 
+> >  		*dirty = false;
+> >  		*writeback = false;
+> >  		return;
+> > @@ -971,7 +971,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		int may_enter_fs;
+> >  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
+> >  		bool dirty, writeback;
+> > -		bool lazyfree = false;
+> > +		bool lazyfree;
+> >  		int ret = SWAP_SUCCESS;
+> >  
+> >  		cond_resched();
+> > @@ -986,6 +986,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  
+> >  		sc->nr_scanned++;
+> >  
+> > +		lazyfree = page_is_lazyfree(page);
+> > +
+> >  		if (unlikely(!page_evictable(page)))
+> >  			goto cull_mlocked;
+> >  
+> > @@ -993,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  			goto keep_locked;
+> >  
+> >  		/* Double the slab pressure for mapped and swapcache pages */
+> > -		if (page_mapped(page) || PageSwapCache(page))
+> > +		if ((page_mapped(page) || PageSwapCache(page)) && !lazyfree)
+> >  			sc->nr_scanned++;
+> 
+> In this phase, we cannot know whether lazyfree marked page is discarable
+> or not. If it is freeable and mapped, this logic makes sense. However,
+> if the page is dirty?
+
+I think this doesn't matter. If the page is dirty, it will go to reclaim in
+next round and swap out. At that time, we will add nr_scanned there.
+
+> >  
+> >  		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+> > @@ -1005,7 +1007,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		 * will stall and start writing pages if the tail of the LRU
+> >  		 * is all dirty unqueued pages.
+> >  		 */
+> > -		page_check_dirty_writeback(page, &dirty, &writeback);
+> > +		page_check_dirty_writeback(page, &dirty, &writeback, lazyfree);
+> >  		if (dirty || writeback)
+> >  			nr_dirty++;
+> >  
+> > @@ -1107,6 +1109,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  			; /* try to reclaim the page below */
+> >  		}
+> >  
+> > +		/* lazyfree page could be freed directly */
+> > +		if (lazyfree) {
+> > +			if (unlikely(PageTransHuge(page)) &&
+> > +			    split_huge_page_to_list(page, page_list))
+> > +				goto keep_locked;
+> > +			goto unmap_page;
+> > +		}
+> > +
+> 
+> Maybe, we can remove this hunk. Instead add lazyfree check in here.
+> 
+> 		if (PageAnon(page) && !PageSwapCache(page) && !lazyfree) {
+> 			if (!(sc->gfp_mask & __GFP_IO))
+ok
 
 Thanks,
-Shaohua
+Shaohua 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
