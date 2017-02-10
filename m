@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 52CA46B0388
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 63B236B0389
 	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:23:53 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id h7so10995432wjy.6
+Received: by mail-wm0-f69.google.com with SMTP id t18so12825373wmt.7
         for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:23:53 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 89si2940789wre.175.2017.02.10.09.23.51
+        by mx.google.com with ESMTPS id z187si1971089wmd.166.2017.02.10.09.23.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 10 Feb 2017 09:23:51 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 08/10] mm, compaction: finish whole pageblock to reduce fragmentation
-Date: Fri, 10 Feb 2017 18:23:41 +0100
-Message-Id: <20170210172343.30283-9-vbabka@suse.cz>
+Subject: [PATCH v2 06/10] mm, compaction: add migratetype to compact_control
+Date: Fri, 10 Feb 2017 18:23:39 +0100
+Message-Id: <20170210172343.30283-7-vbabka@suse.cz>
 In-Reply-To: <20170210172343.30283-1-vbabka@suse.cz>
 References: <20170210172343.30283-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,100 +20,81 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
 
-The main goal of direct compaction is to form a high-order page for allocation,
-but it should also help against long-term fragmentation when possible. Most
-lower-than-pageblock-order compactions are for non-movable allocations, which
-means that if we compact in a movable pageblock and terminate as soon as we
-create the high-order page, it's unlikely that the fallback heuristics will
-claim the whole block. Instead there might be a single unmovable page in a
-pageblock full of movable pages, and the next unmovable allocation might pick
-another pageblock and increase long-term fragmentation.
-
-To help against such scenarios, this patch changes the termination criteria for
-compaction so that the current pageblock is finished even though the high-order
-page already exists. Note that it might be possible that the high-order page
-formed elsewhere in the zone due to parallel activity, but this patch doesn't
-try to detect that.
-
-This is only done with sync compaction, because async compaction is limited to
-pageblock of the same migratetype, where it cannot result in a migratetype
-fallback. (Async compaction also eagerly skips order-aligned blocks where
-isolation fails, which is against the goal of migrating away as much of the
-pageblock as possible.)
-
-As a result of this patch, long-term memory fragmentation should be reduced.
+Preparation patch. We are going to need migratetype at lower layers than
+compact_zone() and compact_finished().
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 35 +++++++++++++++++++++++++++++++++--
+ mm/compaction.c | 15 +++++++--------
  mm/internal.h   |  1 +
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ 2 files changed, 8 insertions(+), 8 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 84ef44c3b1c9..cef77a5fffea 100644
+index 6c477025c3da..b7094700712b 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1329,6 +1329,17 @@ static enum compact_result __compact_finished(struct zone *zone,
- 	if (is_via_compact_memory(cc->order))
- 		return COMPACT_CONTINUE;
+@@ -1290,10 +1290,11 @@ static inline bool is_via_compact_memory(int order)
+ 	return order == -1;
+ }
  
-+	if (cc->finishing_block) {
-+		/*
-+		 * We have finished the pageblock, but better check again that
-+		 * we really succeeded.
-+		 */
-+		if (IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
-+			cc->finishing_block = false;
-+		else
-+			return COMPACT_CONTINUE;
-+	}
-+
- 	/* Direct compactor: Is a suitable page free? */
- 	for (order = cc->order; order < MAX_ORDER; order++) {
- 		struct free_area *area = &zone->free_area[order];
-@@ -1349,8 +1360,28 @@ static enum compact_result __compact_finished(struct zone *zone,
- 		 * other migratetype buddy lists.
- 		 */
- 		if (find_suitable_fallback(area, order, migratetype,
--						true, &can_steal) != -1)
--			return COMPACT_SUCCESS;
-+						true, &can_steal) != -1) {
-+
-+			/* movable pages are OK in any pageblock */
-+			if (migratetype == MIGRATE_MOVABLE)
-+				return COMPACT_SUCCESS;
-+
-+			/*
-+			 * We are stealing for a non-movable allocation. Make
-+			 * sure we finish compacting the current pageblock
-+			 * first so it is as free as possible and we won't
-+			 * have to steal another one soon. This only applies
-+			 * to sync compaction, as async compaction operates
-+			 * on pageblocks of the same migratetype.
-+			 */
-+			if (cc->mode == MIGRATE_ASYNC ||
-+				IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages)) {
-+				return COMPACT_SUCCESS;
-+			} else {
-+				cc->finishing_block = true;
-+				return COMPACT_CONTINUE;
-+			}
-+		}
- 	}
+-static enum compact_result __compact_finished(struct zone *zone, struct compact_control *cc,
+-			    const int migratetype)
++static enum compact_result __compact_finished(struct zone *zone,
++						struct compact_control *cc)
+ {
+ 	unsigned int order;
++	const int migratetype = cc->migratetype;
  
- 	return COMPACT_NO_SUITABLE_PAGE;
+ 	if (cc->contended || fatal_signal_pending(current))
+ 		return COMPACT_CONTENDED;
+@@ -1349,12 +1350,11 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
+ }
+ 
+ static enum compact_result compact_finished(struct zone *zone,
+-			struct compact_control *cc,
+-			const int migratetype)
++			struct compact_control *cc)
+ {
+ 	int ret;
+ 
+-	ret = __compact_finished(zone, cc, migratetype);
++	ret = __compact_finished(zone, cc);
+ 	trace_mm_compaction_finished(zone, cc->order, ret);
+ 	if (ret == COMPACT_NO_SUITABLE_PAGE)
+ 		ret = COMPACT_CONTINUE;
+@@ -1487,9 +1487,9 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+ 	enum compact_result ret;
+ 	unsigned long start_pfn = zone->zone_start_pfn;
+ 	unsigned long end_pfn = zone_end_pfn(zone);
+-	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
+ 
++	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+ 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
+ 							cc->classzone_idx);
+ 	/* Compaction is likely to fail */
+@@ -1539,8 +1539,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+ 
+ 	migrate_prep_local();
+ 
+-	while ((ret = compact_finished(zone, cc, migratetype)) ==
+-						COMPACT_CONTINUE) {
++	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
+ 		int err;
+ 
+ 		switch (isolate_migratepages(zone, cc)) {
 diff --git a/mm/internal.h b/mm/internal.h
-index 888f33cc7641..cdb33c957906 100644
+index da37ddd3db40..888f33cc7641 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -188,6 +188,7 @@ struct compact_control {
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
- 	bool whole_zone;		/* Whole zone should/has been scanned */
- 	bool contended;			/* Signal lock or sched contention */
-+	bool finishing_block;		/* Finishing current pageblock */
- };
- 
- unsigned long
+@@ -179,6 +179,7 @@ struct compact_control {
+ 	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	int order;			/* order a direct compactor needs */
++	int migratetype;		/* migratetype of direct compactor */
+ 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
+ 	const int classzone_idx;	/* zone index of a direct compactor */
+ 	enum migrate_mode mode;		/* Async or sync migration mode */
 -- 
 2.11.0
 
