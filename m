@@ -1,75 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AFA06B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 04:24:38 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id i10so11412840wrb.0
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 01:24:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b66si422759wmc.145.2017.02.10.01.24.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B54A56B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:07:42 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 204so43124829pfx.1
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 02:07:42 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n9si1246182pll.11.2017.02.10.02.07.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Feb 2017 01:24:37 -0800 (PST)
-Date: Fri, 10 Feb 2017 10:24:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] 3.10 kernel- oom with about 24G free memory
-Message-ID: <20170210092435.GG10893@dhcp22.suse.cz>
-References: <9a22aefd-dfb8-2e4c-d280-fc172893bcb4@huawei.com>
- <20170209132628.GI10257@dhcp22.suse.cz>
- <20170209134131.GJ10257@dhcp22.suse.cz>
- <ff8b1a0e-690e-74b5-3324-b99994591268@huawei.com>
- <20170210070930.GA9346@dhcp22.suse.cz>
- <7d01fea5-66d6-b6ac-918d-19ec8a15dbaf@huawei.com>
- <20170210085232.GD10893@dhcp22.suse.cz>
- <42e61739-ddfb-e13e-69e0-d1c1ac948a6d@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <42e61739-ddfb-e13e-69e0-d1c1ac948a6d@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Feb 2017 02:07:41 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1AA3rml086544
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:07:41 -0500
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28h2dfbkbs-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 05:07:41 -0500
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 10 Feb 2017 20:07:38 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 890EF3578053
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 21:07:37 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1AA7TJS38994074
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 21:07:37 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1AA752V002047
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 21:07:05 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH V2 0/3] Define coherent device memory node
+Date: Fri, 10 Feb 2017 15:36:37 +0530
+Message-Id: <20170210100640.26927-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hanjun Guo <guohanjun@huawei.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Fri 10-02-17 17:15:59, Yisheng Xie wrote:
-> Hi Michal,
-> 
-> Thanks for comment!
-> On 2017/2/10 16:52, Michal Hocko wrote:
-> > On Fri 10-02-17 16:48:58, Yisheng Xie wrote:
-> >> Hi Michal,
-> >>
-> >> Thanks for comment!
-> >> On 2017/2/10 15:09, Michal Hocko wrote:
-> >>> On Fri 10-02-17 09:13:58, Yisheng Xie wrote:
-> >>>> hi Michal,
-> >>>> Thanks for your comment.
-> >>>>
-> >>>> On 2017/2/9 21:41, Michal Hocko wrote:
-> > [...]
-> >>>>>> OK, so this is a memcg OOM killer which panics because the configuration
-> >>>>>> says so. The OOM report doesn't say so and that is the bug. dump_header
-> >>>>>> is memcg aware and mem_cgroup_out_of_memory initializes oom_control
-> >>>>>> properly. Is this Vanilla kernel?
-> >>>>
-> >>>> That means we should raise the limit of that memcg to avoid memcg OOM killer, right?
-> >>>
-> >>> Why do you configure the system to panic on memcg OOM in the first
-> >>> place. This is a wrong thing to do in 99% of cases.
-> >>
-> >> For our production think it should use reboot to recovery the system when OOM,
-> >> instead of killing user's key process. Maybe not the right thing.
-> > 
-> > I can understand that for the global oom killer but not for memcg. You
-> > can recover the oom even without killing any process. You can simply
-> > increase the limit from the userspace when the oom event is triggered.
->
-> So you mean set oom_kill_disable and increase the limit from userspace
-> when memcg under_oom, right?
+	This three patches define CDM node with HugeTLB & Buddy allocation
+isolation. Please refer to the last RFC posting mentioned here for details.
+The series has been split for easier review process. The next part of the
+work like VM flags, auto NUMA and KSM interactions with tagged VMAs will
+follow later.
 
-yes
+https://lkml.org/lkml/2017/1/29/198
+
+Changes in V2:
+
+* Removed redundant nodemask_has_cdm() check from zonelist iterator
+* Dropped the nodemask_had_cdm() function itself
+* Added node_set/clear_state_cdm() functions and removed bunch of #ifdefs
+* Moved CDM helper functions into nodemask.h from node.h header file
+* Fixed the build failure by additional CONFIG_NEED_MULTIPLE_NODES check
+
+Previous V1: (https://lkml.org/lkml/2017/2/8/329)
+
+Anshuman Khandual (3):
+  mm: Define coherent device memory (CDM) node
+  mm: Enable HugeTLB allocation isolation for CDM nodes
+  mm: Enable Buddy allocation isolation for CDM nodes
+
+ Documentation/ABI/stable/sysfs-devices-node |  7 ++++
+ arch/powerpc/Kconfig                        |  1 +
+ arch/powerpc/mm/numa.c                      |  7 ++++
+ drivers/base/node.c                         |  6 +++
+ include/linux/nodemask.h                    | 58 ++++++++++++++++++++++++++++-
+ mm/Kconfig                                  |  4 ++
+ mm/hugetlb.c                                | 25 ++++++++-----
+ mm/memory_hotplug.c                         |  3 ++
+ mm/page_alloc.c                             | 24 +++++++++++-
+ 9 files changed, 123 insertions(+), 12 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
