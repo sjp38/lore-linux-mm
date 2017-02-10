@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 722336B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:53:06 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b145so31642825pfb.3
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 06:53:06 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 23si1876861pfi.14.2017.02.10.06.53.04
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D891B6B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:55:35 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id t18so11491309wmt.7
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 06:55:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l187si1474176wml.150.2017.02.10.06.55.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 06:53:05 -0800 (PST)
-Date: Fri, 10 Feb 2017 06:51:58 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCHv6 11/37] HACK: readahead: alloc huge pages, if allowed
-Message-ID: <20170210145158.GA2267@bombadil.infradead.org>
-References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
- <20170126115819.58875-12-kirill.shutemov@linux.intel.com>
- <20170209233436.GZ2267@bombadil.infradead.org>
- <7D35EB8E-29F8-41DA-BB46-8BCF7B6C5A72@dilger.ca>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Feb 2017 06:55:34 -0800 (PST)
+Date: Fri, 10 Feb 2017 15:55:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] slab reclaim
+Message-ID: <20170210145532.GQ10893@dhcp22.suse.cz>
+References: <20161228130949.GA11480@dhcp22.suse.cz>
+ <20170102110257.GB18058@quack2.suse.cz>
+ <b3e28101-1129-d2bc-8695-e7f7529a1442@suse.cz>
+ <alpine.DEB.2.20.1701301243470.2833@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7D35EB8E-29F8-41DA-BB46-8BCF7B6C5A72@dilger.ca>
+In-Reply-To: <alpine.DEB.2.20.1701301243470.2833@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Dilger <adilger@dilger.ca>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Feb 09, 2017 at 05:23:31PM -0700, Andreas Dilger wrote:
-> On Feb 9, 2017, at 4:34 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> > Well ... what if we made readahead 2 hugepages in size for inodes which
-> > are using huge pages?  That's only 8x our current readahead window, and
-> > if you're asking for hugepages, you're accepting that IOs are going to
-> > be larger, and you probably have the kind of storage system which can
-> > handle doing larger IOs.
+On Mon 30-01-17 12:47:04, Cristopher Lameter wrote:
+> On Thu, 5 Jan 2017, Vlastimil Babka wrote:
 > 
-> It would be nice if the bdi had a parameter for the maximum readahead size.
-> Currently, readahead is capped at 2MB chunks by force_page_cache_readahead()
-> even if bdi->ra_pages and bdi->io_pages are much larger.
+> >
+> > Yeah, some of the related stuff that was discussed at Kernel Summit [1]
+> > would be nice to have at least prototyped, i.e. the dentry cache
+> > separation and the slab helper for providing objects on the same page?
+> >
+> > [1] https://lwn.net/Articles/705758/
 > 
-> It should be up to the filesystem to decide how large the readahead chunks
-> are rather than imposing some policy in the MM code.  For high-speed (network)
-> storage access it is better to have at least 4MB read chunks, for RAID storage
-> it is desirable to have stripe-aligned readahead to avoid read inflation when
-> verifying the parity.  Any fixed size will eventually be inadequate as disks
-> and filesystems change, so it may as well be a per-bdi tunable that can be set
-> by the filesystem as needed, or possibly with a mount option if needed.
+> Hmmm. Sorry I am a bit late reading this I think. But I have a patchset
+> that addresses some of these issues. See https://lwn.net/Articles/371892/
 
-I think the filesystem should provide a hint, but ultimately it needs to
-be up to the MM to decide how far to readahead.  The filesystem doesn't
-(and shouldn't) have the global view into how much memory is available
-for readahead, nor should it be tracking how well this app is being
-served by readahead.
+Yeah, this is the email thread I have referenced in my initial email. I
+didn't reference the first email because Dave had some concerns about
+your approach and then the discussion moved on to an approach which
+sounds reasonable to me [2]
 
-That 2MB chunk restriction is allegedly there "so that we don't pin too
-much memory at once".  Maybe that should be scaled with the amount of
-memory in the system (pinning 2MB of a 256MB system is a bit different
-from pinning 2MB of a 1TB memory system).
+[2] https://lkml.org/lkml/2010/2/8/329
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
