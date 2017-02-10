@@ -1,134 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D0BB96B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 06:01:59 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v77so9697578wmv.5
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 03:01:59 -0800 (PST)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id x7si777193wmf.1.2017.02.10.03.01.58
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 24C846B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 06:52:30 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id jz4so8064642wjb.5
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 03:52:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e72si903983wma.116.2017.02.10.03.52.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 03:01:58 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id B285F1C1D7E
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 11:01:57 +0000 (GMT)
-Date: Fri, 10 Feb 2017 11:01:57 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: PCID review?
-Message-ID: <20170210110157.dlejz7szrj3r3pwq@techsingularity.net>
-References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
- <CALCETrVfah6AFG5mZDjVcRrdXKL=07+WC9ES9ZKU90XqVpWCOg@mail.gmail.com>
- <20170209001042.ahxmoqegr6h74mle@techsingularity.net>
- <CALCETrUiUnZ1AWHjx8-__t0DUwryys9O95GABhhpG9AnHwrg9Q@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Feb 2017 03:52:28 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] cpuset vs mempolicy related issues
+References: <4c44a589-5fd8-08d0-892c-e893bb525b71@suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b137d135-124a-136c-65aa-95889cc62693@suse.cz>
+Date: Fri, 10 Feb 2017 12:52:25 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CALCETrUiUnZ1AWHjx8-__t0DUwryys9O95GABhhpG9AnHwrg9Q@mail.gmail.com>
+In-Reply-To: <4c44a589-5fd8-08d0-892c-e893bb525b71@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Thu, Feb 09, 2017 at 06:46:57PM -0800, Andy Lutomirski wrote:
-> > try_to_unmap_flush then flushes the entire TLB as the cost of targetted
-> > a specific page to flush was so high (both maintaining the PFNs and the
-> > individual flush operations).
-> 
-> I could just maybe make it possible to remotely poke a CPU to record
-> which mms need flushing, but the possible races there are a bit
-> terrifying.
-> 
+On 02/03/2017 10:17 AM, Vlastimil Babka wrote:
+> Possible fix approach
+>
+> Cpuset updates will rebind nodemasks only of those mempolicies that need it wrt
+> their relative nodes semantics (those are either created with the flag
+> MPOL_F_RELATIVE_NODES, or with neither RELATIVE nor STATIC flag). The others
+> (created with the STATIC flag) we can leave untouched. For mempolicies that we
+> keep rebinding, adopt the approach of mbind() that swaps an updated copy
+> instead of in-place changes. We can leave get_page_from_freelist() as it is and
+> nodes will be filtered orthogonally with mempolicy nodemask and cpuset check.
+>
+> This will give us stable nodemask throughout the whole allocation without a
+> need for an on-stack copy. The next question is what to do with
+> current->mems_allowed. Do we keep the parallel modifications with seqlock
+> protection or e.g. try to go back to the synchronous copy approach?
+>
+> Related to that is a remaining corner case with alloc_pages_vma() which has its
+> own seqlock-protected scope. There it calls policy_nodemask() which might
+> detect that there's no intersection between the mempolicy and cpuset and return
+> NULL nodemask. However, __alloc_pages_slowpath() has own seqlock scope, so if a
+> modification to mems_allowed (resulting in no intersection with mempolicy)
+> happens between the check in policy_nodemask() and reaching
+> __alloc_pages_slowpath(), the latter won't detect the modification and invoke
+> OOM before it can return with a failed allocation to alloc_pages_vma() and let
+> it detect a seqlock update and retry. One solution as shown in the RFC patch [3]
+> is to add another check for the cpuset/nodemask intersection before OOM. That
+> works, but it's a bit hacky and still produces an allocation failure warning.
+>
+> On the other hand, we might also want to make things more robust in general and
+> prevent spurious OOMs due to no nodes being eligible for also any other reason,
+> such as buggy driver passing a wrong nodemask (which doesn't necessarily come
+> from a mempolicy).
 
-The overhead is concerning. You may incur a remote cache miss accessing the
-data which is costly or you have to send an IPI which is also severe. You
-could attempt to do the same as the scheduler and directly modify if the
-CPUs share cache and IPI otherwise but you're looking at a lot of overhead
-either way.
+It occured to me that it could be possible to convert cpuset handling from 
+nodemask based to zonelist based, which means each cpuset would have its own set 
+of zonelists where only the allowed nodes (for hardwall) would be present. For 
+softwall we could have another set, where allowed nodes are prioritised, but all 
+would be present... or we would just use the system zonelists.
 
-> >
-> >> Would it make sense to add a new
-> >> arch API to flush more than one mm?  Presumably it would take a linked
-> >> list, and the batched flush code would fall back to flushing in pieces
-> >> if it can't allocate a new linked list node when needed.
-> >>
-> >
-> > Conceptually it's ok but the details are a headache.
-> >
-> > The defer code would need to maintain a list of mm's (or ASIDs) that is
-> > unbounded in size to match the number of IPIs sent as the current code as
-> > opposed to a simple cpumask. There are SWAP_CLUSTER_MAX pages to consider
-> > with each page potentially mapped by an arbitrary number of MMs. The same
-> > mm's could exist on multiple lists for each active kswapd instance and
-> > direct reclaimer.
-> >
-> > As multiple reclaimers are interested in the same mm, that pretty much
-> > rules out linking them off mm_struct unless the locking would serialise
-> > the parallel reclaimers and prevent an mm existing on more than one list
-> > at a time. You could try allowing multiple tasks to share the one list
-> > (not sure how to find that list quickly) but each entry would have to
-> > be locked and as each user can flush at any time, multiple reclaimers
-> > potentially have to block while an IPI is being sent. It's hard to see
-> > how this could be scaled to match the existing code.
-> >
-> > It would be easier to track via an array stored in task_struct but the
-> > number of MMs is unknown in advance so all you can do is guess a reasonable
-> > size. It would have to flush if the array files resulting in more IPIs
-> > than the current code depending on how many MMs map the list of pages.
-> 
-> What if I just allocate a smallish array on the stack and then extend
-> with kmalloc(GFP_ATOMIC) as needed?  An allocation failure would just
-> force an immediate flush, so there shouldn't be any deadlock risk.
-> 
+This means some extra memory overhead for each cpuset, but I'd expect the amount 
+of cpusets in the system should be relatively limited anyway. (Mempolicies used 
+to be based on zonelists in the past, but there the overhead might have been 
+more significant.)
 
-It won't deadlock but it's an atomic allocation (which accesses reserves)
-at the time when we are definitely reclaiming with a fallback being an IPI
-the current code would avoid. It'll indirectly increase risks of other
-atomic allocation failures although that risk is slight. The allocation
-in that context will still raise eyebrows and it made me wince. I know I
-recently considered doing an atomic allocation under similar circumstances
-but it was fine to completely fail the allocation and a day later, I got
-rid of it anyway.
+We could then get rid of the task->mems_allowed and the related seqlock. Cpuset 
+updates would allocate new set of zonelists and then swap it. This would need 
+either refcounting or some rwsem to free the old version safely.
 
-> Anyway, I need to rework the arch code to make this work at all.
-> Currently I'm taking a spinlock per mm when flushing that mm, but that
-> would mean I need to *sort* the list to flush more than one at a time,
-> and that just sounds nasty.  I can probably get rid of the spinlock.
-> 
+This together with reworked updating of mempolicies would provide the guarantee 
+that once we obtain the cpuset's zonelist and mempolicy's nodemask, we can check 
+it once for intersection, and then that result remains valid during the whole 
+allocation.
 
-That all sounds fairly nasty. Don't get me wrong, I think you can make
-it functionally work but it's a severe uphill battle.
+Another advantage is that for_next_zone_zonelist_nodemask() then provides the 
+complete filtering and we don't have to call __cpuset_zone_allowed().
 
-The key concern that it'll be evaluated against is that any complexity has
-to be less than doing a "batched full TLB flush and refill". The refill is
-expected to be cheap as the page table structures are likely to be cache hot.
-It was way cheaper than trying to be clever about flushing individual TLB
-entries. I recognise that you'll be trying to balance this against processes
-that are carefully isolated that do not want interference from unrelated
-processes doing a TLB flush but it'll be hard to prove that it's worth it.
-
-It's almost certain that this will be Linus' primary concern
-given his contributions to similar conversations in the past
-(e.g. https://lkml.org/lkml/2015/6/25/666). It's also likely to be of
-major concern to Ingo (e.g. https://lkml.org/lkml/2015/6/9/276) as he had
-valid objections against clever flushing at the time the batching was
-introduced. Based on previous experience, I have my own concerns but I
-don't count as I'm highlighing them now :P
-
-The outcome of the TLB batch flushiing discussion was that it was way
-cheaper to flush the full TLB and take the refill cost than flushing
-individual pages which had the cost of tracking the PFNs and the cost of
-each individual page flush operation.
-
-The current code is basically "build a cpumask and flush the TLB for
-multiple entries". We're talking about complex tracking of mm's with
-difficult locking, potential remote cache misses, potentially more IPIs or
-alternatively doing allocations from reclaim context. It'll be difficult
-to prove that doing this in the name of flushing ASID is cheaper and
-universally a good idea than just flushing the entire TLB.
-
--- 
-Mel Gorman
-SUSE Labs
+Thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
