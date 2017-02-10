@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 19DD16B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 17:58:59 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id n125so28654699vke.0
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 14:58:59 -0800 (PST)
-Received: from mail-ua0-x235.google.com (mail-ua0-x235.google.com. [2607:f8b0:400c:c08::235])
-        by mx.google.com with ESMTPS id 65si1009242vkb.131.2017.02.10.14.58.57
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 186A96B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:36:39 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 67so79295674ioh.1
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 15:36:39 -0800 (PST)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id f190si2493522itf.86.2017.02.10.15.36.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 14:58:58 -0800 (PST)
-Received: by mail-ua0-x235.google.com with SMTP id 96so39336420uaq.3
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 14:58:57 -0800 (PST)
+        Fri, 10 Feb 2017 15:36:38 -0800 (PST)
+Received: by mail-io0-x234.google.com with SMTP id j18so61984947ioe.2
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 15:36:38 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170210222522.udpl6cgai24lg5tf@pd.tnic>
-References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
- <CALCETrVfah6AFG5mZDjVcRrdXKL=07+WC9ES9ZKU90XqVpWCOg@mail.gmail.com>
- <20170209001042.ahxmoqegr6h74mle@techsingularity.net> <CALCETrUiUnZ1AWHjx8-__t0DUwryys9O95GABhhpG9AnHwrg9Q@mail.gmail.com>
- <20170210110157.dlejz7szrj3r3pwq@techsingularity.net> <CALCETrVjhVqpHTpQ--AVDpWQAb44b265sesou50wSec4rs9sRw@mail.gmail.com>
- <20170210215708.j54cawm23nepgimd@techsingularity.net> <CALCETrWToSZZsXHyrXg+YRiyvjRtWd7J0Myvn_mjJJdJoCXr+w@mail.gmail.com>
- <20170210222522.udpl6cgai24lg5tf@pd.tnic>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 10 Feb 2017 14:58:37 -0800
-Message-ID: <CALCETrXSdcgqiSjGWYDVOk9_-ZRUhuehtnw-RmuqpKRZ7qdG5Q@mail.gmail.com>
-Subject: Re: PCID review?
+In-Reply-To: <20170209131625.GA16954@pjb1027-Latitude-E5410>
+References: <20170209131625.GA16954@pjb1027-Latitude-E5410>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 10 Feb 2017 15:36:37 -0800
+Message-ID: <CAGXu5jKofDhycUbLGMLNPM3LwjKuW1kGAbthSS1qufEB6bwOPA@mail.gmail.com>
+Subject: Re: [PATCH] mm: testcases for RODATA: fix config dependency
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Jinbum Park <jinb.park7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Valentin Rothberg <valentinrothberg@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>
 
-On Fri, Feb 10, 2017 at 2:25 PM, Borislav Petkov <bp@alien8.de> wrote:
-> On Fri, Feb 10, 2017 at 02:07:19PM -0800, Andy Lutomirski wrote:
->> We'll see.  The main benchmark that I'm relying on (so far) is that
->> context switches get way faster, just ping ponging back and forth.  I
->> suspect that the TLB refill cost is only a small part.
+On Thu, Feb 9, 2017 at 5:16 AM, Jinbum Park <jinb.park7@gmail.com> wrote:
+> Since DEBUG_RODATA has renamed to STRICT_KERNEL_RWX,
+> Fix the config dependency.
 >
-> Is that a microbenchmark or something more "presentable"?
-
-It's a microbenchmark, but the change is fairly large.  It would be
-nice to see what the effect is on real workloads.
-
+> Reported-by: Valentin Rothberg <valentinrothberg@gmail.com>
+> Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
+> ---
+>  mm/Kconfig.debug | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 >
-> We really should pay attention to the complexity and what that actually
-> brings us in the end.
+> diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+> index 3e5eada..3c88b7e 100644
+> --- a/mm/Kconfig.debug
+> +++ b/mm/Kconfig.debug
+> @@ -93,7 +93,7 @@ config DEBUG_PAGE_REF
+>
+>  config DEBUG_RODATA_TEST
+>      bool "Testcase for the marking rodata read-only"
+> -    depends on DEBUG_RODATA
+> +    depends on STRICT_KERNEL_RWX
+>      ---help---
+>        This option enables a testcase for the setting rodata read-only.
 
-Agreed.
+Great, thanks!
 
---Andy
+Acked-by: Kees Cook <keescook@chromium.org>
+
+Andrew, do you want to take this patch, since it applies on top of
+"mm: add arch-independent testcases for RODATA", or do you want me to
+take both patches into my KSPP tree which has the DEBUG_RODATA ->
+STRICT_KERNEL_RWX renaming series?
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
