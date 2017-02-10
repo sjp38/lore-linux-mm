@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2A46B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 02:09:36 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id r141so8342921wmg.4
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 23:09:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 39si1002491wrv.83.2017.02.09.23.09.35
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 007DF6B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 02:12:31 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id x1so10526713lff.6
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2017 23:12:30 -0800 (PST)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id 28si515541lfr.419.2017.02.09.23.12.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Feb 2017 23:09:35 -0800 (PST)
-Date: Fri, 10 Feb 2017 08:09:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] 3.10 kernel- oom with about 24G free memory
-Message-ID: <20170210070930.GA9346@dhcp22.suse.cz>
-References: <9a22aefd-dfb8-2e4c-d280-fc172893bcb4@huawei.com>
- <20170209132628.GI10257@dhcp22.suse.cz>
- <20170209134131.GJ10257@dhcp22.suse.cz>
- <ff8b1a0e-690e-74b5-3324-b99994591268@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Feb 2017 23:12:29 -0800 (PST)
+Subject: Re: [PATCH 1/3 v2 staging-next] android: Collect statistics from
+ lowmemorykiller
+References: <df828d70-3962-2e43-0512-1777a9842bb2@sonymobile.com>
+ <e3dc46d0-7431-c97c-d8cf-824f30706175@sonymobile.com>
+ <20170209201329.GA12148@kroah.com>
+From: peter enderborg <peter.enderborg@sonymobile.com>
+Message-ID: <90fbd714-df4d-8c91-b2cc-927492b6c838@sonymobile.com>
+Date: Fri, 10 Feb 2017 08:12:28 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ff8b1a0e-690e-74b5-3324-b99994591268@huawei.com>
+In-Reply-To: <20170209201329.GA12148@kroah.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hanjun Guo <guohanjun@huawei.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Riley Andrews <riandrews@android.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri 10-02-17 09:13:58, Yisheng Xie wrote:
-> hi Michal,
-> Thanks for your comment.
-> 
-> On 2017/2/9 21:41, Michal Hocko wrote:
-> > On Thu 09-02-17 14:26:28, Michal Hocko wrote:
-> >> On Thu 09-02-17 20:54:49, Yisheng Xie wrote:
-> >>> Hi all,
-> >>> I get an oom on a linux 3.10 kvm guest OS. when it triggers the oom
-> >>> it have about 24G free memory(and host OS have about 10G free memory)
-> >>> and watermark is sure ok.
-> >>>
-> >>> I also check about about memcg limit value, also cannot find the
-> >>> root cause.
-> >>>
-> >>> Is there anybody ever meet similar problem and have any idea about it?
-> >>>
-> >>> Any comment is more than welcome!
-> >>>
-> >>> Thanks
-> >>> Yisheng Xie
-> >>>
-> >>> -------------
-> >>> [   81.234289] DefSch0200 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
-> >>> [   81.234295] DefSch0200 cpuset=/ mems_allowed=0
-> >>> [   81.234299] CPU: 3 PID: 8284 Comm: DefSch0200 Tainted: G           O E ----V-------   3.10.0-229.42.1.105.x86_64 #1
-> >>> [   81.234301] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20161111_105425-HGH1000008200 04/01/2014
-> >>> [   81.234303]  ffff880ae2900000 000000002b3489d7 ffff880b6cec7c58 ffffffff81608d3d
-> >>> [   81.234307]  ffff880b6cec7ce8 ffffffff81603d1c 0000000000000000 ffff880b6cd09000
-> >>> [   81.234311]  ffff880b6cec7cd8 000000002b3489d7 ffff880b6cec7ce0 ffffffff811bdd77
-> >>> [   81.234314] Call Trace:
-> >>> [   81.234323]  [<ffffffff81608d3d>] dump_stack+0x19/0x1b
-> >>> [   81.234327]  [<ffffffff81603d1c>] dump_header+0x8e/0x214
-> >>> [   81.234333]  [<ffffffff811bdd77>] ? mem_cgroup_iter+0x177/0x2b0
-> >>> [   81.234339]  [<ffffffff8115d83e>] check_panic_on_oom+0x2e/0x60
-> >>> [   81.234342]  [<ffffffff811c17bf>] mem_cgroup_oom_synchronize+0x34f/0x580
-> >>
-> >> OK, so this is a memcg OOM killer which panics because the configuration
-> >> says so. The OOM report doesn't say so and that is the bug. dump_header
-> >> is memcg aware and mem_cgroup_out_of_memory initializes oom_control
-> >> properly. Is this Vanilla kernel?
+On 02/09/2017 09:13 PM, Greg Kroah-Hartman wrote:
+> On Thu, Feb 09, 2017 at 04:42:35PM +0100, peter enderborg wrote:
+>> This collects stats for shrinker calls and how much
+>> waste work we do within the lowmemorykiller.
+>>
+>> Signed-off-by: Peter Enderborg <peter.enderborg@sonymobile.com>
+>> ---
+>>  drivers/staging/android/Kconfig                 | 11 ++++
+>>  drivers/staging/android/Makefile                |  1 +
+>>  drivers/staging/android/lowmemorykiller.c       |  9 ++-
+>>  drivers/staging/android/lowmemorykiller_stats.c | 85 +++++++++++++++++++++++++
+>>  drivers/staging/android/lowmemorykiller_stats.h | 29 +++++++++
+>>  5 files changed, 134 insertions(+), 1 deletion(-)
+>>  create mode 100644 drivers/staging/android/lowmemorykiller_stats.c
+>>  create mode 100644 drivers/staging/android/lowmemorykiller_stats.h
+> What changed from v1?
+Nothing. I thought I found the reason why my tabs are replaced by spaces in transport.
+
+>> @@ -72,6 +73,7 @@ static unsigned long lowmem_deathpending_timeout;
+>>  static unsigned long lowmem_count(struct shrinker *s,
+>>                    struct shrink_control *sc)
+>>  {
+>> +    lmk_inc_stats(LMK_COUNT);
+>>      return global_node_page_state(NR_ACTIVE_ANON) +
+>>          global_node_page_state(NR_ACTIVE_FILE) +
+>>          global_node_page_state(NR_INACTIVE_ANON) +
+> Your email client is eating tabs and spitting out spaces, making this
+> impossible to even consider being merged :(
 >
-> That means we should raise the limit of that memcg to avoid memcg OOM killer, right?
+> Please fix your email client, documentation for how to do so is in the
+> kernel Documentation directory.
+>
+> thanks,
+>
+> greg k-h
 
-Why do you configure the system to panic on memcg OOM in the first
-place. This is a wrong thing to do in 99% of cases.
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
