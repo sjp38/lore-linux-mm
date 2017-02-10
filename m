@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C8B036B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:46:36 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 194so58359857pgd.7
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:46:36 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 34si2279819plz.118.2017.02.10.09.46.35
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C966B0038
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:50:38 -0500 (EST)
+Received: by mail-yw0-f197.google.com with SMTP id v73so49716325ywg.2
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:50:38 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id z19si714444ywd.230.2017.02.10.09.50.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 09:46:36 -0800 (PST)
-Date: Fri, 10 Feb 2017 09:46:10 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCHv6 13/37] mm: make write_cache_pages() work on huge pages
-Message-ID: <20170210174610.GC2267@bombadil.infradead.org>
-References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
- <20170126115819.58875-14-kirill.shutemov@linux.intel.com>
+        Fri, 10 Feb 2017 09:50:38 -0800 (PST)
+Date: Fri, 10 Feb 2017 09:50:15 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH V2 5/7] mm: add vmstat account for MADV_FREE pages
+Message-ID: <20170210175015.GD86050@shli-mbp.local>
+References: <cover.1486163864.git.shli@fb.com>
+ <d12c1b4b571817c0f05a57cc062d91d1a336fce5.1486163864.git.shli@fb.com>
+ <20170210132727.GM10893@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170126115819.58875-14-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170210132727.GM10893@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Thu, Jan 26, 2017 at 02:57:55PM +0300, Kirill A. Shutemov wrote:
-> We writeback whole huge page a time. Let's adjust iteration this way.
+On Fri, Feb 10, 2017 at 02:27:27PM +0100, Michal Hocko wrote:
+> On Fri 03-02-17 15:33:21, Shaohua Li wrote:
+> > Show MADV_FREE pages info in proc/sysfs files.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> How are we going to use this information? Why it isn't sufficient to
+> watch for lazyfree events? I mean this adds quite some code and it is
+> not clear (at least from the changelog) we we need this information.
 
-I think a lot of the complexity in this patch is from pagevec_lookup_tag
-giving you subpages rather than head pages...
+It's just like any other meminfo we added to let user know what happens in the
+system. Users can use the info for monitoring/diagnosing. the
+lazyfree/lazyfreed events can't reflect the lazyfree page info because
+'lazyfree - lazyfreed' doesn't equal current lazyfree pages and the events
+aren't per-node. I'll add more description in the changelog.
 
-> @@ -2268,7 +2273,8 @@ int write_cache_pages(struct address_space *mapping,
->  					 * not be suitable for data integrity
->  					 * writeout).
->  					 */
-> -					done_index = page->index + 1;
-> +					done_index = compound_head(page)->index
-> +						+ hpage_nr_pages(page);
->  					done = 1;
->  					break;
->  				}
-
-you'd still need this line, but it'd only be:
-
-					done_index = page->index +
-						(1 << compound_order(page));
-
-I think we want:
-
-#define	nr_pages(page)	(1 << compound_order(page))
-
-because we seem to be repeating that idiom quite a lot in these patches.
-
-					done_index = page->index +
-								nr_pages(page);
-
-Still doesn't quite fit on one line, but it's closer, and it's the
-ridiculous indentation in that function that's the real problem.
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
