@@ -1,109 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BA1166B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:53:18 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id q71so49134931ywg.1
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:53:18 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 205si718815yww.157.2017.02.10.09.53.17
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A38E06B0388
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 12:54:10 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id y196so57309453ity.1
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 09:54:10 -0800 (PST)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id 6si2650985ioj.112.2017.02.10.09.54.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 09:53:18 -0800 (PST)
-Date: Fri, 10 Feb 2017 09:52:33 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH V2 6/7] proc: show MADV_FREE pages info in smaps
-Message-ID: <20170210175232.GE86050@shli-mbp.local>
-References: <cover.1486163864.git.shli@fb.com>
- <1239fb2871c55d63e7e649ad14c6dabaef131d66.1486163864.git.shli@fb.com>
- <20170210133040.GN10893@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170210133040.GN10893@dhcp22.suse.cz>
+        Fri, 10 Feb 2017 09:54:09 -0800 (PST)
+Date: Fri, 10 Feb 2017 11:54:06 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] slab reclaim
+In-Reply-To: <20170210145532.GQ10893@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1702101153010.29784@east.gentwo.org>
+References: <20161228130949.GA11480@dhcp22.suse.cz> <20170102110257.GB18058@quack2.suse.cz> <b3e28101-1129-d2bc-8695-e7f7529a1442@suse.cz> <alpine.DEB.2.20.1701301243470.2833@east.gentwo.org> <20170210145532.GQ10893@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Feb 10, 2017 at 02:30:40PM +0100, Michal Hocko wrote:
-> $DESCRIPTION_OF_YOUR_USECASE_GOES_HERE
-> 
-> Moreover Documentation/filesystems/proc.txt should be updated as well.
-> 
-> Other than that, the patch looks good to me.
+On Fri, 10 Feb 2017, Michal Hocko wrote:
 
-Ok, will add more description and add doc for proc.txt. I don't have solid use
-case for this though. It's consistent with other info we exported to userspace
-and mostly for diagnosing purpose.
+> Yeah, this is the email thread I have referenced in my initial email. I
+> didn't reference the first email because Dave had some concerns about
+> your approach and then the discussion moved on to an approach which
+> sounds reasonable to me [2]
+>
+> [2] https://lkml.org/lkml/2010/2/8/329
 
-Thanks,
-Shaohua
- 
-> On Fri 03-02-17 15:33:22, Shaohua Li wrote:
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Minchan Kim <minchan@kernel.org>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: Mel Gorman <mgorman@techsingularity.net>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Signed-off-by: Shaohua Li <shli@fb.com>
-> 
-> after the description is added and documentation updated
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> > ---
-> >  fs/proc/task_mmu.c | 8 +++++++-
-> >  1 file changed, 7 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> > index ee3efb2..8f2423f 100644
-> > --- a/fs/proc/task_mmu.c
-> > +++ b/fs/proc/task_mmu.c
-> > @@ -440,6 +440,7 @@ struct mem_size_stats {
-> >  	unsigned long private_dirty;
-> >  	unsigned long referenced;
-> >  	unsigned long anonymous;
-> > +	unsigned long lazyfree;
-> >  	unsigned long anonymous_thp;
-> >  	unsigned long shmem_thp;
-> >  	unsigned long swap;
-> > @@ -456,8 +457,11 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
-> >  	int i, nr = compound ? 1 << compound_order(page) : 1;
-> >  	unsigned long size = nr * PAGE_SIZE;
-> >  
-> > -	if (PageAnon(page))
-> > +	if (PageAnon(page)) {
-> >  		mss->anonymous += size;
-> > +		if (!PageSwapBacked(page))
-> > +			mss->lazyfree += size;
-> > +	}
-> >  
-> >  	mss->resident += size;
-> >  	/* Accumulate the size in pages that have been accessed. */
-> > @@ -770,6 +774,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
-> >  		   "Private_Dirty:  %8lu kB\n"
-> >  		   "Referenced:     %8lu kB\n"
-> >  		   "Anonymous:      %8lu kB\n"
-> > +		   "LazyFree:       %8lu kB\n"
-> >  		   "AnonHugePages:  %8lu kB\n"
-> >  		   "ShmemPmdMapped: %8lu kB\n"
-> >  		   "Shared_Hugetlb: %8lu kB\n"
-> > @@ -788,6 +793,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
-> >  		   mss.private_dirty >> 10,
-> >  		   mss.referenced >> 10,
-> >  		   mss.anonymous >> 10,
-> > +		   mss.lazyfree >> 10,
-> >  		   mss.anonymous_thp >> 10,
-> >  		   mss.shmem_thp >> 10,
-> >  		   mss.shared_hugetlb >> 10,
-> > -- 
-> > 2.9.3
-> > 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Dont see much there to go on aside from the statement of the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
