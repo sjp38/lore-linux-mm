@@ -1,52 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A136B038B
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 21:24:12 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id t84so44714636qke.7
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:24:12 -0800 (PST)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id 1si2604850qkl.320.2017.02.10.18.24.11
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B946F6B0038
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2017 03:24:39 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id r18so19200661wmd.1
+        for <linux-mm@kvack.org>; Sat, 11 Feb 2017 00:24:39 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id e72si4334805wma.116.2017.02.11.00.24.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 18:24:11 -0800 (PST)
-Received: by mail-qk0-x242.google.com with SMTP id u25so7359136qki.2
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:24:11 -0800 (PST)
-Date: Sat, 11 Feb 2017 11:24:00 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm/sparse: add last_section_nr in sparse_init()
- to reduce some iteration cycle
-Message-ID: <20170211022400.GA19050@mtj.duckdns.org>
-References: <20170211021829.9646-1-richard.weiyang@gmail.com>
- <20170211021829.9646-2-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sat, 11 Feb 2017 00:24:38 -0800 (PST)
+Date: Sat, 11 Feb 2017 09:23:44 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv4 1/5] x86/mm: split arch_mmap_rnd() on compat/native
+ versions
+In-Reply-To: <CAJwJo6b5oSbcDjE+L=wwS_cdYnimAR+mD5BTyuHQtb8zUQX4fA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1702110919370.3734@nanos>
+References: <20170130120432.6716-1-dsafonov@virtuozzo.com> <20170130120432.6716-2-dsafonov@virtuozzo.com> <20170209135525.qlwrmlo7njk3fsaq@pd.tnic> <alpine.DEB.2.20.1702102057330.4042@nanos>
+ <CAJwJo6b5oSbcDjE+L=wwS_cdYnimAR+mD5BTyuHQtb8zUQX4fA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170211021829.9646-2-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Safonov <0x7f454c46@gmail.com>
+Cc: Borislav Petkov <bp@alien8.de>, Dmitry Safonov <dsafonov@virtuozzo.com>, open list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, linux-mm@kvack.org
 
-Hello,
+On Sat, 11 Feb 2017, Dmitry Safonov wrote:
 
-On Sat, Feb 11, 2017 at 10:18:29AM +0800, Wei Yang wrote:
-> During the sparse_init(), it iterate on each possible section. On x86_64,
-> it would always be (2^19) even there is not much memory. For example, on a
-> typical 4G machine, it has only (2^5) to (2^6) present sections. This
-> benefits more on a system with smaller memory.
+> 2017-02-10 23:10 GMT+03:00 Thomas Gleixner <tglx@linutronix.de>:
+> > On Thu, 9 Feb 2017, Borislav Petkov wrote:
+> >> I can't say that I'm thrilled about the ifdeffery this is adding.
+> >>
+> >> But I can't think of a cleaner approach at a quick glance, though -
+> >> that's generic and arch-specific code intertwined muck. Sad face.
+> >
+> > It's trivial enough to do ....
+> >
+> > Thanks,
+> >
+> >         tglx
+> >
+> > ---
+> >  arch/x86/mm/mmap.c |   22 ++++++++++------------
+> >  1 file changed, 10 insertions(+), 12 deletions(-)
+> >
+> > --- a/arch/x86/mm/mmap.c
+> > +++ b/arch/x86/mm/mmap.c
+> > @@ -55,6 +55,10 @@ static unsigned long stack_maxrandom_siz
+> >  #define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
+> >  #define MAX_GAP (TASK_SIZE/6*5)
+> >
+> > +#ifndef CONFIG_COMPAT
+> > +# define mmap_rnd_compat_bits  mmap_rnd_bits
+> > +#endif
+> > +
 > 
-> This patch calculates the last section number from the highest pfn and use
-> this as the boundary of iteration.
+> >From my POV, I can't say that it's clearer to shadow mmap_compat_bits
+> like that then to have two functions with native/compat names.
+> But if you insist, I'll resend patches set with your version.
 
-* How much does this actually matter?  Can you measure the impact?
+You can make that
 
-* Do we really need to add full reverse iterator to just get the
-  highest section number?
+#ifdef CONFIG_64BIT
+# define mmap32_rnd_bits  mmap_compat_rnd_bits
+# define mmap64_rnd_bits  mmap_rnd_bits
+#else
+# define mmap32_rnd_bits  mmap_rnd_bits
+# define mmap64_rnd_bits  mmap_rnd_bits
+#endif
 
-Thanks.
+and use that. That's still way more readable than the unholy ifdef mess.
 
--- 
-tejun
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
