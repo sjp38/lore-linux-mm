@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FE106B0038
-	for <linux-mm@kvack.org>; Sat, 11 Feb 2017 14:50:07 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id r18so23914010wmd.1
-        for <linux-mm@kvack.org>; Sat, 11 Feb 2017 11:50:07 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C444F6B0038
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2017 15:13:12 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id o16so21898322wra.2
+        for <linux-mm@kvack.org>; Sat, 11 Feb 2017 12:13:12 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id p12si7104930wrd.158.2017.02.11.11.50.06
+        by mx.google.com with ESMTPS id r19si7158925wrc.146.2017.02.11.12.13.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 11 Feb 2017 11:50:06 -0800 (PST)
-Date: Sat, 11 Feb 2017 20:49:43 +0100 (CET)
+        Sat, 11 Feb 2017 12:13:11 -0800 (PST)
+Date: Sat, 11 Feb 2017 21:13:01 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv4 3/5] x86/mm: fix 32-bit mmap() for 64-bit ELF
-In-Reply-To: <20170130120432.6716-4-dsafonov@virtuozzo.com>
-Message-ID: <alpine.DEB.2.20.1702111513460.3734@nanos>
-References: <20170130120432.6716-1-dsafonov@virtuozzo.com> <20170130120432.6716-4-dsafonov@virtuozzo.com>
+Subject: Re: [PATCHv4 4/5] x86/mm: check in_compat_syscall() instead TIF_ADDR32
+ for mmap(MAP_32BIT)
+In-Reply-To: <20170130120432.6716-5-dsafonov@virtuozzo.com>
+Message-ID: <alpine.DEB.2.20.1702112107490.3734@nanos>
+References: <20170130120432.6716-1-dsafonov@virtuozzo.com> <20170130120432.6716-5-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,67 +25,53 @@ Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Ingo Molnar <mingo@redha
 
 On Mon, 30 Jan 2017, Dmitry Safonov wrote:
 
-> Fix 32-bit compat_sys_mmap() mapping VMA over 4Gb in 64-bit binaries
-> and 64-bit sys_mmap() mapping VMA only under 4Gb in 32-bit binaries.
-> Introduced new bases for compat syscalls in mm_struct:
-> mmap_compat_base and mmap_compat_legacy_base for top-down and
-> bottom-up allocations accordingly.
-> Taught arch_get_unmapped_area{,_topdown}() to use the new mmap_bases
-> in compat syscalls for high/low limits in vm_unmapped_area().
+> At this momet, logic in arch_get_unmapped_area{,_topdown} for mmaps with
+> MAP_32BIT flag checks TIF_ADDR32 which means:
+> o if 32-bit ELF changes mode to 64-bit on x86_64 and then tries to
+>   mmap() with MAP_32BIT it'll result in addr over 4Gb (as default is
+>   top-down allocation)
+> o if 64-bit ELF changes mode to 32-bit and tries mmap() with MAP_32BIT,
+>   it'll allocate only memory in 1GB space: [0x40000000, 0x80000000).
 > 
-> I discovered that bug on ZDTM tests for compat 32-bit C/R.
-> Working compat sys_mmap() in 64-bit binaries is really needed for that
-> purpose, as 32-bit applications are restored from 64-bit CRIU binary.
+> Fix it by handeling MAP_32BIT in 64-bit syscalls only.
 
-Again that changelog sucks.
+I really have a hard time to understand what is fixed and how that is
+related to the $subject.
 
-Explain the problem/bug first. Then explain the way to fix it and do not
-tell fairy tales about what you did without explaing the bug in the first
-place.
+Again. Please explain the problem first properly so one can understand the
+issue immediately.
 
-Documentation....SubittingPatches explains that very well.
+> As a little bonus it'll make thread flag a little less used.
 
-
-> +config HAVE_ARCH_COMPAT_MMAP_BASES
-> +	bool
-> +	help
-> +	  If this is set, one program can do native and compatible syscall
-> +	  mmap() on architecture. Thus kernel has different bases to
-> +	  compute high and low virtual address limits for allocation.
-
-Sigh. How is a user supposed to decode this?
-
-	  This allows 64bit applications to invoke syscalls in 64bit and
-	  32bit mode. Required for ....
-
->  
-> @@ -113,10 +114,19 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
->  		if (current->flags & PF_RANDOMIZE) {
->  			*begin = randomize_page(*begin, 0x02000000);
->  		}
-> -	} else {
-> -		*begin = current->mm->mmap_legacy_base;
-> -		*end = TASK_SIZE;
-> +		return;
->  	}
-> +
-> +#ifdef CONFIG_COMPAT
-
-Can you please find a solution which does not create that ifdef horror in
-the code? Just a few accessors to those compat fields are required to do
-that.
-
-> +
-> +#ifdef CONFIG_COMPAT
-> +	arch_pick_mmap_base(&mm->mmap_compat_base, &mm->mmap_compat_legacy_base,
-> +			arch_compat_rnd(), IA32_PAGE_OFFSET);
-> +#endif
-
-Ditto
+I really do not understand the bonus part here. You replace the thread flag
+check with a different one and AFAICT this looks like oart of the 'fix'.
 
 Thanks,
 
 	tglx
+
+> @@ -101,7 +101,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+>  static void find_start_end(unsigned long flags, unsigned long *begin,
+>  			   unsigned long *end)
+>  {
+> -	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
+> +	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
+>  		/* This is usually used needed to map code in small
+>  		   model, so it needs to be in the first 31bit. Limit
+>  		   it to that.  This means we need to move the
+> @@ -195,7 +195,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+>  		return addr;
+>  
+>  	/* for MAP_32BIT mappings we force the legacy mmap base */
+> -	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
+> +	if (!in_compat_syscall() && (flags & MAP_32BIT))
+>  		goto bottomup;
+>  
+>  	/* requesting a specific address */
+> -- 
+> 2.11.0
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
