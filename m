@@ -1,127 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E46B6B0038
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 21:19:39 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 80so76167690pfy.2
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:19:39 -0800 (PST)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id b64si3332715pfg.70.2017.02.10.18.19.38
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9891F6B0389
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2017 21:19:42 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c73so75503047pfb.7
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:19:42 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id e3si3312953pfg.187.2017.02.10.18.19.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Feb 2017 18:19:38 -0800 (PST)
-Received: by mail-pf0-x242.google.com with SMTP id 68so1466213pfx.2
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:19:38 -0800 (PST)
+        Fri, 10 Feb 2017 18:19:41 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id 204so4317957pge.2
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2017 18:19:41 -0800 (PST)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [RFC PATCH 1/2] mm/memblock: introduce for_each_mem_pfn_range_rev()
-Date: Sat, 11 Feb 2017 10:18:28 +0800
-Message-Id: <20170211021829.9646-1-richard.weiyang@gmail.com>
+Subject: [RFC PATCH 2/2] mm/sparse: add last_section_nr in sparse_init() to reduce some iteration cycle
+Date: Sat, 11 Feb 2017 10:18:29 +0800
+Message-Id: <20170211021829.9646-2-richard.weiyang@gmail.com>
+In-Reply-To: <20170211021829.9646-1-richard.weiyang@gmail.com>
+References: <20170211021829.9646-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, tj@kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-This patch introduces the helper function for_each_mem_pfn_range_rev() for
-later use.
+During the sparse_init(), it iterate on each possible section. On x86_64,
+it would always be (2^19) even there is not much memory. For example, on a
+typical 4G machine, it has only (2^5) to (2^6) present sections. This
+benefits more on a system with smaller memory.
+
+This patch calculates the last section number from the highest pfn and use
+this as the boundary of iteration.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- include/linux/memblock.h | 18 ++++++++++++++++++
- mm/memblock.c            | 39 ++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 56 insertions(+), 1 deletion(-)
+ mm/sparse.c | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 5b759c9acf97..87a0ebe18606 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -203,6 +203,8 @@ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
- 			    unsigned long  *end_pfn);
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 			  unsigned long *out_end_pfn, int *out_nid);
-+void __next_mem_pfn_range_rev(int *idx, int nid, unsigned long *out_start_pfn,
-+			  unsigned long *out_end_pfn, int *out_nid);
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 1e168bf2779a..d72f390d9e61 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -468,18 +468,20 @@ void __weak __meminit vmemmap_populate_print_last(void)
  
  /**
-  * for_each_mem_pfn_range - early memory pfn range iterator
-@@ -217,6 +219,22 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- #define for_each_mem_pfn_range(i, nid, p_start, p_end, p_nid)		\
- 	for (i = -1, __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid); \
- 	     i >= 0; __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid))
-+
-+/**
-+ * for_each_mem_pfn_range_rev - early memory pfn range rev-iterator
-+ * @i: an integer used as loop variable
-+ * @nid: node selector, %NUMA_NO_NODE for all nodes
-+ * @p_start: ptr to ulong for start pfn of the range, can be %NULL
-+ * @p_end: ptr to ulong for end pfn of the range, can be %NULL
-+ * @p_nid: ptr to int for nid of the range, can be %NULL
-+ *
-+ * Walks over configured memory ranges in reverse order.
-+ */
-+#define for_each_mem_pfn_range_rev(i, nid, p_start, p_end, p_nid)	\
-+	for (i = (int)INT_MAX,						\
-+	      __next_mem_pfn_range_rev(&i, nid, p_start, p_end, p_nid); \
-+	     i != (int)INT_MAX;						\
-+	      __next_mem_pfn_range_rev(&i, nid, p_start, p_end, p_nid))
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
- /**
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7608bc305936..79490005ecd6 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1075,7 +1075,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, ulong flags,
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /*
-- * Common iterator interface used to define for_each_mem_range().
-+ * Common iterator interface used to define for_each_mem_pfn_range().
+  *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
+- *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
++ *  @data: usemap_map for pageblock flags or mmap_map for vmemmap
   */
- void __init_memblock __next_mem_pfn_range(int *idx, int nid,
- 				unsigned long *out_start_pfn,
-@@ -1105,6 +1105,43 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
- 		*out_nid = r->nid;
+ static void __init alloc_usemap_and_memmap(void (*alloc_func)
+ 					(void *, unsigned long, unsigned long,
+-					unsigned long, int), void *data)
++					unsigned long, int),
++					void *data,
++					unsigned long last_section_nr)
+ {
+ 	unsigned long pnum;
+ 	unsigned long map_count;
+ 	int nodeid_begin = 0;
+ 	unsigned long pnum_begin = 0;
+ 
+-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
++	for (pnum = 0; pnum <= last_section_nr; pnum++) {
+ 		struct mem_section *ms;
+ 
+ 		if (!present_section_nr(pnum))
+@@ -490,7 +492,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
+ 		break;
+ 	}
+ 	map_count = 1;
+-	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
++	for (pnum = pnum_begin + 1; pnum <= last_section_nr; pnum++) {
+ 		struct mem_section *ms;
+ 		int nodeid;
+ 
+@@ -503,16 +505,14 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
+ 			continue;
+ 		}
+ 		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+-		alloc_func(data, pnum_begin, pnum,
+-						map_count, nodeid_begin);
++		alloc_func(data, pnum_begin, pnum, map_count, nodeid_begin);
+ 		/* new start, update count etc*/
+ 		nodeid_begin = nodeid;
+ 		pnum_begin = pnum;
+ 		map_count = 1;
+ 	}
+ 	/* ok, last chunk */
+-	alloc_func(data, pnum_begin, NR_MEM_SECTIONS,
+-						map_count, nodeid_begin);
++	alloc_func(data, pnum_begin, pnum, map_count, nodeid_begin);
  }
  
-+/*
-+ * Common rev-iterator interface used to define for_each_mem_pfn_range_rev().
-+ */
-+void __init_memblock __next_mem_pfn_range_rev(int *idx, int nid,
-+				unsigned long *out_start_pfn,
-+				unsigned long *out_end_pfn, int *out_nid)
-+{
-+	struct memblock_type *type = &memblock.memory;
-+	struct memblock_region *r;
+ /*
+@@ -526,6 +526,9 @@ void __init sparse_init(void)
+ 	unsigned long *usemap;
+ 	unsigned long **usemap_map;
+ 	int size;
++	unsigned long last_section_nr;
++	int i;
++	unsigned long last_pfn = 0;
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+ 	int size2;
+ 	struct page **map_map;
+@@ -537,6 +540,11 @@ void __init sparse_init(void)
+ 	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
+ 	set_pageblock_order();
+ 
++	for_each_mem_pfn_range_rev(i, NUMA_NO_NODE, NULL,
++				&last_pfn, NULL)
++		break;
++	last_section_nr = pfn_to_section_nr(last_pfn);
 +
-+	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
-+		nid = NUMA_NO_NODE;
-+
-+	if (*idx == (int)INT_MAX)
-+		*idx = type->cnt;
-+
-+	while (--*idx >= 0) {
-+		r = &type->regions[*idx];
-+
-+		if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
-+			continue;
-+		if (nid == NUMA_NO_NODE || nid == r->nid)
-+			break;
-+	}
-+	if (*idx < 0) {
-+		*idx = (int)INT_MAX;
-+		return;
-+	}
-+
-+	if (out_start_pfn)
-+		*out_start_pfn = PFN_UP(r->base);
-+	if (out_end_pfn)
-+		*out_end_pfn = PFN_DOWN(r->base + r->size);
-+	if (out_nid)
-+		*out_nid = r->nid;
-+}
-+
- /**
-  * memblock_set_node - set node ID on memblock regions
-  * @base: base of area to set node ID for
+ 	/*
+ 	 * map is using big page (aka 2M in x86 64 bit)
+ 	 * usemap is less one page (aka 24 bytes)
+@@ -553,7 +561,8 @@ void __init sparse_init(void)
+ 	if (!usemap_map)
+ 		panic("can not allocate usemap_map\n");
+ 	alloc_usemap_and_memmap(sparse_early_usemaps_alloc_node,
+-							(void *)usemap_map);
++				(void *)usemap_map,
++				last_section_nr);
+ 
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+ 	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
+@@ -561,10 +570,11 @@ void __init sparse_init(void)
+ 	if (!map_map)
+ 		panic("can not allocate map_map\n");
+ 	alloc_usemap_and_memmap(sparse_early_mem_maps_alloc_node,
+-							(void *)map_map);
++				(void *)map_map,
++				last_section_nr);
+ #endif
+ 
+-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
++	for (pnum = 0; pnum <= last_section_nr; pnum++) {
+ 		if (!present_section_nr(pnum))
+ 			continue;
+ 
 -- 
 2.11.0
 
