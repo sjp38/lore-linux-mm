@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 299386B0387
-	for <linux-mm@kvack.org>; Sun, 12 Feb 2017 14:15:24 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y7so29473494wrc.7
-        for <linux-mm@kvack.org>; Sun, 12 Feb 2017 11:15:24 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 00F9A6B0389
+	for <linux-mm@kvack.org>; Sun, 12 Feb 2017 14:38:01 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id a15so29611728wrc.3
+        for <linux-mm@kvack.org>; Sun, 12 Feb 2017 11:38:01 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id p4si2536985wmp.14.2017.02.12.11.15.22
+        by mx.google.com with ESMTPS id y14si10899011wry.225.2017.02.12.11.38.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 12 Feb 2017 11:15:23 -0800 (PST)
-Date: Sun, 12 Feb 2017 20:15:20 +0100 (CET)
+        Sun, 12 Feb 2017 11:38:00 -0800 (PST)
+Date: Sun, 12 Feb 2017 20:37:57 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [RFC][PATCH 3/7] x86, mpx: extend MPX prctl() to pass in size
- of bounds directory
-In-Reply-To: <20170201232412.BB0806BA@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1702122006230.3734@nanos>
-References: <20170201232408.FA486473@viggo.jf.intel.com> <20170201232412.BB0806BA@viggo.jf.intel.com>
+Subject: Re: [RFC][PATCH 4/7] x86, mpx: context-switch new MPX address size
+ MSR
+In-Reply-To: <20170201232413.15540F7E@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.20.1702122025550.3734@nanos>
+References: <20170201232408.FA486473@viggo.jf.intel.com> <20170201232413.15540F7E@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,66 +24,48 @@ To: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, kirill.shutemov@linux.intel.com
 
 On Wed, 1 Feb 2017, Dave Hansen wrote:
-> FIXME: we also need to ensure that we check the current state of the
-> larger address space opt-in.  If we've opted in to larger address spaces
-> we can not allow a small bounds directory to be used.  Also, if we've
-> not opted in, we can not allow the larger bounds directory to be used.
-> This can be fixed once the in-kernel API for opting in/out is settled.
-
-Ok.
-
->  /* Register/unregister a process' MPX related resource */
-> -#define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
-> +#define MPX_ENABLE_MANAGEMENT(bd_size)	mpx_enable_management(bd_size)
->  #define MPX_DISABLE_MANAGEMENT()	mpx_disable_management()
-
-Please add another tab before mpx_disable so both are aligned.
-
-> -int mpx_enable_management(void)
-> +int mpx_set_mm_bd_size(unsigned long bd_size)
-
-static ?
-
+> +/*
+> + * The MPX tables change sizes based on the size of the virtual
+> + * (aka. linear) address space.  There is an MSR to tell the CPU
+> + * whether we want the legacy-style ones or the larger ones when
+> + * we are running with an eXtended virtual address space.
+> + */
+> +static inline void switch_mpx_bd(struct mm_struct *prev, struct mm_struct *next)
 > +{
-> +	struct mm_struct *mm = current->mm;
+> +	/*
+> +	 * Note: there is one and only one bit in use in the MSR
+> +	 * at this time, so we do not have to be concerned with
+> +	 * preserving any of the other bits.  Just write 0 or 1.
+> +	 */
+> +	u32 IA32_MPX_LAX_ENABLE_MASK = 0x00000001;
 > +
-> +	switch ((unsigned long long)bd_size) {
-> +	case 0:
-> +		/* Legacy call to prctl(): */
-> +		mm->context.mpx_bd_shift = 0;
-> +		return 0;
-> +	case MPX_BD_SIZE_BYTES_32:
-> +		/* 32-bit, legacy-sized bounds directory: */
-> +		if (is_64bit_mm(mm))
-> +			return -EINVAL;
-> +		mm->context.mpx_bd_shift = 0;
-> +		return 0;
-> +	case MPX_BD_BASE_SIZE_BYTES_64:
-> +		/* 64-bit, legacy-sized bounds directory: */
-> +		if (!is_64bit_mm(mm)
-> +		// FIXME && ! opted-in to larger address space
+> +	/*
+> +	 * Avoid the MSR on CPUs without MPX, obviously:
+> +	 */
+> +	if (!cpu_feature_enabled(X86_FEATURE_MPX))
+> +		return;
+> +	/*
+> +	 * FIXME: do we want a check here for the 5-level paging
+> +	 * CR4 bit or CPUID bit, or is the mawa check below OK?
+> +	 * It's not obvious what would be the fastest or if it
+> +	 * matters.
+> +	 */
 
-Hmm. Confused. This is where we enable MPX and decode the requested address
-space. How can an already opt in happen?
+Well, you could use a static key which is enabled when 5 level paging and
+MPX is enabled.
 
-If that's a enable call for an already enabled thing, then we should catch
-that at the call site, I think.
+> +	/*
+> +	 * Avoid the relatively costly MSR if we are not changing
+> +	 * MAWA state.  All processes not using MPX will have a
+> +	 * mpx_mawa_shift()=0, so we do not need to check
+> +	 * separately for whether MPX management is enabled.
+> +	 */
+> +	if (likely(mpx_bd_size_shift(prev) == mpx_bd_size_shift(next)))
+> +		return;
 
-> +	case MPX_BD_BASE_SIZE_BYTES_64 << MPX_LARGE_BOUNDS_DIR_SHIFT:
-> +		/*
-> +		 * Non-legacy call, with larger directory.
-> +		 * Note that there is no 32-bit equivalent for
-> +		 * this case since its address space does not
-> +		 * change sizes.
-> +		 */
-> +		if (!is_64bit_mm(mm))
-> +			return -EINVAL;
-> +		/*
-> +		 * Do not let this be enabled unles we are on
-> +		 * 5-level hardware *and* have that feature
-> +		 * enabled. FIXME: need runtime check
-
-Runtime check? Isn't the feature bit enough?
+So this switches back unconditionally if the previous task was using the
+large tables even if the next task is not using MPX at all. It's probably a
+non issue.
 
 Thanks,
 
