@@ -1,182 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4506B0387
-	for <linux-mm@kvack.org>; Sun, 12 Feb 2017 17:44:10 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id x4so35282476wme.3
-        for <linux-mm@kvack.org>; Sun, 12 Feb 2017 14:44:10 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id m73si3060998wmg.161.2017.02.12.14.44.09
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0A56B0038
+	for <linux-mm@kvack.org>; Sun, 12 Feb 2017 19:25:23 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id x49so86048667qtc.7
+        for <linux-mm@kvack.org>; Sun, 12 Feb 2017 16:25:23 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0118.outbound.protection.outlook.com. [104.47.33.118])
+        by mx.google.com with ESMTPS id n14si6078676qtf.236.2017.02.12.16.25.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 12 Feb 2017 14:44:09 -0800 (PST)
-Date: Sun, 12 Feb 2017 23:44:06 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [RFC][PATCH 5/7] x86, mpx: shrink per-mm MPX data
-In-Reply-To: <20170201232414.8D9B9BAC@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1702122334220.3734@nanos>
-References: <20170201232408.FA486473@viggo.jf.intel.com> <20170201232414.8D9B9BAC@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 12 Feb 2017 16:25:22 -0800 (PST)
+From: Zi Yan <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH v3 03/14] mm: use pmd lock instead of racy checks in
+ zap_pmd_range()
+Date: Sun, 12 Feb 2017 18:25:09 -0600
+Message-ID: <44001748-05AC-49B2-88F5-371618C12AD9@cs.rutgers.edu>
+In-Reply-To: <20170207174536.GC5578@node.shutemov.name>
+References: <20170205161252.85004-1-zi.yan@sent.com>
+ <20170205161252.85004-4-zi.yan@sent.com>
+ <20170207141956.GA4789@node.shutemov.name> <5899E389.3040801@cs.rutgers.edu>
+ <20170207163734.GA5578@node.shutemov.name> <589A0090.3050406@cs.rutgers.edu>
+ <20170207174536.GC5578@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed;
+	boundary="=_MailMate_C6E23F04-9067-401A-BF9B-E7067D630DB1_=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, kirill.shutemov@linux.intel.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <ziy@nvidia.com>
 
-On Wed, 1 Feb 2017, Dave Hansen wrote:
->  /*
-> - * NULL is theoretically a valid place to put the bounds
-> - * directory, so point this at an invalid address.
-> + * These get stored into mm_context_t->mpx_directory_info.
-> + * We could theoretically use bits 0 and 1, but those are
-> + * used in the BNDCFGU register that also holds the bounds
-> + * directory pointer.  To avoid confusion, use different bits.
->   */
-> -#define MPX_INVALID_BOUNDS_DIR	((void __user *)-1)
-> +#define MPX_INVALID_BOUNDS_DIR	(1UL<<2)
-> +#define MPX_LARGE_BOUNDS_DIR	(1UL<<3)
+--=_MailMate_C6E23F04-9067-401A-BF9B-E7067D630DB1_=
+Content-Type: text/plain
 
-Please keep them tabular aligned
+Hi Kirill,
 
->  static inline int mpx_bd_size_shift(struct mm_struct *mm)
->  {
-> -	return mm->context.mpx_bd_shift;
-> +	if (!kernel_managing_mpx_tables(mm))
-> +		return 0;
-> +	if (mm->context.mpx_directory_info & MPX_LARGE_BOUNDS_DIR)
-> +		return MPX_LARGE_BOUNDS_DIR_SHIFT;
-> +	return 0;
+>>>> The crash scenario I guess is like:
+>>>> 1. A huge page pmd entry is in the middle of being changed into either a
+>>>> pmd_protnone or a pmd_migration_entry. It is cleared to pmd_none.
+>>>>
+>>>> 2. At the same time, the application frees the vma this page belongs to.
+>>>
+>>> Em... no.
+>>>
+>>> This shouldn't be possible: your 1. must be done under down_read(mmap_sem).
+>>> And we only be able to remove vma under down_write(mmap_sem), so the
+>>> scenario should be excluded.
+>>>
+>>> What do I miss?
+>>
+>> You are right. This problem will not happen in the upstream kernel.
+>>
+>> The problem comes from my customized kernel, where I migrate pages away
+>> instead of reclaiming them when memory is under pressure. I did not take
+>> any mmap_sem when I migrate pages. So I got this error.
+>>
+>> It is a false alarm. Sorry about that. Thanks for clarifying the problem.
+>
+> I think there's still a race between MADV_DONTNEED and
+> change_huge_pmd(.prot_numa=1) resulting in skipping THP by
+> zap_pmd_range(). It need to be addressed.
+>
+> And MADV_FREE requires a fix.
+>
+> So, minus one non-bug, plus two bugs.
+>
 
-So now makes the inline sense.
+You said a huge page pmd entry needs to be changed under down_read(mmap_sem).
+It is only true for huge pages, right?
 
-> -int mpx_set_mm_bd_size(unsigned long bd_size)
-> +int mpx_set_dir_size(unsigned long bd_size, unsigned long *mpx_directory_info)
->  {
->  	struct mm_struct *mm = current->mm;
-> +	int ret = 0;
-> +	bool large_dir = false;
+Since in mm/compaction.c, the kernel does not down_read(mmap_sem) during memory
+compaction. Namely, base page migrations do not hold down_read(mmap_sem),
+so in zap_pte_range(), the kernel needs to hold PTE page table locks.
+Am I right about this?
 
->  	struct mm_struct *mm = current->mm;
-> +	bool large_dir = false;
-> +	int ret = 0;
+If yes. IMHO, ultimately, when we need to compact 2MB pages to form 1GB pages,
+in zap_pmd_range(), pmd locks have to be taken to make that kind of compactions
+possible.
 
-Please
+Do you agree?
 
->  
->  	switch ((unsigned long long)bd_size) {
->  	case 0:
-> -		/* Legacy call to prctl(): */
-> -		mm->context.mpx_bd_shift = 0;
-> -		return 0;
-> +		/* Legacy call to prctl() */
-> +		break;
->  	case MPX_BD_SIZE_BYTES_32:
->  		/* 32-bit, legacy-sized bounds directory: */
-> -		if (is_64bit_mm(mm))
-> -			return -EINVAL;
-> -		mm->context.mpx_bd_shift = 0;
-> -		return 0;
-> +		if (is_64bit_mm(mm)) {
-> +			ret = -EINVAL;
-> +			break;
 
-Why do you want to break in the error case instead of just returning the
-error? In case of error it really makes no sense to fiddle with the large
-page bit in the directory_info.
+--
+Best Regards
+Yan Zi
 
-> +		}
-> +		ret = 0;
+--=_MailMate_C6E23F04-9067-401A-BF9B-E7067D630DB1_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
 
-It's already 0
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
 
-> +		break;
->  	case MPX_BD_BASE_SIZE_BYTES_64:
->  		/* 64-bit, legacy-sized bounds directory: */
->  		if (!is_64bit_mm(mm)
->  		// FIXME && ! opted-in to larger address space
->  		)
-> -			return -EINVAL;
-> -		mm->context.mpx_bd_shift = 0;
-> -		return 0;
-> +			ret = -EINVAL;
+iQEcBAEBCgAGBQJYoPzlAAoJEEGLLxGcTqbMk2MH+gIQ0g+sgTjOnp1Kg53DjNb1
+09qV1KyJAkLNIBVO9chqm8nYhcjvZ8w0jOtcKZWHWicjgLpdCJQAutD20ZLj4Kh1
+vmQYN3pbSSm+ibgVAxtOlgkT3N0S9dlFK35QXr2zvFsI2D1oC0hzCT1FqS8OuOnK
+0qEPN4m1KCiAM6b8145YjnLkEMK8cf12EavnusyEzBV37nClEs6MDxjCplpLAjJC
+3HjI15r3h/t5LAUWPEUsa5w8e+gmFPcfWeLEUH/DsaxmpJIPOT66TEd0R16gKaZd
+HhBrybw5VAYVh4Itg8g+qGspfJ+r9HR0BViZUb0Plvngg7oHMxP1aX6CcZms71Y=
+=8vKU
+-----END PGP SIGNATURE-----
 
-See above
-
-> +		break;
->  	case MPX_BD_BASE_SIZE_BYTES_64 << MPX_LARGE_BOUNDS_DIR_SHIFT:
->  		/*
->  		 * Non-legacy call, with larger directory.
-> @@ -370,7 +372,7 @@ int mpx_set_mm_bd_size(unsigned long bd_
->  		 * change sizes.
->  		 */
->  		if (!is_64bit_mm(mm))
-> -			return -EINVAL;
-> +			ret = -EINVAL;
-
-Ditto
-
->  		/*
->  		 * Do not let this be enabled unles we are on
->  		 * 5-level hardware *and* have that feature
-> @@ -379,16 +381,20 @@ int mpx_set_mm_bd_size(unsigned long bd_
->  		if (!cpu_feature_enabled(X86_FEATURE_LA57)
->  		// FIXME && opted into larger address space
->  		)
-> -			return -EINVAL;
-> -		mm->context.mpx_bd_shift = MPX_LARGE_BOUNDS_DIR_SHIFT;
-> -		return 0;
-> +			ret = -EINVAL;
-> +		if (ret)
-> +			break;
-
-This is outright silly.
-
-> +		large_dir = true;
-> +		break;
->  	}
-> -	return -EINVAL;
-> +	if (large_dir)
-> +		(*mpx_directory_info) |= MPX_LARGE_BOUNDS_DIR;
-> +	return ret;
->  }
->  
->  int mpx_enable_management(unsigned long bd_size)
->  {
-> -	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
-> +	void __user *bd_base;
->  	struct mm_struct *mm = current->mm;
->  	int ret = 0;
->  
-> @@ -404,13 +410,16 @@ int mpx_enable_management(unsigned long
->  	 * unmap path; we can just use mm->context.bd_addr instead.
->  	 */
->  	bd_base = mpx_get_bounds_dir();
-> +	if (bd_base == MPX_INVALID_BOUNDS_DIR)
-> +		return -ENXIO;
-> +
->  	down_write(&mm->mmap_sem);
-> -	ret = mpx_set_mm_bd_size(bd_size);
-> +	/* Mask out the invalid bit: */
-> +	mm->context.mpx_directory_info &= ~MPX_INVALID_BOUNDS_DIR;
-
-The handling of that bit is really confusing
-
-> +	ret = mpx_set_dir_size(bd_size, &mm->context.mpx_directory_info);
->  	if (ret)
->  		goto out;
-
-And what makes the thing invalid again in case of ret != 0?
-
-> -	mm->context.bd_addr = bd_base;
-> -	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
-> -		ret = -ENXIO;
-> +	mm->context.mpx_directory_info |= bd_base;
->  out:
->  	up_write(&mm->mmap_sem);
->  	return ret;
-
-Thanks,
-
-	tglx
+--=_MailMate_C6E23F04-9067-401A-BF9B-E7067D630DB1_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
