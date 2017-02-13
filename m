@@ -1,99 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C78446B0038
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 00:06:39 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 145so115011264pfv.6
-        for <linux-mm@kvack.org>; Sun, 12 Feb 2017 21:06:39 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id v185si8955981pgd.419.2017.02.12.21.06.37
-        for <linux-mm@kvack.org>;
-        Sun, 12 Feb 2017 21:06:38 -0800 (PST)
-Date: Mon, 13 Feb 2017 14:06:36 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH V2 3/7] mm: reclaim MADV_FREE pages
-Message-ID: <20170213050636.GB27544@bbox>
-References: <cover.1486163864.git.shli@fb.com>
- <9426fa2cf9fe320a15bfb20744c451eb6af1710a.1486163864.git.shli@fb.com>
- <20170210065839.GD25078@bbox>
- <20170210174307.GC86050@shli-mbp.local>
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F406F6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 05:05:33 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id h7so41136910wjy.6
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 02:05:33 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id 196si4910990wmg.65.2017.02.13.02.05.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Feb 2017 02:05:32 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 2696C1C174A
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 10:05:32 +0000 (GMT)
+Date: Mon, 13 Feb 2017 10:05:31 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: PCID review?
+Message-ID: <20170213100531.giv4rlihqid6ocz4@techsingularity.net>
+References: <CALCETrVSiS22KLvYxZarexFHa3C7Z-ys_Lt2WV_63b4-tuRpQA@mail.gmail.com>
+ <CALCETrVfah6AFG5mZDjVcRrdXKL=07+WC9ES9ZKU90XqVpWCOg@mail.gmail.com>
+ <20170209001042.ahxmoqegr6h74mle@techsingularity.net>
+ <CALCETrUiUnZ1AWHjx8-__t0DUwryys9O95GABhhpG9AnHwrg9Q@mail.gmail.com>
+ <20170210110157.dlejz7szrj3r3pwq@techsingularity.net>
+ <CALCETrVjhVqpHTpQ--AVDpWQAb44b265sesou50wSec4rs9sRw@mail.gmail.com>
+ <20170210215708.j54cawm23nepgimd@techsingularity.net>
+ <CALCETrWToSZZsXHyrXg+YRiyvjRtWd7J0Myvn_mjJJdJoCXr+w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170210174307.GC86050@shli-mbp.local>
+In-Reply-To: <CALCETrWToSZZsXHyrXg+YRiyvjRtWd7J0Myvn_mjJJdJoCXr+w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, mhocko@suse.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, Feb 10, 2017 at 09:43:07AM -0800, Shaohua Li wrote:
-
-< snip >
-
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 947ab6f..b304a84 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -864,7 +864,7 @@ static enum page_references page_check_references(struct page *page,
-> > >  		return PAGEREF_RECLAIM;
-> > >  
-> > >  	if (referenced_ptes) {
-> > > -		if (PageSwapBacked(page))
-> > > +		if (PageSwapBacked(page) || PageAnon(page))
-> > 
-> > If anyone accesses MADV_FREEed range with load op, not store,
-> > why shouldn't we discard that pages?
+On Fri, Feb 10, 2017 at 02:07:19PM -0800, Andy Lutomirski wrote:
+> > Ok, probably for the best albeit that is based on an inability to figure
+> > out how it could be done efficiently and a suspicion that if it could be
+> > done, the scheduler would be doing it already.
+> >
 > 
-> Don't have strong opinion about this, userspace probably shouldn't do this. I'm
-> ok to delete it if you insist.
-
-Yes, I prefer to removing unnecessary code unless there is a some reaason.
-
+> FWIW, I am doing a bit of this.  For remote CPUs that aren't currently
+> running a given mm, I just bump a per-mm generation count so that they
+> know to flush next time around in switch_mm().  I'll need to add a new
+> hook to the batched flush code to get this right, and I'll cc you on
+> that.  Stay tuned.
 > 
-> > >  			return PAGEREF_ACTIVATE;
-> > >  		/*
-> > >  		 * All mapped pages start out with page table
 
-< snip >
+Ok, thanks.
 
-> > > @@ -971,7 +971,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  		int may_enter_fs;
-> > >  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
-> > >  		bool dirty, writeback;
-> > > -		bool lazyfree = false;
-> > > +		bool lazyfree;
-> > >  		int ret = SWAP_SUCCESS;
-> > >  
-> > >  		cond_resched();
-> > > @@ -986,6 +986,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  
-> > >  		sc->nr_scanned++;
-> > >  
-> > > +		lazyfree = page_is_lazyfree(page);
-> > > +
-> > >  		if (unlikely(!page_evictable(page)))
-> > >  			goto cull_mlocked;
-> > >  
-> > > @@ -993,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  			goto keep_locked;
-> > >  
-> > >  		/* Double the slab pressure for mapped and swapcache pages */
-> > > -		if (page_mapped(page) || PageSwapCache(page))
-> > > +		if ((page_mapped(page) || PageSwapCache(page)) && !lazyfree)
-> > >  			sc->nr_scanned++;
-> > 
-> > In this phase, we cannot know whether lazyfree marked page is discarable
-> > or not. If it is freeable and mapped, this logic makes sense. However,
-> > if the page is dirty?
+> > [1] I could be completely wrong, I'm basing this on how people have
+> >     behaved in the past during TLB-flush related discussions. They
+> >     might have changed their mind.
 > 
-> I think this doesn't matter. If the page is dirty, it will go to reclaim in
-> next round and swap out. At that time, we will add nr_scanned there.
+> We'll see.  The main benchmark that I'm relying on (so far) is that
+> context switches get way faster, just ping ponging back and forth.  I
+> suspect that the TLB refill cost is only a small part.
+> 
 
-If the lazyfree page in LRU comes around again into this, it's true but
-the page could be freed before that.
-Having said that, I don't know how critical it is and what kinds of rationale
-was to push slab reclaim so I don't insist on it.
+Note that such a benchmark is not going to measure the TLB flush cost.
+In itself, this is not bad but I suspect that the applications that care
+about interference from TLB flushes by unrelated processes are not
+applications that are context-switch intensive.
 
-Thanks.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
