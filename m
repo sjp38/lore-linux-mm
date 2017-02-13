@@ -1,143 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 675A26B0038
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 08:43:49 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id yr2so43243722wjc.4
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 05:43:49 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id o131si5544504wmd.167.2017.02.13.05.43.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Feb 2017 05:43:47 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id v77so19539326wmv.0
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 05:43:47 -0800 (PST)
-Date: Mon, 13 Feb 2017 16:43:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv6 01/37] mm, shmem: swich huge tmpfs to multi-order
- radix-tree entries
-Message-ID: <20170213134345.GA20394@node.shutemov.name>
-References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
- <20170126115819.58875-2-kirill.shutemov@linux.intel.com>
- <20170209035727.GQ2267@bombadil.infradead.org>
- <20170209165820.GA12768@node.shutemov.name>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 995F36B0388
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 08:44:18 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r18so42561607wmd.1
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 05:44:18 -0800 (PST)
+Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
+        by mx.google.com with ESMTP id 36si13862130wrk.321.2017.02.13.05.44.17
+        for <linux-mm@kvack.org>;
+        Mon, 13 Feb 2017 05:44:17 -0800 (PST)
+Date: Mon, 13 Feb 2017 14:44:16 +0100
+From: Maxime Ripard <maxime.ripard@free-electrons.com>
+Subject: Re: [PATCH 3/8] mm: cma: Export a few symbols
+Message-ID: <20170213134416.akgmtv3lv5m65fwx@lukather>
+References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
+ <2dee6c0baaf08e2c7d48ceb7e97e511c914d0f87.1486655917.git-series.maxime.ripard@free-electrons.com>
+ <20170209192046.GB31906@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="iogrnqcox7foauu7"
 Content-Disposition: inline
-In-Reply-To: <20170209165820.GA12768@node.shutemov.name>
+In-Reply-To: <20170209192046.GB31906@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Joonsoo Kim <js1304@gmail.com>, m.szyprowski@samsung.com
 
-On Thu, Feb 09, 2017 at 07:58:20PM +0300, Kirill A. Shutemov wrote:
-> I'll look into it.
 
-I ended up with this (I'll test it more later):
+--iogrnqcox7foauu7
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-void filemap_map_pages(struct vm_fault *vmf,
-		pgoff_t start_pgoff, pgoff_t end_pgoff)
-{
-	struct radix_tree_iter iter;
-	void **slot;
-	struct file *file = vmf->vma->vm_file;
-	struct address_space *mapping = file->f_mapping;
-	pgoff_t last_pgoff = start_pgoff;
-	loff_t size;
-	struct page *page;
-	bool mapped;
+Hi Michal,
 
-	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
-			start_pgoff) {
-		unsigned long index = iter.index;
-		if (index < start_pgoff)
-			index = start_pgoff;
-		if (index > end_pgoff)
-			break;
-repeat:
-		page = radix_tree_deref_slot(slot);
-		if (unlikely(!page))
-			continue;
-		if (radix_tree_exception(page)) {
-			if (radix_tree_deref_retry(page))
-				slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
+On Thu, Feb 09, 2017 at 08:20:47PM +0100, Michal Hocko wrote:
+> [CC CMA people]
+>=20
+> On Thu 09-02-17 17:39:17, Maxime Ripard wrote:
+> > Modules might want to check their CMA pool size and address for debuggi=
+ng
+> > and / or have additional checks.
+> >=20
+> > The obvious way to do this would be through dev_get_cma_area and
+> > cma_get_base and cma_get_size, that are currently not exported, which
+> > results in a build failure.
+> >=20
+> > Export them to prevent such a failure.
+>=20
+> Who actually uses those exports. None of the follow up patches does
+> AFAICS.
 
-		if (!page_cache_get_speculative(page))
-			goto repeat;
+This is for the ARM Mali GPU driver that is out of tree, unfortunately.
 
-		/* Has the page moved? */
-		if (unlikely(page != *slot)) {
-			put_page(page);
-			goto repeat;
-		}
+In one case (using the legacy fbdev API), the driver wants to (and
+probably should) validate that the buffer as indeed been allocated
+=66rom the memory allocation pool.
 
-		/* For multi-order entries, find relevant subpage */
-		page = find_subpage(page, index);
+Rob suggested that instead of hardcoding it to cover the whole RAM
+(which defeats the purpose of that check in the first place), we used
+the memory-region bindings in the DT and follow that, which does work
+great, but we still have to retrieve the base address and size of that
+region, hence why this patches are needed.
 
-		if (!PageUptodate(page) || PageReadahead(page))
-			goto skip;
-		if (!trylock_page(page))
-			goto skip;
+Maxime
 
-		if (page_mapping(page) != mapping || !PageUptodate(page))
-			goto skip_unlock;
+--=20
+Maxime Ripard, Free Electrons
+Embedded Linux and Kernel engineering
+http://free-electrons.com
 
-		size = round_up(i_size_read(mapping->host), PAGE_SIZE);
-		if (compound_head(page)->index >= size >> PAGE_SHIFT)
-			goto skip_unlock;
+--iogrnqcox7foauu7
+Content-Type: application/pgp-signature; name="signature.asc"
 
-		if (file->f_ra.mmap_miss > 0)
-			file->f_ra.mmap_miss--;
-map_next_subpage:
-		if (PageHWPoison(page))
-			goto next;
+-----BEGIN PGP SIGNATURE-----
 
-		vmf->address += (index - last_pgoff) << PAGE_SHIFT;
-		if (vmf->pte)
-			vmf->pte += index - last_pgoff;
-		last_pgoff = index;
-		mapped = !alloc_set_pte(vmf, NULL, page);
+iQIcBAEBCAAGBQJYobgtAAoJEBx+YmzsjxAggxQP/iijuozzzXD86tHgt+etXoXI
+zCed54DPV5qc9UO7p3Xp8zx6YYBXYrp6jfO4Pn8wRAQMeum2MPKhsUbakf1vGQ/T
+U+JNR1hOeB9tQ9tZrVkyGVQ2sQsoHxVjfn6Iqrsbyp5QSEcanoELKX6xPsFNKg7X
+FrGvvugXcp+zIsdi9Tmn5BvFEBM+jf+fDlyMkLEKmdUQ/L1Vg+P2IAKqLNpOeXz0
+fAxq1k2EB+gdWksP3kirfy+A+5l0E1OAWKZyk5+sUmGhToeoWrGw3yTPGNTfj0yA
+Hwaq0yq27KuOSECnLkQ7myjLwDR0CuExuO7HHwG9IiKYd+kOpJAc12eFhEzl0LL+
+X5ugij4mkMjGzh78PaMpH0TsFPBSNlaPzsk3xOfZwa77A/Phpj7IZBxH/7gYG6oS
+vrVIYiJkrfp25rUKSlu1gnH8NjmOMzm9l1n5mcsAe4JCgORbjtDXJ194bl5YMdZv
+JASjOMQpk/ukxeyee8mCRrLgiEkhM0eOKarKyK2ctENjgzq+nDF9syQN7uMqFkFH
+sOAVMbvEw7jnwrJHK4hwNdEv8FGD6QC6SxwGhiH+HIPgFk9AL0whq+x236lT0LRD
+uaMuuVT0dqo1eJG9kmzAMg0Q425Rd49vdNMZlMzaHs0YhsdRuowaxFpZ+yimWBSo
+ik3u+FYdhhh5xxBILxzr
+=Ltyc
+-----END PGP SIGNATURE-----
 
-		/* Huge page is mapped or last index? No need to proceed. */
-		if (pmd_trans_huge(*vmf->pmd) ||
-				index == end_pgoff) {
-			unlock_page(page);
-			break;
-		}
-next:
-		if (page && PageCompound(page)) {
-			/* Last subpage handled? */
-			if ((index & (compound_nr_pages(page) - 1)) ==
-					compound_nr_pages(page) - 1)
-				goto skip_unlock;
-			index++;
-			page++;
-
-			/*
-			 * One page reference goes to page table mapping.
-			 * Need additional reference, if last alloc_set_pte()
-			 * succeed.
-			 */
-			if (mapped)
-				get_page(page);
-			goto map_next_subpage;
-		}
-skip_unlock:
-		unlock_page(page);
-skip:
-		iter.index = compound_head(page)->index +
-			compound_nr_pages(page) - 1;
-		/* Only give up reference if alloc_set_pte() failed. */
-		if (!mapped)
-			put_page(page);
-	}
-	rcu_read_unlock();
-}
-
--- 
- Kirill A. Shutemov
+--iogrnqcox7foauu7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
