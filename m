@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 480CA6B0388
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 10:35:22 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id n125so67806441vke.0
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 07:35:22 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id w17si5985506wmw.22.2017.02.13.07.35.21
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B264B6B0387
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 10:42:32 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id x128so44650154lfa.0
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 07:42:32 -0800 (PST)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id q11si6339908lfh.105.2017.02.13.07.42.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Feb 2017 07:35:21 -0800 (PST)
-Date: Mon, 13 Feb 2017 16:35:10 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv4 2/5] x86/mm: introduce mmap{,_legacy}_base
-In-Reply-To: <adca283e-3187-dff0-7db6-3cb98d6b3bc5@virtuozzo.com>
-Message-ID: <alpine.DEB.2.20.1702131633320.3619@nanos>
-References: <20170130120432.6716-1-dsafonov@virtuozzo.com> <20170130120432.6716-3-dsafonov@virtuozzo.com> <alpine.DEB.2.20.1702102033420.4042@nanos> <adca283e-3187-dff0-7db6-3cb98d6b3bc5@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Feb 2017 07:42:31 -0800 (PST)
+Subject: Re: [PATCH 1/3 staging-next] android: Collect statistics from
+ lowmemorykiller
+References: <9febd4f7-a0a7-5f52-e67b-df3163814ac5@sonymobile.com>
+ <20170209192640.GC31906@dhcp22.suse.cz> <20170209200737.GB11098@kroah.com>
+ <20170209205407.GF31906@dhcp22.suse.cz>
+ <845d420f-dd26-fb48-c8ef-10ca1995daf8@sonymobile.com>
+ <20170210075149.GA17166@kroah.com> <20170210075949.GB10893@dhcp22.suse.cz>
+ <e836d455-2c12-d3a9-81f8-384194428c5f@sonymobile.com>
+ <20170210091459.GF10893@dhcp22.suse.cz>
+From: peter enderborg <peter.enderborg@sonymobile.com>
+Message-ID: <375245cc-11ba-4c93-9afa-5332cf43bec6@sonymobile.com>
+Date: Mon, 13 Feb 2017 16:42:16 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20170210091459.GF10893@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Riley Andrews <riandrews@android.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, 13 Feb 2017, Dmitry Safonov wrote:
-> On 02/11/2017 05:13 PM, Thomas Gleixner wrote:
-> > > -static unsigned long mmap_base(unsigned long rnd)
-> > > +static unsigned long mmap_base(unsigned long rnd, unsigned long
-> > > task_size)
-> > >  {
-> > > 	unsigned long gap = rlimit(RLIMIT_STACK);
-> > 	unsigned long gap_min, gap_max;
-> > 
-> > 	/* Add comment what this means */
-> > 	gap_min = SIZE_128M + stack_maxrandom_size(task_size);
-> > 	/* Explain that ' /6 * 5' magic */
-> > 	gap_max = (task_size / 6) * 5;
-> 
-> So, I can't find about those limits on a gap size:
-> They were introduced by commit 8913d55b6c58 ("i386 virtual memory
-> layout rework").
-> All I could find is that 128Mb limit was more limit on virtual adress
-> space than on a memory available those days.
-> And 5/6 of task_size looks like heuristic value.
-> So I'm not sure, what to write in comments:
-> that rlimit on stack can't be bigger than 5/6 of task_size?
-> That looks obvious from the code.
+On 02/10/2017 10:15 AM, Michal Hocko wrote:
+> On Fri 10-02-17 10:05:34, peter enderborg wrote:
+>> On 02/10/2017 08:59 AM, Michal Hocko wrote:
+> [...]
+>>> The approach was wrong from the day 1. Abusing slab shrinkers
+>>> is just a bad place to stick this logic. This all belongs to the
+>>> userspace.
+>> But now it is there and we have to stick with it.
+> It is also adding maintenance cost. Just have a look at the git log and
+> check how many patches were just a result of the core changes which
+> needed a sync.
+>
+> I seriously doubt that any of the android devices can run natively on
+> the Vanilla kernel so insisting on keeping this code in staging doesn't
+> give much sense to me.
 
-So just leave it alone. 5/6 is pulled from thin air and 128M probably as
-well. I hoped there would be some reasonable explanation ....
+I guess that we more than a few that would like to see that.
 
-Thanks,
+We have
 
-	tglx
+http://developer.sonymobile.com/open-devices/how-to-build-and-flash-a-linux-kernel/how-to-build-mainline-linux-for-xperia-devices/
+
+It is not the latest on anything and it is not on par with commercial bundled software.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
