@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1D4680FCF
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9262D680FD0
 	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 14:36:18 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id w144so205269392oiw.0
+Received: by mail-yb0-f200.google.com with SMTP id n21so232367474yba.7
         for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:36:18 -0800 (PST)
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 128si1335974pgg.245.2017.02.14.11.36.17
+        by mx.google.com with ESMTPS id u3si1325091plm.292.2017.02.14.11.36.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 14 Feb 2017 11:36:17 -0800 (PST)
 Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1EJYr4U013696
+	by mx0a-00082601.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1EJYq7H013686
 	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:36:17 -0800
 Received: from mail.thefacebook.com ([199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 28m6rbgent-3
+	by mx0a-00082601.pphosted.com with ESMTP id 28m6rbgenw-1
 	(version=TLSv1 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:36:17 -0800
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:36:16 -0800
 Received: from facebook.com (2401:db00:21:603d:face:0:19:0)	by
- mx-out.facebook.com (10.223.100.99) with ESMTP	id
- d9177eb4f2ec11e6ac6824be05956610-341e2a00 for <linux-mm@kvack.org>;	Tue, 14
+ mx-out.facebook.com (10.223.100.97) with ESMTP	id
+ d91b83d8f2ec11e6a39b24be0593f280-8f3f5a00 for <linux-mm@kvack.org>;	Tue, 14
  Feb 2017 11:36:15 -0800
 From: Shaohua Li <shli@fb.com>
-Subject: [PATCH V3 5/7] mm: add vmstat account for MADV_FREE pages
-Date: Tue, 14 Feb 2017 11:36:11 -0800
-Message-ID: <8479e425796207433c6a2cba1d20be506cd62efd.1487100204.git.shli@fb.com>
+Subject: [PATCH V3 7/7] mm: add a separate RSS for MADV_FREE pages
+Date: Tue, 14 Feb 2017 11:36:13 -0800
+Message-ID: <c92c78f1161d4bdf2c38fe8f68a8839e18cb29e0.1487100204.git.shli@fb.com>
 In-Reply-To: <cover.1487100204.git.shli@fb.com>
 References: <cover.1487100204.git.shli@fb.com>
 MIME-Version: 1.0
@@ -33,10 +33,47 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-Show MADV_FREE pages info in proc/sysfs files. Like other vm stat info
-kernel exported, the MADV_FREE info will help us know how many memory
-are MADV_FREE pages in a node/zone. This is useful for diagnoses and
-monitoring in userspace.
+Right now MADV_FREE pages are accounted as normal anon pages and
+reclaimed lazily, so application's RSS becomes bigger. This confuses our
+workloads. We have monitoring daemon running and if it finds
+applications' RSS becomes abnormal, the daemon will kill the
+applications even kernel can reclaim the memory easily. This is a big to
+deploy MADV_FREE in our workloads.
+
+Applications could use /proc/pid/smaps to query MADV_FREE pages, but
+that is too slow. Instead, applications usually use /proc/pid/statm to
+query RSS. So add a separate RSS for MADV_FREE pages. The pages are
+charged into MM_ANONPAGES (because they are mapped anon pages) and also
+charged into the MM_LAZYFREEPAGES. /proc/pid/statm will have an extra
+field to display the RSS, which userspace can use to determine the RSS
+excluding MADV_FREE pages.
+
+The basic idea is to increment the RSS in madvise and decrement in unmap
+or page reclaim. There is one limitation. If a page is shared by two
+processes, since madvise only has mm cotext of current process, it isn't
+convenient to charge the RSS for both processes. So we don't charge the
+RSS if the mapcount isn't 1. On the other hand, fork can make a
+MADV_FREE page shared by two processes. To make things consistent, we
+uncharge the RSS from the source mm in fork.
+
+A new flag is added to indicate if a page is accounted into the RSS. We
+can't use SwapBacked flag to do the determination because we can't
+guarantee the page has SwapBacked flag cleared in madvise. We are
+reusing mappedtodisk flag which should not be set for Anon pages.
+
+There are a couple of other places we need to uncharge the RSS,
+activate_page and mark_page_accessed. activate_page is used by swap,
+where MADV_FREE pages are already not in lazyfree state before going
+into swap. mark_page_accessed is mainly used for file pages, but there
+are several places it's used by anonymous pages. I fixed gup, but not
+some gpu drivers and kvm. If the drivers use MADV_FREE, we might have
+inprecise RSS accounting.
+
+Please note, the accounting is never going to be precise. MADV_FREE page
+could be written by userspace without notification to the kernel. The
+page can't be reclaimed like other clean lazyfree pages. The page isn't
+real lazyfree page. But since kernel isn't aware of this, the page is
+still accounted as lazyfree, thus the accounting could be incorrect.
 
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Minchan Kim <minchan@kernel.org>
@@ -47,172 +84,441 @@ Cc: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Shaohua Li <shli@fb.com>
 ---
- drivers/base/node.c       |  2 ++
- fs/proc/meminfo.c         |  1 +
- include/linux/mm_inline.h |  9 +++++++++
- include/linux/mmzone.h    |  2 ++
- mm/page_alloc.c           | 13 ++++++++++---
- mm/vmstat.c               |  2 ++
- 6 files changed, 26 insertions(+), 3 deletions(-)
+ fs/proc/array.c            |  9 ++++++---
+ fs/proc/internal.h         |  3 ++-
+ fs/proc/task_mmu.c         |  9 +++++++--
+ fs/proc/task_nommu.c       |  4 +++-
+ include/linux/mm_types.h   |  1 +
+ include/linux/page-flags.h |  6 ++++++
+ mm/gup.c                   |  2 ++
+ mm/huge_memory.c           |  8 ++++++++
+ mm/khugepaged.c            |  2 ++
+ mm/madvise.c               |  5 +++++
+ mm/memory.c                | 13 +++++++++++--
+ mm/migrate.c               |  2 ++
+ mm/oom_kill.c              | 10 ++++++----
+ mm/rmap.c                  | 22 ++++++++++++++--------
+ 14 files changed, 75 insertions(+), 21 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 5548f96..9138db8 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -71,6 +71,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d Active(file):   %8lu kB\n"
- 		       "Node %d Inactive(file): %8lu kB\n"
- 		       "Node %d Unevictable:    %8lu kB\n"
-+		       "Node %d LazyFree:       %8lu kB\n"
- 		       "Node %d Mlocked:        %8lu kB\n",
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
-@@ -84,6 +85,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(pgdat, NR_ACTIVE_FILE)),
- 		       nid, K(node_page_state(pgdat, NR_INACTIVE_FILE)),
- 		       nid, K(node_page_state(pgdat, NR_UNEVICTABLE)),
-+		       nid, K(node_page_state(pgdat, NR_LAZYFREE)),
- 		       nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));
- 
- #ifdef CONFIG_HIGHMEM
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 8a42849..b2e7b31 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -80,6 +80,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	show_val_kb(m, "Active(file):   ", pages[LRU_ACTIVE_FILE]);
- 	show_val_kb(m, "Inactive(file): ", pages[LRU_INACTIVE_FILE]);
- 	show_val_kb(m, "Unevictable:    ", pages[LRU_UNEVICTABLE]);
-+	show_val_kb(m, "LazyFree:       ", global_node_page_state(NR_LAZYFREE));
- 	show_val_kb(m, "Mlocked:        ", global_page_state(NR_MLOCK));
- 
- #ifdef CONFIG_HIGHMEM
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index e6e3af1..0de5cb6 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -126,6 +126,13 @@ static __always_inline enum lru_list page_lru(struct page *page)
- 
- #define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
- 
-+static inline void __update_lazyfree_page_stat(struct page *page,
-+						int nr_pages)
-+{
-+	mod_node_page_state(page_pgdat(page), NR_LAZYFREE, nr_pages);
-+	mod_zone_page_state(page_zone(page), NR_ZONE_LAZYFREE, nr_pages);
-+}
-+
- /*
-  * lazyfree pages are clean anonymous pages. They have SwapBacked flag cleared
-  * to destinguish normal anonymous pages.
-@@ -134,12 +141,14 @@ static inline void set_page_lazyfree(struct page *page)
+diff --git a/fs/proc/array.c b/fs/proc/array.c
+index 51a4213..c2281f4 100644
+--- a/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -583,17 +583,19 @@ int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
+ 			struct pid *pid, struct task_struct *task)
  {
- 	VM_BUG_ON_PAGE(!PageAnon(page) || !PageSwapBacked(page), page);
- 	ClearPageSwapBacked(page);
-+	__update_lazyfree_page_stat(page, hpage_nr_pages(page));
- }
+ 	unsigned long size = 0, resident = 0, shared = 0, text = 0, data = 0;
++	unsigned long lazyfree = 0;
+ 	struct mm_struct *mm = get_task_mm(task);
  
- static inline void clear_page_lazyfree(struct page *page)
- {
- 	VM_BUG_ON_PAGE(!PageAnon(page) || PageSwapBacked(page), page);
- 	SetPageSwapBacked(page);
-+	__update_lazyfree_page_stat(page, -hpage_nr_pages(page));
- }
- 
- static inline bool page_is_lazyfree(struct page *page)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 338a786a..78985f1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -118,6 +118,7 @@ enum zone_stat_item {
- 	NR_ZONE_INACTIVE_FILE,
- 	NR_ZONE_ACTIVE_FILE,
- 	NR_ZONE_UNEVICTABLE,
-+	NR_ZONE_LAZYFREE,
- 	NR_ZONE_WRITE_PENDING,	/* Count of dirty, writeback and unstable pages */
- 	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
- 	NR_SLAB_RECLAIMABLE,
-@@ -147,6 +148,7 @@ enum node_stat_item {
- 	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
- 	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
- 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
-+	NR_LAZYFREE,		/*  "     "     "   "       "         */
- 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
- 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
- 	NR_PAGES_SCANNED,	/* pages scanned since last reclaim */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 19f438a..aa04d5c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1023,8 +1023,12 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 			(page + i)->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
- 		}
+ 	if (mm) {
+-		size = task_statm(mm, &shared, &text, &data, &resident);
++		size = task_statm(mm, &shared, &text, &data, &resident,
++				  &lazyfree);
+ 		mmput(mm);
  	}
--	if (PageMappingFlags(page))
-+	if (PageMappingFlags(page)) {
-+		if (page_is_lazyfree(page))
-+			__update_lazyfree_page_stat(page,
-+						-hpage_nr_pages(page));
- 		page->mapping = NULL;
-+	}
- 	if (memcg_kmem_enabled() && PageKmemcg(page))
- 		memcg_kmem_uncharge(page, order);
- 	if (check_free)
-@@ -4459,7 +4463,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
- 		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
- 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
--		" free:%lu free_pcp:%lu free_cma:%lu\n",
-+		" free:%lu free_pcp:%lu free_cma:%lu lazy_free:%lu\n",
- 		global_node_page_state(NR_ACTIVE_ANON),
- 		global_node_page_state(NR_INACTIVE_ANON),
- 		global_node_page_state(NR_ISOLATED_ANON),
-@@ -4478,7 +4482,8 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		global_page_state(NR_BOUNCE),
- 		global_page_state(NR_FREE_PAGES),
- 		free_pcp,
--		global_page_state(NR_FREE_CMA_PAGES));
-+		global_page_state(NR_FREE_CMA_PAGES),
-+		global_node_page_state(NR_LAZYFREE));
+ 	/*
+ 	 * For quick read, open code by putting numbers directly
+ 	 * expected format is
+-	 * seq_printf(m, "%lu %lu %lu %lu 0 %lu 0\n",
+-	 *               size, resident, shared, text, data);
++	 * seq_printf(m, "%lu %lu %lu %lu 0 %lu 0 %lu\n",
++	 *               size, resident, shared, text, data, lazyfree);
+ 	 */
+ 	seq_put_decimal_ull(m, "", size);
+ 	seq_put_decimal_ull(m, " ", resident);
+@@ -602,6 +604,7 @@ int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
+ 	seq_put_decimal_ull(m, " ", 0);
+ 	seq_put_decimal_ull(m, " ", data);
+ 	seq_put_decimal_ull(m, " ", 0);
++	seq_put_decimal_ull(m, " ", lazyfree);
+ 	seq_putc(m, '\n');
  
- 	for_each_online_pgdat(pgdat) {
- 		if (show_mem_node_skip(filter, pgdat->node_id, nodemask))
-@@ -4490,6 +4495,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 			" active_file:%lukB"
- 			" inactive_file:%lukB"
- 			" unevictable:%lukB"
-+			" lazy_free:%lukB"
- 			" isolated(anon):%lukB"
- 			" isolated(file):%lukB"
- 			" mapped:%lukB"
-@@ -4512,6 +4518,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 			K(node_page_state(pgdat, NR_ACTIVE_FILE)),
- 			K(node_page_state(pgdat, NR_INACTIVE_FILE)),
- 			K(node_page_state(pgdat, NR_UNEVICTABLE)),
-+			K(node_page_state(pgdat, NR_LAZYFREE)),
- 			K(node_page_state(pgdat, NR_ISOLATED_ANON)),
- 			K(node_page_state(pgdat, NR_ISOLATED_FILE)),
- 			K(node_page_state(pgdat, NR_FILE_MAPPED)),
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7774196..a70b52d 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -926,6 +926,7 @@ const char * const vmstat_text[] = {
- 	"nr_zone_inactive_file",
- 	"nr_zone_active_file",
- 	"nr_zone_unevictable",
-+	"nr_zone_lazyfree",
- 	"nr_zone_write_pending",
- 	"nr_mlock",
- 	"nr_slab_reclaimable",
-@@ -952,6 +953,7 @@ const char * const vmstat_text[] = {
- 	"nr_inactive_file",
- 	"nr_active_file",
- 	"nr_unevictable",
-+	"nr_lazyfree",
- 	"nr_isolated_anon",
- 	"nr_isolated_file",
- 	"nr_pages_scanned",
+ 	return 0;
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index e2c3c46..6587b9c 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -290,5 +290,6 @@ extern const struct file_operations proc_pagemap_operations;
+ extern unsigned long task_vsize(struct mm_struct *);
+ extern unsigned long task_statm(struct mm_struct *,
+ 				unsigned long *, unsigned long *,
+-				unsigned long *, unsigned long *);
++				unsigned long *, unsigned long *,
++				unsigned long *);
+ extern void task_mem(struct seq_file *, struct mm_struct *);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 8f2423f..f18b568 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -23,9 +23,10 @@
+ 
+ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ {
+-	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
++	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem, lazyfree;
+ 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+ 
++	lazyfree = get_mm_counter(mm, MM_LAZYFREEPAGES);
+ 	anon = get_mm_counter(mm, MM_ANONPAGES);
+ 	file = get_mm_counter(mm, MM_FILEPAGES);
+ 	shmem = get_mm_counter(mm, MM_SHMEMPAGES);
+@@ -59,6 +60,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		"RssAnon:\t%8lu kB\n"
+ 		"RssFile:\t%8lu kB\n"
+ 		"RssShmem:\t%8lu kB\n"
++		"RssLazyfree:\t%8lu kB\n"
+ 		"VmData:\t%8lu kB\n"
+ 		"VmStk:\t%8lu kB\n"
+ 		"VmExe:\t%8lu kB\n"
+@@ -75,6 +77,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		anon << (PAGE_SHIFT-10),
+ 		file << (PAGE_SHIFT-10),
+ 		shmem << (PAGE_SHIFT-10),
++		lazyfree << (PAGE_SHIFT-10),
+ 		mm->data_vm << (PAGE_SHIFT-10),
+ 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
+ 		ptes >> 10,
+@@ -90,7 +93,8 @@ unsigned long task_vsize(struct mm_struct *mm)
+ 
+ unsigned long task_statm(struct mm_struct *mm,
+ 			 unsigned long *shared, unsigned long *text,
+-			 unsigned long *data, unsigned long *resident)
++			 unsigned long *data, unsigned long *resident,
++			 unsigned long *lazyfree)
+ {
+ 	*shared = get_mm_counter(mm, MM_FILEPAGES) +
+ 			get_mm_counter(mm, MM_SHMEMPAGES);
+@@ -98,6 +102,7 @@ unsigned long task_statm(struct mm_struct *mm,
+ 								>> PAGE_SHIFT;
+ 	*data = mm->data_vm + mm->stack_vm;
+ 	*resident = *shared + get_mm_counter(mm, MM_ANONPAGES);
++	*lazyfree = get_mm_counter(mm, MM_LAZYFREEPAGES);
+ 	return mm->total_vm;
+ }
+ 
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index 1ef97cf..50426de 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -94,7 +94,8 @@ unsigned long task_vsize(struct mm_struct *mm)
+ 
+ unsigned long task_statm(struct mm_struct *mm,
+ 			 unsigned long *shared, unsigned long *text,
+-			 unsigned long *data, unsigned long *resident)
++			 unsigned long *data, unsigned long *resident,
++			 unsigned long *lazyfree)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct vm_region *region;
+@@ -120,6 +121,7 @@ unsigned long task_statm(struct mm_struct *mm,
+ 	size >>= PAGE_SHIFT;
+ 	size += *text + *data;
+ 	*resident = size;
++	*lazyfree = 0;
+ 	return size;
+ }
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 4f6d440..b6a1428 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -376,6 +376,7 @@ enum {
+ 	MM_ANONPAGES,	/* Resident anonymous pages */
+ 	MM_SWAPENTS,	/* Anonymous swap entries */
+ 	MM_SHMEMPAGES,	/* Resident shared memory pages */
++	MM_LAZYFREEPAGES, /* Lazyfree pages, also charged into MM_ANONPAGES */
+ 	NR_MM_COUNTERS
+ };
+ 
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 6b5818d..67c732b 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -107,6 +107,8 @@ enum pageflags {
+ #endif
+ 	__NR_PAGEFLAGS,
+ 
++	PG_lazyfreeaccounted = PG_mappedtodisk, /* only for anon MADV_FREE pages */
++
+ 	/* Filesystems */
+ 	PG_checked = PG_owner_priv_1,
+ 
+@@ -428,6 +430,10 @@ TESTPAGEFLAG_FALSE(Ksm)
+ 
+ u64 stable_page_flags(struct page *page);
+ 
++PAGEFLAG(LazyFreeAccounted, lazyfreeaccounted, PF_ANY)
++	TESTSETFLAG(LazyFreeAccounted, lazyfreeaccounted, PF_ANY)
++	TESTCLEARFLAG(LazyFreeAccounted, lazyfreeaccounted, PF_ANY)
++
+ static inline int PageUptodate(struct page *page)
+ {
+ 	int ret;
+diff --git a/mm/gup.c b/mm/gup.c
+index 1e67461..8cec0b5 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -171,6 +171,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 		 * mark_page_accessed().
+ 		 */
+ 		mark_page_accessed(page);
++		if (PageAnon(page) && TestClearPageLazyFreeAccounted(page))
++			dec_mm_counter(mm, MM_LAZYFREEPAGES);
+ 	}
+ 	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
+ 		/* Do not mlock pte-mapped THP */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 3bb5ad5..abb679d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -925,6 +925,8 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
+ 	get_page(src_page);
+ 	page_dup_rmap(src_page, true);
++	if (PageAnon(src_page) && TestClearPageLazyFreeAccounted(src_page))
++		add_mm_counter(src_mm, MM_LAZYFREEPAGES, -HPAGE_PMD_NR);
+ 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+ 	atomic_long_inc(&dst_mm->nr_ptes);
+ 	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+@@ -1572,6 +1574,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+ 	}
+ 
++	if (page_mapcount(page) == 1 && !TestSetPageLazyFreeAccounted(page))
++		add_mm_counter(mm, MM_LAZYFREEPAGES, HPAGE_PMD_NR);
+ 	mark_page_lazyfree(page);
+ 	ret = true;
+ out:
+@@ -1629,6 +1633,9 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			pte_free(tlb->mm, pgtable);
+ 			atomic_long_dec(&tlb->mm->nr_ptes);
+ 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
++			if (TestClearPageLazyFreeAccounted(page))
++				add_mm_counter(tlb->mm, MM_LAZYFREEPAGES,
++						-HPAGE_PMD_NR);
+ 		} else {
+ 			if (arch_needs_pgtable_deposit())
+ 				zap_deposited_table(tlb->mm, pmd);
+@@ -2160,6 +2167,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 			 (1L << PG_swapbacked) |
+ 			 (1L << PG_mlocked) |
+ 			 (1L << PG_uptodate) |
++			 (1L << PG_lazyfreeaccounted) |
+ 			 (1L << PG_active) |
+ 			 (1L << PG_locked) |
+ 			 (1L << PG_unevictable) |
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index a4b499f..e4668db 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -577,6 +577,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		}
+ 		inc_node_page_state(page,
+ 				NR_ISOLATED_ANON + page_is_file_cache(page));
++		if (TestClearPageLazyFreeAccounted(page))
++			dec_mm_counter(vma->vm_mm, MM_LAZYFREEPAGES);
+ 		VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 		VM_BUG_ON_PAGE(PageLRU(page), page);
+ 
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 851fabb..b051832 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -308,6 +308,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	struct page *page;
+ 	int nr_swap = 0;
+ 	unsigned long next;
++	int nr_lazyfree_accounted = 0;
+ 
+ 	next = pmd_addr_end(addr, end);
+ 	if (pmd_trans_huge(*pmd))
+@@ -412,9 +413,13 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 			set_pte_at(mm, addr, pte, ptent);
+ 			tlb_remove_tlb_entry(tlb, pte, addr);
+ 		}
++		if (page_mapcount(page) == 1 &&
++		    !TestSetPageLazyFreeAccounted(page))
++			nr_lazyfree_accounted++;
+ 		mark_page_lazyfree(page);
+ 	}
+ out:
++	add_mm_counter(mm, MM_LAZYFREEPAGES, nr_lazyfree_accounted);
+ 	if (nr_swap) {
+ 		if (current->mm == mm)
+ 			sync_mm_rss(mm);
+diff --git a/mm/memory.c b/mm/memory.c
+index 0c759ba..7441430 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -849,7 +849,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
+ static inline unsigned long
+ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
+-		unsigned long addr, int *rss)
++		unsigned long addr, int *rss, int *rss_src_lazyfree)
+ {
+ 	unsigned long vm_flags = vma->vm_flags;
+ 	pte_t pte = *src_pte;
+@@ -914,6 +914,9 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	if (page) {
+ 		get_page(page);
+ 		page_dup_rmap(page, false);
++		if (PageAnon(page) &&
++		    TestClearPageLazyFreeAccounted(page))
++			(*rss_src_lazyfree)++;
+ 		rss[mm_counter(page)]++;
+ 	}
+ 
+@@ -931,10 +934,12 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	spinlock_t *src_ptl, *dst_ptl;
+ 	int progress = 0;
+ 	int rss[NR_MM_COUNTERS];
++	int rss_src_lazyfree;
+ 	swp_entry_t entry = (swp_entry_t){0};
+ 
+ again:
+ 	init_rss_vec(rss);
++	rss_src_lazyfree = 0;
+ 
+ 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
+ 	if (!dst_pte)
+@@ -962,13 +967,14 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			continue;
+ 		}
+ 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+-							vma, addr, rss);
++					vma, addr, rss, &rss_src_lazyfree);
+ 		if (entry.val)
+ 			break;
+ 		progress += 8;
+ 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
+ 
+ 	arch_leave_lazy_mmu_mode();
++	add_mm_counter(src_mm, MM_LAZYFREEPAGES, -rss_src_lazyfree);
+ 	spin_unlock(src_ptl);
+ 	pte_unmap(orig_src_pte);
+ 	add_mm_rss_vec(dst_mm, rss);
+@@ -1173,6 +1179,9 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 					mark_page_accessed(page);
+ 			}
+ 			rss[mm_counter(page)]--;
++			if (PageAnon(page) &&
++			    TestClearPageLazyFreeAccounted(page))
++				rss[MM_LAZYFREEPAGES]--;
+ 			page_remove_rmap(page, false);
+ 			if (unlikely(page_mapcount(page) < 0))
+ 				print_bad_pte(vma, addr, ptent, page);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 7c8df1f..16781ed 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -622,6 +622,8 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+ 		SetPageChecked(newpage);
+ 	if (PageMappedToDisk(page))
+ 		SetPageMappedToDisk(newpage);
++	if (PageLazyFreeAccounted(page))
++		SetPageLazyFreeAccounted(newpage);
+ 
+ 	/* Move dirty on pages not done by migrate_page_move_mapping() */
+ 	if (PageDirty(page))
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 51c0918..54e0604 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -528,11 +528,12 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 					 NULL);
+ 	}
+ 	tlb_finish_mmu(&tlb, 0, -1);
+-	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
++	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, lazyfree-rss:%lukB\n",
+ 			task_pid_nr(tsk), tsk->comm,
+ 			K(get_mm_counter(mm, MM_ANONPAGES)),
+ 			K(get_mm_counter(mm, MM_FILEPAGES)),
+-			K(get_mm_counter(mm, MM_SHMEMPAGES)));
++			K(get_mm_counter(mm, MM_SHMEMPAGES)),
++			K(get_mm_counter(mm, MM_LAZYFREEPAGES)));
+ 	up_read(&mm->mmap_sem);
+ 
+ 	/*
+@@ -878,11 +879,12 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	 */
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+ 	mark_oom_victim(victim);
+-	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
++	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, lazyfree-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+ 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+ 		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+-		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
++		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
++		K(get_mm_counter(victim->mm, MM_LAZYFREEPAGES)));
+ 	task_unlock(victim);
+ 
+ 	/*
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 2cbdada..96a2db8 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1336,8 +1336,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 					mlock_vma_page(page);
+ 				}
+ 				ret = SWAP_MLOCK;
+-				page_vma_mapped_walk_done(&pvmw);
+-				break;
++				goto err_out;
+ 			}
+ 			if (flags & TTU_MUNLOCK)
+ 				continue;
+@@ -1347,8 +1346,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			if (ptep_clear_flush_young_notify(vma, address,
+ 						pvmw.pte)) {
+ 				ret = SWAP_FAIL;
+-				page_vma_mapped_walk_done(&pvmw);
+-				break;
++				goto err_out;
+ 			}
+ 		}
+ 
+@@ -1428,16 +1426,14 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				} else {
+ 					set_pte_at(mm, address, pvmw.pte, pteval);
+ 					ret = SWAP_FAIL;
+-					page_vma_mapped_walk_done(&pvmw);
+-					break;
++					goto err_out;
+ 				}
+ 			}
+ 
+ 			if (swap_duplicate(entry) < 0) {
+ 				set_pte_at(mm, address, pvmw.pte, pteval);
+ 				ret = SWAP_FAIL;
+-				page_vma_mapped_walk_done(&pvmw);
+-				break;
++				goto err_out;
+ 			}
+ 			if (list_empty(&mm->mmlist)) {
+ 				spin_lock(&mmlist_lock);
+@@ -1456,9 +1452,19 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ discard:
+ 		page_remove_rmap(subpage, PageHuge(page));
+ 		put_page(page);
++		/* regardless of success or failure, the page isn't lazyfree */
++		if (PageAnon(page) && TestClearPageLazyFreeAccounted(page))
++			add_mm_counter(mm, MM_LAZYFREEPAGES,
++						-hpage_nr_pages(page));
+ 		mmu_notifier_invalidate_page(mm, address);
+ 	}
+ 	return ret;
++err_out:
++	/* regardless of success or failure, the page isn't lazyfree */
++	if (PageAnon(page) && TestClearPageLazyFreeAccounted(page))
++		add_mm_counter(mm, MM_LAZYFREEPAGES, -hpage_nr_pages(page));
++	page_vma_mapped_walk_done(&pvmw);
++	return ret;
+ }
+ 
+ bool is_vma_temporary_stack(struct vm_area_struct *vma)
 -- 
 2.9.3
 
