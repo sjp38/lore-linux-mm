@@ -1,83 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 03EE66B0387
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:12:02 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id w107so187733566ota.6
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 02:12:02 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id w43si47324otw.45.2017.02.14.02.11.59
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 51F0C6B0389
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:15:50 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id h10so25644112ith.2
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 02:15:50 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p124si389962ioe.121.2017.02.14.02.15.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Feb 2017 02:12:01 -0800 (PST)
-Message-ID: <58A2D6F9.6030400@huawei.com>
-Date: Tue, 14 Feb 2017 18:07:53 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Feb 2017 02:15:49 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1EADVd4086703
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:15:49 -0500
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28kveng8xm-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:15:49 -0500
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 14 Feb 2017 20:15:45 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 931373578053
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 21:15:41 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1EAFXLS18481362
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 21:15:41 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1EAF8l8012269
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 21:15:09 +1100
+Subject: Re: [PATCH V2 3/3] mm: Enable Buddy allocation isolation for CDM
+ nodes
+References: <20170210100640.26927-1-khandual@linux.vnet.ibm.com>
+ <20170210100640.26927-4-khandual@linux.vnet.ibm.com>
+ <44bbca4e-af5a-805c-c74b-28e684026611@suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 14 Feb 2017 15:44:40 +0530
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 04/10] mm, page_alloc: count movable pages when stealing
- from pageblock
-References: <20170210172343.30283-1-vbabka@suse.cz> <20170210172343.30283-5-vbabka@suse.cz>
-In-Reply-To: <20170210172343.30283-5-vbabka@suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <44bbca4e-af5a-805c-c74b-28e684026611@suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
+Message-Id: <aed94333-7cd7-958e-ff8c-78a6cf05fe45@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On 2017/2/11 1:23, Vlastimil Babka wrote:
-
-> When stealing pages from pageblock of a different migratetype, we count how
-> many free pages were stolen, and change the pageblock's migratetype if more
-> than half of the pageblock was free. This might be too conservative, as there
-> might be other pages that are not free, but were allocated with the same
-> migratetype as our allocation requested.
+On 02/14/2017 01:58 PM, Vlastimil Babka wrote:
+> On 02/10/2017 11:06 AM, Anshuman Khandual wrote:
+>> This implements allocation isolation for CDM nodes in buddy allocator by
+>> discarding CDM memory zones all the time except in the cases where the gfp
+>> flag has got __GFP_THISNODE or the nodemask contains CDM nodes in cases
+>> where it is non NULL (explicit allocation request in the kernel or user
+>> process MPOL_BIND policy based requests).
+>>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>> ---
+>>  mm/page_alloc.c | 16 ++++++++++++++++
+>>  1 file changed, 16 insertions(+)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 84d61bb..392c24a 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -64,6 +64,7 @@
+>>  #include <linux/page_owner.h>
+>>  #include <linux/kthread.h>
+>>  #include <linux/memcontrol.h>
+>> +#include <linux/node.h>
+>>  
+>>  #include <asm/sections.h>
+>>  #include <asm/tlbflush.h>
+>> @@ -2908,6 +2909,21 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>>  		struct page *page;
+>>  		unsigned long mark;
+>>  
+>> +		/*
+>> +		 * CDM nodes get skipped if the requested gfp flag
+>> +		 * does not have __GFP_THISNODE set or the nodemask
+>> +		 * does not have any CDM nodes in case the nodemask
+>> +		 * is non NULL (explicit allocation requests from
+>> +		 * kernel or user process MPOL_BIND policy which has
+>> +		 * CDM nodes).
+>> +		 */
+>> +		if (is_cdm_node(zone->zone_pgdat->node_id)) {
+>> +			if (!(gfp_mask & __GFP_THISNODE)) {
+>> +				if (!ac->nodemask)
+>> +					continue;
+>> +			}
+>> +		}
 > 
-> While we cannot determine the migratetype of allocated pages precisely (at
-> least without the page_owner functionality enabled), we can count pages that
-> compaction would try to isolate for migration - those are either on LRU or
-> __PageMovable(). The rest can be assumed to be MIGRATE_RECLAIMABLE or
-> MIGRATE_UNMOVABLE, which we cannot easily distinguish. This counting can be
-> done as part of free page stealing with little additional overhead.
+> With the current cpuset implementation, this will have a subtle corner
+> case when allocating from a cpuset that allows the cdm node, and there
+> is no (task or vma) mempolicy applied for the allocation. In the fast
+> path (__alloc_pages_nodemask()) we'll set ac->nodemask to
+> current->mems_allowed, so your code will wrongly assume that this
+> ac->nodemask is a policy that allows the CDM node. Probably not what you
+> want?
+
+You are right, its a problem and not what we want. We can make the
+function get_page_from_freelist() take another parameter "orig_nodemask"
+which gets passed into __alloc_pages_nodemask() in the first place. So
+inside zonelist iterator we can compare orig_nodemask with current
+ac.nodemask to figure out if cpuset swapping of nodemask happened and
+skip CDM node if necessary. Thats a viable solution IMHO.
+
 > 
-> The page stealing code is changed so that it considers free pages plus pages
-> of the "good" migratetype for the decision whether to change pageblock's
-> migratetype.
+> This might change if we decide to fix the cpuset vs mempolicy issues [1]
+> so your input on that topic with your recent experience with all the
+> alternative CDM isolation implementations would be useful. Thanks.
 > 
-> The result should be more accurate migratetype of pageblocks wrt the actual
-> pages in the pageblocks, when stealing from semi-occupied pageblocks. This
-> should help the efficiency of page grouping by mobility.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> [1] http://www.spinics.net/lists/linux-mm/msg121760.html
 
-Hi Vlastimil,
-
-How about these two changes?
-
-1. If we steal some free pages, we will add these page at the head of start_migratetype
-list, it will cause more fixed, because these pages will be allocated more easily.
-So how about use list_move_tail instead of list_move?
-
-__rmqueue_fallback
-	steal_suitable_fallback
-		move_freepages_block
-			move_freepages
-				list_move
-
-2. When doing expand() - list_add(), usually the list is empty, but in the
-following case, the list is not empty, because we did move_freepages_block()
-before.
-
-__rmqueue_fallback
-	steal_suitable_fallback
-		move_freepages_block  // move to the list of start_migratetype
-	expand  // split the largest order
-		list_add  // add to the list of start_migratetype
-
-So how about use list_add_tail instead of list_add? Then we can merge the large
-block again as soon as the page freed.
-
-Thanks,
-Xishi Qiu
+Sure, will look into the details.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
