@@ -1,52 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BBE06B03AD
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:17:36 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id g13so203021265otd.5
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 08:17:36 -0800 (PST)
-Received: from mail-ot0-x242.google.com (mail-ot0-x242.google.com. [2607:f8b0:4003:c0f::242])
-        by mx.google.com with ESMTPS id g192si490195oib.32.2017.02.14.08.17.35
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 57C5F680FC1
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:18:16 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id w185so33168815ita.5
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 08:18:16 -0800 (PST)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0132.outbound.protection.outlook.com. [104.47.2.132])
+        by mx.google.com with ESMTPS id n85si1250583ioi.248.2017.02.14.08.18.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 08:17:35 -0800 (PST)
-Received: by mail-ot0-x242.google.com with SMTP id t47so2443771ota.0
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 08:17:35 -0800 (PST)
-Date: Wed, 15 Feb 2017 01:16:53 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [RFC] mm/zsmalloc: remove redundant SetPagePrivate2 in
- create_page_chain
-Message-ID: <20170214161653.GA10321@tigerII.localdomain>
-References: <1487076509-49270-1-git-send-email-xieyisheng1@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 14 Feb 2017 08:18:13 -0800 (PST)
+Subject: Re: [PATCHv4 4/5] x86/mm: check in_compat_syscall() instead
+ TIF_ADDR32 for mmap(MAP_32BIT)
+References: <20170130120432.6716-1-dsafonov@virtuozzo.com>
+ <20170130120432.6716-5-dsafonov@virtuozzo.com>
+ <alpine.DEB.2.20.1702112107490.3734@nanos>
+ <a5ee6568-22fb-8829-524a-66d4d89b6325@virtuozzo.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <4a52cb7f-f915-e9d6-7e5e-8672164f1614@virtuozzo.com>
+Date: Tue, 14 Feb 2017 19:14:27 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1487076509-49270-1-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <a5ee6568-22fb-8829-524a-66d4d89b6325@virtuozzo.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org
 
-On (02/14/17 20:48), Yisheng Xie wrote:
-> We had used page->lru to link the component pages (except the first
-> page) of a zspage, and used INIT_LIST_HEAD(&page->lru) to init it.
-> Therefore, to get the last page's next page, which is NULL, we had to
-> use page flag PG_Private_2 to identify it.
-> 
-> But now, we use page->freelist to link all of the pages in zspage and
-> init the page->freelist as NULL for last page, so no need to use
-> PG_Private_2 anymore.
-> 
-> This patch is to remove redundant SetPagePrivate2 in create_page_chain
-> and ClearPagePrivate2 in reset_page(). Maybe can save few cycles for
-> migration of zsmalloc page :)
-> 
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+On 02/14/2017 07:11 PM, Dmitry Safonov wrote:
+> On 02/11/2017 11:13 PM, Thomas Gleixner wrote:
+>> On Mon, 30 Jan 2017, Dmitry Safonov wrote:
+>>
+>>> At this momet, logic in arch_get_unmapped_area{,_topdown} for mmaps with
+>>> MAP_32BIT flag checks TIF_ADDR32 which means:
+>>> o if 32-bit ELF changes mode to 64-bit on x86_64 and then tries to
+>>>   mmap() with MAP_32BIT it'll result in addr over 4Gb (as default is
+>>>   top-down allocation)
+>>> o if 64-bit ELF changes mode to 32-bit and tries mmap() with MAP_32BIT,
+>>>   it'll allocate only memory in 1GB space: [0x40000000, 0x80000000).
+>>>
+>>> Fix it by handeling MAP_32BIT in 64-bit syscalls only.
+>>
+>> I really have a hard time to understand what is fixed and how that is
+>> related to the $subject.
+>>
+>> Again. Please explain the problem first properly so one can understand
+>> the
+>> issue immediately.
+>
+> Ok, rewrote the changes log.
+>
+>>
+>>> As a little bonus it'll make thread flag a little less used.
+>>
+>> I really do not understand the bonus part here. You replace the thread
+>> flag
+>> check with a different one and AFAICT this looks like oart of the 'fix'.
+>
+> It's a part of the fix, right.
+> What I meant here is that after those patches TIF_ADDR32 is no more
+> used after exec() time. That's bonus as if we manage to change exec()
+> code in some way (i.e., pass address restriction as a parameter), we'll
+> have additional free thread info flag.
 
-looks good to me.
+Oh, I lied here: it'll be still used for TASK_SIZE macro and etc.
+But, I don't see why in generic code we can't use TASK_SIZE_MAX,
+at least at this moment.
 
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+>
+>> Thanks,
+>>
+>>     tglx
+>>
+>>> @@ -101,7 +101,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr,
+>>> unsigned long, len,
+>>>  static void find_start_end(unsigned long flags, unsigned long *begin,
+>>>                 unsigned long *end)
+>>>  {
+>>> -    if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
+>>> +    if (!in_compat_syscall() && (flags & MAP_32BIT)) {
+>>>          /* This is usually used needed to map code in small
+>>>             model, so it needs to be in the first 31bit. Limit
+>>>             it to that.  This means we need to move the
+>>> @@ -195,7 +195,7 @@ arch_get_unmapped_area_topdown(struct file *filp,
+>>> const unsigned long addr0,
+>>>          return addr;
+>>>
+>>>      /* for MAP_32BIT mappings we force the legacy mmap base */
+>>> -    if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
+>>> +    if (!in_compat_syscall() && (flags & MAP_32BIT))
+>>>          goto bottomup;
+>>>
+>>>      /* requesting a specific address */
+>>> --
+>>> 2.11.0
+>>>
+>>>
+>
+>
 
-	-ss
+
+-- 
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
