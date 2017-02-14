@@ -1,196 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 52AE0680FD0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 14:43:57 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id i10so48241467wrb.0
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:43:57 -0800 (PST)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id q18si1992563wra.35.2017.02.14.11.43.55
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7F1680FD0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 14:50:15 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id k15so153307810qtg.5
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 11:50:15 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c69si1172425qkj.81.2017.02.14.11.50.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 11:43:56 -0800 (PST)
-Date: Tue, 14 Feb 2017 20:43:54 +0100 (CET)
-From: Julia Lawall <julia.lawall@lip6.fr>
-Subject: Re: [PATCH 2/3 staging-next] oom: Add notification for oom_score_adj
- (fwd)
-Message-ID: <alpine.DEB.2.20.1702142042370.2199@hadrien>
+        Tue, 14 Feb 2017 11:50:14 -0800 (PST)
+Date: Tue, 14 Feb 2017 20:50:07 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
+Message-ID: <20170214205007.63d998b9@redhat.com>
+In-Reply-To: <CAKgT0Uc2YrAzXC7LofaxC2NWi1kL=Fd5Nkgv60dMwrjn4d=ROQ@mail.gmail.com>
+References: <20170213195858.5215-1-edumazet@google.com>
+	<20170213195858.5215-9-edumazet@google.com>
+	<CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+	<CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+	<CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
+	<20170214131206.44b644f6@redhat.com>
+	<CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+	<cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com>
+	<CAKgT0UdRmpV_n1wstTHvqCgyRtze8z1rTJ5pKc_jdRttQCSySw@mail.gmail.com>
+	<20170214194615.3feddd07@redhat.com>
+	<CAKgT0Uc2YrAzXC7LofaxC2NWi1kL=Fd5Nkgv60dMwrjn4d=ROQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter.enderborg@sonymobile.com
-Cc: devel@driverdev.osuosl.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, arve@android.com, riandrews@android.com, torvalds@linux-foundation.org, linux-mm@kvack.org
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Tariq Toukan <ttoukan.linux@gmail.com>, Eric Dumazet <edumazet@google.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm <linux-mm@kvack.org>, John Fastabend <john.r.fastabend@intel.com>, brouer@redhat.com
 
-It looks like an unlock is missing before line 1797.
+On Tue, 14 Feb 2017 11:06:25 -0800
+Alexander Duyck <alexander.duyck@gmail.com> wrote:
 
-julia
+> On Tue, Feb 14, 2017 at 10:46 AM, Jesper Dangaard Brouer
+> <brouer@redhat.com> wrote:
+> > On Tue, 14 Feb 2017 09:29:54 -0800
+> > Alexander Duyck <alexander.duyck@gmail.com> wrote:
+> >  
+> >> On Tue, Feb 14, 2017 at 6:56 AM, Tariq Toukan <ttoukan.linux@gmail.com> wrote:  
+> >> >
+> >> >
+> >> > On 14/02/2017 3:45 PM, Eric Dumazet wrote:  
+> >> >>
+> >> >> On Tue, Feb 14, 2017 at 4:12 AM, Jesper Dangaard Brouer
+> >> >> <brouer@redhat.com> wrote:
+> >> >>  
+> >> >>> It is important to understand that there are two cases for the cost of
+> >> >>> an atomic op, which depend on the cache-coherency state of the
+> >> >>> cacheline.
+> >> >>>
+> >> >>> Measured on Skylake CPU i7-6700K CPU @ 4.00GHz
+> >> >>>
+> >> >>> (1) Local CPU atomic op :  27 cycles(tsc)  6.776 ns
+> >> >>> (2) Remote CPU atomic op: 260 cycles(tsc) 64.964 ns
+> >> >>>  
+> >> >> Okay, it seems you guys really want a patch that I said was not giving
+> >> >> good results
+> >> >>
+> >> >> Let me publish the numbers I get , adding or not the last (and not
+> >> >> official) patch.
+> >> >>
+> >> >> If I _force_ the user space process to run on the other node,
+> >> >> then the results are not the ones Alex or you are expecting.
+> >> >>
+> >> >> I have with this patch about 2.7 Mpps of this silly single TCP flow,
+> >> >> and 3.5 Mpps without it.
+> >> >>
+> >> >> lpaa24:~# sar -n DEV 1 10 | grep eth0 | grep Ave
+> >> >> Average:         eth0 2699243.20  16663.70 1354783.36   1079.95
+> >> >> 0.00      0.00      4.50
+> >> >>
+> >> >> Profile of the cpu on NUMA node 1 ( netserver consuming data ) :
+> >> >>
+> >> >>      54.73%  [kernel]      [k] copy_user_enhanced_fast_string
+> >> >>      31.07%  [kernel]      [k] skb_release_data
+> >> >>       4.24%  [kernel]      [k] skb_copy_datagram_iter
+> >> >>       1.35%  [kernel]      [k] copy_page_to_iter
+> >> >>       0.98%  [kernel]      [k] _raw_spin_lock
+> >> >>       0.90%  [kernel]      [k] skb_release_head_state
+> >> >>       0.60%  [kernel]      [k] tcp_transmit_skb
+> >> >>       0.51%  [kernel]      [k] mlx4_en_xmit
+> >> >>       0.33%  [kernel]      [k] ___cache_free
+> >> >>       0.28%  [kernel]      [k] tcp_rcv_established
+> >> >>
+> >> >> Profile of cpu handling mlx4 softirqs (NUMA node 0)
+> >> >>
+> >> >>
+> >> >>      48.00%  [kernel]          [k] mlx4_en_process_rx_cq
+> >> >>      12.92%  [kernel]          [k] napi_gro_frags
+> >> >>       7.28%  [kernel]          [k] inet_gro_receive
+> >> >>       7.17%  [kernel]          [k] tcp_gro_receive
+> >> >>       5.10%  [kernel]          [k] dev_gro_receive
+> >> >>       4.87%  [kernel]          [k] skb_gro_receive
+> >> >>       2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
+> >> >>       2.04%  [kernel]          [k] __build_skb
+> >> >>       1.02%  [kernel]          [k] napi_reuse_skb.isra.95
+> >> >>       1.01%  [kernel]          [k] tcp4_gro_receive
+> >> >>       0.65%  [kernel]          [k] kmem_cache_alloc
+> >> >>       0.45%  [kernel]          [k] _raw_spin_lock
+> >> >>
+> >> >> Without the latest  patch (the exact patch series v3 I submitted),
+> >> >> thus with this atomic_inc() in mlx4_en_process_rx_cq  instead of only
+> >> >> reads.
+> >> >>
+> >> >> lpaa24:~# sar -n DEV 1 10|grep eth0|grep Ave
+> >> >> Average:         eth0 3566768.50  25638.60 1790345.69   1663.51
+> >> >> 0.00      0.00      4.50
+> >> >>
+> >> >> Profiles of the two cpus :
+> >> >>
+> >> >>      74.85%  [kernel]      [k] copy_user_enhanced_fast_string
+> >> >>       6.42%  [kernel]      [k] skb_release_data
+> >> >>       5.65%  [kernel]      [k] skb_copy_datagram_iter
+> >> >>       1.83%  [kernel]      [k] copy_page_to_iter
+> >> >>       1.59%  [kernel]      [k] _raw_spin_lock
+> >> >>       1.48%  [kernel]      [k] skb_release_head_state
+> >> >>       0.72%  [kernel]      [k] tcp_transmit_skb
+> >> >>       0.68%  [kernel]      [k] mlx4_en_xmit
+> >> >>       0.43%  [kernel]      [k] page_frag_free
+> >> >>       0.38%  [kernel]      [k] ___cache_free
+> >> >>       0.37%  [kernel]      [k] tcp_established_options
+> >> >>       0.37%  [kernel]      [k] __ip_local_out
+> >> >>
+> >> >>
+> >> >>     37.98%  [kernel]          [k] mlx4_en_process_rx_cq
+> >> >>      26.47%  [kernel]          [k] napi_gro_frags
+> >> >>       7.02%  [kernel]          [k] inet_gro_receive
+> >> >>       5.89%  [kernel]          [k] tcp_gro_receive
+> >> >>       5.17%  [kernel]          [k] dev_gro_receive
+> >> >>       4.80%  [kernel]          [k] skb_gro_receive
+> >> >>       2.61%  [kernel]          [k] __build_skb
+> >> >>       2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
+> >> >>       1.59%  [kernel]          [k] napi_reuse_skb.isra.95
+> >> >>       0.95%  [kernel]          [k] tcp4_gro_receive
+> >> >>       0.51%  [kernel]          [k] kmem_cache_alloc
+> >> >>       0.42%  [kernel]          [k] __inet_lookup_established
+> >> >>       0.34%  [kernel]          [k] swiotlb_sync_single_for_cpu
+> >> >>
+> >> >>
+> >> >> So probably this will need further analysis, outside of the scope of
+> >> >> this patch series.
+> >> >>
+> >> >> Could we now please Ack this v3 and merge it ?
+> >> >>
+> >> >> Thanks.  
+> >> >
+> >> > Thanks Eric.
+> >> >
+> >> > As the previous series caused hangs, we must run functional regression tests
+> >> > over this series as well.
+> >> > Run has already started, and results will be available tomorrow morning.
+> >> >
+> >> > In general, I really like this series. The re-factorization looks more
+> >> > elegant and more correct, functionally.
+> >> >
+> >> > However, performance wise: we fear that the numbers will be drastically
+> >> > lower with this transition to order-0 pages,
+> >> > because of the (becoming critical) page allocator and dma operations
+> >> > bottlenecks, especially on systems with costly
+> >> > dma operations, such as ARM, iommu=on, etc...  
+> >>
+> >> So to give you an idea I originally came up with the approach used in
+> >> the Intel drivers when I was dealing with a PowerPC system where the
+> >> IOMMU was a requirement.  With this setup correctly the map/unmap
+> >> calls should be almost non-existent.  Basically the only time we
+> >> should have to allocate or free a page is if something is sitting on
+> >> the pages for an excessively long time or if the interrupt is bouncing
+> >> between memory nodes which forces us to free the memory since it is
+> >> sitting on the wrong node.
+> >>  
+> >> > We already have this exact issue in mlx5, where we moved to order-0
+> >> > allocations with a fixed size cache, but that was not enough.
+> >> > Customers of mlx5 have already complained about the performance degradation,
+> >> > and currently this is hurting our business.
+> >> > We get a clear nack from our performance regression team regarding doing the
+> >> > same in mlx4.  
+> >>
+> >> What form of recycling were you doing?  If you were doing the offset
+> >> based setup then that obviously only gets you so much.  The advantage
+> >> to using the page count is that you get almost a mobius strip effect
+> >> for your buffers and descriptor rings where you just keep flipping the
+> >> page offset back and forth via an XOR and the only cost is
+> >> dma_sync_for_cpu, get_page, dma_sync_for_device instead of having to
+> >> do the full allocation, mapping, and unmapping.
+> >>  
+> >> > So, the question is, can we live with this degradation until those
+> >> > bottleneck challenges are addressed?
+> >> > Following our perf experts feedback, I cannot just simply Ack. We need to
+> >> > have a clear plan to close the perf gap or reduce the impact.  
+> >>
+> >> I think we need to define what is the degradation you are expecting to
+> >> see.  Using the page count based approach should actually be better in
+> >> some cases than the order 3 page and just walking frags approach since
+> >> the theoretical reuse is infinite instead of fixed.
+> >>  
+> >> > Internally, I already implemented "dynamic page-cache" and "page-reuse"
+> >> > mechanisms in the driver,
+> >> > and together they totally bridge the performance gap.
+> >> > That's why I would like to hear from Jesper what is the status of his
+> >> > page_pool API, it is promising and could totally solve these issues.
+> >> >
+> >> > Regards,
+> >> > Tariq  
+> >>
+> >> The page pool may provide gains but we have to actually see it before
+> >> we can guarantee it.  If worse comes to worse I might just resort to
+> >> standardizing the logic used for the Intel driver page count based
+> >> approach.  Then if nothing else we would have a standard path for all
+> >> the drivers to use if we start going down this route.  
+> >
+> > With this Intel driver page count based recycle approach, the recycle
+> > size is tied to the size of the RX ring.  As Eric and Tariq discovered.
+> > And for other performance reasons (memory footprint of walking RX ring
+> > data-structures), don't want to increase the RX ring sizes.  Thus, it
+> > create two opposite performance needs.  That is why I think a more
+> > explicit approach with a pool is more attractive.
+> >
+> > How is this approach doing to work for XDP?
+> > (XDP doesn't "share" the page, and in-general we don't want the extra
+> > atomic.)  
+> 
+> The extra atomic is moot since it is we can get rid of that by doing
+> bulk page count updates.
+> 
+> Why can't XDP share a page?  You have brought up the user space aspect
+> of things repeatedly but the AF_PACKET patches John did more or less
+> demonstrated that wasn't the case.  What you end up with is you have
+> to either be providing pure user space pages or pure kernel pages.
+> You can't have pages being swapped between the two without introducing
+> security issues.  So even with your pool approach it doesn't matter
+> which way things are run.  Your pool is either device to user space,
+> or device to kernel space and it can't be both without creating
+> sharing concerns.
 
----------- Forwarded message ----------
-Date: Wed, 15 Feb 2017 03:07:29 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-To: kbuild@01.org
-Cc: Julia Lawall <julia.lawall@lip6.fr>
-Subject: Re: [PATCH 2/3 staging-next] oom: Add notification for oom_score_adj
+(I think we are talking past each other here.)
 
-Hi Peter,
+ 
+> > We absolutely need recycling with XDP, when transmitting out another
+> > device, and the other devices DMA-TX completion need some way of
+> > returning this page.  
+> 
+> I fully agree here.  However the easiest way of handling this is via
+> the page count in my opinion.
+> 
+> > What is basically needed is a standardized callback to allow the remote
+> > driver to return the page to the originating driver.  As we don't have
+> > a NDP for XDP-forward/transmit yet, we could pass this callback as a
+> > parameter along with the packet-page to send?  
+> 
+> No.  This assumes way too much.  Most packets aren't going to be
+> device to device routing.  We have seen this type of thing and
+> rejected it multiple times.  Don't think driver to driver.  This is
+> driver to network stack, socket, device, virtual machine, storage,
+> etc.  The fact is there are many spots where a frame might get
+> terminated. [...]
 
-[auto build test WARNING on staging/staging-testing]
-[also build test WARNING on v4.10-rc8 next-20170214]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+I fully agree, that XDP need to think further than driver to driver.
 
-url:    https://github.com/0day-ci/linux/commits/peter-enderborg-sonymobile-com/android-Collect-statistics-from-lowmemorykiller/20170215-004327
-:::::: branch date: 2 hours ago
-:::::: commit date: 2 hours ago
+ 
+> This is why I said before what we need to do is have a page destructor
+> to handle this sort of thing.  The idea is you want to have this work
+> everywhere.  Having just drivers do this would make it a nice toy but
+> completely useless since not too many people are doing
+> routing/bridging between interfaces.  Using the page destructor it is
+> easy to create a pool of "free" pages that you can then pull your DMA
+> pages out of or that you can release back into the page allocator.
 
->> kernel/fork.c:1887:1-7: preceding lock on line 1766
-   kernel/fork.c:1887:1-7: preceding lock on line 1755
+How is this page destructor different from my page_pool RFC
+implementation?  (It basically functions as a page destructor...)
 
-git remote add linux-review https://github.com/0day-ci/linux
-git remote update linux-review
-git checkout 0174c40bf153def3ac7b287f000a885b15048a38
-vim +1887 kernel/fork.c
+Help me understand what I'm missing?
 
-2d5516cbb Oleg Nesterov     2009-03-02  1760  		p->parent_exec_id = current->parent_exec_id;
-2d5516cbb Oleg Nesterov     2009-03-02  1761  	} else {
-^1da177e4 Linus Torvalds    2005-04-16  1762  		p->real_parent = current;
-2d5516cbb Oleg Nesterov     2009-03-02  1763  		p->parent_exec_id = current->self_exec_id;
-2d5516cbb Oleg Nesterov     2009-03-02  1764  	}
-^1da177e4 Linus Torvalds    2005-04-16  1765
-^1da177e4 Linus Torvalds    2005-04-16 @1766  	spin_lock(&current->sighand->siglock);
-4a2c7a783 Oleg Nesterov     2006-03-28  1767
-4a2c7a783 Oleg Nesterov     2006-03-28  1768  	/*
-dbd952127 Kees Cook         2014-06-27  1769  	 * Copy seccomp details explicitly here, in case they were changed
-dbd952127 Kees Cook         2014-06-27  1770  	 * before holding sighand lock.
-dbd952127 Kees Cook         2014-06-27  1771  	 */
-dbd952127 Kees Cook         2014-06-27  1772  	copy_seccomp(p);
-dbd952127 Kees Cook         2014-06-27  1773
-dbd952127 Kees Cook         2014-06-27  1774  	/*
-4a2c7a783 Oleg Nesterov     2006-03-28  1775  	 * Process group and session signals need to be delivered to just the
-4a2c7a783 Oleg Nesterov     2006-03-28  1776  	 * parent before the fork or both the parent and the child after the
-4a2c7a783 Oleg Nesterov     2006-03-28  1777  	 * fork. Restart if a signal comes in before we add the new process to
-4a2c7a783 Oleg Nesterov     2006-03-28  1778  	 * it's process group.
-4a2c7a783 Oleg Nesterov     2006-03-28  1779  	 * A fatal signal pending means that current will exit, so the new
-4a2c7a783 Oleg Nesterov     2006-03-28  1780  	 * thread can't slip out of an OOM kill (or normal SIGKILL).
-4a2c7a783 Oleg Nesterov     2006-03-28  1781  	*/
-4a2c7a783 Oleg Nesterov     2006-03-28  1782  	recalc_sigpending();
-4a2c7a783 Oleg Nesterov     2006-03-28  1783  	if (signal_pending(current)) {
-4a2c7a783 Oleg Nesterov     2006-03-28  1784  		spin_unlock(&current->sighand->siglock);
-4a2c7a783 Oleg Nesterov     2006-03-28  1785  		write_unlock_irq(&tasklist_lock);
-4a2c7a783 Oleg Nesterov     2006-03-28  1786  		retval = -ERESTARTNOINTR;
-7e47682ea Aleksa Sarai      2015-06-09  1787  		goto bad_fork_cancel_cgroup;
-4a2c7a783 Oleg Nesterov     2006-03-28  1788  	}
-4a2c7a783 Oleg Nesterov     2006-03-28  1789
-73b9ebfe1 Oleg Nesterov     2006-03-28  1790  	if (likely(p->pid)) {
-4b9d33e6d Tejun Heo         2011-06-17  1791  		ptrace_init_task(p, (clone_flags & CLONE_PTRACE) || trace);
-^1da177e4 Linus Torvalds    2005-04-16  1792
-819077398 Oleg Nesterov     2013-07-03  1793  		init_task_pid(p, PIDTYPE_PID, pid);
-^1da177e4 Linus Torvalds    2005-04-16  1794  		if (thread_group_leader(p)) {
-0174c40bf Peter Enderborg   2017-02-14  1795  			retval = oom_score_notify_new(p);
-0174c40bf Peter Enderborg   2017-02-14  1796  			if (retval)
-0174c40bf Peter Enderborg   2017-02-14  1797  				goto bad_fork_cancel_cgroup;
-0174c40bf Peter Enderborg   2017-02-14  1798
-819077398 Oleg Nesterov     2013-07-03  1799  			init_task_pid(p, PIDTYPE_PGID, task_pgrp(current));
-819077398 Oleg Nesterov     2013-07-03  1800  			init_task_pid(p, PIDTYPE_SID, task_session(current));
-819077398 Oleg Nesterov     2013-07-03  1801
-1c4042c29 Eric W. Biederman 2010-07-12  1802  			if (is_child_reaper(pid)) {
-17cf22c33 Eric W. Biederman 2010-03-02  1803  				ns_of_pid(pid)->child_reaper = p;
-1c4042c29 Eric W. Biederman 2010-07-12  1804  				p->signal->flags |= SIGNAL_UNKILLABLE;
-1c4042c29 Eric W. Biederman 2010-07-12  1805  			}
-5cd17569f Eric W. Biederman 2007-12-04  1806
-fea9d1755 Oleg Nesterov     2008-02-08  1807  			p->signal->leader_pid = pid;
-9c9f4ded9 Alan Cox          2008-10-13  1808  			p->signal->tty = tty_kref_get(current->signal->tty);
-9cd80bbb0 Oleg Nesterov     2009-12-17  1809  			list_add_tail(&p->sibling, &p->real_parent->children);
-5e85d4abe Eric W. Biederman 2006-04-18  1810  			list_add_tail_rcu(&p->tasks, &init_task.tasks);
-819077398 Oleg Nesterov     2013-07-03  1811  			attach_pid(p, PIDTYPE_PGID);
-819077398 Oleg Nesterov     2013-07-03  1812  			attach_pid(p, PIDTYPE_SID);
-909ea9646 Christoph Lameter 2010-12-08  1813  			__this_cpu_inc(process_counts);
-80628ca06 Oleg Nesterov     2013-07-03  1814  		} else {
-80628ca06 Oleg Nesterov     2013-07-03  1815  			current->signal->nr_threads++;
-80628ca06 Oleg Nesterov     2013-07-03  1816  			atomic_inc(&current->signal->live);
-80628ca06 Oleg Nesterov     2013-07-03  1817  			atomic_inc(&current->signal->sigcnt);
-80628ca06 Oleg Nesterov     2013-07-03  1818  			list_add_tail_rcu(&p->thread_group,
-80628ca06 Oleg Nesterov     2013-07-03  1819  					  &p->group_leader->thread_group);
-0c740d0af Oleg Nesterov     2014-01-21  1820  			list_add_tail_rcu(&p->thread_node,
-0c740d0af Oleg Nesterov     2014-01-21  1821  					  &p->signal->thread_head);
-^1da177e4 Linus Torvalds    2005-04-16  1822  		}
-819077398 Oleg Nesterov     2013-07-03  1823  		attach_pid(p, PIDTYPE_PID);
-^1da177e4 Linus Torvalds    2005-04-16  1824  		nr_threads++;
-73b9ebfe1 Oleg Nesterov     2006-03-28  1825  	}
-73b9ebfe1 Oleg Nesterov     2006-03-28  1826
-^1da177e4 Linus Torvalds    2005-04-16  1827  	total_forks++;
-3f17da699 Oleg Nesterov     2006-02-15  1828  	spin_unlock(&current->sighand->siglock);
-4af4206be Oleg Nesterov     2014-04-13  1829  	syscall_tracepoint_update(p);
-^1da177e4 Linus Torvalds    2005-04-16  1830  	write_unlock_irq(&tasklist_lock);
-4af4206be Oleg Nesterov     2014-04-13  1831
-c13cf856c Andrew Morton     2005-11-28  1832  	proc_fork_connector(p);
-b53202e63 Oleg Nesterov     2015-12-03  1833  	cgroup_post_fork(p);
-257058ae2 Tejun Heo         2011-12-12  1834  	threadgroup_change_end(current);
-cdd6c482c Ingo Molnar       2009-09-21  1835  	perf_event_fork(p);
-43d2b1132 KAMEZAWA Hiroyuki 2012-01-10  1836
-43d2b1132 KAMEZAWA Hiroyuki 2012-01-10  1837  	trace_task_newtask(p, clone_flags);
-3ab679661 Oleg Nesterov     2013-10-16  1838  	uprobe_copy_process(p, clone_flags);
-43d2b1132 KAMEZAWA Hiroyuki 2012-01-10  1839
-^1da177e4 Linus Torvalds    2005-04-16  1840  	return p;
-^1da177e4 Linus Torvalds    2005-04-16  1841
-7e47682ea Aleksa Sarai      2015-06-09  1842  bad_fork_cancel_cgroup:
-b53202e63 Oleg Nesterov     2015-12-03  1843  	cgroup_cancel_fork(p);
-425fb2b4b Pavel Emelyanov   2007-10-18  1844  bad_fork_free_pid:
-568ac8882 Balbir Singh      2016-08-10  1845  	threadgroup_change_end(current);
-425fb2b4b Pavel Emelyanov   2007-10-18  1846  	if (pid != &init_struct_pid)
-425fb2b4b Pavel Emelyanov   2007-10-18  1847  		free_pid(pid);
-0740aa5f6 Jiri Slaby        2016-05-20  1848  bad_fork_cleanup_thread:
-0740aa5f6 Jiri Slaby        2016-05-20  1849  	exit_thread(p);
-fd0928df9 Jens Axboe        2008-01-24  1850  bad_fork_cleanup_io:
-b69f22920 Louis Rilling     2009-12-04  1851  	if (p->io_context)
-b69f22920 Louis Rilling     2009-12-04  1852  		exit_io_context(p);
-ab516013a Serge E. Hallyn   2006-10-02  1853  bad_fork_cleanup_namespaces:
-444f378b2 Linus Torvalds    2007-01-30  1854  	exit_task_namespaces(p);
-^1da177e4 Linus Torvalds    2005-04-16  1855  bad_fork_cleanup_mm:
-c9f01245b David Rientjes    2011-10-31  1856  	if (p->mm)
-^1da177e4 Linus Torvalds    2005-04-16  1857  		mmput(p->mm);
-^1da177e4 Linus Torvalds    2005-04-16  1858  bad_fork_cleanup_signal:
-4ab6c0833 Oleg Nesterov     2009-08-26  1859  	if (!(clone_flags & CLONE_THREAD))
-1c5354de9 Mike Galbraith    2011-01-05  1860  		free_signal_struct(p->signal);
-^1da177e4 Linus Torvalds    2005-04-16  1861  bad_fork_cleanup_sighand:
-a7e5328a0 Oleg Nesterov     2006-03-28  1862  	__cleanup_sighand(p->sighand);
-^1da177e4 Linus Torvalds    2005-04-16  1863  bad_fork_cleanup_fs:
-^1da177e4 Linus Torvalds    2005-04-16  1864  	exit_fs(p); /* blocking */
-^1da177e4 Linus Torvalds    2005-04-16  1865  bad_fork_cleanup_files:
-^1da177e4 Linus Torvalds    2005-04-16  1866  	exit_files(p); /* blocking */
-^1da177e4 Linus Torvalds    2005-04-16  1867  bad_fork_cleanup_semundo:
-^1da177e4 Linus Torvalds    2005-04-16  1868  	exit_sem(p);
-^1da177e4 Linus Torvalds    2005-04-16  1869  bad_fork_cleanup_audit:
-^1da177e4 Linus Torvalds    2005-04-16  1870  	audit_free(p);
-6c72e3501 Peter Zijlstra    2014-10-02  1871  bad_fork_cleanup_perf:
-cdd6c482c Ingo Molnar       2009-09-21  1872  	perf_event_free_task(p);
-6c72e3501 Peter Zijlstra    2014-10-02  1873  bad_fork_cleanup_policy:
-^1da177e4 Linus Torvalds    2005-04-16  1874  #ifdef CONFIG_NUMA
-f0be3d32b Lee Schermerhorn  2008-04-28  1875  	mpol_put(p->mempolicy);
-e8604cb43 Li Zefan          2014-03-28  1876  bad_fork_cleanup_threadgroup_lock:
-^1da177e4 Linus Torvalds    2005-04-16  1877  #endif
-35df17c57 Shailabh Nagar    2006-08-31  1878  	delayacct_tsk_free(p);
-^1da177e4 Linus Torvalds    2005-04-16  1879  bad_fork_cleanup_count:
-d84f4f992 David Howells     2008-11-14  1880  	atomic_dec(&p->cred->user->processes);
-e0e817392 David Howells     2009-09-02  1881  	exit_creds(p);
-^1da177e4 Linus Torvalds    2005-04-16  1882  bad_fork_free:
-405c07597 Andy Lutomirski   2016-10-31  1883  	p->state = TASK_DEAD;
-68f24b08e Andy Lutomirski   2016-09-15  1884  	put_task_stack(p);
-^1da177e4 Linus Torvalds    2005-04-16  1885  	free_task(p);
-fe7d37d1f Oleg Nesterov     2006-01-08  1886  fork_out:
-fe7d37d1f Oleg Nesterov     2006-01-08 @1887  	return ERR_PTR(retval);
-^1da177e4 Linus Torvalds    2005-04-16  1888  }
-^1da177e4 Linus Torvalds    2005-04-16  1889
-f106eee10 Oleg Nesterov     2010-05-26  1890  static inline void init_idle_pids(struct pid_link *links)
+Pointers to page_pool discussions
+* page_pool RFC patchset:
+ - http://lkml.kernel.org/r/20161220132444.18788.50875.stgit@firesoul
+ - http://lkml.kernel.org/r/20161220132812.18788.20431.stgit@firesoul
+ - http://lkml.kernel.org/r/20161220132817.18788.64726.stgit@firesoul
+ - http://lkml.kernel.org/r/20161220132822.18788.19768.stgit@firesoul
+ - http://lkml.kernel.org/r/20161220132827.18788.8658.stgit@firesoul
 
-:::::: The code at line 1887 was first introduced by commit
-:::::: fe7d37d1fbf8ffe78abd72728b24fb0c64f7af55 [PATCH] copy_process: error path cleanup
-
-:::::: TO: Oleg Nesterov <oleg@tv-sign.ru>
-:::::: CC: Linus Torvalds <torvalds@g5.osdl.org>
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
