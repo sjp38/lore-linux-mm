@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EB776B03B6
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:40:29 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id w185so38231535ita.5
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:40:29 -0800 (PST)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A64D6B03BA
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:40:30 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id 203so38851512ith.3
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:40:30 -0800 (PST)
 Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0100.outbound.protection.outlook.com. [104.47.2.100])
         by mx.google.com with ESMTPS id d128si3690253ite.1.2017.02.14.10.40.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 14 Feb 2017 10:40:28 -0800 (PST)
+        Tue, 14 Feb 2017 10:40:29 -0800 (PST)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv5 4/5] x86/mm: check in_compat_syscall() instead TIF_ADDR32 for mmap(MAP_32BIT)
-Date: Tue, 14 Feb 2017 21:36:20 +0300
-Message-ID: <20170214183621.2537-5-dsafonov@virtuozzo.com>
+Subject: [PATCHv5 3/5] x86/mm: introduce mmap_compat_base for 32-bit mmap()
+Date: Tue, 14 Feb 2017 21:36:19 +0300
+Message-ID: <20170214183621.2537-4-dsafonov@virtuozzo.com>
 In-Reply-To: <20170214183621.2537-1-dsafonov@virtuozzo.com>
 References: <20170214183621.2537-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
@@ -23,57 +23,227 @@ To: linux-kernel@vger.kernel.org
 Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
  Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>
 
-Result of mmap() calls with MAP_32BIT flag at this moment depends
-on thread flag TIF_ADDR32, which is set during exec() for 32-bit apps.
-It's broken as the behavior of mmap() shouldn't depend on exec-ed
-application's bitness. Instead, it should check the bitness of mmap()
-syscall.
-How it worked before:
-o for 32-bit compatible binaries it is completely ignored. Which was
-fine when there were one mmap_base, computed for 32-bit syscalls.
-After introducing mmap_compat_base 64-bit syscalls do use computed
-for 64-bit syscalls mmap_base, which means that we can allocate 64-bit
-address with 64-bit syscall in application launched from 32-bit
-compatible binary. And ignoring this flag is not expected behavior.
-o for 64-bit ELFs it forces legacy bottom-up allocations and 1Gb address
-space restriction for allocations: [0x40000000, 0x80000000) - look at
-find_start_end(). Which means that it was wrongly handled for 32-bit
-syscalls - they don't need nor this restriction nor legacy mmap
-(as we try to keep 32-bit syscalls behavior the same independently of
-native/compat mode of ELF being executed).
-
-Changed mmap() behavior for MAP_32BIT flag the way that for 32-bit
-syscalls it will be always ignored and for 64-bit syscalls it'll
-always return 32-bit pointer restricted with 1Gb adress space,
-independently of the binary's bitness of executed application.
+mmap() uses base address, from which it starts to look for a free space
+for allocation. At this moment there is one mm->mmap_base, which is
+calculated during exec(). The address depends on task's size, set rlimit
+for stack, ASLR randomization. As task size and number of random bits
+differ between 64 and 32 bit applications, calculated mmap_base will
+be valid only for the same bitness.
+That means e.g., that calculated mmap_base for ELF64 lies upper than
+4Gb, which results in bug that 32-bit mmap() syscall will start to
+search for a free address over 32-bit address space and returns only
+lower 4-bytes of allocated mapping.
+As 64-bit applications can do 32-bit syscalls and vice-versa, we need
+to correctly chose mmap_base address for syscalls of different bitness.
+For this purpose introduce mmap_compat_base and mmap_compat_legacy_base,
+use them accordingly in top-down and bottom-up allocations in 32-bit
+syscalls, use existed bases mmap_base and mmap_legacy_base for 64-bit
+syscalls.
+That means that each application on x86_64 will have now two bases
+(or four if count legacy bases also) which are calculated on application
+exec(). I guess we can relax the calculation of bases until first mmap()
+call, but don't think it's worth.
 
 Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
- arch/x86/kernel/sys_x86_64.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/Kconfig                 |  7 +++++++
+ arch/x86/Kconfig             |  1 +
+ arch/x86/include/asm/elf.h   |  3 +++
+ arch/x86/kernel/sys_x86_64.c | 23 +++++++++++++++++++----
+ arch/x86/mm/mmap.c           | 41 ++++++++++++++++++++++++++++-------------
+ include/linux/mm_types.h     |  5 +++++
+ 6 files changed, 63 insertions(+), 17 deletions(-)
 
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 99839c23d453..cfb2fbf3f21c 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -671,6 +671,13 @@ config ARCH_MMAP_RND_COMPAT_BITS
+ 	  This value can be changed after boot using the
+ 	  /proc/sys/vm/mmap_rnd_compat_bits tunable
+ 
++config HAVE_ARCH_COMPAT_MMAP_BASES
++	bool
++	help
++	  This allows 64bit applications to invoke 32-bit mmap() syscall
++	  and vice-versa 32-bit applications to call 64-bit mmap().
++	  Required for applications doing different bitness syscalls.
++
+ config HAVE_COPY_THREAD_TLS
+ 	bool
+ 	help
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index e487493bbd47..b3acb836567a 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -102,6 +102,7 @@ config X86
+ 	select HAVE_ARCH_KMEMCHECK
+ 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
+ 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
++	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
+ 	select HAVE_ARCH_SECCOMP_FILTER
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+index 8aedc2a4d48c..eb9171f172d9 100644
+--- a/arch/x86/include/asm/elf.h
++++ b/arch/x86/include/asm/elf.h
+@@ -294,6 +294,9 @@ static inline int mmap_is_ia32(void)
+ 		test_thread_flag(TIF_ADDR32));
+ }
+ 
++extern unsigned long tasksize_32bit(void);
++extern unsigned long tasksize_64bit(void);
++
+ #ifdef CONFIG_X86_32
+ 
+ #define __STACK_RND_MASK(is32bit) (0x7ff)
 diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index 16b43dbe78b1..cc8eaba10104 100644
+index a55ed63b9f91..16b43dbe78b1 100644
 --- a/arch/x86/kernel/sys_x86_64.c
 +++ b/arch/x86/kernel/sys_x86_64.c
-@@ -114,7 +114,7 @@ static unsigned long get_mmap_base(int is_legacy)
+@@ -16,6 +16,8 @@
+ #include <linux/uaccess.h>
+ #include <linux/elf.h>
+ 
++#include <asm/elf.h>
++#include <asm/compat.h>
+ #include <asm/ia32.h>
+ #include <asm/syscalls.h>
+ 
+@@ -97,6 +99,18 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+ 	return error;
+ }
+ 
++static unsigned long get_mmap_base(int is_legacy)
++{
++	struct mm_struct *mm = current->mm;
++
++#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
++	if (in_compat_syscall())
++		return is_legacy ? mm->mmap_compat_legacy_base
++				 : mm->mmap_compat_base;
++#endif
++	return is_legacy ? mm->mmap_legacy_base : mm->mmap_base;
++}
++
  static void find_start_end(unsigned long flags, unsigned long *begin,
  			   unsigned long *end)
  {
--	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
-+	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
- 		/* This is usually used needed to map code in small
- 		   model, so it needs to be in the first 31bit. Limit
- 		   it to that.  This means we need to move the
-@@ -190,7 +190,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 		return addr;
+@@ -113,10 +127,11 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
+ 		if (current->flags & PF_RANDOMIZE) {
+ 			*begin = randomize_page(*begin, 0x02000000);
+ 		}
+-	} else {
+-		*begin = current->mm->mmap_legacy_base;
+-		*end = TASK_SIZE;
++		return;
+ 	}
++
++	*begin	= get_mmap_base(1);
++	*end	= in_compat_syscall() ? tasksize_32bit() : tasksize_64bit();
+ }
  
- 	/* for MAP_32BIT mappings we force the legacy mmap base */
--	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
-+	if (!in_compat_syscall() && (flags & MAP_32BIT))
- 		goto bottomup;
+ unsigned long
+@@ -190,7 +205,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+ 	info.length = len;
+ 	info.low_limit = PAGE_SIZE;
+-	info.high_limit = mm->mmap_base;
++	info.high_limit = get_mmap_base(0);
+ 	info.align_mask = 0;
+ 	info.align_offset = pgoff << PAGE_SHIFT;
+ 	if (filp) {
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index 88ef0c1b0e51..688b51a09e67 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -35,11 +35,16 @@ struct va_alignment __read_mostly va_align = {
+ 	.flags = -1,
+ };
  
- 	/* requesting a specific address */
+-static inline unsigned long tasksize_32bit(void)
++unsigned long tasksize_32bit(void)
+ {
+ 	return IA32_PAGE_OFFSET;
+ }
+ 
++unsigned long tasksize_64bit(void)
++{
++	return TASK_SIZE_MAX;
++}
++
+ static unsigned long stack_maxrandom_size(unsigned long task_size)
+ {
+ 	unsigned long max = 0;
+@@ -80,6 +85,8 @@ static unsigned long arch_rnd(unsigned int rndbits)
+ 
+ unsigned long arch_mmap_rnd(void)
+ {
++	if (!(current->flags & PF_RANDOMIZE))
++		return 0;
+ 	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
+ }
+ 
+@@ -113,22 +120,30 @@ static unsigned long mmap_legacy_base(unsigned long rnd,
+  * This function, called very early during the creation of a new
+  * process VM image, sets up which VM layout function to use:
+  */
+-void arch_pick_mmap_layout(struct mm_struct *mm)
++static void arch_pick_mmap_base(unsigned long *base, unsigned long *legacy_base,
++		unsigned long random_factor, unsigned long task_size)
+ {
+-	unsigned long random_factor = 0UL;
+-
+-	if (current->flags & PF_RANDOMIZE)
+-		random_factor = arch_mmap_rnd();
+-
+-	mm->mmap_legacy_base = mmap_legacy_base(random_factor, TASK_SIZE);
++	*legacy_base = mmap_legacy_base(random_factor, task_size);
++	if (mmap_is_legacy())
++		*base = *legacy_base;
++	else
++		*base = mmap_base(random_factor, task_size);
++}
+ 
+-	if (mmap_is_legacy()) {
+-		mm->mmap_base = mm->mmap_legacy_base;
++void arch_pick_mmap_layout(struct mm_struct *mm)
++{
++	if (mmap_is_legacy())
+ 		mm->get_unmapped_area = arch_get_unmapped_area;
+-	} else {
+-		mm->mmap_base = mmap_base(random_factor, TASK_SIZE);
++	else
+ 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+-	}
++
++	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
++			arch_rnd(mmap64_rnd_bits), tasksize_64bit());
++
++#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
++	arch_pick_mmap_base(&mm->mmap_compat_base, &mm->mmap_compat_legacy_base,
++			arch_rnd(mmap32_rnd_bits), tasksize_32bit());
++#endif
+ }
+ 
+ const char *arch_vma_name(struct vm_area_struct *vma)
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 808751d7b737..48274a84cebe 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -404,6 +404,11 @@ struct mm_struct {
+ #endif
+ 	unsigned long mmap_base;		/* base of mmap area */
+ 	unsigned long mmap_legacy_base;         /* base of mmap area in bottom-up allocations */
++#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
++	/* Base adresses for compatible mmap() */
++	unsigned long mmap_compat_base;
++	unsigned long mmap_compat_legacy_base;
++#endif
+ 	unsigned long task_size;		/* size of task vm space */
+ 	unsigned long highest_vm_end;		/* highest vma end address */
+ 	pgd_t * pgd;
 -- 
 2.11.1
 
