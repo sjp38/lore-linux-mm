@@ -1,279 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B2C6B03BA
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:40:30 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id t47so27793162ota.4
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:40:30 -0800 (PST)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0100.outbound.protection.outlook.com. [104.47.2.100])
-        by mx.google.com with ESMTPS id d128si3690253ite.1.2017.02.14.10.40.29
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0956C6B03C1
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:46:23 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id g49so151213320qta.0
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:46:23 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f12si1046605qkf.134.2017.02.14.10.46.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 14 Feb 2017 10:40:29 -0800 (PST)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv5 5/5] selftests/x86: add test for 32-bit mmap() return addr
-Date: Tue, 14 Feb 2017 21:36:21 +0300
-Message-ID: <20170214183621.2537-6-dsafonov@virtuozzo.com>
-In-Reply-To: <20170214183621.2537-1-dsafonov@virtuozzo.com>
-References: <20170214183621.2537-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Feb 2017 10:46:22 -0800 (PST)
+Date: Tue, 14 Feb 2017 19:46:15 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
+Message-ID: <20170214194615.3feddd07@redhat.com>
+In-Reply-To: <CAKgT0UdRmpV_n1wstTHvqCgyRtze8z1rTJ5pKc_jdRttQCSySw@mail.gmail.com>
+References: <20170213195858.5215-1-edumazet@google.com>
+	<20170213195858.5215-9-edumazet@google.com>
+	<CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+	<CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+	<CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
+	<20170214131206.44b644f6@redhat.com>
+	<CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+	<cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com>
+	<CAKgT0UdRmpV_n1wstTHvqCgyRtze8z1rTJ5pKc_jdRttQCSySw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Shuah Khan <shuah@kernel.org>, linux-kselftest@vger.kernel.org
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Tariq Toukan <ttoukan.linux@gmail.com>, Eric Dumazet <edumazet@google.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm <linux-mm@kvack.org>, brouer@redhat.com
 
-This test calls 32-bit mmap() through int 0x80 and checks /proc/self/maps
-for allocated VMA's address - it should be downer than 4 Gb. Just
-accessing allocated with mmap pointer will not work, as we could have
-some VMA placed on the same address as lower 4 bytes of the new mapping.
-As allocation is top-down by default (unless legacy personality was set),
-we can expect that mmap() will allocate memory over 4Gb if mmap_base
-has been computed not correctly.
+On Tue, 14 Feb 2017 09:29:54 -0800
+Alexander Duyck <alexander.duyck@gmail.com> wrote:
 
-On failure it prints:
-[NOTE]	Allocated mmap 0x6f36a000, sized 0x400000
-[NOTE]	New mapping appeared: 0x7f936f36a000
-[FAIL]	Found VMA [0x7f936f36a000, 0x7f936f76a000] in maps file, that was allocated with compat syscall
+> On Tue, Feb 14, 2017 at 6:56 AM, Tariq Toukan <ttoukan.linux@gmail.com> wrote:
+> >
+> >
+> > On 14/02/2017 3:45 PM, Eric Dumazet wrote:  
+> >>
+> >> On Tue, Feb 14, 2017 at 4:12 AM, Jesper Dangaard Brouer
+> >> <brouer@redhat.com> wrote:
+> >>  
+> >>> It is important to understand that there are two cases for the cost of
+> >>> an atomic op, which depend on the cache-coherency state of the
+> >>> cacheline.
+> >>>
+> >>> Measured on Skylake CPU i7-6700K CPU @ 4.00GHz
+> >>>
+> >>> (1) Local CPU atomic op :  27 cycles(tsc)  6.776 ns
+> >>> (2) Remote CPU atomic op: 260 cycles(tsc) 64.964 ns
+> >>>  
+> >> Okay, it seems you guys really want a patch that I said was not giving
+> >> good results
+> >>
+> >> Let me publish the numbers I get , adding or not the last (and not
+> >> official) patch.
+> >>
+> >> If I _force_ the user space process to run on the other node,
+> >> then the results are not the ones Alex or you are expecting.
+> >>
+> >> I have with this patch about 2.7 Mpps of this silly single TCP flow,
+> >> and 3.5 Mpps without it.
+> >>
+> >> lpaa24:~# sar -n DEV 1 10 | grep eth0 | grep Ave
+> >> Average:         eth0 2699243.20  16663.70 1354783.36   1079.95
+> >> 0.00      0.00      4.50
+> >>
+> >> Profile of the cpu on NUMA node 1 ( netserver consuming data ) :
+> >>
+> >>      54.73%  [kernel]      [k] copy_user_enhanced_fast_string
+> >>      31.07%  [kernel]      [k] skb_release_data
+> >>       4.24%  [kernel]      [k] skb_copy_datagram_iter
+> >>       1.35%  [kernel]      [k] copy_page_to_iter
+> >>       0.98%  [kernel]      [k] _raw_spin_lock
+> >>       0.90%  [kernel]      [k] skb_release_head_state
+> >>       0.60%  [kernel]      [k] tcp_transmit_skb
+> >>       0.51%  [kernel]      [k] mlx4_en_xmit
+> >>       0.33%  [kernel]      [k] ___cache_free
+> >>       0.28%  [kernel]      [k] tcp_rcv_established
+> >>
+> >> Profile of cpu handling mlx4 softirqs (NUMA node 0)
+> >>
+> >>
+> >>      48.00%  [kernel]          [k] mlx4_en_process_rx_cq
+> >>      12.92%  [kernel]          [k] napi_gro_frags
+> >>       7.28%  [kernel]          [k] inet_gro_receive
+> >>       7.17%  [kernel]          [k] tcp_gro_receive
+> >>       5.10%  [kernel]          [k] dev_gro_receive
+> >>       4.87%  [kernel]          [k] skb_gro_receive
+> >>       2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
+> >>       2.04%  [kernel]          [k] __build_skb
+> >>       1.02%  [kernel]          [k] napi_reuse_skb.isra.95
+> >>       1.01%  [kernel]          [k] tcp4_gro_receive
+> >>       0.65%  [kernel]          [k] kmem_cache_alloc
+> >>       0.45%  [kernel]          [k] _raw_spin_lock
+> >>
+> >> Without the latest  patch (the exact patch series v3 I submitted),
+> >> thus with this atomic_inc() in mlx4_en_process_rx_cq  instead of only
+> >> reads.
+> >>
+> >> lpaa24:~# sar -n DEV 1 10|grep eth0|grep Ave
+> >> Average:         eth0 3566768.50  25638.60 1790345.69   1663.51
+> >> 0.00      0.00      4.50
+> >>
+> >> Profiles of the two cpus :
+> >>
+> >>      74.85%  [kernel]      [k] copy_user_enhanced_fast_string
+> >>       6.42%  [kernel]      [k] skb_release_data
+> >>       5.65%  [kernel]      [k] skb_copy_datagram_iter
+> >>       1.83%  [kernel]      [k] copy_page_to_iter
+> >>       1.59%  [kernel]      [k] _raw_spin_lock
+> >>       1.48%  [kernel]      [k] skb_release_head_state
+> >>       0.72%  [kernel]      [k] tcp_transmit_skb
+> >>       0.68%  [kernel]      [k] mlx4_en_xmit
+> >>       0.43%  [kernel]      [k] page_frag_free
+> >>       0.38%  [kernel]      [k] ___cache_free
+> >>       0.37%  [kernel]      [k] tcp_established_options
+> >>       0.37%  [kernel]      [k] __ip_local_out
+> >>
+> >>
+> >>     37.98%  [kernel]          [k] mlx4_en_process_rx_cq
+> >>      26.47%  [kernel]          [k] napi_gro_frags
+> >>       7.02%  [kernel]          [k] inet_gro_receive
+> >>       5.89%  [kernel]          [k] tcp_gro_receive
+> >>       5.17%  [kernel]          [k] dev_gro_receive
+> >>       4.80%  [kernel]          [k] skb_gro_receive
+> >>       2.61%  [kernel]          [k] __build_skb
+> >>       2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
+> >>       1.59%  [kernel]          [k] napi_reuse_skb.isra.95
+> >>       0.95%  [kernel]          [k] tcp4_gro_receive
+> >>       0.51%  [kernel]          [k] kmem_cache_alloc
+> >>       0.42%  [kernel]          [k] __inet_lookup_established
+> >>       0.34%  [kernel]          [k] swiotlb_sync_single_for_cpu
+> >>
+> >>
+> >> So probably this will need further analysis, outside of the scope of
+> >> this patch series.
+> >>
+> >> Could we now please Ack this v3 and merge it ?
+> >>
+> >> Thanks.  
+> >
+> > Thanks Eric.
+> >
+> > As the previous series caused hangs, we must run functional regression tests
+> > over this series as well.
+> > Run has already started, and results will be available tomorrow morning.
+> >
+> > In general, I really like this series. The re-factorization looks more
+> > elegant and more correct, functionally.
+> >
+> > However, performance wise: we fear that the numbers will be drastically
+> > lower with this transition to order-0 pages,
+> > because of the (becoming critical) page allocator and dma operations
+> > bottlenecks, especially on systems with costly
+> > dma operations, such as ARM, iommu=on, etc...  
+> 
+> So to give you an idea I originally came up with the approach used in
+> the Intel drivers when I was dealing with a PowerPC system where the
+> IOMMU was a requirement.  With this setup correctly the map/unmap
+> calls should be almost non-existent.  Basically the only time we
+> should have to allocate or free a page is if something is sitting on
+> the pages for an excessively long time or if the interrupt is bouncing
+> between memory nodes which forces us to free the memory since it is
+> sitting on the wrong node.
+>
+> > We already have this exact issue in mlx5, where we moved to order-0
+> > allocations with a fixed size cache, but that was not enough.
+> > Customers of mlx5 have already complained about the performance degradation,
+> > and currently this is hurting our business.
+> > We get a clear nack from our performance regression team regarding doing the
+> > same in mlx4.  
+> 
+> What form of recycling were you doing?  If you were doing the offset
+> based setup then that obviously only gets you so much.  The advantage
+> to using the page count is that you get almost a mobius strip effect
+> for your buffers and descriptor rings where you just keep flipping the
+> page offset back and forth via an XOR and the only cost is
+> dma_sync_for_cpu, get_page, dma_sync_for_device instead of having to
+> do the full allocation, mapping, and unmapping.
+> 
+> > So, the question is, can we live with this degradation until those
+> > bottleneck challenges are addressed?
+> > Following our perf experts feedback, I cannot just simply Ack. We need to
+> > have a clear plan to close the perf gap or reduce the impact.  
+> 
+> I think we need to define what is the degradation you are expecting to
+> see.  Using the page count based approach should actually be better in
+> some cases than the order 3 page and just walking frags approach since
+> the theoretical reuse is infinite instead of fixed.
+> 
+> > Internally, I already implemented "dynamic page-cache" and "page-reuse"
+> > mechanisms in the driver,
+> > and together they totally bridge the performance gap.
+> > That's why I would like to hear from Jesper what is the status of his
+> > page_pool API, it is promising and could totally solve these issues.
+> >
+> > Regards,
+> > Tariq  
+> 
+> The page pool may provide gains but we have to actually see it before
+> we can guarantee it.  If worse comes to worse I might just resort to
+> standardizing the logic used for the Intel driver page count based
+> approach.  Then if nothing else we would have a standard path for all
+> the drivers to use if we start going down this route.
 
-Cc: Shuah Khan <shuah@kernel.org>
-Cc: linux-kselftest@vger.kernel.org
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- tools/testing/selftests/x86/Makefile           |   2 +-
- tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
- 2 files changed, 209 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
+With this Intel driver page count based recycle approach, the recycle
+size is tied to the size of the RX ring.  As Eric and Tariq discovered.
+And for other performance reasons (memory footprint of walking RX ring
+data-structures), don't want to increase the RX ring sizes.  Thus, it
+create two opposite performance needs.  That is why I think a more
+explicit approach with a pool is more attractive.
 
-diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
-index 8c1cb423cfe6..9c3e746a6064 100644
---- a/tools/testing/selftests/x86/Makefile
-+++ b/tools/testing/selftests/x86/Makefile
-@@ -10,7 +10,7 @@ TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_sysc
- TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
- 			test_FCMOV test_FCOMI test_FISTTP \
- 			vdso_restorer
--TARGETS_C_64BIT_ONLY := fsgsbase
-+TARGETS_C_64BIT_ONLY := fsgsbase test_compat_mmap
- 
- TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
- TARGETS_C_64BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_64BIT_ONLY)
-diff --git a/tools/testing/selftests/x86/test_compat_mmap.c b/tools/testing/selftests/x86/test_compat_mmap.c
-new file mode 100644
-index 000000000000..245d9407653e
---- /dev/null
-+++ b/tools/testing/selftests/x86/test_compat_mmap.c
-@@ -0,0 +1,208 @@
-+/*
-+ * Check that compat 32-bit mmap() returns address < 4Gb on 64-bit.
-+ *
-+ * Copyright (c) 2017 Dmitry Safonov (Virtuozzo)
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms and conditions of the GNU General Public License,
-+ * version 2, as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ */
-+#include <sys/mman.h>
-+#include <sys/types.h>
-+
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <stdint.h>
-+#include <signal.h>
-+#include <stdlib.h>
-+
-+#define PAGE_SIZE 4096
-+#define MMAP_SIZE (PAGE_SIZE*1024)
-+#define MAX_VMAS 50
-+#define BUF_SIZE 1024
-+
-+#ifndef __NR32_mmap2
-+#define __NR32_mmap2 192
-+#endif
-+
-+struct syscall_args32 {
-+	uint32_t nr, arg0, arg1, arg2, arg3, arg4, arg5;
-+};
-+
-+static void do_full_int80(struct syscall_args32 *args)
-+{
-+	asm volatile ("int $0x80"
-+		      : "+a" (args->nr),
-+			"+b" (args->arg0), "+c" (args->arg1), "+d" (args->arg2),
-+			"+S" (args->arg3), "+D" (args->arg4),
-+			"+rbp" (args->arg5)
-+			: : "r8", "r9", "r10", "r11");
-+}
-+
-+void *mmap2(void *addr, size_t len, int prot, int flags,
-+	int fildes, off_t off)
-+{
-+	struct syscall_args32 s;
-+
-+	s.nr	= __NR32_mmap2;
-+	s.arg0	= (uint32_t)(uintptr_t)addr;
-+	s.arg1	= (uint32_t)len;
-+	s.arg2	= prot;
-+	s.arg3	= flags;
-+	s.arg4	= fildes;
-+	s.arg5	= (uint32_t)off;
-+
-+	do_full_int80(&s);
-+
-+	return (void *)(uintptr_t)s.nr;
-+}
-+
-+struct vm_area {
-+	unsigned long start;
-+	unsigned long end;
-+};
-+
-+static struct vm_area vmas_before_mmap[MAX_VMAS];
-+static struct vm_area vmas_after_mmap[MAX_VMAS];
-+
-+static char buf[BUF_SIZE];
-+
-+int parse_maps(struct vm_area *vmas)
-+{
-+	FILE *maps;
-+	int i;
-+
-+	maps = fopen("/proc/self/maps", "r");
-+	if (maps == NULL) {
-+		printf("[ERROR]\tFailed to open maps file: %m\n");
-+		return -1;
-+	}
-+
-+	for (i = 0; i < MAX_VMAS; i++) {
-+		struct vm_area *v = &vmas[i];
-+		char *end;
-+
-+		if (fgets(buf, BUF_SIZE, maps) == NULL)
-+			break;
-+
-+		v->start = strtoul(buf, &end, 16);
-+		v->end = strtoul(end + 1, NULL, 16);
-+		//printf("[NOTE]\tVMA: [%#lx, %#lx]\n", v->start, v->end);
-+	}
-+
-+	if (i == MAX_VMAS) {
-+		printf("[ERROR]\tNumber of VMAs is bigger than reserved array's size\n");
-+		return -1;
-+	}
-+
-+	if (fclose(maps)) {
-+		printf("[ERROR]\tFailed to close maps file: %m\n");
-+		return -1;
-+	}
-+	return 0;
-+}
-+
-+int compare_vmas(struct vm_area *vmax, struct vm_area *vmay)
-+{
-+	if (vmax->start > vmay->start)
-+		return 1;
-+	if (vmax->start < vmay->start)
-+		return -1;
-+	if (vmax->end > vmay->end)
-+		return 1;
-+	if (vmax->end < vmay->end)
-+		return -1;
-+	return 0;
-+}
-+
-+unsigned long vma_size(struct vm_area *v)
-+{
-+	return v->end - v->start;
-+}
-+
-+int find_new_vma_like(struct vm_area *vma)
-+{
-+	int i, j = 0, found_alike = -1;
-+
-+	for (i = 0; i < MAX_VMAS && j < MAX_VMAS; i++, j++) {
-+		int cmp = compare_vmas(&vmas_before_mmap[i],
-+				&vmas_after_mmap[j]);
-+
-+		if (cmp == 0)
-+			continue;
-+		if (cmp < 0) {/* Lost mapping */
-+			printf("[NOTE]\tLost mapping: %#lx\n",
-+				vmas_before_mmap[i].start);
-+			j--;
-+			continue;
-+		}
-+
-+		printf("[NOTE]\tNew mapping appeared: %#lx\n",
-+				vmas_after_mmap[j].start);
-+		i--;
-+		if (!compare_vmas(&vmas_after_mmap[j], vma))
-+			return 0;
-+
-+		if (((vmas_after_mmap[j].start & 0xffffffff) == vma->start) &&
-+				(vma_size(&vmas_after_mmap[j]) == vma_size(vma)))
-+			found_alike = j;
-+	}
-+
-+	/* Left new vmas in tail */
-+	for (; i < MAX_VMAS; i++)
-+		if (!compare_vmas(&vmas_after_mmap[j], vma))
-+			return 0;
-+
-+	if (found_alike != -1) {
-+		printf("[FAIL]\tFound VMA [%#lx, %#lx] in maps file, that was allocated with compat syscall\n",
-+			vmas_after_mmap[found_alike].start,
-+			vmas_after_mmap[found_alike].end);
-+		return -1;
-+	}
-+
-+	printf("[ERROR]\tCan't find [%#lx, %#lx] in maps file\n",
-+		vma->start, vma->end);
-+	return -1;
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	void *map;
-+	struct vm_area vma;
-+
-+	if (parse_maps(vmas_before_mmap)) {
-+		printf("[ERROR]\tFailed to parse maps file\n");
-+		return 1;
-+	}
-+
-+	map = mmap2(0, MMAP_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
-+			MAP_PRIVATE | MAP_ANON, -1, 0);
-+	if (((uintptr_t)map) % PAGE_SIZE) {
-+		printf("[ERROR]\tmmap2 failed: %d\n",
-+				(~(uint32_t)(uintptr_t)map) + 1);
-+		return 1;
-+	} else {
-+		printf("[NOTE]\tAllocated mmap %p, sized %#x\n", map, MMAP_SIZE);
-+	}
-+
-+	if (parse_maps(vmas_after_mmap)) {
-+		printf("[ERROR]\tFailed to parse maps file\n");
-+		return 1;
-+	}
-+
-+	munmap(map, MMAP_SIZE);
-+
-+	vma.start = (unsigned long)(uintptr_t)map;
-+	vma.end = vma.start + MMAP_SIZE;
-+	if (find_new_vma_like(&vma))
-+		return 1;
-+
-+	printf("[OK]\n");
-+
-+	return 0;
-+}
+How is this approach doing to work for XDP?
+(XDP doesn't "share" the page, and in-general we don't want the extra
+atomic.)
+
+We absolutely need recycling with XDP, when transmitting out another
+device, and the other devices DMA-TX completion need some way of
+returning this page.
+What is basically needed is a standardized callback to allow the remote
+driver to return the page to the originating driver.  As we don't have
+a NDP for XDP-forward/transmit yet, we could pass this callback as a
+parameter along with the packet-page to send?
+
 -- 
-2.11.1
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
