@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A64D6B03BA
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B2C6B03BA
 	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:40:30 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id 203so38851512ith.3
+Received: by mail-ot0-f198.google.com with SMTP id t47so27793162ota.4
         for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:40:30 -0800 (PST)
 Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0100.outbound.protection.outlook.com. [104.47.2.100])
-        by mx.google.com with ESMTPS id d128si3690253ite.1.2017.02.14.10.40.28
+        by mx.google.com with ESMTPS id d128si3690253ite.1.2017.02.14.10.40.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 14 Feb 2017 10:40:29 -0800 (PST)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv5 3/5] x86/mm: introduce mmap_compat_base for 32-bit mmap()
-Date: Tue, 14 Feb 2017 21:36:19 +0300
-Message-ID: <20170214183621.2537-4-dsafonov@virtuozzo.com>
+Subject: [PATCHv5 5/5] selftests/x86: add test for 32-bit mmap() return addr
+Date: Tue, 14 Feb 2017 21:36:21 +0300
+Message-ID: <20170214183621.2537-6-dsafonov@virtuozzo.com>
 In-Reply-To: <20170214183621.2537-1-dsafonov@virtuozzo.com>
 References: <20170214183621.2537-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
@@ -21,229 +21,257 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Shuah Khan <shuah@kernel.org>, linux-kselftest@vger.kernel.org
 
-mmap() uses base address, from which it starts to look for a free space
-for allocation. At this moment there is one mm->mmap_base, which is
-calculated during exec(). The address depends on task's size, set rlimit
-for stack, ASLR randomization. As task size and number of random bits
-differ between 64 and 32 bit applications, calculated mmap_base will
-be valid only for the same bitness.
-That means e.g., that calculated mmap_base for ELF64 lies upper than
-4Gb, which results in bug that 32-bit mmap() syscall will start to
-search for a free address over 32-bit address space and returns only
-lower 4-bytes of allocated mapping.
-As 64-bit applications can do 32-bit syscalls and vice-versa, we need
-to correctly chose mmap_base address for syscalls of different bitness.
-For this purpose introduce mmap_compat_base and mmap_compat_legacy_base,
-use them accordingly in top-down and bottom-up allocations in 32-bit
-syscalls, use existed bases mmap_base and mmap_legacy_base for 64-bit
-syscalls.
-That means that each application on x86_64 will have now two bases
-(or four if count legacy bases also) which are calculated on application
-exec(). I guess we can relax the calculation of bases until first mmap()
-call, but don't think it's worth.
+This test calls 32-bit mmap() through int 0x80 and checks /proc/self/maps
+for allocated VMA's address - it should be downer than 4 Gb. Just
+accessing allocated with mmap pointer will not work, as we could have
+some VMA placed on the same address as lower 4 bytes of the new mapping.
+As allocation is top-down by default (unless legacy personality was set),
+we can expect that mmap() will allocate memory over 4Gb if mmap_base
+has been computed not correctly.
 
+On failure it prints:
+[NOTE]	Allocated mmap 0x6f36a000, sized 0x400000
+[NOTE]	New mapping appeared: 0x7f936f36a000
+[FAIL]	Found VMA [0x7f936f36a000, 0x7f936f76a000] in maps file, that was allocated with compat syscall
+
+Cc: Shuah Khan <shuah@kernel.org>
+Cc: linux-kselftest@vger.kernel.org
 Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
- arch/Kconfig                 |  7 +++++++
- arch/x86/Kconfig             |  1 +
- arch/x86/include/asm/elf.h   |  3 +++
- arch/x86/kernel/sys_x86_64.c | 23 +++++++++++++++++++----
- arch/x86/mm/mmap.c           | 41 ++++++++++++++++++++++++++++-------------
- include/linux/mm_types.h     |  5 +++++
- 6 files changed, 63 insertions(+), 17 deletions(-)
+ tools/testing/selftests/x86/Makefile           |   2 +-
+ tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
+ 2 files changed, 209 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 99839c23d453..cfb2fbf3f21c 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -671,6 +671,13 @@ config ARCH_MMAP_RND_COMPAT_BITS
- 	  This value can be changed after boot using the
- 	  /proc/sys/vm/mmap_rnd_compat_bits tunable
+diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
+index 8c1cb423cfe6..9c3e746a6064 100644
+--- a/tools/testing/selftests/x86/Makefile
++++ b/tools/testing/selftests/x86/Makefile
+@@ -10,7 +10,7 @@ TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_sysc
+ TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
+ 			test_FCMOV test_FCOMI test_FISTTP \
+ 			vdso_restorer
+-TARGETS_C_64BIT_ONLY := fsgsbase
++TARGETS_C_64BIT_ONLY := fsgsbase test_compat_mmap
  
-+config HAVE_ARCH_COMPAT_MMAP_BASES
-+	bool
-+	help
-+	  This allows 64bit applications to invoke 32-bit mmap() syscall
-+	  and vice-versa 32-bit applications to call 64-bit mmap().
-+	  Required for applications doing different bitness syscalls.
+ TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
+ TARGETS_C_64BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_64BIT_ONLY)
+diff --git a/tools/testing/selftests/x86/test_compat_mmap.c b/tools/testing/selftests/x86/test_compat_mmap.c
+new file mode 100644
+index 000000000000..245d9407653e
+--- /dev/null
++++ b/tools/testing/selftests/x86/test_compat_mmap.c
+@@ -0,0 +1,208 @@
++/*
++ * Check that compat 32-bit mmap() returns address < 4Gb on 64-bit.
++ *
++ * Copyright (c) 2017 Dmitry Safonov (Virtuozzo)
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ */
++#include <sys/mman.h>
++#include <sys/types.h>
 +
- config HAVE_COPY_THREAD_TLS
- 	bool
- 	help
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index e487493bbd47..b3acb836567a 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -102,6 +102,7 @@ config X86
- 	select HAVE_ARCH_KMEMCHECK
- 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
- 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
-+	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
-diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
-index 8aedc2a4d48c..eb9171f172d9 100644
---- a/arch/x86/include/asm/elf.h
-+++ b/arch/x86/include/asm/elf.h
-@@ -294,6 +294,9 @@ static inline int mmap_is_ia32(void)
- 		test_thread_flag(TIF_ADDR32));
- }
- 
-+extern unsigned long tasksize_32bit(void);
-+extern unsigned long tasksize_64bit(void);
++#include <stdio.h>
++#include <unistd.h>
++#include <stdint.h>
++#include <signal.h>
++#include <stdlib.h>
 +
- #ifdef CONFIG_X86_32
- 
- #define __STACK_RND_MASK(is32bit) (0x7ff)
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index a55ed63b9f91..16b43dbe78b1 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -16,6 +16,8 @@
- #include <linux/uaccess.h>
- #include <linux/elf.h>
- 
-+#include <asm/elf.h>
-+#include <asm/compat.h>
- #include <asm/ia32.h>
- #include <asm/syscalls.h>
- 
-@@ -97,6 +99,18 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
- 	return error;
- }
- 
-+static unsigned long get_mmap_base(int is_legacy)
-+{
-+	struct mm_struct *mm = current->mm;
++#define PAGE_SIZE 4096
++#define MMAP_SIZE (PAGE_SIZE*1024)
++#define MAX_VMAS 50
++#define BUF_SIZE 1024
 +
-+#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
-+	if (in_compat_syscall())
-+		return is_legacy ? mm->mmap_compat_legacy_base
-+				 : mm->mmap_compat_base;
++#ifndef __NR32_mmap2
++#define __NR32_mmap2 192
 +#endif
-+	return is_legacy ? mm->mmap_legacy_base : mm->mmap_base;
++
++struct syscall_args32 {
++	uint32_t nr, arg0, arg1, arg2, arg3, arg4, arg5;
++};
++
++static void do_full_int80(struct syscall_args32 *args)
++{
++	asm volatile ("int $0x80"
++		      : "+a" (args->nr),
++			"+b" (args->arg0), "+c" (args->arg1), "+d" (args->arg2),
++			"+S" (args->arg3), "+D" (args->arg4),
++			"+rbp" (args->arg5)
++			: : "r8", "r9", "r10", "r11");
 +}
 +
- static void find_start_end(unsigned long flags, unsigned long *begin,
- 			   unsigned long *end)
- {
-@@ -113,10 +127,11 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
- 		if (current->flags & PF_RANDOMIZE) {
- 			*begin = randomize_page(*begin, 0x02000000);
- 		}
--	} else {
--		*begin = current->mm->mmap_legacy_base;
--		*end = TASK_SIZE;
-+		return;
- 	}
-+
-+	*begin	= get_mmap_base(1);
-+	*end	= in_compat_syscall() ? tasksize_32bit() : tasksize_64bit();
- }
- 
- unsigned long
-@@ -190,7 +205,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
- 	info.length = len;
- 	info.low_limit = PAGE_SIZE;
--	info.high_limit = mm->mmap_base;
-+	info.high_limit = get_mmap_base(0);
- 	info.align_mask = 0;
- 	info.align_offset = pgoff << PAGE_SHIFT;
- 	if (filp) {
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 88ef0c1b0e51..688b51a09e67 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -35,11 +35,16 @@ struct va_alignment __read_mostly va_align = {
- 	.flags = -1,
- };
- 
--static inline unsigned long tasksize_32bit(void)
-+unsigned long tasksize_32bit(void)
- {
- 	return IA32_PAGE_OFFSET;
- }
- 
-+unsigned long tasksize_64bit(void)
++void *mmap2(void *addr, size_t len, int prot, int flags,
++	int fildes, off_t off)
 +{
-+	return TASK_SIZE_MAX;
++	struct syscall_args32 s;
++
++	s.nr	= __NR32_mmap2;
++	s.arg0	= (uint32_t)(uintptr_t)addr;
++	s.arg1	= (uint32_t)len;
++	s.arg2	= prot;
++	s.arg3	= flags;
++	s.arg4	= fildes;
++	s.arg5	= (uint32_t)off;
++
++	do_full_int80(&s);
++
++	return (void *)(uintptr_t)s.nr;
 +}
 +
- static unsigned long stack_maxrandom_size(unsigned long task_size)
- {
- 	unsigned long max = 0;
-@@ -80,6 +85,8 @@ static unsigned long arch_rnd(unsigned int rndbits)
- 
- unsigned long arch_mmap_rnd(void)
- {
-+	if (!(current->flags & PF_RANDOMIZE))
-+		return 0;
- 	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
- }
- 
-@@ -113,22 +120,30 @@ static unsigned long mmap_legacy_base(unsigned long rnd,
-  * This function, called very early during the creation of a new
-  * process VM image, sets up which VM layout function to use:
-  */
--void arch_pick_mmap_layout(struct mm_struct *mm)
-+static void arch_pick_mmap_base(unsigned long *base, unsigned long *legacy_base,
-+		unsigned long random_factor, unsigned long task_size)
- {
--	unsigned long random_factor = 0UL;
--
--	if (current->flags & PF_RANDOMIZE)
--		random_factor = arch_mmap_rnd();
--
--	mm->mmap_legacy_base = mmap_legacy_base(random_factor, TASK_SIZE);
-+	*legacy_base = mmap_legacy_base(random_factor, task_size);
-+	if (mmap_is_legacy())
-+		*base = *legacy_base;
-+	else
-+		*base = mmap_base(random_factor, task_size);
-+}
- 
--	if (mmap_is_legacy()) {
--		mm->mmap_base = mm->mmap_legacy_base;
-+void arch_pick_mmap_layout(struct mm_struct *mm)
++struct vm_area {
++	unsigned long start;
++	unsigned long end;
++};
++
++static struct vm_area vmas_before_mmap[MAX_VMAS];
++static struct vm_area vmas_after_mmap[MAX_VMAS];
++
++static char buf[BUF_SIZE];
++
++int parse_maps(struct vm_area *vmas)
 +{
-+	if (mmap_is_legacy())
- 		mm->get_unmapped_area = arch_get_unmapped_area;
--	} else {
--		mm->mmap_base = mmap_base(random_factor, TASK_SIZE);
-+	else
- 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
--	}
++	FILE *maps;
++	int i;
 +
-+	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
-+			arch_rnd(mmap64_rnd_bits), tasksize_64bit());
++	maps = fopen("/proc/self/maps", "r");
++	if (maps == NULL) {
++		printf("[ERROR]\tFailed to open maps file: %m\n");
++		return -1;
++	}
 +
-+#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
-+	arch_pick_mmap_base(&mm->mmap_compat_base, &mm->mmap_compat_legacy_base,
-+			arch_rnd(mmap32_rnd_bits), tasksize_32bit());
-+#endif
- }
- 
- const char *arch_vma_name(struct vm_area_struct *vma)
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 808751d7b737..48274a84cebe 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -404,6 +404,11 @@ struct mm_struct {
- #endif
- 	unsigned long mmap_base;		/* base of mmap area */
- 	unsigned long mmap_legacy_base;         /* base of mmap area in bottom-up allocations */
-+#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
-+	/* Base adresses for compatible mmap() */
-+	unsigned long mmap_compat_base;
-+	unsigned long mmap_compat_legacy_base;
-+#endif
- 	unsigned long task_size;		/* size of task vm space */
- 	unsigned long highest_vm_end;		/* highest vma end address */
- 	pgd_t * pgd;
++	for (i = 0; i < MAX_VMAS; i++) {
++		struct vm_area *v = &vmas[i];
++		char *end;
++
++		if (fgets(buf, BUF_SIZE, maps) == NULL)
++			break;
++
++		v->start = strtoul(buf, &end, 16);
++		v->end = strtoul(end + 1, NULL, 16);
++		//printf("[NOTE]\tVMA: [%#lx, %#lx]\n", v->start, v->end);
++	}
++
++	if (i == MAX_VMAS) {
++		printf("[ERROR]\tNumber of VMAs is bigger than reserved array's size\n");
++		return -1;
++	}
++
++	if (fclose(maps)) {
++		printf("[ERROR]\tFailed to close maps file: %m\n");
++		return -1;
++	}
++	return 0;
++}
++
++int compare_vmas(struct vm_area *vmax, struct vm_area *vmay)
++{
++	if (vmax->start > vmay->start)
++		return 1;
++	if (vmax->start < vmay->start)
++		return -1;
++	if (vmax->end > vmay->end)
++		return 1;
++	if (vmax->end < vmay->end)
++		return -1;
++	return 0;
++}
++
++unsigned long vma_size(struct vm_area *v)
++{
++	return v->end - v->start;
++}
++
++int find_new_vma_like(struct vm_area *vma)
++{
++	int i, j = 0, found_alike = -1;
++
++	for (i = 0; i < MAX_VMAS && j < MAX_VMAS; i++, j++) {
++		int cmp = compare_vmas(&vmas_before_mmap[i],
++				&vmas_after_mmap[j]);
++
++		if (cmp == 0)
++			continue;
++		if (cmp < 0) {/* Lost mapping */
++			printf("[NOTE]\tLost mapping: %#lx\n",
++				vmas_before_mmap[i].start);
++			j--;
++			continue;
++		}
++
++		printf("[NOTE]\tNew mapping appeared: %#lx\n",
++				vmas_after_mmap[j].start);
++		i--;
++		if (!compare_vmas(&vmas_after_mmap[j], vma))
++			return 0;
++
++		if (((vmas_after_mmap[j].start & 0xffffffff) == vma->start) &&
++				(vma_size(&vmas_after_mmap[j]) == vma_size(vma)))
++			found_alike = j;
++	}
++
++	/* Left new vmas in tail */
++	for (; i < MAX_VMAS; i++)
++		if (!compare_vmas(&vmas_after_mmap[j], vma))
++			return 0;
++
++	if (found_alike != -1) {
++		printf("[FAIL]\tFound VMA [%#lx, %#lx] in maps file, that was allocated with compat syscall\n",
++			vmas_after_mmap[found_alike].start,
++			vmas_after_mmap[found_alike].end);
++		return -1;
++	}
++
++	printf("[ERROR]\tCan't find [%#lx, %#lx] in maps file\n",
++		vma->start, vma->end);
++	return -1;
++}
++
++int main(int argc, char **argv)
++{
++	void *map;
++	struct vm_area vma;
++
++	if (parse_maps(vmas_before_mmap)) {
++		printf("[ERROR]\tFailed to parse maps file\n");
++		return 1;
++	}
++
++	map = mmap2(0, MMAP_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
++			MAP_PRIVATE | MAP_ANON, -1, 0);
++	if (((uintptr_t)map) % PAGE_SIZE) {
++		printf("[ERROR]\tmmap2 failed: %d\n",
++				(~(uint32_t)(uintptr_t)map) + 1);
++		return 1;
++	} else {
++		printf("[NOTE]\tAllocated mmap %p, sized %#x\n", map, MMAP_SIZE);
++	}
++
++	if (parse_maps(vmas_after_mmap)) {
++		printf("[ERROR]\tFailed to parse maps file\n");
++		return 1;
++	}
++
++	munmap(map, MMAP_SIZE);
++
++	vma.start = (unsigned long)(uintptr_t)map;
++	vma.end = vma.start + MMAP_SIZE;
++	if (find_new_vma_like(&vma))
++		return 1;
++
++	printf("[OK]\n");
++
++	return 0;
++}
 -- 
 2.11.1
 
