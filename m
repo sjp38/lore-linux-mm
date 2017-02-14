@@ -1,78 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1198B6B0387
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 14:52:54 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id y196so637263ity.1
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 11:52:54 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id u12si496259ite.32.2017.02.13.11.52.53
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14F016B0387
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 22:58:57 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id j82so191072719ybg.0
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 19:58:56 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id 20si11859215pfu.287.2017.02.13.19.58.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Feb 2017 11:52:53 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1DJi6IO011763
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 14:52:52 -0500
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28kjhvhp8e-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2017 14:52:52 -0500
-Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 13 Feb 2017 12:52:51 -0700
-Date: Mon, 13 Feb 2017 11:52:49 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH RFC v2 tip/core/rcu] Maintain special bits at bottom of
- ->dynticks counter
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20170209235103.GA1368@linux.vnet.ibm.com>
- <20170213122115.GO6515@twins.programming.kicks-ass.net>
- <20170213170104.GC30506@linux.vnet.ibm.com>
- <20170213175750.GJ6500@twins.programming.kicks-ass.net>
- <CALCETrXwUeaRbDziA=7vgY3_r9u3E2wLLRwAU=GEiNhYq9jJwg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrXwUeaRbDziA=7vgY3_r9u3E2wLLRwAU=GEiNhYq9jJwg@mail.gmail.com>
-Message-Id: <20170213195249.GN30506@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 13 Feb 2017 19:58:55 -0800 (PST)
+Message-ID: <1487044732.21048.23.camel@neuling.org>
+Subject: Re: [PATCH 1/2] mm/autonuma: Let architecture override how the
+ write bit should be stashed in a protnone pte.
+From: Michael Neuling <mikey@neuling.org>
+Date: Tue, 14 Feb 2017 14:58:52 +1100
+In-Reply-To: <1486609259-6796-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: 
+	<1486609259-6796-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Ingo Molnar <mingo@kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
-On Mon, Feb 13, 2017 at 11:08:55AM -0800, Andy Lutomirski wrote:
-> On Mon, Feb 13, 2017 at 9:57 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > On Mon, Feb 13, 2017 at 09:01:04AM -0800, Paul E. McKenney wrote:
-> >> > I think I've asked this before, but why does this live in the guts of
-> >> > RCU?
-> >> >
-> >> > Should we lift this state tracking stuff out and make RCU and
-> >> > NOHZ(_FULL) users of it, or doesn't that make sense (reason)?
-> >>
-> >> The dyntick-idle stuff is pretty specific to RCU.  And what precisely
-> >> would be helped by moving it?
-> >
-> > Maybe untangle the inter-dependencies somewhat. It just seems a wee bit
-> > odd to have arch TLB invalidate depend on RCU implementation details
-> > like this.
-> 
-> This came out of a courtyard discussion at KS/LPC.  The idea is that
-> this optimzation requires an atomic op that could be shared with RCU
-> and that we probably care a lot more about this optimization on
-> kernels with context tracking enabled, so putting it in RCU has nice
-> performance properties.  Other than that, it doesn't make a huge
-> amount of sense.
-> 
-> Amusingly, Darwin appears to do something similar without an atomic
-> op, and I have no idea why that's safe.
+On Thu, 2017-02-09 at 08:30 +0530, Aneesh Kumar K.V wrote:
+> Autonuma preserves the write permission across numa fault to avoid taking
+> a writefault after a numa fault (Commit: b191f9b106ea " mm: numa: preserv=
+e PTE
+> write permissions across a NUMA hinting fault"). Architecture can impleme=
+nt
+> protnone in different ways and some may choose to implement that by clear=
+ing
+> Read/
+> Write/Exec bit of pte. Setting the write bit on such pte can result in wr=
+ong
+> behaviour. Fix this up by allowing arch to override how to save the write=
+ bit
+> on a protnone pte.
+>=20
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Given that they run on ARM, I have no idea either.  Maybe they don't
-need to be quite as bulletproof on idle-duration detection?  Rumor has it
-that their variant of RCU uses program-counter ranges, so they wouldn't
-have the RCU tie-in -- just checks of program-counter ranges and
-interesting dependencies on the compiler.
+FWIW this is pretty simple and helps with us in powerpc...
 
-							Thanx, Paul
+Acked-By: Michael Neuling <mikey@neuling.org>
+
+> ---
+> =C2=A0include/asm-generic/pgtable.h | 16 ++++++++++++++++
+> =C2=A0mm/huge_memory.c=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0|=C2=A0=C2=A04 ++--
+> =C2=A0mm/memory.c=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0|=C2=A0=C2=A02 =
++-
+> =C2=A0mm/mprotect.c=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0|=C2=A0=C2=A04 ++--
+> =C2=A04 files changed, 21 insertions(+), 5 deletions(-)
+>=20
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.=
+h
+> index 18af2bcefe6a..b6f3a8a4b738 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -192,6 +192,22 @@ static inline void ptep_set_wrprotect(struct mm_stru=
+ct
+> *mm, unsigned long addres
+> =C2=A0}
+> =C2=A0#endif
+> =C2=A0
+> +#ifndef pte_savedwrite
+> +#define pte_savedwrite pte_write
+> +#endif
+> +
+> +#ifndef pte_mk_savedwrite
+> +#define pte_mk_savedwrite pte_mkwrite
+> +#endif
+> +
+> +#ifndef pmd_savedwrite
+> +#define pmd_savedwrite pmd_write
+> +#endif
+> +
+> +#ifndef pmd_mk_savedwrite
+> +#define pmd_mk_savedwrite pmd_mkwrite
+> +#endif
+> +
+> =C2=A0#ifndef __HAVE_ARCH_PMDP_SET_WRPROTECT
+> =C2=A0#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> =C2=A0static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 9a6bd6c8d55a..2f0f855ec911 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1300,7 +1300,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd=
+_t
+> pmd)
+> =C2=A0	goto out;
+> =C2=A0clear_pmdnuma:
+> =C2=A0	BUG_ON(!PageLocked(page));
+> -	was_writable =3D pmd_write(pmd);
+> +	was_writable =3D pmd_savedwrite(pmd);
+> =C2=A0	pmd =3D pmd_modify(pmd, vma->vm_page_prot);
+> =C2=A0	pmd =3D pmd_mkyoung(pmd);
+> =C2=A0	if (was_writable)
+> @@ -1555,7 +1555,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd=
+_t
+> *pmd,
+> =C2=A0			entry =3D pmdp_huge_get_and_clear_notify(mm, addr,
+> pmd);
+> =C2=A0			entry =3D pmd_modify(entry, newprot);
+> =C2=A0			if (preserve_write)
+> -				entry =3D pmd_mkwrite(entry);
+> +				entry =3D pmd_mk_savedwrite(entry);
+> =C2=A0			ret =3D HPAGE_PMD_NR;
+> =C2=A0			set_pmd_at(mm, addr, pmd, entry);
+> =C2=A0			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e78bf72f30dd..88c24f89d6d3 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3388,7 +3388,7 @@ static int do_numa_page(struct vm_fault *vmf)
+> =C2=A0	int target_nid;
+> =C2=A0	bool migrated =3D false;
+> =C2=A0	pte_t pte;
+> -	bool was_writable =3D pte_write(vmf->orig_pte);
+> +	bool was_writable =3D pte_savedwrite(vmf->orig_pte);
+> =C2=A0	int flags =3D 0;
+> =C2=A0
+> =C2=A0	/*
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index f9c07f54dd62..15f5c174a7c1 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -113,13 +113,13 @@ static unsigned long change_pte_range(struct
+> vm_area_struct *vma, pmd_t *pmd,
+> =C2=A0			ptent =3D ptep_modify_prot_start(mm, addr, pte);
+> =C2=A0			ptent =3D pte_modify(ptent, newprot);
+> =C2=A0			if (preserve_write)
+> -				ptent =3D pte_mkwrite(ptent);
+> +				ptent =3D pte_mk_savedwrite(ptent);
+> =C2=A0
+> =C2=A0			/* Avoid taking write faults for known dirty pages */
+> =C2=A0			if (dirty_accountable && pte_dirty(ptent) &&
+> =C2=A0					(pte_soft_dirty(ptent) ||
+> =C2=A0					=C2=A0!(vma->vm_flags & VM_SOFTDIRTY))) {
+> -				ptent =3D pte_mkwrite(ptent);
+> +				ptent =3D pte_mk_savedwrite(ptent);
+> =C2=A0			}
+> =C2=A0			ptep_modify_prot_commit(mm, addr, pte, ptent);
+> =C2=A0			pages++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
