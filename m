@@ -1,85 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B041680FD0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 15:02:27 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id u143so205105246oif.1
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 12:02:27 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u72si1895805itb.65.2017.02.14.12.02.26
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 69379680FD0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 15:10:09 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id u65so48501205wrc.6
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 12:10:09 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g13si2057641wrb.133.2017.02.14.12.10.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 12:02:26 -0800 (PST)
-Date: Tue, 14 Feb 2017 21:02:19 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
-Message-ID: <20170214210219.1ea87229@redhat.com>
-In-Reply-To: <CANn89iK4fnsjsK+GHYdT7_F0f++sa+t2LqrZWftjEryhF=hX+w@mail.gmail.com>
-References: <20170213195858.5215-1-edumazet@google.com>
-	<20170213195858.5215-9-edumazet@google.com>
-	<CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
-	<CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
-	<CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
-	<20170214131206.44b644f6@redhat.com>
-	<CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
-	<cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com>
-	<CAKgT0UdRmpV_n1wstTHvqCgyRtze8z1rTJ5pKc_jdRttQCSySw@mail.gmail.com>
-	<20170214194615.3feddd07@redhat.com>
-	<CANn89iK4fnsjsK+GHYdT7_F0f++sa+t2LqrZWftjEryhF=hX+w@mail.gmail.com>
+        Tue, 14 Feb 2017 12:10:08 -0800 (PST)
+Date: Tue, 14 Feb 2017 15:10:00 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 07/10] mm, compaction: restrict async compaction to
+ pageblocks of same migratetype
+Message-ID: <20170214201000.GH2450@cmpxchg.org>
+References: <20170210172343.30283-1-vbabka@suse.cz>
+ <20170210172343.30283-8-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170210172343.30283-8-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, Tariq Toukan <ttoukan.linux@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm <linux-mm@kvack.org>, brouer@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, 14 Feb 2017 11:02:01 -0800
-Eric Dumazet <edumazet@google.com> wrote:
+On Fri, Feb 10, 2017 at 06:23:40PM +0100, Vlastimil Babka wrote:
+> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
+> pageblocks. This is a heuristic intended to reduce latency, based on the
+> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+> 
+> However, with the exception of THP's, most high-order allocations are not
+> movable. Should the async compaction succeed, this increases the chance that
+> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
+> long-term fragmentation worse.
+> 
+> This patch attempts to help the situation by changing async direct compaction
+> so that the migrate scanner only scans the pageblocks of the requested
+> migratetype. If it's a non-MOVABLE type and there are such pageblocks that do
+> contain movable pages, chances are that the allocation can succeed within one
+> of such pageblocks, removing the need for a fallback. If that fails, the
+> subsequent sync attempt will ignore this restriction.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-> On Tue, Feb 14, 2017 at 10:46 AM, Jesper Dangaard Brouer
-> <brouer@redhat.com> wrote:
-> >  
-> 
-> >
-> > With this Intel driver page count based recycle approach, the recycle
-> > size is tied to the size of the RX ring.  As Eric and Tariq discovered.
-> > And for other performance reasons (memory footprint of walking RX ring
-> > data-structures), don't want to increase the RX ring sizes.  Thus, it
-> > create two opposite performance needs.  That is why I think a more
-> > explicit approach with a pool is more attractive.
-> >
-> > How is this approach doing to work for XDP?
-> > (XDP doesn't "share" the page, and in-general we don't want the extra
-> > atomic.)
-> >
-> > We absolutely need recycling with XDP, when transmitting out another
-> > device, and the other devices DMA-TX completion need some way of
-> > returning this page.
-> > What is basically needed is a standardized callback to allow the remote
-> > driver to return the page to the originating driver.  As we don't have
-> > a NDP for XDP-forward/transmit yet, we could pass this callback as a
-> > parameter along with the packet-page to send?
-> >
-> >  
-> 
-> 
-> mlx4 already has a cache for XDP.
-> I believe I did not change this part, it still should work.
-> 
-> commit d576acf0a22890cf3f8f7a9b035f1558077f6770
-> Author: Brenden Blanco <bblanco@plumgrid.com>
-> Date:   Tue Jul 19 12:16:52 2016 -0700
-> 
->     net/mlx4_en: add page recycle to prepare rx ring for tx support
+Yes, IMO we should make the async compaction scanner decontaminate
+unmovable blocks. This is because we fall back to other-typed blocks
+before we reclaim, so any unmovable blocks that aren't perfectly
+occupied will fill with greedy page cache (and order-0 doesn't steal
+blocks back to make them compactable again). Subsequent unmovable
+higher-order allocations in turn are more likely to fall back and
+steal more movable blocks.
 
-This obviously does not work for the case I'm talking about
-(transmitting out another device with XDP).
+As long as we have vastly more movable blocks than unmovable blocks,
+continuous page cache turnover will counteract this negative trend -
+pages are reclaimed mostly from movable blocks and some unmovable
+blocks, while new cache allocations are placed into the freed movable
+blocks - slowly moving cache out from unmovable blocks into movable
+ones. But that effect is independent of the rate of higher-order
+allocations and can be overwhelmed, so I think it makes sense to
+involve compaction directly in decontamination.
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+The thing I'm not entirely certain about is the aggressiveness of this
+patch. Instead of restricting the async scanner to blocks of the same
+migratetype, wouldn't it be better (in terms of allocation latency) to
+simply let it compact *all* block types? Maybe changing it to look at
+unmovable blocks is enough to curb cross-contamination. Sure there
+will still be some, but now we're matching the decontamination rate to
+the rate of !movable higher-order allocations and don't just rely on
+the independent cache turnover rate, which during higher-order bursts
+might not be high enough to prevent an expansion of unmovable blocks.
+
+Does that make sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
