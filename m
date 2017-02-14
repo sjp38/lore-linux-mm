@@ -1,64 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BADD46B0387
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 00:32:24 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id 203so17045996ith.3
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 21:32:24 -0800 (PST)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C3EA36B0389
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 00:32:28 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id e137so17123597itc.0
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2017 21:32:28 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h193si13001725ioh.195.2017.02.13.21.32.23
+        by mx.google.com with ESMTPS id 128si5904957itx.74.2017.02.13.21.32.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Feb 2017 21:32:24 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1E5VF8Z007665
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 00:32:23 -0500
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28kts41xw2-1
+        Mon, 13 Feb 2017 21:32:28 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1E5SrGJ055369
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 00:32:27 -0500
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28kjhw3c70-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 00:32:23 -0500
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 00:32:27 -0500
 Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 13 Feb 2017 22:32:22 -0700
+	Mon, 13 Feb 2017 22:32:26 -0700
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 0/2] Numabalancing preserve write fix
-Date: Tue, 14 Feb 2017 11:01:52 +0530
-Message-Id: <1487050314-3892-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2 1/2] mm/autonuma: Let architecture override how the write bit should be stashed in a protnone pte.
+Date: Tue, 14 Feb 2017 11:01:53 +0530
+In-Reply-To: <1487050314-3892-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1487050314-3892-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Message-Id: <1487050314-3892-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This patch series address an issue w.r.t THP migration and autonuma
-preserve write feature. migrate_misplaced_transhuge_page() cannot deal with
-concurrent modification of the page. It does a page copy without
-following the migration pte sequence. IIUC, this was done to keep the
-migration simpler and at the time of implemenation we didn't had THP
-page cache which would have required a more elaborate migration scheme.
-That means thp autonuma migration expect the protnone with saved write
-to be done such that both kernel and user cannot update
-the page content. This patch series enables archs like ppc64 to do that.
-We are good with the hash translation mode with the current code,
-because we never create a hardware page table entry for a protnone pte. 
+Autonuma preserves the write permission across numa fault to avoid taking
+a writefault after a numa fault (Commit: b191f9b106ea " mm: numa: preserve PTE
+write permissions across a NUMA hinting fault"). Architecture can implement
+protnone in different ways and some may choose to implement that by clearing Read/
+Write/Exec bit of pte. Setting the write bit on such pte can result in wrong
+behaviour. Fix this up by allowing arch to override how to save the write bit
+on a protnone pte.
 
-Changes from V1:
-* Update the patch so that it apply cleanly to upstream.
-* Add acked-by from Michael Neuling
+Acked-By: Michael Neuling <mikey@neuling.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ include/asm-generic/pgtable.h | 16 ++++++++++++++++
+ mm/huge_memory.c              |  4 ++--
+ mm/memory.c                   |  2 +-
+ mm/mprotect.c                 |  4 ++--
+ 4 files changed, 21 insertions(+), 5 deletions(-)
 
-Aneesh Kumar K.V (2):
-  mm/autonuma: Let architecture override how the write bit should be
-    stashed in a protnone pte.
-  powerpc/mm/autonuma: Switch ppc64 to its own implementeation of saved
-    write
-
- arch/powerpc/include/asm/book3s/64/mmu-hash.h |  3 +++
- arch/powerpc/include/asm/book3s/64/pgtable.h  | 32 +++++++++++++++++++++++++--
- include/asm-generic/pgtable.h                 | 16 ++++++++++++++
- mm/huge_memory.c                              |  4 ++--
- mm/memory.c                                   |  2 +-
- mm/mprotect.c                                 |  4 ++--
- 6 files changed, 54 insertions(+), 7 deletions(-)
-
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 18af2bcefe6a..b6f3a8a4b738 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -192,6 +192,22 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
+ }
+ #endif
+ 
++#ifndef pte_savedwrite
++#define pte_savedwrite pte_write
++#endif
++
++#ifndef pte_mk_savedwrite
++#define pte_mk_savedwrite pte_mkwrite
++#endif
++
++#ifndef pmd_savedwrite
++#define pmd_savedwrite pmd_write
++#endif
++
++#ifndef pmd_mk_savedwrite
++#define pmd_mk_savedwrite pmd_mkwrite
++#endif
++
+ #ifndef __HAVE_ARCH_PMDP_SET_WRPROTECT
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9a6bd6c8d55a..2f0f855ec911 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1300,7 +1300,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+ 	goto out;
+ clear_pmdnuma:
+ 	BUG_ON(!PageLocked(page));
+-	was_writable = pmd_write(pmd);
++	was_writable = pmd_savedwrite(pmd);
+ 	pmd = pmd_modify(pmd, vma->vm_page_prot);
+ 	pmd = pmd_mkyoung(pmd);
+ 	if (was_writable)
+@@ -1555,7 +1555,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+ 			entry = pmd_modify(entry, newprot);
+ 			if (preserve_write)
+-				entry = pmd_mkwrite(entry);
++				entry = pmd_mk_savedwrite(entry);
+ 			ret = HPAGE_PMD_NR;
+ 			set_pmd_at(mm, addr, pmd, entry);
+ 			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
+diff --git a/mm/memory.c b/mm/memory.c
+index e78bf72f30dd..88c24f89d6d3 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3388,7 +3388,7 @@ static int do_numa_page(struct vm_fault *vmf)
+ 	int target_nid;
+ 	bool migrated = false;
+ 	pte_t pte;
+-	bool was_writable = pte_write(vmf->orig_pte);
++	bool was_writable = pte_savedwrite(vmf->orig_pte);
+ 	int flags = 0;
+ 
+ 	/*
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index f9c07f54dd62..15f5c174a7c1 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -113,13 +113,13 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 			ptent = ptep_modify_prot_start(mm, addr, pte);
+ 			ptent = pte_modify(ptent, newprot);
+ 			if (preserve_write)
+-				ptent = pte_mkwrite(ptent);
++				ptent = pte_mk_savedwrite(ptent);
+ 
+ 			/* Avoid taking write faults for known dirty pages */
+ 			if (dirty_accountable && pte_dirty(ptent) &&
+ 					(pte_soft_dirty(ptent) ||
+ 					 !(vma->vm_flags & VM_SOFTDIRTY))) {
+-				ptent = pte_mkwrite(ptent);
++				ptent = pte_mk_savedwrite(ptent);
+ 			}
+ 			ptep_modify_prot_commit(mm, addr, pte, ptent);
+ 			pages++;
 -- 
 2.7.4
 
