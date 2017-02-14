@@ -1,37 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C14656B03A6
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:15:12 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id v67so47665409wrb.4
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:15:12 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 60si1670251wri.305.2017.02.14.10.15.11
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 83BCB6B03B0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 13:40:25 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id a194so203336348oib.5
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 10:40:25 -0800 (PST)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0106.outbound.protection.outlook.com. [104.47.2.106])
+        by mx.google.com with ESMTPS id e196si3650532ita.89.2017.02.14.10.40.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 10:15:11 -0800 (PST)
-Date: Tue, 14 Feb 2017 13:15:00 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 06/10] mm, compaction: add migratetype to
- compact_control
-Message-ID: <20170214181500.GG2450@cmpxchg.org>
-References: <20170210172343.30283-1-vbabka@suse.cz>
- <20170210172343.30283-7-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 14 Feb 2017 10:40:24 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv5 1/5] x86/mm: introduce arch_rnd() to compute 32/64 mmap rnd
+Date: Tue, 14 Feb 2017 21:36:17 +0300
+Message-ID: <20170214183621.2537-2-dsafonov@virtuozzo.com>
+In-Reply-To: <20170214183621.2537-1-dsafonov@virtuozzo.com>
+References: <20170214183621.2537-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170210172343.30283-7-vbabka@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>
 
-On Fri, Feb 10, 2017 at 06:23:39PM +0100, Vlastimil Babka wrote:
-> Preparation patch. We are going to need migratetype at lower layers than
-> compact_zone() and compact_finished().
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+To fix 32-bit mmap() syscall returning pointer higher than 4Gb in
+64-bit binaries, two mmap bases will be used: one for mapping with
+32-bit syscalls and another for 64-bit syscall.
+To correctly place those two bases, introduce arch_rnd() function,
+which will return the random factor independently of mmap_is_ia32().
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+ arch/x86/mm/mmap.c | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index d2dc0438d654..9f3ac019e51c 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -54,6 +54,14 @@ static unsigned long stack_maxrandom_size(void)
+ #define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
+ #define MAX_GAP (TASK_SIZE/6*5)
+ 
++#ifdef CONFIG_64BIT
++# define mmap32_rnd_bits  mmap_rnd_compat_bits
++# define mmap64_rnd_bits  mmap_rnd_bits
++#else
++# define mmap32_rnd_bits  mmap_rnd_bits
++# define mmap64_rnd_bits  mmap_rnd_bits
++#endif
++
+ static int mmap_is_legacy(void)
+ {
+ 	if (current->personality & ADDR_COMPAT_LAYOUT)
+@@ -65,20 +73,14 @@ static int mmap_is_legacy(void)
+ 	return sysctl_legacy_va_layout;
+ }
+ 
+-unsigned long arch_mmap_rnd(void)
++static unsigned long arch_rnd(unsigned int rndbits)
+ {
+-	unsigned long rnd;
+-
+-	if (mmap_is_ia32())
+-#ifdef CONFIG_COMPAT
+-		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
+-#else
+-		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
+-#endif
+-	else
+-		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
++	return (get_random_long() & ((1UL << rndbits) - 1)) << PAGE_SHIFT;
++}
+ 
+-	return rnd << PAGE_SHIFT;
++unsigned long arch_mmap_rnd(void)
++{
++	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
+ }
+ 
+ static unsigned long mmap_base(unsigned long rnd)
+-- 
+2.11.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
