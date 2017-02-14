@@ -1,207 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD873680FC1
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 12:29:56 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id d9so36082558itc.4
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 09:29:56 -0800 (PST)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id b66si1457881iof.234.2017.02.14.09.29.55
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E37B680FC1
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 12:37:21 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id y2so55951949qkb.7
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 09:37:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d15si904748qta.154.2017.02.14.09.37.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 09:29:55 -0800 (PST)
-Received: by mail-it0-x242.google.com with SMTP id r141so6072612ita.1
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 09:29:55 -0800 (PST)
+        Tue, 14 Feb 2017 09:37:21 -0800 (PST)
+Date: Tue, 14 Feb 2017 18:37:17 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom_reaper: switch to struct list_head for reap queue
+Message-ID: <20170214173717.GA8913@redhat.com>
+References: <20170214150714.6195-1-asarai@suse.de>
+ <20170214163005.GA2450@cmpxchg.org>
+ <e876e49b-8b65-d827-af7d-cbf8aef97585@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com>
-References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
- <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
- <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
- <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
- <20170214131206.44b644f6@redhat.com> <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
- <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 14 Feb 2017 09:29:54 -0800
-Message-ID: <CAKgT0UdRmpV_n1wstTHvqCgyRtze8z1rTJ5pKc_jdRttQCSySw@mail.gmail.com>
-Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e876e49b-8b65-d827-af7d-cbf8aef97585@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tariq Toukan <ttoukan.linux@gmail.com>
-Cc: Eric Dumazet <edumazet@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Aleksa Sarai <asarai@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cyphar@cyphar.com
 
-On Tue, Feb 14, 2017 at 6:56 AM, Tariq Toukan <ttoukan.linux@gmail.com> wrote:
+On 02/15, Aleksa Sarai wrote:
 >
+> >This is an extra pointer to task_struct and more lines of code to
+> >accomplish the same thing. Why would we want to do that?
 >
-> On 14/02/2017 3:45 PM, Eric Dumazet wrote:
->>
->> On Tue, Feb 14, 2017 at 4:12 AM, Jesper Dangaard Brouer
->> <brouer@redhat.com> wrote:
->>
->>> It is important to understand that there are two cases for the cost of
->>> an atomic op, which depend on the cache-coherency state of the
->>> cacheline.
->>>
->>> Measured on Skylake CPU i7-6700K CPU @ 4.00GHz
->>>
->>> (1) Local CPU atomic op :  27 cycles(tsc)  6.776 ns
->>> (2) Remote CPU atomic op: 260 cycles(tsc) 64.964 ns
->>>
->> Okay, it seems you guys really want a patch that I said was not giving
->> good results
->>
->> Let me publish the numbers I get , adding or not the last (and not
->> official) patch.
->>
->> If I _force_ the user space process to run on the other node,
->> then the results are not the ones Alex or you are expecting.
->>
->> I have with this patch about 2.7 Mpps of this silly single TCP flow,
->> and 3.5 Mpps without it.
->>
->> lpaa24:~# sar -n DEV 1 10 | grep eth0 | grep Ave
->> Average:         eth0 2699243.20  16663.70 1354783.36   1079.95
->> 0.00      0.00      4.50
->>
->> Profile of the cpu on NUMA node 1 ( netserver consuming data ) :
->>
->>      54.73%  [kernel]      [k] copy_user_enhanced_fast_string
->>      31.07%  [kernel]      [k] skb_release_data
->>       4.24%  [kernel]      [k] skb_copy_datagram_iter
->>       1.35%  [kernel]      [k] copy_page_to_iter
->>       0.98%  [kernel]      [k] _raw_spin_lock
->>       0.90%  [kernel]      [k] skb_release_head_state
->>       0.60%  [kernel]      [k] tcp_transmit_skb
->>       0.51%  [kernel]      [k] mlx4_en_xmit
->>       0.33%  [kernel]      [k] ___cache_free
->>       0.28%  [kernel]      [k] tcp_rcv_established
->>
->> Profile of cpu handling mlx4 softirqs (NUMA node 0)
->>
->>
->>      48.00%  [kernel]          [k] mlx4_en_process_rx_cq
->>      12.92%  [kernel]          [k] napi_gro_frags
->>       7.28%  [kernel]          [k] inet_gro_receive
->>       7.17%  [kernel]          [k] tcp_gro_receive
->>       5.10%  [kernel]          [k] dev_gro_receive
->>       4.87%  [kernel]          [k] skb_gro_receive
->>       2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
->>       2.04%  [kernel]          [k] __build_skb
->>       1.02%  [kernel]          [k] napi_reuse_skb.isra.95
->>       1.01%  [kernel]          [k] tcp4_gro_receive
->>       0.65%  [kernel]          [k] kmem_cache_alloc
->>       0.45%  [kernel]          [k] _raw_spin_lock
->>
->> Without the latest  patch (the exact patch series v3 I submitted),
->> thus with this atomic_inc() in mlx4_en_process_rx_cq  instead of only
->> reads.
->>
->> lpaa24:~# sar -n DEV 1 10|grep eth0|grep Ave
->> Average:         eth0 3566768.50  25638.60 1790345.69   1663.51
->> 0.00      0.00      4.50
->>
->> Profiles of the two cpus :
->>
->>      74.85%  [kernel]      [k] copy_user_enhanced_fast_string
->>       6.42%  [kernel]      [k] skb_release_data
->>       5.65%  [kernel]      [k] skb_copy_datagram_iter
->>       1.83%  [kernel]      [k] copy_page_to_iter
->>       1.59%  [kernel]      [k] _raw_spin_lock
->>       1.48%  [kernel]      [k] skb_release_head_state
->>       0.72%  [kernel]      [k] tcp_transmit_skb
->>       0.68%  [kernel]      [k] mlx4_en_xmit
->>       0.43%  [kernel]      [k] page_frag_free
->>       0.38%  [kernel]      [k] ___cache_free
->>       0.37%  [kernel]      [k] tcp_established_options
->>       0.37%  [kernel]      [k] __ip_local_out
->>
->>
->>     37.98%  [kernel]          [k] mlx4_en_process_rx_cq
->>      26.47%  [kernel]          [k] napi_gro_frags
->>       7.02%  [kernel]          [k] inet_gro_receive
->>       5.89%  [kernel]          [k] tcp_gro_receive
->>       5.17%  [kernel]          [k] dev_gro_receive
->>       4.80%  [kernel]          [k] skb_gro_receive
->>       2.61%  [kernel]          [k] __build_skb
->>       2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
->>       1.59%  [kernel]          [k] napi_reuse_skb.isra.95
->>       0.95%  [kernel]          [k] tcp4_gro_receive
->>       0.51%  [kernel]          [k] kmem_cache_alloc
->>       0.42%  [kernel]          [k] __inet_lookup_established
->>       0.34%  [kernel]          [k] swiotlb_sync_single_for_cpu
->>
->>
->> So probably this will need further analysis, outside of the scope of
->> this patch series.
->>
->> Could we now please Ack this v3 and merge it ?
->>
->> Thanks.
->
-> Thanks Eric.
->
-> As the previous series caused hangs, we must run functional regression tests
-> over this series as well.
-> Run has already started, and results will be available tomorrow morning.
->
-> In general, I really like this series. The re-factorization looks more
-> elegant and more correct, functionally.
->
-> However, performance wise: we fear that the numbers will be drastically
-> lower with this transition to order-0 pages,
-> because of the (becoming critical) page allocator and dma operations
-> bottlenecks, especially on systems with costly
-> dma operations, such as ARM, iommu=on, etc...
+> I don't think it's more "actual" lines of code (I think the wrapping is
+> inflating the line number count),
 
-So to give you an idea I originally came up with the approach used in
-the Intel drivers when I was dealing with a PowerPC system where the
-IOMMU was a requirement.  With this setup correctly the map/unmap
-calls should be almost non-existent.  Basically the only time we
-should have to allocate or free a page is if something is sitting on
-the pages for an excessively long time or if the interrupt is bouncing
-between memory nodes which forces us to free the memory since it is
-sitting on the wrong node.
+I too think it doesn't make sense to blow task_struct and the generated code.
+And to me this patch doesn't make the source code more clean.
 
-> We already have this exact issue in mlx5, where we moved to order-0
-> allocations with a fixed size cache, but that was not enough.
-> Customers of mlx5 have already complained about the performance degradation,
-> and currently this is hurting our business.
-> We get a clear nack from our performance regression team regarding doing the
-> same in mlx4.
+> but switching it means that it's more in
+> line with other queues in the kernel (it took me a bit to figure out what
+> was going on with oom_reaper_list beforehand).
 
-What form of recycling were you doing?  If you were doing the offset
-based setup then that obviously only gets you so much.  The advantage
-to using the page count is that you get almost a mobius strip effect
-for your buffers and descriptor rings where you just keep flipping the
-page offset back and forth via an XOR and the only cost is
-dma_sync_for_cpu, get_page, dma_sync_for_device instead of having to
-do the full allocation, mapping, and unmapping.
+perhaps you can turn oom_reaper_list into llist_head then. This will also
+allow to remove oom_reaper_lock. Not sure this makes sense too.
 
-> So, the question is, can we live with this degradation until those
-> bottleneck challenges are addressed?
-> Following our perf experts feedback, I cannot just simply Ack. We need to
-> have a clear plan to close the perf gap or reduce the impact.
-
-I think we need to define what is the degradation you are expecting to
-see.  Using the page count based approach should actually be better in
-some cases than the order 3 page and just walking frags approach since
-the theoretical reuse is infinite instead of fixed.
-
-> Internally, I already implemented "dynamic page-cache" and "page-reuse"
-> mechanisms in the driver,
-> and together they totally bridge the performance gap.
-> That's why I would like to hear from Jesper what is the status of his
-> page_pool API, it is promising and could totally solve these issues.
->
-> Regards,
-> Tariq
-
-The page pool may provide gains but we have to actually see it before
-we can guarantee it.  If worse comes to worse I might just resort to
-standardizing the logic used for the Intel driver page count based
-approach.  Then if nothing else we would have a standard path for all
-the drivers to use if we start going down this route.
-
-- Alex
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
