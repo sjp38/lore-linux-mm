@@ -1,83 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D3FF26B0395
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 07:54:58 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id j82so189416968oih.6
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 04:54:58 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id 1si210904oie.326.2017.02.14.04.54.52
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 83B0E6B0397
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 08:45:03 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id s36so195340770otd.3
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:45:03 -0800 (PST)
+Received: from mail-ot0-x22f.google.com (mail-ot0-x22f.google.com. [2607:f8b0:4003:c0f::22f])
+        by mx.google.com with ESMTPS id s10si285160oib.185.2017.02.14.05.45.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Feb 2017 04:54:58 -0800 (PST)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [RFC] mm/zsmalloc: remove redundant SetPagePrivate2 in create_page_chain
-Date: Tue, 14 Feb 2017 20:48:29 +0800
-Message-ID: <1487076509-49270-1-git-send-email-xieyisheng1@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Feb 2017 05:45:02 -0800 (PST)
+Received: by mail-ot0-x22f.google.com with SMTP id t47so7551014ota.1
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:45:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170214131206.44b644f6@redhat.com>
+References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
+ <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+ <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+ <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com> <20170214131206.44b644f6@redhat.com>
+From: Eric Dumazet <edumazet@google.com>
+Date: Tue, 14 Feb 2017 05:45:01 -0800
+Message-ID: <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-We had used page->lru to link the component pages (except the first
-page) of a zspage, and used INIT_LIST_HEAD(&page->lru) to init it.
-Therefore, to get the last page's next page, which is NULL, we had to
-use page flag PG_Private_2 to identify it.
+On Tue, Feb 14, 2017 at 4:12 AM, Jesper Dangaard Brouer
+<brouer@redhat.com> wrote:
 
-But now, we use page->freelist to link all of the pages in zspage and
-init the page->freelist as NULL for last page, so no need to use
-PG_Private_2 anymore.
+> It is important to understand that there are two cases for the cost of
+> an atomic op, which depend on the cache-coherency state of the
+> cacheline.
+>
+> Measured on Skylake CPU i7-6700K CPU @ 4.00GHz
+>
+> (1) Local CPU atomic op :  27 cycles(tsc)  6.776 ns
+> (2) Remote CPU atomic op: 260 cycles(tsc) 64.964 ns
+>
 
-This patch is to remove redundant SetPagePrivate2 in create_page_chain
-and ClearPagePrivate2 in reset_page(). Maybe can save few cycles for
-migration of zsmalloc page :)
+Okay, it seems you guys really want a patch that I said was not giving
+good results
 
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
----
- mm/zsmalloc.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+Let me publish the numbers I get , adding or not the last (and not
+official) patch.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 9cc3c0b..aa90f14 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -24,7 +24,6 @@
-  *
-  * Usage of struct page flags:
-  *	PG_private: identifies the first component page
-- *	PG_private2: identifies the last component page
-  *	PG_owner_priv_1: indentifies the huge component page
-  *
-  */
-@@ -938,7 +937,6 @@ static void reset_page(struct page *page)
- {
- 	__ClearPageMovable(page);
- 	ClearPagePrivate(page);
--	ClearPagePrivate2(page);
- 	set_page_private(page, 0);
- 	page_mapcount_reset(page);
- 	ClearPageHugeObject(page);
-@@ -1085,7 +1083,7 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
- 	 * 2. each sub-page point to zspage using page->private
- 	 *
- 	 * we set PG_private to identify the first page (i.e. no other sub-page
--	 * has this flag set) and PG_private_2 to identify the last page.
-+	 * has this flag set).
- 	 */
- 	for (i = 0; i < nr_pages; i++) {
- 		page = pages[i];
-@@ -1100,8 +1098,6 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
- 		} else {
- 			prev_page->freelist = page;
- 		}
--		if (i == nr_pages - 1)
--			SetPagePrivate2(page);
- 		prev_page = page;
- 	}
- }
--- 
-1.7.12.4
+If I _force_ the user space process to run on the other node,
+then the results are not the ones Alex or you are expecting.
+
+I have with this patch about 2.7 Mpps of this silly single TCP flow,
+and 3.5 Mpps without it.
+
+lpaa24:~# sar -n DEV 1 10 | grep eth0 | grep Ave
+Average:         eth0 2699243.20  16663.70 1354783.36   1079.95
+0.00      0.00      4.50
+
+Profile of the cpu on NUMA node 1 ( netserver consuming data ) :
+
+    54.73%  [kernel]      [k] copy_user_enhanced_fast_string
+    31.07%  [kernel]      [k] skb_release_data
+     4.24%  [kernel]      [k] skb_copy_datagram_iter
+     1.35%  [kernel]      [k] copy_page_to_iter
+     0.98%  [kernel]      [k] _raw_spin_lock
+     0.90%  [kernel]      [k] skb_release_head_state
+     0.60%  [kernel]      [k] tcp_transmit_skb
+     0.51%  [kernel]      [k] mlx4_en_xmit
+     0.33%  [kernel]      [k] ___cache_free
+     0.28%  [kernel]      [k] tcp_rcv_established
+
+Profile of cpu handling mlx4 softirqs (NUMA node 0)
+
+
+    48.00%  [kernel]          [k] mlx4_en_process_rx_cq
+    12.92%  [kernel]          [k] napi_gro_frags
+     7.28%  [kernel]          [k] inet_gro_receive
+     7.17%  [kernel]          [k] tcp_gro_receive
+     5.10%  [kernel]          [k] dev_gro_receive
+     4.87%  [kernel]          [k] skb_gro_receive
+     2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
+     2.04%  [kernel]          [k] __build_skb
+     1.02%  [kernel]          [k] napi_reuse_skb.isra.95
+     1.01%  [kernel]          [k] tcp4_gro_receive
+     0.65%  [kernel]          [k] kmem_cache_alloc
+     0.45%  [kernel]          [k] _raw_spin_lock
+
+Without the latest  patch (the exact patch series v3 I submitted),
+thus with this atomic_inc() in mlx4_en_process_rx_cq  instead of only reads.
+
+lpaa24:~# sar -n DEV 1 10|grep eth0|grep Ave
+Average:         eth0 3566768.50  25638.60 1790345.69   1663.51
+0.00      0.00      4.50
+
+Profiles of the two cpus :
+
+    74.85%  [kernel]      [k] copy_user_enhanced_fast_string
+     6.42%  [kernel]      [k] skb_release_data
+     5.65%  [kernel]      [k] skb_copy_datagram_iter
+     1.83%  [kernel]      [k] copy_page_to_iter
+     1.59%  [kernel]      [k] _raw_spin_lock
+     1.48%  [kernel]      [k] skb_release_head_state
+     0.72%  [kernel]      [k] tcp_transmit_skb
+     0.68%  [kernel]      [k] mlx4_en_xmit
+     0.43%  [kernel]      [k] page_frag_free
+     0.38%  [kernel]      [k] ___cache_free
+     0.37%  [kernel]      [k] tcp_established_options
+     0.37%  [kernel]      [k] __ip_local_out
+
+
+   37.98%  [kernel]          [k] mlx4_en_process_rx_cq
+    26.47%  [kernel]          [k] napi_gro_frags
+     7.02%  [kernel]          [k] inet_gro_receive
+     5.89%  [kernel]          [k] tcp_gro_receive
+     5.17%  [kernel]          [k] dev_gro_receive
+     4.80%  [kernel]          [k] skb_gro_receive
+     2.61%  [kernel]          [k] __build_skb
+     2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
+     1.59%  [kernel]          [k] napi_reuse_skb.isra.95
+     0.95%  [kernel]          [k] tcp4_gro_receive
+     0.51%  [kernel]          [k] kmem_cache_alloc
+     0.42%  [kernel]          [k] __inet_lookup_established
+     0.34%  [kernel]          [k] swiotlb_sync_single_for_cpu
+
+
+So probably this will need further analysis, outside of the scope of
+this patch series.
+
+Could we now please Ack this v3 and merge it ?
+
+Thanks.
+
+
+
+> Notice the huge difference. And in case 2, it is enough that the remote
+> CPU reads the cacheline and brings it into "Shared" (MESI) state, and
+> the local CPU then does the atomic op.
+>
+> One key ideas behind the page_pool, is that remote CPUs read/detect
+> refcnt==1 (Shared-state), and store the page in a small per-CPU array.
+> When array is full, it gets bulk returned to the shared-ptr-ring pool.
+> When "local" CPU need new pages, from the shared-ptr-ring it prefetchw
+> during it's bulk refill, to latency-hide the MESI transitions needed.
+>
+> --
+> Best regards,
+>   Jesper Dangaard Brouer
+>   MSc.CS, Principal Kernel Engineer at Red Hat
+>   LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
