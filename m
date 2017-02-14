@@ -1,152 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 83B0E6B0397
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 08:45:03 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id s36so195340770otd.3
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:45:03 -0800 (PST)
-Received: from mail-ot0-x22f.google.com (mail-ot0-x22f.google.com. [2607:f8b0:4003:c0f::22f])
-        by mx.google.com with ESMTPS id s10si285160oib.185.2017.02.14.05.45.02
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D29C6B0038
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 09:12:19 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id k15so141443780qtg.5
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 06:12:19 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 1si586619pgo.251.2017.02.14.06.12.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 05:45:02 -0800 (PST)
-Received: by mail-ot0-x22f.google.com with SMTP id t47so7551014ota.1
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 05:45:02 -0800 (PST)
+        Tue, 14 Feb 2017 06:12:18 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1EDxxeV106075
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 09:12:17 -0500
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28kgdm4u4t-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 09:12:17 -0500
+Received: from localhost
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 15 Feb 2017 00:12:14 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 1C14E2BB0045
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 01:12:13 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1EEC5mD35258544
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 01:12:13 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1EEBfZC027837
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 01:11:41 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/autonuma: don't use set_pte_at when updating protnone ptes
+In-Reply-To: <1486400776-28114-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1486400776-28114-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Date: Tue, 14 Feb 2017 19:41:17 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170214131206.44b644f6@redhat.com>
-References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
- <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
- <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
- <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com> <20170214131206.44b644f6@redhat.com>
-From: Eric Dumazet <edumazet@google.com>
-Date: Tue, 14 Feb 2017 05:45:01 -0800
-Message-ID: <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
-Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
+Message-Id: <87a89ovp4q.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 14, 2017 at 4:12 AM, Jesper Dangaard Brouer
-<brouer@redhat.com> wrote:
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-> It is important to understand that there are two cases for the cost of
-> an atomic op, which depend on the cache-coherency state of the
-> cacheline.
+> Architectures like ppc64, use privilege access bit to mark pte non accessible.
+> This implies that kernel can do a copy_to_user to an address marked for numa fault.
+> This also implies that there can be a parallel hardware update for the pte.
+> set_pte_at cannot be used in such scenarios. Hence switch the pte
+> update to use ptep_get_and_clear and set_pte_at combination.
 >
-> Measured on Skylake CPU i7-6700K CPU @ 4.00GHz
->
-> (1) Local CPU atomic op :  27 cycles(tsc)  6.776 ns
-> (2) Remote CPU atomic op: 260 cycles(tsc) 64.964 ns
->
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Okay, it seems you guys really want a patch that I said was not giving
-good results
+With this and other patches a kvm guest is giving me
 
-Let me publish the numbers I get , adding or not the last (and not
-official) patch.
+  494.542145] khugepaged      D13632  1451      2 0x00000800
+[  494.542151] Call Trace:
+[  494.542158] [c000000fe57a7830] [c000000000e71f10] sysctl_sched_child_runs_first+0x0/0x4 (unreliable)
+[  494.542163] [c000000fe57a7a00] [c00000000001ae70] __switch_to+0x2b0/0x440
+[  494.542167] [c000000fe57a7a60] [c0000000009ac560] __schedule+0x2e0/0x940
+[  494.542170] [c000000fe57a7b00] [c0000000009acc00] schedule+0x40/0xb0
+[  494.542173] [c000000fe57a7b30] [c0000000009b1264] rwsem_down_read_failed+0x124/0x1b0
+[  494.542176] [c000000fe57a7ba0] [c0000000009b0064] down_read+0x64/0x70
+[  494.542180] [c000000fe57a7bd0] [c000000000292a70] khugepaged+0x420/0x25c0
+[  494.542184] [c000000fe57a7dc0] [c0000000000df37c] kthread+0x14c/0x190
+[  494.542187] [c000000fe57a7e30] [c00000000000bae0] ret_from_kernel_thread+0x5c/0x7c
+[  494.542276] INFO: task qemu-system-ppc:6868 blocked for more than 120 seconds.
+[  494.542340]       Not tainted 4.10.0-rc8-00025-g0d75d3e #4
+[  494.542377] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[  494.542439] qemu-system-ppc D10688  6868   6473 0x00040000
+[  494.542445] Call Trace:
+[  494.542448] [c000000fdca7b6a0] [c00000000001ae70] __switch_to+0x2b0/0x440
+[  494.542451] [c000000fdca7b700] [c0000000009ac560] __schedule+0x2e0/0x940
+[  494.542454] [c000000fdca7b7a0] [c0000000009acc00] schedule+0x40/0xb0
+[  494.542457] [c000000fdca7b7d0] [c0000000009b1264] rwsem_down_read_failed+0x124/0x1b0
+[  494.542460] [c000000fdca7b840] [c0000000009b0064] down_read+0x64/0x70
+[  494.542464] [c000000fdca7b870] [c0000000002340e0] get_user_pages_unlocked+0x80/0x280
+[  494.542467] [c000000fdca7b910] [c0000000002352dc] get_user_pages_fast+0xac/0x110
+[  494.542475] [c000000fdca7b960] [d00000001096c4fc] kvmppc_book3s_hv_page_fault+0x2bc/0xbb0 [kvm_hv]
+[  494.542479] [c000000fdca7ba50] [d0000000109692e4] kvmppc_vcpu_run_hv+0xee4/0x1290 [kvm_hv]
+[  494.542488] [c000000fdca7bb80] [d0000000107113bc] kvmppc_vcpu_run+0x2c/0x40 [kvm]
+[  494.542497] [c000000fdca7bba0] [d00000001070ec6c] kvm_arch_vcpu_ioctl_run+0x5c/0x160 [kvm]
+[  494.542504] [c000000fdca7bbe0] [d000000010703bf8] kvm_vcpu_ioctl+0x528/0x7a0 [kvm]
+[  494.542506] [c000000fdca7bd40] [c0000000002c46dc] do_vfs_ioctl+0xcc/0x8e0
+[  494.542509] [c000000fdca7bde0] [c0000000002c4f50] SyS_ioctl+0x60/0xc0
+[  494.542512] [c000000fdca7be30] [c00000000000b760] system_call+0x38/0xfc
+[  494.542514] INFO: task qemu-system-ppc:6870 blocked for more than 120 seconds.
+[  494.542577]       Not tainted 4.10.0-rc8-00025-g0d75d3e #4
+[  494.542615] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[  494.542677] qemu-system-ppc D10688  6870   6473 0x00040000
 
-If I _force_ the user space process to run on the other node,
-then the results are not the ones Alex or you are expecting.
+Reverting this patch gets rid of the above hang. But I am running into segfault
+with systemd in guest. It could be some other patches in my local tree.
 
-I have with this patch about 2.7 Mpps of this silly single TCP flow,
-and 3.5 Mpps without it.
+Maybe we should hold merging this to 4.11 and wait for this to get more
+testing ?
 
-lpaa24:~# sar -n DEV 1 10 | grep eth0 | grep Ave
-Average:         eth0 2699243.20  16663.70 1354783.36   1079.95
-0.00      0.00      4.50
-
-Profile of the cpu on NUMA node 1 ( netserver consuming data ) :
-
-    54.73%  [kernel]      [k] copy_user_enhanced_fast_string
-    31.07%  [kernel]      [k] skb_release_data
-     4.24%  [kernel]      [k] skb_copy_datagram_iter
-     1.35%  [kernel]      [k] copy_page_to_iter
-     0.98%  [kernel]      [k] _raw_spin_lock
-     0.90%  [kernel]      [k] skb_release_head_state
-     0.60%  [kernel]      [k] tcp_transmit_skb
-     0.51%  [kernel]      [k] mlx4_en_xmit
-     0.33%  [kernel]      [k] ___cache_free
-     0.28%  [kernel]      [k] tcp_rcv_established
-
-Profile of cpu handling mlx4 softirqs (NUMA node 0)
-
-
-    48.00%  [kernel]          [k] mlx4_en_process_rx_cq
-    12.92%  [kernel]          [k] napi_gro_frags
-     7.28%  [kernel]          [k] inet_gro_receive
-     7.17%  [kernel]          [k] tcp_gro_receive
-     5.10%  [kernel]          [k] dev_gro_receive
-     4.87%  [kernel]          [k] skb_gro_receive
-     2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
-     2.04%  [kernel]          [k] __build_skb
-     1.02%  [kernel]          [k] napi_reuse_skb.isra.95
-     1.01%  [kernel]          [k] tcp4_gro_receive
-     0.65%  [kernel]          [k] kmem_cache_alloc
-     0.45%  [kernel]          [k] _raw_spin_lock
-
-Without the latest  patch (the exact patch series v3 I submitted),
-thus with this atomic_inc() in mlx4_en_process_rx_cq  instead of only reads.
-
-lpaa24:~# sar -n DEV 1 10|grep eth0|grep Ave
-Average:         eth0 3566768.50  25638.60 1790345.69   1663.51
-0.00      0.00      4.50
-
-Profiles of the two cpus :
-
-    74.85%  [kernel]      [k] copy_user_enhanced_fast_string
-     6.42%  [kernel]      [k] skb_release_data
-     5.65%  [kernel]      [k] skb_copy_datagram_iter
-     1.83%  [kernel]      [k] copy_page_to_iter
-     1.59%  [kernel]      [k] _raw_spin_lock
-     1.48%  [kernel]      [k] skb_release_head_state
-     0.72%  [kernel]      [k] tcp_transmit_skb
-     0.68%  [kernel]      [k] mlx4_en_xmit
-     0.43%  [kernel]      [k] page_frag_free
-     0.38%  [kernel]      [k] ___cache_free
-     0.37%  [kernel]      [k] tcp_established_options
-     0.37%  [kernel]      [k] __ip_local_out
-
-
-   37.98%  [kernel]          [k] mlx4_en_process_rx_cq
-    26.47%  [kernel]          [k] napi_gro_frags
-     7.02%  [kernel]          [k] inet_gro_receive
-     5.89%  [kernel]          [k] tcp_gro_receive
-     5.17%  [kernel]          [k] dev_gro_receive
-     4.80%  [kernel]          [k] skb_gro_receive
-     2.61%  [kernel]          [k] __build_skb
-     2.45%  [kernel]          [k] mlx4_en_prepare_rx_desc
-     1.59%  [kernel]          [k] napi_reuse_skb.isra.95
-     0.95%  [kernel]          [k] tcp4_gro_receive
-     0.51%  [kernel]          [k] kmem_cache_alloc
-     0.42%  [kernel]          [k] __inet_lookup_established
-     0.34%  [kernel]          [k] swiotlb_sync_single_for_cpu
-
-
-So probably this will need further analysis, outside of the scope of
-this patch series.
-
-Could we now please Ack this v3 and merge it ?
-
-Thanks.
-
-
-
-> Notice the huge difference. And in case 2, it is enough that the remote
-> CPU reads the cacheline and brings it into "Shared" (MESI) state, and
-> the local CPU then does the atomic op.
->
-> One key ideas behind the page_pool, is that remote CPUs read/detect
-> refcnt==1 (Shared-state), and store the page in a small per-CPU array.
-> When array is full, it gets bulk returned to the shared-ptr-ring pool.
-> When "local" CPU need new pages, from the shared-ptr-ring it prefetchw
-> during it's bulk refill, to latency-hide the MESI transitions needed.
->
-> --
-> Best regards,
->   Jesper Dangaard Brouer
->   MSc.CS, Principal Kernel Engineer at Red Hat
->   LinkedIn: http://www.linkedin.com/in/brouer
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
