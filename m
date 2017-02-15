@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9830E680FD0
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 03:08:51 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u63so13565500wmu.0
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 00:08:51 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id z104si4056118wrc.238.2017.02.15.00.08.50
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 375E7680FD0
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 03:22:20 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id o12so63235637lfg.7
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 00:22:20 -0800 (PST)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id r2si1537056lfg.192.2017.02.15.00.22.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 00:08:50 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id u63so6876675wmu.2
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 00:08:50 -0800 (PST)
-Date: Wed, 15 Feb 2017 09:08:47 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] oom_reaper: switch to struct list_head for reap queue
-Message-ID: <20170215080847.GA28090@gmail.com>
-References: <20170214150714.6195-1-asarai@suse.de>
- <20170214163005.GA2450@cmpxchg.org>
- <e876e49b-8b65-d827-af7d-cbf8aef97585@suse.de>
+        Wed, 15 Feb 2017 00:22:19 -0800 (PST)
+Subject: Re: [PATCH 1/3 staging-next] android: Collect statistics from
+ lowmemorykiller
+References: <20170214160932.4988-1-peter.enderborg@sonymobile.com>
+ <20170214165102.GE17335@kroah.com>
+From: peter enderborg <peter.enderborg@sonymobile.com>
+Message-ID: <ef98ccbf-8e18-e55a-3af3-7ecec5fa60c5@sonymobile.com>
+Date: Wed, 15 Feb 2017 09:21:56 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e876e49b-8b65-d827-af7d-cbf8aef97585@suse.de>
+In-Reply-To: <20170214165102.GE17335@kroah.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aleksa Sarai <asarai@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cyphar@cyphar.com
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, arve@android.com, riandrews@android.com, torvalds@linux-foundation.org, linux-mm@kvack.org
 
+On 02/14/2017 05:51 PM, Greg KH wrote:
+> On Tue, Feb 14, 2017 at 05:09:30PM +0100, peter.enderborg@sonymobile.com wrote:
+>> From: Peter Enderborg <peter.enderborg@sonymobile.com>
+>>
+>> This collects stats for shrinker calls and how much
+>> waste work we do within the lowmemorykiller.
+>>
+>> Signed-off-by: Peter Enderborg <peter.enderborg@sonymobile.com>
+> Wait, what changed from the previous versions of this patch?  Did you
+> take the review comments into consideration, or is this just a resend of
+> the original patches in a format that isn't corrupted?
+>
+> thanks,
+>
+> greg k-h
 
-* Aleksa Sarai <asarai@suse.de> wrote:
+This is just a send with git-send-email that seems to work better. Nothing
+else than tab-spaces should be different. I would like to have some positive
+feedback from google/android before I start to send updated patches to the list.
+If google are ready for the userspace solution this patch set is pointless for
+upstream kernel.
 
-> >>Rather than implementing an open addressing linked list structure
-> >>ourselves, use the standard list_head structure to improve consistency
-> >>with the rest of the kernel and reduce confusion.
-> >>
-> >>Cc: Michal Hocko <mhocko@suse.com>
-> >>Cc: Oleg Nesterov <oleg@redhat.com>
-> >>Signed-off-by: Aleksa Sarai <asarai@suse.de>
-> >>---
-> >> include/linux/sched.h |  6 +++++-
-> >> kernel/fork.c         |  4 ++++
-> >> mm/oom_kill.c         | 24 +++++++++++++-----------
-> >> 3 files changed, 22 insertions(+), 12 deletions(-)
-> >>
-> >>diff --git a/include/linux/sched.h b/include/linux/sched.h
-> >>index e93594b88130..d8bcd0f8c5fe 100644
-> >>--- a/include/linux/sched.h
-> >>+++ b/include/linux/sched.h
-> >>@@ -1960,7 +1960,11 @@ struct task_struct {
-> >> #endif
-> >> 	int pagefault_disabled;
-> >> #ifdef CONFIG_MMU
-> >>-	struct task_struct *oom_reaper_list;
-> >>+	/*
-> >>+	 * List of threads that have to be reaped by OOM (rooted at
-> >>+	 * &oom_reaper_list in mm/oom_kill.c).
-> >>+	 */
-> >>+	struct list_head oom_reaper_list;
-> >
-> >This is an extra pointer to task_struct and more lines of code to
-> >accomplish the same thing. Why would we want to do that?
-> 
-> I don't think it's more "actual" lines of code (I think the wrapping is
-> inflating the line number count), but switching it means that it's more in
-> line with other queues in the kernel (it took me a bit to figure out what
-> was going on with oom_reaper_list beforehand).
-
-It's still an extra pointer and extra generated code to do the same thing - a clear step backwards.
-
-Thanks,
-
-	Ingo
+Michal Hocko is very negative to hole thing, but we have addressed at least some
+issues he pointed out on the list in 2015. Is there any idea to continue?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
