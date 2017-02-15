@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E09D6B042B
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:12:13 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id d185so195650975pgc.2
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 14:12:13 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s17si4920990pgi.404.2017.02.15.14.12.12
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FC5D6B042E
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:12:29 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id w185so5374817ita.5
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 14:12:29 -0800 (PST)
+Received: from mail-it0-x232.google.com (mail-it0-x232.google.com. [2607:f8b0:4001:c0b::232])
+        by mx.google.com with ESMTPS id b101si5317425ioj.150.2017.02.15.14.12.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 14:12:12 -0800 (PST)
-Date: Wed, 15 Feb 2017 22:12:08 +0000
-From: Giovanni Cabiddu <giovanni.cabiddu@intel.com>
-Subject: Re: [RFC PATCH v1 1/1] mm: zswap - Add crypto acomp/scomp framework
- support
-Message-ID: <20170215221208.GA820@silv-gc1.ir.intel.com>
-References: <1487086821-5880-1-git-send-email-Mahipal.Challa@cavium.com>
- <1487086821-5880-2-git-send-email-Mahipal.Challa@cavium.com>
- <CAC8qmcCt8VEX6QSSL35isN-nEvH-AJ2MAJHZy0TigxftsQN2jA@mail.gmail.com>
- <58A45E4A.8080508@caviumnetworks.com>
+        Wed, 15 Feb 2017 14:12:28 -0800 (PST)
+Received: by mail-it0-x232.google.com with SMTP id c7so4436328itd.1
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 14:12:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58A45E4A.8080508@caviumnetworks.com>
+In-Reply-To: <20170215130020.749e34e4d1e3d0789eb114f1@linux-foundation.org>
+References: <20170209131625.GA16954@pjb1027-Latitude-E5410>
+ <CAGXu5jKofDhycUbLGMLNPM3LwjKuW1kGAbthSS1qufEB6bwOPA@mail.gmail.com> <20170215130020.749e34e4d1e3d0789eb114f1@linux-foundation.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 15 Feb 2017 14:12:27 -0800
+Message-ID: <CAGXu5jJ+KFOic1_JfD2iWfKdivKjteVqdybB7Jq=Eadcs72dwQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: testcases for RODATA: fix config dependency
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Narayana Prasad Athreya <pathreya@caviumnetworks.com>
-Cc: Seth Jennings <sjenning@redhat.com>, Mahipal Challa <mahipalreddy2006@gmail.com>, herbert@gondor.apana.org.au, davem@davemloft.net, linux-crypto@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, pathreya@cavium.com, vnair@cavium.com, Mahipal Challa <Mahipal.Challa@cavium.com>, Vishnu Nair <Vishnu.Nair@cavium.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jinbum Park <jinb.park7@gmail.com>, Valentin Rothberg <valentinrothberg@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>
 
-On Wed, Feb 15, 2017 at 07:27:30PM +0530, Narayana Prasad Athreya wrote:
-> > I assume all of these crypto_acomp_[compress|decompress] calls are
-> > actually synchronous,
-> > not asynchronous as the name suggests.  Otherwise, this would blow up
-> > quite spectacularly
-> > since all the resources we use in the call get derefed/unmapped below.
-> > 
-> > Could an async algorithm be implement/used that would break this assumption?
-> 
-> The callback is set to NULL using acomp_request_set_callback(). This implies
-> synchronous mode of operation. So the underlying implementation must
-> complete the operation synchronously.
-This assumption is not correct. An asynchronous implementation, when
-it finishes processing a request, will call acomp_request_complete() which
-in turn calls the callback.
-If the callback is set to NULL, this function will dereference a NULL
-pointer.
+On Wed, Feb 15, 2017 at 1:00 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 10 Feb 2017 15:36:37 -0800 Kees Cook <keescook@chromium.org> wrote:
+>
+>> >  config DEBUG_RODATA_TEST
+>> >      bool "Testcase for the marking rodata read-only"
+>> > -    depends on DEBUG_RODATA
+>> > +    depends on STRICT_KERNEL_RWX
+>> >      ---help---
+>> >        This option enables a testcase for the setting rodata read-only.
+>>
+>> Great, thanks!
+>>
+>> Acked-by: Kees Cook <keescook@chromium.org>
+>>
+>> Andrew, do you want to take this patch, since it applies on top of
+>> "mm: add arch-independent testcases for RODATA", or do you want me to
+>> take both patches into my KSPP tree which has the DEBUG_RODATA ->
+>> STRICT_KERNEL_RWX renaming series?
+>
+> I staged this and mm-add-arch-independent-testcases-for-rodata.patch
+> after linux-next and shall merge them after the STRICT_KERNEL_RWX
+> rename has gone into mainline.
 
-Regards,
+Awesome, thanks!
+
+-Kees
 
 -- 
-Giovanni 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
