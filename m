@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 82DAB4405BD
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:26:44 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id 19so92561490oti.0
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:26:44 -0800 (PST)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id y94si2350732ota.15.2017.02.15.13.26.43
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8467E4405BD
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:29:08 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id an2so67135291wjc.3
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:29:08 -0800 (PST)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id a34si6551745wrc.277.2017.02.15.13.29.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 13:26:43 -0800 (PST)
-Received: by mail-oi0-x233.google.com with SMTP id w204so93613837oiw.0
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:26:43 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Feb 2017 13:29:06 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id A617E98DFC
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 21:29:06 +0000 (UTC)
+Date: Wed, 15 Feb 2017 21:29:06 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/3] Reduce amount of time kswapd sleeps prematurely
+Message-ID: <20170215212906.3myab4545wa2f3yc@techsingularity.net>
+References: <20170215092247.15989-1-mgorman@techsingularity.net>
+ <20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20170215131023.02186e970498eca080c8d456@linux-foundation.org>
-References: <20170215205826.13356-1-nicstange@gmail.com> <20170215131023.02186e970498eca080c8d456@linux-foundation.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 15 Feb 2017 13:26:43 -0800
-Message-ID: <CAPcyv4gAUCsJ9HcSyAK6j4YDHPkJsb06ZX=uJsYBMDCNMFsNmQ@mail.gmail.com>
-Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64 ("mm: convert
- kmalloc_section_memmap() to populate_section_memmap()") and Kasan
- initialization on
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nicolai Stange <nicstange@gmail.com>, Linux MM <linux-mm@kvack.org>
+Cc: Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, Feb 15, 2017 at 1:10 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 15 Feb 2017 21:58:23 +0100 Nicolai Stange <nicstange@gmail.com> wrote:
->
->> Hi Dan,
->>
->> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
->> populate_section_memmap()") seems to cause some issues with respect to
->> Kasan initialization on x86.
->>
->> This is because Kasan's initialization (ab)uses the arch provided
->> vmemmap_populate().
->>
->> The first one is a boot failure, see [1/3]. The commit before the
->> aforementioned one works fine.
->>
->> The second one, i.e. [2/3], is something that hit my eye while browsing
->> the source and I verified that this is indeed an issue by printk'ing and
->> dumping the page tables.
->>
->> The third one are excessive warnings from vmemmap_verify() due to Kasan's
->> NUMA_NO_NODE page populations.
->
-> urggggh.
->
-> That means these two series:
->
-> mm-fix-type-width-of-section-to-from-pfn-conversion-macros.patch
-> mm-devm_memremap_pages-use-multi-order-radix-for-zone_device-lookups.patch
-> mm-introduce-struct-mem_section_usage-to-track-partial-population-of-a-section.patch
-> mm-introduce-common-definitions-for-the-size-and-mask-of-a-section.patch
-> mm-cleanup-sparse_init_one_section-return-value.patch
-> mm-track-active-portions-of-a-section-at-boot.patch
-> mm-track-active-portions-of-a-section-at-boot-fix.patch
-> mm-track-active-portions-of-a-section-at-boot-fix-fix.patch
-> mm-fix-register_new_memory-zone-type-detection.patch
-> mm-convert-kmalloc_section_memmap-to-populate_section_memmap.patch
-> mm-prepare-for-hot-add-remove-of-sub-section-ranges.patch
-> mm-support-section-unaligned-zone_device-memory-ranges.patch
-> mm-support-section-unaligned-zone_device-memory-ranges-fix.patch
-> mm-support-section-unaligned-zone_device-memory-ranges-fix-2.patch
-> mm-enable-section-unaligned-devm_memremap_pages.patch
-> libnvdimm-pfn-dax-stop-padding-pmem-namespaces-to-section-alignment.patch
->
+On Wed, Feb 15, 2017 at 12:30:55PM -0800, Andrew Morton wrote:
+> On Wed, 15 Feb 2017 09:22:44 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > This patchset is based on mmots as of Feb 9th, 2016. The baseline is
+> > important as there are a number of kswapd-related fixes in that tree and
+> > a comparison against v4.10-rc7 would be almost meaningless as a result.
+> 
+> It's very late to squeeze this into 4.10.  We can make it 4.11 material
+> and perhaps tag it for backporting into 4.10.1?
 
-Yes, let's drop these and try again for 4.12. Thanks for the report
-and the debug Nicolai!
+It would be important that Johannes's patches go along with then because
+I'm relied on Johannes' fixes to deal with pages being inappropriately
+written back from reclaim context when I was analysing the workload.
+I'm thinking specifically about these patches
 
-> and
->
-> mm-devm_memremap_pages-hold-device_hotplug-lock-over-mem_hotplug_begin-done.patch
-> mm-validate-device_hotplug-is-held-for-memory-hotplug.patch
+mm-vmscan-scan-dirty-pages-even-in-laptop-mode.patch
+mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru.patch
+mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru-fix.patch
+mm-vmscan-remove-old-flusher-wakeup-from-direct-reclaim-path.patch
+mm-vmscan-only-write-dirty-pages-that-the-scanner-has-seen-twice.patch
+mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed.patch
+mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed-fix.patch
 
-No, these are separate and are still valid for the merge window.
+This is 4.11 material for sure but I would not automatically try merging
+them to 4.10 unless those patches were also included, ideally with a rerun
+of just those patches against 4.10 to make sure there are no surprises
+lurking in there.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
