@@ -1,117 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3AD4405B1
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:09:04 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id q3so177505832qtf.4
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 10:09:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 26si3386101qtp.44.2017.02.15.10.09.02
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 14E7A4405B6
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:20:15 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c4so14931584wrd.1
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 10:20:15 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j131si458281wmg.63.2017.02.15.10.20.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 10:09:03 -0800 (PST)
-Date: Wed, 15 Feb 2017 13:09:00 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [Bug 192981] New: page allocation stalls
-Message-ID: <20170215180859.GB62565@bfoster.bfoster>
-References: <bug-192981-27@https.bugzilla.kernel.org/>
- <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
- <8f450abd-4e05-92d3-2533-72b05fea2012@beget.ru>
- <20170215160538.GA62565@bfoster.bfoster>
- <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Feb 2017 10:20:13 -0800 (PST)
+Date: Wed, 15 Feb 2017 18:20:10 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+Message-ID: <20170215182010.reoahjuei5eaxr5s@suse.de>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
+In-Reply-To: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Polakov <apolyakov@beget.ru>
-Cc: linux-mm@kvack.org, linux-xfs@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Wed, Feb 15, 2017 at 07:52:13PM +0300, Alexander Polakov wrote:
-> On 02/15/2017 07:05 PM, Brian Foster wrote:
-> > You're in inode reclaim, blocked on a memory allocation for an inode
-> > buffer required to flush a dirty inode. I suppose this means that the
-> > backing buffer for the inode has already been reclaimed and must be
-> > re-read, which ideally wouldn't have occurred before the inode is
-> > flushed.
-> > 
-> > > But it cannot get memory, because it's low (?). So it stays blocked.
-> > > 
-> > > Other processes do the same but they can't get past the mutex in
-> > > xfs_reclaim_inodes_nr():
-> > > 
-> > ...
-> > > Which finally leads to "Kernel panic - not syncing: Out of memory and no
-> > > killable processes..." as no process is able to proceed.
-> > > 
-> > > I quickly hacked this:
-> > > 
-> > > diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
-> > > index 9ef152b..8adfb0a 100644
-> > > --- a/fs/xfs/xfs_icache.c
-> > > +++ b/fs/xfs/xfs_icache.c
-> > > @@ -1254,7 +1254,7 @@ struct xfs_inode *
-> > >         xfs_reclaim_work_queue(mp);
-> > >         xfs_ail_push_all(mp->m_ail);
-> > > 
-> > > -       return xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT,
-> > > &nr_to_scan);
-> > > +       return 0; // xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT,
-> > > &nr_to_scan);
-> > >  }
-> > > 
-> > 
-> > So you've disabled inode reclaim completely...
-> 
-> I don't think this is correct. I disabled direct / kswapd reclaim.
-> XFS uses background worker for async reclaim:
-> 
-> http://lxr.free-electrons.com/source/fs/xfs/xfs_icache.c#L178
-> http://lxr.free-electrons.com/source/fs/xfs/xfs_super.c#L1534
-> 
+On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
+> 	This four patches define CDM node with HugeTLB & Buddy allocation
+> isolation. Please refer to the last RFC posting mentioned here for more
 
-Ah, Ok. It sounds like this allows the reclaim thread to carry on into
-other shrinkers and free up memory that way, perhaps. This sounds kind
-of similar to the issue brought up previously here[1], but not quite the
-same in that instead of backing off of locking to allow other shrinkers
-to progress, we back off of memory allocations required to free up
-inodes (memory).
+Always include the background with the changelog itself. Do not assume that
+people are willing to trawl through a load of past postings to assemble
+the picture. I'm only taking a brief look because of the page allocator
+impact but it does not appear that previous feedback was addressed.
 
-In theory, I think something analogous to a trylock for inode to buffer
-mappings that are no longer cached (or more specifically, cannot
-currently be allocated) may work around this, but it's not immediately
-clear to me whether that's a proper fix (it's also probably not a
-trivial change either). I'm still kind of curious why we end up with
-dirty inodes with reclaimed buffers. If this problem repeats, is it
-always with a similar stack (i.e., reclaim -> xfs_iflush() ->
-xfs_imap_to_bp())?
+In itself, the series does very little and as Vlastimil already pointed
+out, it's not a good idea to try merge piecemeal when people could not
+agree on the big picture (I didn't dig into it).
 
-How many independent filesystems are you running this workload against?
-Can you describe the workload in more detail?
+The only reason I'm commenting at all is to say that I am extremely opposed
+to the changes made to the page allocator paths that are specific to
+CDM. It's been continual significant effort to keep the cost there down
+and this is a mess of special cases for CDM. The changes to hugetlb to
+identify "memory that is not really memory" with special casing is also
+quite horrible.
 
-...
-> > The bz shows you have non-default vm settings such as
-> > 'vm.vfs_cache_pressure = 200.' My understanding is that prefers
-> > aggressive inode reclaim, yet the code workaround here is to bypass XFS
-> > inode reclaim. Out of curiousity, have you reproduced this problem using
-> > the default vfs_cache_pressure value (or if so, possibly moving it in
-> > the other direction)?
-> 
-> Yes, we've tried that, it had about 0 influence.
-> 
+It's completely unclear that even if one was to assume that CDM memory
+should be expressed as nodes why such systems do not isolate all processes
+from CDM nodes by default and then allow access via memory policies or
+cpusets instead of special casing the page allocator fast path. It's also
+completely unclear what happens if a device should then access the CDM
+and how that should be synchronised with the core, if that is even possible.
 
-Which.. with what values? And by zero influence, do you simply mean the
-stall still occurred or you have some other measurement of slab sizes or
-some such that are unaffected?
+It's also unclear if this is even usable by an application in userspace
+at this point in time. If it is and the special casing is needed then the
+regions should be isolated from early mem allocations in the arch layer
+that is CDM aware, initialised late, and then setup userspace to isolate
+all but privileged applications from the CDM nodes. Do not litter the core
+with is_cdm_whatever checks.
 
-Brian
+At best this is incomplete because it does not look as if it could be used
+by anything properly and the fast path alterations are horrible even if
+it could be used. As it is, it should not be merged in my opinion.
 
-> -- 
-> Alexander Polakov | system software engineer | https://beget.com
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
