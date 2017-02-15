@@ -1,83 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 746C844059E
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 09:29:15 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 201so183055778pfw.5
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 06:29:15 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 3si2467044plp.314.2017.02.15.06.29.14
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1059C44059E
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 09:30:04 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id ez4so64670792wjd.2
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 06:30:04 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g15si5720795wmc.25.2017.02.15.06.30.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 06:29:14 -0800 (PST)
-Date: Wed, 15 Feb 2017 06:29:14 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 1/3 staging-next] android: Collect statistics from
- lowmemorykiller
-Message-ID: <20170215142914.GB11454@kroah.com>
-References: <20170214160932.4988-1-peter.enderborg@sonymobile.com>
- <20170214165015.GD17335@kroah.com>
- <cd0b0197-4d5a-bef3-b4a4-69f5ad12f01c@sonymobile.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Feb 2017 06:30:02 -0800 (PST)
+Subject: Re: [PATCH v2 00/10] try to reduce fragmenting fallbacks
+References: <20170210172343.30283-1-vbabka@suse.cz>
+ <20170213110701.vb4e6zrwhwliwm7k@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <37f46f4c-4006-a76a-bf0a-5a4e3b0d68e6@suse.cz>
+Date: Wed, 15 Feb 2017 15:29:58 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cd0b0197-4d5a-bef3-b4a4-69f5ad12f01c@sonymobile.com>
+In-Reply-To: <20170213110701.vb4e6zrwhwliwm7k@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sonymobile.com>
-Cc: devel@driverdev.osuosl.org, riandrews@android.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arve@android.com, torvalds@linux-foundation.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Wed, Feb 15, 2017 at 09:22:10AM +0100, peter enderborg wrote:
-> On 02/14/2017 05:50 PM, Greg KH wrote:
-> > On Tue, Feb 14, 2017 at 05:09:30PM +0100, peter.enderborg@sonymobile.com wrote:
-> >> From: Peter Enderborg <peter.enderborg@sonymobile.com>
-> >>
-> >> This collects stats for shrinker calls and how much
-> >> waste work we do within the lowmemorykiller.
-> >>
-> >> Signed-off-by: Peter Enderborg <peter.enderborg@sonymobile.com>
-> >> ---
-> >>  drivers/staging/android/Kconfig                 | 11 ++++
-> >>  drivers/staging/android/Makefile                |  1 +
-> >>  drivers/staging/android/lowmemorykiller.c       |  9 ++-
-> >>  drivers/staging/android/lowmemorykiller_stats.c | 85 +++++++++++++++++++++++++
-> >>  drivers/staging/android/lowmemorykiller_stats.h | 29 +++++++++
-> >>  5 files changed, 134 insertions(+), 1 deletion(-)
-> >>  create mode 100644 drivers/staging/android/lowmemorykiller_stats.c
-> >>  create mode 100644 drivers/staging/android/lowmemorykiller_stats.h
-> >>
-> >> diff --git a/drivers/staging/android/Kconfig b/drivers/staging/android/Kconfig
-> >> index 6c00d6f..96e86c7 100644
-> >> --- a/drivers/staging/android/Kconfig
-> >> +++ b/drivers/staging/android/Kconfig
-> >> @@ -24,6 +24,17 @@ config ANDROID_LOW_MEMORY_KILLER
-> >>  	  scripts (/init.rc), and it defines priority values with minimum free memory size
-> >>  	  for each priority.
-> >>  
-> >> +config ANDROID_LOW_MEMORY_KILLER_STATS
-> >> +	bool "Android Low Memory Killer: collect statistics"
-> >> +	depends on ANDROID_LOW_MEMORY_KILLER
-> >> +	default n
-> >> +	help
-> >> +	  Create a file in /proc/lmkstats that includes
-> >> +	  collected statistics about kills, scans and counts
-> >> +	  and  interaction with the shrinker. Its content
-> >> +	  will be different depeding on lmk implementation used.
-> > Ick, no new /proc files please, this isn't a "process" value.  What's
-> > wrong with debugfs?
-> This is intended for android. Android users are very limited in their access
-> to linux part of the system on commercial models and lmk activity has a bad impact on the performance
-> of the device. Even the application developers has not much access so it seems to be fair to give
-> the users the information about why there is a problem.
+On 02/13/2017 12:07 PM, Mel Gorman wrote:
+> On Fri, Feb 10, 2017 at 06:23:33PM +0100, Vlastimil Babka wrote:
+> 
+> By and large, I like the series, particularly patches 7 and 8. I cannot
+> make up my mind about the RFC patches 9 and 10 yet. Conceptually they
+> seem sound but they are much more far reaching than the rest of the
+> series.
+> 
+> It would be nice if patches 1-8 could be treated in isolation with data
+> on the number of extfrag events triggered, time spent in compaction and
+> the success rate. Patches 9 and 10 are tricy enough that they would need
+> data per patch where as patches 1-8 should be ok with data gathered for
+> the whole series.
 
-Why would you want to give "all users" this information at all?  This is
-a debugging tool, your debugging userspace framework can use whatever
-interface you create to access it (i.e. debugfs).
+I've got the results with mmtests stress-highalloc modified to do
+GFP_KERNEL order-4 allocations, on 4.9 with "mm, vmscan: fix zone
+balance check in prepare_kswapd_sleep" (without that, kcompactd indeed
+wasn't woken up) on UMA machine with 4GB memory. There were 5 repeats of
+each run, as the extfrag stats are quite volatile (note the stats below
+are sums, not averages, as it was less perl hacking for me).
 
-Again, do not add debugging stuff to /proc/ that's not ok, sorry.
+Success rate are the same, already high due to the low order. THP and
+compaction stats also roughly the same. The extfrag stats (a bit
+modified/expanded wrt. vanilla mmtests):
 
-thanks,
+(the patches are stacked, and I haven't measured the non-functional-changes
+patches separately)
+							   base     patch 2     patch 3     patch 4     patch 7     patch 8
+Page alloc extfrag event                               11734984    11769620    11485185    13029676    13312786    13939417
+Extfrag fragmenting                                    11729231    11763921    11479301    13024101    13307281    13933978
+Extfrag fragmenting for unmovable                         87848       84906       76328       78613       66025       59261
+Extfrag fragmenting unmovable placed with movable          8298        7367        5865        8479        6440        5928
+Extfrag fragmenting for reclaimable                    11636074    11673657    11397642    12940253    13236444    13869509
+Extfrag fragmenting reclaimable placed with movable      389283      362396      330855      374292      390700      415478
+Extfrag fragmenting for movable                            5309        5358        5331        5235        4812        5208
 
-greg k-h
+Going in order, patch 3 might be some improvement wrt polluting
+(movable) pageblocks with unmovable, hopefully not noise.
+
+Results for patch 4 ("count movable pages when stealing from pageblock")
+are really puzzling me, as it increases the number of fragmenting events
+for reclaimable allocations, implicating "reclaimable placed with (i.e.
+falling back to) unmovable" (which is not listed separately above, but
+follows logically from "reclaimable placed with movable" not changing
+that much). I really wonder why is that. The patch effectively only
+changes the decision to change migratetype of a pageblock, it doesn't
+affect the actual stealing decision (which is always true for
+RECLAIMABLE anyway, see can_steal_fallback()). Moreover, since we can't
+distinguish UNMOVABLE from RECLAIMABLE when counting, good_pages is 0
+and thus even the decision to change pageblock migratetype shouldn't be
+changed by the patch for this case. I must recheck the implementation...
+
+Patch 7 could be cautiously labeled as improvement for reduction of
+"Fragmenting for unmovable" events, which would be perfect as that was
+the intention. For reclaimable it looks worse, but probably just within
+noise. Same goes for Patch 8, although the apparent regression for
+reclaimable looks even worse there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
