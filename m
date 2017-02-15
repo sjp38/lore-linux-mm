@@ -1,145 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AC4FD4405B1
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 11:52:17 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id x1so67602864lff.6
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 08:52:17 -0800 (PST)
-Received: from special.m3.smtp.beget.ru (special.m3.smtp.beget.ru. [5.101.158.90])
-        by mx.google.com with ESMTPS id h24si2120448ljb.107.2017.02.15.08.52.16
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C35554405B1
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 11:57:58 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id e137so74814077itc.0
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 08:57:58 -0800 (PST)
+Received: from mail-it0-x22b.google.com (mail-it0-x22b.google.com. [2607:f8b0:4001:c0b::22b])
+        by mx.google.com with ESMTPS id w19si4576633ioi.6.2017.02.15.08.57.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 08:52:16 -0800 (PST)
-Reply-To: apolyakov@beget.ru
-Subject: Re: [Bug 192981] New: page allocation stalls
-References: <bug-192981-27@https.bugzilla.kernel.org/>
- <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
- <8f450abd-4e05-92d3-2533-72b05fea2012@beget.ru>
- <20170215160538.GA62565@bfoster.bfoster>
-From: Alexander Polakov <apolyakov@beget.ru>
-Message-ID: <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
-Date: Wed, 15 Feb 2017 19:52:13 +0300
+        Wed, 15 Feb 2017 08:57:57 -0800 (PST)
+Received: by mail-it0-x22b.google.com with SMTP id 203so69023602ith.0
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 08:57:57 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170215160538.GA62565@bfoster.bfoster>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <ccc4cb9e-9863-02e1-2789-4869aea3c661@mellanox.com>
+References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
+ <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+ <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+ <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
+ <20170214131206.44b644f6@redhat.com> <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+ <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com> <1487087488.8227.53.camel@edumazet-glaptop3.roam.corp.google.com>
+ <CALx6S3530_2DYU-3VRmvRYZ3n05OqJZpJ3x02vXQd6Q7FUJQvw@mail.gmail.com> <ccc4cb9e-9863-02e1-2789-4869aea3c661@mellanox.com>
+From: Eric Dumazet <edumazet@google.com>
+Date: Wed, 15 Feb 2017 08:57:56 -0800
+Message-ID: <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Foster <bfoster@redhat.com>
-Cc: linux-mm@kvack.org, linux-xfs@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: Tom Herbert <tom@herbertland.com>, Eric Dumazet <eric.dumazet@gmail.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 02/15/2017 07:05 PM, Brian Foster wrote:
-> You're in inode reclaim, blocked on a memory allocation for an inode
-> buffer required to flush a dirty inode. I suppose this means that the
-> backing buffer for the inode has already been reclaimed and must be
-> re-read, which ideally wouldn't have occurred before the inode is
-> flushed.
+On Wed, Feb 15, 2017 at 8:42 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
 >
->> But it cannot get memory, because it's low (?). So it stays blocked.
->>
->> Other processes do the same but they can't get past the mutex in
->> xfs_reclaim_inodes_nr():
->>
-> ...
->> Which finally leads to "Kernel panic - not syncing: Out of memory and no
->> killable processes..." as no process is able to proceed.
->>
->> I quickly hacked this:
->>
->> diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
->> index 9ef152b..8adfb0a 100644
->> --- a/fs/xfs/xfs_icache.c
->> +++ b/fs/xfs/xfs_icache.c
->> @@ -1254,7 +1254,7 @@ struct xfs_inode *
->>         xfs_reclaim_work_queue(mp);
->>         xfs_ail_push_all(mp->m_ail);
->>
->> -       return xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT,
->> &nr_to_scan);
->> +       return 0; // xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT,
->> &nr_to_scan);
->>  }
->>
+
 >
-> So you've disabled inode reclaim completely...
+> Isn't it the same principle in page_frag_alloc() ?
+> It is called form __netdev_alloc_skb()/__napi_alloc_skb().
+>
+> Why is it ok to have order-3 pages (PAGE_FRAG_CACHE_MAX_ORDER) there?
 
-I don't think this is correct. I disabled direct / kswapd reclaim.
-XFS uses background worker for async reclaim:
+This is not ok.
 
-http://lxr.free-electrons.com/source/fs/xfs/xfs_icache.c#L178
-http://lxr.free-electrons.com/source/fs/xfs/xfs_super.c#L1534
+This is a very well known problem, we already mentioned that here in the past,
+but at least core networking stack uses  order-0 pages on PowerPC.
 
-Confirmed by running trace-cmd on a patched kernel:
+mlx4 driver suffers from this problem 100% more than other drivers ;)
 
-# trace-cmd record -p function -l xfs_reclaim_inodes -l xfs_reclaim_worker
-# # trace-cmd report
-CPU 0 is empty
-CPU 2 is empty
-CPU 3 is empty
-CPU 5 is empty
-CPU 8 is empty
-CPU 10 is empty
-CPU 11 is empty
-cpus=16
-     kworker/12:2-31208 [012] 106450.590216: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106450.590226: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106450.756879: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106450.756882: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106450.920212: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106450.920215: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106451.083549: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106451.083552: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106451.246882: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106451.246885: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106451.413546: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106451.413548: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106451.580215: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106451.580217: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106451.743549: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106451.743550: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106451.906882: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106451.906885: function: 
-xfs_reclaim_inodes
-     kworker/12:2-31208 [012] 106452.070216: function: 
-xfs_reclaim_worker
-     kworker/12:2-31208 [012] 106452.070219: function: 
-xfs_reclaim_inodes
-      kworker/7:0-14419 [007] 106454.730218: function: 
-xfs_reclaim_worker
-      kworker/7:0-14419 [007] 106454.730227: function: 
-xfs_reclaim_inodes
-      kworker/1:0-14025 [001] 106455.340221: function: 
-xfs_reclaim_worker
-      kworker/1:0-14025 [001] 106455.340225: function: 
-xfs_reclaim_inodes
+One problem at a time Tariq. Right now, only mlx4 has this big problem
+compared to other NIC.
 
-> The bz shows you have non-default vm settings such as
-> 'vm.vfs_cache_pressure = 200.' My understanding is that prefers
-> aggressive inode reclaim, yet the code workaround here is to bypass XFS
-> inode reclaim. Out of curiousity, have you reproduced this problem using
-> the default vfs_cache_pressure value (or if so, possibly moving it in
-> the other direction)?
+Then, if we _still_ hit major issues, we might also need to force
+napi_get_frags()
+to allocate skb->head using kmalloc() instead of a page frag.
 
-Yes, we've tried that, it had about 0 influence.
+That is a very simple fix.
 
--- 
-Alexander Polakov | system software engineer | https://beget.com
+Remember that we have skb->truesize that is an approximation, it will
+never be completely accurate,
+but we need to make it better.
+
+mlx4 driver pretends to have a frag truesize of 1536 bytes, but this
+is obviously wrong when host is under memory pressure
+(2 frags per page -> truesize should be 2048)
+
+
+> By using netdev/napi_alloc_skb, you'll get that the SKB's linear data is a
+> frag of a huge page,
+> and it is not going to be freed before the other non-linear frags.
+> Cannot this cause the same threats (memory pinning and so...)?
+>
+> Currently, mlx4 doesn't use this generic API, while most other drivers do.
+>
+> Similar claims are true for TX:
+> https://github.com/torvalds/linux/commit/5640f7685831e088fe6c2e1f863a6805962f8e81
+
+We do not have such problem on TX. GFP_KERNEL allocations do not have
+the same issues.
+
+Tasks are usually not malicious in our DC, and most serious
+applications use memcg or such memory control.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
