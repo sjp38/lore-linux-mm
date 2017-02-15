@@ -1,80 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AB4536B042F
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:15:34 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id gh4so901585wjb.7
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 14:15:34 -0800 (PST)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id m193si726308wmb.4.2017.02.15.14.15.33
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D94B6B03CC
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 18:37:54 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id u143so2033833oif.1
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:37:54 -0800 (PST)
+Received: from mail-oi0-f67.google.com (mail-oi0-f67.google.com. [209.85.218.67])
+        by mx.google.com with ESMTPS id y51si2457362otd.264.2017.02.15.15.37.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Feb 2017 14:15:33 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 46864C171
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 22:15:33 +0000 (UTC)
-Date: Wed, 15 Feb 2017 22:15:32 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 0/3] Reduce amount of time kswapd sleeps prematurely
-Message-ID: <20170215221532.o5rnx6wj6kfydyvv@techsingularity.net>
-References: <20170215092247.15989-1-mgorman@techsingularity.net>
- <20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
- <20170215212906.3myab4545wa2f3yc@techsingularity.net>
- <20170215135654.315cbdca1c403c90a74f1bdd@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Feb 2017 15:37:53 -0800 (PST)
+Received: by mail-oi0-f67.google.com with SMTP id x84so117310oix.2
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:37:53 -0800 (PST)
+Date: Wed, 15 Feb 2017 17:37:51 -0600
+From: Rob Herring <robh@kernel.org>
+Subject: Re: [PATCH 2/8] dt-bindings: gpu: mali: Add optional memory-region
+Message-ID: <20170215233751.2sin5acaylsb5nqf@rob-hp-laptop>
+References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
+ <49fd36f667c5ae46b0724c8204eabc51014aab92.1486655917.git-series.maxime.ripard@free-electrons.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170215135654.315cbdca1c403c90a74f1bdd@linux-foundation.org>
+In-Reply-To: <49fd36f667c5ae46b0724c8204eabc51014aab92.1486655917.git-series.maxime.ripard@free-electrons.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Maxime Ripard <maxime.ripard@free-electrons.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 
-On Wed, Feb 15, 2017 at 01:56:54PM -0800, Andrew Morton wrote:
-> On Wed, 15 Feb 2017 21:29:06 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+On Thu, Feb 09, 2017 at 05:39:16PM +0100, Maxime Ripard wrote:
+> The reserved memory bindings allow us to specify which memory areas our
+> buffers can be allocated from.
 > 
-> > On Wed, Feb 15, 2017 at 12:30:55PM -0800, Andrew Morton wrote:
-> > > On Wed, 15 Feb 2017 09:22:44 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
-> > > 
-> > > > This patchset is based on mmots as of Feb 9th, 2016. The baseline is
-> > > > important as there are a number of kswapd-related fixes in that tree and
-> > > > a comparison against v4.10-rc7 would be almost meaningless as a result.
-> > > 
-> > > It's very late to squeeze this into 4.10.  We can make it 4.11 material
-> > > and perhaps tag it for backporting into 4.10.1?
-> > 
-> > It would be important that Johannes's patches go along with then because
-> > I'm relied on Johannes' fixes to deal with pages being inappropriately
-> > written back from reclaim context when I was analysing the workload.
-> > I'm thinking specifically about these patches
-> > 
-> > mm-vmscan-scan-dirty-pages-even-in-laptop-mode.patch
-> > mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru.patch
-> > mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru-fix.patch
-> > mm-vmscan-remove-old-flusher-wakeup-from-direct-reclaim-path.patch
-> > mm-vmscan-only-write-dirty-pages-that-the-scanner-has-seen-twice.patch
-> > mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed.patch
-> > mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed-fix.patch
-> > 
-> > This is 4.11 material for sure but I would not automatically try merging
-> > them to 4.10 unless those patches were also included, ideally with a rerun
-> > of just those patches against 4.10 to make sure there are no surprises
-> > lurking in there.
-> 
-> Head spinning a bit.  You're saying that if the three patches in the
-> series "Reduce amount of time kswapd sleeps prematurely" are held off
-> until 4.11 then the above 6 patches from Johannes should also be held
-> off for 4.11?
-> 
+> Let's use it.
 
-Not quite, sorry for the confusion. Johannes's patches stand on their
-own and they are fine. I evaluated them before against 4.10-rcX and they
-worked as expected.  If they go in first then these patches can go into
-4.10-stable on top. If you plan to merge Johannes's patches for 4.10 or
-4.10.1 then I have no problem with that whatsoever.
+You didn't think of this when you just added Mali binding? 
 
--- 
-Mel Gorman
-SUSE Labs
+> 
+> Signed-off-by: Maxime Ripard <maxime.ripard@free-electrons.com>
+> ---
+>  Documentation/devicetree/bindings/gpu/arm,mali-utgard.txt | 4 ++++
+>  1 file changed, 4 insertions(+), 0 deletions(-)
+
+Acked-by: Rob Herring <robh@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
