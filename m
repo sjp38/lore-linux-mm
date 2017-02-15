@@ -1,66 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8644405B1
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:58:49 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id q39so4513011wrb.3
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 12:58:49 -0800 (PST)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id c142si918671wmc.89.2017.02.15.12.58.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 180854405BD
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:00:23 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id v184so193027144pgv.6
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:00:23 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d20si4818795plj.35.2017.02.15.13.00.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 12:58:48 -0800 (PST)
-Received: by mail-wr0-x244.google.com with SMTP id i10so32709021wrb.0
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 12:58:48 -0800 (PST)
-From: Nicolai Stange <nicstange@gmail.com>
-Subject: [RFC 3/3] sparse-vmemmap: let vmemmap_verify() ignore NUMA_NO_NODE requests
-Date: Wed, 15 Feb 2017 21:58:26 +0100
-Message-Id: <20170215205826.13356-4-nicstange@gmail.com>
-In-Reply-To: <20170215205826.13356-1-nicstange@gmail.com>
-References: <20170215205826.13356-1-nicstange@gmail.com>
+        Wed, 15 Feb 2017 13:00:21 -0800 (PST)
+Date: Wed, 15 Feb 2017 13:00:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: testcases for RODATA: fix config dependency
+Message-Id: <20170215130020.749e34e4d1e3d0789eb114f1@linux-foundation.org>
+In-Reply-To: <CAGXu5jKofDhycUbLGMLNPM3LwjKuW1kGAbthSS1qufEB6bwOPA@mail.gmail.com>
+References: <20170209131625.GA16954@pjb1027-Latitude-E5410>
+	<CAGXu5jKofDhycUbLGMLNPM3LwjKuW1kGAbthSS1qufEB6bwOPA@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nicolai Stange <nicstange@gmail.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Jinbum Park <jinb.park7@gmail.com>, Valentin Rothberg <valentinrothberg@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>
 
-On x86, Kasan's initizalization in arch/x86/mm/kasan_init_64.c calls
-vmemmap_populate() and thus, since commit 7b79d10a2d64 ("mm: convert
-kmalloc_section_memmap() to populate_section_memmap()"),
-vmemmap_populate_basepages() with a node value of NUMA_NO_NODE.
+On Fri, 10 Feb 2017 15:36:37 -0800 Kees Cook <keescook@chromium.org> wrote:
 
-Since a page's actual NUMA node is never equal to NUMA_NO_NODE, this
-results in excessive warnings from vmemmap_verify():
+> >  config DEBUG_RODATA_TEST
+> >      bool "Testcase for the marking rodata read-only"
+> > -    depends on DEBUG_RODATA
+> > +    depends on STRICT_KERNEL_RWX
+> >      ---help---
+> >        This option enables a testcase for the setting rodata read-only.
+> 
+> Great, thanks!
+> 
+> Acked-by: Kees Cook <keescook@chromium.org>
+> 
+> Andrew, do you want to take this patch, since it applies on top of
+> "mm: add arch-independent testcases for RODATA", or do you want me to
+> take both patches into my KSPP tree which has the DEBUG_RODATA ->
+> STRICT_KERNEL_RWX renaming series?
 
-  [ffffed00179c6e00-ffffed00179c7dff] potential offnode page_structs
-  [ffffed00179c7e00-ffffed00179c8dff] potential offnode page_structs
-  [ffffed00179c8e00-ffffed00179c9dff] potential offnode page_structs
-  [ffffed00179c9e00-ffffed00179cadff] potential offnode page_structs
-  [ffffed00179cae00-ffffed00179cbdff] potential offnode page_structs
-  [...]
-
-Make vmemmap_verify() return early if the requested node equals
-NUMA_NO_NODE.
-
-Signed-off-by: Nicolai Stange <nicstange@gmail.com>
----
- mm/sparse-vmemmap.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index f08872b58e48..e38aaf6c312c 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -165,6 +165,9 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
- 	unsigned long pfn = pte_pfn(*pte);
- 	int actual_node = early_pfn_to_nid(pfn);
- 
-+	if (node == NUMA_NO_NODE)
-+		return;
-+
- 	if (node_distance(actual_node, node) > LOCAL_DISTANCE)
- 		pr_warn("[%lx-%lx] potential offnode page_structs\n",
- 			start, end - 1);
--- 
-2.11.1
+I staged this and mm-add-arch-independent-testcases-for-rodata.patch
+after linux-next and shall merge them after the STRICT_KERNEL_RWX
+rename has gone into mainline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
