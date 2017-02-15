@@ -1,50 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 180854405BD
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:00:23 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id v184so193027144pgv.6
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:00:23 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8224405BD
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:10:25 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id z67so194540888pgb.0
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:10:25 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d20si4818795plj.35.2017.02.15.13.00.21
+        by mx.google.com with ESMTPS id t7si4818849pfi.147.2017.02.15.13.10.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 13:00:21 -0800 (PST)
-Date: Wed, 15 Feb 2017 13:00:20 -0800
+        Wed, 15 Feb 2017 13:10:24 -0800 (PST)
+Date: Wed, 15 Feb 2017 13:10:23 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: testcases for RODATA: fix config dependency
-Message-Id: <20170215130020.749e34e4d1e3d0789eb114f1@linux-foundation.org>
-In-Reply-To: <CAGXu5jKofDhycUbLGMLNPM3LwjKuW1kGAbthSS1qufEB6bwOPA@mail.gmail.com>
-References: <20170209131625.GA16954@pjb1027-Latitude-E5410>
-	<CAGXu5jKofDhycUbLGMLNPM3LwjKuW1kGAbthSS1qufEB6bwOPA@mail.gmail.com>
+Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64
+ ("mm: convert kmalloc_section_memmap() to populate_section_memmap()") and
+ Kasan initialization on
+Message-Id: <20170215131023.02186e970498eca080c8d456@linux-foundation.org>
+In-Reply-To: <20170215205826.13356-1-nicstange@gmail.com>
+References: <20170215205826.13356-1-nicstange@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Jinbum Park <jinb.park7@gmail.com>, Valentin Rothberg <valentinrothberg@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>
+To: Nicolai Stange <nicstange@gmail.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org
 
-On Fri, 10 Feb 2017 15:36:37 -0800 Kees Cook <keescook@chromium.org> wrote:
+On Wed, 15 Feb 2017 21:58:23 +0100 Nicolai Stange <nicstange@gmail.com> wrote:
 
-> >  config DEBUG_RODATA_TEST
-> >      bool "Testcase for the marking rodata read-only"
-> > -    depends on DEBUG_RODATA
-> > +    depends on STRICT_KERNEL_RWX
-> >      ---help---
-> >        This option enables a testcase for the setting rodata read-only.
+> Hi Dan,
 > 
-> Great, thanks!
+> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
+> populate_section_memmap()") seems to cause some issues with respect to
+> Kasan initialization on x86.
 > 
-> Acked-by: Kees Cook <keescook@chromium.org>
+> This is because Kasan's initialization (ab)uses the arch provided
+> vmemmap_populate().
 > 
-> Andrew, do you want to take this patch, since it applies on top of
-> "mm: add arch-independent testcases for RODATA", or do you want me to
-> take both patches into my KSPP tree which has the DEBUG_RODATA ->
-> STRICT_KERNEL_RWX renaming series?
+> The first one is a boot failure, see [1/3]. The commit before the
+> aforementioned one works fine.
+> 
+> The second one, i.e. [2/3], is something that hit my eye while browsing
+> the source and I verified that this is indeed an issue by printk'ing and
+> dumping the page tables.
+> 
+> The third one are excessive warnings from vmemmap_verify() due to Kasan's
+> NUMA_NO_NODE page populations.
 
-I staged this and mm-add-arch-independent-testcases-for-rodata.patch
-after linux-next and shall merge them after the STRICT_KERNEL_RWX
-rename has gone into mainline.
+urggggh.
+
+That means these two series:
+
+mm-fix-type-width-of-section-to-from-pfn-conversion-macros.patch
+mm-devm_memremap_pages-use-multi-order-radix-for-zone_device-lookups.patch
+mm-introduce-struct-mem_section_usage-to-track-partial-population-of-a-section.patch
+mm-introduce-common-definitions-for-the-size-and-mask-of-a-section.patch
+mm-cleanup-sparse_init_one_section-return-value.patch
+mm-track-active-portions-of-a-section-at-boot.patch
+mm-track-active-portions-of-a-section-at-boot-fix.patch
+mm-track-active-portions-of-a-section-at-boot-fix-fix.patch
+mm-fix-register_new_memory-zone-type-detection.patch
+mm-convert-kmalloc_section_memmap-to-populate_section_memmap.patch
+mm-prepare-for-hot-add-remove-of-sub-section-ranges.patch
+mm-support-section-unaligned-zone_device-memory-ranges.patch
+mm-support-section-unaligned-zone_device-memory-ranges-fix.patch
+mm-support-section-unaligned-zone_device-memory-ranges-fix-2.patch
+mm-enable-section-unaligned-devm_memremap_pages.patch
+libnvdimm-pfn-dax-stop-padding-pmem-namespaces-to-section-alignment.patch
+
+and
+
+mm-devm_memremap_pages-hold-device_hotplug-lock-over-mem_hotplug_begin-done.patch
+mm-validate-device_hotplug-is-held-for-memory-hotplug.patch
+
+aren't mergable into 4.10 and presumably won't be fixed in time.  I
+think I'll drop all the above.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
