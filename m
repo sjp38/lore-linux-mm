@@ -1,213 +1,320 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5533F680FD0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 21:03:12 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 204so162801105pfx.1
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 18:03:12 -0800 (PST)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id r2si2192622plj.78.2017.02.14.18.03.10
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E4F1680FD0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 23:28:22 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id j13so141514675iod.6
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 20:28:22 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h68si2970324ith.114.2017.02.14.20.28.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 18:03:11 -0800 (PST)
-Subject: Re: [PATCH V2 1/3] mm: Define coherent device memory (CDM) node
+        Tue, 14 Feb 2017 20:28:21 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1F4NbBi024487
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 23:28:20 -0500
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28mb5bgwcn-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 23:28:20 -0500
+Received: from localhost
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 15 Feb 2017 14:28:17 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 98F162CE8054
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:28:14 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1F4S64437355580
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:28:14 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1F4Rg7E016715
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:27:42 +1100
+Subject: Re: [PATCH V2 3/3] mm: Enable Buddy allocation isolation for CDM
+ nodes
 References: <20170210100640.26927-1-khandual@linux.vnet.ibm.com>
- <20170210100640.26927-2-khandual@linux.vnet.ibm.com>
- <1c183237-d1f0-4fc3-cf5b-73fdfb9cb342@nvidia.com>
- <84c30cfe-d507-9756-8a7d-0d630476ae69@linux.vnet.ibm.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <a8a48e92-c70f-661b-a86a-8cc35694d943@nvidia.com>
-Date: Tue, 14 Feb 2017 18:00:43 -0800
+ <20170210100640.26927-4-khandual@linux.vnet.ibm.com>
+ <44bbca4e-af5a-805c-c74b-28e684026611@suse.cz>
+ <aed94333-7cd7-958e-ff8c-78a6cf05fe45@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 15 Feb 2017 09:57:19 +0530
 MIME-Version: 1.0
-In-Reply-To: <84c30cfe-d507-9756-8a7d-0d630476ae69@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+In-Reply-To: <aed94333-7cd7-958e-ff8c-78a6cf05fe45@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
+Message-Id: <628673ca-15ee-c1be-ad53-3809f83722d7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-
->>
->> Hi Anshuman,
->>
->> I'd question the need to avoid kernel allocations in device memory.
->> Maybe we should simply allow these pages to *potentially* participate in
->> everything that N_MEMORY pages do: huge pages, kernel allocations, for
->> example.
->
-> No, allowing kernel allocations on CDM has two problems.
->
-> * Kernel data structure should not go and be on CDM which is specialized
->   and may not be as reliable and may not have the same latency as that of
->   system RAM.
->
-> * It prevents seamless hot plugging of CDM node in and out of kernel
->
->>
->> There is a bit too much emphasis being placed on the idea that these
->> devices are less reliable than system memory. It's true--they are less
->> reliable. However, they are reliable enough to be allowed direct
->> (coherent) addressing. And anything that allows that, is, IMHO, good
->> enough to allow all allocations on it.
->
-> User space allocation not kernel at this point. Kernel is exposed to the
-> unreliability while accessing it coherently but not being on it. There
-> is a difference in the magnitude of risk and its mitigation afterwards.
->
->>
->> On the point of what reliability implies: I've been involved in the
->> development (and debugging) of similar systems over the years, and what
->> happens is: if the device has a fatal error, you have to take the
->> computer down, some time in the near future. There are a few reasons for
->> this:
->>
->>    -- sometimes the MCE (machine check) is wired up to fire, if the
->> device has errors, in which case you are all done very quickly. :)
->
-> We can still handle MCE right now that may just involve killing the user
-> application accessing given memory and the kernel can still continue
-> running uninterrupted.
->
->>
->>    -- other times, the operating system relied upon now-corrupted data,
->> that came from the device. So even if you claim "OK, the device has a
->> fatal error, but the OS can continue running just fine", that's just
->> wrong! You may have corrupted something important.
->
-> No, all that kernel facilitate is migration right now where it will access
-> the CDM memory during which it can still crash if there is a memory error
-> on CDM (which can be mitigated without crashing the kernel) but it does
-> not depend on the content of memory which might have been corrupted by now.
->
->>
->>    -- even if the above two didn't get you, you still have a likely
->> expensive computer that cannot do what you bought it for, so you've got
->> to shut it down and replace the failed device.
->
-> I am afraid that is not a valid kernel design goal :) But more likely the
-> driver of the device can hot plug it out, repair it and plug it back on.
->
->>
->> Given all that, I think it is not especially worthwhile to design in a
->> lot of constraints and limitations around coherent device memory.
->
-> I disagree on this because of all the points explained above.
->
-
-Your points about hot plug (and latency, which we can't easily address yet) seem good, so I can 
-accept the constraint of "no kernel allocations landing in CDM memory". OK.
-
-
->>
->> As for speed, we should be able to put in some hints to help with page
->> placement. I'm still coming up to speed with what is already there, and
->> I'm sure other people can comment on that.
->>
->> We should probably just let the allocations happen.
->>
->>
->>> To implement the integration as well as isolation, the coherent memory
->>> node
->>> must be present in N_MEMORY and a new N_COHERENT_DEVICE node mask inside
->>> the node_states[] array. During memory hotplug operations, the new
->>> nodemask
->>> N_COHERENT_DEVICE is updated along with N_MEMORY for these coherent
->>> device
->>> memory nodes. This also creates the following new sysfs based
->>> interface to
->>> list down all the coherent memory nodes of the system.
+On 02/14/2017 03:44 PM, Anshuman Khandual wrote:
+> On 02/14/2017 01:58 PM, Vlastimil Babka wrote:
+>> On 02/10/2017 11:06 AM, Anshuman Khandual wrote:
+>>> This implements allocation isolation for CDM nodes in buddy allocator by
+>>> discarding CDM memory zones all the time except in the cases where the gfp
+>>> flag has got __GFP_THISNODE or the nodemask contains CDM nodes in cases
+>>> where it is non NULL (explicit allocation request in the kernel or user
+>>> process MPOL_BIND policy based requests).
 >>>
->>>     /sys/devices/system/node/is_coherent_node
->>
->> The naming bothers me: all nodes are coherent already. In fact, the
->> Coherent Device Memory naming is a little off-base already: what is it
->> *really* trying to say? Less reliable? Slower? My-special-device? :)
->
-> I can change the above interface file to "is_cdm_node" to make it more
-> on track. CDM conveys the fact that its a on device memory which is
-> coherent not same as system RAM. This can also accommodate special memory
-> which might be on the chip and but not same as system RAM.
-
-"is_cdm_node" seems better to me, yes.
-
->
->> Will those things even always be true?  Makes me question the whole CDM
->> concept. Maybe just ZONE_MOVABLE (to handle hotplug) is the way to go.
->
-> If you think any device memory which does not fit the description mentioned
-> for a CDM memory, yes it can be plugged in as ZONE_MOVABLE into the kernel.
-> CDM framework applies for device memory which fits the description as
-> intended and explained.
-
-OK, so you are planning on registering the CDM memory into ZONE_MOVABLE, that makes sense now. 
-(Somehow I thought ZONE_MOVABLE was being left out.)
-
->
->>> +#ifdef CONFIG_COHERENT_DEVICE
->>> +inline int arch_check_node_cdm(int nid)
->>> +{
->>> +    return 0;
->>> +}
->>> +#endif
->>
->> I'm not sure that we really need this exact sort of arch_ check. Seems
->> like most arches could simply support the possibility of a CDM node.
->
-> No, this will be a feature supported by few architectures for now. But the
-> main reason to make this an arch specific call because only the architecture
-> can detect which nodes are CDM looking into the platform information such as
-> ACPI table, DT etc and we dont want that kind of detection to be performed
-> from the generic MM code.
->
->>
->> But we can probably table that question until we ensure that we want a
->> new NUMA node type (vs. ZONE_MOVABLE).
->
-> Not sure whether I got this but we want the new NUMA type for isolation
-> purpose.
-
-That's OK, I see how you want to do it now.
-
->
->>
->>> @@ -6392,8 +6394,10 @@ void __init free_area_init_nodes(unsigned long
->>> *max_zone_pfn)
->>>                  find_min_pfn_for_node(nid), NULL);
+>>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>>> ---
+>>>  mm/page_alloc.c | 16 ++++++++++++++++
+>>>  1 file changed, 16 insertions(+)
 >>>
->>>          /* Any memory on that node */
->>> -        if (pgdat->node_present_pages)
->>> +        if (pgdat->node_present_pages) {
->>> +            node_set_state_cdm(nid);
->>>              node_set_state(nid, N_MEMORY);
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 84d61bb..392c24a 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -64,6 +64,7 @@
+>>>  #include <linux/page_owner.h>
+>>>  #include <linux/kthread.h>
+>>>  #include <linux/memcontrol.h>
+>>> +#include <linux/node.h>
+>>>  
+>>>  #include <asm/sections.h>
+>>>  #include <asm/tlbflush.h>
+>>> @@ -2908,6 +2909,21 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>>>  		struct page *page;
+>>>  		unsigned long mark;
+>>>  
+>>> +		/*
+>>> +		 * CDM nodes get skipped if the requested gfp flag
+>>> +		 * does not have __GFP_THISNODE set or the nodemask
+>>> +		 * does not have any CDM nodes in case the nodemask
+>>> +		 * is non NULL (explicit allocation requests from
+>>> +		 * kernel or user process MPOL_BIND policy which has
+>>> +		 * CDM nodes).
+>>> +		 */
+>>> +		if (is_cdm_node(zone->zone_pgdat->node_id)) {
+>>> +			if (!(gfp_mask & __GFP_THISNODE)) {
+>>> +				if (!ac->nodemask)
+>>> +					continue;
+>>> +			}
+>>> +		}
 >>
->>
->> I like that you provide clean wrapper functions, but air-dropping them
->> into all these routines (none of the other node types have to do this)
->> makes it look like CDM is sort of hacked in. :)
->
-> Yeah and thats special casing CDM under a config option. These updates are
-> required to make CDM nodes identifiable inside the kernel.
+>> With the current cpuset implementation, this will have a subtle corner
+>> case when allocating from a cpuset that allows the cdm node, and there
+>> is no (task or vma) mempolicy applied for the allocation. In the fast
+>> path (__alloc_pages_nodemask()) we'll set ac->nodemask to
+>> current->mems_allowed, so your code will wrongly assume that this
+>> ac->nodemask is a policy that allows the CDM node. Probably not what you
+>> want?
+> 
+> You are right, its a problem and not what we want. We can make the
+> function get_page_from_freelist() take another parameter "orig_nodemask"
+> which gets passed into __alloc_pages_nodemask() in the first place. So
+> inside zonelist iterator we can compare orig_nodemask with current
+> ac.nodemask to figure out if cpuset swapping of nodemask happened and
+> skip CDM node if necessary. Thats a viable solution IMHO.
 
-It's a minor point, but doing this sort of hides what is going on (does node_set_state override 
-node_set_state_cdm, for example?).
+Hello Vlastimil,
 
-So, seeing as how you still need to call into the arch layer to decide...maybe something like:
+As I mentioned before yesterday this solution works and tested to verify that
+there is no allocation leak happening to CDM even after cpuset_enabled() is 
+turned ON after changing /sys/fs/cgroup/cpuset/ setup. Major part of the change
+is just to add an additional parameter into the function get_page_from_freelist
+and changing all it's call sites.
 
-     node_arch_set_if_cdm(nid, N_COHERENT_DEVICE);
+- Anshuman
 
-...although I realize N_COHERENT_DEVICE is not defined if not configured (but neither is N_MEMORY), 
-so that needs to be handled.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 392c24a..9f41e0f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2894,11 +2894,15 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+  */
+ static struct page *
+ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+-						const struct alloc_context *ac)
++			const struct alloc_context *ac, nodemask_t *orig_mask)
+ {
+ 	struct zoneref *z = ac->preferred_zoneref;
+ 	struct zone *zone;
+ 	struct pglist_data *last_pgdat_dirty_limit = NULL;
++	bool cpuset_fallback;
++
++	if (ac->nodemask != orig_mask)
++		cpuset_fallback = true;
+ 
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+@@ -2919,6 +2923,9 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ 		 */
+ 		if (is_cdm_node(zone->zone_pgdat->node_id)) {
+ 			if (!(gfp_mask & __GFP_THISNODE)) {
++				if (cpuset_fallback)
++					continue;
++
+ 				if (!ac->nodemask)
+ 					continue;
+ 			}
+@@ -3066,7 +3073,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ 
+ static inline struct page *
+ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+-	const struct alloc_context *ac, unsigned long *did_some_progress)
++	const struct alloc_context *ac, unsigned long *did_some_progress, nodemask_t *orig_mask)
+ {
+ 	struct oom_control oc = {
+ 		.zonelist = ac->zonelist,
+@@ -3095,7 +3102,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ 	 * we're still under heavy pressure.
+ 	 */
+ 	page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
+-					ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
++					ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac, orig_mask);
+ 	if (page)
+ 		goto out;
+ 
+@@ -3131,14 +3138,14 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ 
+ 		if (gfp_mask & __GFP_NOFAIL) {
+ 			page = get_page_from_freelist(gfp_mask, order,
+-					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
++					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac, orig_mask);
+ 			/*
+ 			 * fallback to ignore cpuset restriction if our nodes
+ 			 * are depleted
+ 			 */
+ 			if (!page)
+ 				page = get_page_from_freelist(gfp_mask, order,
+-					ALLOC_NO_WATERMARKS, ac);
++					ALLOC_NO_WATERMARKS, ac, orig_mask);
+ 		}
+ 	}
+ out:
+@@ -3157,7 +3164,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ static struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		enum compact_priority prio, enum compact_result *compact_result)
++		enum compact_priority prio, enum compact_result *compact_result, nodemask_t *orig_mask)
+ {
+ 	struct page *page;
+ 
+@@ -3178,7 +3185,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ 	 */
+ 	count_vm_event(COMPACTSTALL);
+ 
+-	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
++	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac, orig_mask);
+ 
+ 	if (page) {
+ 		struct zone *zone = page_zone(page);
+@@ -3263,7 +3270,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ static inline struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		enum compact_priority prio, enum compact_result *compact_result)
++		enum compact_priority prio, enum compact_result *compact_result, nodemask_t *orig_mask)
+ {
+ 	*compact_result = COMPACT_SKIPPED;
+ 	return NULL;
+@@ -3330,7 +3337,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ static inline struct page *
+ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		unsigned long *did_some_progress)
++		unsigned long *did_some_progress, nodemask_t *orig_mask)
+ {
+ 	struct page *page = NULL;
+ 	bool drained = false;
+@@ -3340,7 +3347,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ 		return NULL;
+ 
+ retry:
+-	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
++	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac, orig_mask);
+ 
+ 	/*
+ 	 * If an allocation failed after direct reclaim, it could be because
+@@ -3533,7 +3540,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 
+ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+-						struct alloc_context *ac)
++				struct alloc_context *ac, nodemask_t *orig_mask)
+ {
+ 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
+ 	struct page *page = NULL;
+@@ -3597,7 +3604,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	 * The adjusted alloc_flags might result in immediate success, so try
+ 	 * that first
+ 	 */
+-	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
++	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac, orig_mask);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -3612,7 +3619,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 		page = __alloc_pages_direct_compact(gfp_mask, order,
+ 						alloc_flags, ac,
+ 						INIT_COMPACT_PRIORITY,
+-						&compact_result);
++						&compact_result, orig_mask);
+ 		if (page)
+ 			goto got_pg;
+ 
+@@ -3661,7 +3668,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	}
+ 
+ 	/* Attempt with potentially adjusted zonelist and alloc_flags */
+-	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
++	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac, orig_mask);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -3697,13 +3704,13 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+-							&did_some_progress);
++							&did_some_progress, orig_mask);
+ 	if (page)
+ 		goto got_pg;
+ 
+ 	/* Try direct compaction and then allocating */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
+-					compact_priority, &compact_result);
++					compact_priority, &compact_result, orig_mask);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -3750,7 +3757,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 		goto retry_cpuset;
+ 
+ 	/* Reclaim has failed us, start killing things */
+-	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
++	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress, orig_mask);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -3842,7 +3849,7 @@ struct page *
+ 	}
+ 
+ 	/* First allocation attempt */
+-	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
++	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac, nodemask);
+ 	if (likely(page))
+ 		goto out;
+ 
+@@ -3861,7 +3868,7 @@ struct page *
+ 	if (unlikely(ac.nodemask != nodemask))
+ 		ac.nodemask = nodemask;
+ 
+-	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
++	page = __alloc_pages_slowpath(alloc_mask, order, &ac, nodemask);
+ 
+ out:
+ 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
 
-thanks
-john h
 
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
