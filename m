@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 97CDB6B040E
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:54:48 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id g80so132303678pfb.3
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:54:48 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 13D606B040F
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:56:57 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id v184so195087961pgv.6
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:56:57 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s25si841536pge.40.2017.02.15.13.54.47
+        by mx.google.com with ESMTPS id 72si4920597pfj.150.2017.02.15.13.56.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 13:54:47 -0800 (PST)
-Date: Wed, 15 Feb 2017 13:54:46 -0800
+        Wed, 15 Feb 2017 13:56:56 -0800 (PST)
+Date: Wed, 15 Feb 2017 13:56:54 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64
- ("mm: convert kmalloc_section_memmap() to populate_section_memmap()") and
- Kasan initialization on
-Message-Id: <20170215135446.3a299bed01095f4f461870f6@linux-foundation.org>
-In-Reply-To: <CAPcyv4gAUCsJ9HcSyAK6j4YDHPkJsb06ZX=uJsYBMDCNMFsNmQ@mail.gmail.com>
-References: <20170215205826.13356-1-nicstange@gmail.com>
-	<20170215131023.02186e970498eca080c8d456@linux-foundation.org>
-	<CAPcyv4gAUCsJ9HcSyAK6j4YDHPkJsb06ZX=uJsYBMDCNMFsNmQ@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Reduce amount of time kswapd sleeps prematurely
+Message-Id: <20170215135654.315cbdca1c403c90a74f1bdd@linux-foundation.org>
+In-Reply-To: <20170215212906.3myab4545wa2f3yc@techsingularity.net>
+References: <20170215092247.15989-1-mgorman@techsingularity.net>
+	<20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
+	<20170215212906.3myab4545wa2f3yc@techsingularity.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Nicolai Stange <nicstange@gmail.com>, Linux MM <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, 15 Feb 2017 13:26:43 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+On Wed, 15 Feb 2017 21:29:06 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-> >> The second one, i.e. [2/3], is something that hit my eye while browsing
-> >> the source and I verified that this is indeed an issue by printk'ing and
-> >> dumping the page tables.
-> >>
-> >> The third one are excessive warnings from vmemmap_verify() due to Kasan's
-> >> NUMA_NO_NODE page populations.
-> >
-> > urggggh.
-> >
-> > That means these two series:
-> >
-> > mm-fix-type-width-of-section-to-from-pfn-conversion-macros.patch
-> > mm-devm_memremap_pages-use-multi-order-radix-for-zone_device-lookups.patch
-> > mm-introduce-struct-mem_section_usage-to-track-partial-population-of-a-section.patch
-> > mm-introduce-common-definitions-for-the-size-and-mask-of-a-section.patch
-> > mm-cleanup-sparse_init_one_section-return-value.patch
-> > mm-track-active-portions-of-a-section-at-boot.patch
-> > mm-track-active-portions-of-a-section-at-boot-fix.patch
-> > mm-track-active-portions-of-a-section-at-boot-fix-fix.patch
-> > mm-fix-register_new_memory-zone-type-detection.patch
-> > mm-convert-kmalloc_section_memmap-to-populate_section_memmap.patch
-> > mm-prepare-for-hot-add-remove-of-sub-section-ranges.patch
-> > mm-support-section-unaligned-zone_device-memory-ranges.patch
-> > mm-support-section-unaligned-zone_device-memory-ranges-fix.patch
-> > mm-support-section-unaligned-zone_device-memory-ranges-fix-2.patch
-> > mm-enable-section-unaligned-devm_memremap_pages.patch
-> > libnvdimm-pfn-dax-stop-padding-pmem-namespaces-to-section-alignment.patch
-> >
+> On Wed, Feb 15, 2017 at 12:30:55PM -0800, Andrew Morton wrote:
+> > On Wed, 15 Feb 2017 09:22:44 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> > 
+> > > This patchset is based on mmots as of Feb 9th, 2016. The baseline is
+> > > important as there are a number of kswapd-related fixes in that tree and
+> > > a comparison against v4.10-rc7 would be almost meaningless as a result.
+> > 
+> > It's very late to squeeze this into 4.10.  We can make it 4.11 material
+> > and perhaps tag it for backporting into 4.10.1?
 > 
-> Yes, let's drop these and try again for 4.12. Thanks for the report
-> and the debug Nicolai!
-
-Please don't lose track of
-
-mm-track-active-portions-of-a-section-at-boot-fix.patch
-mm-track-active-portions-of-a-section-at-boot-fix-fix.patch
-mm-support-section-unaligned-zone_device-memory-ranges-fix.patch
- mm-support-section-unaligned-zone_device-memory-ranges-fix-2.patch
-
-> > and
-> >
-> > mm-devm_memremap_pages-hold-device_hotplug-lock-over-mem_hotplug_begin-done.patch
-> > mm-validate-device_hotplug-is-held-for-memory-hotplug.patch
+> It would be important that Johannes's patches go along with then because
+> I'm relied on Johannes' fixes to deal with pages being inappropriately
+> written back from reclaim context when I was analysing the workload.
+> I'm thinking specifically about these patches
 > 
-> No, these are separate and are still valid for the merge window.
+> mm-vmscan-scan-dirty-pages-even-in-laptop-mode.patch
+> mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru.patch
+> mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru-fix.patch
+> mm-vmscan-remove-old-flusher-wakeup-from-direct-reclaim-path.patch
+> mm-vmscan-only-write-dirty-pages-that-the-scanner-has-seen-twice.patch
+> mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed.patch
+> mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed-fix.patch
+> 
+> This is 4.11 material for sure but I would not automatically try merging
+> them to 4.10 unless those patches were also included, ideally with a rerun
+> of just those patches against 4.10 to make sure there are no surprises
+> lurking in there.
 
-OK.  A bunch of rejects needed fixing.
-
+Head spinning a bit.  You're saying that if the three patches in the
+series "Reduce amount of time kswapd sleeps prematurely" are held off
+until 4.11 then the above 6 patches from Johannes should also be held
+off for 4.11?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
