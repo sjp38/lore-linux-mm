@@ -1,63 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8467E4405BD
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:29:08 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id an2so67135291wjc.3
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:29:08 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id a34si6551745wrc.277.2017.02.15.13.29.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB16C6B0408
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 16:46:29 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 204so199145900pfx.1
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 13:46:29 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p80si4911325pfk.56.2017.02.15.13.46.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Feb 2017 13:29:06 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id A617E98DFC
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 21:29:06 +0000 (UTC)
-Date: Wed, 15 Feb 2017 21:29:06 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 0/3] Reduce amount of time kswapd sleeps prematurely
-Message-ID: <20170215212906.3myab4545wa2f3yc@techsingularity.net>
-References: <20170215092247.15989-1-mgorman@techsingularity.net>
- <20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Feb 2017 13:46:28 -0800 (PST)
+Date: Wed, 15 Feb 2017 13:46:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] powerpc/mm/autonuma: Switch ppc64 to its own
+ implementeation of saved write
+Message-Id: <20170215134627.315dd734bd0000393a680cc9@linux-foundation.org>
+In-Reply-To: <1486609259-6796-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1486609259-6796-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1486609259-6796-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Feb 15, 2017 at 12:30:55PM -0800, Andrew Morton wrote:
-> On Wed, 15 Feb 2017 09:22:44 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > This patchset is based on mmots as of Feb 9th, 2016. The baseline is
-> > important as there are a number of kswapd-related fixes in that tree and
-> > a comparison against v4.10-rc7 would be almost meaningless as a result.
-> 
-> It's very late to squeeze this into 4.10.  We can make it 4.11 material
-> and perhaps tag it for backporting into 4.10.1?
+On Thu,  9 Feb 2017 08:30:59 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-It would be important that Johannes's patches go along with then because
-I'm relied on Johannes' fixes to deal with pages being inappropriately
-written back from reclaim context when I was analysing the workload.
-I'm thinking specifically about these patches
+> With this our protnone becomes a present pte with READ/WRITE/EXEC bit cleared.
+> By default we also set _PAGE_PRIVILEGED on such pte. This is now used to help
+> us identify a protnone pte that as saved write bit. For such pte, we will clear
+> the _PAGE_PRIVILEGED bit. The pte still remain non-accessible from both user
+> and kernel.
 
-mm-vmscan-scan-dirty-pages-even-in-laptop-mode.patch
-mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru.patch
-mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru-fix.patch
-mm-vmscan-remove-old-flusher-wakeup-from-direct-reclaim-path.patch
-mm-vmscan-only-write-dirty-pages-that-the-scanner-has-seen-twice.patch
-mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed.patch
-mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed-fix.patch
+I don't see how these patches differ from the ones which are presently
+in -mm.
 
-This is 4.11 material for sure but I would not automatically try merging
-them to 4.10 unless those patches were also included, ideally with a rerun
-of just those patches against 4.10 to make sure there are no surprises
-lurking in there.
+It helps to have a [0/n] email for a patch series and to put a version
+number in there as well.
 
--- 
-Mel Gorman
-SUSE Labs
+> +#define pte_mk_savedwrite pte_mk_savedwrite
+> +static inline pte_t pte_mk_savedwrite(pte_t pte)
+> +{
+> +	/*
+> +	 * Used by Autonuma subsystem to preserve the write bit
+> +	 * while marking the pte PROT_NONE. Only allow this
+> +	 * on PROT_NONE pte
+> +	 */
+> +	VM_BUG_ON((pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT | _PAGE_RWX | _PAGE_PRIVILEGED)) !=
+> +		  cpu_to_be64(_PAGE_PRESENT | _PAGE_PRIVILEGED));
+> +	return __pte(pte_val(pte) & ~_PAGE_PRIVILEGED);
+> +}
+> +
+> +#define pte_savedwrite pte_savedwrite
+> +static inline bool pte_savedwrite(pte_t pte)
+> +{
+> +	/*
+> +	 * Saved write ptes are prot none ptes that doesn't have
+> +	 * privileged bit sit. We mark prot none as one which has
+> +	 * present and pviliged bit set and RWX cleared. To mark
+> +	 * protnone which used to have _PAGE_WRITE set we clear
+> +	 * the privileged bit.
+> +	 */
+> +	return !(pte_raw(pte) & cpu_to_be64(_PAGE_RWX | _PAGE_PRIVILEGED));
+> +}
+> +
+>  static inline pte_t pte_mkdevmap(pte_t pte)
+>  {
+>  	return __pte(pte_val(pte) | _PAGE_SPECIAL|_PAGE_DEVMAP);
+
+arch/powerpc/include/asm/book3s/64/pgtable.h doesn't have
+pte_mkdevmap().  What tree are you patching here?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
