@@ -1,54 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C8E444059E
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:12:02 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id h7so66719365wjy.6
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 12:12:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o43si6370749wrc.37.2017.02.15.12.12.01
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 618FD4405B1
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 15:30:57 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d185so191892314pgc.2
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 12:30:57 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e92si4728196pld.281.2017.02.15.12.30.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Feb 2017 12:12:01 -0800 (PST)
-Subject: Re: [PATCH v2 00/10] try to reduce fragmenting fallbacks
-References: <20170210172343.30283-1-vbabka@suse.cz>
- <20170213110701.vb4e6zrwhwliwm7k@techsingularity.net>
- <37f46f4c-4006-a76a-bf0a-5a4e3b0d68e6@suse.cz>
- <eefd3aaf-b680-9e66-38e2-cfb56211bfcd@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <71f5642e-7efa-3d05-b012-defe9d339e0a@suse.cz>
-Date: Wed, 15 Feb 2017 21:11:57 +0100
-MIME-Version: 1.0
-In-Reply-To: <eefd3aaf-b680-9e66-38e2-cfb56211bfcd@suse.cz>
-Content-Type: text/plain; charset=iso-8859-15
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Feb 2017 12:30:56 -0800 (PST)
+Date: Wed, 15 Feb 2017 12:30:55 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] Reduce amount of time kswapd sleeps prematurely
+Message-Id: <20170215123055.b8041d7b6bdbcca9c5fd8dd9@linux-foundation.org>
+In-Reply-To: <20170215092247.15989-1-mgorman@techsingularity.net>
+References: <20170215092247.15989-1-mgorman@techsingularity.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, kernel-team@fb.com
+Cc: Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 15.2.2017 17:11, Vlastimil Babka wrote:
-> On 02/15/2017 03:29 PM, Vlastimil Babka wrote:
->> Results for patch 4 ("count movable pages when stealing from pageblock")
->> are really puzzling me, as it increases the number of fragmenting events
->> for reclaimable allocations, implicating "reclaimable placed with (i.e.
->> falling back to) unmovable" (which is not listed separately above, but
->> follows logically from "reclaimable placed with movable" not changing
->> that much). I really wonder why is that. The patch effectively only
->> changes the decision to change migratetype of a pageblock, it doesn't
->> affect the actual stealing decision (which is always true for
->> RECLAIMABLE anyway, see can_steal_fallback()). Moreover, since we can't
->> distinguish UNMOVABLE from RECLAIMABLE when counting, good_pages is 0
->> and thus even the decision to change pageblock migratetype shouldn't be
->> changed by the patch for this case. I must recheck the implementation...
-> 
-> Ah, there it is... not enough LISP
-> 
-> -       if (pages >= (1 << (pageblock_order-1)) ||
-> +       /* Claim the whole block if over half of it is free or good type */
-> +       if (free_pages + good_pages >= (1 << (pageblock_order-1)) ||
+On Wed, 15 Feb 2017 09:22:44 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-Nope, I was blind and thought that this needs "(free_pages + good_pages)"
-because of operator priority wrt shifting, but >= is not shift... bah.
+> This patchset is based on mmots as of Feb 9th, 2016. The baseline is
+> important as there are a number of kswapd-related fixes in that tree and
+> a comparison against v4.10-rc7 would be almost meaningless as a result.
+
+It's very late to squeeze this into 4.10.  We can make it 4.11 material
+and perhaps tag it for backporting into 4.10.1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
