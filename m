@@ -1,46 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CBAC680FD0
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 02:13:52 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id z67so168114197pgb.0
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 23:13:52 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id y15si2901035pli.233.2017.02.14.23.13.50
-        for <linux-mm@kvack.org>;
-        Tue, 14 Feb 2017 23:13:51 -0800 (PST)
-Date: Wed, 15 Feb 2017 16:13:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm/zsmalloc: remove redundant SetPagePrivate2 in
- create_page_chain
-Message-ID: <20170215071344.GA23887@bbox>
-References: <1487076509-49270-1-git-send-email-xieyisheng1@huawei.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9830E680FD0
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 03:08:51 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u63so13565500wmu.0
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 00:08:51 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id z104si4056118wrc.238.2017.02.15.00.08.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Feb 2017 00:08:50 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id u63so6876675wmu.2
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 00:08:50 -0800 (PST)
+Date: Wed, 15 Feb 2017 09:08:47 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] oom_reaper: switch to struct list_head for reap queue
+Message-ID: <20170215080847.GA28090@gmail.com>
+References: <20170214150714.6195-1-asarai@suse.de>
+ <20170214163005.GA2450@cmpxchg.org>
+ <e876e49b-8b65-d827-af7d-cbf8aef97585@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <1487076509-49270-1-git-send-email-xieyisheng1@huawei.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <e876e49b-8b65-d827-af7d-cbf8aef97585@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: akpm@linux-foundation.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
+To: Aleksa Sarai <asarai@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cyphar@cyphar.com
 
-On Tue, Feb 14, 2017 at 08:48:29PM +0800, Yisheng Xie wrote:
-> We had used page->lru to link the component pages (except the first
-> page) of a zspage, and used INIT_LIST_HEAD(&page->lru) to init it.
-> Therefore, to get the last page's next page, which is NULL, we had to
-> use page flag PG_Private_2 to identify it.
-> 
-> But now, we use page->freelist to link all of the pages in zspage and
-> init the page->freelist as NULL for last page, so no need to use
-> PG_Private_2 anymore.
-> 
-> This patch is to remove redundant SetPagePrivate2 in create_page_chain
-> and ClearPagePrivate2 in reset_page(). Maybe can save few cycles for
-> migration of zsmalloc page :)
-> 
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
 
-Thanks, Yisheng!
+* Aleksa Sarai <asarai@suse.de> wrote:
+
+> >>Rather than implementing an open addressing linked list structure
+> >>ourselves, use the standard list_head structure to improve consistency
+> >>with the rest of the kernel and reduce confusion.
+> >>
+> >>Cc: Michal Hocko <mhocko@suse.com>
+> >>Cc: Oleg Nesterov <oleg@redhat.com>
+> >>Signed-off-by: Aleksa Sarai <asarai@suse.de>
+> >>---
+> >> include/linux/sched.h |  6 +++++-
+> >> kernel/fork.c         |  4 ++++
+> >> mm/oom_kill.c         | 24 +++++++++++++-----------
+> >> 3 files changed, 22 insertions(+), 12 deletions(-)
+> >>
+> >>diff --git a/include/linux/sched.h b/include/linux/sched.h
+> >>index e93594b88130..d8bcd0f8c5fe 100644
+> >>--- a/include/linux/sched.h
+> >>+++ b/include/linux/sched.h
+> >>@@ -1960,7 +1960,11 @@ struct task_struct {
+> >> #endif
+> >> 	int pagefault_disabled;
+> >> #ifdef CONFIG_MMU
+> >>-	struct task_struct *oom_reaper_list;
+> >>+	/*
+> >>+	 * List of threads that have to be reaped by OOM (rooted at
+> >>+	 * &oom_reaper_list in mm/oom_kill.c).
+> >>+	 */
+> >>+	struct list_head oom_reaper_list;
+> >
+> >This is an extra pointer to task_struct and more lines of code to
+> >accomplish the same thing. Why would we want to do that?
+> 
+> I don't think it's more "actual" lines of code (I think the wrapping is
+> inflating the line number count), but switching it means that it's more in
+> line with other queues in the kernel (it took me a bit to figure out what
+> was going on with oom_reaper_list beforehand).
+
+It's still an extra pointer and extra generated code to do the same thing - a clear step backwards.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
