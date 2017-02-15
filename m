@@ -1,112 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D3D98680FD0
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E87B6680FE7
 	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 04:22:51 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id kq3so62847162wjc.1
+Received: by mail-wj0-f199.google.com with SMTP id jz4so62765248wjb.5
         for <linux-mm@kvack.org>; Wed, 15 Feb 2017 01:22:51 -0800 (PST)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id g48si4277480wrg.164.2017.02.15.01.22.50
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id z65si4684745wme.157.2017.02.15.01.22.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Feb 2017 01:22:50 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Feb 2017 01:22:49 -0800 (PST)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id A229D1C1BCA
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 09:22:49 +0000 (GMT)
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 3AB0798E7A
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 09:22:49 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 2/3] mm, vmscan: Only clear pgdat congested/dirty/writeback state when balanced
-Date: Wed, 15 Feb 2017 09:22:46 +0000
-Message-Id: <20170215092247.15989-3-mgorman@techsingularity.net>
-In-Reply-To: <20170215092247.15989-1-mgorman@techsingularity.net>
-References: <20170215092247.15989-1-mgorman@techsingularity.net>
+Subject: [PATCH 0/3] Reduce amount of time kswapd sleeps prematurely
+Date: Wed, 15 Feb 2017 09:22:44 +0000
+Message-Id: <20170215092247.15989-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-A pgdat tracks if recent reclaim encountered too many dirty, writeback
-or congested pages. The flags control whether kswapd writes pages back
-from reclaim context, tags pages for immediate reclaim when IO completes,
-whether processes block on wait_iff_congested and whether kswapd blocks
-when too many pages marked for immediate reclaim are encountered.
+This patchset is based on mmots as of Feb 9th, 2016. The baseline is
+important as there are a number of kswapd-related fixes in that tree and
+a comparison against v4.10-rc7 would be almost meaningless as a result.
 
-The state is cleared in a check function with side-effects. With the patch
-"mm, vmscan: fix zone balance check in prepare_kswapd_sleep", the timing
-of when the bits get cleared changed. Due to the way the check works,
-it'll clear the bits if ZONE_DMA is balanced for a GFP_DMA allocation
-because it does not account for lowmem reserves properly.
+The series is unusual in that the first patch fixes one problem and
+introduces a host of other issues and is incomplete. It was not developed
+by me but it appears to have gotten lost so I picked it up and added to the
+changelog. Patch 2 makes a minor modification that is worth considering
+on its own but leaves the kernel in a state where it behaves badly. It's
+not until patch 3 that there is an improvement against baseline.
 
-For the simoop workload, kswapd is not stalling when it should due to
-the premature clearing, writing pages from reclaim context like crazy and
-generally being unhelpful.
+This was mostly motivated by examining Chris Mason's "simoop" benchmark
+which puts the VM under similar pressure to HADOOP. It has been reported
+that the benchmark has regressed severely during the last number of
+releases. While I cannot reproduce all the same problems Chris experienced
+due to hardware limitations, there was a number of problems on a 2-socket
+machine with a single disk.
 
-This patch resets the pgdat bits related to page reclaim only when kswapd
-is going to sleep. The comparison with simoop is then
+                                         4.10.0-rc7            4.10.0-rc7
+                                     mmots-20170209       keepawake-v1r25
+Amean    p50-Read             22325202.49 (  0.00%) 22092755.48 (  1.04%)
+Amean    p95-Read             26102988.80 (  0.00%) 26101849.04 (  0.00%)
+Amean    p99-Read             30935176.53 (  0.00%) 29746220.52 (  3.84%)
+Amean    p50-Write                 976.44 (  0.00%)      952.73 (  2.43%)
+Amean    p95-Write               15471.29 (  0.00%)     3140.27 ( 79.70%)
+Amean    p99-Write               35108.62 (  0.00%)     8843.73 ( 74.81%)
+Amean    p50-Allocation          76382.61 (  0.00%)    76349.22 (  0.04%)
+Amean    p95-Allocation         127777.39 (  0.00%)   108630.26 ( 14.98%)
+Amean    p99-Allocation         187937.39 (  0.00%)   139094.26 ( 25.99%)
 
-                                         4.10.0-rc7            4.10.0-rc7            4.10.0-rc7
-                                     mmots-20170209           fixcheck-v1              clear-v1
-Amean    p50-Read             22325202.49 (  0.00%) 20026926.55 ( 10.29%) 19491134.58 ( 12.69%)
-Amean    p95-Read             26102988.80 (  0.00%) 27023360.00 ( -3.53%) 24294195.20 (  6.93%)
-Amean    p99-Read             30935176.53 (  0.00%) 30994432.00 ( -0.19%) 30397053.16 (  1.74%)
-Amean    p50-Write                 976.44 (  0.00%)     1905.28 (-95.12%)     1077.22 (-10.32%)
-Amean    p95-Write               15471.29 (  0.00%)    36210.09 (-134.05%)    36419.56 (-135.40%)
-Amean    p99-Write               35108.62 (  0.00%)   479494.96 (-1265.75%)   102000.36 (-190.53%)
-Amean    p50-Allocation          76382.61 (  0.00%)    87603.20 (-14.69%)    87485.22 (-14.54%)
-Amean    p95-Allocation         127777.39 (  0.00%)   244491.38 (-91.34%)   204588.52 (-60.11%)
-Amean    p99-Allocation         187937.39 (  0.00%)  1745237.33 (-828.63%)   631657.74 (-236.10%)
+These are latencies. Read/write are threads reading fixed-size random blocks
+from a simulated database. The allocation latency is mmaping and faulting
+regions of memory. The p50, 95 and p99 reports the worst latencies for 50%
+of the samples, 95% and 99% respectively.
 
-Read latency is improved although write and allocation latency is
-impacted.  Even with the patch, kswapd is still reclaiming inefficiently,
-pages are being written back from writeback context and a host of other
-issues. However, given the change, it needed to be spelled out why the
-side-effect was moved.
+For example, the report indicates that while the test was running 99% of
+writes completed 74.81% faster. It's worth noting that on a UMA machine that
+no difference in performance with simoop was observed so milage will vary.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/vmscan.c | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+On UMA, there was a notable difference in the "stutter" benchmark which
+measures the latency of mmap while large files are being copied. This has
+been used as a proxy measure for desktop jitter while large amounts of IO
+were taking place
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 92fc66bd52bc..b47b430ca7ea 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3097,17 +3097,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
- 	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
- 		return false;
- 
--	/*
--	 * If any eligible zone is balanced then the node is not considered
--	 * to be congested or dirty
--	 */
--	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
--	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
--	clear_bit(PGDAT_WRITEBACK, &zone->zone_pgdat->flags);
--
- 	return true;
- }
- 
-+/* Clear pgdat state for congested, dirty or under writeback. */
-+static void clear_pgdat_congested(pg_data_t *pgdat)
-+{
-+	clear_bit(PGDAT_CONGESTED, &pgdat->flags);
-+	clear_bit(PGDAT_DIRTY, &pgdat->flags);
-+	clear_bit(PGDAT_WRITEBACK, &pgdat->flags);
-+}
-+
- /*
-  * Prepare kswapd for sleeping. This verifies that there are no processes
-  * waiting in throttle_direct_reclaim() and that watermarks have been met.
-@@ -3140,8 +3140,10 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		if (!managed_zone(zone))
- 			continue;
- 
--		if (zone_balanced(zone, order, classzone_idx))
-+		if (zone_balanced(zone, order, classzone_idx)) {
-+			clear_pgdat_congested(pgdat);
- 			return true;
-+		}
- 	}
- 
- 	return false;
+                            4.10.0-rc7            4.10.0-rc7
+                        mmots-20170209          keepawake-v1
+Min         mmap      6.3847 (  0.00%)      5.9785 (  6.36%)
+1st-qrtle   mmap      7.6310 (  0.00%)      7.4086 (  2.91%)
+2nd-qrtle   mmap      9.9959 (  0.00%)      7.7052 ( 22.92%)
+3rd-qrtle   mmap     14.8180 (  0.00%)      8.5895 ( 42.03%)
+Max-90%     mmap     15.8397 (  0.00%)     13.6974 ( 13.52%)
+Max-93%     mmap     16.4268 (  0.00%)     14.3175 ( 12.84%)
+Max-95%     mmap     18.3295 (  0.00%)     16.9233 (  7.67%)
+Max-99%     mmap     24.2042 (  0.00%)     20.6182 ( 14.82%)
+Max         mmap    255.0688 (  0.00%)    265.5818 ( -4.12%)
+Mean        mmap     11.2192 (  0.00%)      9.1811 ( 18.17%)
+
+Latency is measured in milliseconds and indicates that 99% of mmap
+operations complete 14.82% faster and are 18.17% faster on average with
+these patches applied.
+
+ mm/memory_hotplug.c |   2 +-
+ mm/vmscan.c         | 128 +++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 72 insertions(+), 58 deletions(-)
+
+-- 
+2.11.0
+
+Mel Gorman (2):
+  mm, vmscan: Only clear pgdat congested/dirty/writeback state when
+    balanced
+  mm, vmscan: Prevent kswapd sleeping prematurely due to mismatched
+    classzone_idx
+
+Shantanu Goel (1):
+  mm, vmscan: fix zone balance check in prepare_kswapd_sleep
+
+ mm/memory_hotplug.c |   2 +-
+ mm/vmscan.c         | 128 +++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 72 insertions(+), 58 deletions(-)
+
 -- 
 2.11.0
 
