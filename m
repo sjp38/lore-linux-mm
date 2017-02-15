@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C4C6D6B03D8
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 19:20:10 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id j49so221413914otb.7
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 16:20:10 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z4si1957143pfd.119.2017.02.14.16.20.09
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 93BAD6B03DC
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2017 19:45:16 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id m98so138418915iod.2
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2017 16:45:16 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id u22si2022546pfd.46.2017.02.14.16.45.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Feb 2017 16:20:09 -0800 (PST)
-Date: Tue, 14 Feb 2017 16:20:08 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V2 1/2] mm/autonuma: Let architecture override how the
- write bit should be stashed in a protnone pte.
-Message-Id: <20170214162008.bd592c747fc5e167c10ce7b8@linux-foundation.org>
-In-Reply-To: <874lzxm41g.fsf@concordia.ellerman.id.au>
-References: <1487050314-3892-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1487050314-3892-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<87poilmien.fsf@concordia.ellerman.id.au>
-	<abd9d231-c380-95b0-0722-8df7be626968@linux.vnet.ibm.com>
-	<874lzxm41g.fsf@concordia.ellerman.id.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 14 Feb 2017 16:45:15 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH V2 2/2] powerpc/mm/autonuma: Switch ppc64 to its own implementeation of saved write
+In-Reply-To: <87d1elufej.fsf@skywalker.in.ibm.com>
+References: <1487050314-3892-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1487050314-3892-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <87y3x9kp8e.fsf@concordia.ellerman.id.au> <87d1elufej.fsf@skywalker.in.ibm.com>
+Date: Wed, 15 Feb 2017 11:45:12 +1100
+Message-ID: <87efz0l1t3.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <michaele@au1.ibm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
-On Tue, 14 Feb 2017 21:59:23 +1100 Michael Ellerman <michaele@au1.ibm.com> wrote:
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
-> 
-> > On Tuesday 14 February 2017 11:19 AM, Michael Ellerman wrote:
-> >> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
-> >>
-> >>> Autonuma preserves the write permission across numa fault to avoid taking
-> >>> a writefault after a numa fault (Commit: b191f9b106ea " mm: numa: preserve PTE
-> >>> write permissions across a NUMA hinting fault"). Architecture can implement
-> >>> protnone in different ways and some may choose to implement that by clearing Read/
-> >>> Write/Exec bit of pte. Setting the write bit on such pte can result in wrong
-> >>> behaviour. Fix this up by allowing arch to override how to save the write bit
-> >>> on a protnone pte.
-> >> This is pretty obviously a nop on arches that don't implement the new
-> >> hooks, but it'd still be good to get an ack from someone in mm land
-> >> before I merge it.
-> >
-> >
-> > To get it apply cleanly you may need
-> > http://ozlabs.org/~akpm/mmots/broken-out/mm-autonuma-dont-use-set_pte_at-when-updating-protnone-ptes.patch
-> > http://ozlabs.org/~akpm/mmots/broken-out/mm-autonuma-dont-use-set_pte_at-when-updating-protnone-ptes-fix.patch
-> 
-> Ah OK, I missed those.
-> 
-> In that case these two should probably go via Andrew's tree.
+> Michael Ellerman <mpe@ellerman.id.au> writes:
+>
+>> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+>>> diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+>>> index 0735d5a8049f..8720a406bbbe 100644
+>>> --- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+>>> +++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+>>> @@ -16,6 +16,9 @@
+>>>  #include <asm/page.h>
+>>>  #include <asm/bug.h>
+>>>  
+>>> +#ifndef __ASSEMBLY__
+>>> +#include <linux/mmdebug.h>
+>>> +#endif
+>>
+>> I assume that's for the VM_BUG_ON() you add below. But if so wouldn't
+>> the #include be better placed in book3s/64/pgtable.h also?
+>
+> mmu-hash.h has got a hack that is explained below
+>
+> #ifndef __ASSEMBLY__
+> #include <linux/mmdebug.h>
+> #endif
+> /*
+>  * This is necessary to get the definition of PGTABLE_RANGE which we
+>  * need for various slices related matters. Note that this isn't the
+>  * complete pgtable.h but only a portion of it.
+>  */
+> #include <asm/book3s/64/pgtable.h>
+>
+> This is the only place where we do that book3s/64/pgtable.h include this
+> way. Everybody should include asm/pgable.h which picks the righ version
+> based on different config option.
 
-Done.  But
-mm-autonuma-dont-use-set_pte_at-when-updating-protnone-ptes.patch is on
-hold because Aneesh saw a testing issue, so these two are also on hold.
+I don't understand how that is related.
+
+If you're adding a VM_BUG_ON() in book3s/64/pgtable.h, why isn't the
+include of mmdebug.h in that file also?
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
