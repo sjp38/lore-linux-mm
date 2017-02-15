@@ -1,104 +1,326 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 263724405A3
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C894405A3
 	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 07:07:43 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j13so150486901iod.6
+Received: by mail-pf0-f199.google.com with SMTP id 80so178916185pfy.2
         for <linux-mm@kvack.org>; Wed, 15 Feb 2017 04:07:43 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d207si3870947iof.38.2017.02.15.04.07.42
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b24si3576995pfh.173.2017.02.15.04.07.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 15 Feb 2017 04:07:42 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1FC4b8b179146
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1FC4MJg133581
 	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 07:07:42 -0500
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com [125.16.236.4])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28mf8pr23f-1
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com [125.16.236.2])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28m9wy1x06-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 07:07:41 -0500
 Received: from localhost
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
 	Wed, 15 Feb 2017 17:37:38 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id ED12C3940060
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:37:35 +0530 (IST)
+Received: from d28relay08.in.ibm.com (d28relay08.in.ibm.com [9.184.220.159])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id D373C125805F
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:37:37 +0530 (IST)
 Received: from d28av08.in.ibm.com (d28av08.in.ibm.com [9.184.220.148])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1FC7ZUc43384982
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:37:35 +0530
+	by d28relay08.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1FC6XWc15859820
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:36:33 +0530
 Received: from d28av08.in.ibm.com (localhost [127.0.0.1])
-	by d28av08.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1FC7YjP012623
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:37:35 +0530
+	by d28av08.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1FC7WDD012596
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 17:37:34 +0530
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH V3 4/4] mm: Enable Buddy allocation isolation for CDM nodes
-Date: Wed, 15 Feb 2017 17:37:26 +0530
+Subject: [PATCH V3 1/4] mm: Define coherent device memory (CDM) node
+Date: Wed, 15 Feb 2017 17:37:23 +0530
 In-Reply-To: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
 References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
-Message-Id: <20170215120726.9011-5-khandual@linux.vnet.ibm.com>
+Message-Id: <20170215120726.9011-2-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-This implements allocation isolation for CDM nodes in buddy allocator by
-discarding CDM memory zones all the time except in the cases where the gfp
-flag has got __GFP_THISNODE or the nodemask contains CDM nodes in cases
-where it is non NULL (explicit allocation request in the kernel or user
-process MPOL_BIND policy based requests).
+There are certain devices like specialized accelerator, GPU cards, network
+cards, FPGA cards etc which might contain onboard memory which is coherent
+along with the existing system RAM while being accessed either from the CPU
+or from the device. They share some similar properties with that of normal
+system RAM but at the same time can also be different with respect to
+system RAM.
+
+User applications might be interested in using this kind of coherent device
+memory explicitly or implicitly along side the system RAM utilizing all
+possible core memory functions like anon mapping (LRU), file mapping (LRU),
+page cache (LRU), driver managed (non LRU), HW poisoning, NUMA migrations
+etc. To achieve this kind of tight integration with core memory subsystem,
+the device onboard coherent memory must be represented as a memory only
+NUMA node. At the same time arch must export some kind of a function to
+identify of this node as a coherent device memory not any other regular
+cpu less memory only NUMA node.
+
+After achieving the integration with core memory subsystem coherent device
+memory might still need some special consideration inside the kernel. There
+can be a variety of coherent memory nodes with different expectations from
+the core kernel memory. But right now only one kind of special treatment is
+considered which requires certain isolation.
+
+Now consider the case of a coherent device memory node type which requires
+isolation. This kind of coherent memory is onboard an external device
+attached to the system through a link where there is always a chance of a
+link failure taking down the entire memory node with it. More over the
+memory might also have higher chance of ECC failure as compared to the
+system RAM. Hence allocation into this kind of coherent memory node should
+be regulated. Kernel allocations must not come here. Normal user space
+allocations too should not come here implicitly (without user application
+knowing about it). This summarizes isolation requirement of certain kind of
+coherent device memory node as an example. There can be different kinds of
+isolation requirement also.
+
+Some coherent memory devices might not require isolation altogether after
+all. Then there might be other coherent memory devices which might require
+some other special treatment after being part of core memory representation
+. For now, will look into isolation seeking coherent device memory node not
+the other ones.
+
+To implement the integration as well as isolation, the coherent memory node
+must be present in N_MEMORY and a new N_COHERENT_DEVICE node mask inside
+the node_states[] array. During memory hotplug operations, the new nodemask
+N_COHERENT_DEVICE is updated along with N_MEMORY for these coherent device
+memory nodes. This also creates the following new sysfs based interface to
+list down all the coherent memory nodes of the system.
+
+	/sys/devices/system/node/is_coherent_node
+
+Architectures must export function arch_check_node_cdm() which identifies
+any coherent device memory node in case they enable CONFIG_COHERENT_DEVICE.
 
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ Documentation/ABI/stable/sysfs-devices-node |  7 ++++
+ arch/powerpc/Kconfig                        |  1 +
+ arch/powerpc/mm/numa.c                      |  7 ++++
+ drivers/base/node.c                         |  6 +++
+ include/linux/nodemask.h                    | 58 ++++++++++++++++++++++++++++-
+ mm/Kconfig                                  |  4 ++
+ mm/memory_hotplug.c                         |  3 ++
+ mm/page_alloc.c                             |  8 +++-
+ 8 files changed, 91 insertions(+), 3 deletions(-)
 
+diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+index 5b2d0f0..5df18f7 100644
+--- a/Documentation/ABI/stable/sysfs-devices-node
++++ b/Documentation/ABI/stable/sysfs-devices-node
+@@ -29,6 +29,13 @@ Description:
+ 		Nodes that have regular or high memory.
+ 		Depends on CONFIG_HIGHMEM.
+ 
++What:		/sys/devices/system/node/is_cdm_node
++Date:		January 2017
++Contact:	Linux Memory Management list <linux-mm@kvack.org>
++Description:
++		Lists the nodemask of nodes that have coherent device memory.
++		Depends on CONFIG_COHERENT_DEVICE.
++
+ What:		/sys/devices/system/node/nodeX
+ Date:		October 2002
+ Contact:	Linux Memory Management list <linux-mm@kvack.org>
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 281f4f1..1cff239 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -164,6 +164,7 @@ config PPC
+ 	select ARCH_HAS_SCALED_CPUTIME if VIRT_CPU_ACCOUNTING_NATIVE
+ 	select HAVE_ARCH_HARDENED_USERCOPY
+ 	select HAVE_KERNEL_GZIP
++	select COHERENT_DEVICE if PPC_BOOK3S_64 && NEED_MULTIPLE_NODES
+ 
+ config GENERIC_CSUM
+ 	def_bool CPU_LITTLE_ENDIAN
+diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+index b1099cb..14f0b98 100644
+--- a/arch/powerpc/mm/numa.c
++++ b/arch/powerpc/mm/numa.c
+@@ -41,6 +41,13 @@
+ #include <asm/setup.h>
+ #include <asm/vdso.h>
+ 
++#ifdef CONFIG_COHERENT_DEVICE
++inline int arch_check_node_cdm(int nid)
++{
++	return 0;
++}
++#endif
++
+ static int numa_enabled = 1;
+ 
+ static char *cmdline __initdata;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 5548f96..f39e615 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -661,6 +661,9 @@ static struct node_attr node_state_attr[] = {
+ 	[N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
+ #endif
+ 	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
++#ifdef CONFIG_COHERENT_DEVICE
++	[N_COHERENT_DEVICE] = _NODE_ATTR(is_cdm_node, N_COHERENT_DEVICE),
++#endif
+ };
+ 
+ static struct attribute *node_state_attrs[] = {
+@@ -674,6 +677,9 @@ static struct attribute *node_state_attrs[] = {
+ 	&node_state_attr[N_MEMORY].attr.attr,
+ #endif
+ 	&node_state_attr[N_CPU].attr.attr,
++#ifdef CONFIG_COHERENT_DEVICE
++	&node_state_attr[N_COHERENT_DEVICE].attr.attr,
++#endif
+ 	NULL
+ };
+ 
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index f746e44..175c2d6 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -388,11 +388,14 @@ enum node_states {
+ 	N_HIGH_MEMORY = N_NORMAL_MEMORY,
+ #endif
+ #ifdef CONFIG_MOVABLE_NODE
+-	N_MEMORY,		/* The node has memory(regular, high, movable) */
++	N_MEMORY,	/* The node has memory(regular, high, movable, cdm) */
+ #else
+ 	N_MEMORY = N_HIGH_MEMORY,
+ #endif
+ 	N_CPU,		/* The node has one or more cpus */
++#ifdef CONFIG_COHERENT_DEVICE
++	N_COHERENT_DEVICE,	/* The node has CDM memory */
++#endif
+ 	NR_NODE_STATES
+ };
+ 
+@@ -496,6 +499,59 @@ static inline int node_random(const nodemask_t *mask)
+ }
+ #endif
+ 
++#ifdef CONFIG_COHERENT_DEVICE
++extern int arch_check_node_cdm(int nid);
++
++static inline nodemask_t system_mem_nodemask(void)
++{
++	nodemask_t system_mem;
++
++	nodes_clear(system_mem);
++	nodes_andnot(system_mem, node_states[N_MEMORY],
++			node_states[N_COHERENT_DEVICE]);
++	return system_mem;
++}
++
++static inline bool is_cdm_node(int node)
++{
++	return node_isset(node, node_states[N_COHERENT_DEVICE]);
++}
++
++static inline void node_set_state_cdm(int node)
++{
++	if (arch_check_node_cdm(node))
++		node_set_state(node, N_COHERENT_DEVICE);
++}
++
++static inline void node_clear_state_cdm(int node)
++{
++	if (arch_check_node_cdm(node))
++		node_clear_state(node, N_COHERENT_DEVICE);
++}
++
++#else
++
++static inline int arch_check_node_cdm(int nid) { return 0; }
++
++static inline nodemask_t system_mem_nodemask(void)
++{
++	return node_states[N_MEMORY];
++}
++
++static inline bool is_cdm_node(int node)
++{
++	return false;
++}
++
++static inline void node_set_state_cdm(int node)
++{
++}
++
++static inline void node_clear_state_cdm(int node)
++{
++}
++#endif	/* CONFIG_COHERENT_DEVICE */
++
+ #define node_online_map 	node_states[N_ONLINE]
+ #define node_possible_map 	node_states[N_POSSIBLE]
+ 
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 9b8fccb..6263a65 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -143,6 +143,10 @@ config HAVE_GENERIC_RCU_GUP
+ config ARCH_DISCARD_MEMBLOCK
+ 	bool
+ 
++config COHERENT_DEVICE
++	bool
++	default n
++
+ config NO_BOOTMEM
+ 	bool
+ 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b8c11e0..6bce093 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1030,6 +1030,7 @@ static void node_states_set_node(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_high >= 0)
+ 		node_set_state(node, N_HIGH_MEMORY);
+ 
++	node_set_state_cdm(node);
+ 	node_set_state(node, N_MEMORY);
+ }
+ 
+@@ -1843,6 +1844,8 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+ 	if ((N_MEMORY != N_HIGH_MEMORY) &&
+ 	    (arg->status_change_nid >= 0))
+ 		node_clear_state(node, N_MEMORY);
++
++	node_clear_state_cdm(node);
+ }
+ 
+ static int __ref __offline_pages(unsigned long start_pfn,
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index afbd24d..40c942c 100644
+index f3e0c69..84d61bb 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -64,6 +64,7 @@
- #include <linux/page_owner.h>
- #include <linux/kthread.h>
- #include <linux/memcontrol.h>
-+#include <linux/node.h>
+@@ -6080,8 +6080,10 @@ static unsigned long __init early_calculate_totalpages(void)
+ 		unsigned long pages = end_pfn - start_pfn;
  
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -2898,6 +2899,10 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 	struct zoneref *z = ac->preferred_zoneref;
- 	struct zone *zone;
- 	struct pglist_data *last_pgdat_dirty_limit = NULL;
-+	bool cpuset_fallback = false;
-+
-+	if (ac->nodemask != orig_mask)
-+		cpuset_fallback = true;
- 
- 	/*
- 	 * Scan zonelist, looking for a zone with enough free.
-@@ -2908,6 +2913,24 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 		struct page *page;
- 		unsigned long mark;
- 
-+		/*
-+		 * CDM nodes get skipped if the requested gfp flag
-+		 * does not have __GFP_THISNODE set or the nodemask
-+		 * does not have any CDM nodes in case the nodemask
-+		 * is non NULL (explicit allocation requests from
-+		 * kernel or user process MPOL_BIND policy which has
-+		 * CDM nodes).
-+		 */
-+		if (is_cdm_node(zone->zone_pgdat->node_id)) {
-+			if (!(gfp_mask & __GFP_THISNODE)) {
-+				if (cpuset_fallback)
-+					continue;
-+
-+				if (!ac->nodemask)
-+					continue;
-+			}
+ 		totalpages += pages;
+-		if (pages)
++		if (pages) {
++			node_set_state_cdm(nid);
+ 			node_set_state(nid, N_MEMORY);
 +		}
-+
- 		if (cpusets_enabled() &&
- 			(alloc_flags & ALLOC_CPUSET) &&
- 			!__cpuset_zone_allowed(zone, gfp_mask))
+ 	}
+ 	return totalpages;
+ }
+@@ -6392,8 +6394,10 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 				find_min_pfn_for_node(nid), NULL);
+ 
+ 		/* Any memory on that node */
+-		if (pgdat->node_present_pages)
++		if (pgdat->node_present_pages) {
++			node_set_state_cdm(nid);
+ 			node_set_state(nid, N_MEMORY);
++		}
+ 		check_for_memory(pgdat, nid);
+ 	}
+ }
 -- 
 2.9.3
 
