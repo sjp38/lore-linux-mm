@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 63396680FF1
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 10:44:08 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id e4so26116035pfg.4
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 07:44:08 -0800 (PST)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0051.outbound.protection.outlook.com. [104.47.40.51])
-        by mx.google.com with ESMTPS id b5si4787476ple.313.2017.02.16.07.44.07
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F057680FFC
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 10:44:28 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id j49so21766788otb.7
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 07:44:28 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0054.outbound.protection.outlook.com. [104.47.38.54])
+        by mx.google.com with ESMTPS id p36si17759otc.1.2017.02.16.07.44.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Feb 2017 07:44:07 -0800 (PST)
+        Thu, 16 Feb 2017 07:44:27 -0800 (PST)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v4 09/28] x86: Add support for early
- encryption/decryption of memory
-Date: Thu, 16 Feb 2017 09:43:58 -0600
-Message-ID: <20170216154358.19244.6082.stgit@tlendack-t1.amdoffice.net>
+Subject: [RFC PATCH v4 10/28] x86: Insure that boot memory areas are mapped
+ properly
+Date: Thu, 16 Feb 2017 09:44:11 -0600
+Message-ID: <20170216154411.19244.99258.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
 References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,150 +24,244 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-Add support to be able to either encrypt or decrypt data in place during
-the early stages of booting the kernel. This does not change the memory
-encryption attribute - it is used for ensuring that data present in either
-an encrypted or decrypted memory area is in the proper state (for example
-the initrd will have been loaded by the boot loader and will not be
-encrypted, but the memory that it resides in is marked as encrypted).
+The boot data and command line data are present in memory in a decrypted
+state and are copied early in the boot process.  The early page fault
+support will map these areas as encrypted, so before attempting to copy
+them, add decrypted mappings so the data is accessed properly when copied.
 
-The early_memmap support is enhanced to specify encrypted and decrypted
-mappings with and without write-protection. The use of write-protection is
-necessary when encrypting data "in place". The write-protect attribute is
-considered cacheable for loads, but not stores. This implies that the
-hardware will never give the core a dirty line with this memtype.
+For the initrd, encrypt this data in place. Since the future mapping of the
+initrd area will be mapped as encrypted the data will be accessed properly.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/mem_encrypt.h |   15 +++++++
- arch/x86/mm/mem_encrypt.c          |   79 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 94 insertions(+)
+ arch/x86/include/asm/mem_encrypt.h |   11 +++++
+ arch/x86/kernel/head64.c           |   34 +++++++++++++++--
+ arch/x86/kernel/setup.c            |   10 +++++
+ arch/x86/mm/mem_encrypt.c          |   74 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 126 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-index 547989d..3c9052c 100644
+index 3c9052c..e2b7364 100644
 --- a/arch/x86/include/asm/mem_encrypt.h
 +++ b/arch/x86/include/asm/mem_encrypt.h
-@@ -26,6 +26,11 @@ static inline bool sme_active(void)
- 	return (sme_me_mask) ? true : false;
- }
+@@ -31,6 +31,9 @@ void __init sme_early_encrypt(resource_size_t paddr,
+ void __init sme_early_decrypt(resource_size_t paddr,
+ 			      unsigned long size);
  
-+void __init sme_early_encrypt(resource_size_t paddr,
-+			      unsigned long size);
-+void __init sme_early_decrypt(resource_size_t paddr,
-+			      unsigned long size);
++void __init sme_map_bootdata(char *real_mode_data);
++void __init sme_unmap_bootdata(char *real_mode_data);
 +
  void __init sme_early_init(void);
  
  #define __sme_pa(x)		(__pa((x)) | sme_me_mask)
-@@ -42,6 +47,16 @@ static inline bool sme_active(void)
+@@ -57,6 +60,14 @@ static inline void __init sme_early_decrypt(resource_size_t paddr,
+ {
  }
- #endif
  
-+static inline void __init sme_early_encrypt(resource_size_t paddr,
-+					    unsigned long size)
++static inline void __init sme_map_bootdata(char *real_mode_data)
 +{
 +}
 +
-+static inline void __init sme_early_decrypt(resource_size_t paddr,
-+					    unsigned long size)
++static inline void __init sme_unmap_bootdata(char *real_mode_data)
 +{
 +}
 +
  static inline void __init sme_early_init(void)
  {
  }
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index d71df97..ac3565c 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -14,6 +14,9 @@
- #include <linux/init.h>
- #include <linux/mm.h>
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 182a4c7..03f8e74 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -46,13 +46,18 @@ static void __init reset_early_page_tables(void)
+ 	write_cr3(__sme_pa_nodebug(early_level4_pgt));
+ }
  
-+#include <asm/tlbflush.h>
-+#include <asm/fixmap.h>
-+
- extern pmdval_t early_pmd_flags;
- 
- /*
-@@ -24,6 +27,82 @@
- unsigned long sme_me_mask __section(.data) = 0;
- EXPORT_SYMBOL_GPL(sme_me_mask);
- 
-+/* Buffer used for early in-place encryption by BSP, no locking needed */
-+static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
-+
-+/*
-+ * This routine does not change the underlying encryption setting of the
-+ * page(s) that map this memory. It assumes that eventually the memory is
-+ * meant to be accessed as either encrypted or decrypted but the contents
-+ * are currently not in the desired stated.
-+ *
-+ * This routine follows the steps outlined in the AMD64 Architecture
-+ * Programmer's Manual Volume 2, Section 7.10.8 Encrypt-in-Place.
-+ */
-+static void __init __sme_early_enc_dec(resource_size_t paddr,
-+				       unsigned long size, bool enc)
++void __init __early_pgtable_flush(void)
 +{
-+	void *src, *dst;
-+	size_t len;
++	write_cr3(__sme_pa_nodebug(early_level4_pgt));
++}
 +
-+	if (!sme_me_mask)
-+		return;
+ /* Create a new PMD entry */
+-int __init early_make_pgtable(unsigned long address)
++int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
+ {
+ 	unsigned long physaddr = address - __PAGE_OFFSET;
+ 	pgdval_t pgd, *pgd_p;
+ 	pudval_t pud, *pud_p;
+-	pmdval_t pmd, *pmd_p;
++	pmdval_t *pmd_p;
+ 
+ 	/* Invalid address or early pgt is done ?  */
+ 	if (physaddr >= MAXMEM || read_cr3() != __sme_pa_nodebug(early_level4_pgt))
+@@ -94,12 +99,21 @@ int __init early_make_pgtable(unsigned long address)
+ 		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
+ 		*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
+ 	}
+-	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
+ 	pmd_p[pmd_index(address)] = pmd;
+ 
+ 	return 0;
+ }
+ 
++int __init early_make_pgtable(unsigned long address)
++{
++	unsigned long physaddr = address - __PAGE_OFFSET;
++	pmdval_t pmd;
 +
-+	local_flush_tlb();
-+	wbinvd();
++	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
++
++	return __early_make_pgtable(address, pmd);
++}
++
+ /* Don't add a printk in there. printk relies on the PDA which is not initialized 
+    yet. */
+ static void __init clear_bss(void)
+@@ -122,6 +136,12 @@ static void __init copy_bootdata(char *real_mode_data)
+ 	char * command_line;
+ 	unsigned long cmd_line_ptr;
+ 
++	/*
++	 * If SME is active, this will create decrypted mappings of the
++	 * boot data in advance of the copy operations.
++	 */
++	sme_map_bootdata(real_mode_data);
++
+ 	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+ 	sanitize_boot_params(&boot_params);
+ 	cmd_line_ptr = get_cmd_line_ptr();
+@@ -129,6 +149,14 @@ static void __init copy_bootdata(char *real_mode_data)
+ 		command_line = __va(cmd_line_ptr);
+ 		memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+ 	}
 +
 +	/*
-+	 * There are limited number of early mapping slots, so map (at most)
-+	 * one page at time.
++	 * The old boot data is no longer needed and won't be reserved,
++	 * freeing up that memory for use by the system. If SME is active,
++	 * we need to remove the mappings that were created so that the
++	 * memory doesn't remain mapped as decrypted.
 +	 */
-+	while (size) {
-+		len = min_t(size_t, sizeof(sme_early_buffer), size);
++	sme_unmap_bootdata(real_mode_data);
+ }
+ 
+ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index cab13f7..bd5b9a7 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -114,6 +114,7 @@
+ #include <asm/microcode.h>
+ #include <asm/mmu_context.h>
+ #include <asm/kaslr.h>
++#include <asm/mem_encrypt.h>
+ 
+ /*
+  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
+@@ -376,6 +377,15 @@ static void __init reserve_initrd(void)
+ 	    !ramdisk_image || !ramdisk_size)
+ 		return;		/* No initrd provided by bootloader */
+ 
++	/*
++	 * If SME is active, this memory will be marked encrypted by the
++	 * kernel when it is accessed (including relocation). However, the
++	 * ramdisk image was loaded decrypted by the bootloader, so make
++	 * sure that it is encrypted before accessing it.
++	 */
++	if (sme_active())
++		sme_early_encrypt(ramdisk_image, ramdisk_end - ramdisk_image);
 +
-+		/*
-+		 * Create write protected mappings for the current format
-+		 * of the memory.
-+		 */
-+		src = enc ? early_memremap_decrypted_wp(paddr, len) :
-+			    early_memremap_encrypted_wp(paddr, len);
+ 	initrd_start = 0;
+ 
+ 	mapped_size = memblock_mem_size(max_pfn_mapped);
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+index ac3565c..ec548e9 100644
+--- a/arch/x86/mm/mem_encrypt.c
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -16,8 +16,12 @@
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/fixmap.h>
++#include <asm/setup.h>
++#include <asm/bootparam.h>
+ 
+ extern pmdval_t early_pmd_flags;
++int __init __early_make_pgtable(unsigned long, pmdval_t);
++void __init __early_pgtable_flush(void);
+ 
+ /*
+  * Since SME related variables are set early in the boot process they must
+@@ -103,6 +107,76 @@ void __init sme_early_decrypt(resource_size_t paddr, unsigned long size)
+ 	__sme_early_enc_dec(paddr, size, false);
+ }
+ 
++static void __init __sme_early_map_unmap_mem(void *vaddr, unsigned long size,
++					     bool map)
++{
++	unsigned long paddr = (unsigned long)vaddr - __PAGE_OFFSET;
++	pmdval_t pmd_flags, pmd;
 +
-+		/*
-+		 * Create mappings for the desired format of the memory.
-+		 */
-+		dst = enc ? early_memremap_encrypted(paddr, len) :
-+			    early_memremap_decrypted(paddr, len);
++	/* Use early_pmd_flags but remove the encryption mask */
++	pmd_flags = early_pmd_flags & ~sme_me_mask;
 +
-+		/*
-+		 * If a mapping can't be obtained to perform the operation,
-+		 * then eventual access of that area will in the desired
-+		 * mode will cause a crash.
-+		 */
-+		BUG_ON(!src || !dst);
++	do {
++		pmd = map ? (paddr & PMD_MASK) + pmd_flags : 0;
++		__early_make_pgtable((unsigned long)vaddr, pmd);
 +
-+		/*
-+		 * Use a temporary buffer, of cache-line multiple size, to
-+		 * avoid data corruption as documented in the APM.
-+		 */
-+		memcpy(sme_early_buffer, src, len);
-+		memcpy(dst, sme_early_buffer, len);
-+
-+		early_memunmap(dst, len);
-+		early_memunmap(src, len);
-+
-+		paddr += len;
-+		size -= len;
-+	}
++		vaddr += PMD_SIZE;
++		paddr += PMD_SIZE;
++		size = (size <= PMD_SIZE) ? 0 : size - PMD_SIZE;
++	} while (size);
 +}
 +
-+void __init sme_early_encrypt(resource_size_t paddr, unsigned long size)
++static void __init __sme_map_unmap_bootdata(char *real_mode_data, bool map)
 +{
-+	__sme_early_enc_dec(paddr, size, true);
++	struct boot_params *boot_data;
++	unsigned long cmdline_paddr;
++
++	__sme_early_map_unmap_mem(real_mode_data, sizeof(boot_params), map);
++	boot_data = (struct boot_params *)real_mode_data;
++
++	/*
++	 * Determine the command line address only after having established
++	 * the decrypted mapping.
++	 */
++	cmdline_paddr = boot_data->hdr.cmd_line_ptr |
++			((u64)boot_data->ext_cmd_line_ptr << 32);
++
++	if (cmdline_paddr)
++		__sme_early_map_unmap_mem(__va(cmdline_paddr),
++					  COMMAND_LINE_SIZE, map);
 +}
 +
-+void __init sme_early_decrypt(resource_size_t paddr, unsigned long size)
++void __init sme_unmap_bootdata(char *real_mode_data)
 +{
-+	__sme_early_enc_dec(paddr, size, false);
++	/* If SME is not active, the bootdata is in the correct state */
++	if (!sme_active())
++		return;
++
++	/*
++	 * The bootdata and command line aren't needed anymore so clear
++	 * any mapping of them.
++	 */
++	__sme_map_unmap_bootdata(real_mode_data, false);
++
++	__early_pgtable_flush();
++}
++
++void __init sme_map_bootdata(char *real_mode_data)
++{
++	/* If SME is not active, the bootdata is in the correct state */
++	if (!sme_active())
++		return;
++
++	/*
++	 * The bootdata and command line will not be encrypted, so they
++	 * need to be mapped as decrypted memory so they can be copied
++	 * properly.
++	 */
++	__sme_map_unmap_bootdata(real_mode_data, true);
++
++	__early_pgtable_flush();
 +}
 +
  void __init sme_early_init(void)
