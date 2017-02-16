@@ -1,45 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AAC20680FEA
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 07:43:09 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id yr2so3008267wjc.4
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 04:43:09 -0800 (PST)
-Received: from smtp.math.uni-bielefeld.de (smtp.math.uni-bielefeld.de. [129.70.45.10])
-        by mx.google.com with ESMTPS id z52si7831013wrb.20.2017.02.16.04.43.08
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F133680FEA
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 08:05:28 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d185so22904153pgc.2
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 05:05:28 -0800 (PST)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id e9si6911296pgc.241.2017.02.16.05.05.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 04:43:08 -0800 (PST)
-From: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-Message-ID: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
-Date: Thu, 16 Feb 2017 13:43:06 +0100
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Feb 2017 05:05:26 -0800 (PST)
+Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OLG022HHXP0MCC0@mailout2.samsung.com> for linux-mm@kvack.org;
+ Thu, 16 Feb 2017 22:05:24 +0900 (KST)
+MIME-version: 1.0
+Subject: [PATCH 0/4] zswap: Optimize compressed pool memory utilization
+Reply-to: srividya.dr@samsung.com
+From: Srividya Desireddy <srividya.dr@samsung.com>
+Message-id: <20170216130523epcms5p880c2d88837293a158f9c69597082f969@epcms5p8>
+Date: Thu, 16 Feb 2017 13:05:23 +0000
+Content-type: multipart/related;
+ boundary="----=_Part_445063_602616317.1487250323019"
+References: 
+ <CGME20170216130523epcms5p880c2d88837293a158f9c69597082f969@epcms5p8>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ML dri-devel <dri-devel@lists.freedesktop.org>
-Cc: maxime.ripard@free-electrons.com, Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, wens@csie.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, thomas.petazzoni@free-electrons.com, devicetree@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: "penberg@kernel.org" <penberg@kernel.org>, "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>, Sarbojit Ganguly <ganguly.s@samsung.com>
 
-Hello,
+------=_Part_445063_602616317.1487250323019
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="utf-8"
 
-I was wondering about the following. Wasn't there some strict
-requirement about code going upstream, which also included that there
-was a full open-source driver stack for it?
-
-I don't see how this is the case for Mali, neither in the kernel, nor in
-userspace. I'm aware that the Mali kernel driver is open-source. But it
-is not upstream, maintained out of tree, and won't land upstream in its
-current form (no resemblence to a DRM driver at all). And let's not talk
-about the userspace part.
-
-So, why should this be here?
-
-With best wishes,
-Tobias
-
-P.S.: I'm signed up to dri-devel in digest mode, so sorry if this mail
-doesn't properly show up in the corresponding ml thread.
+DQpDb3VsZCB5b3UgcGxlYXNlIHJldmlldyB0aGlzIHBhdGNoIHNlcmllcyBhbmQgdXBkYXRlIGlm
+IGFueSBjb3JyZWN0aW9ucyBhcmUgbmVlZGVkIGluIHRoZSBwYXRjaC1zZXQuDQoNCi1Tcml2aWR5
+YQ0KDQpPbiBGcmksIEF1ZyAxOSwgMjAxNiBhdCAxMTowNCBBTSwgU3JpdmlkeWEgRGVzaXJlZGR5
+IHdyb3RlOg0KPiBPbiAxNyBBdWd1c3QgMjAxNiBhdCAxODowOCwgUGVra2EgRW5iZXJnICB3cm90
+ZToNCj4+IE9uIFdlZCwgQXVnIDE3LCAyMDE2IGF0IDE6MDMgUE0sIFNyaXZpZHlhIERlc2lyZWRk
+eQ0KPj4gd3JvdGU6DQo+Pj4gVGhpcyBzZXJpZXMgb2YgcGF0Y2hlcyBvcHRpbWl6ZSB0aGUgbWVt
+b3J5IHV0aWxpemVkIGJ5IHpzd2FwIGZvciBzdG9yaW5nDQo+Pj4gdGhlIHN3YXBwZWQgb3V0IHBh
+Z2VzLg0KPj4+DQo+Pj4gWnN3YXAgaXMgYSBjYWNoZSB3aGljaCBjb21wcmVzc2VzIHRoZSBwYWdl
+cyB0aGF0IGFyZSBiZWluZyBzd2FwcGVkIG91dA0KPj4+IGFuZCBzdG9yZXMgdGhlbSBpbnRvIGEg
+ZHluYW1pY2FsbHkgYWxsb2NhdGVkIFJBTS1iYXNlZCBtZW1vcnkgcG9vbC4NCj4+PiBFeHBlcmlt
+ZW50cyBoYXZlIHNob3duIHRoYXQgYXJvdW5kIDEwLTE1JSBvZiBwYWdlcyBzdG9yZWQgaW4genN3
+YXAgYXJlDQo+Pj4gZHVwbGljYXRlcyB3aGljaCByZXN1bHRzIGluIDEwLTEyJSBtb3JlIFJBTSBy
+ZXF1aXJlZCB0byBzdG9yZSB0aGVzZQ0KPj4+IGR1cGxpY2F0ZSBjb21wcmVzc2VkIHBhZ2VzLiBB
+cm91bmQgMTAtMjAlIG9mIHBhZ2VzIHN0b3JlZCBpbiB6c3dhcA0KPj4+IGFyZSB6ZXJvLWZpbGxl
+ZCBwYWdlcywgYnV0IHRoZXNlIHBhZ2VzIGFyZSBoYW5kbGVkIGFzIG5vcm1hbCBwYWdlcyBieQ0K
+Pj4+IGNvbXByZXNzaW5nIGFuZCBhbGxvY2F0aW5nIG1lbW9yeSBpbiB0aGUgcG9vbC4NCj4+Pg0K
+Pj4+IFRoZSBmb2xsb3dpbmcgcGF0Y2gtc2V0IG9wdGltaXplcyBtZW1vcnkgdXRpbGl6ZWQgYnkg
+enN3YXAgYnkgYXZvaWRpbmcgdGhlDQo+Pj4gc3RvcmFnZSBvZiBkdXBsaWNhdGUgcGFnZXMgYW5k
+IHplcm8tZmlsbGVkIHBhZ2VzIGluIHpzd2FwIGNvbXByZXNzZWQgbWVtb3J5DQo+Pj4gcG9vbC4N
+Cj4+Pg0KPj4+IFBhdGNoIDEvNDogenN3YXA6IFNoYXJlIHpwb29sIG1lbW9yeSBvZiBkdXBsaWNh
+dGUgcGFnZXMNCj4+PiBUaGlzIHBhdGNoIHNoYXJlcyBjb21wcmVzc2VkIHBvb2wgbWVtb3J5IG9m
+IHRoZSBkdXBsaWNhdGUgcGFnZXMuIFdoZW4gYSBuZXcNCj4+PiBwYWdlIGlzIHJlcXVlc3RlZCBm
+b3Igc3dhcC1vdXQgdG8genN3YXA7IHNlYXJjaCBmb3IgYW4gaWRlbnRpY2FsIHBhZ2UgaW4NCj4+
+PiB0aGUgcGFnZXMgYWxyZWFkeSBzdG9yZWQgaW4genN3YXAuIElmIGFuIGlkZW50aWNhbCBwYWdl
+IGlzIGZvdW5kIHRoZW4gc2hhcmUNCj4+PiB0aGUgY29tcHJlc3NlZCBwYWdlIGRhdGEgb2YgdGhl
+IGlkZW50aWNhbCBwYWdlIHdpdGggdGhlIG5ldyBwYWdlLiBUaGlzDQo+Pj4gYXZvaWRzIGFsbG9j
+YXRpb24gb2YgbWVtb3J5IGluIHRoZSBjb21wcmVzc2VkIHBvb2wgZm9yIGEgZHVwbGljYXRlIHBh
+Z2UuDQo+Pj4gVGhpcyBmZWF0dXJlIGlzIHRlc3RlZCBvbiBkZXZpY2VzIHdpdGggMUdCLCAyR0Ig
+YW5kIDNHQiBSQU0gYnkgZXhlY3V0aW5nDQo+Pj4gcGVyZm9ybWFuY2UgdGVzdCBhdCBsb3cgbWVt
+b3J5IGNvbmRpdGlvbnMuIEFyb3VuZCAxNS0yMCUgb2YgdGhlIHBhZ2VzDQo+Pj4gc3dhcHBlZCBh
+cmUgZHVwbGljYXRlIG9mIHRoZSBwYWdlcyBleGlzdGluZyBpbiB6c3dhcCwgcmVzdWx0aW5nIGlu
+IDE1JQ0KPj4+IHNhdmluZyBvZiB6c3dhcCBtZW1vcnkgcG9vbCB3aGVuIGNvbXBhcmVkIHRvIHRo
+ZSBiYXNlbGluZSB2ZXJzaW9uLg0KPj4+DQo+Pj4gVGVzdCBQYXJhbWV0ZXJzICAgICAgICAgQmFz
+ZWxpbmUgICAgV2l0aCBwYXRjaCAgSW1wcm92ZW1lbnQNCj4+PiBUb3RhbCBSQU0gICAgICAgICAg
+ICAgICAgICAgOTU1TUIgICAgICAgOTU1TUINCj4+PiBBdmFpbGFibGUgUkFNICAgICAgICAgICAg
+IDI1NE1CICAgICAgIDI2OU1CICAgICAgIDE1TUINCj4+PiBBdmcuIEFwcCBlbnRyeSB0aW1lICAg
+ICAyLjQ2OXNlYyAgICAyLjIwN3NlYyAgICA3JQ0KPj4+IEF2Zy4gQXBwIGNsb3NlIHRpbWUgICAg
+IDEuMTUxc2VjICAgIDEuMDg1c2VjICAgIDYlDQo+Pj4gQXBwcyBsYXVuY2hlZCBpbiAxc2VjICAg
+NSAgICAgICAgICAgICAxMiAgICAgICAgICAgICA3DQo+Pj4NCj4+PiBUaGVyZSBpcyBsaXR0bGUg
+b3ZlcmhlYWQgaW4genN3YXAgc3RvcmUgZnVuY3Rpb24gZHVlIHRvIHRoZSBzZWFyY2gNCj4+PiBv
+cGVyYXRpb24gZm9yIGZpbmRpbmcgZHVwbGljYXRlIHBhZ2VzLiBIb3dldmVyLCBpZiBkdXBsaWNh
+dGUgcGFnZSBpcw0KPj4+IGZvdW5kIGl0IHNhdmVzIHRoZSBjb21wcmVzc2lvbiBhbmQgYWxsb2Nh
+dGlvbiB0aW1lIG9mIHRoZSBwYWdlLiBUaGUgYXZlcmFnZQ0KPj4+IG92ZXJoZWFkIHBlciB6c3dh
+cF9mcm9udHN3YXBfc3RvcmUoKSBmdW5jdGlvbiBjYWxsIGluIHRoZSBleHBlcmltZW50YWwNCj4+
+PiBkZXZpY2UgaXMgOXVzLiBUaGVyZSBpcyBubyBvdmVyaGVhZCBpbiBjYXNlIG9mIHpzd2FwX2Zy
+b250c3dhcF9sb2FkKCkNCj4+PiBvcGVyYXRpb24uDQo+Pj4NCj4+PiBQYXRjaCAyLzQ6IHpzd2Fw
+OiBFbmFibGUvZGlzYWJsZSBzaGFyaW5nIG9mIGR1cGxpY2F0ZSBwYWdlcyBhdCBydW50aW1lDQo+
+Pj4gVGhpcyBwYXRjaCBhZGRzIGEgbW9kdWxlIHBhcmFtZXRlciB0byBlbmFibGUgb3IgZGlzYWJs
+ZSB0aGUgc2hhcmluZyBvZg0KPj4+IGR1cGxpY2F0ZSB6c3dhcCBwYWdlcyBhdCBydW50aW1lLg0K
+Pj4+DQo+Pj4gUGF0Y2ggMy80OiB6c3dhcDogWmVyby1maWxsZWQgcGFnZXMgaGFuZGxpbmcNCj4+
+PiBUaGlzIHBhdGNoIGNoZWNrcyBpZiBhIHBhZ2UgdG8gYmUgc3RvcmVkIGluIHpzd2FwIGlzIGEg
+emVyby1maWxsZWQgcGFnZQ0KPj4+IChpLmUuIGNvbnRlbnRzIG9mIHRoZSBwYWdlIGFyZSBhbGwg
+emVyb3MpLiBJZiBzdWNoIHBhZ2UgaXMgZm91bmQsDQo+Pj4gY29tcHJlc3Npb24gYW5kIGFsbG9j
+YXRpb24gb2YgbWVtb3J5IGZvciB0aGUgY29tcHJlc3NlZCBwYWdlIGlzIGF2b2lkZWQNCj4+PiBh
+bmQgaW5zdGVhZCB0aGUgcGFnZSBpcyBqdXN0IG1hcmtlZCBhcyB6ZXJvLWZpbGxlZCBwYWdlLg0K
+Pj4+IEFsdGhvdWdoLCBjb21wcmVzc2VkIHNpemUgb2YgYSB6ZXJvLWZpbGxlZCBwYWdlIHVzaW5n
+IExaTyBjb21wcmVzc29yIGlzDQo+Pj4gdmVyeSBsZXNzICg1MiBieXRlcyBpbmNsdWRpbmcgenN3
+YXBfaGVhZGVyKSwgdGhpcyBwYXRjaCBzYXZlcyBjb21wcmVzc2lvbg0KPj4+IGFuZCBhbGxvY2F0
+aW9uIHRpbWUgZHVyaW5nIHN0b3JlIG9wZXJhdGlvbiBhbmQgZGVjb21wcmVzc2lvbiB0aW1lIGR1
+cmluZw0KPj4+IHpzd2FwIGxvYWQgb3BlcmF0aW9uIGZvciB6ZXJvLWZpbGxlZCBwYWdlcy4gRXhw
+ZXJpbWVudHMgaGF2ZSBzaG93biB0aGF0DQo+Pj4gYXJvdW5kIDEwLTIwJSBvZiBwYWdlcyBzdG9y
+ZWQgaW4genN3YXAgYXJlIHplcm8tZmlsbGVkLg0KPj4NCj4+IEFyZW4ndCB6ZXJvLWZpbGxlZCBw
+YWdlcyBhbHJlYWR5IGhhbmRsZWQgYnkgcGF0Y2ggMS80IGFzIHRoZWlyDQo+PiBjb250ZW50cyBt
+YXRjaD8gU28gdGhlIG92ZXJhbGwgbWVtb3J5IHNhdmluZyBpcyA1MiBieXRlcz8NCj4+DQo+PiAt
+IFBla2thDQo+DQo+IFRoYW5rcyBmb3IgdGhlIHF1aWNrIHJlcGx5Lg0KPg0KPiBaZXJvLWZpbGxl
+ZCBwYWdlcyBjYW4gYWxzbyBiZSBoYW5kbGVkIGJ5IHBhdGNoIDEvNC4gSXQgcGVyZm9ybXMNCj4g
+c2VhcmNoaW5nIG9mIGEgZHVwbGljYXRlIHBhZ2UgYW1vbmcgZXhpc3Rpbmcgc3RvcmVkIHBhZ2Vz
+IGluIHpzd2FwLg0KPiBJdHMgYmVlbiBvYnNlcnZlZCB0aGF0IGF2ZXJhZ2Ugc2VhcmNoIHRpbWUg
+dG8gaWRlbnRpZnkgZHVwbGljYXRlIHplcm8NCj4gZmlsbGVkIHBhZ2VzKHVzaW5nIHBhdGNoIDEv
+NCkgaXMgYWxtb3N0IHRocmljZSBjb21wYXJlZCB0byBjaGVja2luZw0KPiBhbGwgcGFnZXMgZm9y
+IHplcm8tZmlsbGVkLiANCj4NCj4gQWxzbywgaW4gY2FzZSBvZiBwYXRjaCAxLzQsIHRoZSB6c3dh
+cF9mcm9udHN3YXBfbG9hZCgpIG9wZXJhdGlvbiByZXF1aXJlcw0KPiB0aGUgY29tcHJlc3NlZCB6
+ZXJvLWZpbGxlZCBwYWdlIHRvIGJlIGRlY29tcHJlc3NlZC4genN3YXBfZnJvbnRzd2FwX2xvYWQo
+KQ0KPiBmdW5jdGlvbiBpbiBwYXRjaCAzLzQganVzdCBmaWxscyB0aGUgcGFnZSB3aXRoIHplcm9z
+IHdoaWxlIGxvYWRpbmcgYQ0KPiB6ZXJvLWZpbGxlZCBwYWdlIGFuZCBpcyBmYXN0ZXIgdGhhbiBk
+ZWNvbXByZXNzaW9uLg0KPg0KPiAtIFNyaXZpZHlh
+------=_Part_445063_602616317.1487250323019--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
