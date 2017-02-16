@@ -1,132 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8088B4405C3
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2017 21:51:14 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 80so7750648pfy.2
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 18:51:14 -0800 (PST)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id y25si5556229pfi.47.2017.02.15.18.51.12
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E9F0E4405BD
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 00:22:21 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 65so11093954pgi.7
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2017 21:22:21 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id c12si5904634pfe.23.2017.02.15.21.22.20
         for <linux-mm@kvack.org>;
-        Wed, 15 Feb 2017 18:51:13 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170215092247.15989-1-mgorman@techsingularity.net> <20170215092247.15989-2-mgorman@techsingularity.net>
-In-Reply-To: <20170215092247.15989-2-mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/3] mm, vmscan: fix zone balance check in prepare_kswapd_sleep
-Date: Thu, 16 Feb 2017 10:50:57 +0800
-Message-ID: <000e01d287ff$7fd60b70$7f822250$@alibaba-inc.com>
+        Wed, 15 Feb 2017 21:22:21 -0800 (PST)
+Date: Thu, 16 Feb 2017 14:22:18 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: swap_cluster_info lockdep splat
+Message-ID: <20170216052218.GA13908@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mel Gorman' <mgorman@techsingularity.net>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Shantanu Goel' <sgoel01@yahoo.com>, 'Chris Mason' <clm@fb.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'LKML' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On February 15, 2017 5:23 PM Mel Gorman wrote: 
-> 
-> From: Shantanu Goel <sgoel01@yahoo.com>
-> 
-> The check in prepare_kswapd_sleep needs to match the one in balance_pgdat
-> since the latter will return as soon as any one of the zones in the
-> classzone is above the watermark.  This is specially important for higher
-> order allocations since balance_pgdat will typically reset the order to
-> zero relying on compaction to create the higher order pages.  Without this
-> patch, prepare_kswapd_sleep fails to wake up kcompactd since the zone
-> balance check fails.
-> 
-> On 4.9.7 kswapd is failing to wake up kcompactd due to a mismatch in the
-> zone balance check between balance_pgdat() and prepare_kswapd_sleep().
-> balance_pgdat() returns as soon as a single zone satisfies the allocation
-> but prepare_kswapd_sleep() requires all zones to do +the same.  This causes
-> prepare_kswapd_sleep() to never succeed except in the order == 0 case and
-> consequently, wakeup_kcompactd() is never called.  On my machine prior to
-> apply this patch, the state of compaction from /proc/vmstat looked this
-> way after a day and a half +of uptime:
-> 
-> compact_migrate_scanned 240496
-> compact_free_scanned 76238632
-> compact_isolated 123472
-> compact_stall 1791
-> compact_fail 29
-> compact_success 1762
-> compact_daemon_wake 0
-> 
-> After applying the patch and about 10 hours of uptime the state looks
-> like this:
-> 
-> compact_migrate_scanned 59927299
-> compact_free_scanned 2021075136
-> compact_isolated 640926
-> compact_stall 4
-> compact_fail 2
-> compact_success 2
-> compact_daemon_wake 5160
-> 
-> Further notes from Mel that motivated him to pick this patch up and
-> resend it;
-> 
-> It was observed for the simoop workload (pressures the VM similar to HADOOP)
-> that kswapd was failing to keep ahead of direct reclaim. The investigation
-> noted that there was a need to rationalise kswapd decisions to reclaim
-> with kswapd decisions to sleep. With this patch on a 2-socket box, there
-> was a 43% reduction in direct reclaim scanning.
-> 
-> However, the impact otherwise is extremely negative. Kswapd reclaim
-> efficiency dropped from 98% to 76%. simoop has three latency-related
-> metrics for read, write and allocation (an anonymous mmap and fault).
-> 
->                                          4.10.0-rc7            4.10.0-rc7
->                                      mmots-20170209           fixcheck-v1
-> Amean    p50-Read             22325202.49 (  0.00%) 20026926.55 ( 10.29%)
-> Amean    p95-Read             26102988.80 (  0.00%) 27023360.00 ( -3.53%)
-> Amean    p99-Read             30935176.53 (  0.00%) 30994432.00 ( -0.19%)
-> Amean    p50-Write                 976.44 (  0.00%)     1905.28 (-95.12%)
-> Amean    p95-Write               15471.29 (  0.00%)    36210.09 (-134.05%)
-> Amean    p99-Write               35108.62 (  0.00%)   479494.96 (-1265.75%)
-> Amean    p50-Allocation          76382.61 (  0.00%)    87603.20 (-14.69%)
-> Amean    p95-Allocation         127777.39 (  0.00%)   244491.38 (-91.34%)
-> Amean    p99-Allocation         187937.39 (  0.00%)  1745237.33 (-828.63%)
-> 
-> There are also more allocation stalls. One of the largest impacts was due
-> to pages written back from kswapd context rising from 0 pages to 4516642
-> pages during the hour the workload ran for. By and large, the patch has very
-> bad behaviour but easily missed as the impact on a UMA machine is negligible.
-> 
-> This patch is included with the data in case a bisection leads to this area.
-> This patch is also a pre-requisite for the rest of the series.
-> 
-> Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Hi Huang,
 
->  mm/vmscan.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 26c3b405ef34..92fc66bd52bc 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3140,11 +3140,11 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
->  		if (!managed_zone(zone))
->  			continue;
-> 
-> -		if (!zone_balanced(zone, order, classzone_idx))
-> -			return false;
-> +		if (zone_balanced(zone, order, classzone_idx))
-> +			return true;
->  	}
-> 
-> -	return true;
-> +	return false;
->  }
-> 
->  /*
-> --
-> 2.11.0
+With changing from bit lock to spinlock of swap_cluster_info, my zram
+test failed with below message. It seems nested lock problem so need to
+play with lockdep.
+
+Thanks.
+
+=============================================
+[ INFO: possible recursive locking detected ]
+4.10.0-rc8-next-20170214-zram #24 Not tainted
+---------------------------------------------
+as/6557 is trying to acquire lock:
+ (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811ddd03>] cluster_list_add_tail.part.31+0x33/0x70
+
+but task is already holding lock:
+ (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811df2bb>] swapcache_free_entries+0x9b/0x330
+
+other info that might help us debug this:
+ Possible unsafe locking scenario:
+
+       CPU0
+       ----
+  lock(&(&((cluster_info + ci)->lock))->rlock);
+  lock(&(&((cluster_info + ci)->lock))->rlock);
+
+ *** DEADLOCK ***
+
+ May be due to missing lock nesting notation
+
+3 locks held by as/6557:
+ #0:  (&(&cache->free_lock)->rlock){......}, at: [<ffffffff811c206b>] free_swap_slot+0x8b/0x110
+ #1:  (&(&p->lock)->rlock){+.+.-.}, at: [<ffffffff811df295>] swapcache_free_entries+0x75/0x330
+ #2:  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811df2bb>] swapcache_free_entries+0x9b/0x330
+
+stack backtrace:
+CPU: 3 PID: 6557 Comm: as Not tainted 4.10.0-rc8-next-20170214-zram #24
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+Call Trace:
+ dump_stack+0x85/0xc2
+ __lock_acquire+0x15ea/0x1640
+ lock_acquire+0x100/0x1f0
+ ? cluster_list_add_tail.part.31+0x33/0x70
+ _raw_spin_lock+0x38/0x50
+ ? cluster_list_add_tail.part.31+0x33/0x70
+ cluster_list_add_tail.part.31+0x33/0x70
+ swapcache_free_entries+0x2f9/0x330
+ free_swap_slot+0xf8/0x110
+ swapcache_free+0x36/0x40
+ delete_from_swap_cache+0x5f/0xa0
+ try_to_free_swap+0x6e/0xa0
+ free_pages_and_swap_cache+0x7d/0xb0
+ tlb_flush_mmu_free+0x36/0x60
+ tlb_finish_mmu+0x1c/0x50
+ exit_mmap+0xc7/0x150
+ mmput+0x51/0x110
+ do_exit+0x2b2/0xc30
+ ? trace_hardirqs_on_caller+0x129/0x1b0
+ do_group_exit+0x50/0xd0
+ SyS_exit_group+0x14/0x20
+ entry_SYSCALL_64_fastpath+0x23/0xc6
+RIP: 0033:0x2b9a2dbdf309
+RSP: 002b:00007ffe71887528 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00002b9a2dbdf309
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+RBP: 00002b9a2ded8858 R08: 000000000000003c R09: 00000000000000e7
+R10: ffffffffffffff60 R11: 0000000000000246 R12: 00002b9a2ded8858
+R13: 00002b9a2dedde80 R14: 000000000255f770 R15: 0000000000000001
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
