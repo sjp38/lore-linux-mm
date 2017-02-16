@@ -1,92 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A860B681010
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:15:26 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id y6so27007077pgy.5
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:15:26 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id l26si8212571pfg.54.2017.02.16.14.15.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 14:15:25 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id e4so2487143pfg.0
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:15:25 -0800 (PST)
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <8e86d37c-1826-736d-8cdd-ebd29c9ccd9c@gmail.com>
-Date: Fri, 17 Feb 2017 09:14:44 +1100
+	by kanga.kvack.org (Postfix) with ESMTP id 1585568101F
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:21:35 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f5so40157767pgi.1
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:21:35 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id w31si8221815pla.66.2017.02.16.14.21.32
+        for <linux-mm@kvack.org>;
+        Thu, 16 Feb 2017 14:21:33 -0800 (PST)
+Date: Fri, 17 Feb 2017 09:21:29 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [Bug 192981] New: page allocation stalls
+Message-ID: <20170216222129.GB15349@dastard>
+References: <bug-192981-27@https.bugzilla.kernel.org/>
+ <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
+ <8f450abd-4e05-92d3-2533-72b05fea2012@beget.ru>
+ <20170215160538.GA62565@bfoster.bfoster>
+ <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
+ <20170215180859.GB62565@bfoster.bfoster>
+ <07ee50bc-8220-dda8-07f9-369758603df9@beget.ru>
+ <20170216172034.GC11750@bfoster.bfoster>
 MIME-Version: 1.0
-In-Reply-To: <20170215182010.reoahjuei5eaxr5s@suse.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170216172034.GC11750@bfoster.bfoster>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Brian Foster <bfoster@redhat.com>
+Cc: Alexander Polakov <apolyakov@beget.ru>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-
-
-On 16/02/17 05:20, Mel Gorman wrote:
-> On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
->> 	This four patches define CDM node with HugeTLB & Buddy allocation
->> isolation. Please refer to the last RFC posting mentioned here for more
+On Thu, Feb 16, 2017 at 12:20:34PM -0500, Brian Foster wrote:
+> On Thu, Feb 16, 2017 at 01:56:30PM +0300, Alexander Polakov wrote:
+> > On 02/15/2017 09:09 PM, Brian Foster wrote:
+> > > Ah, Ok. It sounds like this allows the reclaim thread to carry on into
+> > > other shrinkers and free up memory that way, perhaps. This sounds kind
+> > > of similar to the issue brought up previously here[1], but not quite the
+> > > same in that instead of backing off of locking to allow other shrinkers
+> > > to progress, we back off of memory allocations required to free up
+> > > inodes (memory).
+> > > 
+> > > In theory, I think something analogous to a trylock for inode to buffer
+> > > mappings that are no longer cached (or more specifically, cannot
+> > > currently be allocated) may work around this, but it's not immediately
+> > > clear to me whether that's a proper fix (it's also probably not a
+> > > trivial change either). I'm still kind of curious why we end up with
+> > > dirty inodes with reclaimed buffers. If this problem repeats, is it
+> > > always with a similar stack (i.e., reclaim -> xfs_iflush() ->
+> > > xfs_imap_to_bp())?
+> > 
+> > Looks like it is.
+> > 
+> > > How many independent filesystems are you running this workload against?
+> > 
+> > storage9 : ~ [0] # mount|grep storage|grep xfs|wc -l
+> > 15
+> > storage9 : ~ [0] # mount|grep storage|grep ext4|wc -l
+> > 44
+> > 
 > 
-> Always include the background with the changelog itself. Do not assume that
-> people are willing to trawl through a load of past postings to assemble
-> the picture. I'm only taking a brief look because of the page allocator
-> impact but it does not appear that previous feedback was addressed.
+> So a decent number of fs', more ext4 than XFS. Are the XFS fs' all of
+> similar size/geometry? If so, can you send representative xfs_info
+> output for the fs'?
 > 
-> In itself, the series does very little and as Vlastimil already pointed
-> out, it's not a good idea to try merge piecemeal when people could not
-> agree on the big picture (I didn't dig into it).
+> I'm reading back through that reclaim thread[1] and it appears this
+> indeed is not a straightforward issue. It sounds like the summary is
+> Chris hit the same general behavior you have and is helped by bypassing
+> the synchronous nature of the shrinker. This allows other shrinkers to
+> proceed, but this is not a general solution because other workloads
+> depend on the synchronous shrinker behavior to throttle direct reclaim.
+> I can't say I understand all of the details and architecture of how/why
+> that is the case.
+
+It's complicated, made worse by the state of flux of the mm reclaim
+subsystem and the frequent regressions in behaviour that come and
+go. This makes testing modifications to the shrinker behaviour
+extremely challenging - trying to separate shirnker artifacts from
+"something else has changed in memory reclaim" takes a lot of
+time....
+
+> FWIW, it sounds like the first order problem is that we generally don't
+> want to find/flush dirty inodes from reclaim.
+
+Right. because that forces out-of-order inode writeback and it
+degenerates into blocking small random writes.
+
+> A couple things that might
+> help avoid this situation are more aggressive
+> /proc/sys/fs/xfs/xfssyncd_centisecs tuning or perhaps considering a
+> smaller log size would cause more tail pushing pressure on the AIL
+> instead of pressure originating from memory reclaim. The latter might
+> not be so convenient if this is an already populated backup server,
+> though.
 > 
+> Beyond that, there's Chris' patch, another patch that Dave proposed[2],
+> and obviously your hack here to defer inode reclaim entirely to the
+> workqueue (I've CC'd Dave since it sounds like he might have been
+> working on this further..).
 
-The idea of CDM is independent of how some of the other problems related
-to AutoNUMA balancing is handled. The idea of this patchset was to introduce
-the concept of memory that is not necessarily system memory, but is coherent
-in terms of visibility/access with some restrictions
+I was working on a more solid set of changes, but every time I
+updated the kernel tree I used as my base for development, the
+baseline kernel reclaim behaviour would change. I'd isolate the
+behavioural change, upgrade to the kernel that contained the fix,
+and then trip over some new whacky behaviour that made no sense. I
+spent more time in this loop than actually trying to fix the XFS
+problem - chasing a moving target makes finding the root cause of
+the reclaim stalls just about impossible. 
 
-> The only reason I'm commenting at all is to say that I am extremely opposed
-> to the changes made to the page allocator paths that are specific to
-> CDM. It's been continual significant effort to keep the cost there down
-> and this is a mess of special cases for CDM. The changes to hugetlb to
-> identify "memory that is not really memory" with special casing is also
-> quite horrible.
-> 
-> It's completely unclear that even if one was to assume that CDM memory
-> should be expressed as nodes why such systems do not isolate all processes
-> from CDM nodes by default and then allow access via memory policies or
-> cpusets instead of special casing the page allocator fast path. It's also
-> completely unclear what happens if a device should then access the CDM
-> and how that should be synchronised with the core, if that is even possible.
-> 
+Brian, I can send you what I have but it's really just a bag of
+bolts at this point because I was never able to validate that any of
+the patches made a measurable improvement to reclaim behaviour under
+any workload I ran.....
 
-A big part of this is driven by the need to special case what allocations
-go there. The idea being that an allocation should get there only when
-explicitly requested. Unfortunately, IIUC node distance is not a good
-isolation metric. CPUsets are heavily driven by user space and we
-believe that setting up CDM is not an administrative operation, its
-going to be hard for an administrator or user space application to set
-up the right policy or an installer to figure it out. It does not help
-that CPUSets assume inheritance from the root hierarchy. As far as the
-overheads go, one could consider using STATIC_KEYS if that is worthwhile.
+FWIW, the major problem with removing the blocking in inode reclaim
+is the ease with which you can then trigger the OOM killer from
+userspace.  The high level memory reclaim algorithms break down when
+there are hundreds of direct reclaim processes hammering on reclaim
+and reclaim stops making progress because it's skipping dirty
+objects.  Direct reclaim ends up insufficiently throttled, so rather
+than blocking it winds up reclaim priority and then declares OOM
+because reclaim runs out of retries before sufficient memory has
+been freed.
 
+That, right now, looks to be an unsolvable problem without a major
+rework of direct reclaim.  I've pretty much given up on ever getting
+the unbound direct reclaim concurrency problem that is causing us
+these problems fixed, so we are left to handle it in the subsystem
+shrinkers as best we can. That leaves us with an unfortunate choice: 
 
-> It's also unclear if this is even usable by an application in userspace
-> at this point in time. If it is and the special casing is needed then the
-> regions should be isolated from early mem allocations in the arch layer
-> that is CDM aware, initialised late, and then setup userspace to isolate
-> all but privileged applications from the CDM nodes. Do not litter the core
-> with is_cdm_whatever checks.
-> 
+	a) throttle excessive concurrency in the shrinker to prevent
+	   IO breakdown, thereby causing reclaim latency bubbles
+	   under load but having a stable, reliable system; or
+	b) optimise for minimal reclaim latency and risk userspace
+	   memory demand triggering the OOM killer whenever there
+	   are lots of dirty inodes in the system.
 
-The idea is to have these nodes as ZONE_MOVABLE and those are isolated from
-early mem allocations. Any new feature requires checks, but one could consider
-consolidating those checks
+Quite frankly, there's only one choice we can make in this
+situation: reliability is always more important than performance.
 
-Balbir Singh.
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
