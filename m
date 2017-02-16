@@ -1,183 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BD35C681010
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 13:40:32 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 89so4517362wrr.2
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 10:40:32 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e11si1816343wrc.310.2017.02.16.10.40.29
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E1ED8681010
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 13:41:04 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id k15so19118504qtg.5
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 10:41:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v36si5832414qtd.91.2017.02.16.10.41.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 10:40:30 -0800 (PST)
-Date: Thu, 16 Feb 2017 13:40:18 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
-Message-ID: <20170216184018.GC20791@cmpxchg.org>
-References: <cover.1487100204.git.shli@fb.com>
- <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+        Thu, 16 Feb 2017 10:41:04 -0800 (PST)
+Date: Thu, 16 Feb 2017 19:41:00 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] userfaultfd: hugetlbfs: add UFFDIO_COPY support for
+ shared mappings
+Message-ID: <20170216184100.GS25530@redhat.com>
+References: <1487195210-12839-1-git-send-email-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+In-Reply-To: <1487195210-12839-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Pavel Emelyanov <xemul@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
-> @@ -1419,11 +1419,18 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
->  				page);
+On Wed, Feb 15, 2017 at 01:46:50PM -0800, Mike Kravetz wrote:
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index d0d1d08..41f6c51 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4029,6 +4029,18 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	__SetPageUptodate(page);
+>  	set_page_huge_active(page);
 >  
-> -			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
-> -				/* It's a freeable page by MADV_FREE */
-> -				dec_mm_counter(mm, MM_ANONPAGES);
-> -				rp->lazyfreed++;
-> -				goto discard;
-> +			if (flags & TTU_LZFREE) {
-> +				if (!PageDirty(page)) {
-> +					/* It's a freeable page by MADV_FREE */
-> +					dec_mm_counter(mm, MM_ANONPAGES);
-> +					rp->lazyfreed++;
-> +					goto discard;
-> +				} else {
-> +					set_pte_at(mm, address, pvmw.pte, pteval);
-> +					ret = SWAP_FAIL;
-> +					page_vma_mapped_walk_done(&pvmw);
-> +					break;
-> +				}
+> +	/*
+> +	 * If shared, add to page cache
+> +	 */
+> +	if (dst_vma->vm_flags & VM_SHARED) {
 
-I don't understand why we need the TTU_LZFREE bit in general. More on
-that below at the callsite.
+Minor nitpick, this could be a:
 
-> @@ -911,7 +911,7 @@ static void page_check_dirty_writeback(struct page *page,
->  	 * Anonymous pages are not handled by flushers and must be written
->  	 * from reclaim context. Do not stall reclaim based on them
->  	 */
-> -	if (!page_is_file_cache(page)) {
-> +	if (!page_is_file_cache(page) || page_is_lazyfree(page)) {
+      int vm_shared = dst_vma->vm_flags & VM_SHARED;
 
-Do we need this? MADV_FREE clears the dirty bit off the page; we could
-just let them go through with the function without any special-casing.
+(int faster than bool here as VM_SHARED won't have to be converted into 0|1)
 
-> @@ -986,6 +986,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> @@ -386,7 +413,8 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  		goto out_unlock;
 >  
->  		sc->nr_scanned++;
->  
-> +		lazyfree = page_is_lazyfree(page);
-> +
->  		if (unlikely(!page_evictable(page)))
->  			goto cull_mlocked;
->  
-> @@ -993,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			goto keep_locked;
->  
->  		/* Double the slab pressure for mapped and swapcache pages */
-> -		if (page_mapped(page) || PageSwapCache(page))
-> +		if ((page_mapped(page) || PageSwapCache(page)) && !lazyfree)
->  			sc->nr_scanned++;
->  
->  		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
-> @@ -1119,13 +1121,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		/*
->  		 * Anonymous process memory has backing store?
->  		 * Try to allocate it some swap space here.
-> +		 * Lazyfree page could be freed directly
->  		 */
-> -		if (PageAnon(page) && !PageSwapCache(page)) {
-> +		if (PageAnon(page) && !PageSwapCache(page) && !lazyfree) {
+>  	err = -EINVAL;
+> -	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
+> +	if (!vma_is_shmem(dst_vma) && !is_vm_hugetlb_page(dst_vma) &&
+> +	    dst_vma->vm_flags & VM_SHARED)
+>  		goto out_unlock;
 
-lazyfree duplicates the anon check. As per the previous email, IMO it
-would be much preferable to get rid of that "lazyfree" obscuring here.
+Other minor nitpick, this could have been faster as:
 
-This would simply be:
+     if (vma_is_anonymous(dst_vma) && dst_vma->vm_flags & VM_SHARED)
 
-		if (PageAnon(page) && PageSwapBacked && !PageSwapCache)
+Thinking twice, the only case we need to rule out is shmem_zero_setup
+(it's not anon vmas can be really VM_SHARED or they wouldn't be anon
+vmas in the first place) so even the above is superfluous because
+shmem_zero_setup does:
 
-> @@ -1142,7 +1144,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 * The page is mapped into the page tables of one or more
->  		 * processes. Try to unmap it here.
->  		 */
-> -		if (page_mapped(page) && mapping) {
-> +		if (page_mapped(page) && (mapping || lazyfree)) {
+	vma->vm_ops = &shmem_vm_ops;
 
-Do we actually need to filter for mapping || lazyfree? If we fail to
-allocate swap, we don't reach here. If the page is a truncated file
-page, ttu returns pretty much instantly with SWAP_AGAIN. We should be
-able to just check for page_mapped() alone, no?
+So I would turn it into:
 
->  			switch (ret = try_to_unmap(page, lazyfree ?
->  				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
->  				(ttu_flags | TTU_BATCH_FLUSH))) {
 
-That bit I don't understand. Why do we need to pass TTU_LZFREE? What
-information does that carry that cannot be gathered from inside ttu?
+     /*
+      * shmem_zero_setup is invoked in mmap for MAP_ANONYMOUS|MAP_SHARED but
+      * it will overwrite vm_ops, so vma_is_anonymous must return false.
+      */
+     if (WARN_ON_ONCE(vma_is_anonymous(dst_vma) && dst_vma->vm_flags & VM_SHARED))
+ 		goto out_unlock;
 
-I.e. when ttu runs into PageAnon, can it simply check !PageSwapBacked?
-And if it's still clean, it can lazyfreed++; goto discard.
 
-Am I overlooking something?
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-> @@ -1154,7 +1156,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			case SWAP_MLOCK:
->  				goto cull_mlocked;
->  			case SWAP_LZFREE:
-> -				goto lazyfree;
-> +				/* follow __remove_mapping for reference */
-> +				if (page_ref_freeze(page, 1)) {
-> +					if (!PageDirty(page))
-> +						goto lazyfree;
-> +					else
-> +						page_ref_unfreeze(page, 1);
-> +				}
-> +				goto keep_locked;
->  			case SWAP_SUCCESS:
->  				; /* try to free the page below */
 
-This is a similar situation.
+Changing topic: thinking about the last part, I was wondering about
+vma_is_anonymous because it's well known issue, it's only guaranteed
+fully correct during page faults because the weird cases that can
+return a false positive cannot generate page faults and they run
+remap_pfn_range before releasing the mmap_sem for writing within
+mmap(2) itself.
 
-Can we let the page go through the regular __remove_mapping() process
-and simply have that function check for PageAnon && !PageSwapBacked?
+More than a year ago I discussed with Kirill (CC'ed) the
+vma_is_anonymous() false positives: some VM_IO vma leaves vma->vm_ops
+NULL, which is generally non concerning because putting an anon page
+in there shouldn't have any adverse side effects for the rest of the
+system.
 
-> @@ -1266,10 +1275,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			}
->  		}
->  
-> -lazyfree:
->  		if (!mapping || !__remove_mapping(mapping, page, true))
->  			goto keep_locked;
-> -
-> +lazyfree:
+It was critical for khugepaged, because khugepaged will run out of the
+app own control, so khugepaged must be fully accurate of it'll just
+activate on VM_IO special mappings, but that's definitely not the case
+for userfaultfd.
 
-... eliminating this special casing.
+Still I was wondering if we could be more strict by adding a
+vma->vm_flags & VM_NO_KHUGEPAGED check so that VM_IO regions will not
+pass registration (only in fs/userfaultfd.c:vma_can_userfault;
+mm/userfaultfd.c doesn't need any of that as it requires registration
+to be passed first and vm_userfaultfd_ctx already armed).
 
-> @@ -1294,6 +1302,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  cull_mlocked:
->  		if (PageSwapCache(page))
->  			try_to_free_swap(page);
-> +		if (lazyfree)
-> +			clear_page_lazyfree(page);
+A fully accurate vma_is_anonymous could be implemented like this:
 
-Why cancel the MADV_FREE state? The combination seems non-sensical,
-but we can simply retain the invalidated state while the page goes to
-the unevictable list; munlock should move it back to inactive_file.
+   vma_is_anonymous && !(vm_flags & VM_NO_KHUGEPAGED)
 
->  		unlock_page(page);
->  		list_add(&page->lru, &ret_pages);
->  		continue;
-> @@ -1303,6 +1313,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
->  			try_to_free_swap(page);
->  		VM_BUG_ON_PAGE(PageActive(page), page);
-> +		if (lazyfree)
-> +			clear_page_lazyfree(page);
+Which is what khugepaged internally uses.
 
-This is similar too.
+This will also work for MAP_PRIVATE on /dev/zero (required to work by
+the non cooperative case).
 
-Can we leave simply leave the page alone here? The only way we get to
-this point is if somebody is reading the invalidated page. It's weird
-for a lazyfreed page to become active, but it doesn't seem to warrant
-active intervention here.
+Side note: MAP_PRIVATE /dev/zero is very special and it's the only
+case in the kernel a "true" anon vma has vm_file set. I think it'd be
+cleaner to "decouple" the vma from /dev/zero the same way
+MAP_SHARED|MAP_ANON "couples" the vma to a pseudo /dev/zero, so anon
+vmas would always have vm_file NULL (not done because it'd risk to
+break stuff by changing the /proc/pid/maps output), but that's besides
+the point and the above solution deployed already by khugepaged
+already works with the current /dev/zero MAP_PRIVATE code.
+
+Kirill what's your take on making the registration checks stricter?
+If we would add a vma_is_anonymous_not_in_fault implemented like above
+vma_can_userfault would just need a
+s/vma_is_anonymous/vma_is_anonymous_not_in_fault/ and it would be more
+strict. khugepaged could be then converted to use it too instead of
+hardcoding this vm_flags check. Unless I'm mistaken I would consider
+such a change to the registration code, purely a cleanup to add a more
+strict check.
+
+Alternatively we could just leave things as is and depend on apps
+using VM_IO with remap_pfn_range with vm_file set and vm_ops NULL, not
+to screw themselves up by filling their regions with anon pages. I
+don't see how it could break anything (except themselves) if they do,
+but I'd appreciate a second thought on that. And at least for the
+remap_pfn_range users it won't even get that far, because a graceful
+-EEXIST would be returned instead. The change would effectively
+convert a -EEXIST returned later into a stricter -EINVAL returned
+early at registration time, for a case that is erratic by design.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
