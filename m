@@ -1,87 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5F2681010
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 16:58:04 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 204so40238454pfx.1
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 13:58:04 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 38si8142036pld.335.2017.02.16.13.58.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A860B681010
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:15:26 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y6so27007077pgy.5
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:15:26 -0800 (PST)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id l26si8212571pfg.54.2017.02.16.14.15.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 13:58:03 -0800 (PST)
-Subject: [PATCH v2 2/2] mm: validate device_hotplug is held for memory
- hotplug
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 16 Feb 2017 13:53:58 -0800
-Message-ID: <148728203880.38457.1158394701925100383.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <148728202805.38457.18028105614854319884.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <148728202805.38457.18028105614854319884.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Thu, 16 Feb 2017 14:15:25 -0800 (PST)
+Received: by mail-pf0-x241.google.com with SMTP id e4so2487143pfg.0
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:15:25 -0800 (PST)
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <8e86d37c-1826-736d-8cdd-ebd29c9ccd9c@gmail.com>
+Date: Fri, 17 Feb 2017 09:14:44 +1100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170215182010.reoahjuei5eaxr5s@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Toshi Kani <toshi.kani@hpe.com>, Ben Hutchings <ben@decadent.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Logan Gunthorpe <logang@deltatee.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Mel Gorman <mgorman@suse.de>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-mem_hotplug_begin() assumes that it can set mem_hotplug.active_writer
-and run the hotplug process without racing another thread. Validate this
-assumption with a lockdep assertion.
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Reported-by: Ben Hutchings <ben@decadent.org.uk>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/base/core.c    |    5 +++++
- include/linux/device.h |    1 +
- mm/memory_hotplug.c    |    2 ++
- 3 files changed, 8 insertions(+)
 
-diff --git a/drivers/base/core.c b/drivers/base/core.c
-index 8c25e68e67d7..3050e6f99403 100644
---- a/drivers/base/core.c
-+++ b/drivers/base/core.c
-@@ -638,6 +638,11 @@ int lock_device_hotplug_sysfs(void)
- 	return restart_syscall();
- }
- 
-+void assert_held_device_hotplug(void)
-+{
-+	lockdep_assert_held(&device_hotplug_lock);
-+}
-+
- #ifdef CONFIG_BLOCK
- static inline int device_is_not_partition(struct device *dev)
- {
-diff --git a/include/linux/device.h b/include/linux/device.h
-index 491b4c0ca633..815965ee55dd 100644
---- a/include/linux/device.h
-+++ b/include/linux/device.h
-@@ -1135,6 +1135,7 @@ static inline bool device_supports_offline(struct device *dev)
- extern void lock_device_hotplug(void);
- extern void unlock_device_hotplug(void);
- extern int lock_device_hotplug_sysfs(void);
-+void assert_held_device_hotplug(void);
- extern int device_offline(struct device *dev);
- extern int device_online(struct device *dev);
- extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b8c11e063ff0..1635a2a085e5 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -126,6 +126,8 @@ void put_online_mems(void)
- 
- void mem_hotplug_begin(void)
- {
-+	assert_held_device_hotplug();
-+
- 	mem_hotplug.active_writer = current;
- 
- 	memhp_lock_acquire();
+On 16/02/17 05:20, Mel Gorman wrote:
+> On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
+>> 	This four patches define CDM node with HugeTLB & Buddy allocation
+>> isolation. Please refer to the last RFC posting mentioned here for more
+> 
+> Always include the background with the changelog itself. Do not assume that
+> people are willing to trawl through a load of past postings to assemble
+> the picture. I'm only taking a brief look because of the page allocator
+> impact but it does not appear that previous feedback was addressed.
+> 
+> In itself, the series does very little and as Vlastimil already pointed
+> out, it's not a good idea to try merge piecemeal when people could not
+> agree on the big picture (I didn't dig into it).
+> 
+
+The idea of CDM is independent of how some of the other problems related
+to AutoNUMA balancing is handled. The idea of this patchset was to introduce
+the concept of memory that is not necessarily system memory, but is coherent
+in terms of visibility/access with some restrictions
+
+> The only reason I'm commenting at all is to say that I am extremely opposed
+> to the changes made to the page allocator paths that are specific to
+> CDM. It's been continual significant effort to keep the cost there down
+> and this is a mess of special cases for CDM. The changes to hugetlb to
+> identify "memory that is not really memory" with special casing is also
+> quite horrible.
+> 
+> It's completely unclear that even if one was to assume that CDM memory
+> should be expressed as nodes why such systems do not isolate all processes
+> from CDM nodes by default and then allow access via memory policies or
+> cpusets instead of special casing the page allocator fast path. It's also
+> completely unclear what happens if a device should then access the CDM
+> and how that should be synchronised with the core, if that is even possible.
+> 
+
+A big part of this is driven by the need to special case what allocations
+go there. The idea being that an allocation should get there only when
+explicitly requested. Unfortunately, IIUC node distance is not a good
+isolation metric. CPUsets are heavily driven by user space and we
+believe that setting up CDM is not an administrative operation, its
+going to be hard for an administrator or user space application to set
+up the right policy or an installer to figure it out. It does not help
+that CPUSets assume inheritance from the root hierarchy. As far as the
+overheads go, one could consider using STATIC_KEYS if that is worthwhile.
+
+
+> It's also unclear if this is even usable by an application in userspace
+> at this point in time. If it is and the special casing is needed then the
+> regions should be isolated from early mem allocations in the arch layer
+> that is CDM aware, initialised late, and then setup userspace to isolate
+> all but privileged applications from the CDM nodes. Do not litter the core
+> with is_cdm_whatever checks.
+> 
+
+The idea is to have these nodes as ZONE_MOVABLE and those are isolated from
+early mem allocations. Any new feature requires checks, but one could consider
+consolidating those checks
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
