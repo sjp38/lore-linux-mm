@@ -1,132 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 94ABF680FFB
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 10:46:58 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 145so26945322pfv.6
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 07:46:58 -0800 (PST)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0077.outbound.protection.outlook.com. [104.47.33.77])
-        by mx.google.com with ESMTPS id a12si7283553pll.266.2017.02.16.07.46.57
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B00DA680FFB
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 10:47:07 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c73so26911695pfb.7
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 07:47:07 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id c5si7280167pgj.310.2017.02.16.07.47.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Feb 2017 07:46:57 -0800 (PST)
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v4 21/28] x86: Check for memory encryption on the APs
-Date: Thu, 16 Feb 2017 09:46:47 -0600
-Message-ID: <20170216154647.19244.18733.stgit@tlendack-t1.amdoffice.net>
-In-Reply-To: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Feb 2017 07:47:06 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id 5so2296093pgj.0
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 07:47:06 -0800 (PST)
+Message-ID: <1487260025.1311.50.camel@edumazet-glaptop3.roam.corp.google.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 16 Feb 2017 07:47:05 -0800
+In-Reply-To: <37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com>
+References: <20170213195858.5215-1-edumazet@google.com>
+	 <20170213195858.5215-9-edumazet@google.com>
+	 <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+	 <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+	 <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
+	 <20170214131206.44b644f6@redhat.com>
+	 <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+	 <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com>
+	 <1487087488.8227.53.camel@edumazet-glaptop3.roam.corp.google.com>
+	 <CALx6S3530_2DYU-3VRmvRYZ3n05OqJZpJ3x02vXQd6Q7FUJQvw@mail.gmail.com>
+	 <ccc4cb9e-9863-02e1-2789-4869aea3c661@mellanox.com>
+	 <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
+	 <37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: Eric Dumazet <edumazet@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Tom Herbert <tom@herbertland.com>, Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm <linux-mm@kvack.org>
 
-Add support to check if memory encryption is active in the kernel and that
-it has been enabled on the AP. If memory encryption is active in the kernel
-but has not been enabled on the AP, then set the SYS_CFG MSR bit to enable
-memory encryption on that AP and allow the AP to continue start up.
+On Thu, 2017-02-16 at 15:08 +0200, Tariq Toukan wrote:
+> On 15/02/2017 6:57 PM, Eric Dumazet wrote:
+> > On Wed, Feb 15, 2017 at 8:42 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
+> >> Isn't it the same principle in page_frag_alloc() ?
+> >> It is called form __netdev_alloc_skb()/__napi_alloc_skb().
+> >>
+> >> Why is it ok to have order-3 pages (PAGE_FRAG_CACHE_MAX_ORDER) there?
+> > This is not ok.
+> >
+> > This is a very well known problem, we already mentioned that here in the past,
+> > but at least core networking stack uses  order-0 pages on PowerPC.
+> You're right, we should have done this as well in mlx4 on PPC.
+> > mlx4 driver suffers from this problem 100% more than other drivers ;)
+> >
+> > One problem at a time Tariq. Right now, only mlx4 has this big problem
+> > compared to other NIC.
+> We _do_ agree that the series improves the driver's quality, stability,
+> and performance in a fragmented system.
+> 
+> But due to the late rc we're in, and the fact that we know what benchmarks
+> our customers are going to run, we cannot Ack the series and get it
+> as is inside kernel 4.11.
+> 
+> We are interested to get your series merged along another perf improvement
+> we are preparing for next rc1. This way we will earn the desired stability
+> without breaking existing benchmarks.
+> I think this is the right thing to do at this point of time.
+> 
+> 
+> The idea behind the perf improvement, suggested by Jesper, is to split
+> the napi_poll call mlx4_en_process_rx_cq() loop into two.
+> The first loop extracts completed CQEs and starts prefetching on data
+> and RX descriptors. The second loop process the real packets.
 
-Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
----
- arch/x86/include/asm/realmode.h      |   12 ++++++++++++
- arch/x86/realmode/init.c             |    4 ++++
- arch/x86/realmode/rm/trampoline_64.S |   17 +++++++++++++++++
- 3 files changed, 33 insertions(+)
+Make sure to resubmit my patches before anything new.
 
-diff --git a/arch/x86/include/asm/realmode.h b/arch/x86/include/asm/realmode.h
-index 230e190..4f7ef53 100644
---- a/arch/x86/include/asm/realmode.h
-+++ b/arch/x86/include/asm/realmode.h
-@@ -1,6 +1,15 @@
- #ifndef _ARCH_X86_REALMODE_H
- #define _ARCH_X86_REALMODE_H
- 
-+/*
-+ * Flag bit definitions for use with the flags field of the trampoline header
-+ * int the CONFIG_X86_64 variant.
-+ */
-+#define TH_FLAGS_SME_ACTIVE_BIT		0
-+#define TH_FLAGS_SME_ACTIVE		BIT(TH_FLAGS_SME_ACTIVE_BIT)
-+
-+#ifndef __ASSEMBLY__
-+
- #include <linux/types.h>
- #include <asm/io.h>
- 
-@@ -38,6 +47,7 @@ struct trampoline_header {
- 	u64 start;
- 	u64 efer;
- 	u32 cr4;
-+	u32 flags;
- #endif
- };
- 
-@@ -69,4 +79,6 @@ static inline size_t real_mode_size_needed(void)
- void set_real_mode_mem(phys_addr_t mem, size_t size);
- void reserve_real_mode(void);
- 
-+#endif /* __ASSEMBLY__ */
-+
- #endif /* _ARCH_X86_REALMODE_H */
-diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
-index 21d7506..5010089 100644
---- a/arch/x86/realmode/init.c
-+++ b/arch/x86/realmode/init.c
-@@ -102,6 +102,10 @@ static void __init setup_real_mode(void)
- 	trampoline_cr4_features = &trampoline_header->cr4;
- 	*trampoline_cr4_features = mmu_cr4_features;
- 
-+	trampoline_header->flags = 0;
-+	if (sme_active())
-+		trampoline_header->flags |= TH_FLAGS_SME_ACTIVE;
-+
- 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
- 	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
- 	trampoline_pgd[511] = init_level4_pgt[511].pgd;
-diff --git a/arch/x86/realmode/rm/trampoline_64.S b/arch/x86/realmode/rm/trampoline_64.S
-index dac7b20..a88c3d1 100644
---- a/arch/x86/realmode/rm/trampoline_64.S
-+++ b/arch/x86/realmode/rm/trampoline_64.S
-@@ -30,6 +30,7 @@
- #include <asm/msr.h>
- #include <asm/segment.h>
- #include <asm/processor-flags.h>
-+#include <asm/realmode.h>
- #include "realmode.h"
- 
- 	.text
-@@ -92,6 +93,21 @@ ENTRY(startup_32)
- 	movl	%edx, %fs
- 	movl	%edx, %gs
- 
-+	/* Check for memory encryption support */
-+	bt	$TH_FLAGS_SME_ACTIVE_BIT, pa_tr_flags
-+	jnc	.Ldone
-+	movl	$MSR_K8_SYSCFG, %ecx
-+	rdmsr
-+	bts	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
-+	jc	.Ldone
-+
-+	/*
-+	 * Memory encryption is enabled but the SME enable bit for this
-+	 * CPU has has not been set.  It is safe to set it, so do so.
-+	 */
-+	wrmsr
-+.Ldone:
-+
- 	movl	pa_tr_cr4, %eax
- 	movl	%eax, %cr4		# Enable PAE mode
- 
-@@ -147,6 +163,7 @@ GLOBAL(trampoline_header)
- 	tr_start:		.space	8
- 	GLOBAL(tr_efer)		.space	8
- 	GLOBAL(tr_cr4)		.space	4
-+	GLOBAL(tr_flags)	.space	4
- END(trampoline_header)
- 
- #include "trampoline_common.S"
+We need to backport them to stable versions, without XDP, without
+anything fancy.
+
+And submit what is needed for 4.11, since current mlx4 driver in
+net-next is broken, in case you missed it.
+
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
