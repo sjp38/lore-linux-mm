@@ -1,73 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 47785681010
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:03:59 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id r207so32723254pgr.4
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 11:03:59 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id y11si4615145plg.84.2017.02.16.11.03.58
-        for <linux-mm@kvack.org>;
-        Thu, 16 Feb 2017 11:03:58 -0800 (PST)
-Date: Thu, 16 Feb 2017 14:03:55 -0500 (EST)
-Message-Id: <20170216.140355.2079700662225068523.davem@davemloft.net>
-Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CALx6S36xcEJ9YssZtzQKOy-tufrWWJO533J0nTEzp_ckb5dVjA@mail.gmail.com>
-References: <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
-	<37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com>
-	<CALx6S36xcEJ9YssZtzQKOy-tufrWWJO533J0nTEzp_ckb5dVjA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 58FAC681010
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:32:55 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 204so34838513pfx.1
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 11:32:55 -0800 (PST)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id r80si7856361pfa.30.2017.02.16.11.32.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Feb 2017 11:32:54 -0800 (PST)
+Received: by mail-pf0-x234.google.com with SMTP id 189so7607651pfu.3
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 11:32:54 -0800 (PST)
+From: Stephen Boyd <stephen.boyd@linaro.org>
+Subject: [PATCH] mm/maccess.c: Fix up kernel doc notation
+Date: Thu, 16 Feb 2017 11:32:51 -0800
+Message-Id: <20170216193251.20242-1-stephen.boyd@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tom@herbertland.com
-Cc: tariqt@mellanox.com, edumazet@google.com, brouer@redhat.com, eric.dumazet@gmail.com, alexander.duyck@gmail.com, netdev@vger.kernel.org, kafai@fb.com, saeedm@mellanox.com, willemb@google.com, bblanco@plumgrid.com, ast@kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org
 
-From: Tom Herbert <tom@herbertland.com>
-Date: Thu, 16 Feb 2017 09:05:26 -0800
+One argument was incorrect, two functions weren't showing the
+brief description, and the docs for strncpy_from_unsafe() had a
+colon attached to it. Fix it up.
 
-> On Thu, Feb 16, 2017 at 5:08 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
->>
->> On 15/02/2017 6:57 PM, Eric Dumazet wrote:
->>>
->>> On Wed, Feb 15, 2017 at 8:42 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
->>>>
->>>> Isn't it the same principle in page_frag_alloc() ?
->>>> It is called form __netdev_alloc_skb()/__napi_alloc_skb().
->>>>
->>>> Why is it ok to have order-3 pages (PAGE_FRAG_CACHE_MAX_ORDER) there?
->>>
->>> This is not ok.
->>>
->>> This is a very well known problem, we already mentioned that here in the
->>> past,
->>> but at least core networking stack uses  order-0 pages on PowerPC.
->>
->> You're right, we should have done this as well in mlx4 on PPC.
->>>
->>> mlx4 driver suffers from this problem 100% more than other drivers ;)
->>>
->>> One problem at a time Tariq. Right now, only mlx4 has this big problem
->>> compared to other NIC.
->>
->> We _do_ agree that the series improves the driver's quality, stability,
->> and performance in a fragmented system.
->>
->> But due to the late rc we're in, and the fact that we know what benchmarks
->> our customers are going to run, we cannot Ack the series and get it
->> as is inside kernel 4.11.
->>
-> You're admitting that Eric's patches improve driver quality,
-> stability, and performance but you're not allowing this in the kernel
-> because "we know what benchmarks our customers are going to run".
-> Sorry, but that is a weak explanation.
+Cc: <linux-doc@vger.kernel.org>
+Signed-off-by: Stephen Boyd <stephen.boyd@linaro.org>
+---
+ mm/maccess.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-I have to agree with Tom and Eric.
-
-If your customers have gotten into the habit of using metrics which
-actually do not represent real life performance, that is a completely
-inappropriate reason to not include Eric's changes as-is.
+diff --git a/mm/maccess.c b/mm/maccess.c
+index 78f9274dd49d..ee305aa22535 100644
+--- a/mm/maccess.c
++++ b/mm/maccess.c
+@@ -6,7 +6,7 @@
+ #include <linux/uaccess.h>
+ 
+ /**
+- * probe_kernel_read(): safely attempt to read from a location
++ * probe_kernel_read() - safely attempt to read from a location.
+  * @dst: pointer to the buffer that shall take the data
+  * @src: address to read from
+  * @size: size of the data chunk
+@@ -40,7 +40,7 @@ long __probe_kernel_read(void *dst, const void *src, size_t size)
+ EXPORT_SYMBOL_GPL(probe_kernel_read);
+ 
+ /**
+- * probe_kernel_write(): safely attempt to write to a location
++ * probe_kernel_write() - safely attempt to write to a location.
+  * @dst: address to write to
+  * @src: pointer to the data that shall be written
+  * @size: size of the data chunk
+@@ -67,10 +67,10 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
+ EXPORT_SYMBOL_GPL(probe_kernel_write);
+ 
+ /**
+- * strncpy_from_unsafe: - Copy a NUL terminated string from unsafe address.
++ * strncpy_from_unsafe() - Copy a NUL terminated string from unsafe address.
+  * @dst:   Destination address, in kernel space.  This buffer must be at
+  *         least @count bytes long.
+- * @src:   Unsafe address.
++ * @unsafe_addr:   Unsafe address.
+  * @count: Maximum number of bytes to copy, including the trailing NUL.
+  *
+  * Copies a NUL-terminated string from unsafe address to kernel buffer.
+-- 
+2.10.0.297.gf6727b0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
