@@ -1,60 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B68746B0465
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 11:54:47 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y7so4000062wrc.7
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 08:54:47 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id 191si1257565wmk.94.2017.02.16.08.54.46
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A084B6B0466
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 12:05:28 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id x49so17131325qtc.7
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 09:05:28 -0800 (PST)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id e41si5647939qtc.10.2017.02.16.09.05.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 08:54:46 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id u63so4033751wmu.2
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 08:54:46 -0800 (PST)
+        Thu, 16 Feb 2017 09:05:27 -0800 (PST)
+Received: by mail-qt0-x244.google.com with SMTP id h53so2905965qth.3
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 09:05:27 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
-References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
-From: Emil Velikov <emil.l.velikov@gmail.com>
-Date: Thu, 16 Feb 2017 16:54:45 +0000
-Message-ID: <CACvgo51p+aqegjkbF6jGggwr+KXq_71w0VFzJvFAF6_egT1-kA@mail.gmail.com>
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
+In-Reply-To: <37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com>
+References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
+ <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+ <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+ <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
+ <20170214131206.44b644f6@redhat.com> <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+ <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com> <1487087488.8227.53.camel@edumazet-glaptop3.roam.corp.google.com>
+ <CALx6S3530_2DYU-3VRmvRYZ3n05OqJZpJ3x02vXQd6Q7FUJQvw@mail.gmail.com>
+ <ccc4cb9e-9863-02e1-2789-4869aea3c661@mellanox.com> <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
+ <37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com>
+From: Tom Herbert <tom@herbertland.com>
+Date: Thu, 16 Feb 2017 09:05:26 -0800
+Message-ID: <CALx6S36xcEJ9YssZtzQKOy-tufrWWJO533J0nTEzp_ckb5dVjA@mail.gmail.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>
-Cc: ML dri-devel <dri-devel@lists.freedesktop.org>, Mark Rutland <mark.rutland@arm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, devicetree <devicetree@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Chen-Yu Tsai <wens@csie.org>, Rob Herring <robh+dt@kernel.org>, Maxime Ripard <maxime.ripard@free-electrons.com>, LAKML <linux-arm-kernel@lists.infradead.org>
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: Eric Dumazet <edumazet@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 16 February 2017 at 12:43, Tobias Jakobi
-<tjakobi@math.uni-bielefeld.de> wrote:
-> Hello,
+On Thu, Feb 16, 2017 at 5:08 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
 >
-> I was wondering about the following. Wasn't there some strict
-> requirement about code going upstream, which also included that there
-> was a full open-source driver stack for it?
+> On 15/02/2017 6:57 PM, Eric Dumazet wrote:
+>>
+>> On Wed, Feb 15, 2017 at 8:42 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
+>>>
+>>> Isn't it the same principle in page_frag_alloc() ?
+>>> It is called form __netdev_alloc_skb()/__napi_alloc_skb().
+>>>
+>>> Why is it ok to have order-3 pages (PAGE_FRAG_CACHE_MAX_ORDER) there?
+>>
+>> This is not ok.
+>>
+>> This is a very well known problem, we already mentioned that here in the
+>> past,
+>> but at least core networking stack uses  order-0 pages on PowerPC.
 >
-> I don't see how this is the case for Mali, neither in the kernel, nor in
-> userspace. I'm aware that the Mali kernel driver is open-source. But it
-> is not upstream, maintained out of tree, and won't land upstream in its
-> current form (no resemblence to a DRM driver at all). And let's not talk
-> about the userspace part.
+> You're right, we should have done this as well in mlx4 on PPC.
+>>
+>> mlx4 driver suffers from this problem 100% more than other drivers ;)
+>>
+>> One problem at a time Tariq. Right now, only mlx4 has this big problem
+>> compared to other NIC.
 >
-> So, why should this be here?
+> We _do_ agree that the series improves the driver's quality, stability,
+> and performance in a fragmented system.
 >
-Have to agree with Tobias, here.
+> But due to the late rc we're in, and the fact that we know what benchmarks
+> our customers are going to run, we cannot Ack the series and get it
+> as is inside kernel 4.11.
+>
+You're admitting that Eric's patches improve driver quality,
+stability, and performance but you're not allowing this in the kernel
+because "we know what benchmarks our customers are going to run".
+Sorry, but that is a weak explanation.
 
-I can see the annoyance that Maxime and others have to go through to
-their systems working.
-At the same time, changing upstream kernel to suit out of tree
-module(s) is not how things work. Right ?
-
-Not to mention that the series adds stable ABI exclusively(?) used by
-a module which does not seem to be in the process of getting merged.
-
-Maxime, you're a great guy but I don't think this is suitable for
-upstream... yet.
-
-Regards,
-Emil
+> We are interested to get your series merged along another perf improvement
+> we are preparing for next rc1. This way we will earn the desired stability
+> without breaking existing benchmarks.
+> I think this is the right thing to do at this point of time.
+>
+>
+> The idea behind the perf improvement, suggested by Jesper, is to split
+> the napi_poll call mlx4_en_process_rx_cq() loop into two.
+> The first loop extracts completed CQEs and starts prefetching on data
+> and RX descriptors. The second loop process the real packets.
+>
+>
+>>
+>> Then, if we _still_ hit major issues, we might also need to force
+>> napi_get_frags()
+>> to allocate skb->head using kmalloc() instead of a page frag.
+>>
+>> That is a very simple fix.
+>>
+>> Remember that we have skb->truesize that is an approximation, it will
+>> never be completely accurate,
+>> but we need to make it better.
+>>
+>> mlx4 driver pretends to have a frag truesize of 1536 bytes, but this
+>> is obviously wrong when host is under memory pressure
+>> (2 frags per page -> truesize should be 2048)
+>>
+>>
+>>> By using netdev/napi_alloc_skb, you'll get that the SKB's linear data is
+>>> a
+>>> frag of a huge page,
+>>> and it is not going to be freed before the other non-linear frags.
+>>> Cannot this cause the same threats (memory pinning and so...)?
+>>>
+>>> Currently, mlx4 doesn't use this generic API, while most other drivers
+>>> do.
+>>>
+>>> Similar claims are true for TX:
+>>>
+>>> https://github.com/torvalds/linux/commit/5640f7685831e088fe6c2e1f863a6805962f8e81
+>>
+>> We do not have such problem on TX. GFP_KERNEL allocations do not have
+>> the same issues.
+>>
+>> Tasks are usually not malicious in our DC, and most serious
+>> applications use memcg or such memory control.
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
