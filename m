@@ -1,148 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1585568101F
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:21:35 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f5so40157767pgi.1
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:21:35 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id w31si8221815pla.66.2017.02.16.14.21.32
+	by kanga.kvack.org (Postfix) with ESMTP id A12E96B0471
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 18:45:03 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so42318108pgc.2
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 15:45:03 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d2si8382879pli.286.2017.02.16.15.45.01
         for <linux-mm@kvack.org>;
-        Thu, 16 Feb 2017 14:21:33 -0800 (PST)
-Date: Fri, 17 Feb 2017 09:21:29 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [Bug 192981] New: page allocation stalls
-Message-ID: <20170216222129.GB15349@dastard>
-References: <bug-192981-27@https.bugzilla.kernel.org/>
- <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
- <8f450abd-4e05-92d3-2533-72b05fea2012@beget.ru>
- <20170215160538.GA62565@bfoster.bfoster>
- <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
- <20170215180859.GB62565@bfoster.bfoster>
- <07ee50bc-8220-dda8-07f9-369758603df9@beget.ru>
- <20170216172034.GC11750@bfoster.bfoster>
+        Thu, 16 Feb 2017 15:45:02 -0800 (PST)
+Date: Fri, 17 Feb 2017 08:45:00 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: swap_cluster_info lockdep splat
+Message-ID: <20170216234500.GA30275@bbox>
+References: <20170216052218.GA13908@bbox>
+ <87o9y2a5ji.fsf@yhuang-dev.intel.com>
+ <alpine.LSU.2.11.1702161050540.21773@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170216172034.GC11750@bfoster.bfoster>
+In-Reply-To: <alpine.LSU.2.11.1702161050540.21773@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Foster <bfoster@redhat.com>
-Cc: Alexander Polakov <apolyakov@beget.ru>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Feb 16, 2017 at 12:20:34PM -0500, Brian Foster wrote:
-> On Thu, Feb 16, 2017 at 01:56:30PM +0300, Alexander Polakov wrote:
-> > On 02/15/2017 09:09 PM, Brian Foster wrote:
-> > > Ah, Ok. It sounds like this allows the reclaim thread to carry on into
-> > > other shrinkers and free up memory that way, perhaps. This sounds kind
-> > > of similar to the issue brought up previously here[1], but not quite the
-> > > same in that instead of backing off of locking to allow other shrinkers
-> > > to progress, we back off of memory allocations required to free up
-> > > inodes (memory).
-> > > 
-> > > In theory, I think something analogous to a trylock for inode to buffer
-> > > mappings that are no longer cached (or more specifically, cannot
-> > > currently be allocated) may work around this, but it's not immediately
-> > > clear to me whether that's a proper fix (it's also probably not a
-> > > trivial change either). I'm still kind of curious why we end up with
-> > > dirty inodes with reclaimed buffers. If this problem repeats, is it
-> > > always with a similar stack (i.e., reclaim -> xfs_iflush() ->
-> > > xfs_imap_to_bp())?
-> > 
-> > Looks like it is.
-> > 
-> > > How many independent filesystems are you running this workload against?
-> > 
-> > storage9 : ~ [0] # mount|grep storage|grep xfs|wc -l
-> > 15
-> > storage9 : ~ [0] # mount|grep storage|grep ext4|wc -l
-> > 44
-> > 
+Hi Huang and Hugh,
+
+Thanks for the quick reponse!
+
+On Thu, Feb 16, 2017 at 11:00:00AM -0800, Hugh Dickins wrote:
+> On Thu, 16 Feb 2017, Huang, Ying wrote:
 > 
-> So a decent number of fs', more ext4 than XFS. Are the XFS fs' all of
-> similar size/geometry? If so, can you send representative xfs_info
-> output for the fs'?
+> > Hi, Minchan,
+> > 
+> > Minchan Kim <minchan@kernel.org> writes:
+> > 
+> > > Hi Huang,
+> > >
+> > > With changing from bit lock to spinlock of swap_cluster_info, my zram
+> > > test failed with below message. It seems nested lock problem so need to
+> > > play with lockdep.
+> > 
+> > Sorry, I could not reproduce the warning in my tests.  Could you try the
+> > patches as below?   And could you share your test case?
+
+It's a simple kernel build test in small memory system.
+4-core and 750M memory with zram-4G swap.
+
+> > 
+> > Best Regards,
+> > Huang, Ying
+> > 
+> > ------------------------------------------------------------->
+> > From 2b9e2f78a6e389442f308c4f9e8d5ac40fe6aa2f Mon Sep 17 00:00:00 2001
+> > From: Huang Ying <ying.huang@intel.com>
+> > Date: Thu, 16 Feb 2017 16:38:17 +0800
+> > Subject: [PATCH] mm, swap: Annotate nested locking for cluster lock
+> > 
+> > There is a nested locking in cluster_list_add_tail() for cluster lock,
+> > which caused lockdep to complain as below.  The nested locking is safe
+> > because both cluster locks are only acquired when we held the
+> > swap_info_struct->lock.  Annotated the nested locking via
+> > spin_lock_nested() to fix the complain of lockdep.
+> > 
+> > =============================================
+> > [ INFO: possible recursive locking detected ]
+> > 4.10.0-rc8-next-20170214-zram #24 Not tainted
+> > ---------------------------------------------
+> > as/6557 is trying to acquire lock:
+> >  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811ddd03>] cluster_list_add_tail.part.31+0x33/0x70
+> > 
+> > but task is already holding lock:
+> >  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811df2bb>] swapcache_free_entries+0x9b/0x330
+> > 
+> > other info that might help us debug this:
+> >  Possible unsafe locking scenario:
+> > 
+> >        CPU0
+> >        ----
+> >   lock(&(&((cluster_info + ci)->lock))->rlock);
+> >   lock(&(&((cluster_info + ci)->lock))->rlock);
+> > 
+> >  *** DEADLOCK ***
+> > 
+> >  May be due to missing lock nesting notation
+> > 
+> > 3 locks held by as/6557:
+> >  #0:  (&(&cache->free_lock)->rlock){......}, at: [<ffffffff811c206b>] free_swap_slot+0x8b/0x110
+> >  #1:  (&(&p->lock)->rlock){+.+.-.}, at: [<ffffffff811df295>] swapcache_free_entries+0x75/0x330
+> >  #2:  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811df2bb>] swapcache_free_entries+0x9b/0x330
+> > 
+> > stack backtrace:
+> > CPU: 3 PID: 6557 Comm: as Not tainted 4.10.0-rc8-next-20170214-zram #24
+> > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+> > Call Trace:
+> >  dump_stack+0x85/0xc2
+> >  __lock_acquire+0x15ea/0x1640
+> >  lock_acquire+0x100/0x1f0
+> >  ? cluster_list_add_tail.part.31+0x33/0x70
+> >  _raw_spin_lock+0x38/0x50
+> >  ? cluster_list_add_tail.part.31+0x33/0x70
+> >  cluster_list_add_tail.part.31+0x33/0x70
+> >  swapcache_free_entries+0x2f9/0x330
+> >  free_swap_slot+0xf8/0x110
+> >  swapcache_free+0x36/0x40
+> >  delete_from_swap_cache+0x5f/0xa0
+> >  try_to_free_swap+0x6e/0xa0
+> >  free_pages_and_swap_cache+0x7d/0xb0
+> >  tlb_flush_mmu_free+0x36/0x60
+> >  tlb_finish_mmu+0x1c/0x50
+> >  exit_mmap+0xc7/0x150
+> >  mmput+0x51/0x110
+> >  do_exit+0x2b2/0xc30
+> >  ? trace_hardirqs_on_caller+0x129/0x1b0
+> >  do_group_exit+0x50/0xd0
+> >  SyS_exit_group+0x14/0x20
+> >  entry_SYSCALL_64_fastpath+0x23/0xc6
+> > RIP: 0033:0x2b9a2dbdf309
+> > RSP: 002b:00007ffe71887528 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+> > RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00002b9a2dbdf309
+> > RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+> > RBP: 00002b9a2ded8858 R08: 000000000000003c R09: 00000000000000e7
+> > R10: ffffffffffffff60 R11: 0000000000000246 R12: 00002b9a2ded8858
+> > R13: 00002b9a2dedde80 R14: 000000000255f770 R15: 0000000000000001
+> > 
+> > Reported-by: Minchan Kim <minchan@kernel.org>
+> > Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> > ---
+> >  include/linux/swap.h | 6 ++++++
+> >  mm/swapfile.c        | 8 +++++++-
+> >  2 files changed, 13 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/include/linux/swap.h b/include/linux/swap.h
+> > index 4d12b381821f..ef044ea8fe79 100644
+> > --- a/include/linux/swap.h
+> > +++ b/include/linux/swap.h
+> > @@ -166,6 +166,12 @@ enum {
+> >  #define COUNT_CONTINUED	0x80	/* See swap_map continuation for full count */
+> >  #define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs, in first swap_map */
+> >  
+> > +enum swap_cluster_lock_class
+> > +{
+> > +	SWAP_CLUSTER_LOCK_NORMAL,  /* implicitly used by plain spin_lock() APIs. */
+> > +	SWAP_CLUSTER_LOCK_NESTED,
+> > +};
+> > +
+> >  /*
+> >   * We use this to track usage of a cluster. A cluster is a block of swap disk
+> >   * space with SWAPFILE_CLUSTER pages long and naturally aligns in disk. All
+> > diff --git a/mm/swapfile.c b/mm/swapfile.c
+> > index 5ac2cb40dbd3..0a52e9b2f843 100644
+> > --- a/mm/swapfile.c
+> > +++ b/mm/swapfile.c
+> > @@ -263,6 +263,12 @@ static inline void __lock_cluster(struct swap_cluster_info *ci)
+> >  	spin_lock(&ci->lock);
+> >  }
+> >  
+> > +static inline void __lock_cluster_nested(struct swap_cluster_info *ci,
+> > +					 unsigned subclass)
+> > +{
+> > +	spin_lock_nested(&ci->lock, subclass);
+> > +}
+> > +
+> >  static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
+> >  						     unsigned long offset)
+> >  {
+> > @@ -336,7 +342,7 @@ static void cluster_list_add_tail(struct swap_cluster_list *list,
+> >  		 * only acquired when we held swap_info_struct->lock
+> >  		 */
+> >  		ci_tail = ci + tail;
+> > -		__lock_cluster(ci_tail);
+> > +		__lock_cluster_nested(ci_tail, SWAP_CLUSTER_LOCK_NESTED);
+> >  		cluster_set_next(ci_tail, idx);
+> >  		unlock_cluster(ci_tail);
+> >  		cluster_set_next_flag(&list->tail, idx, 0);
+> > -- 
+> > 2.11.0
 > 
-> I'm reading back through that reclaim thread[1] and it appears this
-> indeed is not a straightforward issue. It sounds like the summary is
-> Chris hit the same general behavior you have and is helped by bypassing
-> the synchronous nature of the shrinker. This allows other shrinkers to
-> proceed, but this is not a general solution because other workloads
-> depend on the synchronous shrinker behavior to throttle direct reclaim.
-> I can't say I understand all of the details and architecture of how/why
-> that is the case.
-
-It's complicated, made worse by the state of flux of the mm reclaim
-subsystem and the frequent regressions in behaviour that come and
-go. This makes testing modifications to the shrinker behaviour
-extremely challenging - trying to separate shirnker artifacts from
-"something else has changed in memory reclaim" takes a lot of
-time....
-
-> FWIW, it sounds like the first order problem is that we generally don't
-> want to find/flush dirty inodes from reclaim.
-
-Right. because that forces out-of-order inode writeback and it
-degenerates into blocking small random writes.
-
-> A couple things that might
-> help avoid this situation are more aggressive
-> /proc/sys/fs/xfs/xfssyncd_centisecs tuning or perhaps considering a
-> smaller log size would cause more tail pushing pressure on the AIL
-> instead of pressure originating from memory reclaim. The latter might
-> not be so convenient if this is an already populated backup server,
-> though.
+> I do not understand your zest for putting wrappers around every little
+> thing, making it all harder to follow than it need be.  Here's the patch
+> I've been running with (but you have a leak somewhere, and I don't have
+> time to search out and fix it: please try sustained swapping and swapoff).
 > 
-> Beyond that, there's Chris' patch, another patch that Dave proposed[2],
-> and obviously your hack here to defer inode reclaim entirely to the
-> workqueue (I've CC'd Dave since it sounds like he might have been
-> working on this further..).
+> [PATCH] mm, swap: Annotate nested locking for cluster lock
+> 
+> Fix swap cluster lockdep warnings.
+> 
+> Reported-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-I was working on a more solid set of changes, but every time I
-updated the kernel tree I used as my base for development, the
-baseline kernel reclaim behaviour would change. I'd isolate the
-behavioural change, upgrade to the kernel that contained the fix,
-and then trip over some new whacky behaviour that made no sense. I
-spent more time in this loop than actually trying to fix the XFS
-problem - chasing a moving target makes finding the root cause of
-the reclaim stalls just about impossible. 
+Acutually, before the reporting, I tested below hunk and confirmed it doesn't
+make lockdep warn any more. But I doubted it's okay for non-nested case
+(i.e., setup_swap_map_and_extends) for lockdep subclass working.
+I guess it's no problem but not sure so I just reported it without fixing
+by myself. :)
+If it's no problem, I'm sure both patches from you guys would work well
+but I prefer Hugh's patch which makes it simple/clear.
 
-Brian, I can send you what I have but it's really just a bag of
-bolts at this point because I was never able to validate that any of
-the patches made a measurable improvement to reclaim behaviour under
-any workload I ran.....
+Thanks.
 
-FWIW, the major problem with removing the blocking in inode reclaim
-is the ease with which you can then trigger the OOM killer from
-userspace.  The high level memory reclaim algorithms break down when
-there are hundreds of direct reclaim processes hammering on reclaim
-and reclaim stops making progress because it's skipping dirty
-objects.  Direct reclaim ends up insufficiently throttled, so rather
-than blocking it winds up reclaim priority and then declares OOM
-because reclaim runs out of retries before sufficient memory has
-been freed.
-
-That, right now, looks to be an unsolvable problem without a major
-rework of direct reclaim.  I've pretty much given up on ever getting
-the unbound direct reclaim concurrency problem that is causing us
-these problems fixed, so we are left to handle it in the subsystem
-shrinkers as best we can. That leaves us with an unfortunate choice: 
-
-	a) throttle excessive concurrency in the shrinker to prevent
-	   IO breakdown, thereby causing reclaim latency bubbles
-	   under load but having a stable, reliable system; or
-	b) optimise for minimal reclaim latency and risk userspace
-	   memory demand triggering the OOM killer whenever there
-	   are lots of dirty inodes in the system.
-
-Quite frankly, there's only one choice we can make in this
-situation: reliability is always more important than performance.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 5ac2cb4..348b9c5 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -263,6 +263,11 @@ static inline void __lock_cluster(struct swap_cluster_info *ci)
+ 	spin_lock(&ci->lock);
+ }
+ 
++static inline void __lock_cluster_nested(struct swap_cluster_info *ci)
++{
++	spin_lock_nested(&ci->lock, SINGLE_DEPTH_NESTING);
++}
++
+ static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
+ 						     unsigned long offset)
+ {
+@@ -336,7 +341,7 @@ static void cluster_list_add_tail(struct swap_cluster_list *list,
+ 		 * only acquired when we held swap_info_struct->lock
+ 		 */
+ 		ci_tail = ci + tail;
+-		__lock_cluster(ci_tail);
++		__lock_cluster_nested(ci_tail);
+ 		cluster_set_next(ci_tail, idx);
+ 		unlock_cluster(ci_tail);
+ 		cluster_set_next_flag(&list->tail, idx, 0);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
