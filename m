@@ -1,111 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FDD6680FE7
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 04:32:35 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id kq3so2195901wjc.1
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 01:32:35 -0800 (PST)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id 33si8603167wri.15.2017.02.16.01.32.33
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BB2BB680FE7
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 05:56:33 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id z134so5984627lff.5
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 02:56:33 -0800 (PST)
+Received: from special.m3.smtp.beget.ru (special.m3.smtp.beget.ru. [5.101.158.90])
+        by mx.google.com with ESMTPS id b144si382733lfg.368.2017.02.16.02.56.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Feb 2017 01:32:33 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 6E54899798
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 09:32:33 +0000 (UTC)
-Date: Thu, 16 Feb 2017 09:32:32 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 3/3] mm, vmscan: Prevent kswapd sleeping prematurely due
- to mismatched classzone_idx
-Message-ID: <20170216093232.bx3inec7qngvu7qh@techsingularity.net>
-References: <20170215092247.15989-1-mgorman@techsingularity.net>
- <20170215092247.15989-4-mgorman@techsingularity.net>
- <001501d2881d$242aa790$6c7ff6b0$@alibaba-inc.com>
- <20170216081039.ukbxl2b4khnwwbic@techsingularity.net>
- <001f01d2882d$9dd14850$d973d8f0$@alibaba-inc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Feb 2017 02:56:32 -0800 (PST)
+Reply-To: apolyakov@beget.ru
+Subject: Re: [Bug 192981] New: page allocation stalls
+References: <bug-192981-27@https.bugzilla.kernel.org/>
+ <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
+ <8f450abd-4e05-92d3-2533-72b05fea2012@beget.ru>
+ <20170215160538.GA62565@bfoster.bfoster>
+ <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
+ <20170215180859.GB62565@bfoster.bfoster>
+From: Alexander Polakov <apolyakov@beget.ru>
+Message-ID: <07ee50bc-8220-dda8-07f9-369758603df9@beget.ru>
+Date: Thu, 16 Feb 2017 13:56:30 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <001f01d2882d$9dd14850$d973d8f0$@alibaba-inc.com>
+In-Reply-To: <20170215180859.GB62565@bfoster.bfoster>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Shantanu Goel' <sgoel01@yahoo.com>, 'Chris Mason' <clm@fb.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'LKML' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-mm@kvack.org, linux-xfs@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Thu, Feb 16, 2017 at 04:21:04PM +0800, Hillf Danton wrote:
-> 
-> On February 16, 2017 4:11 PM Mel Gorman wrote:
-> > On Thu, Feb 16, 2017 at 02:23:08PM +0800, Hillf Danton wrote:
-> > > On February 15, 2017 5:23 PM Mel Gorman wrote:
-> > > >   */
-> > > >  static int kswapd(void *p)
-> > > >  {
-> > > > -	unsigned int alloc_order, reclaim_order, classzone_idx;
-> > > > +	unsigned int alloc_order, reclaim_order;
-> > > > +	unsigned int classzone_idx = MAX_NR_ZONES - 1;
-> > > >  	pg_data_t *pgdat = (pg_data_t*)p;
-> > > >  	struct task_struct *tsk = current;
-> > > >
-> > > > @@ -3447,20 +3466,23 @@ static int kswapd(void *p)
-> > > >  	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
-> > > >  	set_freezable();
-> > > >
-> > > > -	pgdat->kswapd_order = alloc_order = reclaim_order = 0;
-> > > > -	pgdat->kswapd_classzone_idx = classzone_idx = 0;
-> > > > +	pgdat->kswapd_order = 0;
-> > > > +	pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
-> > > >  	for ( ; ; ) {
-> > > >  		bool ret;
-> > > >
-> > > > +		alloc_order = reclaim_order = pgdat->kswapd_order;
-> > > > +		classzone_idx = kswapd_classzone_idx(pgdat, classzone_idx);
-> > > > +
-> > > >  kswapd_try_sleep:
-> > > >  		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
-> > > >  					classzone_idx);
-> > > >
-> > > >  		/* Read the new order and classzone_idx */
-> > > >  		alloc_order = reclaim_order = pgdat->kswapd_order;
-> > > > -		classzone_idx = pgdat->kswapd_classzone_idx;
-> > > > +		classzone_idx = kswapd_classzone_idx(pgdat, 0);
-> > > >  		pgdat->kswapd_order = 0;
-> > > > -		pgdat->kswapd_classzone_idx = 0;
-> > > > +		pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
-> > > >
-> > > >  		ret = try_to_freeze();
-> > > >  		if (kthread_should_stop())
-> > > > @@ -3486,9 +3508,6 @@ static int kswapd(void *p)
-> > > >  		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-> > > >  		if (reclaim_order < alloc_order)
-> > > >  			goto kswapd_try_sleep;
-> > >
-> > > If we fail order-5 request,  can we then give up order-5, and
-> > > try order-3 if requested, after napping?
-> > >
-> > 
-> > That has no bearing upon this patch. At this point, kswapd has stopped
-> > reclaiming at the requested order and is preparing to sleep. If there is
-> > a parallel request for order-3 while it's sleeping, it'll wake and start
-> > reclaiming at order-3 as requested.
-> > 
+On 02/15/2017 09:09 PM, Brian Foster wrote:
+> Ah, Ok. It sounds like this allows the reclaim thread to carry on into
+> other shrinkers and free up memory that way, perhaps. This sounds kind
+> of similar to the issue brought up previously here[1], but not quite the
+> same in that instead of backing off of locking to allow other shrinkers
+> to progress, we back off of memory allocations required to free up
+> inodes (memory).
 >
-> Right, but the order-3 request can also come up while kswapd is active and
-> gives up order-5.
-> 
+> In theory, I think something analogous to a trylock for inode to buffer
+> mappings that are no longer cached (or more specifically, cannot
+> currently be allocated) may work around this, but it's not immediately
+> clear to me whether that's a proper fix (it's also probably not a
+> trivial change either). I'm still kind of curious why we end up with
+> dirty inodes with reclaimed buffers. If this problem repeats, is it
+> always with a similar stack (i.e., reclaim -> xfs_iflush() ->
+> xfs_imap_to_bp())?
 
-And then it'll be in pgdat->kswapd_order and be picked up on the next
-wakeup. It won't be immediate but it's also unlikely to be worth picking
-up immediately. The context here is that a high-order reclaim request
-failed and rather keeping kswapd awake reclaiming the world, go to sleep
-until another wakeup request comes in. Staying awake continually for
-high orders caused problems with excessive reclaim in the past.
+Looks like it is.
 
-It could be revisited again but it's not related to what this patch is
-aimed for -- avoiding reclaim going to sleep because ZONE_DMA is balanced
-for a GFP_DMA request which is nowhere in the request stream.
+> How many independent filesystems are you running this workload against?
+
+storage9 : ~ [0] # mount|grep storage|grep xfs|wc -l
+15
+storage9 : ~ [0] # mount|grep storage|grep ext4|wc -l
+44
+
+> Can you describe the workload in more detail?
+
+This is a backup server, we're running rsync. At night our production 
+servers rsync their files to this server (a lot of small files).
+
+> ...
+>>> The bz shows you have non-default vm settings such as
+>>> 'vm.vfs_cache_pressure = 200.' My understanding is that prefers
+>>> aggressive inode reclaim, yet the code workaround here is to bypass XFS
+>>> inode reclaim. Out of curiousity, have you reproduced this problem using
+>>> the default vfs_cache_pressure value (or if so, possibly moving it in
+>>> the other direction)?
+>>
+>> Yes, we've tried that, it had about 0 influence.
+>>
+>
+> Which.. with what values? And by zero influence, do you simply mean the
+> stall still occurred or you have some other measurement of slab sizes or
+> some such that are unaffected?
+
+Unfortunately I don't have slab statistics at hand. Stalls and following 
+OOM situation still occured with this setting at 100.
 
 -- 
-Mel Gorman
-SUSE Labs
+Alexander Polakov | system software engineer | https://beget.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
