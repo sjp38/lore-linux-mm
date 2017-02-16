@@ -1,69 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8845681010
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 15:50:11 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id b134so22421900qkg.2
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 12:50:11 -0800 (PST)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id s11si6062898qks.1.2017.02.16.12.50.10
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D301681010
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 16:06:39 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id y2so22608114qkb.7
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 13:06:39 -0800 (PST)
+Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
+        by mx.google.com with ESMTPS id m48si6083203qtb.102.2017.02.16.13.06.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 12:50:10 -0800 (PST)
-Received: by mail-qk0-x242.google.com with SMTP id 11so4040504qkl.0
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 12:50:10 -0800 (PST)
+        Thu, 16 Feb 2017 13:06:38 -0800 (PST)
+Received: by mail-qk0-x241.google.com with SMTP id p22so4115052qka.3
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 13:06:38 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CANn89iJayq1r2hLQJSHA1YvZGDOxNuViucf=+syL6BEmFkc2RQ@mail.gmail.com>
-References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
- <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
- <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
- <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
- <20170214131206.44b644f6@redhat.com> <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
- <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com> <1487087488.8227.53.camel@edumazet-glaptop3.roam.corp.google.com>
- <CALx6S3530_2DYU-3VRmvRYZ3n05OqJZpJ3x02vXQd6Q7FUJQvw@mail.gmail.com>
- <ccc4cb9e-9863-02e1-2789-4869aea3c661@mellanox.com> <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
+In-Reply-To: <20170216.140355.2079700662225068523.davem@davemloft.net>
+References: <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
  <37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com> <CALx6S36xcEJ9YssZtzQKOy-tufrWWJO533J0nTEzp_ckb5dVjA@mail.gmail.com>
- <CANn89iJayq1r2hLQJSHA1YvZGDOxNuViucf=+syL6BEmFkc2RQ@mail.gmail.com>
+ <20170216.140355.2079700662225068523.davem@davemloft.net>
 From: Saeed Mahameed <saeedm@dev.mellanox.co.il>
-Date: Thu, 16 Feb 2017 22:49:49 +0200
-Message-ID: <CALzJLG9z_hc4=35e_yToP1j=+QJJ6uaQbvMo9ddmdN1Ar83RbA@mail.gmail.com>
+Date: Thu, 16 Feb 2017 23:06:17 +0200
+Message-ID: <CALzJLG9WaWks_DrLkLZaXc1VRNnmUqg8RDMscwCgqvN0xFBm2g@mail.gmail.com>
 Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>
-Cc: Tom Herbert <tom@herbertland.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm <linux-mm@kvack.org>
+To: David Miller <davem@davemloft.net>
+Cc: Tom Herbert <tom@herbertland.com>, Tariq Toukan <tariqt@mellanox.com>, Eric Dumazet <edumazet@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexander Duyck <alexander.duyck@gmail.com>, Linux Netdev List <netdev@vger.kernel.org>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Feb 16, 2017 at 7:11 PM, Eric Dumazet <edumazet@google.com> wrote:
+On Thu, Feb 16, 2017 at 9:03 PM, David Miller <davem@davemloft.net> wrote:
+> From: Tom Herbert <tom@herbertland.com>
+> Date: Thu, 16 Feb 2017 09:05:26 -0800
+>
+>> On Thu, Feb 16, 2017 at 5:08 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
+>>>
+>>> On 15/02/2017 6:57 PM, Eric Dumazet wrote:
+>>>>
+>>>> On Wed, Feb 15, 2017 at 8:42 AM, Tariq Toukan <tariqt@mellanox.com> wrote:
+>>>>>
+>>>>> Isn't it the same principle in page_frag_alloc() ?
+>>>>> It is called form __netdev_alloc_skb()/__napi_alloc_skb().
+>>>>>
+>>>>> Why is it ok to have order-3 pages (PAGE_FRAG_CACHE_MAX_ORDER) there?
+>>>>
+>>>> This is not ok.
+>>>>
+>>>> This is a very well known problem, we already mentioned that here in the
+>>>> past,
+>>>> but at least core networking stack uses  order-0 pages on PowerPC.
+>>>
+>>> You're right, we should have done this as well in mlx4 on PPC.
+>>>>
+>>>> mlx4 driver suffers from this problem 100% more than other drivers ;)
+>>>>
+>>>> One problem at a time Tariq. Right now, only mlx4 has this big problem
+>>>> compared to other NIC.
+>>>
+>>> We _do_ agree that the series improves the driver's quality, stability,
+>>> and performance in a fragmented system.
+>>>
+>>> But due to the late rc we're in, and the fact that we know what benchmarks
+>>> our customers are going to run, we cannot Ack the series and get it
+>>> as is inside kernel 4.11.
+>>>
 >> You're admitting that Eric's patches improve driver quality,
 >> stability, and performance but you're not allowing this in the kernel
 >> because "we know what benchmarks our customers are going to run".
+>> Sorry, but that is a weak explanation.
 >
-> Note that I do not particularly care if these patches go in 4.11 or 4.12 really.
+> I have to agree with Tom and Eric.
 >
-> I already backported them into our 4.3 based kernel.
->
-> I guess that we could at least propose the trivial patch for stable releases,
-> since PowerPC arches really need it.
->
-> diff --git a/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
-> b/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
-> index cec59bc264c9ac197048fd7c98bcd5cf25de0efd..0f6d2f3b7d54f51de359d4ccde21f4585e6b7852
-> 100644
-> --- a/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
-> +++ b/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
-> @@ -102,7 +102,8 @@
->  /* Use the maximum between 16384 and a single page */
->  #define MLX4_EN_ALLOC_SIZE     PAGE_ALIGN(16384)
->
-> -#define MLX4_EN_ALLOC_PREFER_ORDER     PAGE_ALLOC_COSTLY_ORDER
-> +#define MLX4_EN_ALLOC_PREFER_ORDER min_t(int, get_order(32768),
->          \
-> +                                        PAGE_ALLOC_COSTLY_ORDER)
->
->  /* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
->   * and 4K allocations) */
+> If your customers have gotten into the habit of using metrics which
+> actually do not represent real life performance, that is a completely
+> inappropriate reason to not include Eric's changes as-is.
 
-+1
+Guys, It is not about customers, benchmark and great performance numbers.
+We agree with you that those patches are good and needed for the long term,
+but as we are already at rc8 and although this change is correct, i
+think it is a little bit too late
+to have such huge change in the core RX engine of the driver. ( the
+code is already like this for
+more kernel releases than one could count, it will hurt no one to keep
+it like this for two weeks more).
+
+All we ask is to have a little bit more time - one or two weeks- to
+test them and evaluate the impact.
+As Eric stated we don't care if they make it to 4.11 or 4.12, the idea
+is to have them in ASAP.
+so why not wait to 4.11 (just two more weeks) and Tariq already said
+that he will accept it as is.
+and by then we will be smarter and have a clear plan of the gaps and
+how to close them.
+
+For PowerPC page order issue, Eric already have a simpler suggestion
+that i support, and can easily be
+sent to net and -stable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
