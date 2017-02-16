@@ -1,195 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 29D3E681010
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 14:48:18 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id y196so52004570ity.1
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 11:48:18 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0077.outbound.protection.outlook.com. [104.47.41.77])
-        by mx.google.com with ESMTPS id p64si8161599itb.75.2017.02.16.11.48.17
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E8845681010
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 15:50:11 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id b134so22421900qkg.2
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 12:50:11 -0800 (PST)
+Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
+        by mx.google.com with ESMTPS id s11si6062898qks.1.2017.02.16.12.50.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Feb 2017 11:48:17 -0800 (PST)
-Subject: Re: [RFC PATCH v4 01/28] x86: Documentation for AMD Secure Memory
- Encryption (SME)
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154211.19244.76656.stgit@tlendack-t1.amdoffice.net>
- <20170216175625.imxsvz7fzvlpveze@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <7dcbe640-4cde-cc28-ab82-2d8517925e93@amd.com>
-Date: Thu, 16 Feb 2017 13:48:08 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Feb 2017 12:50:10 -0800 (PST)
+Received: by mail-qk0-x242.google.com with SMTP id 11so4040504qkl.0
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 12:50:10 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170216175625.imxsvz7fzvlpveze@pd.tnic>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CANn89iJayq1r2hLQJSHA1YvZGDOxNuViucf=+syL6BEmFkc2RQ@mail.gmail.com>
+References: <20170213195858.5215-1-edumazet@google.com> <20170213195858.5215-9-edumazet@google.com>
+ <CAKgT0Ufx0Y=9kjLax36Gx4e7Y-A7sKZDNYxgJ9wbCT4_vxHhGA@mail.gmail.com>
+ <CANn89iLkPB_Dx1L2dFfwOoeXOmPhu_C3OO2yqZi8+Rvjr=-EtA@mail.gmail.com>
+ <CAKgT0UeB_e_Z7LM1_r=en8JJdgLhoYFstWpCDQN6iawLYZJKDA@mail.gmail.com>
+ <20170214131206.44b644f6@redhat.com> <CANn89i+udp6Y42D9wqmz7U6LGn1mtDRXpQGHAOAeX25eD0dGnQ@mail.gmail.com>
+ <cd4f3d91-252b-4796-2bd2-3030c18d9ee6@gmail.com> <1487087488.8227.53.camel@edumazet-glaptop3.roam.corp.google.com>
+ <CALx6S3530_2DYU-3VRmvRYZ3n05OqJZpJ3x02vXQd6Q7FUJQvw@mail.gmail.com>
+ <ccc4cb9e-9863-02e1-2789-4869aea3c661@mellanox.com> <CANn89iJip45peBQB9Tn1mWVg+1QYZH+01CqkAUctd3xqwPw8Zg@mail.gmail.com>
+ <37bc04eb-71c9-0433-304d-87fcf8b06be3@mellanox.com> <CALx6S36xcEJ9YssZtzQKOy-tufrWWJO533J0nTEzp_ckb5dVjA@mail.gmail.com>
+ <CANn89iJayq1r2hLQJSHA1YvZGDOxNuViucf=+syL6BEmFkc2RQ@mail.gmail.com>
+From: Saeed Mahameed <saeedm@dev.mellanox.co.il>
+Date: Thu, 16 Feb 2017 22:49:49 +0200
+Message-ID: <CALzJLG9z_hc4=35e_yToP1j=+QJJ6uaQbvMo9ddmdN1Ar83RbA@mail.gmail.com>
+Subject: Re: [PATCH v3 net-next 08/14] mlx4: use order-0 pages for RX
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
- Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Eric Dumazet <edumazet@google.com>
+Cc: Tom Herbert <tom@herbertland.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexander Duyck <alexander.duyck@gmail.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Martin KaFai Lau <kafai@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Willem de Bruijn <willemb@google.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 02/16/2017 11:56 AM, Borislav Petkov wrote:
-> Ok, this time detailed review :-)
-> 
-> On Thu, Feb 16, 2017 at 09:42:11AM -0600, Tom Lendacky wrote:
->> This patch adds a Documenation entry to decribe the AMD Secure Memory
->> Encryption (SME) feature.
-> 
-> Please introduce a spellchecker into your patch creation workflow. I see
-> two typos in one line.
-> 
-> Also, never start patch commit messages with "This patch" - we know it
-> is this patch. Always write a doer-sentences explaining the why, not the
-> what. Something like:
-> 
-> "Add a SME and mem_encrypt= kernel parameter documentation."
-> 
-> for example.
+On Thu, Feb 16, 2017 at 7:11 PM, Eric Dumazet <edumazet@google.com> wrote:
+>> You're admitting that Eric's patches improve driver quality,
+>> stability, and performance but you're not allowing this in the kernel
+>> because "we know what benchmarks our customers are going to run".
+>
+> Note that I do not particularly care if these patches go in 4.11 or 4.12 really.
+>
+> I already backported them into our 4.3 based kernel.
+>
+> I guess that we could at least propose the trivial patch for stable releases,
+> since PowerPC arches really need it.
+>
+> diff --git a/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
+> b/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
+> index cec59bc264c9ac197048fd7c98bcd5cf25de0efd..0f6d2f3b7d54f51de359d4ccde21f4585e6b7852
+> 100644
+> --- a/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
+> +++ b/drivers/net/ethernet/mellanox/mlx4/mlx4_en.h
+> @@ -102,7 +102,8 @@
+>  /* Use the maximum between 16384 and a single page */
+>  #define MLX4_EN_ALLOC_SIZE     PAGE_ALIGN(16384)
+>
+> -#define MLX4_EN_ALLOC_PREFER_ORDER     PAGE_ALLOC_COSTLY_ORDER
+> +#define MLX4_EN_ALLOC_PREFER_ORDER min_t(int, get_order(32768),
+>          \
+> +                                        PAGE_ALLOC_COSTLY_ORDER)
+>
+>  /* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
+>   * and 4K allocations) */
 
-Ok, will do.
-
-> 
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  Documentation/admin-guide/kernel-parameters.txt |   11 ++++
->>  Documentation/x86/amd-memory-encryption.txt     |   57 +++++++++++++++++++++++
->>  2 files changed, 68 insertions(+)
->>  create mode 100644 Documentation/x86/amd-memory-encryption.txt
->>
->> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
->> index 110745e..91c40fa 100644
->> --- a/Documentation/admin-guide/kernel-parameters.txt
->> +++ b/Documentation/admin-guide/kernel-parameters.txt
->> @@ -2145,6 +2145,17 @@
->>  			memory contents and reserves bad memory
->>  			regions that are detected.
->>  
->> +	mem_encrypt=	[X86-64] AMD Secure Memory Encryption (SME) control
->> +			Valid arguments: on, off
->> +			Default (depends on kernel configuration option):
->> +			  on  (CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=y)
->> +			  off (CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=n)
->> +			mem_encrypt=on:		Activate SME
->> +			mem_encrypt=off:	Do not activate SME
->> +
->> +			Refer to the SME documentation for details on when
-> 
-> "Refer to Documentation/x86/amd-memory-encryption.txt .."
-
-Ok.
-
-> 
->> +			memory encryption can be activated.
->> +
->>  	mem_sleep_default=	[SUSPEND] Default system suspend mode:
->>  			s2idle  - Suspend-To-Idle
->>  			shallow - Power-On Suspend or equivalent (if supported)
->> diff --git a/Documentation/x86/amd-memory-encryption.txt b/Documentation/x86/amd-memory-encryption.txt
->> new file mode 100644
->> index 0000000..0938e89
->> --- /dev/null
->> +++ b/Documentation/x86/amd-memory-encryption.txt
->> @@ -0,0 +1,57 @@
->> +Secure Memory Encryption (SME) is a feature found on AMD processors.
->> +
->> +SME provides the ability to mark individual pages of memory as encrypted using
->> +the standard x86 page tables.  A page that is marked encrypted will be
->> +automatically decrypted when read from DRAM and encrypted when written to
->> +DRAM.  SME can therefore be used to protect the contents of DRAM from physical
->> +attacks on the system.
->> +
->> +A page is encrypted when a page table entry has the encryption bit set (see
->> +below how to determine the position of the bit).  The encryption bit can be
-> 
-> "... how to determine its position)."
-
-Ok.
-
-> 
->> +specified in the cr3 register, allowing the PGD table to be encrypted. Each
->> +successive level of page tables can also be encrypted.
->> +
->> +Support for SME can be determined through the CPUID instruction. The CPUID
->> +function 0x8000001f reports information related to SME:
->> +
->> +	0x8000001f[eax]:
->> +		Bit[0] indicates support for SME
->> +	0x8000001f[ebx]:
->> +		Bit[5:0]  pagetable bit number used to activate memory
->> +			  encryption
-> 
-> s/Bit/Bits/
-
-Ok.
-
-> 
->> +		Bit[11:6] reduction in physical address space, in bits, when
-> 
-> Ditto.
-> 
->> +			  memory encryption is enabled (this only affects system
->> +			  physical addresses, not guest physical addresses)
->> +
->> +If support for SME is present, MSR 0xc00100010 (SYS_CFG) can be used to
-> 
-> Let's use the kernel's define name MSR_K8_SYSCFG to avoid ambiguity.
-
-Will do.
-
-> 
->> +determine if SME is enabled and/or to enable memory encryption:
->> +
->> +	0xc0010010:
->> +		Bit[23]   0 = memory encryption features are disabled
->> +			  1 = memory encryption features are enabled
->> +
->> +Linux relies on BIOS to set this bit if BIOS has determined that the reduction
->> +in the physical address space as a result of enabling memory encryption (see
->> +CPUID information above) will not conflict with the address space resource
->> +requirements for the system.  If this bit is not set upon Linux startup then
->> +Linux itself will not set it and memory encryption will not be possible.
->> +
->> +The state of SME in the Linux kernel can be documented as follows:
->> +	- Supported:
->> +	  The CPU supports SME (determined through CPUID instruction).
->> +
->> +	- Enabled:
->> +	  Supported and bit 23 of the SYS_CFG MSR is set.
-> 
-> Ditto.
-> 
->> +
->> +	- Active:
->> +	  Supported, Enabled and the Linux kernel is actively applying
->> +	  the encryption bit to page table entries (the SME mask in the
->> +	  kernel is non-zero).
->> +
->> +SME can also be enabled and activated in the BIOS. If SME is enabled and
->> +activated in the BIOS, then all memory accesses will be encrypted and it will
->> +not be necessary to activate the Linux memory encryption support.  If the BIOS
->> +merely enables SME (sets bit 23 of the SYS_CFG MSR), then Linux can activate
->> +memory encryption.
-> 
-> "... This is done by supplying mem_encrypt=on on the kernel command line.
-> Alternatively, if the kernel should enable SME by default, set
-> CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=y."
-
-Yup, much clearer.
-
-> 
->> However, if BIOS does not enable SME, then Linux will not
->> +attempt to activate memory encryption, even if configured to do so by default
-> 
-> will not attempt or will not be able to?
-
-Probably closer to will not be able to right now.  I'll update that.
-
-Thanks,
-Tom
-
-> 
->> +or the mem_encrypt=on command line parameter is specified.
-> 
++1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
