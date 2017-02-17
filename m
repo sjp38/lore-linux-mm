@@ -1,288 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6129D4405E4
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:14:20 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id y6so48835000pgy.5
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:14:20 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id v75si10395841pfa.126.2017.02.17.06.14.18
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C0D3A4405E4
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:14:24 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id e4so60676107pfg.4
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:14:24 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id s3si10416296plj.94.2017.02.17.06.14.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 06:14:19 -0800 (PST)
+        Fri, 17 Feb 2017 06:14:23 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 00/33] 5-level paging
-Date: Fri, 17 Feb 2017 17:12:55 +0300
-Message-Id: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCHv3 05/33] asm-generic: introduce <asm-generic/pgtable-nop4d.h>
+Date: Fri, 17 Feb 2017 17:13:00 +0300
+Message-Id: <20170217141328.164563-6-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
+References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Here is v3 of 5-level paging patchset. Please review and consider applying.
+Like with pgtable-nopud.h for 4-level paging, this new header is base
+for converting an architectures to properly folded p4d_t level.
 
-== Overview ==
-
-x86-64 is currently limited to 256 TiB of virtual address space and 64 TiB
-of physical address space. We are already bumping into this limit: some
-vendors offers servers with 64 TiB of memory today.
-
-To overcome the limitation upcoming hardware will introduce support for
-5-level paging[1]. It is a straight-forward extension of the current page
-table structure adding one more layer of translation.
-
-It bumps the limits to 128 PiB of virtual address space and 4 PiB of
-physical address space. This "ought to be enough for anybody" A(C).
-
-==  Patches ==
-
-The patchset is build on top of v4.10-rc8.
-
-Current QEMU upstream git supports 5-level paging. Use "-cpu qemu64,+la57"
-to enable it.
-
-Patch 1:
-	Detect la57 feature for /proc/cpuinfo.
-
-Patches 2-7:
-	Brings 5-level paging to generic code and convert all
-	architectures to it using <asm-generic/5level-fixup.h>
-
-Patches 8-19:
-	Convert x86 to properly folded p4d layer using
-	<asm-generic/pgtable-nop4d.h>.
-
-Patches 20-32:
-	Enabling of real 5-level paging.
-
-	CONFIG_X86_5LEVEL=y will enable new paging mode.
-
-Patch 33:
-	Introduce new prctl(2) handles -- PR_SET_MAX_VADDR and PR_GET_MAX_VADDR.
-
-	This aims to address compatibility issue. Only supports x86 for
-	now, but should be useful for other archtectures.
-
-Git:
-	git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git la57/v3
-
-== TODO ==
-
-There is still work to do:
-
-  - CONFIG_XEN is broken for 5-level paging.
-
-    Xen for 5-level paging requires more work to get functional.
-    
-    Xen on 4-level paging works, so it's not a regression.
-
-  - Boot-time switch between 4- and 5-level paging.
-
-    We assume that distributions will be keen to avoid returning to the
-    i386 days where we shipped one kernel binary for each page table
-    layout.
-
-    As page table format is the same for 4- and 5-level paging it should
-    be possible to have single kernel binary and switch between them at
-    boot-time without too much hassle.
-
-    For now I only implemented compile-time switch.
-
-    This will implemented with separate patchset.
-
-== Changelong ==
-
-  v3:
-    - Rebased to v4.10-rc5;
-    - prctl() handles for large address space opt-in;
-    - Xen works for 4-level paging;
-    - EFI boot fixed for both 4- and 5-level paging;
-    - Hibernation fixed for 4-level paging;
-    - kexec() fixed;
-    - Couple of build fixes;
-  v2:
-    - Rebased to v4.10-rc1;
-    - RLIMIT_VADDR proposal;
-    - Fix virtual map and update documentation;
-    - Fix few build errors;
-    - Rework cpuid helpers in boot code;
-    - Fix espfix code to work with 5-level pages;
-
-[1] https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf
-Kirill A. Shutemov (33):
-  x86/cpufeature: Add 5-level paging detection
-  asm-generic: introduce 5level-fixup.h
-  asm-generic: introduce __ARCH_USE_5LEVEL_HACK
-  arch, mm: convert all architectures to use 5level-fixup.h
-  asm-generic: introduce <asm-generic/pgtable-nop4d.h>
-  mm: convert generic code to 5-level paging
-  mm: introduce __p4d_alloc()
-  x86: basic changes into headers for 5-level paging
-  x86: trivial portion of 5-level paging conversion
-  x86/gup: add 5-level paging support
-  x86/ident_map: add 5-level paging support
-  x86/mm: add support of p4d_t in vmalloc_fault()
-  x86/power: support p4d_t in hibernate code
-  x86/kexec: support p4d_t
-  x86/efi: handle p4d in EFI pagetables
-  x86/mm/pat: handle additional page table
-  x86/kasan: prepare clear_pgds() to switch to
-    <asm-generic/pgtable-nop4d.h>
-  x86/xen: convert __xen_pgd_walk() and xen_cleanmfnmap() to support p4d
-  x86: convert the rest of the code to support p4d_t
-  x86: detect 5-level paging support
-  x86/asm: remove __VIRTUAL_MASK_SHIFT==47 assert
-  x86/mm: define virtual memory map for 5-level paging
-  x86/paravirt: make paravirt code support 5-level paging
-  x86/mm: basic defines/helpers for CONFIG_X86_5LEVEL
-  x86/dump_pagetables: support 5-level paging
-  x86/kasan: extend to support 5-level paging
-  x86/espfix: support 5-level paging
-  x86/mm: add support of additional page table level during early boot
-  x86/mm: add sync_global_pgds() for configuration with 5-level paging
-  x86/mm: make kernel_physical_mapping_init() support 5-level paging
-  x86/mm: add support for 5-level paging for KASLR
-  x86: enable 5-level paging support
-  mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
-
- Documentation/x86/x86_64/mm.txt                  |  33 +-
- arch/arc/include/asm/hugepage.h                  |   1 +
- arch/arc/include/asm/pgtable.h                   |   1 +
- arch/arm/include/asm/pgtable.h                   |   1 +
- arch/arm64/include/asm/pgtable-types.h           |   4 +
- arch/avr32/include/asm/pgtable-2level.h          |   1 +
- arch/cris/include/asm/pgtable.h                  |   1 +
- arch/frv/include/asm/pgtable.h                   |   1 +
- arch/h8300/include/asm/pgtable.h                 |   1 +
- arch/hexagon/include/asm/pgtable.h               |   1 +
- arch/ia64/include/asm/pgtable.h                  |   2 +
- arch/metag/include/asm/pgtable.h                 |   1 +
- arch/mips/include/asm/pgtable-32.h               |   1 +
- arch/mips/include/asm/pgtable-64.h               |   1 +
- arch/mn10300/include/asm/page.h                  |   1 +
- arch/nios2/include/asm/pgtable.h                 |   1 +
- arch/openrisc/include/asm/pgtable.h              |   1 +
- arch/powerpc/include/asm/book3s/32/pgtable.h     |   1 +
- arch/powerpc/include/asm/book3s/64/pgtable.h     |   2 +
- arch/powerpc/include/asm/nohash/32/pgtable.h     |   1 +
- arch/powerpc/include/asm/nohash/64/pgtable-4k.h  |   3 +
- arch/powerpc/include/asm/nohash/64/pgtable-64k.h |   1 +
- arch/s390/include/asm/pgtable.h                  |   1 +
- arch/score/include/asm/pgtable.h                 |   1 +
- arch/sh/include/asm/pgtable-2level.h             |   1 +
- arch/sh/include/asm/pgtable-3level.h             |   1 +
- arch/sparc/include/asm/pgtable_64.h              |   1 +
- arch/tile/include/asm/pgtable_32.h               |   1 +
- arch/tile/include/asm/pgtable_64.h               |   1 +
- arch/um/include/asm/pgtable-2level.h             |   1 +
- arch/um/include/asm/pgtable-3level.h             |   1 +
- arch/unicore32/include/asm/pgtable.h             |   1 +
- arch/x86/Kconfig                                 |   6 +
- arch/x86/boot/compressed/head_64.S               |  23 +-
- arch/x86/boot/cpucheck.c                         |   9 +
- arch/x86/boot/cpuflags.c                         |  12 +-
- arch/x86/entry/entry_64.S                        |   7 +-
- arch/x86/include/asm/cpufeatures.h               |   3 +-
- arch/x86/include/asm/disabled-features.h         |   8 +-
- arch/x86/include/asm/elf.h                       |   2 +-
- arch/x86/include/asm/kasan.h                     |   9 +-
- arch/x86/include/asm/kexec.h                     |   1 +
- arch/x86/include/asm/mmu.h                       |   2 +
- arch/x86/include/asm/mmu_context.h               |   1 +
- arch/x86/include/asm/page_64_types.h             |  10 +
- arch/x86/include/asm/paravirt.h                  |  65 +++-
- arch/x86/include/asm/paravirt_types.h            |  17 +-
- arch/x86/include/asm/pgalloc.h                   |  37 +-
- arch/x86/include/asm/pgtable-2level_types.h      |   1 +
- arch/x86/include/asm/pgtable-3level_types.h      |   1 +
- arch/x86/include/asm/pgtable.h                   |  85 ++++-
- arch/x86/include/asm/pgtable_64.h                |  29 +-
- arch/x86/include/asm/pgtable_64_types.h          |  27 ++
- arch/x86/include/asm/pgtable_types.h             |  42 ++-
- arch/x86/include/asm/processor.h                 |  25 +-
- arch/x86/include/asm/required-features.h         |   8 +-
- arch/x86/include/asm/sparsemem.h                 |   9 +-
- arch/x86/include/asm/xen/page.h                  |   8 +-
- arch/x86/include/uapi/asm/processor-flags.h      |   2 +
- arch/x86/kernel/espfix_64.c                      |  12 +-
- arch/x86/kernel/head64.c                         |  40 ++-
- arch/x86/kernel/head_64.S                        |  63 +++-
- arch/x86/kernel/machine_kexec_32.c               |   4 +-
- arch/x86/kernel/machine_kexec_64.c               |  16 +-
- arch/x86/kernel/paravirt.c                       |  13 +-
- arch/x86/kernel/process.c                        |  18 +
- arch/x86/kernel/sys_x86_64.c                     |   6 +-
- arch/x86/kernel/tboot.c                          |   6 +-
- arch/x86/kernel/vm86_32.c                        |   6 +-
- arch/x86/mm/dump_pagetables.c                    |  51 ++-
- arch/x86/mm/fault.c                              |  57 ++-
- arch/x86/mm/gup.c                                |  33 +-
- arch/x86/mm/hugetlbpage.c                        |   8 +-
- arch/x86/mm/ident_map.c                          |  47 ++-
- arch/x86/mm/init_32.c                            |  22 +-
- arch/x86/mm/init_64.c                            | 269 ++++++++++++--
- arch/x86/mm/ioremap.c                            |   3 +-
- arch/x86/mm/kasan_init_64.c                      |  41 ++-
- arch/x86/mm/kaslr.c                              |  82 ++++-
- arch/x86/mm/mmap.c                               |   4 +-
- arch/x86/mm/mpx.c                                |  17 +-
- arch/x86/mm/pageattr.c                           |  56 ++-
- arch/x86/mm/pgtable.c                            |  38 +-
- arch/x86/mm/pgtable_32.c                         |   8 +-
- arch/x86/platform/efi/efi_64.c                   |  38 +-
- arch/x86/power/hibernate_32.c                    |   7 +-
- arch/x86/power/hibernate_64.c                    |  49 ++-
- arch/x86/realmode/init.c                         |   2 +-
- arch/x86/xen/Kconfig                             |   1 +
- arch/x86/xen/mmu.c                               | 433 ++++++++++++++---------
- arch/x86/xen/mmu.h                               |   1 +
- arch/xtensa/include/asm/pgtable.h                |   1 +
- drivers/misc/sgi-gru/grufault.c                  |   9 +-
- fs/binfmt_aout.c                                 |   2 -
- fs/binfmt_elf.c                                  |  10 +-
- fs/hugetlbfs/inode.c                             |   6 +-
- fs/userfaultfd.c                                 |   6 +-
- include/asm-generic/4level-fixup.h               |   3 +-
- include/asm-generic/5level-fixup.h               |  41 +++
- include/asm-generic/pgtable-nop4d-hack.h         |  62 ++++
- include/asm-generic/pgtable-nop4d.h              |  56 +++
- include/asm-generic/pgtable-nopud.h              |  48 +--
- include/asm-generic/pgtable.h                    |  48 ++-
- include/asm-generic/tlb.h                        |  14 +-
- include/linux/hugetlb.h                          |   5 +-
- include/linux/kasan.h                            |   1 +
- include/linux/mm.h                               |  34 +-
- include/linux/sched.h                            |   8 +
- include/trace/events/xen.h                       |  28 +-
- include/uapi/linux/prctl.h                       |   3 +
- kernel/events/uprobes.c                          |   5 +-
- kernel/sys.c                                     |  23 +-
- lib/ioremap.c                                    |  39 +-
- mm/gup.c                                         |  46 ++-
- mm/huge_memory.c                                 |   7 +-
- mm/hugetlb.c                                     |  29 +-
- mm/kasan/kasan_init.c                            |  35 +-
- mm/memory.c                                      | 230 ++++++++++--
- mm/mlock.c                                       |   1 +
- mm/mmap.c                                        |  20 +-
- mm/mprotect.c                                    |  26 +-
- mm/mremap.c                                      |  16 +-
- mm/nommu.c                                       |   2 +-
- mm/pagewalk.c                                    |  32 +-
- mm/pgtable-generic.c                             |   6 +
- mm/rmap.c                                        |  13 +-
- mm/shmem.c                                       |   8 +-
- mm/sparse-vmemmap.c                              |  22 +-
- mm/swapfile.c                                    |  26 +-
- mm/userfaultfd.c                                 |  23 +-
- mm/vmalloc.c                                     |  81 +++--
- 131 files changed, 2435 insertions(+), 611 deletions(-)
- create mode 100644 include/asm-generic/5level-fixup.h
- create mode 100644 include/asm-generic/pgtable-nop4d-hack.h
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/asm-generic/pgtable-nop4d.h | 56 +++++++++++++++++++++++++++++++++++++
+ include/asm-generic/pgtable-nopud.h | 43 ++++++++++++++--------------
+ include/asm-generic/tlb.h           | 14 ++++++++--
+ 3 files changed, 89 insertions(+), 24 deletions(-)
  create mode 100644 include/asm-generic/pgtable-nop4d.h
 
+diff --git a/include/asm-generic/pgtable-nop4d.h b/include/asm-generic/pgtable-nop4d.h
+new file mode 100644
+index 000000000000..de364ecb8df6
+--- /dev/null
++++ b/include/asm-generic/pgtable-nop4d.h
+@@ -0,0 +1,56 @@
++#ifndef _PGTABLE_NOP4D_H
++#define _PGTABLE_NOP4D_H
++
++#ifndef __ASSEMBLY__
++
++#define __PAGETABLE_P4D_FOLDED
++
++typedef struct { pgd_t pgd; } p4d_t;
++
++#define P4D_SHIFT	PGDIR_SHIFT
++#define PTRS_PER_P4D	1
++#define P4D_SIZE	(1UL << P4D_SHIFT)
++#define P4D_MASK	(~(P4D_SIZE-1))
++
++/*
++ * The "pgd_xxx()" functions here are trivial for a folded two-level
++ * setup: the p4d is never bad, and a p4d always exists (as it's folded
++ * into the pgd entry)
++ */
++static inline int pgd_none(pgd_t pgd)		{ return 0; }
++static inline int pgd_bad(pgd_t pgd)		{ return 0; }
++static inline int pgd_present(pgd_t pgd)	{ return 1; }
++static inline void pgd_clear(pgd_t *pgd)	{ }
++#define p4d_ERROR(p4d)				(pgd_ERROR((p4d).pgd))
++
++#define pgd_populate(mm, pgd, p4d)		do { } while (0)
++/*
++ * (p4ds are folded into pgds so this doesn't get actually called,
++ * but the define is needed for a generic inline function.)
++ */
++#define set_pgd(pgdptr, pgdval)	set_p4d((p4d_t *)(pgdptr), (p4d_t) { pgdval })
++
++static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
++{
++	return (p4d_t *)pgd;
++}
++
++#define p4d_val(x)				(pgd_val((x).pgd))
++#define __p4d(x)				((p4d_t) { __pgd(x) })
++
++#define pgd_page(pgd)				(p4d_page((p4d_t){ pgd }))
++#define pgd_page_vaddr(pgd)			(p4d_page_vaddr((p4d_t){ pgd }))
++
++/*
++ * allocating and freeing a p4d is trivial: the 1-entry p4d is
++ * inside the pgd, so has no extra memory associated with it.
++ */
++#define p4d_alloc_one(mm, address)		NULL
++#define p4d_free(mm, x)				do { } while (0)
++#define __p4d_free_tlb(tlb, x, a)		do { } while (0)
++
++#undef  p4d_addr_end
++#define p4d_addr_end(addr, end)			(end)
++
++#endif /* __ASSEMBLY__ */
++#endif /* _PGTABLE_NOP4D_H */
+diff --git a/include/asm-generic/pgtable-nopud.h b/include/asm-generic/pgtable-nopud.h
+index 5e49430a30a4..c2b9b96d6268 100644
+--- a/include/asm-generic/pgtable-nopud.h
++++ b/include/asm-generic/pgtable-nopud.h
+@@ -6,53 +6,54 @@
+ #ifdef __ARCH_USE_5LEVEL_HACK
+ #include <asm-generic/pgtable-nop4d-hack.h>
+ #else
++#include <asm-generic/pgtable-nop4d.h>
+ 
+ #define __PAGETABLE_PUD_FOLDED
+ 
+ /*
+- * Having the pud type consist of a pgd gets the size right, and allows
+- * us to conceptually access the pgd entry that this pud is folded into
++ * Having the pud type consist of a p4d gets the size right, and allows
++ * us to conceptually access the p4d entry that this pud is folded into
+  * without casting.
+  */
+-typedef struct { pgd_t pgd; } pud_t;
++typedef struct { p4d_t p4d; } pud_t;
+ 
+-#define PUD_SHIFT	PGDIR_SHIFT
++#define PUD_SHIFT	P4D_SHIFT
+ #define PTRS_PER_PUD	1
+ #define PUD_SIZE  	(1UL << PUD_SHIFT)
+ #define PUD_MASK  	(~(PUD_SIZE-1))
+ 
+ /*
+- * The "pgd_xxx()" functions here are trivial for a folded two-level
++ * The "p4d_xxx()" functions here are trivial for a folded two-level
+  * setup: the pud is never bad, and a pud always exists (as it's folded
+- * into the pgd entry)
++ * into the p4d entry)
+  */
+-static inline int pgd_none(pgd_t pgd)		{ return 0; }
+-static inline int pgd_bad(pgd_t pgd)		{ return 0; }
+-static inline int pgd_present(pgd_t pgd)	{ return 1; }
+-static inline void pgd_clear(pgd_t *pgd)	{ }
+-#define pud_ERROR(pud)				(pgd_ERROR((pud).pgd))
++static inline int p4d_none(p4d_t p4d)		{ return 0; }
++static inline int p4d_bad(p4d_t p4d)		{ return 0; }
++static inline int p4d_present(p4d_t p4d)	{ return 1; }
++static inline void p4d_clear(p4d_t *p4d)	{ }
++#define pud_ERROR(pud)				(p4d_ERROR((pud).p4d))
+ 
+-#define pgd_populate(mm, pgd, pud)		do { } while (0)
++#define p4d_populate(mm, p4d, pud)		do { } while (0)
+ /*
+- * (puds are folded into pgds so this doesn't get actually called,
++ * (puds are folded into p4ds so this doesn't get actually called,
+  * but the define is needed for a generic inline function.)
+  */
+-#define set_pgd(pgdptr, pgdval)			set_pud((pud_t *)(pgdptr), (pud_t) { pgdval })
++#define set_p4d(p4dptr, p4dval)	set_pud((pud_t *)(p4dptr), (pud_t) { p4dval })
+ 
+-static inline pud_t * pud_offset(pgd_t * pgd, unsigned long address)
++static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
+ {
+-	return (pud_t *)pgd;
++	return (pud_t *)p4d;
+ }
+ 
+-#define pud_val(x)				(pgd_val((x).pgd))
+-#define __pud(x)				((pud_t) { __pgd(x) } )
++#define pud_val(x)				(p4d_val((x).p4d))
++#define __pud(x)				((pud_t) { __p4d(x) })
+ 
+-#define pgd_page(pgd)				(pud_page((pud_t){ pgd }))
+-#define pgd_page_vaddr(pgd)			(pud_page_vaddr((pud_t){ pgd }))
++#define p4d_page(p4d)				(pud_page((pud_t){ p4d }))
++#define p4d_page_vaddr(p4d)			(pud_page_vaddr((pud_t){ p4d }))
+ 
+ /*
+  * allocating and freeing a pud is trivial: the 1-entry pud is
+- * inside the pgd, so has no extra memory associated with it.
++ * inside the p4d, so has no extra memory associated with it.
+  */
+ #define pud_alloc_one(mm, address)		NULL
+ #define pud_free(mm, x)				do { } while (0)
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index 7eed8cf3130a..a6b51b1a7b7f 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -256,6 +256,12 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+ 		__pte_free_tlb(tlb, ptep, address);		\
+ 	} while (0)
+ 
++#define pmd_free_tlb(tlb, pmdp, address)			\
++	do {							\
++		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
++		__pmd_free_tlb(tlb, pmdp, address);		\
++	} while (0)
++
+ #ifndef __ARCH_HAS_4LEVEL_HACK
+ #define pud_free_tlb(tlb, pudp, address)			\
+ 	do {							\
+@@ -264,11 +270,13 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+ 	} while (0)
+ #endif
+ 
+-#define pmd_free_tlb(tlb, pmdp, address)			\
++#ifndef __ARCH_HAS_5LEVEL_HACK
++#define p4d_free_tlb(tlb, pudp, address)			\
+ 	do {							\
+-		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
+-		__pmd_free_tlb(tlb, pmdp, address);		\
++		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
++		__p4d_free_tlb(tlb, pudp, address);		\
+ 	} while (0)
++#endif
+ 
+ #define tlb_migrate_finish(mm) do {} while (0)
+ 
 -- 
 2.11.0
 
