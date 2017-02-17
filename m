@@ -1,87 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D01F36B0387
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 15:02:14 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id j82so60061694oih.6
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:02:14 -0800 (PST)
-Received: from mail-ot0-x243.google.com (mail-ot0-x243.google.com. [2607:f8b0:4003:c0f::243])
-        by mx.google.com with ESMTPS id m31si4174503otd.144.2017.02.17.12.02.14
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 48E496B0038
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 15:03:21 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id y7so9907275wrc.7
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:03:21 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r15si14460227wrr.217.2017.02.17.12.03.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 12:02:14 -0800 (PST)
-Received: by mail-ot0-x243.google.com with SMTP id 45so2615169otd.1
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:02:14 -0800 (PST)
+        Fri, 17 Feb 2017 12:03:20 -0800 (PST)
+Date: Fri, 17 Feb 2017 15:03:13 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
+Message-ID: <20170217200313.GA30923@cmpxchg.org>
+References: <cover.1487100204.git.shli@fb.com>
+ <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+ <20170216184018.GC20791@cmpxchg.org>
+ <20170217002717.GA93163@shli-mbp.local>
+ <20170217160154.GA23735@cmpxchg.org>
+ <20170217184340.GA26984@shli-mbp.local>
 MIME-Version: 1.0
-In-Reply-To: <20170217141328.164563-34-kirill.shutemov@linux.intel.com>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com> <20170217141328.164563-34-kirill.shutemov@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 17 Feb 2017 12:02:13 -0800
-Message-ID: <CA+55aFwgbHxV-Ha2n1H=Z7P6bgcQ3D8aW=fr8ZrQ5OnvZ1vOYg@mail.gmail.com>
-Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170217184340.GA26984@shli-mbp.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Linux API <linux-api@vger.kernel.org>
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Fri, Feb 17, 2017 at 6:13 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> This patch introduces two new prctl(2) handles to manage maximum virtual
-> address available to userspace to map.
+On Fri, Feb 17, 2017 at 10:43:41AM -0800, Shaohua Li wrote:
+> On Fri, Feb 17, 2017 at 11:01:54AM -0500, Johannes Weiner wrote:
+> > On Thu, Feb 16, 2017 at 04:27:18PM -0800, Shaohua Li wrote:
+> > > On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
+> > > > On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
+> > > > >  		unlock_page(page);
+> > > > >  		list_add(&page->lru, &ret_pages);
+> > > > >  		continue;
+> > > > > @@ -1303,6 +1313,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > > >  		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
+> > > > >  			try_to_free_swap(page);
+> > > > >  		VM_BUG_ON_PAGE(PageActive(page), page);
+> > > > > +		if (lazyfree)
+> > > > > +			clear_page_lazyfree(page);
+> > > > 
+> > > > Can we leave simply leave the page alone here? The only way we get to
+> > > > this point is if somebody is reading the invalidated page. It's weird
+> > > > for a lazyfreed page to become active, but it doesn't seem to warrant
+> > > > active intervention here.
+> > > 
+> > > So the unmap fails here probably because the page is dirty, which means the
+> > > page is written recently. It makes sense to assume the page is hot.
+> > 
+> > Ah, good point.
+> > 
+> > But can we handle that explicitly please? Like above, I don't want to
+> > undo the data invalidation just because somebody read the invalid data
+> > a bunch of times and it has the access bits set. We should only re-set
+> > the PageSwapBacked based on whether the page is actually dirty.
+> > 
+> > Maybe along the lines of SWAP_MLOCK we could add SWAP_DIRTY when TTU
+> > fails because the page is dirty, and then have a cull_dirty: label in
+> > shrink_page_list handle the lazy rescue of a reused MADV_FREE page?
+> > 
+> > This should work well with removing the mapping || lazyfree check when
+> > calling TTU. Then TTU can fail on dirty && !mapping, which is a much
+> > more obvious way of expressing it IMO - "This page contains valid data
+> > but there is no mapping that backs it once we unmap it. Abort."
+> > 
+> > That's mostly why I'm in favor of removing the idea of a "lazyfree"
+> > page as much as possible. IMO this whole thing becomes much more
+> > understandable - and less bolted on to the side of the VM - when we
+> > express it in existing concepts the VM uses for data integrity.
+> 
+> Ok, it makes sense to only reset the PageSwapBacked bit for dirty page. In this
+> way, we jump to activate_locked for SWAP_DIRTY || (SWAP_FAIL && pagelazyfree)
+> and jump to activate_locked for SWAP_FAIL && !pagelazyfree. Is this what you
+> want to do? This will add extra checks for SWAP_FAIL. I'm not sure if this is
+> really worthy because it's rare the MADV_FREE page is read.
 
-So this is my least favorite patch of the whole series, for a couple of reasons:
+Yes, for SWAP_DIRTY jump to activate_locked or have its own label that
+sets PG_swapbacked again and moves the page back to the proper LRU.
 
- (a) adding new code, and mixing it with the mindless TASK_SIZE ->
-get_max_addr() conversion.
+SWAP_FAIL of an anon && !swapbacked && !dirty && referenced page can
+be ignored IMO. This happens only when the user is reading invalid
+data over and over, I see no reason to optimize for that. We activate
+a MADV_FREE page, which is weird, but not a correctness issue, right?
 
- (b) what's the point of that whole TASK_SIZE vs get_max_addr() thing?
-When use one, when the other?
+Just to clarify, right now we have this:
 
-so I think this patch needs a lot more thought and/or explanation.
+---
 
-Honestly, (a) is a no-brainer, and can be fixed by just splitting the
-patch up. But I think (b) is more fundamental.
+SWAP_FAIL (failure on pte, swap, lazyfree):
+  if pagelazyfree:
+    clear pagelazyfree
+  activate
 
-In particular, I think that get_max_addr() thing is badly defined.
-When should you use TASK_SIZE, when should you use TASK_SIZE_MAX, and
-when should you use get_max_addr()? I don't find that clear at all,
-and I think that needs to be a whole lot more explicit and documented.
+SWAP_SUCCESS:
+  regular reclaim
 
-I also get he feeling that the whole thing is unnecessary. I'm
-wondering if we should just instead say that the whole 47 vs 56-bit
-virtual address is _purely_ about "get_unmapped_area()", and nothing
-else.
+SWAP_LZFREE (success on lazyfree when page and ptes are all clean):
+  free page
 
-IOW, I'm wondering if we can't just say that
+---
 
- - if the processor and kernel support 56-bit user address space, then
-you can *always* use the whole space
+What I'm proposing is to separate lazyfree failure out from SWAP_FAIL
+into its own branch. Then merge lazyfree success into SWAP_SUCCESS:
 
- - but by default, get_unmapped_area() will only return mappings that
-fit in the 47 bit address space.
+---
 
-So if you use MAP_FIXED and give an address in the high range, it will
-just always work, and the MM will always consider the task size to be
-the full address space.
+SWAP_FAIL (failure on pte, swap):
+  activate
 
-But for the common case where a process does no use MAP_FIXED, the
-kernel will never give a high address by default, and you have to do
-the process control thing to say "I want those high addresses".
+SWAP_SUCCESS:
+  if anon && !swapbacked:
+    free manually
+  else:
+    __remove_mapping()
 
-Hmm?
+SWAP_DIRTY (anon && !swapbacked && dirty):
+  set swapbacked
+  putback/activate
 
-In other words, I'd like to at least start out trying to keep the
-differences between the 47-bit and 56-bit models as simple and minimal
-as possible. Not make such a big deal out of it.
+---
 
-We already have "arch_get_unmapped_area()" that controls the whole
-"what will non-MAP_FIXED mmap allocations return", so I'd hope that
-the above kind of semantics could be done without *any* actual
-TASK_SIZE changes _anywhere_ in the VM code.
-
-Comments?
-
-      Linus
+This way we have a mostly unified success path (we might later be able
+to refactor __remove_mapping to split refcounting from mapping stuff
+to remove the last trace of difference), and SWAP_DIRTY follows the
+same type of delayed LRU fixup as we do for SWAP_MLOCK right now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
