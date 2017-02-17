@@ -1,91 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 65650681021
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 20:34:10 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 145so46051577pfv.6
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:34:10 -0800 (PST)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id c9si8630964pge.126.2017.02.16.17.34.09
+	by kanga.kvack.org (Postfix) with ESMTP id 585866B044B
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 20:46:57 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id e4so44844385pfg.4
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:46:57 -0800 (PST)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id q16si8640462pgn.206.2017.02.16.17.46.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 17:34:09 -0800 (PST)
-Received: by mail-pg0-x241.google.com with SMTP id a123so617478pgc.3
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:34:09 -0800 (PST)
-From: Seunghun Han <kkamagui@gmail.com>
-Subject: [PATCH] x86: kernel: fix unused variable warning in vm86_32.c
-Date: Fri, 17 Feb 2017 10:32:53 +0900
-Message-Id: <1487295173-39828-1-git-send-email-kkamagui@gmail.com>
+        Thu, 16 Feb 2017 17:46:56 -0800 (PST)
+Received: by mail-pf0-x230.google.com with SMTP id c73so9594792pfb.0
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:46:56 -0800 (PST)
+Date: Thu, 16 Feb 2017 17:46:44 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: swap_cluster_info lockdep splat
+In-Reply-To: <1487273646.2833.100.camel@linux.intel.com>
+Message-ID: <alpine.LSU.2.11.1702161702490.24224@eggly.anvils>
+References: <20170216052218.GA13908@bbox> <87o9y2a5ji.fsf@yhuang-dev.intel.com> <alpine.LSU.2.11.1702161050540.21773@eggly.anvils> <1487273646.2833.100.camel@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: MULTIPART/MIXED; BOUNDARY="0-345812320-1487296014=:24224"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Seunghun Han <kkamagui@gmail.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>, "Huang, Ying" <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-If CONFIG_TRANSPARENT_HUGEPAGE is not set in kernel config, a warning is shown
-in vm86_32.c.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-The warning is as follows:
->arch/x86/kernel/vm86_32.c: In function a??mark_screen_rdonlya??:
->arch/x86/kernel/vm86_32.c:180:26: warning: unused variable a??vmaa?? [-Wunused-variable]
-> struct vm_area_struct *vma = find_vma(mm, 0xA0000);
+--0-345812320-1487296014=:24224
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-The vma variable is used to call split_huge_pmd() macro function, but
-split_huge_pmd() is defined as a null macro when CONFIG_TRANSPARENT_HUGEPAGE is
-not set in kernel config. Therefore, the compiler shows an unused variable
-warning.
+On Thu, 16 Feb 2017, Tim Chen wrote:
+>=20
+> > I do not understand your zest for putting wrappers around every little
+> > thing, making it all harder to follow than it need be.=C2=A0 Here's the=
+ patch
+> > I've been running with (but you have a leak somewhere, and I don't have
+> > time to search out and fix it: please try sustained swapping and swapof=
+f).
+> >=20
+>=20
+> Hugh, trying to duplicate your test case. =C2=A0So you were doing swappin=
+g,
+> then swap off, swap on the swap device and restart swapping?
 
-To remove this warning, I change the split_huge_pmd() macro function to static
-inline function and static inline null function.
-Inline function works like a macro function, therefore there is no impact on
-Linux kernel working.
+Repeated pair of make -j20 kernel builds in 700M RAM, 1.5G swap on SSD,
+8 cpus; one of the builds in tmpfs, other in ext4 on loop on tmpfs file;
+sizes tuned for plenty of swapping but no OOMing (it's an ancient 2.6.24
+kernel I build, modern one needing a lot more space with a lot less in use)=
+=2E
 
-Signed-off-by: Seunghun Han <kkamagui@gmail.com>
----
- include/linux/huge_mm.h | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+How much of that is relevant I don't know: hopefully none of it, it's
+hard to get the tunings right from scratch.  To answer your specific
+question: yes, I'm not doing concurrent swapoffs in this test showing
+the leak, just waiting for each of the pair of builds to complete,
+then tearing down the trees, doing swapoff followed by swapon, and
+starting a new pair of builds.
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index a3762d4..912a763 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -123,15 +123,12 @@ void deferred_split_huge_page(struct page *page);
- void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long address, bool freeze, struct page *page);
- 
--#define split_huge_pmd(__vma, __pmd, __address)				\
--	do {								\
--		pmd_t *____pmd = (__pmd);				\
--		if (pmd_trans_huge(*____pmd)				\
--					|| pmd_devmap(*____pmd))	\
--			__split_huge_pmd(__vma, __pmd, __address,	\
--						false, NULL);		\
--	}  while (0)
--
-+static inline void split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address)
-+{
-+	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
-+		__split_huge_pmd(vma, pmd, address, false, NULL);
-+}
- 
- void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
- 		bool freeze, struct page *page);
-@@ -241,9 +238,8 @@ static inline int split_huge_page(struct page *page)
- 	return 0;
- }
- static inline void deferred_split_huge_page(struct page *page) {}
--#define split_huge_pmd(__vma, __pmd, __address)	\
--	do { } while (0)
--
-+static inline void split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address) {}
- static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long address, bool freeze, struct page *page) {}
- static inline void split_huge_pmd_address(struct vm_area_struct *vma,
--- 
-2.1.4
+Sometimes it's the swapoff that fails with ENOMEM, more often it's a
+fork during build that fails with ENOMEM: after 6 or 7 hours of load
+(but timings show it getting slower leading up to that).  /proc/meminfo
+did not give me an immediate clue, Slab didn't look surprising but
+I may not have studied close enough.
+
+I quilt-bisected it as far as the mm-swap series, good before, bad
+after, but didn't manage to narrow it down further because of hitting
+a presumably different issue inside the series, where swapoff ENOMEMed
+much sooner (after 25 mins one time, during first iteration the next).
+
+Hugh
+--0-345812320-1487296014=:24224--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
