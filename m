@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 071AB4405EF
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 55DD14405F5
 	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:06:09 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id h56so38564849qtc.1
+Received: by mail-qk0-f199.google.com with SMTP id p22so38559376qka.0
         for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:06:09 -0800 (PST)
 Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id h32si7661749qth.4.2017.02.17.07.06.08
+        by mx.google.com with ESMTPS id b3si7649783qke.164.2017.02.17.07.06.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 17 Feb 2017 07:06:08 -0800 (PST)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [RFC PATCH 03/14] mm/migrate: Add copy_pages_mthread function
-Date: Fri, 17 Feb 2017 10:05:40 -0500
-Message-Id: <20170217150551.117028-4-zi.yan@sent.com>
+Subject: [RFC PATCH 04/14] mm/migrate: Add new migrate mode MIGRATE_MT
+Date: Fri, 17 Feb 2017 10:05:41 -0500
+Message-Id: <20170217150551.117028-5-zi.yan@sent.com>
 In-Reply-To: <20170217150551.117028-1-zi.yan@sent.com>
 References: <20170217150551.117028-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,138 +22,83 @@ Cc: dnellans@nvidia.com, apopple@au1.ibm.com, paulmck@linux.vnet.ibm.com, khandu
 
 From: Zi Yan <ziy@nvidia.com>
 
-This change adds a new function copy_pages_mthread to enable multi threaded
-page copy which can be utilized during migration. This function splits the
-page copy request into multiple threads which will handle individual chunk
-and send them as jobs to system_highpri_wq work queue.
+This change adds a new migration mode called MIGRATE_MT to enable multi
+threaded page copy implementation inside copy_huge_page() function by
+selectively calling copy_pages_mthread() when requested. But it still
+falls back using the regular page copy mechanism instead the previous
+multi threaded attempt fails. It also attempts multi threaded copy for
+regular pages.
 
 Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- include/linux/highmem.h |  2 ++
- mm/Makefile             |  2 ++
- mm/copy_pages.c         | 86 +++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 90 insertions(+)
- create mode 100644 mm/copy_pages.c
+ include/linux/migrate_mode.h |  1 +
+ mm/migrate.c                 | 25 ++++++++++++++++++-------
+ 2 files changed, 19 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index bb3f3297062a..e1f4f1b82812 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -236,6 +236,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
+diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
+index 89c170060e5b..d344ad60f499 100644
+--- a/include/linux/migrate_mode.h
++++ b/include/linux/migrate_mode.h
+@@ -12,6 +12,7 @@ enum migrate_mode {
+ 	MIGRATE_SYNC_LIGHT	= 1<<1,
+ 	MIGRATE_SYNC		= 1<<2,
+ 	MIGRATE_ST		= 1<<3,
++	MIGRATE_MT		= 1<<4,
+ };
  
- #endif
- 
-+int copy_pages_mthread(struct page *to, struct page *from, int nr_pages);
-+
- static inline void copy_highpage(struct page *to, struct page *from)
+ #endif		/* MIGRATE_MODE_H_INCLUDED */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 87253cb9b50a..21307219428d 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -601,6 +601,7 @@ static void copy_huge_page(struct page *dst, struct page *src,
  {
- 	char *vfrom, *vto;
-diff --git a/mm/Makefile b/mm/Makefile
-index aa0aa17cb413..cdd4bab9cc66 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -43,6 +43,8 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
+ 	int i;
+ 	int nr_pages;
++	int rc = -EFAULT;
  
- obj-y += init-mm.o
+ 	if (PageHuge(src)) {
+ 		/* hugetlbfs page */
+@@ -617,10 +618,14 @@ static void copy_huge_page(struct page *dst, struct page *src,
+ 		nr_pages = hpage_nr_pages(src);
+ 	}
  
-+obj-y += copy_pages.o
+-	for (i = 0; i < nr_pages; i++) {
+-		cond_resched();
+-		copy_highpage(dst + i, src + i);
+-	}
++	if (mode & MIGRATE_MT)
++		rc = copy_pages_mthread(dst, src, nr_pages);
 +
- ifdef CONFIG_NO_BOOTMEM
- 	obj-y		+= nobootmem.o
- else
-diff --git a/mm/copy_pages.c b/mm/copy_pages.c
-new file mode 100644
-index 000000000000..c357e7b01042
---- /dev/null
-+++ b/mm/copy_pages.c
-@@ -0,0 +1,86 @@
-+/*
-+ * This implements parallel page copy function through multi threaded
-+ * work queues.
-+ *
-+ * Zi Yan <ziy@nvidia.com>
-+ *
-+ * This work is licensed under the terms of the GNU GPL, version 2.
-+ */
-+#include <linux/highmem.h>
-+#include <linux/workqueue.h>
-+#include <linux/slab.h>
-+#include <linux/freezer.h>
-+
-+/*
-+ * nr_copythreads can be the highest number of threads for given node
-+ * on any architecture. The actual number of copy threads will be
-+ * limited by the cpumask weight of the target node.
-+ */
-+unsigned int nr_copythreads = 8;
-+
-+struct copy_info {
-+	struct work_struct copy_work;
-+	char *to;
-+	char *from;
-+	unsigned long chunk_size;
-+};
-+
-+static void copy_pages(char *vto, char *vfrom, unsigned long size)
-+{
-+	memcpy(vto, vfrom, size);
-+}
-+
-+static void copythread(struct work_struct *work)
-+{
-+	struct copy_info *info = (struct copy_info *) work;
-+
-+	copy_pages(info->to, info->from, info->chunk_size);
-+}
-+
-+int copy_pages_mthread(struct page *to, struct page *from, int nr_pages)
-+{
-+	unsigned int node = page_to_nid(to);
-+	const struct cpumask *cpumask = cpumask_of_node(node);
-+	struct copy_info *work_items;
-+	char *vto, *vfrom;
-+	unsigned long i, cthreads, cpu, chunk_size;
-+	int cpu_id_list[32] = {0};
-+
-+	cthreads = nr_copythreads;
-+	cthreads = min_t(unsigned int, cthreads, cpumask_weight(cpumask));
-+	cthreads = (cthreads / 2) * 2;
-+	work_items = kcalloc(cthreads, sizeof(struct copy_info), GFP_KERNEL);
-+	if (!work_items)
-+		return -ENOMEM;
-+
-+	i = 0;
-+	for_each_cpu(cpu, cpumask) {
-+		if (i >= cthreads)
-+			break;
-+		cpu_id_list[i] = cpu;
-+		++i;
++	if (rc)
++		for (i = 0; i < nr_pages; i++) {
++			cond_resched();
++			copy_highpage(dst + i, src + i);
++		}
+ }
+ 
+ /*
+@@ -631,10 +636,16 @@ void migrate_page_copy(struct page *newpage, struct page *page,
+ {
+ 	int cpupid;
+ 
+-	if (PageHuge(page) || PageTransHuge(page))
++	if (PageHuge(page) || PageTransHuge(page)) {
+ 		copy_huge_page(newpage, page, mode);
+-	else
+-		copy_highpage(newpage, page);
++	} else {
++		if (mode & MIGRATE_MT) {
++			if (copy_pages_mthread(newpage, page, 1))
++				copy_highpage(newpage, page);
++		} else {
++			copy_highpage(newpage, page);
++		}
 +	}
-+
-+	vfrom = kmap(from);
-+	vto = kmap(to);
-+	chunk_size = PAGE_SIZE * nr_pages / cthreads;
-+
-+	for (i = 0; i < cthreads; ++i) {
-+		INIT_WORK((struct work_struct *) &work_items[i], copythread);
-+
-+		work_items[i].to = vto + i * chunk_size;
-+		work_items[i].from = vfrom + i * chunk_size;
-+		work_items[i].chunk_size = chunk_size;
-+
-+		queue_work_on(cpu_id_list[i], system_highpri_wq,
-+					  (struct work_struct *) &work_items[i]);
-+	}
-+
-+	for (i = 0; i < cthreads; ++i)
-+		flush_work((struct work_struct *) &work_items[i]);
-+
-+	kunmap(to);
-+	kunmap(from);
-+	kfree(work_items);
-+	return 0;
-+}
+ 
+ 	if (PageError(page))
+ 		SetPageError(newpage);
 -- 
 2.11.0
 
