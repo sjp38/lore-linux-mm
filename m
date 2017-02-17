@@ -1,47 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BCB7680FC1
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:22:09 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id q14so29343849uaq.2
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:22:09 -0800 (PST)
-Received: from mail-ua0-x230.google.com (mail-ua0-x230.google.com. [2607:f8b0:400c:c08::230])
-        by mx.google.com with ESMTPS id a72si3372503vke.221.2017.02.17.09.22.08
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38FB3680FC1
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:39:49 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id le4so4458009wjb.1
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:39:49 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id b66si2450836wmc.145.2017.02.17.09.39.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 09:22:08 -0800 (PST)
-Received: by mail-ua0-x230.google.com with SMTP id y9so34230885uae.2
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:22:08 -0800 (PST)
+        Fri, 17 Feb 2017 09:39:47 -0800 (PST)
+Date: Fri, 17 Feb 2017 12:39:40 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 07/10] mm, compaction: restrict async compaction to
+ pageblocks of same migratetype
+Message-ID: <20170217173940.GA25565@cmpxchg.org>
+References: <20170210172343.30283-1-vbabka@suse.cz>
+ <20170210172343.30283-8-vbabka@suse.cz>
+ <20170214201000.GH2450@cmpxchg.org>
+ <a0409d22-6794-bb33-6bdd-438b386412a3@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <ae15457f-731d-bb1b-c60d-14d641c265f0@intel.com>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
- <20170217141328.164563-34-kirill.shutemov@linux.intel.com> <ae15457f-731d-bb1b-c60d-14d641c265f0@intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 17 Feb 2017 09:21:47 -0800
-Message-ID: <CALCETrU957t7RQOAUJKWdjcA8t2ScWGkrnou2+cHksetC9aN=A@mail.gmail.com>
-Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a0409d22-6794-bb33-6bdd-438b386412a3@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Linux API <linux-api@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Feb 17, 2017 at 9:19 AM, Dave Hansen <dave.hansen@intel.com> wrote:
-> On 02/17/2017 06:13 AM, Kirill A. Shutemov wrote:
->> +/*
->> + * Default maximum virtual address. This is required for
->> + * compatibility with applications that assumes 47-bit VA.
->> + * The limit can be changed with prctl(PR_SET_MAX_VADDR).
->> + */
->> +#define MAX_VADDR_DEFAULT    ((1UL << 47) - PAGE_SIZE)
->
-> This is a bit goofy.  It's not the largest virtual adddress that can be
-> accessed, but the beginning of the last page.
+On Fri, Feb 17, 2017 at 05:32:00PM +0100, Vlastimil Babka wrote:
+> On 02/14/2017 09:10 PM, Johannes Weiner wrote:
+> > On Fri, Feb 10, 2017 at 06:23:40PM +0100, Vlastimil Babka wrote:
+> >> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
+> >> pageblocks. This is a heuristic intended to reduce latency, based on the
+> >> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+> >> 
+> >> However, with the exception of THP's, most high-order allocations are not
+> >> movable. Should the async compaction succeed, this increases the chance that
+> >> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
+> >> long-term fragmentation worse.
+> >> 
+> >> This patch attempts to help the situation by changing async direct compaction
+> >> so that the migrate scanner only scans the pageblocks of the requested
+> >> migratetype. If it's a non-MOVABLE type and there are such pageblocks that do
+> >> contain movable pages, chances are that the allocation can succeed within one
+> >> of such pageblocks, removing the need for a fallback. If that fails, the
+> >> subsequent sync attempt will ignore this restriction.
+> >> 
+> >> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> > 
+> > Yes, IMO we should make the async compaction scanner decontaminate
+> > unmovable blocks. This is because we fall back to other-typed blocks
+> > before we reclaim,
+> 
+> Which we could change too, patch 9 is a step in that direction.
 
-No, it really is the limit.  We don't allow user code to map the last
-page because ti would be a root hole due to SYSRET.  Thanks, Intel.
-See the comment near TASK_SIZE_MAX IIRC.
+Yep, patch 9 looks good to me too, pending data that confirms it.
 
---Andy
+> > so any unmovable blocks that aren't perfectly
+> > occupied will fill with greedy page cache (and order-0 doesn't steal
+> > blocks back to make them compactable again).
+> 
+> order-0 allocation can actually steal the block back, the decisions to steal are
+> based on the order of the free pages in the fallback block, not on the
+> allocation order. But maybe I'm not sure what exactly you meant here.
+
+No, that was me misreading the code. Scratch what's in parentheses.
+
+> > The thing I'm not entirely certain about is the aggressiveness of this
+> > patch. Instead of restricting the async scanner to blocks of the same
+> > migratetype, wouldn't it be better (in terms of allocation latency) to
+> > simply let it compact *all* block types?
+> 
+> Yes it would help allocation latency, but I'm afraid it will remove most of the
+> decontamination effect.
+> 
+> > Maybe changing it to look at
+> > unmovable blocks is enough to curb cross-contamination. Sure there
+> > will still be some, but now we're matching the decontamination rate to
+> > the rate of !movable higher-order allocations and don't just rely on
+> > the independent cache turnover rate, which during higher-order bursts
+> > might not be high enough to prevent an expansion of unmovable blocks.
+> 
+> The rate of compaction attempts is matched with allocations, but the probability
+> of compaction scanner being in unmovable block is low when the majority of
+> blocks are movable. So the decontamination rate is proportional but much smaller.
+
+Yeah, you're right. The unmovable blocks would still expand, we'd just
+turn it into a logarithmic curve.
+
+> > Does that make sense?
+> 
+> I guess I can try and look at the stats, but I have doubts.
+
+I don't insist. Your patch is implementing a good thing, we can just
+keep an eye out for a change in allocation latencies before spending
+time trying to mitigate a potential non-issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
