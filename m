@@ -1,108 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FD7D6B0038
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 13:42:49 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 65so68786627pgi.7
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:42:49 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id b85si11014490pfe.118.2017.02.17.10.42.48
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5487E6B0389
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 13:44:03 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id r141so40855875ita.6
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:44:03 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id u124si2037854itd.111.2017.02.17.10.44.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 10:42:48 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id c73so15362668pfb.0
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:42:48 -0800 (PST)
-Date: Fri, 17 Feb 2017 10:42:37 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: swap_cluster_info lockdep splat
-In-Reply-To: <874lzt6znd.fsf@yhuang-dev.intel.com>
-Message-ID: <alpine.LSU.2.11.1702171036010.1638@eggly.anvils>
-References: <20170216052218.GA13908@bbox> <87o9y2a5ji.fsf@yhuang-dev.intel.com> <alpine.LSU.2.11.1702161050540.21773@eggly.anvils> <1487273646.2833.100.camel@linux.intel.com> <alpine.LSU.2.11.1702161702490.24224@eggly.anvils>
- <874lzt6znd.fsf@yhuang-dev.intel.com>
+        Fri, 17 Feb 2017 10:44:02 -0800 (PST)
+Date: Fri, 17 Feb 2017 10:43:41 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
+Message-ID: <20170217184340.GA26984@shli-mbp.local>
+References: <cover.1487100204.git.shli@fb.com>
+ <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+ <20170216184018.GC20791@cmpxchg.org>
+ <20170217002717.GA93163@shli-mbp.local>
+ <20170217160154.GA23735@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170217160154.GA23735@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Hugh Dickins <hughd@google.com>, Tim Chen <tim.c.chen@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Fri, 17 Feb 2017, Huang, Ying wrote:
+On Fri, Feb 17, 2017 at 11:01:54AM -0500, Johannes Weiner wrote:
+> On Thu, Feb 16, 2017 at 04:27:18PM -0800, Shaohua Li wrote:
+> > On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
+> > > On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
+> > > > @@ -911,7 +911,7 @@ static void page_check_dirty_writeback(struct page *page,
+> > > >  	 * Anonymous pages are not handled by flushers and must be written
+> > > >  	 * from reclaim context. Do not stall reclaim based on them
+> > > >  	 */
+> > > > -	if (!page_is_file_cache(page)) {
+> > > > +	if (!page_is_file_cache(page) || page_is_lazyfree(page)) {
+> > > 
+> > > Do we need this? MADV_FREE clears the dirty bit off the page; we could
+> > > just let them go through with the function without any special-casing.
+> > 
+> > this is just to zero dirty and writeback
 > 
-> I found a memory leak in __read_swap_cache_async() introduced by mm-swap
-> series, and confirmed it via testing.  Could you verify whether it fixed
-> your cases?  Thanks a lot for reporting.
+> Okay, I assumed that the page would always be !dirty && !writeback
+> here anyway, so we might as well fall through and check those bits.
+> 
+> But a previously failed TTU might have moved a pte dirty bit to the
+> page, so yes, we do need to filter for anon && !swapbacked here.
+> 
+> > > > @@ -1142,7 +1144,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > >  		 * The page is mapped into the page tables of one or more
+> > > >  		 * processes. Try to unmap it here.
+> > > >  		 */
+> > > > -		if (page_mapped(page) && mapping) {
+> > > > +		if (page_mapped(page) && (mapping || lazyfree)) {
+> > > 
+> > > Do we actually need to filter for mapping || lazyfree? If we fail to
+> > > allocate swap, we don't reach here. If the page is a truncated file
+> > > page, ttu returns pretty much instantly with SWAP_AGAIN. We should be
+> > > able to just check for page_mapped() alone, no?
+> > 
+> > checking the mapping is faster than running into try_to_unamp, right?
+> 
+> !mapping should be a rare case. In reclaim code, I think it's better
+> to keep it simple than to optimize away the rare function call.
 
-Well caught!  That indeed fixes the leak I've been seeing: my load has
-now passed the 7 hour danger mark, with no indication of slowing down.
-I'll keep it running until I need to try something else on that machine,
-but all good for now.
+ok 
+> > > > @@ -1154,7 +1156,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > >  			case SWAP_MLOCK:
+> > > >  				goto cull_mlocked;
+> > > >  			case SWAP_LZFREE:
+> > > > -				goto lazyfree;
+> > > > +				/* follow __remove_mapping for reference */
+> > > > +				if (page_ref_freeze(page, 1)) {
+> > > > +					if (!PageDirty(page))
+> > > > +						goto lazyfree;
+> > > > +					else
+> > > > +						page_ref_unfreeze(page, 1);
+> > > > +				}
+> > > > +				goto keep_locked;
+> > > >  			case SWAP_SUCCESS:
+> > > >  				; /* try to free the page below */
+> > > 
+> > > This is a similar situation.
+> > > 
+> > > Can we let the page go through the regular __remove_mapping() process
+> > > and simply have that function check for PageAnon && !PageSwapBacked?
+> > 
+> > That will make the code more complicated. We don't call __remove_mapping if
+> > !mapping. And we need to do bypass in __remove_mapping, for example, avoid
+> > taking mapping->lock.
+> 
+> True, we won't get around a separate freeing path as long as the
+> refcount handling is intertwined with the mapping removal like that :/
+> 
+> What we should be able to do, however, is remove at least SWAP_LZFREE
+> and stick with SWAP_SUCCESS. On success, we can fall through up until
+> we do the __remove_mapping call. The page isn't dirty, so we skip that
+> PageDirty block; the page doesn't have private data, so we skip that
+> block too. And then we can branch on PageAnon && !PageSwapBacked that
+> does our alternate freeing path or __remove_mapping for others.
 
-You could add
-Tested-by: Hugh Dickins <hughd@google.com>
-but don't bother: I'm sure Andrew will simply fold this fix into the
-fixed patch later on.
+Sounds good 
+> > > > @@ -1294,6 +1302,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > >  cull_mlocked:
+> > > >  		if (PageSwapCache(page))
+> > > >  			try_to_free_swap(page);
+> > > > +		if (lazyfree)
+> > > > +			clear_page_lazyfree(page);
+> > > 
+> > > Why cancel the MADV_FREE state? The combination seems non-sensical,
+> > > but we can simply retain the invalidated state while the page goes to
+> > > the unevictable list; munlock should move it back to inactive_file.
+> > 
+> > This depends on the policy. If user locks the page, I think it's reasonable to
+> > assume the page is hot, so it doesn't make sense to treat the page lazyfree.
+> 
+> I think the key issue is whether the page contains valid data, not
+> whether it is hot. When we clear the dirty bits along with
+> PageSwapBacked, we're declaring the data in the page invalid. There is
+> no practical usecase to mlock a page with invalid data, sure, but the
+> act of mlocking a page doesn't make its contents suddenly valid again.
+> 
+> I.e. I'd stick with the pure data integrity perspective here. That's
+> clearer and less error prone than intermingling it with eviction
+> policy, to avoid accidents where we lose valid data.
+
+The problem is if user mlock the page, it's very likely the user will dirty the
+page soon. After the page is munlocked, putting it back to layyfree means page
+reclaim will waste time to reclaim the page because it's dirty. But that said,
+I don't argue about this. It's a rare case, so either way is ok to me.
+
+> > > >  		unlock_page(page);
+> > > >  		list_add(&page->lru, &ret_pages);
+> > > >  		continue;
+> > > > @@ -1303,6 +1313,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > >  		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
+> > > >  			try_to_free_swap(page);
+> > > >  		VM_BUG_ON_PAGE(PageActive(page), page);
+> > > > +		if (lazyfree)
+> > > > +			clear_page_lazyfree(page);
+> > > 
+> > > This is similar too.
+> > > 
+> > > Can we leave simply leave the page alone here? The only way we get to
+> > > this point is if somebody is reading the invalidated page. It's weird
+> > > for a lazyfreed page to become active, but it doesn't seem to warrant
+> > > active intervention here.
+> > 
+> > So the unmap fails here probably because the page is dirty, which means the
+> > page is written recently. It makes sense to assume the page is hot.
+> 
+> Ah, good point.
+> 
+> But can we handle that explicitly please? Like above, I don't want to
+> undo the data invalidation just because somebody read the invalid data
+> a bunch of times and it has the access bits set. We should only re-set
+> the PageSwapBacked based on whether the page is actually dirty.
+> 
+> Maybe along the lines of SWAP_MLOCK we could add SWAP_DIRTY when TTU
+> fails because the page is dirty, and then have a cull_dirty: label in
+> shrink_page_list handle the lazy rescue of a reused MADV_FREE page?
+> 
+> This should work well with removing the mapping || lazyfree check when
+> calling TTU. Then TTU can fail on dirty && !mapping, which is a much
+> more obvious way of expressing it IMO - "This page contains valid data
+> but there is no mapping that backs it once we unmap it. Abort."
+> 
+> That's mostly why I'm in favor of removing the idea of a "lazyfree"
+> page as much as possible. IMO this whole thing becomes much more
+> understandable - and less bolted on to the side of the VM - when we
+> express it in existing concepts the VM uses for data integrity.
+
+Ok, it makes sense to only reset the PageSwapBacked bit for dirty page. In this
+way, we jump to activate_locked for SWAP_DIRTY || (SWAP_FAIL && pagelazyfree)
+and jump to activate_locked for SWAP_FAIL && !pagelazyfree. Is this what you
+want to do? This will add extra checks for SWAP_FAIL. I'm not sure if this is
+really worthy because it's rare the MADV_FREE page is read.
 
 Thanks,
-Hugh
-
-> 
-> Best Regards,
-> Huang, Ying
-> 
-> ------------------------------------------------------------------------->
-> From 4b96423796ab7435104eb2cb4dcf5d525b9e0800 Mon Sep 17 00:00:00 2001
-> From: Huang Ying <ying.huang@intel.com>
-> Date: Fri, 17 Feb 2017 10:31:37 +0800
-> Subject: [PATCH] mm, swap: Fix memory leak in __read_swap_cache_async()
-> 
-> The memory may be leaked in __read_swap_cache_async().  For the cases
-> as below,
-> 
-> CPU 0						CPU 1
-> -----						-----
-> 
-> find_get_page() == NULL
-> __swp_swapcount() != 0
-> new_page = alloc_page_vma()
-> radix_tree_maybe_preload()
-> 						swap in swap slot
-> swapcache_prepare() == -EEXIST
-> cond_resched()
-> 						reclaim the swap slot
-> find_get_page() == NULL
-> __swp_swapcount() == 0
-> return NULL				<- new_page leaked here !!!
-> 
-> The memory leak has been confirmed via checking the value of new_page
-> when returning inside the loop in __read_swap_cache_async().
-> 
-> This is fixed via replacing return with break inside of loop in
-> __read_swap_cache_async(), so that there is opportunity for the
-> new_page to be checked and freed.
-> 
-> Reported-by: Hugh Dickins <hughd@google.com>
-> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> ---
->  mm/swap_state.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 2126e9ba23b2..473b71e052a8 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -333,7 +333,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  		 * else swap_off will be aborted if we return NULL.
->  		 */
->  		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
-> -			return NULL;
-> +			break;
->  
->  		/*
->  		 * Get a new page to read into from swap.
-> -- 
-> 2.11.0
-> 
-> 
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
