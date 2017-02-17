@@ -1,132 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 48E496B0038
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 15:03:21 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id y7so9907275wrc.7
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:03:21 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r15si14460227wrr.217.2017.02.17.12.03.19
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E99C26B0038
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 15:07:20 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id z134so23821274lff.5
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:07:20 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id 81si5456942lfq.370.2017.02.17.12.07.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 12:03:20 -0800 (PST)
-Date: Fri, 17 Feb 2017 15:03:13 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
-Message-ID: <20170217200313.GA30923@cmpxchg.org>
-References: <cover.1487100204.git.shli@fb.com>
- <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
- <20170216184018.GC20791@cmpxchg.org>
- <20170217002717.GA93163@shli-mbp.local>
- <20170217160154.GA23735@cmpxchg.org>
- <20170217184340.GA26984@shli-mbp.local>
+        Fri, 17 Feb 2017 12:07:19 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id h65so4572465lfi.3
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:07:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170217184340.GA26984@shli-mbp.local>
+In-Reply-To: <570065255.35200.1471429099337.JavaMail.weblogic@epwas3e2>
+References: <CGME20160817101819epcms5p25ad7d8a53c761ffff62993ca4d4bf129@epcms5p2>
+ <570065255.35200.1471429099337.JavaMail.weblogic@epwas3e2>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 17 Feb 2017 15:06:38 -0500
+Message-ID: <CALZtONDGxkqRBYDaCvH9rRezxuCvwQTiPn1bRHm_X7aWdbg7Sg@mail.gmail.com>
+Subject: Re: [PATCH 3/4] zswap: Zero-filled pages handling
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: srividya.dr@samsung.com
+Cc: Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, =?UTF-8?B?7IOk656A?= <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, =?UTF-8?B?6rmA7KO87ZuI?= <juhunkim@samsung.com>
 
-On Fri, Feb 17, 2017 at 10:43:41AM -0800, Shaohua Li wrote:
-> On Fri, Feb 17, 2017 at 11:01:54AM -0500, Johannes Weiner wrote:
-> > On Thu, Feb 16, 2017 at 04:27:18PM -0800, Shaohua Li wrote:
-> > > On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
-> > > > On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
-> > > > >  		unlock_page(page);
-> > > > >  		list_add(&page->lru, &ret_pages);
-> > > > >  		continue;
-> > > > > @@ -1303,6 +1313,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > > > >  		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
-> > > > >  			try_to_free_swap(page);
-> > > > >  		VM_BUG_ON_PAGE(PageActive(page), page);
-> > > > > +		if (lazyfree)
-> > > > > +			clear_page_lazyfree(page);
-> > > > 
-> > > > Can we leave simply leave the page alone here? The only way we get to
-> > > > this point is if somebody is reading the invalidated page. It's weird
-> > > > for a lazyfreed page to become active, but it doesn't seem to warrant
-> > > > active intervention here.
-> > > 
-> > > So the unmap fails here probably because the page is dirty, which means the
-> > > page is written recently. It makes sense to assume the page is hot.
-> > 
-> > Ah, good point.
-> > 
-> > But can we handle that explicitly please? Like above, I don't want to
-> > undo the data invalidation just because somebody read the invalid data
-> > a bunch of times and it has the access bits set. We should only re-set
-> > the PageSwapBacked based on whether the page is actually dirty.
-> > 
-> > Maybe along the lines of SWAP_MLOCK we could add SWAP_DIRTY when TTU
-> > fails because the page is dirty, and then have a cull_dirty: label in
-> > shrink_page_list handle the lazy rescue of a reused MADV_FREE page?
-> > 
-> > This should work well with removing the mapping || lazyfree check when
-> > calling TTU. Then TTU can fail on dirty && !mapping, which is a much
-> > more obvious way of expressing it IMO - "This page contains valid data
-> > but there is no mapping that backs it once we unmap it. Abort."
-> > 
-> > That's mostly why I'm in favor of removing the idea of a "lazyfree"
-> > page as much as possible. IMO this whole thing becomes much more
-> > understandable - and less bolted on to the side of the VM - when we
-> > express it in existing concepts the VM uses for data integrity.
-> 
-> Ok, it makes sense to only reset the PageSwapBacked bit for dirty page. In this
-> way, we jump to activate_locked for SWAP_DIRTY || (SWAP_FAIL && pagelazyfree)
-> and jump to activate_locked for SWAP_FAIL && !pagelazyfree. Is this what you
-> want to do? This will add extra checks for SWAP_FAIL. I'm not sure if this is
-> really worthy because it's rare the MADV_FREE page is read.
+On Wed, Aug 17, 2016 at 6:18 AM, Srividya Desireddy
+<srividya.dr@samsung.com> wrote:
+> From: Srividya Desireddy <srividya.dr@samsung.com>
+> Date: Wed, 17 Aug 2016 14:34:14 +0530
+> Subject: [PATCH 3/4] zswap: Zero-filled pages handling
+>
+> This patch adds a check in zswap_frontswap_store() to identify zero-filled
+> page before compression of the page. If the page is a zero-filled page, set
+> zswap_entry.zeroflag and skip the compression of the page and alloction
+> of memory in zpool. In zswap_frontswap_load(), check if the zeroflag is
+> set for the page in zswap_entry. If the flag is set, memset the page with
+> zero. This saves the decompression time during load.
+>
+> The overall overhead caused due to zero-filled page check is very minimal
+> when compared to the time saved by avoiding compression and allocation in
+> case of zero-filled pages. The load time of a zero-filled page is reduced
+> by 80% when compared to baseline.
 
-Yes, for SWAP_DIRTY jump to activate_locked or have its own label that
-sets PG_swapbacked again and moves the page back to the proper LRU.
+this is unrelated to the same-page patches.  send this patch by itself.
 
-SWAP_FAIL of an anon && !swapbacked && !dirty && referenced page can
-be ignored IMO. This happens only when the user is reading invalid
-data over and over, I see no reason to optimize for that. We activate
-a MADV_FREE page, which is weird, but not a correctness issue, right?
-
-Just to clarify, right now we have this:
-
----
-
-SWAP_FAIL (failure on pte, swap, lazyfree):
-  if pagelazyfree:
-    clear pagelazyfree
-  activate
-
-SWAP_SUCCESS:
-  regular reclaim
-
-SWAP_LZFREE (success on lazyfree when page and ptes are all clean):
-  free page
-
----
-
-What I'm proposing is to separate lazyfree failure out from SWAP_FAIL
-into its own branch. Then merge lazyfree success into SWAP_SUCCESS:
-
----
-
-SWAP_FAIL (failure on pte, swap):
-  activate
-
-SWAP_SUCCESS:
-  if anon && !swapbacked:
-    free manually
-  else:
-    __remove_mapping()
-
-SWAP_DIRTY (anon && !swapbacked && dirty):
-  set swapbacked
-  putback/activate
-
----
-
-This way we have a mostly unified success path (we might later be able
-to refactor __remove_mapping to split refcounting from mapping stuff
-to remove the last trace of difference), and SWAP_DIRTY follows the
-same type of delayed LRU fixup as we do for SWAP_MLOCK right now.
+>
+> Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
+> ---
+>  mm/zswap.c |   58 ++++++++++++++++++++++++++++++++++++++++++++++++++--------
+>  1 file changed, 50 insertions(+), 8 deletions(-)
+>
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index ae39c77..d0c3f96 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -58,6 +58,9 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>   */
+>  static atomic_t zswap_duplicate_pages = ATOMIC_INIT(0);
+>
+> +/* The number of zero filled pages swapped out to zswap */
+> +static atomic_t zswap_zero_pages = ATOMIC_INIT(0);
+> +
+>  /*
+>   * The statistics below are not protected from concurrent access for
+>   * performance reasons so they may not be a 100% accurate.  However,
+> @@ -172,6 +175,8 @@ struct zswap_handle {
+>   *            be held, there is no reason to also make refcount atomic.
+>   * pool - the zswap_pool the entry's data is in
+>   * zhandle - pointer to struct zswap_handle
+> + * zeroflag - the flag is set if the content of the page is filled with
+> + *            zeros
+>   */
+>  struct zswap_entry {
+>         struct rb_node rbnode;
+> @@ -179,6 +184,7 @@ struct zswap_entry {
+>         int refcount;
+>         struct zswap_pool *pool;
+>         struct zswap_handle *zhandle;
+> +       unsigned char zeroflag;
+>  };
+>
+>  struct zswap_header {
+> @@ -269,6 +275,7 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
+>         if (!entry)
+>                 return NULL;
+>         entry->refcount = 1;
+> +       entry->zeroflag = 0;
+>         entry->zhandle = NULL;
+>         RB_CLEAR_NODE(&entry->rbnode);
+>         return entry;
+> @@ -477,13 +484,17 @@ static bool zswap_handle_is_unique(struct zswap_handle *zhandle)
+>   */
+>  static void zswap_free_entry(struct zswap_entry *entry)
+>  {
+> -       if (zswap_handle_is_unique(entry->zhandle)) {
+> -               zpool_free(entry->pool->zpool, entry->zhandle->handle);
+> -               zswap_handle_cache_free(entry->zhandle);
+> -               zswap_pool_put(entry->pool);
+> -       } else {
+> -               entry->zhandle->ref_count--;
+> -               atomic_dec(&zswap_duplicate_pages);
+> +       if (entry->zeroflag)
+> +               atomic_dec(&zswap_zero_pages);
+> +       else {
+> +               if (zswap_handle_is_unique(entry->zhandle)) {
+> +                       zpool_free(entry->pool->zpool, entry->zhandle->handle);
+> +                       zswap_handle_cache_free(entry->zhandle);
+> +                       zswap_pool_put(entry->pool);
+> +               } else {
+> +                       entry->zhandle->ref_count--;
+> +                       atomic_dec(&zswap_duplicate_pages);
+> +               }
+>         }
+>         zswap_entry_cache_free(entry);
+>         atomic_dec(&zswap_stored_pages);
+> @@ -1140,6 +1151,21 @@ static int zswap_shrink(void)
+>         return ret;
+>  }
+>
+> +static int zswap_is_page_zero_filled(void *ptr)
+> +{
+> +       unsigned int pos;
+> +       unsigned long *page;
+> +
+> +       page = (unsigned long *)ptr;
+> +
+> +       for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
+> +               if (page[pos])
+> +                       return 0;
+> +       }
+> +
+> +       return 1;
+> +}
+> +
+>  /*********************************
+>  * frontswap hooks
+>  **********************************/
+> @@ -1183,6 +1209,13 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>         }
+>
+>         src = kmap_atomic(page);
+> +       if (zswap_is_page_zero_filled(src)) {
+> +               kunmap_atomic(src);
+> +               entry->offset = offset;
+> +               entry->zeroflag = 1;
+> +               atomic_inc(&zswap_zero_pages);
+> +               goto insert_entry;
+> +       }
+>
+>         if (zswap_same_page_sharing) {
+>                 checksum = jhash2((const u32 *)src, PAGE_SIZE / 4, 17);
+> @@ -1314,6 +1347,13 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>         }
+>         spin_unlock(&tree->lock);
+>
+> +       if (entry->zeroflag) {
+> +               dst = kmap_atomic(page);
+> +               memset(dst, 0, PAGE_SIZE);
+> +               kunmap_atomic(dst);
+> +               goto freeentry;
+> +       }
+> +
+>         /* decompress */
+>         dlen = PAGE_SIZE;
+>         src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->zhandle->handle,
+> @@ -1327,6 +1367,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>         zpool_unmap_handle(entry->pool->zpool, entry->zhandle->handle);
+>         BUG_ON(ret);
+>
+> +freeentry:
+>         spin_lock(&tree->lock);
+>         zswap_entry_put(tree, entry);
+>         spin_unlock(&tree->lock);
+> @@ -1446,7 +1487,8 @@ static int __init zswap_debugfs_init(void)
+>                         zswap_debugfs_root, &zswap_stored_pages);
+>         debugfs_create_atomic_t("duplicate_pages", S_IRUGO,
+>                         zswap_debugfs_root, &zswap_duplicate_pages);
+> -
+> +       debugfs_create_atomic_t("zero_pages", S_IRUGO,
+> +                       zswap_debugfs_root, &zswap_zero_pages);
+>
+>         return 0;
+>  }
+> --
+> 1.7.9.5
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
