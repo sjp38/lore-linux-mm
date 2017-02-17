@@ -1,90 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 764B344060D
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:10:02 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c85so2750129wmi.6
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 08:10:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 196si2208763wmg.65.2017.02.17.08.10.00
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0179044060D
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:11:13 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id ez4so9065132wjd.2
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 08:11:12 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id d83si2188654wmc.151.2017.02.17.08.11.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Feb 2017 08:10:00 -0800 (PST)
-Subject: Re: [PATCH v2 04/10] mm, page_alloc: count movable pages when
- stealing from pageblock
-References: <20170210172343.30283-1-vbabka@suse.cz>
- <20170210172343.30283-5-vbabka@suse.cz> <20170214181030.GE2450@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a0a3f023-956d-a558-c3ab-53ae8b709b68@suse.cz>
-Date: Fri, 17 Feb 2017 17:09:57 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Feb 2017 08:11:11 -0800 (PST)
+Date: Fri, 17 Feb 2017 11:11:05 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
+Message-ID: <20170217161105.GB23735@cmpxchg.org>
+References: <cover.1487100204.git.shli@fb.com>
+ <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+ <20170216184018.GC20791@cmpxchg.org>
+ <20170217002717.GA93163@shli-mbp.local>
+ <20170217054555.GB3653@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20170214181030.GE2450@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170217054555.GB3653@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On 02/14/2017 07:10 PM, Johannes Weiner wrote:
-> 
-> That makes sense to me. I have just one nit about the patch:
-> 
->> @@ -1981,10 +1994,29 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
->>  		return;
->>  	}
->>  
->> -	pages = move_freepages_block(zone, page, start_type);
->> +	free_pages = move_freepages_block(zone, page, start_type,
->> +						&good_pages);
->> +	/*
->> +	 * good_pages is now the number of movable pages, but if we
->> +	 * want UNMOVABLE or RECLAIMABLE allocation, it's more tricky
->> +	 */
->> +	if (start_type != MIGRATE_MOVABLE) {
->> +		/*
->> +		 * If we are falling back to MIGRATE_MOVABLE pageblock,
->> +		 * treat all non-movable pages as good. If it's UNMOVABLE
->> +		 * falling back to RECLAIMABLE or vice versa, be conservative
->> +		 * as we can't distinguish the exact migratetype.
->> +		 */
->> +		old_block_type = get_pageblock_migratetype(page);
->> +		if (old_block_type == MIGRATE_MOVABLE)
->> +			good_pages = pageblock_nr_pages
->> +						- free_pages - good_pages;
-> 
-> This line had me scratch my head for a while, and I think it's mostly
-> because of the variable naming and the way the comments are phrased.
-> 
-> Could you use a variable called movable_pages to pass to and be filled
-> in by move_freepages_block?
-> 
-> And instead of good_pages something like starttype_pages or
-> alike_pages or st_pages or mt_pages or something, to indicate the
-> number of pages that are comparable to the allocation's migratetype?
-> 
->> -	/* Claim the whole block if over half of it is free */
->> -	if (pages >= (1 << (pageblock_order-1)) ||
->> +	/* Claim the whole block if over half of it is free or good type */
->> +	if (free_pages + good_pages >= (1 << (pageblock_order-1)) ||
->>  			page_group_by_mobility_disabled)
->>  		set_pageblock_migratetype(page, start_type);
-> 
-> This would then read
-> 
-> 	if (free_pages + alike_pages ...)
-> 
-> which I think would be more descriptive.
-> 
-> The comment leading the entire section following move_freepages_block
-> could then say something like "If a sufficient number of pages in the
-> block are either free or of comparable migratability as our
-> allocation, claim the whole block." Followed by the caveats of how we
-> determine this migratibility.
-> 
-> Or maybe even the function. The comment above the function seems out
-> of date after this patch.
+Hi Minchan,
 
-I'll incorporate this for the next posting, thanks for the feedback!
+On Fri, Feb 17, 2017 at 02:45:55PM +0900, Minchan Kim wrote:
+> On Thu, Feb 16, 2017 at 04:27:18PM -0800, Shaohua Li wrote:
+> > On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
+> > > On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
+> > > > @@ -1419,11 +1419,18 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> > > >  			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
+> > > >  				page);
+> > > >  
+> > > > -			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
+> > > > -				/* It's a freeable page by MADV_FREE */
+> > > > -				dec_mm_counter(mm, MM_ANONPAGES);
+> > > > -				rp->lazyfreed++;
+> > > > -				goto discard;
+> > > > +			if (flags & TTU_LZFREE) {
+> > > > +				if (!PageDirty(page)) {
+> > > > +					/* It's a freeable page by MADV_FREE */
+> > > > +					dec_mm_counter(mm, MM_ANONPAGES);
+> > > > +					rp->lazyfreed++;
+> > > > +					goto discard;
+> > > > +				} else {
+> > > > +					set_pte_at(mm, address, pvmw.pte, pteval);
+> > > > +					ret = SWAP_FAIL;
+> > > > +					page_vma_mapped_walk_done(&pvmw);
+> > > > +					break;
+> > > > +				}
+> > > 
+> > > I don't understand why we need the TTU_LZFREE bit in general. More on
+> > > that below at the callsite.
+> > 
+> > Sounds useless flag, don't see any reason we shouldn't free the MADV_FREE page
+> > in places other than reclaim. Looks TTU_UNMAP is useless too..
+> 
+> Agree on TTU_UNMAP but for example, THP split doesn't mean free lazyfree pages,
+> I think.
+
+Anon THP splitting uses the migration branch, so we should be fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
