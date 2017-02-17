@@ -1,232 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CC57681021
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 19:38:15 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id g80so44798195pfb.3
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 16:38:15 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id b69si8511716pfk.235.2017.02.16.16.38.14
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 65650681021
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 20:34:10 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 145so46051577pfv.6
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:34:10 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id c9si8630964pge.126.2017.02.16.17.34.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 16:38:14 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: swap_cluster_info lockdep splat
-References: <20170216052218.GA13908@bbox>
-	<87o9y2a5ji.fsf@yhuang-dev.intel.com>
-	<alpine.LSU.2.11.1702161050540.21773@eggly.anvils>
-Date: Fri, 17 Feb 2017 08:38:10 +0800
-In-Reply-To: <alpine.LSU.2.11.1702161050540.21773@eggly.anvils> (Hugh
-	Dickins's message of "Thu, 16 Feb 2017 11:00:00 -0800")
-Message-ID: <87tw7t8xe5.fsf@yhuang-dev.intel.com>
+        Thu, 16 Feb 2017 17:34:09 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id a123so617478pgc.3
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 17:34:09 -0800 (PST)
+From: Seunghun Han <kkamagui@gmail.com>
+Subject: [PATCH] x86: kernel: fix unused variable warning in vm86_32.c
+Date: Fri, 17 Feb 2017 10:32:53 +0900
+Message-Id: <1487295173-39828-1-git-send-email-kkamagui@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Seunghun Han <kkamagui@gmail.com>
 
-Hugh Dickins <hughd@google.com> writes:
+If CONFIG_TRANSPARENT_HUGEPAGE is not set in kernel config, a warning is shown
+in vm86_32.c.
 
-> On Thu, 16 Feb 2017, Huang, Ying wrote:
->
->> Hi, Minchan,
->> 
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > Hi Huang,
->> >
->> > With changing from bit lock to spinlock of swap_cluster_info, my zram
->> > test failed with below message. It seems nested lock problem so need to
->> > play with lockdep.
->> 
->> Sorry, I could not reproduce the warning in my tests.  Could you try the
->> patches as below?   And could you share your test case?
->> 
->> Best Regards,
->> Huang, Ying
->> 
->> ------------------------------------------------------------->
->> From 2b9e2f78a6e389442f308c4f9e8d5ac40fe6aa2f Mon Sep 17 00:00:00 2001
->> From: Huang Ying <ying.huang@intel.com>
->> Date: Thu, 16 Feb 2017 16:38:17 +0800
->> Subject: [PATCH] mm, swap: Annotate nested locking for cluster lock
->> 
->> There is a nested locking in cluster_list_add_tail() for cluster lock,
->> which caused lockdep to complain as below.  The nested locking is safe
->> because both cluster locks are only acquired when we held the
->> swap_info_struct->lock.  Annotated the nested locking via
->> spin_lock_nested() to fix the complain of lockdep.
->> 
->> =============================================
->> [ INFO: possible recursive locking detected ]
->> 4.10.0-rc8-next-20170214-zram #24 Not tainted
->> ---------------------------------------------
->> as/6557 is trying to acquire lock:
->>  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811ddd03>] cluster_list_add_tail.part.31+0x33/0x70
->> 
->> but task is already holding lock:
->>  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811df2bb>] swapcache_free_entries+0x9b/0x330
->> 
->> other info that might help us debug this:
->>  Possible unsafe locking scenario:
->> 
->>        CPU0
->>        ----
->>   lock(&(&((cluster_info + ci)->lock))->rlock);
->>   lock(&(&((cluster_info + ci)->lock))->rlock);
->> 
->>  *** DEADLOCK ***
->> 
->>  May be due to missing lock nesting notation
->> 
->> 3 locks held by as/6557:
->>  #0:  (&(&cache->free_lock)->rlock){......}, at: [<ffffffff811c206b>] free_swap_slot+0x8b/0x110
->>  #1:  (&(&p->lock)->rlock){+.+.-.}, at: [<ffffffff811df295>] swapcache_free_entries+0x75/0x330
->>  #2:  (&(&((cluster_info + ci)->lock))->rlock){+.+.-.}, at: [<ffffffff811df2bb>] swapcache_free_entries+0x9b/0x330
->> 
->> stack backtrace:
->> CPU: 3 PID: 6557 Comm: as Not tainted 4.10.0-rc8-next-20170214-zram #24
->> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
->> Call Trace:
->>  dump_stack+0x85/0xc2
->>  __lock_acquire+0x15ea/0x1640
->>  lock_acquire+0x100/0x1f0
->>  ? cluster_list_add_tail.part.31+0x33/0x70
->>  _raw_spin_lock+0x38/0x50
->>  ? cluster_list_add_tail.part.31+0x33/0x70
->>  cluster_list_add_tail.part.31+0x33/0x70
->>  swapcache_free_entries+0x2f9/0x330
->>  free_swap_slot+0xf8/0x110
->>  swapcache_free+0x36/0x40
->>  delete_from_swap_cache+0x5f/0xa0
->>  try_to_free_swap+0x6e/0xa0
->>  free_pages_and_swap_cache+0x7d/0xb0
->>  tlb_flush_mmu_free+0x36/0x60
->>  tlb_finish_mmu+0x1c/0x50
->>  exit_mmap+0xc7/0x150
->>  mmput+0x51/0x110
->>  do_exit+0x2b2/0xc30
->>  ? trace_hardirqs_on_caller+0x129/0x1b0
->>  do_group_exit+0x50/0xd0
->>  SyS_exit_group+0x14/0x20
->>  entry_SYSCALL_64_fastpath+0x23/0xc6
->> RIP: 0033:0x2b9a2dbdf309
->> RSP: 002b:00007ffe71887528 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
->> RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00002b9a2dbdf309
->> RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
->> RBP: 00002b9a2ded8858 R08: 000000000000003c R09: 00000000000000e7
->> R10: ffffffffffffff60 R11: 0000000000000246 R12: 00002b9a2ded8858
->> R13: 00002b9a2dedde80 R14: 000000000255f770 R15: 0000000000000001
->> 
->> Reported-by: Minchan Kim <minchan@kernel.org>
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> ---
->>  include/linux/swap.h | 6 ++++++
->>  mm/swapfile.c        | 8 +++++++-
->>  2 files changed, 13 insertions(+), 1 deletion(-)
->> 
->> diff --git a/include/linux/swap.h b/include/linux/swap.h
->> index 4d12b381821f..ef044ea8fe79 100644
->> --- a/include/linux/swap.h
->> +++ b/include/linux/swap.h
->> @@ -166,6 +166,12 @@ enum {
->>  #define COUNT_CONTINUED	0x80	/* See swap_map continuation for full count */
->>  #define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs, in first swap_map */
->>  
->> +enum swap_cluster_lock_class
->> +{
->> +	SWAP_CLUSTER_LOCK_NORMAL,  /* implicitly used by plain spin_lock() APIs. */
->> +	SWAP_CLUSTER_LOCK_NESTED,
->> +};
->> +
->>  /*
->>   * We use this to track usage of a cluster. A cluster is a block of swap disk
->>   * space with SWAPFILE_CLUSTER pages long and naturally aligns in disk. All
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index 5ac2cb40dbd3..0a52e9b2f843 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -263,6 +263,12 @@ static inline void __lock_cluster(struct swap_cluster_info *ci)
->>  	spin_lock(&ci->lock);
->>  }
->>  
->> +static inline void __lock_cluster_nested(struct swap_cluster_info *ci,
->> +					 unsigned subclass)
->> +{
->> +	spin_lock_nested(&ci->lock, subclass);
->> +}
->> +
->>  static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
->>  						     unsigned long offset)
->>  {
->> @@ -336,7 +342,7 @@ static void cluster_list_add_tail(struct swap_cluster_list *list,
->>  		 * only acquired when we held swap_info_struct->lock
->>  		 */
->>  		ci_tail = ci + tail;
->> -		__lock_cluster(ci_tail);
->> +		__lock_cluster_nested(ci_tail, SWAP_CLUSTER_LOCK_NESTED);
->>  		cluster_set_next(ci_tail, idx);
->>  		unlock_cluster(ci_tail);
->>  		cluster_set_next_flag(&list->tail, idx, 0);
->> -- 
->> 2.11.0
->
-> I do not understand your zest for putting wrappers around every little
-> thing, making it all harder to follow than it need be.  Here's the patch
-> I've been running with (but you have a leak somewhere, and I don't have
-> time to search out and fix it: please try sustained swapping and swapoff).
+The warning is as follows:
+>arch/x86/kernel/vm86_32.c: In function a??mark_screen_rdonlya??:
+>arch/x86/kernel/vm86_32.c:180:26: warning: unused variable a??vmaa?? [-Wunused-variable]
+> struct vm_area_struct *vma = find_vma(mm, 0xA0000);
 
-Thanks for your patch.  cluster_lock is bit_spinlock before, the wrapper
-made it easier to be converted to normal spinlock.  But especially after
-splitting the function into 2 variants, the wrapper looks pure
-redundant.  Thanks for fixing that too.
+The vma variable is used to call split_huge_pmd() macro function, but
+split_huge_pmd() is defined as a null macro when CONFIG_TRANSPARENT_HUGEPAGE is
+not set in kernel config. Therefore, the compiler shows an unused variable
+warning.
 
-Best Regards,
-Huang, Ying
+To remove this warning, I change the split_huge_pmd() macro function to static
+inline function and static inline null function.
+Inline function works like a macro function, therefore there is no impact on
+Linux kernel working.
 
-> [PATCH] mm, swap: Annotate nested locking for cluster lock
->
-> Fix swap cluster lockdep warnings.
->
-> Reported-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->
->  mm/swapfile.c |    9 ++-------
->  1 file changed, 2 insertions(+), 7 deletions(-)
->
-> --- 4.10-rc7-mm1/mm/swapfile.c	2017-02-08 10:56:23.359358518 -0800
-> +++ linux/mm/swapfile.c	2017-02-08 11:25:55.513241067 -0800
-> @@ -258,11 +258,6 @@ static inline void cluster_set_null(stru
->  	info->data = 0;
->  }
->  
-> -static inline void __lock_cluster(struct swap_cluster_info *ci)
-> -{
-> -	spin_lock(&ci->lock);
-> -}
-> -
->  static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
->  						     unsigned long offset)
->  {
-> @@ -271,7 +266,7 @@ static inline struct swap_cluster_info *
->  	ci = si->cluster_info;
->  	if (ci) {
->  		ci += offset / SWAPFILE_CLUSTER;
-> -		__lock_cluster(ci);
-> +		spin_lock(&ci->lock);
->  	}
->  	return ci;
->  }
-> @@ -336,7 +331,7 @@ static void cluster_list_add_tail(struct
->  		 * only acquired when we held swap_info_struct->lock
->  		 */
->  		ci_tail = ci + tail;
-> -		__lock_cluster(ci_tail);
-> +		spin_lock_nested(&ci_tail->lock, SINGLE_DEPTH_NESTING);
->  		cluster_set_next(ci_tail, idx);
->  		unlock_cluster(ci_tail);
->  		cluster_set_next_flag(&list->tail, idx, 0);
+Signed-off-by: Seunghun Han <kkamagui@gmail.com>
+---
+ include/linux/huge_mm.h | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a3762d4..912a763 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -123,15 +123,12 @@ void deferred_split_huge_page(struct page *page);
+ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long address, bool freeze, struct page *page);
+ 
+-#define split_huge_pmd(__vma, __pmd, __address)				\
+-	do {								\
+-		pmd_t *____pmd = (__pmd);				\
+-		if (pmd_trans_huge(*____pmd)				\
+-					|| pmd_devmap(*____pmd))	\
+-			__split_huge_pmd(__vma, __pmd, __address,	\
+-						false, NULL);		\
+-	}  while (0)
+-
++static inline void split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++		unsigned long address)
++{
++	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
++		__split_huge_pmd(vma, pmd, address, false, NULL);
++}
+ 
+ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+ 		bool freeze, struct page *page);
+@@ -241,9 +238,8 @@ static inline int split_huge_page(struct page *page)
+ 	return 0;
+ }
+ static inline void deferred_split_huge_page(struct page *page) {}
+-#define split_huge_pmd(__vma, __pmd, __address)	\
+-	do { } while (0)
+-
++static inline void split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++		unsigned long address) {}
+ static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long address, bool freeze, struct page *page) {}
+ static inline void split_huge_pmd_address(struct vm_area_struct *vma,
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
