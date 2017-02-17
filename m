@@ -1,130 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7152F681021
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 04:33:55 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id h7so7426186wjy.6
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 01:33:55 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n31si9961860wrb.302.2017.02.17.01.33.53
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A6536681021
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 05:48:11 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 2so21244346pfz.5
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 02:48:11 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id n62si9951771pfb.57.2017.02.17.02.48.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Feb 2017 01:33:54 -0800 (PST)
-Date: Fri, 17 Feb 2017 09:33:51 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-Message-ID: <20170217093159.3t5kw7rmixrzvv7c@suse.de>
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
- <8e86d37c-1826-736d-8cdd-ebd29c9ccd9c@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <8e86d37c-1826-736d-8cdd-ebd29c9ccd9c@gmail.com>
+        Fri, 17 Feb 2017 02:48:10 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] fs: Remove set but not checked AOP_FLAG_UNINTERRUPTIBLE flag.
+Date: Fri, 17 Feb 2017 19:48:01 +0900
+Message-Id: <1487328481-40596-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: viro@zeniv.linux.org.uk
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Jeff Layton <jlayton@redhat.com>, Nick Piggin <npiggin@gmail.com>
 
-On Fri, Feb 17, 2017 at 09:14:44AM +1100, Balbir Singh wrote:
-> 
-> 
-> On 16/02/17 05:20, Mel Gorman wrote:
-> > On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
-> >> 	This four patches define CDM node with HugeTLB & Buddy allocation
-> >> isolation. Please refer to the last RFC posting mentioned here for more
-> > 
-> > Always include the background with the changelog itself. Do not assume that
-> > people are willing to trawl through a load of past postings to assemble
-> > the picture. I'm only taking a brief look because of the page allocator
-> > impact but it does not appear that previous feedback was addressed.
-> > 
-> > In itself, the series does very little and as Vlastimil already pointed
-> > out, it's not a good idea to try merge piecemeal when people could not
-> > agree on the big picture (I didn't dig into it).
-> > 
-> 
-> The idea of CDM is independent of how some of the other problems related
-> to AutoNUMA balancing is handled.
+Commit afddba49d18f346e ("fs: introduce write_begin, write_end, and
+perform_write aops") introduced AOP_FLAG_UNINTERRUPTIBLE flag which was
+checked in pagecache_write_begin(), but that check was removed by
+commit 4e02ed4b4a2fae34 ("fs: remove prepare_write/commit_write").
 
-What has Automatic NUMA balancing got to do with CDM?
+Between these two commits, commit d9414774dc0c7b39 ("cifs: Convert cifs
+to new aops.") added a check in cifs_write_begin(), but that check was
+soon removed by commit a98ee8c1c707fe32 ("[CIFS] fix regression in
+cifs_write_begin/cifs_write_end").
 
-Even if you're trying to draw a comparison between how the patches were
-developed in comparison to CDM, it's a poor example. Regardless of which
-generation of NUMA balancing implementation considered (there were three
-contenders), each of them was a working implementation that had a measurable
-impact on a number of workloads. In many cases, performance data was
-included. The instructions on how workloads could use it were clear even
-if there were disagreements on exactly what the tuning options should be.
-While the feature evolved over time and improved for different classes of
-workload, the first set of patches merged were functional.
+Therefore, AOP_FLAG_UNINTERRUPTIBLE flag is checked nowhere.
+Let's remove this flag. This patch has no functionality changes.
 
-> The idea of this patchset was to introduce
-> the concept of memory that is not necessarily system memory, but is coherent
-> in terms of visibility/access with some restrictions
-> 
+Cc: Jeff Layton <jlayton@redhat.com>
+Cc: Nick Piggin <npiggin@gmail.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ Documentation/filesystems/vfs.txt |  3 +--
+ fs/buffer.c                       | 13 +++++--------
+ fs/exofs/dir.c                    |  3 +--
+ fs/hfs/extent.c                   |  4 ++--
+ fs/hfsplus/extents.c              |  5 ++---
+ fs/iomap.c                        | 13 +++----------
+ fs/namei.c                        |  2 +-
+ include/linux/fs.h                |  1 -
+ mm/filemap.c                      |  6 ------
+ 9 files changed, 15 insertions(+), 35 deletions(-)
 
-Which should be done without special casing the page allocator, cpusets and
-special casing how cpusets are handled. It's not necessary for any other
-mechanism used to restrict access to portions of memory such as cpusets,
-mempolicies or even memblock reservations.
-
-> > The only reason I'm commenting at all is to say that I am extremely opposed
-> > to the changes made to the page allocator paths that are specific to
-> > CDM. It's been continual significant effort to keep the cost there down
-> > and this is a mess of special cases for CDM. The changes to hugetlb to
-> > identify "memory that is not really memory" with special casing is also
-> > quite horrible.
-> > 
-> > It's completely unclear that even if one was to assume that CDM memory
-> > should be expressed as nodes why such systems do not isolate all processes
-> > from CDM nodes by default and then allow access via memory policies or
-> > cpusets instead of special casing the page allocator fast path. It's also
-> > completely unclear what happens if a device should then access the CDM
-> > and how that should be synchronised with the core, if that is even possible.
-> > 
-> 
-> A big part of this is driven by the need to special case what allocations
-> go there. The idea being that an allocation should get there only when
-> explicitly requested.
-
-cpuset, mempolicy or mmap of a device file that mediates whether device
-or system memory is used. For the last option, I don't know the specifics
-but given that HMM worked on this for years, there should be ables of
-the considerations and complications that arise. I'm not familiar with
-the specifics.
-
-> Unfortunately, IIUC node distance is not a good
-> isolation metric.
-
-I don't recall suggesting that.
-
-> CPUsets are heavily driven by user space and we
-> believe that setting up CDM is not an administrative operation, its
-> going to be hard for an administrator or user space application to set
-> up the right policy or an installer to figure it out.
-
-So by this design, an application is expected to know nothing about how
-to access CDM yet be CDM-aware? The application is either aware of CDM or
-it isn't. It's either known how to access it or it does not.
-
-Even if it was a case that the arch layer provides hooks to alter the global
-nodemask and expose a special file of the CDM nodemask to userspace then
-it would still avoid special casing in the various allocators. It would
-not address the problem at all of how devices are meant to be informed
-that there is CDM memory with work to do but that has been raised elsewhere.
-
-> It does not help
-> that CPUSets assume inheritance from the root hierarchy. As far as the
-> overheads go, one could consider using STATIC_KEYS if that is worthwhile.
-> 
-
-Hiding the overhead in static keys could not change the fact that the various
-allocator paths should not need to be CDM-aware or special casing CDM when
-there already are existing mechanisms for avoiding regions of memory.
-
+diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+index b968084..ff5a09e 100644
+--- a/Documentation/filesystems/vfs.txt
++++ b/Documentation/filesystems/vfs.txt
+@@ -694,8 +694,7 @@ struct address_space_operations {
+ 
+   write_end: After a successful write_begin, and data copy, write_end must
+         be called. len is the original len passed to write_begin, and copied
+-        is the amount that was able to be copied (copied == len is always true
+-	if write_begin was called with the AOP_FLAG_UNINTERRUPTIBLE flag).
++        is the amount that was able to be copied.
+ 
+         The filesystem must take care of unlocking the page and releasing it
+         refcount, and updating i_size.
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 28484b3..3974b89 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2378,8 +2378,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
+ 		goto out;
+ 
+ 	err = pagecache_write_begin(NULL, mapping, size, 0,
+-				AOP_FLAG_UNINTERRUPTIBLE|AOP_FLAG_CONT_EXPAND,
+-				&page, &fsdata);
++				    AOP_FLAG_CONT_EXPAND, &page, &fsdata);
+ 	if (err)
+ 		goto out;
+ 
+@@ -2414,9 +2413,8 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
+ 		}
+ 		len = PAGE_SIZE - zerofrom;
+ 
+-		err = pagecache_write_begin(file, mapping, curpos, len,
+-						AOP_FLAG_UNINTERRUPTIBLE,
+-						&page, &fsdata);
++		err = pagecache_write_begin(file, mapping, curpos, len, 0,
++					    &page, &fsdata);
+ 		if (err)
+ 			goto out;
+ 		zero_user(page, zerofrom, len);
+@@ -2448,9 +2446,8 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
+ 		}
+ 		len = offset - zerofrom;
+ 
+-		err = pagecache_write_begin(file, mapping, curpos, len,
+-						AOP_FLAG_UNINTERRUPTIBLE,
+-						&page, &fsdata);
++		err = pagecache_write_begin(file, mapping, curpos, len, 0,
++					    &page, &fsdata);
+ 		if (err)
+ 			goto out;
+ 		zero_user(page, zerofrom, len);
+diff --git a/fs/exofs/dir.c b/fs/exofs/dir.c
+index 42f9a0a..8eeb694 100644
+--- a/fs/exofs/dir.c
++++ b/fs/exofs/dir.c
+@@ -405,8 +405,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
+ 	int err;
+ 
+ 	lock_page(page);
+-	err = exofs_write_begin(NULL, page->mapping, pos, len,
+-				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
++	err = exofs_write_begin(NULL, page->mapping, pos, len, 0, &page, NULL);
+ 	if (err)
+ 		EXOFS_ERR("exofs_set_link: exofs_write_begin FAILED => %d\n",
+ 			  err);
+diff --git a/fs/hfs/extent.c b/fs/hfs/extent.c
+index e33a0d3..5d01826 100644
+--- a/fs/hfs/extent.c
++++ b/fs/hfs/extent.c
+@@ -485,8 +485,8 @@ void hfs_file_truncate(struct inode *inode)
+ 
+ 		/* XXX: Can use generic_cont_expand? */
+ 		size = inode->i_size - 1;
+-		res = pagecache_write_begin(NULL, mapping, size+1, 0,
+-				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
++		res = pagecache_write_begin(NULL, mapping, size+1, 0, 0,
++					    &page, &fsdata);
+ 		if (!res) {
+ 			res = pagecache_write_end(NULL, mapping, size+1, 0, 0,
+ 					page, fsdata);
+diff --git a/fs/hfsplus/extents.c b/fs/hfsplus/extents.c
+index feca524..a3eb640 100644
+--- a/fs/hfsplus/extents.c
++++ b/fs/hfsplus/extents.c
+@@ -545,9 +545,8 @@ void hfsplus_file_truncate(struct inode *inode)
+ 		void *fsdata;
+ 		loff_t size = inode->i_size;
+ 
+-		res = pagecache_write_begin(NULL, mapping, size, 0,
+-						AOP_FLAG_UNINTERRUPTIBLE,
+-						&page, &fsdata);
++		res = pagecache_write_begin(NULL, mapping, size, 0, 0,
++					    &page, &fsdata);
+ 		if (res)
+ 			return;
+ 		res = pagecache_write_end(NULL, mapping, size,
+diff --git a/fs/iomap.c b/fs/iomap.c
+index 0f85f24..f740ca3 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -156,12 +156,6 @@
+ 	ssize_t written = 0;
+ 	unsigned int flags = AOP_FLAG_NOFS;
+ 
+-	/*
+-	 * Copies from kernel address space cannot fail (NFSD is a big user).
+-	 */
+-	if (!iter_is_iovec(i))
+-		flags |= AOP_FLAG_UNINTERRUPTIBLE;
+-
+ 	do {
+ 		struct page *page;
+ 		unsigned long offset;	/* Offset into pagecache page */
+@@ -289,8 +283,7 @@
+ 			return PTR_ERR(rpage);
+ 
+ 		status = iomap_write_begin(inode, pos, bytes,
+-				AOP_FLAG_NOFS | AOP_FLAG_UNINTERRUPTIBLE,
+-				&page, iomap);
++					   AOP_FLAG_NOFS, &page, iomap);
+ 		put_page(rpage);
+ 		if (unlikely(status))
+ 			return status;
+@@ -341,8 +334,8 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
+ 	struct page *page;
+ 	int status;
+ 
+-	status = iomap_write_begin(inode, pos, bytes,
+-			AOP_FLAG_UNINTERRUPTIBLE | AOP_FLAG_NOFS, &page, iomap);
++	status = iomap_write_begin(inode, pos, bytes, AOP_FLAG_NOFS, &page,
++				   iomap);
+ 	if (status)
+ 		return status;
+ 
+diff --git a/fs/namei.c b/fs/namei.c
+index e79ac7a..4fd1ee2 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -4756,7 +4756,7 @@ int __page_symlink(struct inode *inode, const char *symname, int len, int nofs)
+ 	struct page *page;
+ 	void *fsdata;
+ 	int err;
+-	unsigned int flags = AOP_FLAG_UNINTERRUPTIBLE;
++	unsigned int flags = 0;
+ 	if (nofs)
+ 		flags |= AOP_FLAG_NOFS;
+ 
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index de8ed0b..77a084a 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -250,7 +250,6 @@ enum positive_aop_returns {
+ 	AOP_TRUNCATED_PAGE	= 0x80001,
+ };
+ 
+-#define AOP_FLAG_UNINTERRUPTIBLE	0x0001 /* will not do a short write */
+ #define AOP_FLAG_CONT_EXPAND		0x0002 /* called from cont_expand */
+ #define AOP_FLAG_NOFS			0x0004 /* used by filesystem to direct
+ 						* helper code (eg buffer layer)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 2ba46f4..e16047c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2790,12 +2790,6 @@ ssize_t generic_perform_write(struct file *file,
+ 	ssize_t written = 0;
+ 	unsigned int flags = 0;
+ 
+-	/*
+-	 * Copies from kernel address space cannot fail (NFSD is a big user).
+-	 */
+-	if (!iter_is_iovec(i))
+-		flags |= AOP_FLAG_UNINTERRUPTIBLE;
+-
+ 	do {
+ 		struct page *page;
+ 		unsigned long offset;	/* Offset into pagecache page */
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
