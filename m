@@ -1,96 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A6FCF681021
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2017 22:28:59 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id s36so40843685otd.3
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 19:28:59 -0800 (PST)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id d21si466440oig.82.2017.02.16.19.28.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Feb 2017 19:28:58 -0800 (PST)
-Received: by mail-oi0-x230.google.com with SMTP id u143so18787067oif.3
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 19:28:58 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 727F6681021
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 00:41:12 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id c73so51857073pfb.7
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2017 21:41:12 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id r59si9210494plb.97.2017.02.16.21.41.10
+        for <linux-mm@kvack.org>;
+        Thu, 16 Feb 2017 21:41:11 -0800 (PST)
+Date: Fri, 17 Feb 2017 14:41:08 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
+Message-ID: <20170217054108.GA3653@bbox>
+References: <cover.1487100204.git.shli@fb.com>
+ <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+ <20170216184018.GC20791@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20170217030802.GA27382@linux.intel.com>
-References: <148728202805.38457.18028105614854319884.stgit@dwillia2-desk3.amr.corp.intel.com>
- <148728203880.38457.1158394701925100383.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170217030802.GA27382@linux.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 16 Feb 2017 19:28:57 -0800
-Message-ID: <CAPcyv4grRsV1XH-w1GG0q4aNEJCUsPm4SNL280V=X_8w7X1TXQ@mail.gmail.com>
-Subject: Re: [PATCH v2 2/2] mm: validate device_hotplug is held for memory hotplug
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170216184018.GC20791@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux MM <linux-mm@kvack.org>, Ben Hutchings <ben@decadent.org.uk>, Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Thu, Feb 16, 2017 at 7:08 PM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Thu, Feb 16, 2017 at 01:53:58PM -0800, Dan Williams wrote:
->> mem_hotplug_begin() assumes that it can set mem_hotplug.active_writer
->> and run the hotplug process without racing another thread. Validate this
->> assumption with a lockdep assertion.
->>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Toshi Kani <toshi.kani@hpe.com>
->> Cc: Vlastimil Babka <vbabka@suse.cz>
->> Cc: Logan Gunthorpe <logang@deltatee.com>
->> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
->> Reported-by: Ben Hutchings <ben@decadent.org.uk>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  drivers/base/core.c    |    5 +++++
->>  include/linux/device.h |    1 +
->>  mm/memory_hotplug.c    |    2 ++
->>  3 files changed, 8 insertions(+)
->>
->> diff --git a/drivers/base/core.c b/drivers/base/core.c
->> index 8c25e68e67d7..3050e6f99403 100644
->> --- a/drivers/base/core.c
->> +++ b/drivers/base/core.c
->> @@ -638,6 +638,11 @@ int lock_device_hotplug_sysfs(void)
->>       return restart_syscall();
->>  }
->>
->> +void assert_held_device_hotplug(void)
->> +{
->> +     lockdep_assert_held(&device_hotplug_lock);
->> +}
->> +
->>  #ifdef CONFIG_BLOCK
->>  static inline int device_is_not_partition(struct device *dev)
->>  {
->> diff --git a/include/linux/device.h b/include/linux/device.h
->> index 491b4c0ca633..815965ee55dd 100644
->> --- a/include/linux/device.h
->> +++ b/include/linux/device.h
->> @@ -1135,6 +1135,7 @@ static inline bool device_supports_offline(struct device *dev)
->>  extern void lock_device_hotplug(void);
->>  extern void unlock_device_hotplug(void);
->>  extern int lock_device_hotplug_sysfs(void);
->> +void assert_held_device_hotplug(void);
->>  extern int device_offline(struct device *dev);
->>  extern int device_online(struct device *dev);
->>  extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index b8c11e063ff0..1635a2a085e5 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -126,6 +126,8 @@ void put_online_mems(void)
->>
->>  void mem_hotplug_begin(void)
->>  {
->> +     assert_held_device_hotplug();
->
-> What's the benefit to defining assert_held_device_hotplug() as a one line
-> wrapper, instead of just calling lockdep_assert_held(&device_hotplug_lock)
-> directly?
->
+Hi Johannes,
 
-This allows us to keep device_hotplug_lock statically defined and an
-internal implementation detail of the device core.
+On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
+> On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
+> > @@ -1419,11 +1419,18 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> >  			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
+> >  				page);
+> >  
+> > -			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
+> > -				/* It's a freeable page by MADV_FREE */
+> > -				dec_mm_counter(mm, MM_ANONPAGES);
+> > -				rp->lazyfreed++;
+> > -				goto discard;
+> > +			if (flags & TTU_LZFREE) {
+> > +				if (!PageDirty(page)) {
+> > +					/* It's a freeable page by MADV_FREE */
+> > +					dec_mm_counter(mm, MM_ANONPAGES);
+> > +					rp->lazyfreed++;
+> > +					goto discard;
+> > +				} else {
+> > +					set_pte_at(mm, address, pvmw.pte, pteval);
+> > +					ret = SWAP_FAIL;
+> > +					page_vma_mapped_walk_done(&pvmw);
+> > +					break;
+> > +				}
+> 
+> I don't understand why we need the TTU_LZFREE bit in general. More on
+> that below at the callsite.
+
+The reason I introduced it was ttu is used for migration/THP split path
+as well as reclaim. It's clear to discard them in reclaim path because
+it means surely memory pressure now but not sure with other path.
+
+If you guys think it's always win to discard them in try_to_unmap
+unconditionally, I think it would be better to be separate patch.
+
+> 
+> > @@ -911,7 +911,7 @@ static void page_check_dirty_writeback(struct page *page,
+> >  	 * Anonymous pages are not handled by flushers and must be written
+> >  	 * from reclaim context. Do not stall reclaim based on them
+> >  	 */
+> > -	if (!page_is_file_cache(page)) {
+> > +	if (!page_is_file_cache(page) || page_is_lazyfree(page)) {
+> 
+> Do we need this? MADV_FREE clears the dirty bit off the page; we could
+> just let them go through with the function without any special-casing.
+
+I thought some driver potentially can do GUP with FOLL_TOUCH so that the
+lazyfree page can have PG_dirty with !PG_swapbacked. In this case,
+throttling logic of shrink_page_list can be confused?
+
+> 
+> > @@ -986,6 +986,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  
+> >  		sc->nr_scanned++;
+> >  
+> > +		lazyfree = page_is_lazyfree(page);
+> > +
+> >  		if (unlikely(!page_evictable(page)))
+> >  			goto cull_mlocked;
+> >  
+> > @@ -993,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  			goto keep_locked;
+> >  
+> >  		/* Double the slab pressure for mapped and swapcache pages */
+> > -		if (page_mapped(page) || PageSwapCache(page))
+> > +		if ((page_mapped(page) || PageSwapCache(page)) && !lazyfree)
+> >  			sc->nr_scanned++;
+> >  
+> >  		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+> > @@ -1119,13 +1121,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		/*
+> >  		 * Anonymous process memory has backing store?
+> >  		 * Try to allocate it some swap space here.
+> > +		 * Lazyfree page could be freed directly
+> >  		 */
+> > -		if (PageAnon(page) && !PageSwapCache(page)) {
+> > +		if (PageAnon(page) && !PageSwapCache(page) && !lazyfree) {
+> 
+> lazyfree duplicates the anon check. As per the previous email, IMO it
+> would be much preferable to get rid of that "lazyfree" obscuring here.
+> 
+> This would simply be:
+> 
+> 		if (PageAnon(page) && PageSwapBacked && !PageSwapCache)
+
+Agree.
+
+> 
+> > @@ -1142,7 +1144,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		 * The page is mapped into the page tables of one or more
+> >  		 * processes. Try to unmap it here.
+> >  		 */
+> > -		if (page_mapped(page) && mapping) {
+> > +		if (page_mapped(page) && (mapping || lazyfree)) {
+> 
+> Do we actually need to filter for mapping || lazyfree? If we fail to
+> allocate swap, we don't reach here. If the page is a truncated file
+> page, ttu returns pretty much instantly with SWAP_AGAIN. We should be
+> able to just check for page_mapped() alone, no?
+
+try_to_unmap_one assumes every anonymous pages reached will have swp_entry
+so it should be changed to check PageSwapCache if we go to the way.
+
+> 
+> >  			switch (ret = try_to_unmap(page, lazyfree ?
+> >  				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
+> >  				(ttu_flags | TTU_BATCH_FLUSH))) {
+> 
+> That bit I don't understand. Why do we need to pass TTU_LZFREE? What
+> information does that carry that cannot be gathered from inside ttu?
+> 
+> I.e. when ttu runs into PageAnon, can it simply check !PageSwapBacked?
+> And if it's still clean, it can lazyfreed++; goto discard.
+> 
+> Am I overlooking something?
+
+As I said above, TTU_LZFREE signals when we should discard the page and
+in my implementation, I thought it was only shrink_page_list which is
+event for memory pressure.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
