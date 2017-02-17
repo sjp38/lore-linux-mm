@@ -1,102 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A6703681034
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:12:52 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id u143so50898856oif.1
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:12:52 -0800 (PST)
-Received: from mail-ot0-x22c.google.com (mail-ot0-x22c.google.com. [2607:f8b0:4003:c0f::22c])
-        by mx.google.com with ESMTPS id p84si4888854oig.259.2017.02.17.06.12.51
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E65D681034
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:13:50 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id e4so60668191pfg.4
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:13:50 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e11si10355979pgp.351.2017.02.17.06.13.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 06:12:51 -0800 (PST)
-Received: by mail-ot0-x22c.google.com with SMTP id 45so32017019otd.2
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:12:51 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CADZGycbxtoXXxCeg-nHjzGmHA72VnA=-td+hNaNqN67Vq2JuKg@mail.gmail.com>
-References: <20170211021829.9646-1-richard.weiyang@gmail.com>
- <20170211021829.9646-2-richard.weiyang@gmail.com> <20170211022400.GA19050@mtj.duckdns.org>
- <CADZGycbxtoXXxCeg-nHjzGmHA72VnA=-td+hNaNqN67Vq2JuKg@mail.gmail.com>
-From: Wei Yang <richard.weiyang@gmail.com>
-Date: Fri, 17 Feb 2017 22:12:31 +0800
-Message-ID: <CADZGycapTYxdxwHacFYiECZQ23uPDARQcahw_9zuKrNu-wG63g@mail.gmail.com>
-Subject: Re: [RFC PATCH 2/2] mm/sparse: add last_section_nr in sparse_init()
- to reduce some iteration cycle
-Content-Type: text/plain; charset=UTF-8
+        Fri, 17 Feb 2017 06:13:49 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 02/33] asm-generic: introduce 5level-fixup.h
+Date: Fri, 17 Feb 2017 17:12:57 +0300
+Message-Id: <20170217141328.164563-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
+References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Feb 13, 2017 at 9:03 PM, Wei Yang <richard.weiyang@gmail.com> wrote:
-> On Sat, Feb 11, 2017 at 10:24 AM, Tejun Heo <tj@kernel.org> wrote:
->>
->> Hello,
->>
->
-> Hi, Tejun
->
-> Sorry for the delay, my gmail client seems to facing some problem.
-> I can't see latest mails. So I have to use the web client and reply.
->
->> On Sat, Feb 11, 2017 at 10:18:29AM +0800, Wei Yang wrote:
->> > During the sparse_init(), it iterate on each possible section. On x86_64,
->> > it would always be (2^19) even there is not much memory. For example, on a
->> > typical 4G machine, it has only (2^5) to (2^6) present sections. This
->> > benefits more on a system with smaller memory.
->> >
->> > This patch calculates the last section number from the highest pfn and use
->> > this as the boundary of iteration.
->>
->> * How much does this actually matter?  Can you measure the impact?
->>
->
-> Hmm, I tried to print the "jiffies", while it is not ready at that moment. So
-> I mimic the behavior in user space.
->
-> I used following code for test.
->
-> #include <stdio.h>
-> #include <stdlib.h>
->
-> int array[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
->
-> int main()
-> {
-> unsigned long i;
-> int val;
->
->     for (i = 0; i < (1UL << 5); i++)
->         val += array[i%10];
->     for (i = 0; i < (1UL << 5); i++)
->         val += array[i%10];
->     for (i = 0; i < (1UL << 5); i++)
->         val += array[i%10];
->
->     //printf("%lx %d\n", i, val);
->
->     return 0;
-> }
->
-> And compare the ruling with the iteration for the loop to be (1UL <<
-> 5) and (1UL << 19).
-> The runtime is 0.00s and 0.04s respectively. The absolute value is not much.
->
+We are going to switch core MM to 5-level paging abstraction.
 
-Hi, Tejun
+This is preparation step which adds <asm-generic/5level-fixup.h>
+As with 4level-fixup.h, the new header allows quickly make all
+architectures compatible with 5-level paging in core MM.
 
-What's your opinion on this change?
+In long run we would like to switch architectures to properly folded p4d
+level by using <asm-generic/pgtable-nop4d.h>, but it requires more
+changes to arch-specific code.
 
->> * Do we really need to add full reverse iterator to just get the
->>   highest section number?
->>
->
-> You are right. After I sent out the mail, I realized just highest pfn
-> is necessary.
->
->> Thanks.
->>
->> --
->> tejun
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/asm-generic/4level-fixup.h |  3 ++-
+ include/asm-generic/5level-fixup.h | 41 ++++++++++++++++++++++++++++++++++++++
+ include/linux/mm.h                 |  3 +++
+ 3 files changed, 46 insertions(+), 1 deletion(-)
+ create mode 100644 include/asm-generic/5level-fixup.h
+
+diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
+index 5bdab6bffd23..928fd66b1271 100644
+--- a/include/asm-generic/4level-fixup.h
++++ b/include/asm-generic/4level-fixup.h
+@@ -15,7 +15,6 @@
+ 	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
+  		NULL: pmd_offset(pud, address))
+ 
+-#define pud_alloc(mm, pgd, address)	(pgd)
+ #define pud_offset(pgd, start)		(pgd)
+ #define pud_none(pud)			0
+ #define pud_bad(pud)			0
+@@ -35,4 +34,6 @@
+ #undef  pud_addr_end
+ #define pud_addr_end(addr, end)		(end)
+ 
++#include <asm-generic/5level-fixup.h>
++
+ #endif
+diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+new file mode 100644
+index 000000000000..b5ca82dc4175
+--- /dev/null
++++ b/include/asm-generic/5level-fixup.h
+@@ -0,0 +1,41 @@
++#ifndef _5LEVEL_FIXUP_H
++#define _5LEVEL_FIXUP_H
++
++#define __ARCH_HAS_5LEVEL_HACK
++#define __PAGETABLE_P4D_FOLDED
++
++#define P4D_SHIFT			PGDIR_SHIFT
++#define P4D_SIZE			PGDIR_SIZE
++#define P4D_MASK			PGDIR_MASK
++#define PTRS_PER_P4D			1
++
++#define p4d_t				pgd_t
++
++#define pud_alloc(mm, p4d, address) \
++	((unlikely(pgd_none(*(p4d))) && __pud_alloc(mm, p4d, address)) ? \
++		NULL : pud_offset(p4d, address))
++
++#define p4d_alloc(mm, pgd, address)	(pgd)
++#define p4d_offset(pgd, start)		(pgd)
++#define p4d_none(p4d)			0
++#define p4d_bad(p4d)			0
++#define p4d_present(p4d)		1
++#define p4d_ERROR(p4d)			do { } while (0)
++#define p4d_clear(p4d)			pgd_clear(p4d)
++#define p4d_val(p4d)			pgd_val(p4d)
++#define p4d_populate(mm, p4d, pud)	pgd_populate(mm, p4d, pud)
++#define p4d_page(p4d)			pgd_page(p4d)
++#define p4d_page_vaddr(p4d)		pgd_page_vaddr(p4d)
++
++#define __p4d(x)			__pgd(x)
++#define set_p4d(p4dp, p4d)		set_pgd(p4dp, p4d)
++
++#undef p4d_free_tlb
++#define p4d_free_tlb(tlb, x, addr)	do { } while (0)
++#define p4d_free(mm, x)			do { } while (0)
++#define __p4d_free_tlb(tlb, x, addr)	do { } while (0)
++
++#undef  p4d_addr_end
++#define p4d_addr_end(addr, end)		(end)
++
++#endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b84615b0f64c..a953e87183ea 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1574,11 +1574,14 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
+  * Remove it when 4level-fixup.h has been removed.
+  */
+ #if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
++
++#ifndef __ARCH_HAS_5LEVEL_HACK
+ static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+ {
+ 	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
+ 		NULL: pud_offset(pgd, address);
+ }
++#endif /* !__ARCH_HAS_5LEVEL_HACK */
+ 
+ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
+ {
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
