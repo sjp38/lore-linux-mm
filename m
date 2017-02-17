@@ -1,126 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D8A04681045
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:13:59 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so62703008pfb.7
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:13:59 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id y7si10377833pgb.374.2017.02.17.06.13.58
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E459681045
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:14:01 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id v184so61506021pgv.6
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:14:01 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e11si10355979pgp.351.2017.02.17.06.14.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 06:13:58 -0800 (PST)
+        Fri, 17 Feb 2017 06:14:00 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 13/33] x86/power: support p4d_t in hibernate code
-Date: Fri, 17 Feb 2017 17:13:08 +0300
-Message-Id: <20170217141328.164563-14-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 15/33] x86/efi: handle p4d in EFI pagetables
+Date: Fri, 17 Feb 2017 17:13:10 +0300
+Message-Id: <20170217141328.164563-16-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matt Fleming <matt@codeblueprint.co.uk>
 
-set_up_temporary_text_mapping() and relocate_restore_code() require
-trivial adjustments to handle additional page table level.
+Allocate additional page table level and change efi_sync_low_kernel_mappings()
+to make syncing logic work with additional page table level.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
 ---
- arch/x86/power/hibernate_64.c | 49 ++++++++++++++++++++++++++++++-------------
- 1 file changed, 35 insertions(+), 14 deletions(-)
+ arch/x86/platform/efi/efi_64.c | 33 +++++++++++++++++++++++----------
+ 1 file changed, 23 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/power/hibernate_64.c b/arch/x86/power/hibernate_64.c
-index ded2e8272382..9ec941638932 100644
---- a/arch/x86/power/hibernate_64.c
-+++ b/arch/x86/power/hibernate_64.c
-@@ -49,6 +49,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
- {
- 	pmd_t *pmd;
- 	pud_t *pud;
-+	p4d_t *p4d;
- 
- 	/*
- 	 * The new mapping only has to cover the page containing the image
-@@ -63,6 +64,13 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
- 	 * the virtual address space after switching over to the original page
- 	 * tables used by the image kernel.
- 	 */
-+
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-+		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);
-+		if (!p4d)
-+			return -ENOMEM;
-+	}
-+
- 	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
- 	if (!pud)
- 		return -ENOMEM;
-@@ -75,8 +83,15 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
- 		__pmd((jump_address_phys & PMD_MASK) | __PAGE_KERNEL_LARGE_EXEC));
- 	set_pud(pud + pud_index(restore_jump_address),
- 		__pud(__pa(pmd) | _KERNPG_TABLE));
--	set_pgd(pgd + pgd_index(restore_jump_address),
--		__pgd(__pa(pud) | _KERNPG_TABLE));
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-+		set_p4d(p4d + p4d_index(restore_jump_address),
-+				__p4d(__pa(pud) | _KERNPG_TABLE));
-+		set_pgd(pgd + pgd_index(restore_jump_address),
-+				__pgd(__pa(p4d) | _KERNPG_TABLE));
-+	} else {
-+		set_pgd(pgd + pgd_index(restore_jump_address),
-+				__pgd(__pa(pud) | _KERNPG_TABLE));
-+	}
- 
- 	return 0;
- }
-@@ -124,7 +139,10 @@ static int set_up_temporary_mappings(void)
- static int relocate_restore_code(void)
+diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+index 8f26e707e39c..7d80fc737f58 100644
+--- a/arch/x86/platform/efi/efi_64.c
++++ b/arch/x86/platform/efi/efi_64.c
+@@ -135,6 +135,7 @@ static pgd_t *efi_pgd;
+ int __init efi_alloc_page_tables(void)
  {
  	pgd_t *pgd;
 +	p4d_t *p4d;
  	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
+ 	gfp_t gfp_mask;
  
- 	relocated_restore_code = get_safe_page(GFP_ATOMIC);
- 	if (!relocated_restore_code)
-@@ -134,22 +152,25 @@ static int relocate_restore_code(void)
+@@ -147,15 +148,20 @@ int __init efi_alloc_page_tables(void)
+ 		return -ENOMEM;
  
- 	/* Make the page containing the relocated code executable */
- 	pgd = (pgd_t *)__va(read_cr3()) + pgd_index(relocated_restore_code);
--	pud = pud_offset(pgd, relocated_restore_code);
-+	p4d = p4d_offset(pgd, relocated_restore_code);
-+	if (p4d_large(*p4d)) {
-+		set_p4d(p4d, __p4d(p4d_val(*p4d) & ~_PAGE_NX));
-+		goto out;
+ 	pgd = efi_pgd + pgd_index(EFI_VA_END);
++	p4d = p4d_alloc(&init_mm, pgd, EFI_VA_END);
++	if (!p4d) {
++		free_page((unsigned long)efi_pgd);
++		return -ENOMEM;
 +	}
-+	pud = pud_offset(p4d, relocated_restore_code);
- 	if (pud_large(*pud)) {
- 		set_pud(pud, __pud(pud_val(*pud) & ~_PAGE_NX));
--	} else {
--		pmd_t *pmd = pmd_offset(pud, relocated_restore_code);
--
--		if (pmd_large(*pmd)) {
--			set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
--		} else {
--			pte_t *pte = pte_offset_kernel(pmd, relocated_restore_code);
--
--			set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
--		}
-+		goto out;
-+	}
-+	pmd = pmd_offset(pud, relocated_restore_code);
-+	if (pmd_large(*pmd)) {
-+		set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
-+		goto out;
+ 
+-	pud = pud_alloc_one(NULL, 0);
++	pud = pud_alloc(&init_mm, p4d, EFI_VA_END);
+ 	if (!pud) {
++		if (CONFIG_PGTABLE_LEVELS > 4)
++			free_page((unsigned long) pgd_page_vaddr(*pgd));
+ 		free_page((unsigned long)efi_pgd);
+ 		return -ENOMEM;
  	}
-+	pte = pte_offset_kernel(pmd, relocated_restore_code);
-+	set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
-+out:
- 	__flush_tlb_all();
+ 
+-	pgd_populate(NULL, pgd, pud);
 -
  	return 0;
  }
  
+@@ -190,6 +196,18 @@ void efi_sync_low_kernel_mappings(void)
+ 	num_entries = pgd_index(EFI_VA_END) - pgd_index(PAGE_OFFSET);
+ 	memcpy(pgd_efi, pgd_k, sizeof(pgd_t) * num_entries);
+ 
++	/* The same story as with PGD entries */
++	BUILD_BUG_ON(p4d_index(EFI_VA_END) != p4d_index(MODULES_END));
++	BUILD_BUG_ON((EFI_VA_START & P4D_MASK) != (EFI_VA_END & P4D_MASK));
++
++	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
++	pgd_k = pgd_offset_k(EFI_VA_END);
++	p4d_efi = p4d_offset(pgd_efi, 0);
++	p4d_k = p4d_offset(pgd_k, 0);
++
++	num_entries = p4d_index(EFI_VA_END);
++	memcpy(p4d_efi, p4d_k, sizeof(p4d_t) * num_entries);
++
+ 	/*
+ 	 * We share all the PUD entries apart from those that map the
+ 	 * EFI regions. Copy around them.
+@@ -197,20 +215,15 @@ void efi_sync_low_kernel_mappings(void)
+ 	BUILD_BUG_ON((EFI_VA_START & ~PUD_MASK) != 0);
+ 	BUILD_BUG_ON((EFI_VA_END & ~PUD_MASK) != 0);
+ 
+-	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
+-	p4d_efi = p4d_offset(pgd_efi, 0);
++	p4d_efi = p4d_offset(pgd_efi, EFI_VA_END);
++	p4d_k = p4d_offset(pgd_k, EFI_VA_END);
+ 	pud_efi = pud_offset(p4d_efi, 0);
+-
+-	pgd_k = pgd_offset_k(EFI_VA_END);
+-	p4d_k = p4d_offset(pgd_k, 0);
+ 	pud_k = pud_offset(p4d_k, 0);
+ 
+ 	num_entries = pud_index(EFI_VA_END);
+ 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
+ 
+-	p4d_efi = p4d_offset(pgd_efi, EFI_VA_START);
+ 	pud_efi = pud_offset(p4d_efi, EFI_VA_START);
+-	p4d_k = p4d_offset(pgd_k, EFI_VA_START);
+ 	pud_k = pud_offset(p4d_k, EFI_VA_START);
+ 
+ 	num_entries = PTRS_PER_PUD - pud_index(EFI_VA_START);
 -- 
 2.11.0
 
