@@ -1,184 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9F14405E4
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:14:13 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c73so62706887pfb.7
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:14:13 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6129D4405E4
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:14:20 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y6so48835000pgy.5
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:14:20 -0800 (PST)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id q11si5933430pgf.297.2017.02.17.06.14.05
+        by mx.google.com with ESMTPS id v75si10395841pfa.126.2017.02.17.06.14.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 06:14:05 -0800 (PST)
+        Fri, 17 Feb 2017 06:14:19 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 23/33] x86/paravirt: make paravirt code support 5-level paging
-Date: Fri, 17 Feb 2017 17:13:18 +0300
-Message-Id: <20170217141328.164563-24-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 00/33] 5-level paging
+Date: Fri, 17 Feb 2017 17:12:55 +0300
+Message-Id: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Add operations to allocate/release p4ds.
+Here is v3 of 5-level paging patchset. Please review and consider applying.
 
-TODO: cover XEN.
+== Overview ==
 
-Not-yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/paravirt.h       | 44 +++++++++++++++++++++++++++++++----
- arch/x86/include/asm/paravirt_types.h |  7 +++++-
- arch/x86/include/asm/pgalloc.h        |  2 ++
- arch/x86/kernel/paravirt.c            |  9 +++++--
- 4 files changed, 55 insertions(+), 7 deletions(-)
+x86-64 is currently limited to 256 TiB of virtual address space and 64 TiB
+of physical address space. We are already bumping into this limit: some
+vendors offers servers with 64 TiB of memory today.
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-index 432c6e730ed1..7605910598a6 100644
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -357,6 +357,16 @@ static inline void paravirt_release_pud(unsigned long pfn)
- 	PVOP_VCALL1(pv_mmu_ops.release_pud, pfn);
- }
- 
-+static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)
-+{
-+	PVOP_VCALL2(pv_mmu_ops.alloc_p4d, mm, pfn);
-+}
-+
-+static inline void paravirt_release_p4d(unsigned long pfn)
-+{
-+	PVOP_VCALL1(pv_mmu_ops.release_p4d, pfn);
-+}
-+
- static inline void pte_update(struct mm_struct *mm, unsigned long addr,
- 			      pte_t *ptep)
- {
-@@ -571,14 +581,35 @@ static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
- 			    val);
- }
- 
--static inline void p4d_clear(p4d_t *p4dp)
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+
-+static inline p4d_t __p4d(p4dval_t val)
- {
--	set_p4d(p4dp, __p4d(0));
-+	p4dval_t ret;
-+
-+	if (sizeof(p4dval_t) > sizeof(long))
-+		ret = PVOP_CALLEE2(p4dval_t, pv_mmu_ops.make_p4d,
-+				   val, (u64)val >> 32);
-+	else
-+		ret = PVOP_CALLEE1(p4dval_t, pv_mmu_ops.make_p4d,
-+				   val);
-+
-+	return (p4d_t) { ret };
- }
- 
--#if CONFIG_PGTABLE_LEVELS >= 5
-+static inline p4dval_t p4d_val(p4d_t p4d)
-+{
-+	p4dval_t ret;
-+
-+	if (sizeof(p4dval_t) > sizeof(long))
-+		ret =  PVOP_CALLEE2(p4dval_t, pv_mmu_ops.p4d_val,
-+				    p4d.p4d, (u64)p4d.p4d >> 32);
-+	else
-+		ret =  PVOP_CALLEE1(p4dval_t, pv_mmu_ops.p4d_val,
-+				    p4d.p4d);
- 
--#error FIXME
-+	return ret;
-+}
- 
- static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
- {
-@@ -599,6 +630,11 @@ static inline void pgd_clear(pgd_t *pgdp)
- 
- #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
- 
-+static inline void p4d_clear(p4d_t *p4dp)
-+{
-+	set_p4d(p4dp, __p4d(0));
-+}
-+
- #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
- 
- #endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
-index 3982c200845f..2dfbb7cedbaa 100644
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -238,9 +238,11 @@ struct pv_mmu_ops {
- 	void (*alloc_pte)(struct mm_struct *mm, unsigned long pfn);
- 	void (*alloc_pmd)(struct mm_struct *mm, unsigned long pfn);
- 	void (*alloc_pud)(struct mm_struct *mm, unsigned long pfn);
-+	void (*alloc_p4d)(struct mm_struct *mm, unsigned long pfn);
- 	void (*release_pte)(unsigned long pfn);
- 	void (*release_pmd)(unsigned long pfn);
- 	void (*release_pud)(unsigned long pfn);
-+	void (*release_p4d)(unsigned long pfn);
- 
- 	/* Pagetable manipulation functions */
- 	void (*set_pte)(pte_t *ptep, pte_t pteval);
-@@ -284,7 +286,10 @@ struct pv_mmu_ops {
- 	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
- 
- #if CONFIG_PGTABLE_LEVELS >= 5
--#error FIXME
-+	struct paravirt_callee_save p4d_val;
-+	struct paravirt_callee_save make_p4d;
-+
-+	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
- #endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
- 
- #endif	/* CONFIG_PGTABLE_LEVELS >= 4 */
-diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-index 2f585054c63c..b2d0cd8288aa 100644
---- a/arch/x86/include/asm/pgalloc.h
-+++ b/arch/x86/include/asm/pgalloc.h
-@@ -17,9 +17,11 @@ static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)	{
- static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
- 					    unsigned long start, unsigned long count) {}
- static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned long pfn)	{}
-+static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)	{}
- static inline void paravirt_release_pte(unsigned long pfn) {}
- static inline void paravirt_release_pmd(unsigned long pfn) {}
- static inline void paravirt_release_pud(unsigned long pfn) {}
-+static inline void paravirt_release_p4d(unsigned long pfn) {}
- #endif
- 
- /*
-diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
-index f8aedc112d5e..974359f83cff 100644
---- a/arch/x86/kernel/paravirt.c
-+++ b/arch/x86/kernel/paravirt.c
-@@ -405,9 +405,11 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
- 	.alloc_pte = paravirt_nop,
- 	.alloc_pmd = paravirt_nop,
- 	.alloc_pud = paravirt_nop,
-+	.alloc_p4d = paravirt_nop,
- 	.release_pte = paravirt_nop,
- 	.release_pmd = paravirt_nop,
- 	.release_pud = paravirt_nop,
-+	.release_p4d = paravirt_nop,
- 
- 	.set_pte = native_set_pte,
- 	.set_pte_at = native_set_pte_at,
-@@ -436,8 +438,11 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
- 	.set_p4d = native_set_p4d,
- 
- #if CONFIG_PGTABLE_LEVELS >= 5
--#error FIXME
--#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
-+	.p4d_val = PTE_IDENT,
-+	.make_p4d = PTE_IDENT,
-+
-+	.set_pgd = native_set_pgd,
-+#endif /* CONFIG_PGTABLE_LEVELS >= 5 */
- #endif /* CONFIG_PGTABLE_LEVELS >= 4 */
- #endif /* CONFIG_PGTABLE_LEVELS >= 3 */
- 
+To overcome the limitation upcoming hardware will introduce support for
+5-level paging[1]. It is a straight-forward extension of the current page
+table structure adding one more layer of translation.
+
+It bumps the limits to 128 PiB of virtual address space and 4 PiB of
+physical address space. This "ought to be enough for anybody" A(C).
+
+==  Patches ==
+
+The patchset is build on top of v4.10-rc8.
+
+Current QEMU upstream git supports 5-level paging. Use "-cpu qemu64,+la57"
+to enable it.
+
+Patch 1:
+	Detect la57 feature for /proc/cpuinfo.
+
+Patches 2-7:
+	Brings 5-level paging to generic code and convert all
+	architectures to it using <asm-generic/5level-fixup.h>
+
+Patches 8-19:
+	Convert x86 to properly folded p4d layer using
+	<asm-generic/pgtable-nop4d.h>.
+
+Patches 20-32:
+	Enabling of real 5-level paging.
+
+	CONFIG_X86_5LEVEL=y will enable new paging mode.
+
+Patch 33:
+	Introduce new prctl(2) handles -- PR_SET_MAX_VADDR and PR_GET_MAX_VADDR.
+
+	This aims to address compatibility issue. Only supports x86 for
+	now, but should be useful for other archtectures.
+
+Git:
+	git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git la57/v3
+
+== TODO ==
+
+There is still work to do:
+
+  - CONFIG_XEN is broken for 5-level paging.
+
+    Xen for 5-level paging requires more work to get functional.
+    
+    Xen on 4-level paging works, so it's not a regression.
+
+  - Boot-time switch between 4- and 5-level paging.
+
+    We assume that distributions will be keen to avoid returning to the
+    i386 days where we shipped one kernel binary for each page table
+    layout.
+
+    As page table format is the same for 4- and 5-level paging it should
+    be possible to have single kernel binary and switch between them at
+    boot-time without too much hassle.
+
+    For now I only implemented compile-time switch.
+
+    This will implemented with separate patchset.
+
+== Changelong ==
+
+  v3:
+    - Rebased to v4.10-rc5;
+    - prctl() handles for large address space opt-in;
+    - Xen works for 4-level paging;
+    - EFI boot fixed for both 4- and 5-level paging;
+    - Hibernation fixed for 4-level paging;
+    - kexec() fixed;
+    - Couple of build fixes;
+  v2:
+    - Rebased to v4.10-rc1;
+    - RLIMIT_VADDR proposal;
+    - Fix virtual map and update documentation;
+    - Fix few build errors;
+    - Rework cpuid helpers in boot code;
+    - Fix espfix code to work with 5-level pages;
+
+[1] https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf
+Kirill A. Shutemov (33):
+  x86/cpufeature: Add 5-level paging detection
+  asm-generic: introduce 5level-fixup.h
+  asm-generic: introduce __ARCH_USE_5LEVEL_HACK
+  arch, mm: convert all architectures to use 5level-fixup.h
+  asm-generic: introduce <asm-generic/pgtable-nop4d.h>
+  mm: convert generic code to 5-level paging
+  mm: introduce __p4d_alloc()
+  x86: basic changes into headers for 5-level paging
+  x86: trivial portion of 5-level paging conversion
+  x86/gup: add 5-level paging support
+  x86/ident_map: add 5-level paging support
+  x86/mm: add support of p4d_t in vmalloc_fault()
+  x86/power: support p4d_t in hibernate code
+  x86/kexec: support p4d_t
+  x86/efi: handle p4d in EFI pagetables
+  x86/mm/pat: handle additional page table
+  x86/kasan: prepare clear_pgds() to switch to
+    <asm-generic/pgtable-nop4d.h>
+  x86/xen: convert __xen_pgd_walk() and xen_cleanmfnmap() to support p4d
+  x86: convert the rest of the code to support p4d_t
+  x86: detect 5-level paging support
+  x86/asm: remove __VIRTUAL_MASK_SHIFT==47 assert
+  x86/mm: define virtual memory map for 5-level paging
+  x86/paravirt: make paravirt code support 5-level paging
+  x86/mm: basic defines/helpers for CONFIG_X86_5LEVEL
+  x86/dump_pagetables: support 5-level paging
+  x86/kasan: extend to support 5-level paging
+  x86/espfix: support 5-level paging
+  x86/mm: add support of additional page table level during early boot
+  x86/mm: add sync_global_pgds() for configuration with 5-level paging
+  x86/mm: make kernel_physical_mapping_init() support 5-level paging
+  x86/mm: add support for 5-level paging for KASLR
+  x86: enable 5-level paging support
+  mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
+
+ Documentation/x86/x86_64/mm.txt                  |  33 +-
+ arch/arc/include/asm/hugepage.h                  |   1 +
+ arch/arc/include/asm/pgtable.h                   |   1 +
+ arch/arm/include/asm/pgtable.h                   |   1 +
+ arch/arm64/include/asm/pgtable-types.h           |   4 +
+ arch/avr32/include/asm/pgtable-2level.h          |   1 +
+ arch/cris/include/asm/pgtable.h                  |   1 +
+ arch/frv/include/asm/pgtable.h                   |   1 +
+ arch/h8300/include/asm/pgtable.h                 |   1 +
+ arch/hexagon/include/asm/pgtable.h               |   1 +
+ arch/ia64/include/asm/pgtable.h                  |   2 +
+ arch/metag/include/asm/pgtable.h                 |   1 +
+ arch/mips/include/asm/pgtable-32.h               |   1 +
+ arch/mips/include/asm/pgtable-64.h               |   1 +
+ arch/mn10300/include/asm/page.h                  |   1 +
+ arch/nios2/include/asm/pgtable.h                 |   1 +
+ arch/openrisc/include/asm/pgtable.h              |   1 +
+ arch/powerpc/include/asm/book3s/32/pgtable.h     |   1 +
+ arch/powerpc/include/asm/book3s/64/pgtable.h     |   2 +
+ arch/powerpc/include/asm/nohash/32/pgtable.h     |   1 +
+ arch/powerpc/include/asm/nohash/64/pgtable-4k.h  |   3 +
+ arch/powerpc/include/asm/nohash/64/pgtable-64k.h |   1 +
+ arch/s390/include/asm/pgtable.h                  |   1 +
+ arch/score/include/asm/pgtable.h                 |   1 +
+ arch/sh/include/asm/pgtable-2level.h             |   1 +
+ arch/sh/include/asm/pgtable-3level.h             |   1 +
+ arch/sparc/include/asm/pgtable_64.h              |   1 +
+ arch/tile/include/asm/pgtable_32.h               |   1 +
+ arch/tile/include/asm/pgtable_64.h               |   1 +
+ arch/um/include/asm/pgtable-2level.h             |   1 +
+ arch/um/include/asm/pgtable-3level.h             |   1 +
+ arch/unicore32/include/asm/pgtable.h             |   1 +
+ arch/x86/Kconfig                                 |   6 +
+ arch/x86/boot/compressed/head_64.S               |  23 +-
+ arch/x86/boot/cpucheck.c                         |   9 +
+ arch/x86/boot/cpuflags.c                         |  12 +-
+ arch/x86/entry/entry_64.S                        |   7 +-
+ arch/x86/include/asm/cpufeatures.h               |   3 +-
+ arch/x86/include/asm/disabled-features.h         |   8 +-
+ arch/x86/include/asm/elf.h                       |   2 +-
+ arch/x86/include/asm/kasan.h                     |   9 +-
+ arch/x86/include/asm/kexec.h                     |   1 +
+ arch/x86/include/asm/mmu.h                       |   2 +
+ arch/x86/include/asm/mmu_context.h               |   1 +
+ arch/x86/include/asm/page_64_types.h             |  10 +
+ arch/x86/include/asm/paravirt.h                  |  65 +++-
+ arch/x86/include/asm/paravirt_types.h            |  17 +-
+ arch/x86/include/asm/pgalloc.h                   |  37 +-
+ arch/x86/include/asm/pgtable-2level_types.h      |   1 +
+ arch/x86/include/asm/pgtable-3level_types.h      |   1 +
+ arch/x86/include/asm/pgtable.h                   |  85 ++++-
+ arch/x86/include/asm/pgtable_64.h                |  29 +-
+ arch/x86/include/asm/pgtable_64_types.h          |  27 ++
+ arch/x86/include/asm/pgtable_types.h             |  42 ++-
+ arch/x86/include/asm/processor.h                 |  25 +-
+ arch/x86/include/asm/required-features.h         |   8 +-
+ arch/x86/include/asm/sparsemem.h                 |   9 +-
+ arch/x86/include/asm/xen/page.h                  |   8 +-
+ arch/x86/include/uapi/asm/processor-flags.h      |   2 +
+ arch/x86/kernel/espfix_64.c                      |  12 +-
+ arch/x86/kernel/head64.c                         |  40 ++-
+ arch/x86/kernel/head_64.S                        |  63 +++-
+ arch/x86/kernel/machine_kexec_32.c               |   4 +-
+ arch/x86/kernel/machine_kexec_64.c               |  16 +-
+ arch/x86/kernel/paravirt.c                       |  13 +-
+ arch/x86/kernel/process.c                        |  18 +
+ arch/x86/kernel/sys_x86_64.c                     |   6 +-
+ arch/x86/kernel/tboot.c                          |   6 +-
+ arch/x86/kernel/vm86_32.c                        |   6 +-
+ arch/x86/mm/dump_pagetables.c                    |  51 ++-
+ arch/x86/mm/fault.c                              |  57 ++-
+ arch/x86/mm/gup.c                                |  33 +-
+ arch/x86/mm/hugetlbpage.c                        |   8 +-
+ arch/x86/mm/ident_map.c                          |  47 ++-
+ arch/x86/mm/init_32.c                            |  22 +-
+ arch/x86/mm/init_64.c                            | 269 ++++++++++++--
+ arch/x86/mm/ioremap.c                            |   3 +-
+ arch/x86/mm/kasan_init_64.c                      |  41 ++-
+ arch/x86/mm/kaslr.c                              |  82 ++++-
+ arch/x86/mm/mmap.c                               |   4 +-
+ arch/x86/mm/mpx.c                                |  17 +-
+ arch/x86/mm/pageattr.c                           |  56 ++-
+ arch/x86/mm/pgtable.c                            |  38 +-
+ arch/x86/mm/pgtable_32.c                         |   8 +-
+ arch/x86/platform/efi/efi_64.c                   |  38 +-
+ arch/x86/power/hibernate_32.c                    |   7 +-
+ arch/x86/power/hibernate_64.c                    |  49 ++-
+ arch/x86/realmode/init.c                         |   2 +-
+ arch/x86/xen/Kconfig                             |   1 +
+ arch/x86/xen/mmu.c                               | 433 ++++++++++++++---------
+ arch/x86/xen/mmu.h                               |   1 +
+ arch/xtensa/include/asm/pgtable.h                |   1 +
+ drivers/misc/sgi-gru/grufault.c                  |   9 +-
+ fs/binfmt_aout.c                                 |   2 -
+ fs/binfmt_elf.c                                  |  10 +-
+ fs/hugetlbfs/inode.c                             |   6 +-
+ fs/userfaultfd.c                                 |   6 +-
+ include/asm-generic/4level-fixup.h               |   3 +-
+ include/asm-generic/5level-fixup.h               |  41 +++
+ include/asm-generic/pgtable-nop4d-hack.h         |  62 ++++
+ include/asm-generic/pgtable-nop4d.h              |  56 +++
+ include/asm-generic/pgtable-nopud.h              |  48 +--
+ include/asm-generic/pgtable.h                    |  48 ++-
+ include/asm-generic/tlb.h                        |  14 +-
+ include/linux/hugetlb.h                          |   5 +-
+ include/linux/kasan.h                            |   1 +
+ include/linux/mm.h                               |  34 +-
+ include/linux/sched.h                            |   8 +
+ include/trace/events/xen.h                       |  28 +-
+ include/uapi/linux/prctl.h                       |   3 +
+ kernel/events/uprobes.c                          |   5 +-
+ kernel/sys.c                                     |  23 +-
+ lib/ioremap.c                                    |  39 +-
+ mm/gup.c                                         |  46 ++-
+ mm/huge_memory.c                                 |   7 +-
+ mm/hugetlb.c                                     |  29 +-
+ mm/kasan/kasan_init.c                            |  35 +-
+ mm/memory.c                                      | 230 ++++++++++--
+ mm/mlock.c                                       |   1 +
+ mm/mmap.c                                        |  20 +-
+ mm/mprotect.c                                    |  26 +-
+ mm/mremap.c                                      |  16 +-
+ mm/nommu.c                                       |   2 +-
+ mm/pagewalk.c                                    |  32 +-
+ mm/pgtable-generic.c                             |   6 +
+ mm/rmap.c                                        |  13 +-
+ mm/shmem.c                                       |   8 +-
+ mm/sparse-vmemmap.c                              |  22 +-
+ mm/swapfile.c                                    |  26 +-
+ mm/userfaultfd.c                                 |  23 +-
+ mm/vmalloc.c                                     |  81 +++--
+ 131 files changed, 2435 insertions(+), 611 deletions(-)
+ create mode 100644 include/asm-generic/5level-fixup.h
+ create mode 100644 include/asm-generic/pgtable-nop4d-hack.h
+ create mode 100644 include/asm-generic/pgtable-nop4d.h
+
 -- 
 2.11.0
 
