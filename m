@@ -1,192 +1,534 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 54C4F6B038A
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 14:05:04 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id h56so42798708qtc.1
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:05:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 98si8067966qkz.329.2017.02.17.11.05.02
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CDFB6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 14:57:30 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id o140so11675931lff.2
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:57:30 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id 26si5455089ljh.63.2017.02.17.11.57.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 11:05:02 -0800 (PST)
-Date: Fri, 17 Feb 2017 14:05:00 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [Bug 192981] New: page allocation stalls
-Message-ID: <20170217190500.GC20429@bfoster.bfoster>
-References: <bug-192981-27@https.bugzilla.kernel.org/>
- <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
- <8f450abd-4e05-92d3-2533-72b05fea2012@beget.ru>
- <20170215160538.GA62565@bfoster.bfoster>
- <a055abbf-a471-d111-9491-dc5b00208228@beget.ru>
- <20170215180859.GB62565@bfoster.bfoster>
- <07ee50bc-8220-dda8-07f9-369758603df9@beget.ru>
- <20170216172034.GC11750@bfoster.bfoster>
- <20170216222129.GB15349@dastard>
+        Fri, 17 Feb 2017 11:57:28 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id x1so4585215lff.0
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:57:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170216222129.GB15349@dastard>
+In-Reply-To: <20160817100736epcms5p17af57d51c47dc371acc7aacfc82eb346@epcms5p1>
+References: <CGME20160817100736epcms5p17af57d51c47dc371acc7aacfc82eb346@epcms5p1>
+ <20160817100736epcms5p17af57d51c47dc371acc7aacfc82eb346@epcms5p1>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 17 Feb 2017 14:56:47 -0500
+Message-ID: <CALZtONAHVZKMgdkPb=XBFHh-R7=FgYNbH30TAz3c8UG4bbbMsg@mail.gmail.com>
+Subject: Re: [PATCH 1/4] zswap: Share zpool memory of duplicate pages
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Alexander Polakov <apolyakov@beget.ru>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: srividya.dr@samsung.com
+Cc: Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, =?UTF-8?B?6rmA7KO87ZuI?= <juhunkim@samsung.com>
 
-On Fri, Feb 17, 2017 at 09:21:29AM +1100, Dave Chinner wrote:
-> On Thu, Feb 16, 2017 at 12:20:34PM -0500, Brian Foster wrote:
-> > On Thu, Feb 16, 2017 at 01:56:30PM +0300, Alexander Polakov wrote:
-> > > On 02/15/2017 09:09 PM, Brian Foster wrote:
-> > > > Ah, Ok. It sounds like this allows the reclaim thread to carry on into
-> > > > other shrinkers and free up memory that way, perhaps. This sounds kind
-> > > > of similar to the issue brought up previously here[1], but not quite the
-> > > > same in that instead of backing off of locking to allow other shrinkers
-> > > > to progress, we back off of memory allocations required to free up
-> > > > inodes (memory).
-> > > > 
-> > > > In theory, I think something analogous to a trylock for inode to buffer
-> > > > mappings that are no longer cached (or more specifically, cannot
-> > > > currently be allocated) may work around this, but it's not immediately
-> > > > clear to me whether that's a proper fix (it's also probably not a
-> > > > trivial change either). I'm still kind of curious why we end up with
-> > > > dirty inodes with reclaimed buffers. If this problem repeats, is it
-> > > > always with a similar stack (i.e., reclaim -> xfs_iflush() ->
-> > > > xfs_imap_to_bp())?
-> > > 
-> > > Looks like it is.
-> > > 
-> > > > How many independent filesystems are you running this workload against?
-> > > 
-> > > storage9 : ~ [0] # mount|grep storage|grep xfs|wc -l
-> > > 15
-> > > storage9 : ~ [0] # mount|grep storage|grep ext4|wc -l
-> > > 44
-> > > 
-> > 
-> > So a decent number of fs', more ext4 than XFS. Are the XFS fs' all of
-> > similar size/geometry? If so, can you send representative xfs_info
-> > output for the fs'?
-> > 
-> > I'm reading back through that reclaim thread[1] and it appears this
-> > indeed is not a straightforward issue. It sounds like the summary is
-> > Chris hit the same general behavior you have and is helped by bypassing
-> > the synchronous nature of the shrinker. This allows other shrinkers to
-> > proceed, but this is not a general solution because other workloads
-> > depend on the synchronous shrinker behavior to throttle direct reclaim.
-> > I can't say I understand all of the details and architecture of how/why
-> > that is the case.
-> 
-> It's complicated, made worse by the state of flux of the mm reclaim
-> subsystem and the frequent regressions in behaviour that come and
-> go. This makes testing modifications to the shrinker behaviour
-> extremely challenging - trying to separate shirnker artifacts from
-> "something else has changed in memory reclaim" takes a lot of
-> time....
-> 
-> > FWIW, it sounds like the first order problem is that we generally don't
-> > want to find/flush dirty inodes from reclaim.
-> 
-> Right. because that forces out-of-order inode writeback and it
-> degenerates into blocking small random writes.
-> 
-> > A couple things that might
-> > help avoid this situation are more aggressive
-> > /proc/sys/fs/xfs/xfssyncd_centisecs tuning or perhaps considering a
-> > smaller log size would cause more tail pushing pressure on the AIL
-> > instead of pressure originating from memory reclaim. The latter might
-> > not be so convenient if this is an already populated backup server,
-> > though.
-> > 
-> > Beyond that, there's Chris' patch, another patch that Dave proposed[2],
-> > and obviously your hack here to defer inode reclaim entirely to the
-> > workqueue (I've CC'd Dave since it sounds like he might have been
-> > working on this further..).
-> 
-> I was working on a more solid set of changes, but every time I
-> updated the kernel tree I used as my base for development, the
-> baseline kernel reclaim behaviour would change. I'd isolate the
-> behavioural change, upgrade to the kernel that contained the fix,
-> and then trip over some new whacky behaviour that made no sense. I
-> spent more time in this loop than actually trying to fix the XFS
-> problem - chasing a moving target makes finding the root cause of
-> the reclaim stalls just about impossible. 
-> 
-> Brian, I can send you what I have but it's really just a bag of
-> bolts at this point because I was never able to validate that any of
-> the patches made a measurable improvement to reclaim behaviour under
-> any workload I ran.....
-> 
+On Wed, Aug 17, 2016 at 6:07 AM, Srividya Desireddy
+<srividya.dr@samsung.com> wrote:
+> From: Srividya Desireddy <srividya.dr@samsung.com>
+> Date: Wed, 17 Aug 2016 14:31:01 +0530
+> Subject: [PATCH 1/4] zswap: Share zpool memory of duplicate pages
+>
+> This patch shares the compressed pool memory of duplicate pages and reduces
+> compressed pool memory utilized by zswap.
+>
+> For each page requested for swap-out to zswap, calculate 32-bit checksum of
+> the page. Search for duplicate pages by comparing the checksum of the new
+> page with existing pages. Compare the contents of the pages if checksum
+> matches. If the contents also match, then share the compressed data of the
+> existing page with the new page. Increment the reference count to check
+> the number of pages sharing the compressed page in zpool.
+>
+> If a duplicate page is not found then treat the new page as a 'unique' page
+> in zswap. Compress the new page and store the compressed data in the zpool.
+> Insert the unique page in the Red-Black Tree which is balanced based on
+> 32-bit checksum value of the page.
 
-Sure, I'm curious to see what direction this goes in. I would think
-anything that provides a backoff to other shrinkers would help this
-particular workload where many different filesystems are active. FWIW,
-I'd probably also need more details about what workloads you're testing
-and how you're measuring improvements and whatnot to try and take any of
-that stuff any farther (particularly how you verify the problems with
-dropping blocking behavior entirely), though..
+How many duplicate pages really are there?  This has a lot of
+downside; it roughly doubles the size of each page's metadata, and
+while tree lock is held, it checksums each new page contents,
+decompresses the matching page (if found), and then memcmp's the new
+and decompressed pages.  I'm very skeptical the benefits would
+outweigh the performance (and possibly memory) disadvantages.
 
-> FWIW, the major problem with removing the blocking in inode reclaim
-> is the ease with which you can then trigger the OOM killer from
-> userspace.  The high level memory reclaim algorithms break down when
-> there are hundreds of direct reclaim processes hammering on reclaim
-> and reclaim stops making progress because it's skipping dirty
-> objects.  Direct reclaim ends up insufficiently throttled, so rather
-> than blocking it winds up reclaim priority and then declares OOM
-> because reclaim runs out of retries before sufficient memory has
-> been freed.
-> 
+>
+> Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
+> ---
+>  mm/zswap.c |  265
+> ++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 248 insertions(+), 17 deletions(-)
+>
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index 275b22c..f7efede 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -41,6 +41,7 @@
+>  #include <linux/swapops.h>
+>  #include <linux/writeback.h>
+>  #include <linux/pagemap.h>
+> +#include <linux/jhash.h>
+>
+>  /*********************************
+>  * statistics
+> @@ -51,6 +52,13 @@ static u64 zswap_pool_total_size;
+>  static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>
+>  /*
+> + * The number of swapped out pages which are identified as duplicate
+> + * to the existing zswap pages. Compression and storing of these pages
+> + * is avoided.
+> + */
+> +static atomic_t zswap_duplicate_pages = ATOMIC_INIT(0);
+> +
+> +/*
+>   * The statistics below are not protected from concurrent access for
+>   * performance reasons so they may not be a 100% accurate.  However,
+>   * they do provide useful information on roughly how many times a
+> @@ -123,6 +131,28 @@ struct zswap_pool {
+>  };
+>
+>  /*
+> + * struct zswap_handle
+> + * This structure contains the metadata for tracking single zpool handle
+> + * allocation.
+> + *
+> + * rbnode - links the zswap_handle into red-black tree
+> + * checksum - 32-bit checksum value of the page swapped to zswap
+> + * ref_count - number of pages sharing this handle
+> + * length - the length in bytes of the compressed page data.
+> + *          Needed during decompression.
+> + * handle - zpool allocation handle that stores the compressed page data.
+> + * pool - the zswap_pool the entry's data is in.
+> + */
+> +struct zswap_handle {
+> + struct rb_node rbnode;
+> + u32 checksum;
+> + u16 ref_count;
+> + unsigned int length;
+> + unsigned long handle;
+> + struct zswap_pool *pool;
 
-I'd need to spend some time in the shrinker code to grok this, but if
-there's such a priority, would switching blocking behavior based on
-priority provide a way to mitigate this problem from within the
-shrinker? For example, provide non-blocking behavior on the lowest
-priority to kick off flushing and allow progress into other shrinkers,
-otherwise we flush and wait if the priority is elevated..?
+this is adding quite a bit of overhead for each page stored, roughly
+doubling the size of each (unique) entry's metadata.
 
-IOW, it sounds like the problem in this case is that we subject the rest
-of the allocation infrastructure to delays in configurations where we
-are one of N potential shrinkers with reclaimable objects, because we
-have to deal with this situation where our one shrinker actually is the
-main/primary choke point for multiple allocator -> direct reclaimers.
-I'm wondering if some kind of severity parameter managed by the shrinker
-infra would help us distinguish between those scenarios (even if it were
-a dumb LOW/HIGH priority param, where LOW allows for one pass through
-all of the shrinkers to kick off I/O and whatnot before any one of them
-should actually block on locks or I/O). Then again, I'm just handwaving
-as I'm only just familiarizing with the context and problem.
+> +};
+> +
+> +/*
+>   * struct zswap_entry
+>   *
+>   * This structure contains the metadata for tracking a single compressed
+> @@ -136,18 +166,15 @@ struct zswap_pool {
+>   *            for the zswap_tree structure that contains the entry must
+>   *            be held while changing the refcount.  Since the lock must
+>   *            be held, there is no reason to also make refcount atomic.
+> - * length - the length in bytes of the compressed page data.  Needed during
+> - *          decompression
+>   * pool - the zswap_pool the entry's data is in
+> - * handle - zpool allocation handle that stores the compressed page data
+> + * zhandle - pointer to struct zswap_handle
+>   */
+>  struct zswap_entry {
+>   struct rb_node rbnode;
+>   pgoff_t offset;
+>   int refcount;
+> - unsigned int length;
+>   struct zswap_pool *pool;
+> - unsigned long handle;
+> + struct zswap_handle *zhandle;
+>  };
+>
+>  struct zswap_header {
+> @@ -161,6 +188,8 @@ struct zswap_header {
+>   */
+>  struct zswap_tree {
+>   struct rb_root rbroot;
+> + struct rb_root zhandleroot;
+> + void  *buffer;
+>   spinlock_t lock;
+>  };
+>
+> @@ -236,6 +265,7 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t
+> gfp)
+>   if (!entry)
+>   return NULL;
+>   entry->refcount = 1;
+> + entry->zhandle = NULL;
+>   RB_CLEAR_NODE(&entry->rbnode);
+>   return entry;
+>  }
+> @@ -246,6 +276,39 @@ static void zswap_entry_cache_free(struct zswap_entry
+> *entry)
+>  }
+>
+>  /*********************************
+> +* zswap handle functions
+> +**********************************/
+> +static struct kmem_cache *zswap_handle_cache;
+> +
+> +static int __init zswap_handle_cache_create(void)
+> +{
+> + zswap_handle_cache = KMEM_CACHE(zswap_handle, 0);
+> + return zswap_handle_cache == NULL;
+> +}
+> +
+> +static void __init zswap_handle_cache_destroy(void)
+> +{
+> + kmem_cache_destroy(zswap_handle_cache);
+> +}
+> +
+> +static struct zswap_handle *zswap_handle_cache_alloc(gfp_t gfp)
+> +{
+> + struct zswap_handle *zhandle;
+> +
+> + zhandle = kmem_cache_alloc(zswap_handle_cache, gfp);
+> + if (!zhandle)
+> + return NULL;
+> + zhandle->ref_count = 1;
+> + RB_CLEAR_NODE(&zhandle->rbnode);
+> + return zhandle;
+> +}
+> +
+> +static void zswap_handle_cache_free(struct zswap_handle *zhandle)
+> +{
+> + kmem_cache_free(zswap_handle_cache, zhandle);
+> +}
+> +
+> +/*********************************
+>  * rbtree functions
+>  **********************************/
+>  static struct zswap_entry *zswap_rb_search(struct rb_root *root, pgoff_t
+> offset)
+> @@ -300,14 +363,124 @@ static void zswap_rb_erase(struct rb_root *root,
+> struct zswap_entry *entry)
+>   }
+>  }
+>
+> +static struct zswap_handle *zswap_handle_rb_search(struct rb_root *root,
+> + u32 checksum)
+> +{
+> + struct rb_node *node = root->rb_node;
+> + struct zswap_handle *zhandle;
+> +
+> + while (node) {
+> + zhandle = rb_entry(node, struct zswap_handle, rbnode);
+> + if (zhandle->checksum > checksum)
+> + node = node->rb_left;
+> + else if (zhandle->checksum < checksum)
+> + node = node->rb_right;
+> + else
+> + return zhandle;
+> + }
+> + return NULL;
+> +}
+> +
+> +/*
+> + * In the case that zhandle with the same checksum is found, a pointer to
+> + * the existing zhandle is stored in duphandle and the function returns
+> + * -EEXIST
+> + */
+> +static int zswap_handle_rb_insert(struct rb_root *root,
+> + struct zswap_handle *zhandle,
+> + struct zswap_handle **duphandle)
+> +{
+> + struct rb_node **link = &root->rb_node, *parent = NULL;
+> + struct zswap_handle *myhandle;
+> +
+> + while (*link) {
+> + parent = *link;
+> + myhandle = rb_entry(parent, struct zswap_handle, rbnode);
+> + if (myhandle->checksum > zhandle->checksum)
+> + link = &parent->rb_left;
+> + else if (myhandle->checksum < zhandle->checksum)
+> + link = &parent->rb_right;
+> + else {
+> + *duphandle = myhandle;
+> + return -EEXIST;
+> + }
+> + }
+> + rb_link_node(&zhandle->rbnode, parent, link);
+> + rb_insert_color(&zhandle->rbnode, root);
+> + return 0;
+> +}
+> +
+> +static void zswap_handle_erase(struct rb_root *root,
+> + struct zswap_handle *zhandle)
+> +{
+> + if (!RB_EMPTY_NODE(&zhandle->rbnode)) {
+> + rb_erase(&zhandle->rbnode, root);
+> + RB_CLEAR_NODE(&zhandle->rbnode);
+> + }
+> +}
+> +
+> +/*
+> + * This function searches for the same page in the zhandle RB-Tree based
+> + * on the checksum value of the new page. If the same page is found the
+> + * zhandle of that page is returned.
+> + */
+> +static struct zswap_handle *zswap_same_page_search(struct zswap_tree *tree,
+> + u8 *uncmem, u32 checksum)
+> +{
+> + int ret = 0;
+> + unsigned int dlen = PAGE_SIZE;
+> + u8 *src = NULL, *dst = NULL;
+> + struct zswap_handle *zhandle = NULL;
+> + struct crypto_comp *tfm;
+> +
+> + zhandle = zswap_handle_rb_search(&tree->zhandleroot, checksum);
+> + if (!zhandle)
+> + return NULL;
+> + if (!zhandle->pool)
+> + return NULL;
+> +
+> + /* Compare memory contents */
+> + dst = (u8 *)tree->buffer;
+> + src = (u8 *)zpool_map_handle(zhandle->pool->zpool, zhandle->handle,
+> + ZPOOL_MM_RO) + sizeof(struct zswap_header);
+> + tfm = *get_cpu_ptr(zhandle->pool->tfm);
+> + ret = crypto_comp_decompress(tfm, src, zhandle->length, dst, &dlen);
+> + put_cpu_ptr(zhandle->pool->tfm);
+> + zpool_unmap_handle(zhandle->pool->zpool, zhandle->handle);
+> +
+> + if (ret) /* Consider the page as unique if decompression failed;*/
+> + return NULL;
+> +
+> + if (memcmp(dst, uncmem, PAGE_SIZE))
+> + return NULL;
+> +
+> + return zhandle;
+> +}
+> +
+> +/*
+> + * This function returns true if the zswap_handle is referenced by only
+> + * one page entry.
+> + */
+> +static bool zswap_handle_is_unique(struct zswap_handle *zhandle)
+> +{
+> + WARN_ON(zhandle->ref_count < 1);
+> + return zhandle->ref_count == 1;
+> +}
+> +
+>  /*
+>   * Carries out the common pattern of freeing and entry's zpool allocation,
+>   * freeing the entry itself, and decrementing the number of stored pages.
+>   */
+>  static void zswap_free_entry(struct zswap_entry *entry)
+>  {
+> - zpool_free(entry->pool->zpool, entry->handle);
+> - zswap_pool_put(entry->pool);
+> + if (zswap_handle_is_unique(entry->zhandle)) {
+> + zpool_free(entry->pool->zpool, entry->zhandle->handle);
+> + zswap_handle_cache_free(entry->zhandle);
+> + zswap_pool_put(entry->pool);
+> + } else {
+> + entry->zhandle->ref_count--;
+> + atomic_dec(&zswap_duplicate_pages);
+> + }
+>   zswap_entry_cache_free(entry);
+>   atomic_dec(&zswap_stored_pages);
+>   zswap_update_total_size();
+> @@ -329,6 +502,9 @@ static void zswap_entry_put(struct zswap_tree *tree,
+>
+>   BUG_ON(refcount < 0);
+>   if (refcount == 0) {
+> + if (entry->zhandle && zswap_handle_is_unique(entry->zhandle))
+> + zswap_handle_erase(&tree->zhandleroot,
+> + entry->zhandle);
+>   zswap_rb_erase(&tree->rbroot, entry);
+>   zswap_free_entry(entry);
+>   }
+> @@ -886,15 +1062,16 @@ static int zswap_writeback_entry(struct zpool *pool,
+> unsigned long handle)
+>   case ZSWAP_SWAPCACHE_NEW: /* page is locked */
+>   /* decompress */
+>   dlen = PAGE_SIZE;
+> - src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+> - ZPOOL_MM_RO) + sizeof(struct zswap_header);
+> + src = (u8 *)zpool_map_handle(entry->pool->zpool,
+> + entry->zhandle->handle, ZPOOL_MM_RO)
+> + + sizeof(struct zswap_header);
+>   dst = kmap_atomic(page);
+>   tfm = *get_cpu_ptr(entry->pool->tfm);
+> - ret = crypto_comp_decompress(tfm, src, entry->length,
+> + ret = crypto_comp_decompress(tfm, src, entry->zhandle->length,
+>       dst, &dlen);
+>   put_cpu_ptr(entry->pool->tfm);
+>   kunmap_atomic(dst);
+> - zpool_unmap_handle(entry->pool->zpool, entry->handle);
+> + zpool_unmap_handle(entry->pool->zpool, entry->zhandle->handle);
+>   BUG_ON(ret);
+>   BUG_ON(dlen != PAGE_SIZE);
+>
+> @@ -975,6 +1152,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t
+> offset,
+>   char *buf;
+>   u8 *src, *dst;
+>   struct zswap_header *zhdr;
+> + struct zswap_handle *zhandle = NULL, *duphandle = NULL;
+> + u32 checksum = 0;
+>
+>   if (!zswap_enabled || !tree) {
+>   ret = -ENODEV;
+> @@ -999,6 +1178,23 @@ static int zswap_frontswap_store(unsigned type,
+> pgoff_t offset,
+>   goto reject;
+>   }
+>
+> + src = kmap_atomic(page);
+> +
+> + checksum = jhash2((const u32 *)src, PAGE_SIZE / 4, 17);
 
-(I also see no priority in struct shrink_control, so I guess that's an
-internal reclaim thing as it is.)
+what's with the magic number 17?
 
-> That, right now, looks to be an unsolvable problem without a major
-> rework of direct reclaim.  I've pretty much given up on ever getting
-> the unbound direct reclaim concurrency problem that is causing us
-> these problems fixed, so we are left to handle it in the subsystem
-> shrinkers as best we can. That leaves us with an unfortunate choice: 
-> 
-> 	a) throttle excessive concurrency in the shrinker to prevent
-> 	   IO breakdown, thereby causing reclaim latency bubbles
-> 	   under load but having a stable, reliable system; or
-> 	b) optimise for minimal reclaim latency and risk userspace
-> 	   memory demand triggering the OOM killer whenever there
-> 	   are lots of dirty inodes in the system.
-> 
-> Quite frankly, there's only one choice we can make in this
-> situation: reliability is always more important than performance.
-> 
+> + spin_lock(&tree->lock);
+> + zhandle = zswap_same_page_search(tree, src, checksum);
+> + if (zhandle) {
+> + entry->offset = offset;
+> + entry->zhandle = zhandle;
+> + entry->pool = zhandle->pool;
+> + entry->zhandle->ref_count++;
+> + spin_unlock(&tree->lock);
+> + kunmap_atomic(src);
+> + atomic_inc(&zswap_duplicate_pages);
+> + goto insert_entry;
+> + }
+> + spin_unlock(&tree->lock);
+> +
+>   /* if entry is successfully added, it keeps the reference */
+>   entry->pool = zswap_pool_current_get();
+>   if (!entry->pool) {
+> @@ -1009,7 +1205,6 @@ static int zswap_frontswap_store(unsigned type,
+> pgoff_t offset,
+>   /* compress */
+>   dst = get_cpu_var(zswap_dstmem);
+>   tfm = *get_cpu_ptr(entry->pool->tfm);
+> - src = kmap_atomic(page);
+>   ret = crypto_comp_compress(tfm, src, PAGE_SIZE, dst, &dlen);
+>   kunmap_atomic(src);
+>   put_cpu_ptr(entry->pool->tfm);
+> @@ -1040,9 +1235,24 @@ static int zswap_frontswap_store(unsigned type,
+> pgoff_t offset,
+>
+>   /* populate entry */
+>   entry->offset = offset;
+> - entry->handle = handle;
+> - entry->length = dlen;
+> + zhandle = zswap_handle_cache_alloc(GFP_KERNEL);
+> + if (!zhandle) {
+> + zswap_reject_kmemcache_fail++;
+> + ret = -ENOMEM;
+> + goto freeentry;
+> + }
+> +
+> + entry->zhandle = zhandle;
+> + entry->zhandle->handle = handle;
+> + entry->zhandle->length = dlen;
+> + entry->zhandle->checksum = checksum;
+> + entry->zhandle->pool = entry->pool;
+> + spin_lock(&tree->lock);
+> + ret = zswap_handle_rb_insert(&tree->zhandleroot, entry->zhandle,
+> + &duphandle);
 
-Indeed, that certainly makes sense. Thanks.
+you don't actually check if ret == -EEXIST...
 
-Brian
+> + spin_unlock(&tree->lock);
 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
+why unlock and then immediately relock the tree?
+
+>
+> +insert_entry:
+>   /* map */
+>   spin_lock(&tree->lock);
+>   do {
+> @@ -1064,6 +1274,7 @@ static int zswap_frontswap_store(unsigned type,
+> pgoff_t offset,
+>
+>  put_dstmem:
+>   put_cpu_var(zswap_dstmem);
+> +freeentry:
+>   zswap_pool_put(entry->pool);
+>  freepage:
+>   zswap_entry_cache_free(entry);
+> @@ -1097,14 +1308,15 @@ static int zswap_frontswap_load(unsigned type,
+> pgoff_t offset,
+>
+>   /* decompress */
+>   dlen = PAGE_SIZE;
+> - src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+> + src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->zhandle->handle,
+>   ZPOOL_MM_RO) + sizeof(struct zswap_header);
+>   dst = kmap_atomic(page);
+>   tfm = *get_cpu_ptr(entry->pool->tfm);
+> - ret = crypto_comp_decompress(tfm, src, entry->length, dst, &dlen);
+> + ret = crypto_comp_decompress(tfm, src, entry->zhandle->length,
+> + dst, &dlen);
+>   put_cpu_ptr(entry->pool->tfm);
+>   kunmap_atomic(dst);
+> - zpool_unmap_handle(entry->pool->zpool, entry->handle);
+> + zpool_unmap_handle(entry->pool->zpool, entry->zhandle->handle);
+>   BUG_ON(ret);
+>
+>   spin_lock(&tree->lock);
+> @@ -1152,7 +1364,9 @@ static void zswap_frontswap_invalidate_area(unsigned
+> type)
+>   rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode)
+>   zswap_free_entry(entry);
+>   tree->rbroot = RB_ROOT;
+> + tree->zhandleroot = RB_ROOT;
+>   spin_unlock(&tree->lock);
+> + free_page((unsigned long)tree->buffer);
+>   kfree(tree);
+>   zswap_trees[type] = NULL;
+>  }
+> @@ -1167,6 +1381,13 @@ static void zswap_frontswap_init(unsigned type)
+>   return;
+>   }
+>
+> + tree->buffer = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+> + if (!tree->buffer) {
+> + pr_err("zswap: Error allocating buffer for decompression\n");
+> + kfree(tree);
+> + return;
+> + }
+> + tree->zhandleroot = RB_ROOT;
+>   tree->rbroot = RB_ROOT;
+>   spin_lock_init(&tree->lock);
+>   zswap_trees[type] = tree;
+> @@ -1215,6 +1436,9 @@ static int __init zswap_debugfs_init(void)
+>   zswap_debugfs_root, &zswap_pool_total_size);
+>   debugfs_create_atomic_t("stored_pages", S_IRUGO,
+>   zswap_debugfs_root, &zswap_stored_pages);
+> + debugfs_create_atomic_t("duplicate_pages", S_IRUGO,
+> + zswap_debugfs_root, &zswap_duplicate_pages);
+> +
+>
+>   return 0;
+>  }
+> @@ -1246,6 +1470,11 @@ static int __init init_zswap(void)
+>   goto cache_fail;
+>   }
+>
+> + if (zswap_handle_cache_create()) {
+> + pr_err("handle cache creation failed\n");
+> + goto handlecachefail;
+> + }
+> +
+>   if (zswap_cpu_dstmem_init()) {
+>   pr_err("dstmem alloc failed\n");
+>   goto dstmem_fail;
+> @@ -1269,6 +1498,8 @@ static int __init init_zswap(void)
+>  pool_fail:
+>   zswap_cpu_dstmem_destroy();
+>  dstmem_fail:
+> + zswap_handle_cache_destroy();
+> +handlecachefail:
+>   zswap_entry_cache_destroy();
+>  cache_fail:
+>   return -ENOMEM;
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 1.7.9.5
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
