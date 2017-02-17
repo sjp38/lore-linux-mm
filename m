@@ -1,100 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38FB3680FC1
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 12:39:49 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id le4so4458009wjb.1
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:39:49 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b66si2450836wmc.145.2017.02.17.09.39.47
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FD7D6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 13:42:49 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 65so68786627pgi.7
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:42:49 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id b85si11014490pfe.118.2017.02.17.10.42.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 09:39:47 -0800 (PST)
-Date: Fri, 17 Feb 2017 12:39:40 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 07/10] mm, compaction: restrict async compaction to
- pageblocks of same migratetype
-Message-ID: <20170217173940.GA25565@cmpxchg.org>
-References: <20170210172343.30283-1-vbabka@suse.cz>
- <20170210172343.30283-8-vbabka@suse.cz>
- <20170214201000.GH2450@cmpxchg.org>
- <a0409d22-6794-bb33-6bdd-438b386412a3@suse.cz>
+        Fri, 17 Feb 2017 10:42:48 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id c73so15362668pfb.0
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:42:48 -0800 (PST)
+Date: Fri, 17 Feb 2017 10:42:37 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: swap_cluster_info lockdep splat
+In-Reply-To: <874lzt6znd.fsf@yhuang-dev.intel.com>
+Message-ID: <alpine.LSU.2.11.1702171036010.1638@eggly.anvils>
+References: <20170216052218.GA13908@bbox> <87o9y2a5ji.fsf@yhuang-dev.intel.com> <alpine.LSU.2.11.1702161050540.21773@eggly.anvils> <1487273646.2833.100.camel@linux.intel.com> <alpine.LSU.2.11.1702161702490.24224@eggly.anvils>
+ <874lzt6znd.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a0409d22-6794-bb33-6bdd-438b386412a3@suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Hugh Dickins <hughd@google.com>, Tim Chen <tim.c.chen@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Feb 17, 2017 at 05:32:00PM +0100, Vlastimil Babka wrote:
-> On 02/14/2017 09:10 PM, Johannes Weiner wrote:
-> > On Fri, Feb 10, 2017 at 06:23:40PM +0100, Vlastimil Babka wrote:
-> >> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
-> >> pageblocks. This is a heuristic intended to reduce latency, based on the
-> >> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
-> >> 
-> >> However, with the exception of THP's, most high-order allocations are not
-> >> movable. Should the async compaction succeed, this increases the chance that
-> >> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
-> >> long-term fragmentation worse.
-> >> 
-> >> This patch attempts to help the situation by changing async direct compaction
-> >> so that the migrate scanner only scans the pageblocks of the requested
-> >> migratetype. If it's a non-MOVABLE type and there are such pageblocks that do
-> >> contain movable pages, chances are that the allocation can succeed within one
-> >> of such pageblocks, removing the need for a fallback. If that fails, the
-> >> subsequent sync attempt will ignore this restriction.
-> >> 
-> >> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> > 
-> > Yes, IMO we should make the async compaction scanner decontaminate
-> > unmovable blocks. This is because we fall back to other-typed blocks
-> > before we reclaim,
+On Fri, 17 Feb 2017, Huang, Ying wrote:
 > 
-> Which we could change too, patch 9 is a step in that direction.
+> I found a memory leak in __read_swap_cache_async() introduced by mm-swap
+> series, and confirmed it via testing.  Could you verify whether it fixed
+> your cases?  Thanks a lot for reporting.
 
-Yep, patch 9 looks good to me too, pending data that confirms it.
+Well caught!  That indeed fixes the leak I've been seeing: my load has
+now passed the 7 hour danger mark, with no indication of slowing down.
+I'll keep it running until I need to try something else on that machine,
+but all good for now.
 
-> > so any unmovable blocks that aren't perfectly
-> > occupied will fill with greedy page cache (and order-0 doesn't steal
-> > blocks back to make them compactable again).
+You could add
+Tested-by: Hugh Dickins <hughd@google.com>
+but don't bother: I'm sure Andrew will simply fold this fix into the
+fixed patch later on.
+
+Thanks,
+Hugh
+
 > 
-> order-0 allocation can actually steal the block back, the decisions to steal are
-> based on the order of the free pages in the fallback block, not on the
-> allocation order. But maybe I'm not sure what exactly you meant here.
-
-No, that was me misreading the code. Scratch what's in parentheses.
-
-> > The thing I'm not entirely certain about is the aggressiveness of this
-> > patch. Instead of restricting the async scanner to blocks of the same
-> > migratetype, wouldn't it be better (in terms of allocation latency) to
-> > simply let it compact *all* block types?
+> Best Regards,
+> Huang, Ying
 > 
-> Yes it would help allocation latency, but I'm afraid it will remove most of the
-> decontamination effect.
+> ------------------------------------------------------------------------->
+> From 4b96423796ab7435104eb2cb4dcf5d525b9e0800 Mon Sep 17 00:00:00 2001
+> From: Huang Ying <ying.huang@intel.com>
+> Date: Fri, 17 Feb 2017 10:31:37 +0800
+> Subject: [PATCH] mm, swap: Fix memory leak in __read_swap_cache_async()
 > 
-> > Maybe changing it to look at
-> > unmovable blocks is enough to curb cross-contamination. Sure there
-> > will still be some, but now we're matching the decontamination rate to
-> > the rate of !movable higher-order allocations and don't just rely on
-> > the independent cache turnover rate, which during higher-order bursts
-> > might not be high enough to prevent an expansion of unmovable blocks.
+> The memory may be leaked in __read_swap_cache_async().  For the cases
+> as below,
 > 
-> The rate of compaction attempts is matched with allocations, but the probability
-> of compaction scanner being in unmovable block is low when the majority of
-> blocks are movable. So the decontamination rate is proportional but much smaller.
-
-Yeah, you're right. The unmovable blocks would still expand, we'd just
-turn it into a logarithmic curve.
-
-> > Does that make sense?
+> CPU 0						CPU 1
+> -----						-----
 > 
-> I guess I can try and look at the stats, but I have doubts.
-
-I don't insist. Your patch is implementing a good thing, we can just
-keep an eye out for a change in allocation latencies before spending
-time trying to mitigate a potential non-issue.
+> find_get_page() == NULL
+> __swp_swapcount() != 0
+> new_page = alloc_page_vma()
+> radix_tree_maybe_preload()
+> 						swap in swap slot
+> swapcache_prepare() == -EEXIST
+> cond_resched()
+> 						reclaim the swap slot
+> find_get_page() == NULL
+> __swp_swapcount() == 0
+> return NULL				<- new_page leaked here !!!
+> 
+> The memory leak has been confirmed via checking the value of new_page
+> when returning inside the loop in __read_swap_cache_async().
+> 
+> This is fixed via replacing return with break inside of loop in
+> __read_swap_cache_async(), so that there is opportunity for the
+> new_page to be checked and freed.
+> 
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Cc: Tim Chen <tim.c.chen@linux.intel.com>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> ---
+>  mm/swap_state.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 2126e9ba23b2..473b71e052a8 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -333,7 +333,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>  		 * else swap_off will be aborted if we return NULL.
+>  		 */
+>  		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
+> -			return NULL;
+> +			break;
+>  
+>  		/*
+>  		 * Get a new page to read into from swap.
+> -- 
+> 2.11.0
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
