@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 597674405F6
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4304405F7
 	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:06:09 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id g49so38654781qta.0
+Received: by mail-qt0-f197.google.com with SMTP id c25so38731162qtg.2
         for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:06:09 -0800 (PST)
 Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id m189si7666079qkc.38.2017.02.17.07.06.07
+        by mx.google.com with ESMTPS id o1si5408387qkc.228.2017.02.17.07.06.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 17 Feb 2017 07:06:08 -0800 (PST)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [RFC PATCH 02/14] mm/migrate: Make migrate_mode types non-exclussive
-Date: Fri, 17 Feb 2017 10:05:39 -0500
-Message-Id: <20170217150551.117028-3-zi.yan@sent.com>
+Subject: [RFC PATCH 05/14] mm/migrate: Add new migration flag MPOL_MF_MOVE_MT for syscalls
+Date: Fri, 17 Feb 2017 10:05:42 -0500
+Message-Id: <20170217150551.117028-6-zi.yan@sent.com>
 In-Reply-To: <20170217150551.117028-1-zi.yan@sent.com>
 References: <20170217150551.117028-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,198 +22,106 @@ Cc: dnellans@nvidia.com, apopple@au1.ibm.com, paulmck@linux.vnet.ibm.com, khandu
 
 From: Zi Yan <ziy@nvidia.com>
 
-It basically changes the enum declaration from numbers to bit positions
-so that they can be used in combination which was not the case earlier.
-No functionality has been changed.
+This change adds a new mode flag MPOL_MF_MOVE_MT for migration system
+calls like move_pages() and mbind() which indicates request for using
+the multi threaded copy method.
 
 Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- include/linux/migrate_mode.h |  8 ++++----
- mm/compaction.c              | 20 ++++++++++----------
- mm/migrate.c                 | 14 +++++++-------
- 3 files changed, 21 insertions(+), 21 deletions(-)
+ include/uapi/linux/mempolicy.h |  4 +++-
+ mm/mempolicy.c                 |  7 ++++++-
+ mm/migrate.c                   | 14 ++++++++++----
+ 3 files changed, 19 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
-index b3b9acbff444..89c170060e5b 100644
---- a/include/linux/migrate_mode.h
-+++ b/include/linux/migrate_mode.h
-@@ -8,10 +8,10 @@
-  * MIGRATE_SYNC will block when migrating pages
-  */
- enum migrate_mode {
--	MIGRATE_ASYNC,
--	MIGRATE_SYNC_LIGHT,
--	MIGRATE_SYNC,
--	MIGRATE_ST
-+	MIGRATE_ASYNC		= 1<<0,
-+	MIGRATE_SYNC_LIGHT	= 1<<1,
-+	MIGRATE_SYNC		= 1<<2,
-+	MIGRATE_ST		= 1<<3,
- };
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 9cd8b21dddbe..8f1db2e2d677 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -53,10 +53,12 @@ enum mpol_rebind_step {
+ #define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to policy */
+ #define MPOL_MF_LAZY	 (1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
+ #define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
++#define MPOL_MF_MOVE_MT  (1<<6)	/* Use multi-threaded page copy routine */
  
- #endif		/* MIGRATE_MODE_H_INCLUDED */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 5657a75ea6a8..de4634c60cca 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -296,7 +296,7 @@ static void update_pageblock_skip(struct compact_control *cc,
- 	if (migrate_scanner) {
- 		if (pfn > zone->compact_cached_migrate_pfn[0])
- 			zone->compact_cached_migrate_pfn[0] = pfn;
--		if (cc->mode != MIGRATE_ASYNC &&
-+		if (!(cc->mode & MIGRATE_ASYNC) &&
- 		    pfn > zone->compact_cached_migrate_pfn[1])
- 			zone->compact_cached_migrate_pfn[1] = pfn;
- 	} else {
-@@ -329,7 +329,7 @@ static void update_pageblock_skip(struct compact_control *cc,
- static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
- 						struct compact_control *cc)
- {
--	if (cc->mode == MIGRATE_ASYNC) {
-+	if (cc->mode & MIGRATE_ASYNC) {
- 		if (!spin_trylock_irqsave(lock, *flags)) {
- 			cc->contended = true;
- 			return false;
-@@ -370,7 +370,7 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
- 	}
+ #define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
+ 			 MPOL_MF_MOVE     | 	\
+-			 MPOL_MF_MOVE_ALL)
++			 MPOL_MF_MOVE_ALL |	\
++			 MPOL_MF_MOVE_MT)
  
- 	if (need_resched()) {
--		if (cc->mode == MIGRATE_ASYNC) {
-+		if (cc->mode & MIGRATE_ASYNC) {
- 			cc->contended = true;
- 			return true;
+ /*
+  * Internal flags that share the struct mempolicy flags word with
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 435bb7bec0a5..fc714840538e 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1300,9 +1300,14 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 		int nr_failed = 0;
+ 
+ 		if (!list_empty(&pagelist)) {
++			enum migrate_mode mode = MIGRATE_SYNC;
++
++			if (flags & MPOL_MF_MOVE_MT)
++				mode |= MIGRATE_MT;
++
+ 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
+ 			nr_failed = migrate_pages(&pagelist, new_page, NULL,
+-				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
++					start, mode, MR_MEMPOLICY_MBIND);
+ 			if (nr_failed)
+ 				putback_movable_pages(&pagelist);
  		}
-@@ -393,7 +393,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
- {
- 	/* async compaction aborts if contended */
- 	if (need_resched()) {
--		if (cc->mode == MIGRATE_ASYNC) {
-+		if (cc->mode & MIGRATE_ASYNC) {
- 			cc->contended = true;
- 			return true;
- 		}
-@@ -688,7 +688,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	 */
- 	while (unlikely(too_many_isolated(zone))) {
- 		/* async migration should just abort */
--		if (cc->mode == MIGRATE_ASYNC)
-+		if (cc->mode & MIGRATE_ASYNC)
- 			return 0;
- 
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -700,7 +700,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	if (compact_should_abort(cc))
- 		return 0;
- 
--	if (cc->direct_compaction && (cc->mode == MIGRATE_ASYNC)) {
-+	if (cc->direct_compaction && (cc->mode & MIGRATE_ASYNC)) {
- 		skip_on_failure = true;
- 		next_skip_pfn = block_end_pfn(low_pfn, cc->order);
- 	}
-@@ -1195,7 +1195,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	struct page *page;
- 	const isolate_mode_t isolate_mode =
- 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
--		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-+		(!(cc->mode & MIGRATE_SYNC) ? ISOLATE_ASYNC_MIGRATE : 0);
- 
- 	/*
- 	 * Start at where we last stopped, or beginning of the zone as
-@@ -1241,7 +1241,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		 * Async compaction is optimistic to see if the minimum amount
- 		 * of work satisfies the allocation.
- 		 */
--		if (cc->mode == MIGRATE_ASYNC &&
-+		if ((cc->mode & MIGRATE_ASYNC) &&
- 		    !migrate_async_suitable(get_pageblock_migratetype(page)))
- 			continue;
- 
-@@ -1481,7 +1481,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 	unsigned long start_pfn = zone->zone_start_pfn;
- 	unsigned long end_pfn = zone_end_pfn(zone);
- 	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
--	const bool sync = cc->mode != MIGRATE_ASYNC;
-+	const bool sync = !(cc->mode & MIGRATE_ASYNC);
- 
- 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
- 							cc->classzone_idx);
-@@ -1577,7 +1577,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 			 * order-aligned block, so skip the rest of it.
- 			 */
- 			if (cc->direct_compaction &&
--						(cc->mode == MIGRATE_ASYNC)) {
-+						(cc->mode & MIGRATE_ASYNC)) {
- 				cc->migrate_pfn = block_end_pfn(
- 						cc->migrate_pfn - 1, cc->order);
- 				/* Draining pcplists is useless in this case */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 5913f5b54832..87253cb9b50a 100644
+index 21307219428d..2e58aad7c96f 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -359,7 +359,7 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
- 	struct buffer_head *bh = head;
- 
- 	/* Simple case, sync compaction */
--	if (mode != MIGRATE_ASYNC) {
-+	if (!(mode & MIGRATE_ASYNC)) {
- 		do {
- 			get_bh(bh);
- 			lock_buffer(bh);
-@@ -460,7 +460,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	 * the mapping back due to an elevated page count, we would have to
- 	 * block waiting on other references to be dropped.
- 	 */
--	if (mode == MIGRATE_ASYNC && head &&
-+	if ((mode & MIGRATE_ASYNC) && head &&
- 			!buffer_migrate_lock_buffers(head, mode)) {
- 		page_ref_unfreeze(page, expected_count);
- 		spin_unlock_irq(&mapping->tree_lock);
-@@ -746,7 +746,7 @@ int buffer_migrate_page(struct address_space *mapping,
- 	 * with an IRQ-safe spinlock held. In the sync case, the buffers
- 	 * need to be locked now
- 	 */
--	if (mode != MIGRATE_ASYNC)
-+	if (!(mode & MIGRATE_ASYNC))
- 		BUG_ON(!buffer_migrate_lock_buffers(head, mode));
- 
- 	ClearPagePrivate(page);
-@@ -828,7 +828,7 @@ static int fallback_migrate_page(struct address_space *mapping,
+@@ -1446,11 +1446,16 @@ static struct page *new_page_node(struct page *p, unsigned long private,
+  */
+ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 				      struct page_to_node *pm,
+-				      int migrate_all)
++				      int migrate_all,
++					  int migrate_use_mt)
  {
- 	if (PageDirty(page)) {
- 		/* Only writeback pages in full synchronous migration */
--		if (mode != MIGRATE_SYNC)
-+		if (!(mode & MIGRATE_SYNC))
- 			return -EBUSY;
- 		return writeout(mapping, page);
+ 	int err;
+ 	struct page_to_node *pp;
+ 	LIST_HEAD(pagelist);
++	enum migrate_mode mode = MIGRATE_SYNC;
++
++	if (migrate_use_mt)
++		mode |= MIGRATE_MT;
+ 
+ 	down_read(&mm->mmap_sem);
+ 
+@@ -1527,7 +1532,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 	err = 0;
+ 	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_page_node, NULL,
+-				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
++				(unsigned long)pm, mode, MR_SYSCALL);
+ 		if (err)
+ 			putback_movable_pages(&pagelist);
  	}
-@@ -937,7 +937,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 	bool is_lru = !__PageMovable(page);
+@@ -1604,7 +1609,8 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
  
- 	if (!trylock_page(page)) {
--		if (!force || mode == MIGRATE_ASYNC)
-+		if (!force || (mode & MIGRATE_ASYNC))
- 			goto out;
+ 		/* Migrate this chunk */
+ 		err = do_move_page_to_node_array(mm, pm,
+-						 flags & MPOL_MF_MOVE_ALL);
++						 flags & MPOL_MF_MOVE_ALL,
++						 flags & MPOL_MF_MOVE_MT);
+ 		if (err < 0)
+ 			goto out_pm;
  
- 		/*
-@@ -966,7 +966,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 		 * the retry loop is too short and in the sync-light case,
- 		 * the overhead of stalling is too much
- 		 */
--		if (mode != MIGRATE_SYNC) {
-+		if (!(mode & MIGRATE_SYNC)) {
- 			rc = -EBUSY;
- 			goto out_unlock;
- 		}
-@@ -1236,7 +1236,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 		return -ENOMEM;
+@@ -1711,7 +1717,7 @@ SYSCALL_DEFINE6(move_pages, pid_t, pid, unsigned long, nr_pages,
+ 	nodemask_t task_nodes;
  
- 	if (!trylock_page(hpage)) {
--		if (!force || mode != MIGRATE_SYNC)
-+		if (!force || !(mode & MIGRATE_SYNC))
- 			goto out;
- 		lock_page(hpage);
- 	}
+ 	/* Check flags */
+-	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
++	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL|MPOL_MF_MOVE_MT))
+ 		return -EINVAL;
+ 
+ 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
 -- 
 2.11.0
 
