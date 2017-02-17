@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 38489440608
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:56:47 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id u63so2718434wmu.0
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:56:47 -0800 (PST)
-Received: from smtp.math.uni-bielefeld.de (smtp.math.uni-bielefeld.de. [129.70.45.10])
-        by mx.google.com with ESMTPS id q4si13741678wrc.328.2017.02.17.07.56.45
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 40897440608
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:58:50 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id d9so34281292itc.4
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:58:50 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 80si10615660ioi.173.2017.02.17.07.58.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 07:56:46 -0800 (PST)
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
- <20170216184524.cxcy2ux37yrwutla@lukather>
- <2cecfc48-576f-3888-08aa-1fe2edc3c752@math.uni-bielefeld.de>
- <20170217154219.d4z2gylzcrzntlt3@piout.net>
-From: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>
-Message-ID: <1c13f7a8-b355-b985-c02f-a50bebfc86a7@math.uni-bielefeld.de>
-Date: Fri, 17 Feb 2017 16:56:44 +0100
+        Fri, 17 Feb 2017 07:58:49 -0800 (PST)
+Date: Fri, 17 Feb 2017 10:57:56 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [RFC PATCH v4 26/28] x86: Allow kexec to be used with SME
+Message-ID: <20170217155756.GJ30272@char.us.ORACLE.com>
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154755.19244.51276.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-In-Reply-To: <20170217154219.d4z2gylzcrzntlt3@piout.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170216154755.19244.51276.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandre Belloni <alexandre.belloni@free-electrons.com>
-Cc: Maxime Ripard <maxime.ripard@free-electrons.com>, Mark Rutland <mark.rutland@arm.com>, thomas.petazzoni@free-electrons.com, devicetree@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, ML dri-devel <dri-devel@lists.freedesktop.org>, linux-mm@kvack.org, wens@csie.org, Rob Herring <robh+dt@kernel.org>, linux-arm-kernel@lists.infradead.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-Alexandre Belloni wrote:
-> On 17/02/2017 at 13:45:44 +0100, Tobias Jakobi wrote:
->>> The device tree is a representation of the hardware itself. The state
->>> of the driver support doesn't change the hardware you're running on,
->>> just like your BIOS/UEFI on x86 won't change the device it reports to
->>> Linux based on whether it has a driver for it.
->> Like Emil already said, the new bindings and the DT entries are solely
->> introduced to support a proprietary out-of-tree module.
->>
-> 
-> Because device tree describes the hardware, the added binding doesn't
-> support any particular module. The eventually upstreamed drvier will
-> share the same bindings.
-OK, can we then agree that we _only_ merge the bindings and the entries,
-once this driver is upstream?
+On Thu, Feb 16, 2017 at 09:47:55AM -0600, Tom Lendacky wrote:
+> Provide support so that kexec can be used to boot a kernel when SME is
+> enabled.
 
-Driver upstreaming and DT work go hand-in-hand. It's usually after a lot
-of discussion that new bindings get finalised. And for that discussion
-to happen we need to know how the driver uses the information from the
-DT. Otherwise we have no way to evaluate if the description is in any
-way "appropriate".
+Is the point of kexec and kdump to ehh, dump memory ? But if the
+rest of the memory is encrypted you won't get much, will you?
 
-And no, I don't follow the "DT is a separate/independent thing" thought.
-It maybe is in an ideal world, but we've seen it now often enough that
-bindings turned out to be poorly designed, even though they looked fine
-at first.
+Would it make sense to include some printk to the user if they
+are setting up kdump that they won't get anything out of it?
 
-With best wishes,
-Tobias
-
-
-> 
->> The current workflow when introducing new DT entries is the following:
->> - upstream a driver that uses the entries
->> - THEN add the new entries
->>
-> 
-> Exactly not, if you do that, checkpatch will complain loudly. Because
-> you must not add a driver using bindings that are not documented first.
-> 
-> 
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
