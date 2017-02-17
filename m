@@ -1,168 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C2EA44060D
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:02:04 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id r18so2735507wmd.1
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 08:02:04 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b203si2160861wme.154.2017.02.17.08.02.02
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 764B344060D
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 11:10:02 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so2750129wmi.6
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 08:10:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 196si2208763wmg.65.2017.02.17.08.10.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 08:02:02 -0800 (PST)
-Date: Fri, 17 Feb 2017 11:01:54 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
-Message-ID: <20170217160154.GA23735@cmpxchg.org>
-References: <cover.1487100204.git.shli@fb.com>
- <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
- <20170216184018.GC20791@cmpxchg.org>
- <20170217002717.GA93163@shli-mbp.local>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Feb 2017 08:10:00 -0800 (PST)
+Subject: Re: [PATCH v2 04/10] mm, page_alloc: count movable pages when
+ stealing from pageblock
+References: <20170210172343.30283-1-vbabka@suse.cz>
+ <20170210172343.30283-5-vbabka@suse.cz> <20170214181030.GE2450@cmpxchg.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a0a3f023-956d-a558-c3ab-53ae8b709b68@suse.cz>
+Date: Fri, 17 Feb 2017 17:09:57 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170217002717.GA93163@shli-mbp.local>
+In-Reply-To: <20170214181030.GE2450@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu, Feb 16, 2017 at 04:27:18PM -0800, Shaohua Li wrote:
-> On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
-> > On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
-> > > @@ -911,7 +911,7 @@ static void page_check_dirty_writeback(struct page *page,
-> > >  	 * Anonymous pages are not handled by flushers and must be written
-> > >  	 * from reclaim context. Do not stall reclaim based on them
-> > >  	 */
-> > > -	if (!page_is_file_cache(page)) {
-> > > +	if (!page_is_file_cache(page) || page_is_lazyfree(page)) {
-> > 
-> > Do we need this? MADV_FREE clears the dirty bit off the page; we could
-> > just let them go through with the function without any special-casing.
+On 02/14/2017 07:10 PM, Johannes Weiner wrote:
 > 
-> this is just to zero dirty and writeback
-
-Okay, I assumed that the page would always be !dirty && !writeback
-here anyway, so we might as well fall through and check those bits.
-
-But a previously failed TTU might have moved a pte dirty bit to the
-page, so yes, we do need to filter for anon && !swapbacked here.
-
-> > > @@ -1142,7 +1144,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  		 * The page is mapped into the page tables of one or more
-> > >  		 * processes. Try to unmap it here.
-> > >  		 */
-> > > -		if (page_mapped(page) && mapping) {
-> > > +		if (page_mapped(page) && (mapping || lazyfree)) {
-> > 
-> > Do we actually need to filter for mapping || lazyfree? If we fail to
-> > allocate swap, we don't reach here. If the page is a truncated file
-> > page, ttu returns pretty much instantly with SWAP_AGAIN. We should be
-> > able to just check for page_mapped() alone, no?
+> That makes sense to me. I have just one nit about the patch:
 > 
-> checking the mapping is faster than running into try_to_unamp, right?
-
-!mapping should be a rare case. In reclaim code, I think it's better
-to keep it simple than to optimize away the rare function call.
-
-> > > @@ -1154,7 +1156,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  			case SWAP_MLOCK:
-> > >  				goto cull_mlocked;
-> > >  			case SWAP_LZFREE:
-> > > -				goto lazyfree;
-> > > +				/* follow __remove_mapping for reference */
-> > > +				if (page_ref_freeze(page, 1)) {
-> > > +					if (!PageDirty(page))
-> > > +						goto lazyfree;
-> > > +					else
-> > > +						page_ref_unfreeze(page, 1);
-> > > +				}
-> > > +				goto keep_locked;
-> > >  			case SWAP_SUCCESS:
-> > >  				; /* try to free the page below */
-> > 
-> > This is a similar situation.
-> > 
-> > Can we let the page go through the regular __remove_mapping() process
-> > and simply have that function check for PageAnon && !PageSwapBacked?
+>> @@ -1981,10 +1994,29 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+>>  		return;
+>>  	}
+>>  
+>> -	pages = move_freepages_block(zone, page, start_type);
+>> +	free_pages = move_freepages_block(zone, page, start_type,
+>> +						&good_pages);
+>> +	/*
+>> +	 * good_pages is now the number of movable pages, but if we
+>> +	 * want UNMOVABLE or RECLAIMABLE allocation, it's more tricky
+>> +	 */
+>> +	if (start_type != MIGRATE_MOVABLE) {
+>> +		/*
+>> +		 * If we are falling back to MIGRATE_MOVABLE pageblock,
+>> +		 * treat all non-movable pages as good. If it's UNMOVABLE
+>> +		 * falling back to RECLAIMABLE or vice versa, be conservative
+>> +		 * as we can't distinguish the exact migratetype.
+>> +		 */
+>> +		old_block_type = get_pageblock_migratetype(page);
+>> +		if (old_block_type == MIGRATE_MOVABLE)
+>> +			good_pages = pageblock_nr_pages
+>> +						- free_pages - good_pages;
 > 
-> That will make the code more complicated. We don't call __remove_mapping if
-> !mapping. And we need to do bypass in __remove_mapping, for example, avoid
-> taking mapping->lock.
-
-True, we won't get around a separate freeing path as long as the
-refcount handling is intertwined with the mapping removal like that :/
-
-What we should be able to do, however, is remove at least SWAP_LZFREE
-and stick with SWAP_SUCCESS. On success, we can fall through up until
-we do the __remove_mapping call. The page isn't dirty, so we skip that
-PageDirty block; the page doesn't have private data, so we skip that
-block too. And then we can branch on PageAnon && !PageSwapBacked that
-does our alternate freeing path or __remove_mapping for others.
-
-> > > @@ -1294,6 +1302,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  cull_mlocked:
-> > >  		if (PageSwapCache(page))
-> > >  			try_to_free_swap(page);
-> > > +		if (lazyfree)
-> > > +			clear_page_lazyfree(page);
-> > 
-> > Why cancel the MADV_FREE state? The combination seems non-sensical,
-> > but we can simply retain the invalidated state while the page goes to
-> > the unevictable list; munlock should move it back to inactive_file.
+> This line had me scratch my head for a while, and I think it's mostly
+> because of the variable naming and the way the comments are phrased.
 > 
-> This depends on the policy. If user locks the page, I think it's reasonable to
-> assume the page is hot, so it doesn't make sense to treat the page lazyfree.
-
-I think the key issue is whether the page contains valid data, not
-whether it is hot. When we clear the dirty bits along with
-PageSwapBacked, we're declaring the data in the page invalid. There is
-no practical usecase to mlock a page with invalid data, sure, but the
-act of mlocking a page doesn't make its contents suddenly valid again.
-
-I.e. I'd stick with the pure data integrity perspective here. That's
-clearer and less error prone than intermingling it with eviction
-policy, to avoid accidents where we lose valid data.
-
-> > >  		unlock_page(page);
-> > >  		list_add(&page->lru, &ret_pages);
-> > >  		continue;
-> > > @@ -1303,6 +1313,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
-> > >  			try_to_free_swap(page);
-> > >  		VM_BUG_ON_PAGE(PageActive(page), page);
-> > > +		if (lazyfree)
-> > > +			clear_page_lazyfree(page);
-> > 
-> > This is similar too.
-> > 
-> > Can we leave simply leave the page alone here? The only way we get to
-> > this point is if somebody is reading the invalidated page. It's weird
-> > for a lazyfreed page to become active, but it doesn't seem to warrant
-> > active intervention here.
+> Could you use a variable called movable_pages to pass to and be filled
+> in by move_freepages_block?
 > 
-> So the unmap fails here probably because the page is dirty, which means the
-> page is written recently. It makes sense to assume the page is hot.
+> And instead of good_pages something like starttype_pages or
+> alike_pages or st_pages or mt_pages or something, to indicate the
+> number of pages that are comparable to the allocation's migratetype?
+> 
+>> -	/* Claim the whole block if over half of it is free */
+>> -	if (pages >= (1 << (pageblock_order-1)) ||
+>> +	/* Claim the whole block if over half of it is free or good type */
+>> +	if (free_pages + good_pages >= (1 << (pageblock_order-1)) ||
+>>  			page_group_by_mobility_disabled)
+>>  		set_pageblock_migratetype(page, start_type);
+> 
+> This would then read
+> 
+> 	if (free_pages + alike_pages ...)
+> 
+> which I think would be more descriptive.
+> 
+> The comment leading the entire section following move_freepages_block
+> could then say something like "If a sufficient number of pages in the
+> block are either free or of comparable migratability as our
+> allocation, claim the whole block." Followed by the caveats of how we
+> determine this migratibility.
+> 
+> Or maybe even the function. The comment above the function seems out
+> of date after this patch.
 
-Ah, good point.
-
-But can we handle that explicitly please? Like above, I don't want to
-undo the data invalidation just because somebody read the invalid data
-a bunch of times and it has the access bits set. We should only re-set
-the PageSwapBacked based on whether the page is actually dirty.
-
-Maybe along the lines of SWAP_MLOCK we could add SWAP_DIRTY when TTU
-fails because the page is dirty, and then have a cull_dirty: label in
-shrink_page_list handle the lazy rescue of a reused MADV_FREE page?
-
-This should work well with removing the mapping || lazyfree check when
-calling TTU. Then TTU can fail on dirty && !mapping, which is a much
-more obvious way of expressing it IMO - "This page contains valid data
-but there is no mapping that backs it once we unmap it. Abort."
-
-That's mostly why I'm in favor of removing the idea of a "lazyfree"
-page as much as possible. IMO this whole thing becomes much more
-understandable - and less bolted on to the side of the VM - when we
-express it in existing concepts the VM uses for data integrity.
+I'll incorporate this for the next posting, thanks for the feedback!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
