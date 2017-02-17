@@ -1,72 +1,40 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v4 05/28] x86: Add Secure Memory Encryption (SME)
- support
-Date: Fri, 17 Feb 2017 13:00:18 +0100
-Message-ID: <20170217120018.y64pf4sv2plasbsv@pd.tnic>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154307.19244.72895.stgit@tlendack-t1.amdoffice.net>
+From: hpa@zytor.com
+Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
+Date: Fri, 17 Feb 2017 13:50:32 -0800
+Message-ID: <31716333-7B8E-4D70-815F-6AABBFBA1A00@zytor.com>
+References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com> <20170217141328.164563-34-kirill.shutemov@linux.intel.com> <CA+55aFwgbHxV-Ha2n1H=Z7P6bgcQ3D8aW=fr8ZrQ5OnvZ1vOYg@mail.gmail.com> <ae493a75-138c-9c01-d4a1-90bcd01d560f@intel.com> <CA+55aFzVWHUNuhTSBKLyLjOd4UQ8s1-RhMWA7oVr=3G5euo7ZQ@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-doc-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <20170216154307.19244.72895.stgit@tlendack-t1.amdoffice.net>
-Sender: linux-doc-owner@vger.kernel.org
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: 8BIT
+Return-path: <linux-arch-owner@vger.kernel.org>
+In-Reply-To: <CA+55aFzVWHUNuhTSBKLyLjOd4UQ8s1-RhMWA7oVr=3G5euo7ZQ@mail.gmail.com>
+Sender: linux-arch-owner@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andi Kleen <ak@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Linux API <linux-api@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-On Thu, Feb 16, 2017 at 09:43:07AM -0600, Tom Lendacky wrote:
-> Add support for Secure Memory Encryption (SME). This initial support
-> provides a Kconfig entry to build the SME support into the kernel and
-> defines the memory encryption mask that will be used in subsequent
-> patches to mark pages as encrypted.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/Kconfig                   |   22 +++++++++++++++++++
->  arch/x86/include/asm/mem_encrypt.h |   42 ++++++++++++++++++++++++++++++++++++
->  arch/x86/mm/Makefile               |    1 +
->  arch/x86/mm/mem_encrypt.c          |   21 ++++++++++++++++++
->  include/linux/mem_encrypt.h        |   37 ++++++++++++++++++++++++++++++++
->  5 files changed, 123 insertions(+)
->  create mode 100644 arch/x86/include/asm/mem_encrypt.h
->  create mode 100644 arch/x86/mm/mem_encrypt.c
->  create mode 100644 include/linux/mem_encrypt.h
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index f8fbfc5..a3b8c71 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1395,6 +1395,28 @@ config X86_DIRECT_GBPAGES
->  	  supports them), so don't confuse the user by printing
->  	  that we have them enabled.
->  
-> +config AMD_MEM_ENCRYPT
-> +	bool "AMD Secure Memory Encryption (SME) support"
-> +	depends on X86_64 && CPU_SUP_AMD
-> +	---help---
-> +	  Say yes to enable support for the encryption of system memory.
-> +	  This requires an AMD processor that supports Secure Memory
-> +	  Encryption (SME).
-> +
-> +config AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT
-> +	bool "Activate AMD Secure Memory Encryption (SME) by default"
-> +	default y
-> +	depends on AMD_MEM_ENCRYPT
-> +	---help---
-> +	  Say yes to have system memory encrypted by default if running on
-> +	  an AMD processor that supports Secure Memory Encryption (SME).
-> +
-> +	  If set to Y, then the encryption of system memory can be
-> +	  deactivated with the mem_encrypt=off command line option.
-> +
-> +	  If set to N, then the encryption of system memory can be
-> +	  activated with the mem_encrypt=on command line option.
+On February 17, 2017 1:10:27 PM PST, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+>On Fri, Feb 17, 2017 at 1:04 PM, Dave Hansen <dave.hansen@intel.com>
+>wrote:
+>>
+>> Is this likely to break anything in practice?  Nah.  But it would
+>nice
+>> to avoid it.
+>
+>So I go the other way: what *I* would like to avoid is odd code that
+>is hard to follow. I'd much rather make the code be simple and the
+>rules be straightforward, and not introduce that complicated
+>"different address limits" thing at all.
+>
+>Then, _if_ we ever find a case where it makes a difference, we could
+>go the more complex route. But not first implementation, and not
+>without a real example of why we shouldn't just keep things simple.
+>
+>              Linus
 
-Good.
+However, we already have different address limits for different threads and/or syscall interfaces - 3 GiB (32-bit with legacy flag), 4 GiB (32-bit or x32), or 128 TiB... and for a while we had a 512 GiB option, too.  In that sense an address cap makes sense and generalizes what we already have.
 
+It would be pretty hideous for the user, long term, to be artificially restricted to a legacy address cap unless they manage the address space themselves.
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Sent from my Android device with K-9 Mail. Please excuse my brevity.
