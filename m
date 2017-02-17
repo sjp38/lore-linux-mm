@@ -1,86 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC60681021
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 03:39:08 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id b51so473174wrb.4
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 00:39:08 -0800 (PST)
-Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
-        by mx.google.com with ESMTP id 89si12448931wre.175.2017.02.17.00.39.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE97681021
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 04:27:28 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 204so57512680pfx.1
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 01:27:28 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id c184si9724628pfg.185.2017.02.17.01.27.25
         for <linux-mm@kvack.org>;
-        Fri, 17 Feb 2017 00:39:07 -0800 (PST)
-Date: Thu, 16 Feb 2017 19:45:24 +0100
-From: Maxime Ripard <maxime.ripard@free-electrons.com>
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-Message-ID: <20170216184524.cxcy2ux37yrwutla@lukather>
-References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
+        Fri, 17 Feb 2017 01:27:27 -0800 (PST)
+Date: Fri, 17 Feb 2017 18:27:24 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH V3 3/7] mm: reclaim MADV_FREE pages
+Message-ID: <20170217092724.GA23524@bbox>
+References: <cover.1487100204.git.shli@fb.com>
+ <cd6a477063c40ad899ad8f4e964c347525ea23a3.1487100204.git.shli@fb.com>
+ <20170216184018.GC20791@cmpxchg.org>
+ <20170217054108.GA3653@bbox>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="mwgnzn5pgd7q2te4"
-Content-Disposition: inline
-In-Reply-To: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>
-Cc: ML dri-devel <dri-devel@lists.freedesktop.org>, Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, wens@csie.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, thomas.petazzoni@free-electrons.com, devicetree@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-
-
---mwgnzn5pgd7q2te4
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170217054108.GA3653@bbox>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-Hi,
+On Fri, Feb 17, 2017 at 02:41:08PM +0900, Minchan Kim wrote:
+> Hi Johannes,
+> 
+> On Thu, Feb 16, 2017 at 01:40:18PM -0500, Johannes Weiner wrote:
+> > On Tue, Feb 14, 2017 at 11:36:09AM -0800, Shaohua Li wrote:
+> > > @@ -1419,11 +1419,18 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> > >  			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
+> > >  				page);
+> > >  
+> > > -			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
+> > > -				/* It's a freeable page by MADV_FREE */
+> > > -				dec_mm_counter(mm, MM_ANONPAGES);
+> > > -				rp->lazyfreed++;
+> > > -				goto discard;
+> > > +			if (flags & TTU_LZFREE) {
+> > > +				if (!PageDirty(page)) {
+> > > +					/* It's a freeable page by MADV_FREE */
+> > > +					dec_mm_counter(mm, MM_ANONPAGES);
+> > > +					rp->lazyfreed++;
+> > > +					goto discard;
+> > > +				} else {
+> > > +					set_pte_at(mm, address, pvmw.pte, pteval);
+> > > +					ret = SWAP_FAIL;
+> > > +					page_vma_mapped_walk_done(&pvmw);
+> > > +					break;
+> > > +				}
+> > 
+> > I don't understand why we need the TTU_LZFREE bit in general. More on
+> > that below at the callsite.
+> 
+> The reason I introduced it was ttu is used for migration/THP split path
+> as well as reclaim. It's clear to discard them in reclaim path because
+> it means surely memory pressure now but not sure with other path.
+> 
+> If you guys think it's always win to discard them in try_to_unmap
+> unconditionally, I think it would be better to be separate patch.
 
-On Thu, Feb 16, 2017 at 01:43:06PM +0100, Tobias Jakobi wrote:
-> I was wondering about the following. Wasn't there some strict
-> requirement about code going upstream, which also included that there
-> was a full open-source driver stack for it?
->=20
-> I don't see how this is the case for Mali, neither in the kernel, nor in
-> userspace. I'm aware that the Mali kernel driver is open-source. But it
-> is not upstream, maintained out of tree, and won't land upstream in its
-> current form (no resemblence to a DRM driver at all). And let's not talk
-> about the userspace part.
->=20
-> So, why should this be here?
+I was totally wrong.
 
-The device tree is a representation of the hardware itself. The state
-of the driver support doesn't change the hardware you're running on,
-just like your BIOS/UEFI on x86 won't change the device it reports to
-Linux based on whether it has a driver for it.
+Anon page with THP split/migration/HWPoison will not reach to discard path
+in try_to_unmap_one so Johannes is right. We don't need TTU_LZFREE.
 
-So yes, unfortunately, we don't have a driver upstream at the
-moment. But that doesn't prevent us from describing the hardware
-accurately.
+Sorry for the noise.
 
-Maxime
-
---=20
-Maxime Ripard, Free Electrons
-Embedded Linux and Kernel engineering
-http://free-electrons.com
-
---mwgnzn5pgd7q2te4
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBCAAGBQJYpfNEAAoJEBx+YmzsjxAgOqQP/0aWELdbKTPpplGHgwAUT0mf
-zUVVBrPG9OLld83v9xl9rED7+0g+QNh9I34Sj+KVxMJZw0oe/pshzAbRQcuRBbZT
-YNERyUbSIb8WDncboZVY1nSMmZp7HJENzvKwI7vYds1qy5nRRbXuSt8HHf1rCO6H
-a6i/TkuPPJZXlK3pdNCoPQLDAZXQ7/6x9tyaQEnmyBH4Mjp7B9dbCT9Q6Lp0ASA7
-Bg+oCnr/QBoSEdNpLY7hwqVtUgPpmxjdhFqiSo5w6bQr0NVlngtb6tZ1qJCtEXpa
-BU+5l5Gbw9FQHbnMqut66q8ynsg4czpWTnY0sMclTEJVEiHdA7JJDUz+mIgMloyb
-NItlJhrL0P+Z9rwnsY/EzL4A4I8VYwV5C6PBel9VZOCtsid8EaHeFgAGDXq2s2ZJ
-xH85oOhvtcNGspAEU4kT7CPO0HYt3h2XVfR3m73U3+5rVzngnbinTevu7fINHesc
-2q2VW6Hrt5XaooBV71tBguxMatoemueX95FTzx4bsEGNVHftM7hchuBWWkLK1H6E
-taY0Bg9euE2r2WKmv5WXobRIktuu9Y5yKFJb2yHIdhp8csIEw+RgJfMPGAuHQKNu
-4VSaOfnWFkiZAexSnCRoUSYL+RcOib1tH0jW7L76I6KZbfKp3BAljrjpQZeoATs7
-VEW+VuPwXEW79Doegrux
-=N7Gb
------END PGP SIGNATURE-----
-
---mwgnzn5pgd7q2te4--
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
