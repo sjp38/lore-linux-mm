@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 88CD84405EF
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:15:04 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 65so61641629pgi.7
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:15:04 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u15si10400248plk.250.2017.02.17.06.15.03
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B063E4405EF
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:15:38 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 189so62773879pfu.0
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:15:38 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id q2si10376230pge.319.2017.02.17.06.15.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 06:15:03 -0800 (PST)
+        Fri, 17 Feb 2017 06:15:37 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 20/33] x86: detect 5-level paging support
-Date: Fri, 17 Feb 2017 17:13:15 +0300
-Message-Id: <20170217141328.164563-21-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 29/33] x86/mm: add sync_global_pgds() for configuration with 5-level paging
+Date: Fri, 17 Feb 2017 17:13:24 +0300
+Message-Id: <20170217141328.164563-30-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,127 +20,71 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-5-level paging support is required from hardware when compiled with
-CONFIG_X86_5LEVEL=y. We may implement runtime switch support later.
+This basically restores slightly modified version of original
+sync_global_pgds() which we had before foldedl p4d was introduced.
+
+The only modification is protection against 'address' overflow.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/cpucheck.c                 |  9 +++++++++
- arch/x86/boot/cpuflags.c                 | 12 ++++++++++--
- arch/x86/include/asm/disabled-features.h |  8 +++++++-
- arch/x86/include/asm/required-features.h |  8 +++++++-
- 4 files changed, 33 insertions(+), 4 deletions(-)
+ arch/x86/mm/init_64.c | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
 
-diff --git a/arch/x86/boot/cpucheck.c b/arch/x86/boot/cpucheck.c
-index 4ad7d70e8739..8f0c4c9fc904 100644
---- a/arch/x86/boot/cpucheck.c
-+++ b/arch/x86/boot/cpucheck.c
-@@ -44,6 +44,15 @@ static const u32 req_flags[NCAPINTS] =
- 	0, /* REQUIRED_MASK5 not implemented in this file */
- 	REQUIRED_MASK6,
- 	0, /* REQUIRED_MASK7 not implemented in this file */
-+	0, /* REQUIRED_MASK8 not implemented in this file */
-+	0, /* REQUIRED_MASK9 not implemented in this file */
-+	0, /* REQUIRED_MASK10 not implemented in this file */
-+	0, /* REQUIRED_MASK11 not implemented in this file */
-+	0, /* REQUIRED_MASK12 not implemented in this file */
-+	0, /* REQUIRED_MASK13 not implemented in this file */
-+	0, /* REQUIRED_MASK14 not implemented in this file */
-+	0, /* REQUIRED_MASK15 not implemented in this file */
-+	REQUIRED_MASK16,
- };
- 
- #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
-diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
-index 6687ab953257..9e77c23c2422 100644
---- a/arch/x86/boot/cpuflags.c
-+++ b/arch/x86/boot/cpuflags.c
-@@ -70,16 +70,19 @@ int has_eflag(unsigned long mask)
- # define EBX_REG "=b"
- #endif
- 
--static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
-+static inline void cpuid_count(u32 id, u32 count,
-+		u32 *a, u32 *b, u32 *c, u32 *d)
- {
- 	asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif	\n\t"
- 		     "cpuid					\n\t"
- 		     ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif	\n\t"
- 		    : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
--		    : "a" (id)
-+		    : "a" (id), "c" (count)
- 	);
- }
- 
-+#define cpuid(id, a, b, c, d) cpuid_count(id, 0, a, b, c, d)
-+
- void get_cpuflags(void)
- {
- 	u32 max_intel_level, max_amd_level;
-@@ -108,6 +111,11 @@ void get_cpuflags(void)
- 				cpu.model += ((tfms >> 16) & 0xf) << 4;
- 		}
- 
-+		if (max_intel_level >= 0x00000007) {
-+			cpuid_count(0x00000007, 0, &ignored, &ignored,
-+					&cpu.flags[16], &ignored);
-+		}
-+
- 		cpuid(0x80000000, &max_amd_level, &ignored, &ignored,
- 		      &ignored);
- 
-diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
-index 85599ad4d024..fc0960236fc3 100644
---- a/arch/x86/include/asm/disabled-features.h
-+++ b/arch/x86/include/asm/disabled-features.h
-@@ -36,6 +36,12 @@
- # define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE & 31))
- #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
- 
-+#ifdef CONFIG_X86_5LEVEL
-+#define DISABLE_LA57	0
-+#else
-+#define DISABLE_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#endif
-+
- /*
-  * Make sure to add features to the correct mask
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 07b52f81e9cd..58be5713ec09 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -92,6 +92,42 @@ __setup("noexec32=", nonx32_setup);
+  * When memory was added make sure all the processes MM have
+  * suitable PGD entries in the local PGD level page.
   */
-@@ -55,7 +61,7 @@
- #define DISABLED_MASK13	0
- #define DISABLED_MASK14	0
- #define DISABLED_MASK15	0
--#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
-+#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57)
- #define DISABLED_MASK17	0
- #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
- 
-diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
-index fac9a5c0abe9..d91ba04dd007 100644
---- a/arch/x86/include/asm/required-features.h
-+++ b/arch/x86/include/asm/required-features.h
-@@ -53,6 +53,12 @@
- # define NEED_MOVBE	0
- #endif
- 
 +#ifdef CONFIG_X86_5LEVEL
-+# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#else
-+# define NEED_LA57	0
-+#endif
++void sync_global_pgds(unsigned long start, unsigned long end)
++{
++	unsigned long address;
 +
- #ifdef CONFIG_X86_64
- #ifdef CONFIG_PARAVIRT
- /* Paravirtualized systems may not have PSE or PGE available */
-@@ -98,7 +104,7 @@
- #define REQUIRED_MASK13	0
- #define REQUIRED_MASK14	0
- #define REQUIRED_MASK15	0
--#define REQUIRED_MASK16	0
-+#define REQUIRED_MASK16	(NEED_LA57)
- #define REQUIRED_MASK17	0
- #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
++	for (address = start; address <= end && address >= start;
++			address += PGDIR_SIZE) {
++		const pgd_t *pgd_ref = pgd_offset_k(address);
++		struct page *page;
++
++		if (pgd_none(*pgd_ref))
++			continue;
++
++		spin_lock(&pgd_lock);
++		list_for_each_entry(page, &pgd_list, lru) {
++			pgd_t *pgd;
++			spinlock_t *pgt_lock;
++
++			pgd = (pgd_t *)page_address(page) + pgd_index(address);
++			/* the pgt_lock only for Xen */
++			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
++			spin_lock(pgt_lock);
++
++			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
++				BUG_ON(pgd_page_vaddr(*pgd)
++						!= pgd_page_vaddr(*pgd_ref));
++
++			if (pgd_none(*pgd))
++				set_pgd(pgd, *pgd_ref);
++
++			spin_unlock(pgt_lock);
++		}
++		spin_unlock(&pgd_lock);
++	}
++}
++#else
+ void sync_global_pgds(unsigned long start, unsigned long end)
+ {
+ 	unsigned long address;
+@@ -135,6 +171,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+ 		spin_unlock(&pgd_lock);
+ 	}
+ }
++#endif
  
+ /*
+  * NOTE: This function is marked __ref because it calls __init function
 -- 
 2.11.0
 
