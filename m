@@ -1,237 +1,336 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D694681034
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 08:32:42 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id jz4so8387403wjb.5
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 05:32:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k7si1749927wmk.40.2017.02.17.05.32.40
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4FF681034
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:05:19 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id h67so4335698lfg.3
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:05:19 -0800 (PST)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id a9si5031079lfc.162.2017.02.17.06.05.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Feb 2017 05:32:40 -0800 (PST)
-Date: Fri, 17 Feb 2017 13:32:37 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-Message-ID: <20170217133237.v6rqpsoiolegbjye@suse.de>
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
- <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Feb 2017 06:05:17 -0800 (PST)
+Received: by mail-lf0-x244.google.com with SMTP id x1so3941115lff.0
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:05:17 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+In-Reply-To: <20170215120726.9011-2-khandual@linux.vnet.ibm.com>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com> <20170215120726.9011-2-khandual@linux.vnet.ibm.com>
+From: Bob Liu <lliubbo@gmail.com>
+Date: Fri, 17 Feb 2017 22:05:16 +0800
+Message-ID: <CAA_GA1d4LZ_=4=x6j9+1mv8KN_AEkiT=moxbmNtDMdLoNPYBFw@mail.gmail.com>
+Subject: Re: [PATCH V3 1/4] mm: Define coherent device memory (CDM) node
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+Cc: Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, mhocko@suse.com, Vlastimil Babka <vbabka@suse.cz>, "mgorman@suse.de" <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, aneesh.kumar@linux.vnet.ibm.com, Balbir Singh <bsingharora@gmail.com>, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Fri, Feb 17, 2017 at 05:11:57PM +0530, Anshuman Khandual wrote:
-> On 02/15/2017 11:50 PM, Mel Gorman wrote:
-> > On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
-> >> 	This four patches define CDM node with HugeTLB & Buddy allocation
-> >> isolation. Please refer to the last RFC posting mentioned here for more
-> > 
-> > Always include the background with the changelog itself. Do not assume that
-> > people are willing to trawl through a load of past postings to assemble
-> > the picture. I'm only taking a brief look because of the page allocator
-> > impact but it does not appear that previous feedback was addressed.
-> 
-> Sure, I made a mistake. Will include the complete background from my
-> previous RFCs in the next version which will show the entire context
-> of this patch series. I have addressed the previous feedback regarding
-> cpuset enabled allocation leaks into CDM memory as pointed out by
-> Vlastimil Babka on the last version. Did I miss anything else inside
-> the Buddy allocator apart from that ?
-> 
+Hi Anshuman,
 
-The cpuset fix is crude and uncondtionally passes around a mask to
-special case CDM requirements which should be controlled by cpusets or
-policies if CDM is to be treated as if it's normal memory. Special
-casing like this is fragile and it'll be difficult for modifications to
-the allocator to be made with any degree of certainity that CDM is not
-impacted. I strongly suspect it would collide with the cpuset rework
-that Vlastimil is working on to avoid races between allocation and
-cpuset modification.
+I have a few questions about coherent device memory.
 
-> > 
-> > In itself, the series does very little and as Vlastimil already pointed
-> > out, it's not a good idea to try merge piecemeal when people could not
-> > agree on the big picture (I didn't dig into it).
-> 
-> With the proposed kernel changes and a associated driver its complete to
-> drive a user space based CPU/Device hybrid compute interchangeably on a
-> mmap() allocated memory buffer transparently and effectively.
+On Wed, Feb 15, 2017 at 8:07 PM, Anshuman Khandual
+<khandual@linux.vnet.ibm.com> wrote:
+> There are certain devices like specialized accelerator, GPU cards, network
+> cards, FPGA cards etc which might contain onboard memory which is coherent
+> along with the existing system RAM while being accessed either from the CPU
+> or from the device. They share some similar properties with that of normal
 
-How is the device informed at that data is available for processing?
-What prevents and application modifying the data on the device while it's
-being processed?
-Why can this not be expressed with cpusets and memory policies
-controlled by a combination of administrative steps for a privileged
-application and an application that is CDM aware?
+What's the general size of this kind of memory?
 
-> I had also
-> mentioned these points on the last posting in response to a comment from
-> Vlastimil.
-> 
-> From this response (https://lkml.org/lkml/2017/2/14/50).
-> 
-> * User space using mbind() to get CDM memory is an additional benefit
->   we get by making the CDM plug in as a node and be part of the buddy
->   allocator. But the over all idea from the user space point of view
->   is that the application can allocate any generic buffer and try to
->   use the buffer either from the CPU side or from the device without
->   knowing about where the buffer is really mapped physically. That
->   gives a seamless and transparent view to the user space where CPU
->   compute and possible device based compute can work together. This
->   is not possible through a driver allocated buffer.
-> 
+> system RAM but at the same time can also be different with respect to
+> system RAM.
+>
+> User applications might be interested in using this kind of coherent device
 
-Which can also be done with cpusets that prevents use of CDM memory and
-place all non-CDM processes into that cpuset with a separate cpuset for
-CDM-aware applications that allow access to CDM memory.
+What kind of applications?
 
-> * The placement of the memory on the buffer can happen on system memory
->   when the CPU faults while accessing it. But a driver can manage the
->   migration between system RAM and CDM memory once the buffer is being
->   used from CPU and the device interchangeably.
+> memory explicitly or implicitly along side the system RAM utilizing all
+> possible core memory functions like anon mapping (LRU), file mapping (LRU),
+> page cache (LRU), driver managed (non LRU), HW poisoning, NUMA migrations
 
-While I'm not familiar with the details because I'm not generally involved
-in hardware enablement, why was HMM not suitable? I know HMM had it's own
-problems with merging but as it also managed migrations between RAM and
-device memory, how did it not meet your requirements? If there were parts
-of HMM missing, why was that not finished?
+I didn't see the benefit to manage the onboard memory same way as system RAM.
+Why not just map this kind of onborad memory to userspace directly?
+And only those specific applications can manage/access/use it.
 
-I know HMM had a history of problems getting merged but part of that was a
-chicken and egg problem where it was a lot of infrastructure to maintain
-with no in-kernel users. If CDM is a potential user then CDM could be
-built on top and ask for a merge of both the core infrastructure required
-and the drivers at the same time.
+It sounds not very good to complicate the core memory framework a lot
+because of some not widely used devices and uncertain applications.
 
-It's not an easy path but the difficulties there do not justify special
-casing CDM in the core allocator.
+-
+Regards,
+Bob
 
-
->   As you have mentioned
->   driver will have more information about where which part of the buffer
->   should be placed at any point of time and it can make it happen with
->   migration. So both allocation and placement are decided by the driver
->   during runtime. CDM provides the framework for this can kind device
->   assisted compute and driver managed memory placements.
-> 
-
-Which sounds like what HMM needed and the problems of co-ordinating whether
-data within a VMA is located on system RAM or device memory and what that
-means is not addressed by the series.
-
-Even if HMM is unsuitable, it should be clearly explained why
-
-> * If any application is not using CDM memory for along time placed on
->   its buffer and another application is forced to fallback on system
->   RAM when it really wanted is CDM, the driver can detect these kind
->   of situations through memory access patterns on the device HW and
->   take necessary migration decisions.
-> 
-> I hope this explains the rationale of the framework. In fact these
-> four patches give logically complete CPU/Device operating framework.
-> Other parts of the bigger picture are VMA management, KSM, Auto NUMA
-> etc which are improvements on top of this basic framework.
-> 
-
-Automatic NUMA balancing is a particular oddity as that is about
-CPU->RAM locality and not RAM->device considerations.
-
-But all that aside, it still does not explain why it's necessary to
-special case CDM in the allocator paths that can be controlled with
-existing mechanisms.
-
-> > 
-> > The only reason I'm commenting at all is to say that I am extremely opposed
-> > to the changes made to the page allocator paths that are specific to
-> > CDM. It's been continual significant effort to keep the cost there down
-> > and this is a mess of special cases for CDM. The changes to hugetlb to
-> > identify "memory that is not really memory" with special casing is also
-> > quite horrible.
-> 
-> We have already removed the O (n^2) search during zonelist iteration as
-> pointed out by Vlastimil and the current overhead is linear for the CDM
-> special case. We do similar checks for the cpuset function as well. Then
-> how is this horrible ?
-
-Because there are existing mechanisms for avoiding nodes that are not
-device specific.
-
-> On HugeTLB, we isolate CDM based on a resultant
-> (MEMORY - CDM) node_states[] element which identifies system memory
-> instead of all of the accessible memory and keep the HugeTLB limited to
-> that nodemask. But if you feel there is any other better approach, we
-> can definitely try out.
-> 
-
-cpusets with non-CDM application in a cpuset that does not include CDM
-nodes.
-
-> > It's also unclear if this is even usable by an application in userspace
-> > at this point in time. If it is and the special casing is needed then the
-> 
-> Yeah with the current CDM approach its usable from user space as
-> explained before.
-> 
-
-Minus the parts where the application notifies the driver to do some work
-or mediate between what is accessing what memory and when.
-
-> > regions should be isolated from early mem allocations in the arch layer
-> > that is CDM aware, initialised late, and then setup userspace to isolate
-> > all but privileged applications from the CDM nodes. Do not litter the core
-> > with is_cdm_whatever checks.
-> 
-> I guess your are referring to allocating the entire CDM memory node with
-> memblock_reserve() and then arch managing the memory when user space
-> wants to use it through some sort of mmap, vm_ops methods. That defeats
-> the whole purpose of integrating CDM memory with core VM. I am afraid it
-> will also make migration between CDM memory and system memory difficult
-> which is essential in making the whole hybrid compute operation
-> transparent from  the user space.
-> 
-
-The memblock is to only avoid bootmem allocations from that area. It can
-be managed in the arch layer to first pass in all the system ram,
-teardown the bootmem allocator, setup the nodelists, set system
-nodemask, init CDM, init the allocator for that, and then optionally add
-it to the system CDM for userspace to do the isolation or provide.
-
-For that matter, the driver could do the discovery and then fake a
-memory hot-add.
-
-It would be tough to do this but it would confine the logic to the arch
-and driver that cares instead of special casing the allocators.
-
-> > At best this is incomplete because it does not look as if it could be used
-> > by anything properly and the fast path alterations are horrible even if
-> > it could be used. As it is, it should not be merged in my opinion.
-> 
-> I have mentioned in detail above how this much of code change enables
-> us to use the CDM in a transparent way from the user space. Please do
-> let me know if it still does not make sense, will try again.
-> 
-> On the fast path changes issue, I can really understand your concern
-> from the performance point of viewi
-
-And a maintenance overhead because changing any part where CDM is special
-cased will be impossible for many to test and verify.
-
-> as its achieved over a long time.
-> It would be great if you can suggest on how to improve from here.
-> 
-
-I do not have the bandwidth to get involved in how hardware enablement
-for this feature should be done on power. The objection is that however
-it is handled should not need to add special casing to the allocator
-which already has mechanisms for limiting what memory is used.
-
--- 
-Mel Gorman
-SUSE Labs
+> etc. To achieve this kind of tight integration with core memory subsystem,
+> the device onboard coherent memory must be represented as a memory only
+> NUMA node. At the same time arch must export some kind of a function to
+> identify of this node as a coherent device memory not any other regular
+> cpu less memory only NUMA node.
+>
+> After achieving the integration with core memory subsystem coherent device
+> memory might still need some special consideration inside the kernel. There
+> can be a variety of coherent memory nodes with different expectations from
+> the core kernel memory. But right now only one kind of special treatment is
+> considered which requires certain isolation.
+>
+> Now consider the case of a coherent device memory node type which requires
+> isolation. This kind of coherent memory is onboard an external device
+> attached to the system through a link where there is always a chance of a
+> link failure taking down the entire memory node with it. More over the
+> memory might also have higher chance of ECC failure as compared to the
+> system RAM. Hence allocation into this kind of coherent memory node should
+> be regulated. Kernel allocations must not come here. Normal user space
+> allocations too should not come here implicitly (without user application
+> knowing about it). This summarizes isolation requirement of certain kind of
+> coherent device memory node as an example. There can be different kinds of
+> isolation requirement also.
+>
+> Some coherent memory devices might not require isolation altogether after
+> all. Then there might be other coherent memory devices which might require
+> some other special treatment after being part of core memory representation
+> . For now, will look into isolation seeking coherent device memory node not
+> the other ones.
+>
+> To implement the integration as well as isolation, the coherent memory node
+> must be present in N_MEMORY and a new N_COHERENT_DEVICE node mask inside
+> the node_states[] array. During memory hotplug operations, the new nodemask
+> N_COHERENT_DEVICE is updated along with N_MEMORY for these coherent device
+> memory nodes. This also creates the following new sysfs based interface to
+> list down all the coherent memory nodes of the system.
+>
+>         /sys/devices/system/node/is_coherent_node
+>
+> Architectures must export function arch_check_node_cdm() which identifies
+> any coherent device memory node in case they enable CONFIG_COHERENT_DEVICE.
+>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
+>  Documentation/ABI/stable/sysfs-devices-node |  7 ++++
+>  arch/powerpc/Kconfig                        |  1 +
+>  arch/powerpc/mm/numa.c                      |  7 ++++
+>  drivers/base/node.c                         |  6 +++
+>  include/linux/nodemask.h                    | 58 ++++++++++++++++++++++++++++-
+>  mm/Kconfig                                  |  4 ++
+>  mm/memory_hotplug.c                         |  3 ++
+>  mm/page_alloc.c                             |  8 +++-
+>  8 files changed, 91 insertions(+), 3 deletions(-)
+>
+> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> index 5b2d0f0..5df18f7 100644
+> --- a/Documentation/ABI/stable/sysfs-devices-node
+> +++ b/Documentation/ABI/stable/sysfs-devices-node
+> @@ -29,6 +29,13 @@ Description:
+>                 Nodes that have regular or high memory.
+>                 Depends on CONFIG_HIGHMEM.
+>
+> +What:          /sys/devices/system/node/is_cdm_node
+> +Date:          January 2017
+> +Contact:       Linux Memory Management list <linux-mm@kvack.org>
+> +Description:
+> +               Lists the nodemask of nodes that have coherent device memory.
+> +               Depends on CONFIG_COHERENT_DEVICE.
+> +
+>  What:          /sys/devices/system/node/nodeX
+>  Date:          October 2002
+>  Contact:       Linux Memory Management list <linux-mm@kvack.org>
+> diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+> index 281f4f1..1cff239 100644
+> --- a/arch/powerpc/Kconfig
+> +++ b/arch/powerpc/Kconfig
+> @@ -164,6 +164,7 @@ config PPC
+>         select ARCH_HAS_SCALED_CPUTIME if VIRT_CPU_ACCOUNTING_NATIVE
+>         select HAVE_ARCH_HARDENED_USERCOPY
+>         select HAVE_KERNEL_GZIP
+> +       select COHERENT_DEVICE if PPC_BOOK3S_64 && NEED_MULTIPLE_NODES
+>
+>  config GENERIC_CSUM
+>         def_bool CPU_LITTLE_ENDIAN
+> diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+> index b1099cb..14f0b98 100644
+> --- a/arch/powerpc/mm/numa.c
+> +++ b/arch/powerpc/mm/numa.c
+> @@ -41,6 +41,13 @@
+>  #include <asm/setup.h>
+>  #include <asm/vdso.h>
+>
+> +#ifdef CONFIG_COHERENT_DEVICE
+> +inline int arch_check_node_cdm(int nid)
+> +{
+> +       return 0;
+> +}
+> +#endif
+> +
+>  static int numa_enabled = 1;
+>
+>  static char *cmdline __initdata;
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 5548f96..f39e615 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -661,6 +661,9 @@ static struct node_attr node_state_attr[] = {
+>         [N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
+>  #endif
+>         [N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
+> +#ifdef CONFIG_COHERENT_DEVICE
+> +       [N_COHERENT_DEVICE] = _NODE_ATTR(is_cdm_node, N_COHERENT_DEVICE),
+> +#endif
+>  };
+>
+>  static struct attribute *node_state_attrs[] = {
+> @@ -674,6 +677,9 @@ static struct attribute *node_state_attrs[] = {
+>         &node_state_attr[N_MEMORY].attr.attr,
+>  #endif
+>         &node_state_attr[N_CPU].attr.attr,
+> +#ifdef CONFIG_COHERENT_DEVICE
+> +       &node_state_attr[N_COHERENT_DEVICE].attr.attr,
+> +#endif
+>         NULL
+>  };
+>
+> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+> index f746e44..175c2d6 100644
+> --- a/include/linux/nodemask.h
+> +++ b/include/linux/nodemask.h
+> @@ -388,11 +388,14 @@ enum node_states {
+>         N_HIGH_MEMORY = N_NORMAL_MEMORY,
+>  #endif
+>  #ifdef CONFIG_MOVABLE_NODE
+> -       N_MEMORY,               /* The node has memory(regular, high, movable) */
+> +       N_MEMORY,       /* The node has memory(regular, high, movable, cdm) */
+>  #else
+>         N_MEMORY = N_HIGH_MEMORY,
+>  #endif
+>         N_CPU,          /* The node has one or more cpus */
+> +#ifdef CONFIG_COHERENT_DEVICE
+> +       N_COHERENT_DEVICE,      /* The node has CDM memory */
+> +#endif
+>         NR_NODE_STATES
+>  };
+>
+> @@ -496,6 +499,59 @@ static inline int node_random(const nodemask_t *mask)
+>  }
+>  #endif
+>
+> +#ifdef CONFIG_COHERENT_DEVICE
+> +extern int arch_check_node_cdm(int nid);
+> +
+> +static inline nodemask_t system_mem_nodemask(void)
+> +{
+> +       nodemask_t system_mem;
+> +
+> +       nodes_clear(system_mem);
+> +       nodes_andnot(system_mem, node_states[N_MEMORY],
+> +                       node_states[N_COHERENT_DEVICE]);
+> +       return system_mem;
+> +}
+> +
+> +static inline bool is_cdm_node(int node)
+> +{
+> +       return node_isset(node, node_states[N_COHERENT_DEVICE]);
+> +}
+> +
+> +static inline void node_set_state_cdm(int node)
+> +{
+> +       if (arch_check_node_cdm(node))
+> +               node_set_state(node, N_COHERENT_DEVICE);
+> +}
+> +
+> +static inline void node_clear_state_cdm(int node)
+> +{
+> +       if (arch_check_node_cdm(node))
+> +               node_clear_state(node, N_COHERENT_DEVICE);
+> +}
+> +
+> +#else
+> +
+> +static inline int arch_check_node_cdm(int nid) { return 0; }
+> +
+> +static inline nodemask_t system_mem_nodemask(void)
+> +{
+> +       return node_states[N_MEMORY];
+> +}
+> +
+> +static inline bool is_cdm_node(int node)
+> +{
+> +       return false;
+> +}
+> +
+> +static inline void node_set_state_cdm(int node)
+> +{
+> +}
+> +
+> +static inline void node_clear_state_cdm(int node)
+> +{
+> +}
+> +#endif /* CONFIG_COHERENT_DEVICE */
+> +
+>  #define node_online_map        node_states[N_ONLINE]
+>  #define node_possible_map      node_states[N_POSSIBLE]
+>
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 9b8fccb..6263a65 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -143,6 +143,10 @@ config HAVE_GENERIC_RCU_GUP
+>  config ARCH_DISCARD_MEMBLOCK
+>         bool
+>
+> +config COHERENT_DEVICE
+> +       bool
+> +       default n
+> +
+>  config NO_BOOTMEM
+>         bool
+>
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b8c11e0..6bce093 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1030,6 +1030,7 @@ static void node_states_set_node(int node, struct memory_notify *arg)
+>         if (arg->status_change_nid_high >= 0)
+>                 node_set_state(node, N_HIGH_MEMORY);
+>
+> +       node_set_state_cdm(node);
+>         node_set_state(node, N_MEMORY);
+>  }
+>
+> @@ -1843,6 +1844,8 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+>         if ((N_MEMORY != N_HIGH_MEMORY) &&
+>             (arg->status_change_nid >= 0))
+>                 node_clear_state(node, N_MEMORY);
+> +
+> +       node_clear_state_cdm(node);
+>  }
+>
+>  static int __ref __offline_pages(unsigned long start_pfn,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f3e0c69..84d61bb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6080,8 +6080,10 @@ static unsigned long __init early_calculate_totalpages(void)
+>                 unsigned long pages = end_pfn - start_pfn;
+>
+>                 totalpages += pages;
+> -               if (pages)
+> +               if (pages) {
+> +                       node_set_state_cdm(nid);
+>                         node_set_state(nid, N_MEMORY);
+> +               }
+>         }
+>         return totalpages;
+>  }
+> @@ -6392,8 +6394,10 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+>                                 find_min_pfn_for_node(nid), NULL);
+>
+>                 /* Any memory on that node */
+> -               if (pgdat->node_present_pages)
+> +               if (pgdat->node_present_pages) {
+> +                       node_set_state_cdm(nid);
+>                         node_set_state(nid, N_MEMORY);
+> +               }
+>                 check_for_memory(pgdat, nid);
+>         }
+>  }
+> --
+> 2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
