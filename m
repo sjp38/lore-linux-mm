@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0234405F9
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EAA784405F6
 	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:06:09 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id w20so38470676qtb.3
+Received: by mail-qk0-f199.google.com with SMTP id p22so38559469qka.0
         for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:06:09 -0800 (PST)
 Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id f63si7647982qkd.153.2017.02.17.07.06.08
+        by mx.google.com with ESMTPS id a64si7630320qkf.331.2017.02.17.07.06.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 07:06:08 -0800 (PST)
+        Fri, 17 Feb 2017 07:06:09 -0800 (PST)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [RFC PATCH 06/14] sysctl: Add global tunable mt_page_copy
-Date: Fri, 17 Feb 2017 10:05:43 -0500
-Message-Id: <20170217150551.117028-7-zi.yan@sent.com>
+Subject: [RFC PATCH 07/14] migrate: Add copy_page_lists_mthread() function.
+Date: Fri, 17 Feb 2017 10:05:44 -0500
+Message-Id: <20170217150551.117028-8-zi.yan@sent.com>
 In-Reply-To: <20170217150551.117028-1-zi.yan@sent.com>
 References: <20170217150551.117028-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,69 +22,98 @@ Cc: dnellans@nvidia.com, apopple@au1.ibm.com, paulmck@linux.vnet.ibm.com, khandu
 
 From: Zi Yan <ziy@nvidia.com>
 
-A new global sysctl tunable 'mt_page_copy' is added which will override
-syscall specific requests and enable multi threaded page copy during
-all migrations on the system. This tunable is disabled by default.
+It supports copying a list of pages via multi-threaded process.
+It evenly distributes a list of pages to a group of threads and
+uses the same subroutine as copy_page_mthread()
 
-Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- kernel/sysctl.c | 11 +++++++++++
- mm/migrate.c    |  5 +++++
- 2 files changed, 16 insertions(+)
+ mm/copy_pages.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/internal.h   |  3 +++
+ 2 files changed, 65 insertions(+)
 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 5b8c0fb3f0ea..70a654146519 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -97,6 +97,8 @@
- 
- #if defined(CONFIG_SYSCTL)
- 
-+extern int mt_page_copy;
+diff --git a/mm/copy_pages.c b/mm/copy_pages.c
+index c357e7b01042..516c0a1a57f3 100644
+--- a/mm/copy_pages.c
++++ b/mm/copy_pages.c
+@@ -84,3 +84,65 @@ int copy_pages_mthread(struct page *to, struct page *from, int nr_pages)
+ 	kfree(work_items);
+ 	return 0;
+ }
 +
- /* External variables not in a header file. */
- extern int suid_dumpable;
- #ifdef CONFIG_COREDUMP
-@@ -1360,6 +1362,15 @@ static struct ctl_table vm_table[] = {
- 		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
- 	},
- #endif
-+	{
-+		.procname	= "mt_page_copy",
-+		.data		= &mt_page_copy,
-+		.maxlen		= sizeof(mt_page_copy),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
- 	 {
- 		.procname	= "hugetlb_shm_group",
- 		.data		= &sysctl_hugetlb_shm_group,
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 2e58aad7c96f..0e9b1f17cf8b 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -48,6 +48,8 @@
- 
- #include "internal.h"
- 
-+int mt_page_copy = 0;
++int copy_page_lists_mthread(struct page **to, struct page **from, int nr_pages) 
++{
++	int err = 0;
++	unsigned int cthreads, node = page_to_nid(*to);
++	int i;
++	struct copy_info *work_items;
++	int nr_pages_per_page = hpage_nr_pages(*from);
++	const struct cpumask *cpumask = cpumask_of_node(node);
++	int cpu_id_list[32] = {0};
++	int cpu;
 +
- /*
-  * migrate_prep() needs to be called before we start compiling a list of pages
-  * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
-@@ -618,6 +620,9 @@ static void copy_huge_page(struct page *dst, struct page *src,
- 		nr_pages = hpage_nr_pages(src);
- 	}
- 
-+	if (mt_page_copy)
-+		mode |= MIGRATE_MT;
++	cthreads = nr_copythreads;
++	cthreads = min_t(unsigned int, cthreads, cpumask_weight(cpumask));
++	cthreads = (cthreads / 2) * 2;
++	cthreads = min_t(unsigned int, nr_pages, cthreads);
 +
- 	if (mode & MIGRATE_MT)
- 		rc = copy_pages_mthread(dst, src, nr_pages);
++	work_items = kzalloc(sizeof(struct copy_info)*nr_pages,
++						 GFP_KERNEL);
++	if (!work_items)
++		return -ENOMEM;
++
++	i = 0;
++	for_each_cpu(cpu, cpumask) {
++		if (i >= cthreads)
++			break;
++		cpu_id_list[i] = cpu;
++		++i;
++	}
++
++	for (i = 0; i < nr_pages; ++i) {
++		int thread_idx = i % cthreads;
++
++		INIT_WORK((struct work_struct *)&work_items[i], 
++				  copythread);
++
++		work_items[i].to = kmap(to[i]);
++		work_items[i].from = kmap(from[i]);
++		work_items[i].chunk_size = PAGE_SIZE * hpage_nr_pages(from[i]);
++
++		BUG_ON(nr_pages_per_page != hpage_nr_pages(from[i]));
++		BUG_ON(nr_pages_per_page != hpage_nr_pages(to[i]));
++
++
++		queue_work_on(cpu_id_list[thread_idx], 
++					  system_highpri_wq, 
++					  (struct work_struct *)&work_items[i]);
++	}
++
++	/* Wait until it finishes  */
++	for (i = 0; i < cthreads; ++i)
++		flush_work((struct work_struct *) &work_items[i]);
++
++	for (i = 0; i < nr_pages; ++i) {
++			kunmap(to[i]);
++			kunmap(from[i]);
++	}
++
++	kfree(work_items);
++
++	return err;
++}
+diff --git a/mm/internal.h b/mm/internal.h
+index ccfc2a2969f4..175e08ed524a 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -498,4 +498,7 @@ extern const struct trace_print_flags pageflag_names[];
+ extern const struct trace_print_flags vmaflag_names[];
+ extern const struct trace_print_flags gfpflag_names[];
  
++extern int copy_page_lists_mthread(struct page **to,
++			struct page **from, int nr_pages);
++
+ #endif	/* __MM_INTERNAL_H */
 -- 
 2.11.0
 
