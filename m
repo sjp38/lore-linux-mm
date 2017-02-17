@@ -1,40 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 724D9681021
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:26:13 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id y6so45453065pgy.5
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 03:26:13 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF187681021
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:26:14 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id z67so58280994pgb.0
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 03:26:14 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u79si10061628pfa.27.2017.02.17.03.26.12
+        by mx.google.com with ESMTPS id c25si10011898pfk.252.2017.02.17.03.26.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Feb 2017 03:26:12 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1HBNuJD120496
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:26:11 -0500
-Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28nrgkrd24-1
+        Fri, 17 Feb 2017 03:26:13 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1HBQ3SP102297
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:26:13 -0500
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28p0a1g09x-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:26:11 -0500
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:26:13 -0500
 Received: from localhost
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 17 Feb 2017 21:26:09 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 24D722BB0055
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 22:26:07 +1100 (EST)
+	Fri, 17 Feb 2017 21:26:05 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 606302CE8056
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 22:26:03 +1100 (EST)
 Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1HBPxCO32112852
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 22:26:07 +1100
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1HBPtrr21823694
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 22:26:03 +1100
 Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1HBPYK8025372
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 22:25:35 +1100
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1HBPUqx025302
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 22:25:31 +1100
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH 2/6] mm/migrate: Make migrate_mode types non-exclusive
-Date: Fri, 17 Feb 2017 16:54:49 +0530
+Subject: [PATCH 1/6] mm/migrate: Add new mode parameter to migrate_page_copy() function
+Date: Fri, 17 Feb 2017 16:54:48 +0530
 In-Reply-To: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
 References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
-Message-Id: <20170217112453.307-3-khandual@linux.vnet.ibm.com>
+Message-Id: <20170217112453.307-2-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
@@ -42,198 +42,169 @@ Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh
 
 From: Zi Yan <ziy@nvidia.com>
 
-It basically changes the enum declaration from numbers to bit positions
-so that they can be used in combination which was not the case earlier.
-No functionality has been changed.
+This is a prerequisite change required to make page migration framewok
+copy in different modes like the default single threaded or the new
+multi threaded one yet to be introduced in follow up patches. This
+does not change any existing functionality. Only migrate_page_copy()
+and copy_huge_page() function's signatures are affected.
 
 Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- include/linux/migrate_mode.h |  8 ++++----
- mm/compaction.c              | 20 ++++++++++----------
- mm/migrate.c                 | 14 +++++++-------
- 3 files changed, 21 insertions(+), 21 deletions(-)
+ fs/aio.c                     |  2 +-
+ fs/f2fs/data.c               |  2 +-
+ fs/hugetlbfs/inode.c         |  2 +-
+ fs/ubifs/file.c              |  2 +-
+ include/linux/migrate.h      |  6 ++++--
+ include/linux/migrate_mode.h |  1 +
+ mm/migrate.c                 | 14 ++++++++------
+ 7 files changed, 17 insertions(+), 12 deletions(-)
 
+diff --git a/fs/aio.c b/fs/aio.c
+index 873b4ca..ba3f6eb 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -418,7 +418,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	 * events from being lost.
+ 	 */
+ 	spin_lock_irqsave(&ctx->completion_lock, flags);
+-	migrate_page_copy(new, old);
++	migrate_page_copy(new, old, MIGRATE_ST);
+ 	BUG_ON(ctx->ring_pages[idx] != old);
+ 	ctx->ring_pages[idx] = new;
+ 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 9ac2625..ad41356 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -1997,7 +1997,7 @@ int f2fs_migrate_page(struct address_space *mapping,
+ 		SetPagePrivate(newpage);
+ 	set_page_private(newpage, page_private(page));
+ 
+-	migrate_page_copy(newpage, page);
++	migrate_page_copy(newpage, page, MIGRATE_ST);
+ 
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 54de77e..0e16512f 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -850,7 +850,7 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
+ 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+-	migrate_page_copy(newpage, page);
++	migrate_page_copy(newpage, page, MIGRATE_ST);
+ 
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index b0d7837..293616f 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -1482,7 +1482,7 @@ static int ubifs_migrate_page(struct address_space *mapping,
+ 		SetPagePrivate(newpage);
+ 	}
+ 
+-	migrate_page_copy(newpage, page);
++	migrate_page_copy(newpage, page, MIGRATE_ST);
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+ #endif
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ae8d475..d843b8f 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -42,7 +42,8 @@ extern void putback_movable_page(struct page *page);
+ 
+ extern int migrate_prep(void);
+ extern int migrate_prep_local(void);
+-extern void migrate_page_copy(struct page *newpage, struct page *page);
++extern void migrate_page_copy(struct page *newpage, struct page *page,
++			enum migrate_mode mode);
+ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page);
+ extern int migrate_page_move_mapping(struct address_space *mapping,
+@@ -61,7 +62,8 @@ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
+ 
+ static inline void migrate_page_copy(struct page *newpage,
+-				     struct page *page) {}
++				     struct page *page,
++				     enum migrate_mode mode) {}
+ 
+ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page)
 diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
-index b3b9acb..89c1700 100644
+index ebf3d89..b3b9acb 100644
 --- a/include/linux/migrate_mode.h
 +++ b/include/linux/migrate_mode.h
-@@ -8,10 +8,10 @@
-  * MIGRATE_SYNC will block when migrating pages
-  */
- enum migrate_mode {
--	MIGRATE_ASYNC,
--	MIGRATE_SYNC_LIGHT,
--	MIGRATE_SYNC,
--	MIGRATE_ST
-+	MIGRATE_ASYNC		= 1<<0,
-+	MIGRATE_SYNC_LIGHT	= 1<<1,
-+	MIGRATE_SYNC		= 1<<2,
-+	MIGRATE_ST		= 1<<3,
+@@ -11,6 +11,7 @@ enum migrate_mode {
+ 	MIGRATE_ASYNC,
+ 	MIGRATE_SYNC_LIGHT,
+ 	MIGRATE_SYNC,
++	MIGRATE_ST
  };
  
  #endif		/* MIGRATE_MODE_H_INCLUDED */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 949198d..1a481af 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -296,7 +296,7 @@ static void update_pageblock_skip(struct compact_control *cc,
- 	if (migrate_scanner) {
- 		if (pfn > zone->compact_cached_migrate_pfn[0])
- 			zone->compact_cached_migrate_pfn[0] = pfn;
--		if (cc->mode != MIGRATE_ASYNC &&
-+		if (!(cc->mode & MIGRATE_ASYNC) &&
- 		    pfn > zone->compact_cached_migrate_pfn[1])
- 			zone->compact_cached_migrate_pfn[1] = pfn;
- 	} else {
-@@ -329,7 +329,7 @@ static void update_pageblock_skip(struct compact_control *cc,
- static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
- 						struct compact_control *cc)
- {
--	if (cc->mode == MIGRATE_ASYNC) {
-+	if (cc->mode & MIGRATE_ASYNC) {
- 		if (!spin_trylock_irqsave(lock, *flags)) {
- 			cc->contended = true;
- 			return false;
-@@ -370,7 +370,7 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
- 	}
- 
- 	if (need_resched()) {
--		if (cc->mode == MIGRATE_ASYNC) {
-+		if (cc->mode & MIGRATE_ASYNC) {
- 			cc->contended = true;
- 			return true;
- 		}
-@@ -393,7 +393,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
- {
- 	/* async compaction aborts if contended */
- 	if (need_resched()) {
--		if (cc->mode == MIGRATE_ASYNC) {
-+		if (cc->mode & MIGRATE_ASYNC) {
- 			cc->contended = true;
- 			return true;
- 		}
-@@ -688,7 +688,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	 */
- 	while (unlikely(too_many_isolated(zone))) {
- 		/* async migration should just abort */
--		if (cc->mode == MIGRATE_ASYNC)
-+		if (cc->mode & MIGRATE_ASYNC)
- 			return 0;
- 
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -700,7 +700,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	if (compact_should_abort(cc))
- 		return 0;
- 
--	if (cc->direct_compaction && (cc->mode == MIGRATE_ASYNC)) {
-+	if (cc->direct_compaction && (cc->mode & MIGRATE_ASYNC)) {
- 		skip_on_failure = true;
- 		next_skip_pfn = block_end_pfn(low_pfn, cc->order);
- 	}
-@@ -1195,7 +1195,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	struct page *page;
- 	const isolate_mode_t isolate_mode =
- 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
--		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-+		(!(cc->mode & MIGRATE_SYNC) ? ISOLATE_ASYNC_MIGRATE : 0);
- 
- 	/*
- 	 * Start at where we last stopped, or beginning of the zone as
-@@ -1241,7 +1241,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		 * Async compaction is optimistic to see if the minimum amount
- 		 * of work satisfies the allocation.
- 		 */
--		if (cc->mode == MIGRATE_ASYNC &&
-+		if ((cc->mode & MIGRATE_ASYNC) &&
- 		    !migrate_async_suitable(get_pageblock_migratetype(page)))
- 			continue;
- 
-@@ -1481,7 +1481,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 	unsigned long start_pfn = zone->zone_start_pfn;
- 	unsigned long end_pfn = zone_end_pfn(zone);
- 	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
--	const bool sync = cc->mode != MIGRATE_ASYNC;
-+	const bool sync = !(cc->mode & MIGRATE_ASYNC);
- 
- 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
- 							cc->classzone_idx);
-@@ -1577,7 +1577,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 			 * order-aligned block, so skip the rest of it.
- 			 */
- 			if (cc->direct_compaction &&
--						(cc->mode == MIGRATE_ASYNC)) {
-+						(cc->mode & MIGRATE_ASYNC)) {
- 				cc->migrate_pfn = block_end_pfn(
- 						cc->migrate_pfn - 1, cc->order);
- 				/* Draining pcplists is useless in this case */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 13fa938..63c3682 100644
+index 87f4d0f..13fa938 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -352,7 +352,7 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
- 	struct buffer_head *bh = head;
+@@ -589,7 +589,8 @@ static void __copy_gigantic_page(struct page *dst, struct page *src,
+ 	}
+ }
  
- 	/* Simple case, sync compaction */
--	if (mode != MIGRATE_ASYNC) {
-+	if (!(mode & MIGRATE_ASYNC)) {
- 		do {
- 			get_bh(bh);
- 			lock_buffer(bh);
-@@ -453,7 +453,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	 * the mapping back due to an elevated page count, we would have to
- 	 * block waiting on other references to be dropped.
- 	 */
--	if (mode == MIGRATE_ASYNC && head &&
-+	if ((mode & MIGRATE_ASYNC) && head &&
- 			!buffer_migrate_lock_buffers(head, mode)) {
- 		page_ref_unfreeze(page, expected_count);
- 		spin_unlock_irq(&mapping->tree_lock);
-@@ -739,7 +739,7 @@ int buffer_migrate_page(struct address_space *mapping,
- 	 * with an IRQ-safe spinlock held. In the sync case, the buffers
- 	 * need to be locked now
- 	 */
--	if (mode != MIGRATE_ASYNC)
-+	if (!(mode & MIGRATE_ASYNC))
- 		BUG_ON(!buffer_migrate_lock_buffers(head, mode));
- 
- 	ClearPagePrivate(page);
-@@ -821,7 +821,7 @@ static int fallback_migrate_page(struct address_space *mapping,
+-static void copy_huge_page(struct page *dst, struct page *src)
++static void copy_huge_page(struct page *dst, struct page *src,
++				enum migrate_mode mode)
  {
- 	if (PageDirty(page)) {
- 		/* Only writeback pages in full synchronous migration */
--		if (mode != MIGRATE_SYNC)
-+		if (!(mode & MIGRATE_SYNC))
- 			return -EBUSY;
- 		return writeout(mapping, page);
- 	}
-@@ -930,7 +930,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 	bool is_lru = !__PageMovable(page);
+ 	int i;
+ 	int nr_pages;
+@@ -618,12 +619,13 @@ static void copy_huge_page(struct page *dst, struct page *src)
+ /*
+  * Copy the page to its new location
+  */
+-void migrate_page_copy(struct page *newpage, struct page *page)
++void migrate_page_copy(struct page *newpage, struct page *page,
++					   enum migrate_mode mode)
+ {
+ 	int cpupid;
  
- 	if (!trylock_page(page)) {
--		if (!force || mode == MIGRATE_ASYNC)
-+		if (!force || (mode & MIGRATE_ASYNC))
- 			goto out;
+ 	if (PageHuge(page) || PageTransHuge(page))
+-		copy_huge_page(newpage, page);
++		copy_huge_page(newpage, page, mode);
+ 	else
+ 		copy_highpage(newpage, page);
  
- 		/*
-@@ -959,7 +959,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 		 * the retry loop is too short and in the sync-light case,
- 		 * the overhead of stalling is too much
- 		 */
--		if (mode != MIGRATE_SYNC) {
-+		if (!(mode & MIGRATE_SYNC)) {
- 			rc = -EBUSY;
- 			goto out_unlock;
- 		}
-@@ -1229,7 +1229,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 		return -ENOMEM;
+@@ -705,7 +707,7 @@ int migrate_page(struct address_space *mapping,
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
  
- 	if (!trylock_page(hpage)) {
--		if (!force || mode != MIGRATE_SYNC)
-+		if (!force || !(mode & MIGRATE_SYNC))
- 			goto out;
- 		lock_page(hpage);
- 	}
+-	migrate_page_copy(newpage, page);
++	migrate_page_copy(newpage, page, mode);
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+ EXPORT_SYMBOL(migrate_page);
+@@ -755,7 +757,7 @@ int buffer_migrate_page(struct address_space *mapping,
+ 
+ 	SetPagePrivate(newpage);
+ 
+-	migrate_page_copy(newpage, page);
++	migrate_page_copy(newpage, page, MIGRATE_ST);
+ 
+ 	bh = head;
+ 	do {
+@@ -1968,7 +1970,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	/* anon mapping, we can simply copy page->mapping to the new page: */
+ 	new_page->mapping = page->mapping;
+ 	new_page->index = page->index;
+-	migrate_page_copy(new_page, page);
++	migrate_page_copy(new_page, page, MIGRATE_ST);
+ 	WARN_ON(PageLRU(new_page));
+ 
+ 	/* Recheck the target PMD */
 -- 
 2.9.3
 
