@@ -1,109 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 08AA8440602
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:44:21 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id c4so8916603wrd.1
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:44:20 -0800 (PST)
-Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
-        by mx.google.com with ESMTP id n22si13713952wra.214.2017.02.17.07.44.19
-        for <linux-mm@kvack.org>;
-        Fri, 17 Feb 2017 07:44:19 -0800 (PST)
-Date: Fri, 17 Feb 2017 16:44:19 +0100
-From: Maxime Ripard <maxime.ripard@free-electrons.com>
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-Message-ID: <20170217154419.xr4n2ikp4li3c7co@lukather>
-References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
- <CACvgo51p+aqegjkbF6jGggwr+KXq_71w0VFzJvFAF6_egT1-kA@mail.gmail.com>
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E8A75440608
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 10:52:59 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id s186so39116322qkb.5
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2017 07:52:59 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n68si7743032qte.207.2017.02.17.07.52.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Feb 2017 07:52:43 -0800 (PST)
+Date: Fri, 17 Feb 2017 16:52:41 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] userfaultfd: hugetlbfs: add UFFDIO_COPY support for
+ shared mappings
+Message-ID: <20170217155241.GT25530@redhat.com>
+References: <1487195210-12839-1-git-send-email-mike.kravetz@oracle.com>
+ <20170216184100.GS25530@redhat.com>
+ <c9c8cafe-baa7-05b4-34ea-1dfa5523a85f@oracle.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="i226xtpriqwemlpf"
-Content-Disposition: inline
-In-Reply-To: <CACvgo51p+aqegjkbF6jGggwr+KXq_71w0VFzJvFAF6_egT1-kA@mail.gmail.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Emil Velikov <emil.l.velikov@gmail.com>
-Cc: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>, ML dri-devel <dri-devel@lists.freedesktop.org>, Mark Rutland <mark.rutland@arm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, devicetree <devicetree@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Chen-Yu Tsai <wens@csie.org>, Rob Herring <robh+dt@kernel.org>, LAKML <linux-arm-kernel@lists.infradead.org>
-
-
---i226xtpriqwemlpf
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <c9c8cafe-baa7-05b4-34ea-1dfa5523a85f@oracle.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Pavel Emelyanov <xemul@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Thu, Feb 16, 2017 at 04:54:45PM +0000, Emil Velikov wrote:
-> On 16 February 2017 at 12:43, Tobias Jakobi
-> <tjakobi@math.uni-bielefeld.de> wrote:
-> > Hello,
-> >
-> > I was wondering about the following. Wasn't there some strict
-> > requirement about code going upstream, which also included that there
-> > was a full open-source driver stack for it?
-> >
-> > I don't see how this is the case for Mali, neither in the kernel, nor in
-> > userspace. I'm aware that the Mali kernel driver is open-source. But it
-> > is not upstream, maintained out of tree, and won't land upstream in its
-> > current form (no resemblence to a DRM driver at all). And let's not talk
-> > about the userspace part.
-> >
-> > So, why should this be here?
-> >
-> Have to agree with Tobias, here.
->=20
-> I can see the annoyance that Maxime and others have to go through to
-> their systems working.
-> At the same time, changing upstream kernel to suit out of tree
-> module(s) is not how things work. Right ?
->=20
-> Not to mention that the series adds stable ABI exclusively(?) used by
-> a module which does not seem to be in the process of getting merged.
+On Thu, Feb 16, 2017 at 04:18:51PM -0800, Mike Kravetz wrote:
+> Thanks Andrea, I incorporated your suggestions into a new version of the patch. 
+> While changing (dst_vma->vm_flags & VM_SHARED) to integers, I noticed an issue
+> in the error path of __mcopy_atomic_hugetlb().
 
-It really doesn't have any relation to whether a particular component
-is supported in Linux. Our git repo just happens to be the canonical
-source of DT, but those DTs are also used in other systems and
-projects that have *no* relation with Linux, and might have a
-different view on things than we do.
+Indeed good point!
 
-There's been a long-running discussion about moving the DTs out of the
-kernel and in a separate repo. Would you still be opposed to it if I
-happened to contribute that binding to that repo, even if Linux didn't
-have any in-tree support for it? I'm pretty sure you wouldn't, yet
-this is the exact same case.
+> +	int vm_alloc_shared = dst_vma->vm_flags & VM_SHARED;
+> +	int vm_shared = dst_vma->vm_flags & VM_SHARED;
 
-And taking the ACPI example once again, this doesn't seem to bother
-you at all that ACPI reports that it has a device that is not
-supported in-tree in Linux. Why is it any different in DT.
+Other minor nitpick, this could have been:
 
-We already have DT bindings for out of tree drivers, there's really
-nothing new here.
+     int vm_shared = vm_alloc_shared;
 
-Maxime
+But I'm sure gcc will emit the same asm.
 
---=20
-Maxime Ripard, Free Electrons
-Embedded Linux and Kernel engineering
-http://free-electrons.com
+For greppability (if such word exist) calling it vm_shared_alloc would
+have been preferable. We can clean it up post upstream merge or it
+should be diffed against mm latest or it may cause more rejects.
 
---i226xtpriqwemlpf
-Content-Type: application/pgp-signature; name="signature.asc"
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
------BEGIN PGP SIGNATURE-----
 
-iQIcBAEBCAAGBQJYpxpTAAoJEBx+YmzsjxAgE1oQAIah11MBHPFADoIFgRZiKVGm
-fZZrhIlhO6qbZtIXfYcImTXsKQaH+2UmzByyjOHoKzXonV/HQE3nH+V6A38TmMTV
-vP5uFpuIchVBr0vRjc1FkmFSio8uJFBHxH8uZnqddZNsh2s5n/Jfrux972wtX9CM
-pFTJTPEjMV0YsqJpoGjvn7EgKWUEKT7qrpzVrk7kSIlYsvzjeEdd9jHLykS5yzwS
-2jCfrUM6jNWmtoABV3blO37Mm/bJjdHN5slSL/ayUXVERUduEiqvUrepM6zNkZvw
-qB11BXcyUbSUn5sawNEx5tyE/kLVF0+BWDKaC5H01cpPxns6KOVJpOsWNDESILSr
-QvVzhyCO0NxBTQx4EhlYLfQiOxJr6q/541lImdfK/4bOHyOvkLGWKC+7i25WQrwc
-cGgkijMWJZlC7siJwbAXD2duLhRydUbO7aMvqH89LeCYR6F3IZHSB0sCZYbB6eFz
-kWBZOgyeLFWFsz/6a2VwULSRU+VFAhAldzPn4ajSCr9SjPE6kFQuvMLrf9uLfHTB
-WdzTTSCGGchmwHgKUVmhmlU4k2rLDsGqbQlssKzG+vibL5TXwIfEIArazgLwDlQB
-Gi5p4q7KsUdAcS/SqZ2x7Zo8TINRXi85QLnA5Pok/GTUWI/vh1EK3lFojeHmM4sx
-DGreiIE7M2I/2C9JLdYA
-=4WLJ
------END PGP SIGNATURE-----
+The patches were not against latest -mm so I solved the rejects during
+merge in my tree. Then I looked at the result of all my merges after
+everything is applied and I think I spotted a merge gone wrong in this
+patch:
 
---i226xtpriqwemlpf--
+https://ozlabs.org/~akpm/mmots/broken-out/userfaultfd-mcopy_atomic-return-enoent-when-no-compatible-vma-found.patch
+
+Below is a hand edited git diff that shows the only meaningful
+difference.
+
+The below should be included in
+userfaultfd-mcopy_atomic-return-enoent-when-no-compatible-vma-found.patch
+or as -fix2 at the end.
+
+Everything else is identical which is great. Mike Rapoport could you
+verify the below hunk is missing in mm?
+
+Once it'll all be merged upstream then there will be less merge crunch
+as we've been working somewhat in parallel on the same files, so this
+is resulting in more merge rejects than ideal :).
+
+diff --git a/../mm/mm/userfaultfd.c b/mm/userfaultfd.c
+index 830bed7..3ec9aad 100644
+--- a/../mm/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -199,6 +201,12 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 		dst_vma = find_vma(dst_mm, dst_start);
+ 		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
+ 			goto out_unlock;
++		/*
++		 * Only allow __mcopy_atomic_hugetlb on userfaultfd
++		 * registered ranges.
++		 */
++		if (!dst_vma->vm_userfaultfd_ctx.ctx)
++			goto out_unlock;
+ 
+ 		if (dst_start < dst_vma->vm_start ||
+ 		    dst_start + len > dst_vma->vm_end)
+@@ -214,16 +224,10 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 		goto out_unlock;
+ 
+ 	/*
+-	 * Only allow __mcopy_atomic_hugetlb on userfaultfd registered ranges.
+-	 */
+-	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+-		goto out_unlock;
+-
+-	/*
+ 	 * If not shared, ensure the dst_vma has a anon_vma.
+ 	 */
+ 	err = -ENOMEM;
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
