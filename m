@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9C94405D8
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DE514405DF
 	for <linux-mm@kvack.org>; Fri, 17 Feb 2017 09:14:06 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id e4so60671579pfg.4
+Received: by mail-pf0-f197.google.com with SMTP id o64so11628131pfb.2
         for <linux-mm@kvack.org>; Fri, 17 Feb 2017 06:14:06 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id y7si10377833pgb.374.2017.02.17.06.14.05
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e11si10355979pgp.351.2017.02.17.06.14.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 17 Feb 2017 06:14:05 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 25/33] x86/dump_pagetables: support 5-level paging
-Date: Fri, 17 Feb 2017 17:13:20 +0300
-Message-Id: <20170217141328.164563-26-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 27/33] x86/espfix: support 5-level paging
+Date: Fri, 17 Feb 2017 17:13:22 +0300
+Message-Id: <20170217141328.164563-28-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,100 +20,49 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Simple extension to support one more page table level.
+We don't need extra virtual address space for ESPFIX, so it stays within
+one PUD page table for both 4- and 5-level paging.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/dump_pagetables.c | 49 ++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 42 insertions(+), 7 deletions(-)
+ arch/x86/kernel/espfix_64.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 8aa6bea1cd6c..874afcc6af9e 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -101,7 +101,8 @@ static struct addr_marker address_markers[] = {
- #define PTE_LEVEL_MULT (PAGE_SIZE)
- #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
- #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
--#define PGD_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
-+#define P4D_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
-+#define PGD_LEVEL_MULT (PTRS_PER_PUD * P4D_LEVEL_MULT)
+diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
+index 04f89caef9c4..8e598a1ad986 100644
+--- a/arch/x86/kernel/espfix_64.c
++++ b/arch/x86/kernel/espfix_64.c
+@@ -50,11 +50,11 @@
+ #define ESPFIX_STACKS_PER_PAGE	(PAGE_SIZE/ESPFIX_STACK_SIZE)
  
- #define pt_dump_seq_printf(m, to_dmesg, fmt, args...)		\
- ({								\
-@@ -327,14 +328,14 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
+ /* There is address space for how many espfix pages? */
+-#define ESPFIX_PAGE_SPACE	(1UL << (PGDIR_SHIFT-PAGE_SHIFT-16))
++#define ESPFIX_PAGE_SPACE	(1UL << (P4D_SHIFT-PAGE_SHIFT-16))
  
- #if PTRS_PER_PUD > 1
- 
--static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
-+static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
- 							unsigned long P)
- {
- 	int i;
- 	pud_t *start;
- 	pgprotval_t prot;
- 
--	start = (pud_t *) pgd_page_vaddr(addr);
-+	start = (pud_t *) p4d_page_vaddr(addr);
- 
- 	for (i = 0; i < PTRS_PER_PUD; i++) {
- 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
-@@ -354,9 +355,43 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
- }
- 
- #else
--#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(pgd_val(a)),p)
--#define pgd_large(a) pud_large(__pud(pgd_val(a)))
--#define pgd_none(a)  pud_none(__pud(pgd_val(a)))
-+#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(p4d_val(a)),p)
-+#define p4d_large(a) pud_large(__pud(p4d_val(a)))
-+#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
-+#endif
-+
-+#if PTRS_PER_P4D > 1
-+
-+static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
-+							unsigned long P)
-+{
-+	int i;
-+	p4d_t *start;
-+	pgprotval_t prot;
-+
-+	start = (p4d_t *) pgd_page_vaddr(addr);
-+
-+	for (i = 0; i < PTRS_PER_P4D; i++) {
-+		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
-+		if (!p4d_none(*start)) {
-+			if (p4d_large(*start) || !p4d_present(*start)) {
-+				prot = p4d_flags(*start);
-+				note_page(m, st, __pgprot(prot), 2);
-+			} else {
-+				walk_pud_level(m, st, *start,
-+					       P + i * P4D_LEVEL_MULT);
-+			}
-+		} else
-+			note_page(m, st, __pgprot(0), 2);
-+
-+		start++;
-+	}
-+}
-+
-+#else
-+#define walk_p4d_level(m,s,a,p) walk_pud_level(m,s,__p4d(pgd_val(a)),p)
-+#define pgd_large(a) p4d_large(__p4d(pgd_val(a)))
-+#define pgd_none(a)  p4d_none(__p4d(pgd_val(a)))
+ #define ESPFIX_MAX_CPUS		(ESPFIX_STACKS_PER_PAGE * ESPFIX_PAGE_SPACE)
+ #if CONFIG_NR_CPUS > ESPFIX_MAX_CPUS
+-# error "Need more than one PGD for the ESPFIX hack"
++# error "Need more virtual address space for the ESPFIX hack"
  #endif
  
- static inline bool is_hypervisor_range(int idx)
-@@ -401,7 +436,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 				prot = pgd_flags(*start);
- 				note_page(m, &st, __pgprot(prot), 1);
- 			} else {
--				walk_pud_level(m, &st, *start,
-+				walk_p4d_level(m, &st, *start,
- 					       i * PGD_LEVEL_MULT);
- 			}
- 		} else
+ #define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
+@@ -121,11 +121,13 @@ static void init_espfix_random(void)
+ 
+ void __init init_espfix_bsp(void)
+ {
+-	pgd_t *pgd_p;
++	pgd_t *pgd;
++	p4d_t *p4d;
+ 
+ 	/* Install the espfix pud into the kernel page directory */
+-	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
+-	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
++	pgd = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
++	p4d = p4d_alloc(&init_mm, pgd, ESPFIX_BASE_ADDR);
++	p4d_populate(&init_mm, p4d, espfix_pud_page);
+ 
+ 	/* Randomize the locations */
+ 	init_espfix_random();
 -- 
 2.11.0
 
