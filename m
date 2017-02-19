@@ -1,56 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 173756B0389
-	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 05:00:13 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id z67so125523502pgb.0
-        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 02:00:13 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 243BD6B038B
+	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 05:04:16 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 2so88423405pfz.5
+        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 02:04:16 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r17si5306744pgh.258.2017.02.19.02.00.12
+        by mx.google.com with ESMTPS id o1si15375651pld.43.2017.02.19.02.04.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Feb 2017 02:00:12 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1J9sL32050308
-	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 05:00:11 -0500
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28pmkwh12p-1
+        Sun, 19 Feb 2017 02:04:15 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1JA3dUk012872
+	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 05:04:14 -0500
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28ppuhcx37-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 05:00:11 -0500
+	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 05:04:14 -0500
 Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 19 Feb 2017 05:00:10 -0500
+	Sun, 19 Feb 2017 03:04:13 -0700
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] mm/thp/autonuma: Use TNF flag instead of vm fault.
-Date: Sun, 19 Feb 2017 15:29:55 +0530
-Message-Id: <1487498395-9544-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V3 0/3] Numabalancing preserve write fix
+Date: Sun, 19 Feb 2017 15:33:42 +0530
+Message-Id: <1487498625-10891-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We are using wrong flag value in task_numa_falt function. This can result in
-us doing wrong numa fault statistics update, because we update num_pages_migrate
-and numa_fault_locality etc based on the flag argument passed.
+This patch series address an issue w.r.t THP migration and autonuma
+preserve write feature. migrate_misplaced_transhuge_page() cannot deal with
+concurrent modification of the page. It does a page copy without
+following the migration pte sequence. IIUC, this was done to keep the
+migration simpler and at the time of implemenation we didn't had THP
+page cache which would have required a more elaborate migration scheme.
+That means thp autonuma migration expect the protnone with saved write
+to be done such that both kernel and user cannot update
+the page content. This patch series enables archs like ppc64 to do that.
+We are good with the hash translation mode with the current code,
+because we never create a hardware page table entry for a protnone pte. 
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- mm/huge_memory.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Changes form V2:
+* Fix kvm crashes due to ksm not clearing savedwrite bit.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5f3ad65c85de..8f1d93257fb9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1333,7 +1333,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 
- 	if (page_nid != -1)
- 		task_numa_fault(last_cpupid, page_nid, HPAGE_PMD_NR,
--				vmf->flags);
-+				flags);
- 
- 	return 0;
- }
+Changes from V1:
+* Update the patch so that it apply cleanly to upstream.
+* Add acked-by from Michael Neuling
+
+Aneesh Kumar K.V (3):
+  mm/autonuma: Let architecture override how the write bit should be
+    stashed in a protnone pte.
+  mm/ksm: Handle protnone saved writes when making page write protect
+  powerpc/mm/autonuma: Switch ppc64 to its own implementeation of saved
+    write
+
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 52 ++++++++++++++++++++++++----
+ include/asm-generic/pgtable.h                | 24 +++++++++++++
+ mm/huge_memory.c                             |  6 ++--
+ mm/ksm.c                                     |  9 +++--
+ mm/memory.c                                  |  2 +-
+ mm/mprotect.c                                |  4 +--
+ 6 files changed, 82 insertions(+), 15 deletions(-)
+
 -- 
 2.7.4
 
