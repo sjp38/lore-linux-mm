@@ -1,176 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 258106B0038
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 03:38:45 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id o64so105814817pfb.2
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 00:38:45 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id i15si12841446pgp.147.2017.02.20.00.38.42
-        for <linux-mm@kvack.org>;
-        Mon, 20 Feb 2017 00:38:44 -0800 (PST)
-Date: Mon, 20 Feb 2017 17:38:36 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 00/13] lockdep: Implement crossrelease feature
-Message-ID: <20170220083836.GA3817@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 615BF6B0389
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 04:53:01 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 65so3087833oig.3
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 01:53:01 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0086.outbound.protection.outlook.com. [104.47.32.86])
+        by mx.google.com with ESMTPS id h33si6480541oth.33.2017.02.20.01.53.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 20 Feb 2017 01:53:00 -0800 (PST)
+From: "Nair, Vishnu" <Vishnu.Nair@cavium.com>
+Subject: Re: [RFC PATCH v1 1/1] mm: zswap - Add crypto acomp/scomp framework
+ support
+Date: Mon, 20 Feb 2017 09:52:57 +0000
+Message-ID: <MWHPR07MB2943F04F607146A954D404E3955E0@MWHPR07MB2943.namprd07.prod.outlook.com>
+References: <1487086821-5880-1-git-send-email-Mahipal.Challa@cavium.com>
+ <1487086821-5880-2-git-send-email-Mahipal.Challa@cavium.com>
+ <CAC8qmcCt8VEX6QSSL35isN-nEvH-AJ2MAJHZy0TigxftsQN2jA@mail.gmail.com>
+ <58A45E4A.8080508@caviumnetworks.com>,<20170215221208.GA820@silv-gc1.ir.intel.com>
+In-Reply-To: <20170215221208.GA820@silv-gc1.ir.intel.com>
+Content-Language: en-US
+Content-Type: multipart/alternative;
+	boundary="_000_MWHPR07MB2943F04F607146A954D404E3955E0MWHPR07MB2943namp_"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org
-Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Giovanni Cabiddu <giovanni.cabiddu@intel.com>, "Narayana, Prasad Athreya" <Prasad.Athreya@cavium.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Mahipal Challa <mahipalreddy2006@gmail.com>, "herbert@gondor.apana.org.au" <herbert@gondor.apana.org.au>, "davem@davemloft.net" <davem@davemloft.net>, "linux-crypto@vger.kernel.org" <linux-crypto@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "Challa,
+ Mahipal" <Mahipal.Challa@cavium.com>
 
-On Wed, Jan 18, 2017 at 10:17:26PM +0900, Byungchul Park wrote:
-> I checked if crossrelease feature works well on my qemu-i386 machine.
-> There's no problem at all to work on mine. But I wonder if it's also
-> true even on other machines. Especially, on large system. Could you
-> let me know if it doesn't work on yours? Or Could you let me know if
-> crossrelease feature is useful? Please let me know if you need to
-> backport it to another version but it's not easy. Then I can provide
-> the backported version after working it.
+--_000_MWHPR07MB2943F04F607146A954D404E3955E0MWHPR07MB2943namp_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Hello peterz,
+>This assumption is not correct. An asynchronous implementation, when
+>it finishes processing a request, will call acomp_request_complete() which
+>in turn calls the callback.
+>If the callback is set to NULL, this function will dereference a NULL
+>pointer.
 
-I don't want to rush you, but I think enough time has passed. Could you
-check this? I tried to apply what you recommanded at the previous spin
-as much as possible. Could you?
+
+This would leave us with the option of waiting in zswap until completion. H=
+ere we had a doubt.
+
+If we go ahead with an implementation similar to the one found in crypto/te=
+stmgr.c, the private data(result) which is registered via 'acomp_request_se=
+t_callback()' is coming from stack. Do you see this as a potential problem =
+for an acutal asynchronus algorithm due to the context from which callback =
+is called? Do we have to use per-cpu dynamic allocation?
+
 
 Thanks,
-Byungchul
+Vishnu
 
-> 
-> -----8<-----
-> 
-> Change from v4
-> 	- rebase on vanilla v4.9 tag
-> 	- re-name pend_lock(plock) to hist_lock(xhlock)
-> 	- allow overwriting ring buffer for hist_lock
-> 	- unwind ring buffer instead of tagging id for each irq
-> 	- introduce lockdep_map_cross embedding cross_lock
-> 	- make each work of workqueue distinguishable
-> 	- enhance comments
-> 	(I will update the document at the next spin.)
-> 
-> Change from v3
-> 	- reviced document
-> 
-> Change from v2
-> 	- rebase on vanilla v4.7 tag
-> 	- move lockdep data for page lock from struct page to page_ext
-> 	- allocate plocks buffer via vmalloc instead of in struct task
-> 	- enhanced comments and document
-> 	- optimize performance
-> 	- make reporting function crossrelease-aware
-> 
-> Change from v1
-> 	- enhanced the document
-> 	- removed save_stack_trace() optimizing patch
-> 	- made this based on the seperated save_stack_trace patchset
-> 	  https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1182242.html
-> 
-> Can we detect deadlocks below with original lockdep?
-> 
-> Example 1)
-> 
-> 	PROCESS X	PROCESS Y
-> 	--------------	--------------
-> 	mutext_lock A
-> 			lock_page B
-> 	lock_page B
-> 			mutext_lock A // DEADLOCK
-> 	unlock_page B
-> 			mutext_unlock A
-> 	mutex_unlock A
-> 			unlock_page B
-> 
-> where A and B are different lock classes.
-> 
-> No, we cannot.
-> 
-> Example 2)
-> 
-> 	PROCESS X	PROCESS Y	PROCESS Z
-> 	--------------	--------------	--------------
-> 			mutex_lock A
-> 	lock_page B
-> 			lock_page B
-> 					mutext_lock A // DEADLOCK
-> 					mutext_unlock A
-> 					unlock_page B
-> 					(B was held by PROCESS X)
-> 			unlock_page B
-> 			mutex_unlock A
-> 
-> where A and B are different lock classes.
-> 
-> No, we cannot.
-> 
-> Example 3)
-> 
-> 	PROCESS X	PROCESS Y
-> 	--------------	--------------
-> 			mutex_lock A
-> 	mutex_lock A
-> 			wait_for_complete B // DEADLOCK
-> 	mutex_unlock A
-> 	complete B
-> 			mutex_unlock A
-> 
-> where A is a lock class and B is a completion variable.
-> 
-> No, we cannot.
-> 
-> Not only lock operations, but also any operations causing to wait or
-> spin for something can cause deadlock unless it's eventually *released*
-> by someone. The important point here is that the waiting or spinning
-> must be *released* by someone.
-> 
-> Using crossrelease feature, we can check dependency and detect deadlock
-> possibility not only for typical lock, but also for lock_page(),
-> wait_for_xxx() and so on, which might be released in any context.
-> 
-> See the last patch including the document for more information.
-> 
-> Byungchul Park (13):
->   lockdep: Refactor lookup_chain_cache()
->   lockdep: Fix wrong condition to print bug msgs for
->     MAX_LOCKDEP_CHAIN_HLOCKS
->   lockdep: Add a function building a chain between two classes
->   lockdep: Refactor save_trace()
->   lockdep: Pass a callback arg to check_prev_add() to handle stack_trace
->   lockdep: Implement crossrelease feature
->   lockdep: Make print_circular_bug() aware of crossrelease
->   lockdep: Apply crossrelease to completions
->   pagemap.h: Remove trailing white space
->   lockdep: Apply crossrelease to PG_locked locks
->   lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
->   lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
->   lockdep: Crossrelease feature documentation
-> 
->  Documentation/locking/crossrelease.txt | 1053 ++++++++++++++++++++++++++++++++
->  include/linux/completion.h             |  118 +++-
->  include/linux/irqflags.h               |   24 +-
->  include/linux/lockdep.h                |  129 ++++
->  include/linux/mm_types.h               |    4 +
->  include/linux/page-flags.h             |   43 +-
->  include/linux/page_ext.h               |    4 +
->  include/linux/pagemap.h                |  124 +++-
->  include/linux/sched.h                  |    9 +
->  kernel/exit.c                          |    9 +
->  kernel/fork.c                          |   23 +
->  kernel/locking/lockdep.c               |  763 ++++++++++++++++++++---
->  kernel/sched/completion.c              |   54 +-
->  kernel/workqueue.c                     |    1 +
->  lib/Kconfig.debug                      |   30 +
->  mm/filemap.c                           |   76 ++-
->  mm/page_ext.c                          |    4 +
->  17 files changed, 2324 insertions(+), 144 deletions(-)
->  create mode 100644 Documentation/locking/crossrelease.txt
-> 
-> -- 
-> 1.9.1
+
+________________________________
+From: Giovanni Cabiddu <giovanni.cabiddu@intel.com>
+Sent: Thursday, February 16, 2017 3:42 AM
+To: Narayana, Prasad Athreya
+Cc: Seth Jennings; Mahipal Challa; herbert@gondor.apana.org.au; davem@davem=
+loft.net; linux-crypto@vger.kernel.org; LKML; Linux-MM; Narayana, Prasad At=
+hreya; Nair, Vishnu; Challa, Mahipal; Nair, Vishnu
+Subject: Re: [RFC PATCH v1 1/1] mm: zswap - Add crypto acomp/scomp framewor=
+k support
+
+On Wed, Feb 15, 2017 at 07:27:30PM +0530, Narayana Prasad Athreya wrote:
+> > I assume all of these crypto_acomp_[compress|decompress] calls are
+> > actually synchronous,
+> > not asynchronous as the name suggests.  Otherwise, this would blow up
+> > quite spectacularly
+> > since all the resources we use in the call get derefed/unmapped below.
+> >
+> > Could an async algorithm be implement/used that would break this assump=
+tion?
+>
+> The callback is set to NULL using acomp_request_set_callback(). This impl=
+ies
+> synchronous mode of operation. So the underlying implementation must
+> complete the operation synchronously.
+This assumption is not correct. An asynchronous implementation, when
+it finishes processing a request, will call acomp_request_complete() which
+in turn calls the callback.
+If the callback is set to NULL, this function will dereference a NULL
+pointer.
+
+Regards,
+
+--
+Giovanni
+
+--_000_MWHPR07MB2943F04F607146A954D404E3955E0MWHPR07MB2943namp_
+Content-Type: text/html; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
+1">
+<style type=3D"text/css" style=3D"display:none;"><!-- P {margin-top:0;margi=
+n-bottom:0;} --></style>
+</head>
+<body dir=3D"ltr">
+<div id=3D"divtagdefaultwrapper" style=3D"font-size:12pt;color:#000000;font=
+-family:Calibri,Arial,Helvetica,sans-serif;" dir=3D"ltr">
+<p><font size=3D"2"><span style=3D"font-size:10pt;">&gt;This assumption is =
+not correct. An asynchronous implementation, when<br>
+&gt;it finishes processing a request, will call acomp_request_complete() wh=
+ich<br>
+&gt;in turn calls the callback.<br>
+&gt;If the callback is set to NULL, this function will dereference a NULL<b=
+r>
+&gt;pointer.</span></font></p>
+<p><font size=3D"2"><span style=3D"font-size:10pt;"><br>
+</span></font></p>
+<p><font size=3D"2"><span style=3D"font-size:10pt;"></span></font>This woul=
+d leave us with the option of waiting in zswap until completion. Here we ha=
+d a doubt.
+<br>
+</p>
+<p>If we go ahead with an implementation similar to the one found in crypto=
+/testmgr.c, the private data(result) which is registered via '<span>acomp_r=
+equest_set_callback</span>()' is coming from stack. Do you see this as a po=
+tential problem for an acutal asynchronus
+ algorithm due to the context from which callback is called? Do we have to =
+use per-cpu dynamic allocation?
+<br>
+</p>
+<p><br>
+</p>
+<div id=3D"Signature">
+<div id=3D"divtagdefaultwrapper" style=3D"font-size:12pt; color:#000000; ba=
+ckground-color:#FFFFFF; font-family:Calibri,Arial,Helvetica,sans-serif">
+<div name=3D"divtagdefaultwrapper" style=3D"font-family:Calibri,Arial,Helve=
+tica,sans-serif; font-size:; margin:0">
+Thanks,<br>
+Vishnu <br>
+</div>
+</div>
+</div>
+<br>
+<br>
+<div style=3D"color: rgb(0, 0, 0);">
+<div>
+<hr tabindex=3D"-1" style=3D"display:inline-block; width:98%">
+<div id=3D"x_divRplyFwdMsg" dir=3D"ltr"><font style=3D"font-size:11pt" face=
+=3D"Calibri, sans-serif" color=3D"#000000"><b>From:</b> Giovanni Cabiddu &l=
+t;giovanni.cabiddu@intel.com&gt;<br>
+<b>Sent:</b> Thursday, February 16, 2017 3:42 AM<br>
+<b>To:</b> Narayana, Prasad Athreya<br>
+<b>Cc:</b> Seth Jennings; Mahipal Challa; herbert@gondor.apana.org.au; dave=
+m@davemloft.net; linux-crypto@vger.kernel.org; LKML; Linux-MM; Narayana, Pr=
+asad Athreya; Nair, Vishnu; Challa, Mahipal; Nair, Vishnu<br>
+<b>Subject:</b> Re: [RFC PATCH v1 1/1] mm: zswap - Add crypto acomp/scomp f=
+ramework support</font>
+<div>&nbsp;</div>
+</div>
+</div>
+<font size=3D"2"><span style=3D"font-size:10pt;">
+<div class=3D"PlainText">On Wed, Feb 15, 2017 at 07:27:30PM &#43;0530, Nara=
+yana Prasad Athreya wrote:<br>
+&gt; &gt; I assume all of these crypto_acomp_[compress|decompress] calls ar=
+e<br>
+&gt; &gt; actually synchronous,<br>
+&gt; &gt; not asynchronous as the name suggests.&nbsp; Otherwise, this woul=
+d blow up<br>
+&gt; &gt; quite spectacularly<br>
+&gt; &gt; since all the resources we use in the call get derefed/unmapped b=
+elow.<br>
+&gt; &gt; <br>
+&gt; &gt; Could an async algorithm be implement/used that would break this =
+assumption?<br>
+&gt; <br>
+&gt; The callback is set to NULL using acomp_request_set_callback(). This i=
+mplies<br>
+&gt; synchronous mode of operation. So the underlying implementation must<b=
+r>
+&gt; complete the operation synchronously.<br>
+This assumption is not correct. An asynchronous implementation, when<br>
+it finishes processing a request, will call acomp_request_complete() which<=
+br>
+in turn calls the callback.<br>
+If the callback is set to NULL, this function will dereference a NULL<br>
+pointer.<br>
+<br>
+Regards,<br>
+<br>
+-- <br>
+Giovanni <br>
+</div>
+</span></font></div>
+</div>
+</body>
+</html>
+
+--_000_MWHPR07MB2943F04F607146A954D404E3955E0MWHPR07MB2943namp_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
