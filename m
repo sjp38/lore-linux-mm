@@ -1,56 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CDFC6B0389
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 05:21:25 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id le4so11881801wjb.1
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 02:21:25 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 140si11758901wmt.40.2017.02.20.02.21.23
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3278C6B0038
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 05:49:23 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id b2so16071954pgc.6
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 02:49:23 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id m24si2290284pfa.104.2017.02.20.02.49.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Feb 2017 02:21:23 -0800 (PST)
-Date: Mon, 20 Feb 2017 11:21:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3 staging-next] android: Lowmemmorykiller task tree
-Message-ID: <20170220102121.GF2431@dhcp22.suse.cz>
-References: <df828d70-3962-2e43-0512-1777a9842bb2@sonymobile.com>
- <20170210102732.GB10054@dhcp22.suse.cz>
- <5579dead-092d-2ce2-a9d4-f2b50721f0dc@sonymobile.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5579dead-092d-2ce2-a9d4-f2b50721f0dc@sonymobile.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Feb 2017 02:49:22 -0800 (PST)
+From: Elena Reshetova <elena.reshetova@intel.com>
+Subject: [PATCH 0/5] mm subsystem refcounter conversions
+Date: Mon, 20 Feb 2017 12:49:09 +0200
+Message-Id: <1487587754-10610-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sonymobile.com>
-Cc: devel@driverdev.osuosl.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Riley Andrews <riandrews@android.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, Elena Reshetova <elena.reshetova@intel.com>
 
-On Mon 13-02-17 16:42:42, peter enderborg wrote:
-> On 02/10/2017 11:27 AM, Michal Hocko wrote:
-> > [I have only now see this cover - it answers some of the questions I've
-> >  had to specific patches. It would be really great if you could use git
-> >  send-email to post patch series - it just does the right thing(tm)]
-> >
-> > On Thu 09-02-17 14:21:40, peter enderborg wrote:
-> >> Lowmemorykiller efficiency problem and a solution.
-> >>
-> >> Lowmemorykiller in android has a severe efficiency problem. The basic
-> >> problem is that the registered shrinker gets called very often without
-> >>  anything actually happening.
-> > Which is an inherent problem because lkml doesn't belong to shrinkers
-> > infrastructure.
-> 
-> Not really what this patch address.  I see it as a problem with shrinker
-> that there no slow-path-free (scan/count) where it should belong.
-> This patch address a specific problem where lot of cpu are wasted
-> in low memory conditions.
+Now when new refcount_t type and API are finally merged
+(see include/linux/refcount.h), the following
+patches convert various refcounters in the mm susystem from atomic_t
+to refcount_t. By doing this we prevent intentional or accidental
+underflows or overflows that can led to use-after-free vulnerabilities.
 
-Let me repeat. The specific problem you are trying to solve is
-_inherent_ to how the lmk is designed. Full stop.
+The below patches are fully independent and can be cherry-picked separately.
+Since we convert all kernel subsystems in the same fashion, resulting
+in about 300 patches, we have to group them for sending at least in some
+fashion to be manageable. Please excuse the long cc list.
+
+Elena Reshetova (5):
+  mm: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
+  mm: convert anon_vma.refcount from atomic_t to refcount_t
+  mm: convert kmemleak_object.use_count from atomic_t to refcount_t
+  mm: convert mm_struct.mm_users from atomic_t to refcount_t
+  mm: convert mm_struct.mm_count from atomic_t to refcount_t
+
+ arch/alpha/kernel/smp.c                  |  6 +++---
+ arch/arc/mm/tlb.c                        |  2 +-
+ arch/blackfin/mach-common/smp.c          |  2 +-
+ arch/ia64/include/asm/tlbflush.h         |  2 +-
+ arch/ia64/kernel/smp.c                   |  2 +-
+ arch/ia64/sn/kernel/sn2/sn2_smp.c        |  4 ++--
+ arch/mips/kernel/process.c               |  2 +-
+ arch/mips/kernel/smp.c                   |  6 +++---
+ arch/parisc/include/asm/mmu_context.h    |  2 +-
+ arch/powerpc/mm/hugetlbpage.c            |  2 +-
+ arch/powerpc/mm/icswx.c                  |  4 ++--
+ arch/sh/kernel/smp.c                     |  6 +++---
+ arch/sparc/kernel/smp_64.c               |  6 +++---
+ arch/sparc/mm/srmmu.c                    |  2 +-
+ arch/um/kernel/tlb.c                     |  2 +-
+ arch/x86/kernel/tboot.c                  |  4 ++--
+ arch/xtensa/kernel/smp.c                 |  5 +++++
+ drivers/firmware/efi/arm-runtime.c       |  4 ++--
+ drivers/gpu/drm/amd/amdkfd/kfd_process.c |  2 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c  |  1 -
+ fs/coredump.c                            |  2 +-
+ fs/proc/base.c                           |  2 +-
+ fs/userfaultfd.c                         |  3 +--
+ include/linux/backing-dev-defs.h         |  3 ++-
+ include/linux/backing-dev.h              |  4 ++--
+ include/linux/mm_types.h                 |  5 +++--
+ include/linux/rmap.h                     |  7 ++++---
+ include/linux/sched.h                    | 10 +++++-----
+ kernel/events/uprobes.c                  |  2 +-
+ kernel/exit.c                            |  2 +-
+ kernel/fork.c                            | 12 ++++++------
+ kernel/sched/core.c                      |  2 +-
+ lib/is_single_threaded.c                 |  2 +-
+ mm/backing-dev.c                         | 11 ++++++-----
+ mm/debug.c                               |  4 ++--
+ mm/init-mm.c                             |  4 ++--
+ mm/khugepaged.c                          |  2 +-
+ mm/kmemleak.c                            | 16 ++++++++--------
+ mm/ksm.c                                 |  2 +-
+ mm/memory.c                              |  2 +-
+ mm/mmu_notifier.c                        | 10 +++++-----
+ mm/mprotect.c                            |  2 +-
+ mm/oom_kill.c                            |  2 +-
+ mm/rmap.c                                | 14 +++++++-------
+ mm/swapfile.c                            |  2 +-
+ mm/vmacache.c                            |  2 +-
+ 46 files changed, 101 insertions(+), 94 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
