@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3646B0038
-	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 10:00:41 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id gh4so14840261wjb.7
-        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 07:00:41 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r1si20619993wra.91.2017.02.19.07.00.40
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 19 Feb 2017 07:00:40 -0800 (PST)
-Date: Sun, 19 Feb 2017 16:00:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Trying to understand OOM killer
-Message-ID: <20170219150037.GB24890@dhcp22.suse.cz>
-References: <1486907233.6235.29.camel@users.sourceforge.net>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 75F006B0038
+	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 22:30:42 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 1so59182149pgz.5
+        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 19:30:42 -0800 (PST)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id l127si17180984pga.348.2017.02.19.19.30.39
+        for <linux-mm@kvack.org>;
+        Sun, 19 Feb 2017 19:30:41 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1487498395-9544-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1487498395-9544-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/thp/autonuma: Use TNF flag instead of vm fault.
+Date: Mon, 20 Feb 2017 11:30:26 +0800
+Message-ID: <00ec01d28b29$adb7ce70$09276b50$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1486907233.6235.29.camel@users.sourceforge.net>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Menzel <paulepanter@users.sourceforge.net>
+To: "'Aneesh Kumar K.V'" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, 'Rik van Riel' <riel@surriel.com>, 'Mel Gorman' <mgorman@techsingularity.net>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun 12-02-17 14:47:13, Paul Menzel wrote:
-> Dear Linux folks,
-> 
-> 
-> since some time, at Linux 4.8, 4.9, and 4.10-rc6, the OOM kicks in on a
-> 8 GB machine.
-> 
-> ```
-> Feb 12 08:21:50 asrocke350m1 kernel: updatedb.mlocat invoked oom-killer: gfp_mask=0x16040d0(GFP_TEMPORARY|__GFP_COMP|__GFP_NOTRACK), nodemask=
 
-The output is truncated. Could you send the full oom report? But this
-smells like an example of the lowmem exhaustion. This is a lowmem
-request on 32b system
-[...]
-> Feb 12 08:21:53 asrocke350m1 kernel: Node 0 active_anon:479572kB inactive_anon:70712kB active_file:125844kB inactive_file:876364kB unevictable
-> Feb 12 08:21:53 asrocke350m1 kernel: DMA free:3840kB min:788kB low:984kB high:1180kB active_anon:0kB inactive_anon:0kB active_file:0kB inactiv
-> Feb 12 08:21:53 asrocke350m1 kernel: lowmem_reserve[]: 0 763 7663 7663
-> Feb 12 08:21:53 asrocke350m1 kernel: Normal free:38764kB min:38828kB low:48532kB high:58236kB active_anon:0kB inactive_anon:0kB active_file:16
-> Feb 12 08:21:53 asrocke350m1 kernel: lowmem_reserve[]: 0 0 55201 55201
+On February 19, 2017 6:00 PM Aneesh Kumar K.V wrote: 
+> 
+> We are using wrong flag value in task_numa_falt function. This can result in
+> us doing wrong numa fault statistics update, because we update num_pages_migrate
+> and numa_fault_locality etc based on the flag argument passed.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-lowmem is on the min watermark while there is no anonymous memory to be
-reclaimed and we cannot really tell how much of the page cache as it is
-truncated. We also do not know how large is the request because the
-order part is missing. __GFP_COMP would suggest higher order request.
+Fix: bae473a423 ("mm: introduce fault_env")
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-In short it is very likely that the OOM killer is genuine because the
-given allocation request cannot be satisfied because the low mem
-(~896MB) is depleted. This is an inherent problem of 32b kernels
-unfortunately. Maybe there is a larger memory consumer in newer
-kernels which changed the picture for you.
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>  mm/huge_memory.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 5f3ad65c85de..8f1d93257fb9 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1333,7 +1333,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+> 
+>  	if (page_nid != -1)
+>  		task_numa_fault(last_cpupid, page_nid, HPAGE_PMD_NR,
+> -				vmf->flags);
+> +				flags);
+> 
+>  	return 0;
+>  }
+> --
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
