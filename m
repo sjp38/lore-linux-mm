@@ -1,94 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BD86B0038
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 00:03:47 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c193so70864832pfb.7
-        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 21:03:46 -0800 (PST)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id 7si6112821pfd.172.2017.02.19.21.03.45
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA3A76B0038
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 00:22:34 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 65so156516717pgi.7
+        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 21:22:34 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 205si17460348pgc.109.2017.02.19.21.22.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Feb 2017 21:03:45 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
-Date: Mon, 20 Feb 2017 05:00:17 +0000
-Message-ID: <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
-In-Reply-To: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <4A20DC0DB9C13C4E90784422FFC7E6D8@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Sun, 19 Feb 2017 21:22:33 -0800 (PST)
+Subject: Re: Query on per app memory cgroup
+References: <b7ee0ad3-a580-b38a-1e90-035c77b181ea@codeaurora.org>
+ <b11e01d9-7f67-5c91-c7da-e5a95996c0ec@codeaurora.org>
+ <CAA_GA1eMYOPwm8iqn6QLVRvn7vFi3Ae6CbpkLU7iO=J+jE=Yiw@mail.gmail.com>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <ed013bac-e3b9-feb1-c7ce-26c982bf04b7@codeaurora.org>
+Date: Mon, 20 Feb 2017 10:52:27 +0530
 MIME-Version: 1.0
+In-Reply-To: <CAA_GA1eMYOPwm8iqn6QLVRvn7vFi3Ae6CbpkLU7iO=J+jE=Yiw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, shashim@codeaurora.org
 
-On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
-> Hi,
->
-> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
-> unless I touch/prefault page before call to madvise().
->
-> Is this expected behavior?
 
-Thank you for reporting.
 
-madvise(MADV_HWPOISON) triggers page fault when called on the address
-over which no page is faulted-in, so I think that SIGBUS should be
-called in such case.
-
-But it seems that memory error handler considers such a page as "reserved
-kernel page" and recovery action fails (see below.)
-
-  [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcdc569000
-  [  383.375678] Memory failure: 0x1f10: reserved kernel page still referen=
-ced by 1 users
-  [  383.377570] Memory failure: 0x1f10: recovery action for reserved kerne=
-l page: Failed
-
-I'm not sure how/when this behavior was introduced, so I try to understand.
-IMO, the test code below looks valid to me, so no need to change.
-
-Thanks,
-Naoya Horiguchi
-
->
-> Thanks,
-> Jan
->
-> [1] https://github.com/linux-test-project/ltp/blob/master/testcases/kerne=
-l/syscalls/madvise/madvise07.c
->
-> -------------------- 8< --------------------
-> #include <stdlib.h>
-> #include <sys/mman.h>
-> #include <unistd.h>
->
-> int main(void)
-> {
-> 	void *mem =3D mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
-> 			MAP_ANONYMOUS | MAP_PRIVATE /*| MAP_POPULATE*/,
-> 			-1, 0);
->
-> 	if (mem =3D=3D MAP_FAILED)
-> 		exit(1);
->
-> 	if (madvise(mem, getpagesize(), MADV_HWPOISON) =3D=3D -1)
-> 		exit(1);
->
-> 	*((char *)mem) =3D 'd';
->
-> 	return 0;
-> }
-> -------------------- 8< --------------------
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
+On 2/17/2017 6:47 PM, Bob Liu wrote:
+> On Thu, Feb 9, 2017 at 7:16 PM, Vinayak Menon <vinmenon@codeaurora.org> wrote:
+>> Hi,
+>>
+>> We were trying to implement the per app memory cgroup that Johannes
+>> suggested (https://lkml.org/lkml/2014/12/19/358) and later discussed during
+>> Minchan's proposal of per process reclaim
+>> (https://lkml.org/lkml/2016/6/13/570). The test was done on Android target
+>> with 2GB of RAM and cgroupv1. The first test done was to just create per
+>> app cgroups without modifying any cgroup controls. 2 kinds of tests were
+>> done which gives similar kind of observation. One was to just open
+>> applications in sequence and repeat this N times (20 apps, so around 20
+>> memcgs max at a time). Another test was to create around 20 cgroups and
+>> perform a make (not kernel, another less heavy source) in each of them.
+>>
+>> It is observed that because of the creation of memcgs per app, the per
+>> memcg LRU size is so low and results in kswapd priority drop. This results
+> How did you confirm that? Traced the get_scan_count() function?
+> You may hack this function for more verification.
+This was confirmed by adding some VM event counters in get_scan_count.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
