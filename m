@@ -1,89 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3278C6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 05:49:23 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b2so16071954pgc.6
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 02:49:23 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 82E536B0388
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 05:49:26 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f21so44034430pgi.4
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 02:49:26 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id m24si2290284pfa.104.2017.02.20.02.49.21
+        by mx.google.com with ESMTPS id m24si2290284pfa.104.2017.02.20.02.49.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Feb 2017 02:49:22 -0800 (PST)
+        Mon, 20 Feb 2017 02:49:25 -0800 (PST)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 0/5] mm subsystem refcounter conversions
-Date: Mon, 20 Feb 2017 12:49:09 +0200
-Message-Id: <1487587754-10610-1-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 1/5] mm: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
+Date: Mon, 20 Feb 2017 12:49:10 +0200
+Message-Id: <1487587754-10610-2-git-send-email-elena.reshetova@intel.com>
+In-Reply-To: <1487587754-10610-1-git-send-email-elena.reshetova@intel.com>
+References: <1487587754-10610-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, Elena Reshetova <elena.reshetova@intel.com>
+Cc: linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, Elena Reshetova <elena.reshetova@intel.com>, Hans Liljestrand <ishkamiel@gmail.com>, Kees Cook <keescook@chromium.org>, David Windsor <dwindsor@gmail.com>
 
-Now when new refcount_t type and API are finally merged
-(see include/linux/refcount.h), the following
-patches convert various refcounters in the mm susystem from atomic_t
-to refcount_t. By doing this we prevent intentional or accidental
-underflows or overflows that can led to use-after-free vulnerabilities.
+refcount_t type and corresponding API should be used instead of
+atomic_t when the variable is used as a reference counter.
+This allows to avoid accidental refcounter overflows that might
+lead to use-after-free situations.
 
-The below patches are fully independent and can be cherry-picked separately.
-Since we convert all kernel subsystems in the same fashion, resulting
-in about 300 patches, we have to group them for sending at least in some
-fashion to be manageable. Please excuse the long cc list.
+Switch bdi_writeback_congested.refcnt from atomic_t to refcount_t and
+increment initial value by 1. The incrementation affecs the function
+wb_congested_get_create which previously incremented both found and
+created objects. After this patch the function will increment only found
+objects and instead set the refcount of new objects to 1. Note that
+new_congested is initially NULL, and will be discarded unless exiting
+via the 'if (new_congested)' section.
 
-Elena Reshetova (5):
-  mm: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
-  mm: convert anon_vma.refcount from atomic_t to refcount_t
-  mm: convert kmemleak_object.use_count from atomic_t to refcount_t
-  mm: convert mm_struct.mm_users from atomic_t to refcount_t
-  mm: convert mm_struct.mm_count from atomic_t to refcount_t
+Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
+Signed-off-by: Hans Liljestrand <ishkamiel@gmail.com>
+Signed-off-by: Kees Cook <keescook@chromium.org>
+Signed-off-by: David Windsor <dwindsor@gmail.com>
+---
+ include/linux/backing-dev-defs.h |  3 ++-
+ include/linux/backing-dev.h      |  4 ++--
+ mm/backing-dev.c                 | 11 ++++++-----
+ 3 files changed, 10 insertions(+), 8 deletions(-)
 
- arch/alpha/kernel/smp.c                  |  6 +++---
- arch/arc/mm/tlb.c                        |  2 +-
- arch/blackfin/mach-common/smp.c          |  2 +-
- arch/ia64/include/asm/tlbflush.h         |  2 +-
- arch/ia64/kernel/smp.c                   |  2 +-
- arch/ia64/sn/kernel/sn2/sn2_smp.c        |  4 ++--
- arch/mips/kernel/process.c               |  2 +-
- arch/mips/kernel/smp.c                   |  6 +++---
- arch/parisc/include/asm/mmu_context.h    |  2 +-
- arch/powerpc/mm/hugetlbpage.c            |  2 +-
- arch/powerpc/mm/icswx.c                  |  4 ++--
- arch/sh/kernel/smp.c                     |  6 +++---
- arch/sparc/kernel/smp_64.c               |  6 +++---
- arch/sparc/mm/srmmu.c                    |  2 +-
- arch/um/kernel/tlb.c                     |  2 +-
- arch/x86/kernel/tboot.c                  |  4 ++--
- arch/xtensa/kernel/smp.c                 |  5 +++++
- drivers/firmware/efi/arm-runtime.c       |  4 ++--
- drivers/gpu/drm/amd/amdkfd/kfd_process.c |  2 +-
- drivers/gpu/drm/i915/i915_gem_userptr.c  |  1 -
- fs/coredump.c                            |  2 +-
- fs/proc/base.c                           |  2 +-
- fs/userfaultfd.c                         |  3 +--
- include/linux/backing-dev-defs.h         |  3 ++-
- include/linux/backing-dev.h              |  4 ++--
- include/linux/mm_types.h                 |  5 +++--
- include/linux/rmap.h                     |  7 ++++---
- include/linux/sched.h                    | 10 +++++-----
- kernel/events/uprobes.c                  |  2 +-
- kernel/exit.c                            |  2 +-
- kernel/fork.c                            | 12 ++++++------
- kernel/sched/core.c                      |  2 +-
- lib/is_single_threaded.c                 |  2 +-
- mm/backing-dev.c                         | 11 ++++++-----
- mm/debug.c                               |  4 ++--
- mm/init-mm.c                             |  4 ++--
- mm/khugepaged.c                          |  2 +-
- mm/kmemleak.c                            | 16 ++++++++--------
- mm/ksm.c                                 |  2 +-
- mm/memory.c                              |  2 +-
- mm/mmu_notifier.c                        | 10 +++++-----
- mm/mprotect.c                            |  2 +-
- mm/oom_kill.c                            |  2 +-
- mm/rmap.c                                | 14 +++++++-------
- mm/swapfile.c                            |  2 +-
- mm/vmacache.c                            |  2 +-
- 46 files changed, 101 insertions(+), 94 deletions(-)
-
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index ad95581..609ee6f 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -4,6 +4,7 @@
+ #include <linux/list.h>
+ #include <linux/radix-tree.h>
+ #include <linux/rbtree.h>
++#include <linux/refcount.h>
+ #include <linux/spinlock.h>
+ #include <linux/percpu_counter.h>
+ #include <linux/percpu-refcount.h>
+@@ -51,7 +52,7 @@ enum wb_stat_item {
+  */
+ struct bdi_writeback_congested {
+ 	unsigned long state;		/* WB_[a]sync_congested flags */
+-	atomic_t refcnt;		/* nr of attached wb's and blkg */
++	refcount_t refcnt;		/* nr of attached wb's and blkg */
+ 
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	struct backing_dev_info *bdi;	/* the associated bdi */
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index c52a48c..4726d81 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -430,13 +430,13 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
+ static inline struct bdi_writeback_congested *
+ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ {
+-	atomic_inc(&bdi->wb_congested->refcnt);
++	refcount_inc(&bdi->wb_congested->refcnt);
+ 	return bdi->wb_congested;
+ }
+ 
+ static inline void wb_congested_put(struct bdi_writeback_congested *congested)
+ {
+-	if (atomic_dec_and_test(&congested->refcnt))
++	if (refcount_dec_and_test(&congested->refcnt))
+ 		kfree(congested);
+ }
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 6d861d0..2df3ed7 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -417,14 +417,17 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 			node = &parent->rb_left;
+ 		else if (congested->blkcg_id > blkcg_id)
+ 			node = &parent->rb_right;
+-		else
+-			goto found;
++		else {
++			refcount_inc(&congested->refcnt);
++ 			goto found;
++		}
+ 	}
+ 
+ 	if (new_congested) {
+ 		/* !found and storage for new one already allocated, insert */
+ 		congested = new_congested;
+ 		new_congested = NULL;
++		refcount_set(&congested->refcnt, 1);
+ 		rb_link_node(&congested->rb_node, parent, node);
+ 		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
+ 		goto found;
+@@ -437,13 +440,11 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 	if (!new_congested)
+ 		return NULL;
+ 
+-	atomic_set(&new_congested->refcnt, 0);
+ 	new_congested->bdi = bdi;
+ 	new_congested->blkcg_id = blkcg_id;
+ 	goto retry;
+ 
+ found:
+-	atomic_inc(&congested->refcnt);
+ 	spin_unlock_irqrestore(&cgwb_lock, flags);
+ 	kfree(new_congested);
+ 	return congested;
+@@ -460,7 +461,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+-	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
++	if (!refcount_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
+ 		local_irq_restore(flags);
+ 		return;
+ 	}
 -- 
 2.7.4
 
