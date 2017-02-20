@@ -1,61 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 75F006B0038
-	for <linux-mm@kvack.org>; Sun, 19 Feb 2017 22:30:42 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 1so59182149pgz.5
-        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 19:30:42 -0800 (PST)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id l127si17180984pga.348.2017.02.19.19.30.39
-        for <linux-mm@kvack.org>;
-        Sun, 19 Feb 2017 19:30:41 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1487498395-9544-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1487498395-9544-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/thp/autonuma: Use TNF flag instead of vm fault.
-Date: Mon, 20 Feb 2017 11:30:26 +0800
-Message-ID: <00ec01d28b29$adb7ce70$09276b50$@alibaba-inc.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 05BD86B0038
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 00:03:47 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c193so70864832pfb.7
+        for <linux-mm@kvack.org>; Sun, 19 Feb 2017 21:03:46 -0800 (PST)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id 7si6112821pfd.172.2017.02.19.21.03.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 Feb 2017 21:03:45 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
+Date: Mon, 20 Feb 2017 05:00:17 +0000
+Message-ID: <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+In-Reply-To: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <4A20DC0DB9C13C4E90784422FFC7E6D8@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Aneesh Kumar K.V'" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, 'Rik van Riel' <riel@surriel.com>, 'Mel Gorman' <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Stancek <jstancek@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
+On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
+> Hi,
+>
+> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
+> unless I touch/prefault page before call to madvise().
+>
+> Is this expected behavior?
 
-On February 19, 2017 6:00 PM Aneesh Kumar K.V wrote: 
-> 
-> We are using wrong flag value in task_numa_falt function. This can result in
-> us doing wrong numa fault statistics update, because we update num_pages_migrate
-> and numa_fault_locality etc based on the flag argument passed.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Thank you for reporting.
 
-Fix: bae473a423 ("mm: introduce fault_env")
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+madvise(MADV_HWPOISON) triggers page fault when called on the address
+over which no page is faulted-in, so I think that SIGBUS should be
+called in such case.
 
-> ---
->  mm/huge_memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 5f3ad65c85de..8f1d93257fb9 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1333,7 +1333,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
-> 
->  	if (page_nid != -1)
->  		task_numa_fault(last_cpupid, page_nid, HPAGE_PMD_NR,
-> -				vmf->flags);
-> +				flags);
-> 
->  	return 0;
->  }
+But it seems that memory error handler considers such a page as "reserved
+kernel page" and recovery action fails (see below.)
+
+  [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcdc569000
+  [  383.375678] Memory failure: 0x1f10: reserved kernel page still referen=
+ced by 1 users
+  [  383.377570] Memory failure: 0x1f10: recovery action for reserved kerne=
+l page: Failed
+
+I'm not sure how/when this behavior was introduced, so I try to understand.
+IMO, the test code below looks valid to me, so no need to change.
+
+Thanks,
+Naoya Horiguchi
+
+>
+> Thanks,
+> Jan
+>
+> [1] https://github.com/linux-test-project/ltp/blob/master/testcases/kerne=
+l/syscalls/madvise/madvise07.c
+>
+> -------------------- 8< --------------------
+> #include <stdlib.h>
+> #include <sys/mman.h>
+> #include <unistd.h>
+>
+> int main(void)
+> {
+> 	void *mem =3D mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
+> 			MAP_ANONYMOUS | MAP_PRIVATE /*| MAP_POPULATE*/,
+> 			-1, 0);
+>
+> 	if (mem =3D=3D MAP_FAILED)
+> 		exit(1);
+>
+> 	if (madvise(mem, getpagesize(), MADV_HWPOISON) =3D=3D -1)
+> 		exit(1);
+>
+> 	*((char *)mem) =3D 'd';
+>
+> 	return 0;
+> }
+> -------------------- 8< --------------------
+>
 > --
-> 2.7.4
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
