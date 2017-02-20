@@ -1,66 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 819136B0038
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 07:35:55 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id x4so10083418wme.3
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 04:35:55 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 73F6B6B0038
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 08:01:27 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v77so10140630wmv.5
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 05:01:27 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 187si12175044wmx.37.2017.02.20.04.35.54
+        by mx.google.com with ESMTPS id b203si12236063wmf.125.2017.02.20.05.01.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Feb 2017 04:35:54 -0800 (PST)
-Date: Mon, 20 Feb 2017 13:35:50 +0100
+        Mon, 20 Feb 2017 05:01:26 -0800 (PST)
+Date: Mon, 20 Feb 2017 14:01:23 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/8] mm: cma: Export a few symbols
-Message-ID: <20170220123550.GH2431@dhcp22.suse.cz>
-References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
- <2dee6c0baaf08e2c7d48ceb7e97e511c914d0f87.1486655917.git-series.maxime.ripard@free-electrons.com>
- <20170209192046.GB31906@dhcp22.suse.cz>
- <20170213134416.akgmtv3lv5m65fwx@lukather>
+Subject: Re: [PATCH] mm/cgroup: avoid panic when init with low memory
+Message-ID: <20170220130123.GI2431@dhcp22.suse.cz>
+References: <1487154969-6704-1-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170213134416.akgmtv3lv5m65fwx@lukather>
+In-Reply-To: <1487154969-6704-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxime Ripard <maxime.ripard@free-electrons.com>
-Cc: Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Joonsoo Kim <js1304@gmail.com>, m.szyprowski@samsung.com
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 13-02-17 14:44:16, Maxime Ripard wrote:
-> Hi Michal,
+On Wed 15-02-17 11:36:09, Laurent Dufour wrote:
+> The system may panic when initialisation is done when almost all the
+> memory is assigned to the huge pages using the kernel command line
+> parameter hugepage=xxxx. Panic may occur like this:
+
+I am pretty sure the system might blow up in many other ways when you
+misconfigure it and pull basically all the memory out. Anyway...
+
+[...]
+ 
+> This is a chicken and egg issue where the kernel try to get free
+> memory when allocating per node data in mem_cgroup_init(), but in that
+> path mem_cgroup_soft_limit_reclaim() is called which assumes that
+> these data are allocated.
 > 
-> On Thu, Feb 09, 2017 at 08:20:47PM +0100, Michal Hocko wrote:
-> > [CC CMA people]
-> > 
-> > On Thu 09-02-17 17:39:17, Maxime Ripard wrote:
-> > > Modules might want to check their CMA pool size and address for debugging
-> > > and / or have additional checks.
-> > > 
-> > > The obvious way to do this would be through dev_get_cma_area and
-> > > cma_get_base and cma_get_size, that are currently not exported, which
-> > > results in a build failure.
-> > > 
-> > > Export them to prevent such a failure.
-> > 
-> > Who actually uses those exports. None of the follow up patches does
-> > AFAICS.
+> As mem_cgroup_soft_limit_reclaim() is best effort, it should return
+> when these data are not yet allocated.
+
+... this makes some sense. Especially when there is no soft limit
+configured. So this is a good step. I would just like to ask you to go
+one step further. Can we make the whole soft reclaim thing uninitialized
+until the soft limit is actually set? Soft limit is not used in cgroup
+v2 at all and I would strongly discourage it in v1 as well. We will save
+few bytes as a bonus.
+ 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> ---
+>  mm/memcontrol.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> This is for the ARM Mali GPU driver that is out of tree, unfortunately.
-
-We do not export symbols which do not have any in-tree users.
-
-> In one case (using the legacy fbdev API), the driver wants to (and
-> probably should) validate that the buffer as indeed been allocated
-> from the memory allocation pool.
-> 
-> Rob suggested that instead of hardcoding it to cover the whole RAM
-> (which defeats the purpose of that check in the first place), we used
-> the memory-region bindings in the DT and follow that, which does work
-> great, but we still have to retrieve the base address and size of that
-> region, hence why this patches are needed.
-
-Anyway I would suggest talking to CMA people to find a better API for
-modules to use...
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 1fd6affcdde7..213f96b2f601 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2556,7 +2556,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+>  	 * is empty. Do it lockless to prevent lock bouncing. Races
+>  	 * are acceptable as soft limit is best effort anyway.
+>  	 */
+> -	if (RB_EMPTY_ROOT(&mctz->rb_root))
+> +	if (!mctz || RB_EMPTY_ROOT(&mctz->rb_root))
+>  		return 0;
+>  
+>  	/*
+> -- 
+> 2.7.4
 
 -- 
 Michal Hocko
