@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 51B386B039B
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 05:47:40 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w37so4283547wrc.0
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 02:47:40 -0800 (PST)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id b47si8566155wrb.1.2017.02.21.02.47.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AE8646B039D
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 06:11:12 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so15223482wmi.6
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 03:11:12 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p4si16044836wmp.14.2017.02.21.03.11.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Feb 2017 02:47:38 -0800 (PST)
-Received: by mail-wr0-x242.google.com with SMTP id q39so14718122wrb.2
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 02:47:38 -0800 (PST)
-Date: Tue, 21 Feb 2017 13:47:36 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and
- PR_GET_MAX_VADDR
-Message-ID: <20170221104736.GA13174@node.shutemov.name>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
- <20170217141328.164563-34-kirill.shutemov@linux.intel.com>
- <CA+55aFwgbHxV-Ha2n1H=Z7P6bgcQ3D8aW=fr8ZrQ5OnvZ1vOYg@mail.gmail.com>
- <CALCETrW6YBxZw0NJGHe92dy7qfHqRHNr0VqTKV=O4j9r8hcSew@mail.gmail.com>
- <CA+55aFxu0p90nz6-VPFLCLBSpEVx7vNFGP_M8j=YS-Dk-zfJGg@mail.gmail.com>
- <CALCETrW91F0=GLWt4yBJVbt7U=E6nLXDUMNUvTpnmn6XLjaY6g@mail.gmail.com>
- <CA+55aFw4hAe-SUp9K8kfgT+RO60Ow8c=Bi=ZTw9qzHy2D=h8pQ@mail.gmail.com>
- <20170221103401.GA31018@e104818-lin.cambridge.arm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 21 Feb 2017 03:11:11 -0800 (PST)
+Date: Tue, 21 Feb 2017 12:11:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+Message-ID: <20170221111107.GJ15595@dhcp22.suse.cz>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170221103401.GA31018@e104818-lin.cambridge.arm.com>
+In-Reply-To: <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm <linux-mm@kvack.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Tue, Feb 21, 2017 at 10:34:02AM +0000, Catalin Marinas wrote:
-> On Fri, Feb 17, 2017 at 03:21:27PM -0800, Linus Torvalds wrote:
-> > On Feb 17, 2017 3:02 PM, "Andy Lutomirski" <luto@amacapital.net> wrote:
-> > >   What I'm trying to say is: if we're going to do the route of 48-bit
-> > >   limit unless a specific mmap call requests otherwise, can we at least
-> > >   have an interface that doesn't suck?
-> > 
-> > No, I'm not suggesting specific mmap calls at all. I'm suggesting the complete
-> > opposite: not having some magical "max address" at all in the VM layer. Keep
-> > all the existing TASK_SIZE defines as-is, and just make those be the new 56-bit
-> > limit.
-> > 
-> > But to then not make most processes use it, just make the default x86
-> > arch_get_free_area() return an address limited to the old 47-bit limit. So
-> > effectively all legacy programs work exactly the same way they always did.
+On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+[...]
+> * User space using mbind() to get CDM memory is an additional benefit
+>   we get by making the CDM plug in as a node and be part of the buddy
+>   allocator. But the over all idea from the user space point of view
+>   is that the application can allocate any generic buffer and try to
+>   use the buffer either from the CPU side or from the device without
+>   knowing about where the buffer is really mapped physically. That
+>   gives a seamless and transparent view to the user space where CPU
+>   compute and possible device based compute can work together. This
+>   is not possible through a driver allocated buffer.
+
+But how are you going to define any policy around that. Who is allowed
+to allocate and how much of this "special memory". Is it possible that
+we will eventually need some access control mechanism? If yes then mbind
+is really not suitable interface to (ab)use. Also what should happen if
+the mbind mentions only CDM memory and that is depleted?
+
+Could you also explain why the transparent view is really better than
+using a device specific mmap (aka CDM awareness)?
+ 
+> * The placement of the memory on the buffer can happen on system memory
+>   when the CPU faults while accessing it. But a driver can manage the
+>   migration between system RAM and CDM memory once the buffer is being
+>   used from CPU and the device interchangeably. As you have mentioned
+>   driver will have more information about where which part of the buffer
+>   should be placed at any point of time and it can make it happen with
+>   migration. So both allocation and placement are decided by the driver
+>   during runtime. CDM provides the framework for this can kind device
+>   assisted compute and driver managed memory placements.
 > 
-> arch_get_unmapped_area() changes would not cover STACK_TOP which is
-> currently defined as TASK_SIZE (on both x86 and arm64). I don't think it
-> matters much (normally such upper bits tricks are done on heap objects)
-> but you may find some weird user program that passes pointers to the
-> stack around and expects bits 48-63 to be masked out. If that's a real
-> issue, we could also limit STACK_TOP to 47-bit (48-bit on arm64).
+> * If any application is not using CDM memory for along time placed on
+>   its buffer and another application is forced to fallback on system
+>   RAM when it really wanted is CDM, the driver can detect these kind
+>   of situations through memory access patterns on the device HW and
+>   take necessary migration decisions.
 
-I've limited STACK_TOP to 47-bit in my implementation of Linus' proposal:
+Is this implemented or at least designed?
 
-http://lkml.kernel.org/r/20170220131515.GA9502@node.shutemov.name
-
+Btw. I believe that sending new versions of the patchset with minor
+changes is not really helping the review process. I believe the
+highlevel concerns about the API are not resolved yet and that is the
+number 1 thing to deal with currently.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
