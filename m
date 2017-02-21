@@ -1,81 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5420D6B038B
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 04:45:22 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id q39so23802679wrb.3
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 01:45:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w7si27361307wrb.207.2017.02.21.01.45.21
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 71AB56B038D
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 04:58:53 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id v63so62727175pgv.0
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 01:58:53 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id i1si6379198pgc.96.2017.02.21.01.58.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 21 Feb 2017 01:45:21 -0800 (PST)
-Date: Tue, 21 Feb 2017 10:45:18 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2 7/7] mm: add a separate RSS for MADV_FREE pages
-Message-ID: <20170221094518.GH15595@dhcp22.suse.cz>
-References: <cover.1486163864.git.shli@fb.com>
- <123396e3b523e8716dfc6fc87a5cea0c124ff29d.1486163864.git.shli@fb.com>
- <20170210133504.GO10893@dhcp22.suse.cz>
- <20170210180101.GF86050@shli-mbp.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170210180101.GF86050@shli-mbp.local>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Feb 2017 01:58:52 -0800 (PST)
+From: Elena Reshetova <elena.reshetova@intel.com>
+Subject: [PATCH 0/5] mm subsystem refcounter conversions
+Date: Tue, 21 Feb 2017 11:58:39 +0200
+Message-Id: <1487671124-11188-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kernel-team@fb.com, danielmicay@gmail.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, Elena Reshetova <elena.reshetova@intel.com>
 
-On Fri 10-02-17 10:01:02, Shaohua Li wrote:
-> On Fri, Feb 10, 2017 at 02:35:05PM +0100, Michal Hocko wrote:
-> > On Fri 03-02-17 15:33:23, Shaohua Li wrote:
-> > > Add a separate RSS for MADV_FREE pages. The pages are charged into
-> > > MM_ANONPAGES (because they are mapped anon pages) and also charged into
-> > > the MM_LAZYFREEPAGES. /proc/pid/statm will have an extra field to
-> > > display the RSS, which userspace can use to determine the RSS excluding
-> > > MADV_FREE pages.
-> > > 
-> > > The basic idea is to increment the RSS in madvise and decrement in unmap
-> > > or page reclaim. There is one limitation. If a page is shared by two
-> > > processes, since madvise only has mm cotext of current process, it isn't
-> > > convenient to charge the RSS for both processes. So we don't charge the
-> > > RSS if the mapcount isn't 1. On the other hand, fork can make a
-> > > MADV_FREE page shared by two processes. To make things consistent, we
-> > > uncharge the RSS from the source mm in fork.
-> > > 
-> > > A new flag is added to indicate if a page is accounted into the RSS. We
-> > > can't use SwapBacked flag to do the determination because we can't
-> > > guarantee the page has SwapBacked flag cleared in madvise. We are
-> > > reusing mappedtodisk flag which should not be set for Anon pages.
-> > > 
-> > > There are a couple of other places we need to uncharge the RSS,
-> > > activate_page and mark_page_accessed. activate_page is used by swap,
-> > > where MADV_FREE pages are already not in lazyfree state before going
-> > > into swap. mark_page_accessed is mainly used for file pages, but there
-> > > are several places it's used by anonymous pages. I fixed gup, but not
-> > > some gpu drivers and kvm. If the drivers use MADV_FREE, we might have
-> > > inprecise RSS accounting.
-> > > 
-> > > Please note, the accounting is never going to be precise. MADV_FREE page
-> > > could be written by userspace without notification to the kernel. The
-> > > page can't be reclaimed like other clean lazyfree pages. The page isn't
-> > > real lazyfree page. But since kernel isn't aware of this, the page is
-> > > still accounted as lazyfree, thus the accounting could be incorrect.
-> > 
-> > This is all quite complex and as you say unprecise already. From the
-> > description it is not even clear why do we need it at all. Why is
-> > /proc/<pid>/smaps insufficient? I am also not fun of a new page flag -
-> > even though you managed to recycle an existing one which is a plus.
-> 
-> We have monitor app running in the system to check other apps' RSS and kill
-> them if RSS is abnormal. Checking /proc/pid/smaps is too complicated and slow,
-> don't think we can go that way.
+v2:
+ - incorporated fixes reported 0day CI
 
-Could you be more specific about why "slow" matters?
+Now when new refcount_t type and API are finally merged
+(see include/linux/refcount.h), the following
+patches convert various refcounters in the mm susystem from atomic_t
+to refcount_t. By doing this we prevent intentional or accidental
+underflows or overflows that can led to use-after-free vulnerabilities.
+
+The below patches are fully independent and can be cherry-picked separately.
+Since we convert all kernel subsystems in the same fashion, resulting
+in about 300 patches, we have to group them for sending at least in some
+fashion to be manageable. Please excuse the long cc list.
+
+Elena Reshetova (5):
+  mm: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
+  mm: convert anon_vma.refcount from atomic_t to refcount_t
+  mm: convert kmemleak_object.use_count from atomic_t to refcount_t
+  mm: convert mm_struct.mm_users from atomic_t to refcount_t
+  mm: convert mm_struct.mm_count from atomic_t to refcount_t
+
+ arch/alpha/kernel/smp.c                  |  6 +++---
+ arch/arc/mm/tlb.c                        |  2 +-
+ arch/blackfin/mach-common/smp.c          |  4 ++--
+ arch/ia64/include/asm/tlbflush.h         |  2 +-
+ arch/ia64/kernel/smp.c                   |  2 +-
+ arch/ia64/sn/kernel/sn2/sn2_smp.c        |  4 ++--
+ arch/mips/kernel/process.c               |  2 +-
+ arch/mips/kernel/smp.c                   |  6 +++---
+ arch/parisc/include/asm/mmu_context.h    |  2 +-
+ arch/powerpc/mm/hugetlbpage.c            |  2 +-
+ arch/powerpc/mm/icswx.c                  |  4 ++--
+ arch/sh/kernel/smp.c                     |  6 +++---
+ arch/sparc/kernel/smp_64.c               |  6 +++---
+ arch/sparc/mm/srmmu.c                    |  2 +-
+ arch/um/kernel/tlb.c                     |  2 +-
+ arch/x86/kernel/tboot.c                  |  4 ++--
+ drivers/firmware/efi/arm-runtime.c       |  4 ++--
+ drivers/gpu/drm/amd/amdkfd/kfd_process.c |  2 +-
+ fs/coredump.c                            |  2 +-
+ fs/proc/base.c                           |  2 +-
+ fs/userfaultfd.c                         |  3 +--
+ include/linux/backing-dev-defs.h         |  3 ++-
+ include/linux/backing-dev.h              |  4 ++--
+ include/linux/mm_types.h                 |  5 +++--
+ include/linux/rmap.h                     |  7 ++++---
+ include/linux/sched.h                    | 10 +++++-----
+ kernel/events/uprobes.c                  |  2 +-
+ kernel/exit.c                            |  2 +-
+ kernel/fork.c                            | 12 ++++++------
+ kernel/sched/core.c                      |  2 +-
+ lib/is_single_threaded.c                 |  2 +-
+ mm/backing-dev.c                         | 13 +++++++------
+ mm/debug.c                               |  4 ++--
+ mm/init-mm.c                             |  4 ++--
+ mm/khugepaged.c                          |  2 +-
+ mm/kmemleak.c                            | 16 ++++++++--------
+ mm/ksm.c                                 |  2 +-
+ mm/memory.c                              |  2 +-
+ mm/mmu_notifier.c                        | 10 +++++-----
+ mm/mprotect.c                            |  2 +-
+ mm/oom_kill.c                            |  2 +-
+ mm/rmap.c                                | 14 +++++++-------
+ mm/swapfile.c                            |  2 +-
+ mm/vmacache.c                            |  2 +-
+ 44 files changed, 98 insertions(+), 95 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
