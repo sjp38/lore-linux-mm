@@ -1,222 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B50A46B0038
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 01:01:09 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id r141so170021626ita.6
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 22:01:09 -0800 (PST)
-Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
-        by mx.google.com with ESMTPS id j90si11003646ioo.193.2017.02.20.22.00.53
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D3A86B0389
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 01:01:33 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id x75so48497210vke.5
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 22:01:33 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id n188si20827416pga.361.2017.02.20.22.01.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Feb 2017 22:00:53 -0800 (PST)
-Received: by mail-it0-x229.google.com with SMTP id y135so39295997itc.1
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 22:00:53 -0800 (PST)
+        Mon, 20 Feb 2017 22:01:31 -0800 (PST)
+Subject: Re: Query on per app memory cgroup
+References: <b7ee0ad3-a580-b38a-1e90-035c77b181ea@codeaurora.org>
+ <b11e01d9-7f67-5c91-c7da-e5a95996c0ec@codeaurora.org>
+ <CAKTCnzn7Ry0WLEiF4TWKSO02gy_U=iaCsO=nw7p4Jfz7T71R2Q@mail.gmail.com>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <1301f831-31bd-41ad-a738-8afd8639fd61@codeaurora.org>
+Date: Tue, 21 Feb 2017 11:31:25 +0530
 MIME-Version: 1.0
-In-Reply-To: <CA+oaBQ+s5oXqu5TqddKs9LmUbaNNPGM7=gu5On4GYrkSDu0_XA@mail.gmail.com>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
- <20170217141328.164563-34-kirill.shutemov@linux.intel.com>
- <CA+55aFwgbHxV-Ha2n1H=Z7P6bgcQ3D8aW=fr8ZrQ5OnvZ1vOYg@mail.gmail.com>
- <CALCETrW6YBxZw0NJGHe92dy7qfHqRHNr0VqTKV=O4j9r8hcSew@mail.gmail.com>
- <CA+55aFxu0p90nz6-VPFLCLBSpEVx7vNFGP_M8j=YS-Dk-zfJGg@mail.gmail.com>
- <CALCETrW91F0=GLWt4yBJVbt7U=E6nLXDUMNUvTpnmn6XLjaY6g@mail.gmail.com> <CA+oaBQ+s5oXqu5TqddKs9LmUbaNNPGM7=gu5On4GYrkSDu0_XA@mail.gmail.com>
-From: Michael Pratt <mpratt@google.com>
-Date: Mon, 20 Feb 2017 22:00:12 -0800
-Message-ID: <CALoThU9+jW_K7vH99PytuOojVrJvcygzHduwYd2dzfTHQfE2AQ@mail.gmail.com>
-Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
-Content-Type: multipart/alternative; boundary=94eb2c08cd5646e3830549041a86
+In-Reply-To: <CAKTCnzn7Ry0WLEiF4TWKSO02gy_U=iaCsO=nw7p4Jfz7T71R2Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: luto@amacapital.net
-Cc: torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, x86@kernel.org, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, hpa@zytor.com, ak@linux.intel.com, dave.hansen@intel.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, catalin.marinas@arm.com, linux-api@vger.kernel.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, shashim@codeaurora.org
 
---94eb2c08cd5646e3830549041a86
-Content-Type: text/plain; charset=UTF-8
 
-On Mon, Feb 20, 2017 at 9:21 PM, Michael Pratt <linux@pratt.im> wrote:
+On 2/21/2017 10:01 AM, Balbir Singh wrote:
+> On Thu, Feb 9, 2017 at 4:46 PM, Vinayak Menon <vinmenon@codeaurora.org> wrote:
+>> Hi,
+>>
+>> We were trying to implement the per app memory cgroup that Johannes
+>> suggested (https://lkml.org/lkml/2014/12/19/358) and later discussed during
+>> Minchan's proposal of per process reclaim
+> Per app memory cgroups are interesting, but also quite aggressive. Could
+> you please describe what tasks/workload you have?
+Three types of tests were done. One on Android, only putting activity tasks (apps that the user opens like games etc)
+in their own memcg. These are usually anon intensive apps. The second test was to move any android created processes
+to its own memcg. The second test results are worse than the first because of the presence of more memcgs with smaller
+LRUs. In the first case there are around 15 memcgs, and in the second case around 70.
+These 2 tests include opening the apps one by one for around 10 iterations.
+The third test was done in non-Android environment creating N number of memcgs. Within each memcg multiple .c files are
+created runtime and then they are compiled and executed. This test creates almost and equal amount of anon and file pages
+within each memcg. All these tests shows the same behavior with the  problem worsening with the increase in number of
+memcgs and a corresponding drop in LRU sizes.
+>> (https://lkml.org/lkml/2016/6/13/570). The test was done on Android target
+>> with 2GB of RAM and cgroupv1. The first test done was to just create per
+>> app cgroups without modifying any cgroup controls. 2 kinds of tests were
+>> done which gives similar kind of observation. One was to just open
+>> applications in sequence and repeat this N times (20 apps, so around 20
+>> memcgs max at a time). Another test was to create around 20 cgroups and
+>> perform a make (not kernel, another less heavy source) in each of them.
+>>
+>> It is observed that because of the creation of memcgs per app, the per
+>> memcg LRU size is so low and results in kswapd priority drop. This results
+>> in sudden increase in scan at lower priorities. Because of this, kswapd
+>> consumes around 3 times more time (and thus less pageoutrun), and due to
+>> the lag in reclaiming memory direct reclaims are more and consumes around
+>> 2.5 times more time.
+>>
+> That does not sound good! Have you been able to test this with older
+> kernels to see if this is a regression?
+I have tried it on 3.18 and 4.4 kernels and both shows the problem. Let me see if I can try this on an older
+kernel.
+One query. When the LRUs are very small and there are multiple of them (and more importantly in the case of per app
+memcg most of the memory consumed by the system is divided among these memcgs and root memcg is tiny),
+we would always end up with this problem ? I assume this is the reason why a force scan is done in the case of
+targeted reclaim as this comment in get_scan_count indicates
 
-> On Fri, Feb 17, 2017 at 3:02 PM, Andy Lutomirski <luto@amacapital.net>
-> wrote:
-> > On Fri, Feb 17, 2017 at 1:01 PM, Linus Torvalds
-> > <torvalds@linux-foundation.org> wrote:
-> >> On Fri, Feb 17, 2017 at 12:12 PM, Andy Lutomirski <luto@amacapital.net>
-> wrote:
-> >>>
-> >>> At the very least, I'd want to see
-> >>> MAP_FIXED_BUT_DONT_BLOODY_UNMAP_ANYTHING.  I *hate* the current
-> >>> interface.
-> >>
-> >> That's unrelated, but I guess w could add a MAP_NOUNMAP flag, and then
-> >> you can use MAP_FIXED | MAP_NOUNMAP or something.
-> >>
-> >> But that has nothing to do with the 47-vs-56 bit issue.
-> >>
-> >>> How about MAP_LIMIT where the address passed in is interpreted as an
-> >>> upper bound instead of a fixed address?
-> >>
-> >> Again, that's a unrelated semantic issue. Right now - if you don't
-> >> pass in MAP_FIXED at all, the "addr" argument is used as a starting
-> >> value for deciding where to find an unmapped area. But there is no way
-> >> to specify the end. That would basically be what the process control
-> >> thing would be (not per-system-call, but per-thread ).
-> >>
-> >
-> > What I'm trying to say is: if we're going to do the route of 48-bit
-> > limit unless a specific mmap call requests otherwise, can we at least
-> > have an interface that doesn't suck?
+        /*
+         * If the zone or memcg is small, nr[l] can be 0.  This
+         * results in no scanning on this priority and a potential
+         * priority drop.  Global direct reclaim can go to the next
+         * zone and tends to have no problems. Global kswapd is for
+         * zone balancing and it needs to scan a minimum amount. When
+         * reclaiming for a memcg, a priority drop can cause high
+         * latencies, so it's better to scan a minimum amount there as
+         * well.
+         */
+As I understand, with per app memcg we get into the above mentioned problem with global reclaim too, but a force scan
+during global_reclam would result in excessive scanning since it scans all memcgs. No ?
+>> Another observation is that the reclaim->generation check in
+>> mem_cgroup_iter results in kswapd breaking the memcg lru reclaim loop in
+>> shrink_zone (this is 4.4 kernel) often. This also contributes to the
+>> priority drop. A test was done to skip the reclaim generation check in
+>> mem_cgroup_iter and allow concurrent reclaimers to run at same priority.
+>> This improved the results reducing the kswapd priority drops (and thus time
+>> spent in kswapd, allocstalls etc). But this problem could be a side effect
+>> of kswapd running for long and reclaiming slow resulting in many parallel
+>> direct reclaims.
+>>
+>> Some of the stats are shown below
+>>                             base        per-app-memcg
+>>
+>> pgalloc_dma                 4982349     5043134
+>>
+>> pgfree                      5249224     5303701
+>>
+>> pgactivate                  83480       117088
+>>
+>> pgdeactivate                152407      1021799
+>>
+>> pgmajfault                  421         31698
+>>
+>> pgrefill_dma                156884      1027744
+>>
+>> pgsteal_kswapd_dma          128449      97364
+>>
+>> pgsteal_direct_dma          101012      229924
+>>
+>> pgscan_kswapd_dma           132716      109750
+>>
+>> pgscan_direct_dma           104141      265515
+>>
+>> slabs_scanned               58782       116886
+>>
+>> pageoutrun                  57          16
+>>
+>> allocstall                  1283        3540
+>>
+>>
+>> After this, offloading some of the job to soft reclaim was tried with the
+>> assumption that it will result in lesser priority drops. The problem is in
+>> determining the right value to be set for soft reclaim. For e.g. one of the
+>> main motives behind using memcg in Android is to set different swappiness
+>> to tasks depending on their importance (foreground, background etc.). In
+>> such a case we actually do not want to set any soft limits. And in the
+>> second case when we want to use soft reclaim to offload some work from
+>> kswapd_shrink_zone on to mem_cgroup_soft_limit_reclaim, it becomes tricky
+>> to set the soft limit values. I was trying out with different percentage of
+>> task RSS for setting soft limit, but this actually results in excessive
+>> scanning by mem_cgroup_soft_limit_reclaim, which as I understand  is
+>> because of always using scan priority of 0. This in turn increases the time
+>> spent in kswapd. It reduces the kswapd priority drop though.
+>>
+> Soft limit setting can be tricky, but my advise is to set it based on how much
+> you see a particular cgroup using when the system is under memory pressure.
 >
-
-I've got a set of patches that I've meant to send out as an RFC for a while
-that tries to address userspace control of address space layout and covers
-many of these ideas.
-
-There is a new syscall and set of prctls for controlling the "mmap layout"
-(i.e., get_unmapped_area search range) that look something like this:
-
-struct mmap_layout {
-unsigned long start;
-unsigned long end;
-/*
-* These are equivalent to mmap_legacy_base and mmap_base,
-* but are not really needed in this proposal.
-*/
-unsigned long low_base;
-unsigned long high_base;
-unsigned long flags;
-};
-
-/* For flags */
-#define MMAP_TOPDOWN 1
-
-struct layout_mmap_args {
-unsigned long addr;
-unsigned long len;
-unsigned long prot;
-unsigned long flags;
-unsigned long fd;
-unsigned long off;
-struct mmap_layout layout;
-};
-
-void *layout_mmap(struct layout_mmap_args *args);
-
-int prctl(PR_GET_MMAP_LAYOUT, struct mmap_layout *layout);
-int prctl(PR_SET_MMAP_LAYOUT, struct mmap_layout *layout);
-
-The prctls control the default range that mmap and friends will allocate.
-For 56-bit user address space, it could default to [mmap_min_addr, 1<<47),
-as Linus suggests. Applications that want the full address space can
-increase it to cover the entire range.
-
-The layout_mmap syscall allows one-off mappings that fall outside the
-default layout, and nicely solves the "MAP_FIXED but don't unmap anything
-problem" by passing an explicit range to check without actually setting
-MAP_FIXED.
-
-This idea is quite similar to the MAX_VADDR + default get_unmapped_area
-behavior ides, just more generalized to give userspace more control over
-the ultimate behavior of get_unmapped_area.
-
-
-PS. Apologies if my email client screwed up this message. I didn't have
-this thread in my client and have tried to import it from another account.
-
---94eb2c08cd5646e3830549041a86
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><div class=3D"gmail_quo=
-te">On Mon, Feb 20, 2017 at 9:21 PM, Michael Pratt <span dir=3D"ltr">&lt;<a=
- href=3D"mailto:linux@pratt.im" target=3D"_blank">linux@pratt.im</a>&gt;</s=
-pan> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0p=
-x 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">On Fri, Fe=
-b 17, 2017 at 3:02 PM, Andy Lutomirski &lt;<a href=3D"mailto:luto@amacapita=
-l.net">luto@amacapital.net</a>&gt; wrote:<br>
-&gt; On Fri, Feb 17, 2017 at 1:01 PM, Linus Torvalds<br>
-&gt; &lt;<a href=3D"mailto:torvalds@linux-foundation.org">torvalds@linux-fo=
-undation.org</a><wbr>&gt; wrote:<br>
-&gt;&gt; On Fri, Feb 17, 2017 at 12:12 PM, Andy Lutomirski &lt;<a href=3D"m=
-ailto:luto@amacapital.net">luto@amacapital.net</a>&gt; wrote:<br>
-&gt;&gt;&gt;<br>
-&gt;&gt;&gt; At the very least, I&#39;d want to see<br>
-&gt;&gt;&gt; MAP_FIXED_BUT_DONT_BLOODY_<wbr>UNMAP_ANYTHING.=C2=A0 I *hate* =
-the current<br>
-&gt;&gt;&gt; interface.<br>
-&gt;&gt;<br>
-&gt;&gt; That&#39;s unrelated, but I guess w could add a MAP_NOUNMAP flag, =
-and then<br>
-&gt;&gt; you can use MAP_FIXED | MAP_NOUNMAP or something.<br>
-&gt;&gt;<br>
-&gt;&gt; But that has nothing to do with the 47-vs-56 bit issue.<br>
-&gt;&gt;<br>
-&gt;&gt;&gt; How about MAP_LIMIT where the address passed in is interpreted=
- as an<br>
-&gt;&gt;&gt; upper bound instead of a fixed address?<br>
-&gt;&gt;<br>
-&gt;&gt; Again, that&#39;s a unrelated semantic issue. Right now - if you d=
-on&#39;t<br>
-&gt;&gt; pass in MAP_FIXED at all, the &quot;addr&quot; argument is used as=
- a starting<br>
-&gt;&gt; value for deciding where to find an unmapped area. But there is no=
- way<br>
-&gt;&gt; to specify the end. That would basically be what the process contr=
-ol<br>
-&gt;&gt; thing would be (not per-system-call, but per-thread ).<br>
-&gt;&gt;<br>
-&gt;<br>
-&gt; What I&#39;m trying to say is: if we&#39;re going to do the route of 4=
-8-bit<br>
-&gt; limit unless a specific mmap call requests otherwise, can we at least<=
-br>
-&gt; have an interface that doesn&#39;t suck?<br></blockquote><div><br></di=
-v><div>I&#39;ve got a set of patches that I&#39;ve meant to send out as an =
-RFC for a while that tries to address userspace control of address space la=
-yout and covers many of these ideas.</div><div><br></div><div>There is a ne=
-w syscall and set of prctls for controlling the &quot;mmap layout&quot; (i.=
-e., get_unmapped_area search range) that look something like this:</div><di=
-v><br></div><div><div>struct mmap_layout {</div><div><span class=3D"gmail-A=
-pple-tab-span" style=3D"white-space:pre">	</span>unsigned long start;</div>=
-<div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span=
->unsigned long end;</div><div><span style=3D"white-space:pre">	 /*</span></=
-div><div><span style=3D"white-space:pre">	 * </span><span style=3D"white-sp=
-ace:pre">These are equivalent to mmap_legacy_base and mmap_base,</span><br>=
-</div><div><span style=3D"white-space:pre">	 * but are not really needed in=
- this proposal.</span></div><div><span style=3D"white-space:pre">	 */</span=
-><span style=3D"white-space:pre"> </span><span style=3D"white-space:pre"><b=
-r></span></div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-spa=
-ce:pre">	</span>unsigned long low_base;</div><div><span class=3D"gmail-Appl=
-e-tab-span" style=3D"white-space:pre">	</span>unsigned long high_base;</div=
-><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</spa=
-n>unsigned long flags;</div><div>};</div><div><br></div><div>/* For flags *=
-/</div><div>#define MMAP_TOPDOWN<span class=3D"gmail-Apple-tab-span" style=
-=3D"white-space:pre">	</span>1</div><div><br></div><div>struct layout_mmap_=
-args {</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:=
-pre">	</span>unsigned long addr;</div><div><span class=3D"gmail-Apple-tab-s=
-pan" style=3D"white-space:pre">	</span>unsigned long len;</div><div><span c=
-lass=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>unsigned lo=
-ng prot;</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-spac=
-e:pre">	</span>unsigned long flags;</div><div><span class=3D"gmail-Apple-ta=
-b-span" style=3D"white-space:pre">	</span>unsigned long fd;</div><div><span=
- class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>unsigned =
-long off;</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-spa=
-ce:pre">	</span>struct mmap_layout layout;</div><div>};</div></div><div><br=
-></div><div>void *layout_mmap(struct layout_mmap_args *args);<br></div><div=
-><br></div><div>int prctl(PR_GET_MMAP_LAYOUT, struct mmap_layout *layout);<=
-/div><div>int prctl(PR_SET_MMAP_LAYOUT, struct mmap_layout *layout);</div><=
-div><br></div><div>The prctls control the default range that mmap and frien=
-ds will allocate. For 56-bit user address space, it could default to [mmap_=
-min_addr, 1&lt;&lt;47), as Linus suggests. Applications that want the full =
-address space can increase it to cover the entire range.</div><div><br></di=
-v><div>The layout_mmap syscall allows one-off mappings that fall outside th=
-e default layout, and nicely solves the &quot;MAP_FIXED but don&#39;t unmap=
- anything problem&quot; by passing an explicit range to check without actua=
-lly setting MAP_FIXED.</div><div><br></div><div>This idea is quite similar =
-to the MAX_VADDR + default get_unmapped_area behavior ides, just more gener=
-alized to give userspace more control over the ultimate behavior of get_unm=
-apped_area.</div><div><br></div><div><br></div></div>PS. Apologies if my em=
-ail client screwed up this message. I didn&#39;t have this thread in my cli=
-ent and have tried to import it from another account.</div></div>
-
---94eb2c08cd5646e3830549041a86--
+>> Is there a way to mitigate this problem of small lru sizes, priority drop
+>> and kswapd cpu consumption.
+>>
+> I've not investigated or heard of this problem before, so I am not
+> sure if I have
+> a solution for you.
+Thanks for your comments Balbir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
