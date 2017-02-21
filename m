@@ -1,125 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1125A6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2017 23:31:33 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id o65so171581940yba.3
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 20:31:33 -0800 (PST)
-Received: from mail-yb0-x22f.google.com (mail-yb0-x22f.google.com. [2607:f8b0:4002:c09::22f])
-        by mx.google.com with ESMTPS id m187si6010883ybm.13.2017.02.20.20.31.31
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CE79E6B0038
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 00:19:53 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id b2so69205260pgc.6
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 21:19:53 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id u21si20745093pgi.398.2017.02.20.21.19.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Feb 2017 20:31:32 -0800 (PST)
-Received: by mail-yb0-x22f.google.com with SMTP id i66so18428531yba.1
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 20:31:31 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <b11e01d9-7f67-5c91-c7da-e5a95996c0ec@codeaurora.org>
-References: <b7ee0ad3-a580-b38a-1e90-035c77b181ea@codeaurora.org> <b11e01d9-7f67-5c91-c7da-e5a95996c0ec@codeaurora.org>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Tue, 21 Feb 2017 10:01:30 +0530
-Message-ID: <CAKTCnzn7Ry0WLEiF4TWKSO02gy_U=iaCsO=nw7p4Jfz7T71R2Q@mail.gmail.com>
+        Mon, 20 Feb 2017 21:19:52 -0800 (PST)
 Subject: Re: Query on per app memory cgroup
-Content-Type: text/plain; charset=UTF-8
+References: <b7ee0ad3-a580-b38a-1e90-035c77b181ea@codeaurora.org>
+ <b11e01d9-7f67-5c91-c7da-e5a95996c0ec@codeaurora.org>
+ <CAA_GA1eMYOPwm8iqn6QLVRvn7vFi3Ae6CbpkLU7iO=J+jE=Yiw@mail.gmail.com>
+ <ed013bac-e3b9-feb1-c7ce-26c982bf04b7@codeaurora.org>
+ <CAA_GA1cmDEqS7T+K0v0Qcd9ObYEU5X3wOWWNyntUj6ZdLcH-pA@mail.gmail.com>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <62f20b82-1221-31e1-46f4-17db98ea989a@codeaurora.org>
+Date: Tue, 21 Feb 2017 10:49:46 +0530
+MIME-Version: 1.0
+In-Reply-To: <CAA_GA1cmDEqS7T+K0v0Qcd9ObYEU5X3wOWWNyntUj6ZdLcH-pA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, shashim@codeaurora.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, shashim@codeaurora.org
 
-On Thu, Feb 9, 2017 at 4:46 PM, Vinayak Menon <vinmenon@codeaurora.org> wrote:
-> Hi,
->
-> We were trying to implement the per app memory cgroup that Johannes
-> suggested (https://lkml.org/lkml/2014/12/19/358) and later discussed during
-> Minchan's proposal of per process reclaim
 
-Per app memory cgroups are interesting, but also quite aggressive. Could
-you please describe what tasks/workload you have?
+On 2/20/2017 5:59 PM, Bob Liu wrote:
+> On Mon, Feb 20, 2017 at 1:22 PM, Vinayak Menon <vinmenon@codeaurora.org> wrote:
+>>
+>> On 2/17/2017 6:47 PM, Bob Liu wrote:
+>>> On Thu, Feb 9, 2017 at 7:16 PM, Vinayak Menon <vinmenon@codeaurora.org> wrote:
+>>>> Hi,
+>>>>
+>>>> We were trying to implement the per app memory cgroup that Johannes
+>>>> suggested (https://lkml.org/lkml/2014/12/19/358) and later discussed during
+>>>> Minchan's proposal of per process reclaim
+>>>> (https://lkml.org/lkml/2016/6/13/570). The test was done on Android target
+>>>> with 2GB of RAM and cgroupv1. The first test done was to just create per
+>>>> app cgroups without modifying any cgroup controls. 2 kinds of tests were
+>>>> done which gives similar kind of observation. One was to just open
+>>>> applications in sequence and repeat this N times (20 apps, so around 20
+>>>> memcgs max at a time). Another test was to create around 20 cgroups and
+>>>> perform a make (not kernel, another less heavy source) in each of them.
+>>>>
+>>>> It is observed that because of the creation of memcgs per app, the per
+>>>> memcg LRU size is so low and results in kswapd priority drop. This results
+>>> How did you confirm that? Traced the get_scan_count() function?
+>>> You may hack this function for more verification.
+>> This was confirmed by adding some VM event counters in get_scan_count.
+> Would you mind attach your modification?
+> That would be helpful for people to make fix patches.
 
-> (https://lkml.org/lkml/2016/6/13/570). The test was done on Android target
-> with 2GB of RAM and cgroupv1. The first test done was to just create per
-> app cgroups without modifying any cgroup controls. 2 kinds of tests were
-> done which gives similar kind of observation. One was to just open
-> applications in sequence and repeat this N times (20 apps, so around 20
-> memcgs max at a time). Another test was to create around 20 cgroups and
-> perform a make (not kernel, another less heavy source) in each of them.
->
-> It is observed that because of the creation of memcgs per app, the per
-> memcg LRU size is so low and results in kswapd priority drop. This results
-> in sudden increase in scan at lower priorities. Because of this, kswapd
-> consumes around 3 times more time (and thus less pageoutrun), and due to
-> the lag in reclaiming memory direct reclaims are more and consumes around
-> 2.5 times more time.
->
+Sure. The entire set of debug changes is quite big with stuff not relevant for this issue.
+Adding here only the relevant part related to priority drop. Let me know if this is not useful,
+I can clean up the debug path and share it.
+Note that the test is done on 4.4 kernel.
+To get the number of pages chosen by get_scan_count for each LRU vm event was added
+like this. Showing only a part of it.
 
-That does not sound good! Have you been able to test this with older
-kernels to see if this is a regression?
++       if (current_is_kswapd()) {
++               switch (sc->priority) {
++                       case 0:
++                       count_vm_events(SCAN_ACTIVE_ANON0, nr[LRU_ACTIVE_ANON]);
++                       count_vm_events(SCAN_INACTIVE_ANON0, nr[LRU_INACTIVE_ANON]);
++                       count_vm_events(SCAN_ACTIVE_FILE0, nr[LRU_ACTIVE_FILE]);
++                       count_vm_events(SCAN_INACTIVE_FILE0, nr[LRU_INACTIVE_FILE]);
++                       break;
++                       case 1:
+....
 
-> Another observation is that the reclaim->generation check in
-> mem_cgroup_iter results in kswapd breaking the memcg lru reclaim loop in
-> shrink_zone (this is 4.4 kernel) often. This also contributes to the
-> priority drop. A test was done to skip the reclaim generation check in
-> mem_cgroup_iter and allow concurrent reclaimers to run at same priority.
-> This improved the results reducing the kswapd priority drops (and thus time
-> spent in kswapd, allocstalls etc). But this problem could be a side effect
-> of kswapd running for long and reclaiming slow resulting in many parallel
-> direct reclaims.
->
-> Some of the stats are shown below
->                             base        per-app-memcg
->
-> pgalloc_dma                 4982349     5043134
->
-> pgfree                      5249224     5303701
->
-> pgactivate                  83480       117088
->
-> pgdeactivate                152407      1021799
->
-> pgmajfault                  421         31698
->
-> pgrefill_dma                156884      1027744
->
-> pgsteal_kswapd_dma          128449      97364
->
-> pgsteal_direct_dma          101012      229924
->
-> pgscan_kswapd_dma           132716      109750
->
-> pgscan_direct_dma           104141      265515
->
-> slabs_scanned               58782       116886
->
-> pageoutrun                  57          16
->
-> allocstall                  1283        3540
->
->
-> After this, offloading some of the job to soft reclaim was tried with the
-> assumption that it will result in lesser priority drops. The problem is in
-> determining the right value to be set for soft reclaim. For e.g. one of the
-> main motives behind using memcg in Android is to set different swappiness
-> to tasks depending on their importance (foreground, background etc.). In
-> such a case we actually do not want to set any soft limits. And in the
-> second case when we want to use soft reclaim to offload some work from
-> kswapd_shrink_zone on to mem_cgroup_soft_limit_reclaim, it becomes tricky
-> to set the soft limit values. I was trying out with different percentage of
-> task RSS for setting soft limit, but this actually results in excessive
-> scanning by mem_cgroup_soft_limit_reclaim, which as I understand  is
-> because of always using scan priority of 0. This in turn increases the time
-> spent in kswapd. It reduces the kswapd priority drop though.
->
+Similarly just after the shrink_list in shrink_lruvec
 
-Soft limit setting can be tricky, but my advise is to set it based on how much
-you see a particular cgroup using when the system is under memory pressure.
++     if ((lru == LRU_INACTIVE_ANON) && current_is_kswapd()) {
++     	count_vm_events(RECLAIM_INACTIVE_ANON, ret);
+...
 
-> Is there a way to mitigate this problem of small lru sizes, priority drop
-> and kswapd cpu consumption.
->
+The results from above counters show the scanned and reclaimed at each priority and with
+the per app memcg it can be seen that the scanned and reclaimed are less at lower priorities
+(because of small LRU) and suddenly increases at higher priorities (because of scanning most
+of the LRUs of all the memcgs).
 
-I've not investigated or heard of this problem before, so I am not
-sure if I have
-a solution for you.
+A check like this was added in get_scan_count to get a comparative data on times we hit !scan
+case.
 
-Balbir
++                       if (!scan && pass && force_scan) {
++                               count_vm_event(GSC_6);
+                                scan = min(size, SWAP_CLUSTER_MAX);
++                       }
++
++                       if (!scan) {
++                               if (lru == 0)
++                                       count_vm_event(GSC_7_0);
++                               else if (lru == 1)
++                                       count_vm_event(GSC_7_1);
++                               else if (lru == 2)
++                                       count_vm_event(GSC_7_2);
++                               else if (lru == 3)
++                                       count_vm_event(GSC_7_3);
++                       }
+
+And to get the actual scanned and reclaimed pages at each priority, events were added in shrink_zone
+after the shrink_lruvec call
+
++if (current_is_kswapd()) {
++       switch (sc->priority) {
++               case 0:
++                       count_vm_events(KSWAPD_S_AT_0, sc->nr_scanned - nr_scanned);
++                       count_vm_events(KSWAPD_R_AT_0, sc->nr_reclaimed - nr_reclaimed);
++                       break;
++               case 1:
++                       count_vm_events(KSWAPD_S_AT_1, sc->nr_scanned - nr_scanned);
++                       count_vm_events(KSWAPD_R_AT_1, sc->nr_reclaimed - nr_reclaimed);
++                       break;
+...
+
+The below count was added to find the number of times kswapd_shrink_zone had run at different priorities.
++       switch (sc->priority) {
++               case 0:
++                       count_vm_event(KSWAPD_AT_0);
++                       break;
++               case 1:
+...
+
+Thanks,
+Vinayak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
