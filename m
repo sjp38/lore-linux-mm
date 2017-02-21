@@ -1,122 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 34DD46B0038
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 01:10:59 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id 203so169522452ith.3
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 22:10:59 -0800 (PST)
-Received: from mail-it0-x22e.google.com (mail-it0-x22e.google.com. [2607:f8b0:4001:c0b::22e])
-        by mx.google.com with ESMTPS id 66si932111ion.153.2017.02.20.22.10.58
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CFFBF6B0038
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 04:40:40 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id s10so13220729wrc.1
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 01:40:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d9si9596151wrd.163.2017.02.21.01.40.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Feb 2017 22:10:58 -0800 (PST)
-Received: by mail-it0-x22e.google.com with SMTP id h10so93275757ith.1
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2017 22:10:58 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 21 Feb 2017 01:40:39 -0800 (PST)
+Date: Tue, 21 Feb 2017 10:40:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170221094034.GF15595@dhcp22.suse.cz>
+References: <20170125130014.GO32377@dhcp22.suse.cz>
+ <20170127144906.GB4148@dhcp22.suse.cz>
+ <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
+ <20170130085546.GF8443@dhcp22.suse.cz>
+ <20170202101415.GE22806@dhcp22.suse.cz>
+ <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <CA+oaBQ+s5oXqu5TqddKs9LmUbaNNPGM7=gu5On4GYrkSDu0_XA@mail.gmail.com>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
- <20170217141328.164563-34-kirill.shutemov@linux.intel.com>
- <CA+55aFwgbHxV-Ha2n1H=Z7P6bgcQ3D8aW=fr8ZrQ5OnvZ1vOYg@mail.gmail.com>
- <CALCETrW6YBxZw0NJGHe92dy7qfHqRHNr0VqTKV=O4j9r8hcSew@mail.gmail.com>
- <CA+55aFxu0p90nz6-VPFLCLBSpEVx7vNFGP_M8j=YS-Dk-zfJGg@mail.gmail.com>
- <CALCETrW91F0=GLWt4yBJVbt7U=E6nLXDUMNUvTpnmn6XLjaY6g@mail.gmail.com> <CA+oaBQ+s5oXqu5TqddKs9LmUbaNNPGM7=gu5On4GYrkSDu0_XA@mail.gmail.com>
-From: Michael Pratt <mpratt@google.com>
-Date: Mon, 20 Feb 2017 22:10:17 -0800
-Message-ID: <CALoThU9TKLtdnQX=9xBh6qYE6oQRcD8m+0nmsMVnp9UjiOasMQ@mail.gmail.com>
-Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and PR_GET_MAX_VADDR
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: luto@amacapital.net
-Cc: torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, x86@kernel.org, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, hpa@zytor.com, ak@linux.intel.com, dave.hansen@intel.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, catalin.marinas@arm.com, linux-api@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-Sigh... apologies for the HTML. Trying again...
+On Fri 03-02-17 19:57:39, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Mon 30-01-17 09:55:46, Michal Hocko wrote:
+> > > On Sun 29-01-17 00:27:27, Tetsuo Handa wrote:
+> > [...]
+> > > > Regarding [1], it helped avoiding the too_many_isolated() issue. I can't
+> > > > tell whether it has any negative effect, but I got on the first trial that
+> > > > all allocating threads are blocked on wait_for_completion() from flush_work()
+> > > > in drain_all_pages() introduced by "mm, page_alloc: drain per-cpu pages from
+> > > > workqueue context". There was no warn_alloc() stall warning message afterwords.
+> > > 
+> > > That patch is buggy and there is a follow up [1] which is not sitting in the
+> > > mmotm (and thus linux-next) yet. I didn't get to review it properly and
+> > > I cannot say I would be too happy about using WQ from the page
+> > > allocator. I believe even the follow up needs to have WQ_RECLAIM WQ.
+> > > 
+> > > [1] http://lkml.kernel.org/r/20170125083038.rzb5f43nptmk7aed@techsingularity.net
+> > 
+> > Did you get chance to test with this follow up patch? It would be
+> > interesting to see whether OOM situation can still starve the waiter.
+> > The current linux-next should contain this patch.
+> 
+> So far I can't reproduce problems except two listed below (cond_resched() trap
+> in printk() and IDLE priority trap are excluded from the list).
 
-On Mon, Feb 20, 2017 at 9:21 PM, Michael Pratt <linux@pratt.im> wrote:
-> On Fri, Feb 17, 2017 at 3:02 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> On Fri, Feb 17, 2017 at 1:01 PM, Linus Torvalds
->> <torvalds@linux-foundation.org> wrote:
->>> On Fri, Feb 17, 2017 at 12:12 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->>>>
->>>> At the very least, I'd want to see
->>>> MAP_FIXED_BUT_DONT_BLOODY_UNMAP_ANYTHING.  I *hate* the current
->>>> interface.
->>>
->>> That's unrelated, but I guess w could add a MAP_NOUNMAP flag, and then
->>> you can use MAP_FIXED | MAP_NOUNMAP or something.
->>>
->>> But that has nothing to do with the 47-vs-56 bit issue.
->>>
->>>> How about MAP_LIMIT where the address passed in is interpreted as an
->>>> upper bound instead of a fixed address?
->>>
->>> Again, that's a unrelated semantic issue. Right now - if you don't
->>> pass in MAP_FIXED at all, the "addr" argument is used as a starting
->>> value for deciding where to find an unmapped area. But there is no way
->>> to specify the end. That would basically be what the process control
->>> thing would be (not per-system-call, but per-thread ).
->>>
->>
->> What I'm trying to say is: if we're going to do the route of 48-bit
->> limit unless a specific mmap call requests otherwise, can we at least
->> have an interface that doesn't suck?
+OK, so it seems that all the distractions are handled now and linux-next
+should provide a reasonable base for testing. You said you weren't able
+to reproduce the original long stalls on too_many_isolated(). I would be
+still interested to see those oom reports and potential anomalies in the
+isolated counts before I send the patch for inclusion so your further
+testing would be more than appreciated. Also stalls > 10s without any
+previous occurrences would be interesting.
 
-I've got a set of patches that I've meant to send out as an RFC for a
-while that tries to address userspace control of address space layout
-and covers many of these ideas.
-
-There is a new syscall and set of prctls for controlling the "mmap
-layout" (i.e., get_unmapped_area search range) that look something
-like this:
-
-struct mmap_layout {
-unsigned long start;
-unsigned long end;
-/*
-* These are equivalent to mmap_legacy_base and mmap_base,
-* but are not really needed in this proposal.
-*/
-unsigned long low_base;
-unsigned long high_base;
-unsigned long flags;
-};
-
-/* For flags */
-#define MMAP_TOPDOWN 1
-
-struct layout_mmap_args {
-unsigned long addr;
-unsigned long len;
-unsigned long prot;
-unsigned long flags;
-unsigned long fd;
-unsigned long off;
-struct mmap_layout layout;
-};
-
-void *layout_mmap(struct layout_mmap_args *args);
-
-int prctl(PR_GET_MMAP_LAYOUT, struct mmap_layout *layout);
-int prctl(PR_SET_MMAP_LAYOUT, struct mmap_layout *layout);
-
-The prctls control the default range that mmap and friends will
-allocate. For 56-bit user address space, it could default to
-[mmap_min_addr, 1<<47), as Linus suggests. Applications that want the
-full address space can increase it to cover the entire range.
-
-The layout_mmap syscall allows one-off mappings that fall outside the
-default layout, and nicely solves the "MAP_FIXED but don't unmap
-anything problem" by passing an explicit range to check without
-actually setting MAP_FIXED.
-
-This idea is quite similar to the MAX_VADDR + default
-get_unmapped_area behavior ides, just more generalized to give
-userspace more control over the ultimate behavior of
-get_unmapped_area.
-
-
-PS. Apologies if my email client screwed up this message. I didn't
-have this thread in my client and have tried to import it from another
-account.
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
