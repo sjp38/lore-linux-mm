@@ -1,301 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 777376B03A9
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 09:37:13 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f21so117318982pgi.4
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 06:37:13 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y5si22035296pgi.411.2017.02.21.06.37.11
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A74536B03AB
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2017 09:55:41 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id w185so185372667ita.5
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 06:55:41 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0081.outbound.protection.outlook.com. [104.47.33.81])
+        by mx.google.com with ESMTPS id i131si11437989itd.79.2017.02.21.06.55.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 21 Feb 2017 06:37:11 -0800 (PST)
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages per zone
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
-	<20170130085546.GF8443@dhcp22.suse.cz>
-	<20170202101415.GE22806@dhcp22.suse.cz>
-	<201702031957.AGH86961.MLtOQVFOSHJFFO@I-love.SAKURA.ne.jp>
-	<20170221094034.GF15595@dhcp22.suse.cz>
-In-Reply-To: <20170221094034.GF15595@dhcp22.suse.cz>
-Message-Id: <201702212335.DJB30777.JOFMHSFtVLQOOF@I-love.SAKURA.ne.jp>
-Date: Tue, 21 Feb 2017 23:35:07 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 21 Feb 2017 06:55:40 -0800 (PST)
+Subject: Re: [RFC PATCH v4 06/28] x86: Add support to enable SME during early
+ boot processing
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154319.19244.7863.stgit@tlendack-t1.amdoffice.net>
+ <20170220125131.cenb2subqjcqf2xr@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <a23be4fa-d7ef-4e7a-5b6b-73e120a5ca80@amd.com>
+Date: Tue, 21 Feb 2017 08:55:30 -0600
+MIME-Version: 1.0
+In-Reply-To: <20170220125131.cenb2subqjcqf2xr@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-Michal Hocko wrote:
-> OK, so it seems that all the distractions are handled now and linux-next
-> should provide a reasonable base for testing. You said you weren't able
-> to reproduce the original long stalls on too_many_isolated(). I would be
-> still interested to see those oom reports and potential anomalies in the
-> isolated counts before I send the patch for inclusion so your further
-> testing would be more than appreciated. Also stalls > 10s without any
-> previous occurrences would be interesting.
+On 2/20/2017 6:51 AM, Borislav Petkov wrote:
+> On Thu, Feb 16, 2017 at 09:43:19AM -0600, Tom Lendacky wrote:
+>> This patch adds support to the early boot code to use Secure Memory
+>> Encryption (SME).  Support is added to update the early pagetables with
+>> the memory encryption mask and to encrypt the kernel in place.
+>>
+>> The routines to set the encryption mask and perform the encryption are
+>> stub routines for now with full function to be added in a later patch.
+>
+> s/full function/functionality/
 
-I confirmed that linux-next-20170221 with kmallocwd applied can reproduce
-infinite too_many_isolated() loop problem. Please send your patches to linux-next.
+Ok.
 
-Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20170221.txt.xz .
-----------------------------------------
-[ 1160.162013] Out of memory: Kill process 7523 (a.out) score 998 or sacrifice child
-[ 1160.164422] Killed process 7523 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[ 1160.169699] oom_reaper: reaped process 7523 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-[ 1209.781787] MemAlloc-Info: stalling=32 dying=1 exiting=0 victim=1 oom_count=45896
-[ 1209.790966] MemAlloc: kswapd0(67) flags=0xa60840 switches=51139 uninterruptible
-[ 1209.799726] kswapd0         D10936    67      2 0x00000000
-[ 1209.807326] Call Trace:
-[ 1209.812581]  __schedule+0x336/0xe00
-[ 1209.818599]  schedule+0x3d/0x90
-[ 1209.823907]  schedule_timeout+0x26a/0x510
-[ 1209.827218]  ? trace_hardirqs_on+0xd/0x10
-[ 1209.830535]  __down_common+0xfb/0x131
-[ 1209.833801]  ? _xfs_buf_find+0x2cb/0xc10 [xfs]
-[ 1209.837372]  __down+0x1d/0x1f
-[ 1209.840331]  down+0x41/0x50
-[ 1209.843243]  xfs_buf_lock+0x64/0x370 [xfs]
-[ 1209.846597]  _xfs_buf_find+0x2cb/0xc10 [xfs]
-[ 1209.850031]  ? _xfs_buf_find+0xa4/0xc10 [xfs]
-[ 1209.853514]  xfs_buf_get_map+0x2a/0x480 [xfs]
-[ 1209.855831]  xfs_buf_read_map+0x2c/0x400 [xfs]
-[ 1209.857388]  ? free_debug_processing+0x27d/0x2af
-[ 1209.859037]  xfs_trans_read_buf_map+0x186/0x830 [xfs]
-[ 1209.860707]  xfs_read_agf+0xc8/0x2b0 [xfs]
-[ 1209.862184]  xfs_alloc_read_agf+0x7a/0x300 [xfs]
-[ 1209.863728]  ? xfs_alloc_space_available+0x7b/0x120 [xfs]
-[ 1209.865385]  xfs_alloc_fix_freelist+0x3bc/0x490 [xfs]
-[ 1209.866974]  ? __radix_tree_lookup+0x84/0xf0
-[ 1209.868374]  ? xfs_perag_get+0x1a0/0x310 [xfs]
-[ 1209.869798]  ? xfs_perag_get+0x5/0x310 [xfs]
-[ 1209.871288]  xfs_alloc_vextent+0x161/0xda0 [xfs]
-[ 1209.872757]  xfs_bmap_btalloc+0x46c/0x8b0 [xfs]
-[ 1209.874182]  ? save_stack_trace+0x1b/0x20
-[ 1209.875542]  xfs_bmap_alloc+0x17/0x30 [xfs]
-[ 1209.876847]  xfs_bmapi_write+0x74e/0x11d0 [xfs]
-[ 1209.878190]  xfs_iomap_write_allocate+0x199/0x3a0 [xfs]
-[ 1209.879632]  xfs_map_blocks+0x2cc/0x5a0 [xfs]
-[ 1209.880909]  xfs_do_writepage+0x215/0x920 [xfs]
-[ 1209.882255]  ? clear_page_dirty_for_io+0xb4/0x310
-[ 1209.883598]  xfs_vm_writepage+0x3b/0x70 [xfs]
-[ 1209.884841]  pageout.isra.54+0x1a4/0x460
-[ 1209.886210]  shrink_page_list+0xa86/0xcf0
-[ 1209.887441]  shrink_inactive_list+0x1c5/0x660
-[ 1209.888682]  shrink_node_memcg+0x535/0x7f0
-[ 1209.889975]  ? mem_cgroup_iter+0x14d/0x720
-[ 1209.891197]  shrink_node+0xe1/0x310
-[ 1209.892288]  kswapd+0x362/0x9b0
-[ 1209.893308]  kthread+0x10f/0x150
-[ 1209.894383]  ? mem_cgroup_shrink_node+0x3b0/0x3b0
-[ 1209.895703]  ? kthread_create_on_node+0x70/0x70
-[ 1209.896956]  ret_from_fork+0x31/0x40
-[ 1209.898117] MemAlloc: systemd-journal(526) flags=0x400900 switches=33248 seq=121659 gfp=0x14201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD) order=0 delay=52772 uninterruptible
-[ 1209.902154] systemd-journal D11240   526      1 0x00000000
-[ 1209.903642] Call Trace:
-[ 1209.904574]  __schedule+0x336/0xe00
-[ 1209.905734]  schedule+0x3d/0x90
-[ 1209.906817]  schedule_timeout+0x20d/0x510
-[ 1209.908025]  ? prepare_to_wait+0x2b/0xc0
-[ 1209.909268]  ? lock_timer_base+0xa0/0xa0
-[ 1209.910460]  io_schedule_timeout+0x1e/0x50
-[ 1209.911681]  congestion_wait+0x86/0x260
-[ 1209.912853]  ? remove_wait_queue+0x60/0x60
-[ 1209.914115]  shrink_inactive_list+0x5b4/0x660
-[ 1209.915385]  ? __list_lru_count_one.isra.2+0x22/0x80
-[ 1209.916768]  shrink_node_memcg+0x535/0x7f0
-[ 1209.918173]  shrink_node+0xe1/0x310
-[ 1209.919288]  do_try_to_free_pages+0xe1/0x300
-[ 1209.920548]  try_to_free_pages+0x131/0x3f0
-[ 1209.921827]  __alloc_pages_slowpath+0x3ec/0xd95
-[ 1209.923137]  __alloc_pages_nodemask+0x3e4/0x460
-[ 1209.924454]  ? __radix_tree_lookup+0x84/0xf0
-[ 1209.925790]  alloc_pages_current+0x97/0x1b0
-[ 1209.927021]  ? find_get_entry+0x5/0x300
-[ 1209.928189]  __page_cache_alloc+0x15d/0x1a0
-[ 1209.929471]  ? pagecache_get_page+0x2c/0x2b0
-[ 1209.930716]  filemap_fault+0x4df/0x8b0
-[ 1209.931867]  ? filemap_fault+0x373/0x8b0
-[ 1209.933111]  ? xfs_ilock+0x22c/0x360 [xfs]
-[ 1209.934510]  ? xfs_filemap_fault+0x64/0x1e0 [xfs]
-[ 1209.935857]  ? down_read_nested+0x7b/0xc0
-[ 1209.937123]  ? xfs_ilock+0x22c/0x360 [xfs]
-[ 1209.938373]  xfs_filemap_fault+0x6c/0x1e0 [xfs]
-[ 1209.939691]  __do_fault+0x1e/0xa0
-[ 1209.940807]  ? _raw_spin_unlock+0x27/0x40
-[ 1209.942002]  __handle_mm_fault+0xbb1/0xf40
-[ 1209.943228]  ? mutex_unlock+0x12/0x20
-[ 1209.944410]  ? devkmsg_read+0x15c/0x330
-[ 1209.945912]  handle_mm_fault+0x16b/0x390
-[ 1209.947297]  ? handle_mm_fault+0x49/0x390
-[ 1209.948868]  __do_page_fault+0x24a/0x530
-[ 1209.950351]  do_page_fault+0x30/0x80
-[ 1209.951615]  page_fault+0x28/0x30
-[ 1209.952724] RIP: 0033:0x556f398d623f
-[ 1209.953834] RSP: 002b:00007fff1da75710 EFLAGS: 00010206
-[ 1209.955273] RAX: 0000556f3b12b9d0 RBX: 0000000000000009 RCX: 0000000000000020
-[ 1209.957117] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
-[ 1209.958849] RBP: 00007fff1da759b0 R08: 0000000000000000 R09: 0000000000000000
-[ 1209.960659] R10: 00000000ffffffc0 R11: 00007fdc0df4ef10 R12: 00007fff1da75f30
-[ 1209.962397] R13: 00007fff1da78810 R14: 0000000000000009 R15: 0000000000000006
-[ 1209.964204] MemAlloc: auditd(563) flags=0x400900 switches=6443 seq=774 gfp=0x142134a(GFP_NOFS|__GFP_HIGHMEM|__GFP_COLD|__GFP_NOWARN|__GFP_NORETRY|__GFP_HARDWALL|__GFP_MOVABLE) order=0 delay=16511 uninterruptible
-[ 1209.969005] auditd          D12280   563      1 0x00000000
-[ 1209.970503] Call Trace:
-[ 1209.971436]  __schedule+0x336/0xe00
-[ 1209.972621]  schedule+0x3d/0x90
-[ 1209.973696]  schedule_timeout+0x20d/0x510
-[ 1209.974910]  ? prepare_to_wait+0x2b/0xc0
-[ 1209.976155]  ? lock_timer_base+0xa0/0xa0
-[ 1209.977350]  io_schedule_timeout+0x1e/0x50
-[ 1209.978597]  congestion_wait+0x86/0x260
-[ 1209.979795]  ? remove_wait_queue+0x60/0x60
-[ 1209.981020]  shrink_inactive_list+0x5b4/0x660
-[ 1209.982290]  ? __list_lru_count_one.isra.2+0x22/0x80
-[ 1209.983748]  shrink_node_memcg+0x535/0x7f0
-[ 1209.985041]  ? mem_cgroup_iter+0x14d/0x720
-[ 1209.986267]  shrink_node+0xe1/0x310
-[ 1209.987424]  do_try_to_free_pages+0xe1/0x300
-[ 1209.988705]  try_to_free_pages+0x131/0x3f0
-[ 1209.989935]  __alloc_pages_slowpath+0x3ec/0xd95
-[ 1209.991274]  __alloc_pages_nodemask+0x3e4/0x460
-[ 1209.992601]  alloc_pages_current+0x97/0x1b0
-[ 1209.993845]  __page_cache_alloc+0x15d/0x1a0
-[ 1209.995120]  __do_page_cache_readahead+0x118/0x410
-[ 1209.996535]  ? __do_page_cache_readahead+0x191/0x410
-[ 1209.997946]  filemap_fault+0x35f/0x8b0
-[ 1209.999199]  ? xfs_ilock+0x22c/0x360 [xfs]
-[ 1210.000473]  ? xfs_filemap_fault+0x64/0x1e0 [xfs]
-[ 1210.001843]  ? down_read_nested+0x7b/0xc0
-[ 1210.003184]  ? xfs_ilock+0x22c/0x360 [xfs]
-[ 1210.004471]  xfs_filemap_fault+0x6c/0x1e0 [xfs]
-[ 1210.005792]  __do_fault+0x1e/0xa0
-[ 1210.006925]  __handle_mm_fault+0xbb1/0xf40
-[ 1210.008241]  ? ep_poll+0x2ea/0x3b0
-[ 1210.009373]  handle_mm_fault+0x16b/0x390
-[ 1210.010572]  ? handle_mm_fault+0x49/0x390
-[ 1210.011818]  __do_page_fault+0x24a/0x530
-[ 1210.013059]  ? wake_up_q+0x80/0x80
-[ 1210.014176]  do_page_fault+0x30/0x80
-[ 1210.015367]  page_fault+0x28/0x30
-[ 1210.016473] RIP: 0033:0x7fcb0c838d13
-[ 1210.017635] RSP: 002b:00007ffe275b95a0 EFLAGS: 00010293
-[ 1210.019120] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 00007fcb0c838d13
-[ 1210.020867] RDX: 0000000000000040 RSI: 0000559240b08d40 RDI: 0000000000000009
-[ 1210.022769] RBP: 0000000000000000 R08: 00000000000cf8ba R09: 0000000000000001
-[ 1210.024530] R10: 000000000000e95f R11: 0000000000000293 R12: 000055923fbe5e60
-[ 1210.026308] R13: 0000000000000000 R14: 0000000000000000 R15: 000055923fbe5e60
-[ 1210.028961] MemAlloc: vmtoolsd(723) flags=0x400900 switches=36213 seq=120979 gfp=0x14201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD) order=0 delay=52811 uninterruptible
-[ 1210.032683] vmtoolsd        D11240   723      1 0x00000080
-[ 1210.034316] Call Trace:
-[ 1210.035340]  __schedule+0x336/0xe00
-[ 1210.036444]  schedule+0x3d/0x90
-[ 1210.037462]  schedule_timeout+0x20d/0x510
-[ 1210.038694]  ? prepare_to_wait+0x2b/0xc0
-[ 1210.039849]  ? lock_timer_base+0xa0/0xa0
-[ 1210.041005]  io_schedule_timeout+0x1e/0x50
-[ 1210.042435]  congestion_wait+0x86/0x260
-[ 1210.043575]  ? remove_wait_queue+0x60/0x60
-[ 1210.044763]  shrink_inactive_list+0x5b4/0x660
-[ 1210.046058]  ? __list_lru_count_one.isra.2+0x22/0x80
-[ 1210.047419]  shrink_node_memcg+0x535/0x7f0
-[ 1210.048609]  shrink_node+0xe1/0x310
-[ 1210.049688]  do_try_to_free_pages+0xe1/0x300
-[ 1210.051183]  try_to_free_pages+0x131/0x3f0
-[ 1210.052421]  __alloc_pages_slowpath+0x3ec/0xd95
-[ 1210.053717]  __alloc_pages_nodemask+0x3e4/0x460
-[ 1210.055025]  ? __radix_tree_lookup+0x84/0xf0
-[ 1210.056264]  alloc_pages_current+0x97/0x1b0
-[ 1210.057466]  ? find_get_entry+0x5/0x300
-[ 1210.058695]  __page_cache_alloc+0x15d/0x1a0
-[ 1210.059894]  ? pagecache_get_page+0x2c/0x2b0
-[ 1210.061128]  filemap_fault+0x4df/0x8b0
-[ 1210.062340]  ? filemap_fault+0x373/0x8b0
-[ 1210.063545]  ? xfs_ilock+0x22c/0x360 [xfs]
-[ 1210.064766]  ? xfs_filemap_fault+0x64/0x1e0 [xfs]
-[ 1210.066135]  ? down_read_nested+0x7b/0xc0
-[ 1210.067405]  ? xfs_ilock+0x22c/0x360 [xfs]
-[ 1210.068706]  xfs_filemap_fault+0x6c/0x1e0 [xfs]
-[ 1210.070021]  __do_fault+0x1e/0xa0
-[ 1210.071102]  __handle_mm_fault+0xbb1/0xf40
-[ 1210.072296]  handle_mm_fault+0x16b/0x390
-[ 1210.073509]  ? handle_mm_fault+0x49/0x390
-[ 1210.074683]  __do_page_fault+0x24a/0x530
-[ 1210.075872]  do_page_fault+0x30/0x80
-[ 1210.076974]  page_fault+0x28/0x30
-[ 1210.078090] RIP: 0033:0x7f12e9fd6420
-[ 1210.079193] RSP: 002b:00007ffee98ba498 EFLAGS: 00010202
-[ 1210.080605] RAX: 00007f12de02e0fe RBX: 00007ffee98ba4b0 RCX: 00007ffee98ba590
-[ 1210.082383] RDX: 00007f12de02e0fe RSI: 0000000000000001 RDI: 00007ffee98ba4b0
-[ 1210.084177] RBP: 0000000000000080 R08: 0000000000000000 R09: 000000000000000a
-[ 1210.086134] R10: 00007f12eb61a010 R11: 0000000000000000 R12: 0000000000000080
-[ 1210.087850] R13: 0000000000000000 R14: 00007f12ea006770 R15: 00005580adf3abc0
-(...snipped...)
-[ 1210.640170] MemAlloc: a.out(7523) flags=0x420040 switches=90 uninterruptible dying victim
-[ 1210.642426] a.out           D11496  7523   7376 0x00100084
-[ 1210.643999] Call Trace:
-[ 1210.644921]  __schedule+0x336/0xe00
-[ 1210.646007]  ? trace_hardirqs_on_thunk+0x1a/0x1c
-[ 1210.647328]  schedule+0x3d/0x90
-[ 1210.648441]  schedule_timeout+0x26a/0x510
-[ 1210.649619]  ? trace_hardirqs_on+0xd/0x10
-[ 1210.650792]  __down_common+0xfb/0x131
-[ 1210.652188]  ? _xfs_buf_find+0x2cb/0xc10 [xfs]
-[ 1210.653480]  __down+0x1d/0x1f
-[ 1210.654483]  down+0x41/0x50
-[ 1210.655462]  xfs_buf_lock+0x64/0x370 [xfs]
-[ 1210.656618]  _xfs_buf_find+0x2cb/0xc10 [xfs]
-[ 1210.657823]  ? _xfs_buf_find+0xa4/0xc10 [xfs]
-[ 1210.659028]  xfs_buf_get_map+0x2a/0x480 [xfs]
-[ 1210.660284]  xfs_buf_read_map+0x2c/0x400 [xfs]
-[ 1210.661490]  ? del_timer_sync+0xb5/0xe0
-[ 1210.662630]  xfs_trans_read_buf_map+0x186/0x830 [xfs]
-[ 1210.664009]  xfs_read_agf+0xc8/0x2b0 [xfs]
-[ 1210.665171]  xfs_alloc_read_agf+0x7a/0x300 [xfs]
-[ 1210.666441]  ? xfs_alloc_space_available+0x7b/0x120 [xfs]
-[ 1210.667923]  xfs_alloc_fix_freelist+0x3bc/0x490 [xfs]
-[ 1210.669402]  ? __radix_tree_lookup+0x84/0xf0
-[ 1210.670645]  ? xfs_perag_get+0x1a0/0x310 [xfs]
-[ 1210.671949]  ? xfs_perag_get+0x5/0x310 [xfs]
-[ 1210.673145]  xfs_alloc_vextent+0x161/0xda0 [xfs]
-[ 1210.674402]  xfs_bmap_btalloc+0x46c/0x8b0 [xfs]
-[ 1210.675774]  ? save_stack_trace+0x1b/0x20
-[ 1210.676961]  xfs_bmap_alloc+0x17/0x30 [xfs]
-[ 1210.678202]  xfs_bmapi_write+0x74e/0x11d0 [xfs]
-[ 1210.679544]  xfs_iomap_write_allocate+0x199/0x3a0 [xfs]
-[ 1210.680995]  xfs_map_blocks+0x2cc/0x5a0 [xfs]
-[ 1210.682245]  xfs_do_writepage+0x215/0x920 [xfs]
-[ 1210.683742]  ? clear_page_dirty_for_io+0xb4/0x310
-[ 1210.685125]  write_cache_pages+0x2cb/0x6b0
-[ 1210.686408]  ? xfs_map_blocks+0x5a0/0x5a0 [xfs]
-[ 1210.687774]  ? xfs_vm_writepages+0x48/0xa0 [xfs]
-[ 1210.689111]  xfs_vm_writepages+0x6b/0xa0 [xfs]
-[ 1210.690529]  do_writepages+0x21/0x40
-[ 1210.691680]  __filemap_fdatawrite_range+0xc6/0x100
-[ 1210.693021]  filemap_write_and_wait_range+0x2d/0x70
-[ 1210.694444]  xfs_file_fsync+0x8b/0x310 [xfs]
-[ 1210.695728]  vfs_fsync_range+0x3d/0xb0
-[ 1210.696874]  ? __do_page_fault+0x272/0x530
-[ 1210.698102]  do_fsync+0x3d/0x70
-[ 1210.699200]  SyS_fsync+0x10/0x20
-[ 1210.700267]  do_syscall_64+0x6c/0x200
-[ 1210.701498]  entry_SYSCALL64_slow_path+0x25/0x25
-[ 1210.702861] RIP: 0033:0x7f504b072d30
-[ 1210.704014] RSP: 002b:00007fffcb8f7898 EFLAGS: 00000246 ORIG_RAX: 000000000000004a
-[ 1210.705994] RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 00007f504b072d30
-[ 1210.707857] RDX: 000000000000000a RSI: 0000000000000000 RDI: 0000000000000003
-[ 1210.709647] RBP: 0000000000000003 R08: 00007f504afcc938 R09: 000000000000000e
-[ 1210.711632] R10: 00007fffcb8f7620 R11: 0000000000000246 R12: 0000000000400912
-[ 1210.713520] R13: 00007fffcb8f79a0 R14: 0000000000000000 R15: 0000000000000000
-(...snipped...)
-[ 1212.195351] MemAlloc-Info: stalling=32 dying=1 exiting=0 victim=1 oom_count=45896
-[ 1242.551629] MemAlloc-Info: stalling=36 dying=1 exiting=0 victim=1 oom_count=45896
-(...snipped...)
-[ 1245.149165] MemAlloc-Info: stalling=36 dying=1 exiting=0 victim=1 oom_count=45896
-[ 1275.319189] MemAlloc-Info: stalling=40 dying=1 exiting=0 victim=1 oom_count=45896
-(...snipped...)
-[ 1278.241813] MemAlloc-Info: stalling=40 dying=1 exiting=0 victim=1 oom_count=45896
-[ 1289.804580] sysrq: SysRq : Kill All Tasks
-----------------------------------------
+>
+>> A new file, arch/x86/kernel/mem_encrypt_init.c, is introduced to avoid
+>> adding #ifdefs within arch/x86/kernel/head_64.S and allow
+>> arch/x86/mm/mem_encrypt.c to be removed from the build if SME is not
+>> configured. The mem_encrypt_init.c file will contain the necessary #ifdefs
+>> to allow head_64.S to successfully build and call the SME routines.
+>
+> That paragraph is superfluous.
+
+I'll remove this, especially since the files will be combined now.
+
+>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/kernel/Makefile           |    2 +
+>>  arch/x86/kernel/head_64.S          |   46 ++++++++++++++++++++++++++++++++-
+>>  arch/x86/kernel/mem_encrypt_init.c |   50 ++++++++++++++++++++++++++++++++++++
+>>  3 files changed, 96 insertions(+), 2 deletions(-)
+>>  create mode 100644 arch/x86/kernel/mem_encrypt_init.c
+>>
+>> diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+>> index bdcdb3b..33af80a 100644
+>> --- a/arch/x86/kernel/Makefile
+>> +++ b/arch/x86/kernel/Makefile
+>> @@ -140,4 +140,6 @@ ifeq ($(CONFIG_X86_64),y)
+>>
+>>  	obj-$(CONFIG_PCI_MMCONFIG)	+= mmconf-fam10h_64.o
+>>  	obj-y				+= vsmp_64.o
+>> +
+>> +	obj-y				+= mem_encrypt_init.o
+>>  endif
+>> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+>> index b467b14..4f8201b 100644
+>> --- a/arch/x86/kernel/head_64.S
+>> +++ b/arch/x86/kernel/head_64.S
+>> @@ -91,6 +91,23 @@ startup_64:
+>>  	jnz	bad_address
+>>
+>>  	/*
+>> +	 * Enable Secure Memory Encryption (SME), if supported and enabled.
+>> +	 * The real_mode_data address is in %rsi and that register can be
+>> +	 * clobbered by the called function so be sure to save it.
+>> +	 * Save the returned mask in %r12 for later use.
+>> +	 */
+>> +	push	%rsi
+>> +	call	sme_enable
+>> +	pop	%rsi
+>> +	movq	%rax, %r12
+>> +
+>> +	/*
+>> +	 * Add the memory encryption mask to %rbp to include it in the page
+>> +	 * table fixups.
+>> +	 */
+>> +	addq	%r12, %rbp
+>> +
+>> +	/*
+>>  	 * Fixup the physical addresses in the page table
+>>  	 */
+>>  	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
+>> @@ -113,6 +130,7 @@ startup_64:
+>>  	shrq	$PGDIR_SHIFT, %rax
+>>
+>>  	leaq	(PAGE_SIZE + _KERNPG_TABLE)(%rbx), %rdx
+>> +	addq	%r12, %rdx
+>>  	movq	%rdx, 0(%rbx,%rax,8)
+>>  	movq	%rdx, 8(%rbx,%rax,8)
+>>
+>> @@ -129,6 +147,7 @@ startup_64:
+>>  	movq	%rdi, %rax
+>>  	shrq	$PMD_SHIFT, %rdi
+>>  	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
+>> +	addq	%r12, %rax
+>>  	leaq	(_end - 1)(%rip), %rcx
+>>  	shrq	$PMD_SHIFT, %rcx
+>>  	subq	%rdi, %rcx
+>> @@ -162,11 +181,25 @@ startup_64:
+>>  	cmp	%r8, %rdi
+>>  	jne	1b
+>>
+>> -	/* Fixup phys_base */
+>> +	/*
+>> +	 * Fixup phys_base - remove the memory encryption mask from %rbp
+>> +	 * to obtain the true physical address.
+>> +	 */
+>> +	subq	%r12, %rbp
+>>  	addq	%rbp, phys_base(%rip)
+>>
+>> +	/*
+>> +	 * Encrypt the kernel if SME is active.
+>> +	 * The real_mode_data address is in %rsi and that register can be
+>> +	 * clobbered by the called function so be sure to save it.
+>> +	 */
+>> +	push	%rsi
+>> +	call	sme_encrypt_kernel
+>> +	pop	%rsi
+>> +
+>>  .Lskip_fixup:
+>
+> So if we land on this label because we can skip the fixup due to %rbp
+> being 0, we will skip sme_encrypt_kernel() too.
+>
+> I think you need to move the .Lskip_fixup label above the
+> sme_encrypt_kernel call.
+
+Actually, %rbp will have the encryption bit set in it at the time of the
+check so if SME is active we won't take the jump to .Lskip_fixup.
+
+>
+>>  	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
+>> +	addq	%r12, %rax
+>>  	jmp 1f
+>>  ENTRY(secondary_startup_64)
+>>  	/*
+>> @@ -186,7 +219,16 @@ ENTRY(secondary_startup_64)
+>>  	/* Sanitize CPU configuration */
+>>  	call verify_cpu
+>>
+>> -	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
+>> +	/*
+>> +	 * Get the SME encryption mask.
+>> +	 * The real_mode_data address is in %rsi and that register can be
+>> +	 * clobbered by the called function so be sure to save it.
+>
+> You can say here that sme_get_me_mask puts the mask in %rax, that's why
+> we do ADD below and not MOV. I know, it is very explicit but this is
+> boot asm and I'd prefer for it to be absolutely clear.
+
+Ok, I can be explicit on this.
+
+>
+>> +	 */
+>> +	push	%rsi
+>> +	call	sme_get_me_mask
+>> +	pop	%rsi
+>> +
+>> +	addq	$(init_level4_pgt - __START_KERNEL_map), %rax
+>>  1:
+>
+> ...
+>
+>> +#else	/* !CONFIG_AMD_MEM_ENCRYPT */
+>> +
+>> +void __init sme_encrypt_kernel(void)
+>> +{
+>> +}
+>> +
+>> +unsigned long __init sme_get_me_mask(void)
+>> +{
+>> +	return 0;
+>> +}
+>> +
+>> +unsigned long __init sme_enable(void)
+>> +{
+>> +	return 0;
+>> +}
+>
+> Do that:
+>
+> void __init sme_encrypt_kernel(void)            { }
+> unsigned long __init sme_get_me_mask(void)      { return 0; }
+> unsigned long __init sme_enable(void)           { return 0; }
+>
+> to save some lines.
+
+No problem.
+
+Thanks,
+Tom
+
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
