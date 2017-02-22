@@ -1,113 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D78016B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 00:56:28 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id e137so4547395itc.0
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 21:56:28 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k39si501195ioi.190.2017.02.21.21.56.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Feb 2017 21:56:28 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1M5mrb8019768
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 00:56:27 -0500
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28rv2s9w2f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 00:56:27 -0500
-Received: from localhost
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 22 Feb 2017 15:56:22 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id C89F53578056
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 16:56:19 +1100 (EST)
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1M5uBKI30801928
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 16:56:19 +1100
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1M5tlm3027311
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 16:55:47 +1100
-Subject: Re: [PATCH 0/6] Enable parallel page migration
-References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
- <20170222050425.GB9967@balbir.ozlabs.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 22 Feb 2017 11:25:13 +0530
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D39DA6B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 02:00:50 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id v63so8079582pgv.0
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2017 23:00:50 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u26si430088pge.31.2017.02.21.23.00.38
+        for <linux-mm@kvack.org>;
+        Tue, 21 Feb 2017 23:00:39 -0800 (PST)
+Date: Wed, 22 Feb 2017 16:00:36 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/3] mm, vmscan: fix zone balance check in
+ prepare_kswapd_sleep
+Message-ID: <20170222070036.GA17962@bbox>
+References: <20170215092247.15989-1-mgorman@techsingularity.net>
+ <20170215092247.15989-2-mgorman@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20170222050425.GB9967@balbir.ozlabs.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <4efb25de-e036-4015-e764-70b4c911ca67@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170215092247.15989-2-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 02/22/2017 10:34 AM, Balbir Singh wrote:
-> On Fri, Feb 17, 2017 at 04:54:47PM +0530, Anshuman Khandual wrote:
->> 	This patch series is base on the work posted by Zi Yan back in
->> November 2016 (https://lkml.org/lkml/2016/11/22/457) but includes some
->> amount clean up and re-organization. This series depends on THP migration
->> optimization patch series posted by Naoya Horiguchi on 8th November 2016
->> (https://lwn.net/Articles/705879/). Though Zi Yan has recently reposted
->> V3 of the THP migration patch series (https://lwn.net/Articles/713667/),
->> this series is yet to be rebased.
->>
->> 	Primary motivation behind this patch series is to achieve higher
->> bandwidth of memory migration when ever possible using multi threaded
->> instead of a single threaded copy. Did all the experiments using a two
->> socket X86 sytsem (Intel(R) Xeon(R) CPU E5-2650). All the experiments
->> here have same allocation size 4K * 100000 (which did not split evenly
->> for the 2MB huge pages). Here are the results.
->>
->> Vanilla:
->>
->> Moved 100000 normal pages in 247.000000 msecs 1.544412 GBs
->> Moved 100000 normal pages in 238.000000 msecs 1.602814 GBs
->> Moved 195 huge pages in 252.000000 msecs 1.513769 GBs
->> Moved 195 huge pages in 257.000000 msecs 1.484318 GBs
->>
->> THP migration improvements:
->>
->> Moved 100000 normal pages in 302.000000 msecs 1.263145 GBs
+Hi,
+
+On Wed, Feb 15, 2017 at 09:22:45AM +0000, Mel Gorman wrote:
+> From: Shantanu Goel <sgoel01@yahoo.com>
 > 
-> Is there a decrease here for normal pages?
-
-Yeah.
-
+> The check in prepare_kswapd_sleep needs to match the one in balance_pgdat
+> since the latter will return as soon as any one of the zones in the
+> classzone is above the watermark.  This is specially important for higher
+> order allocations since balance_pgdat will typically reset the order to
+> zero relying on compaction to create the higher order pages.  Without this
+> patch, prepare_kswapd_sleep fails to wake up kcompactd since the zone
+> balance check fails.
 > 
->> Moved 100000 normal pages in 262.000000 msecs 1.455991 GBs
->> Moved 195 huge pages in 120.000000 msecs 3.178914 GBs
->> Moved 195 huge pages in 129.000000 msecs 2.957130 GBs
->>
->> THP migration improvements + Multi threaded page copy:
->>
->> Moved 100000 normal pages in 1589.000000 msecs 0.240069 GBs **
+> On 4.9.7 kswapd is failing to wake up kcompactd due to a mismatch in the
+> zone balance check between balance_pgdat() and prepare_kswapd_sleep().
+> balance_pgdat() returns as soon as a single zone satisfies the allocation
+> but prepare_kswapd_sleep() requires all zones to do +the same.  This causes
+> prepare_kswapd_sleep() to never succeed except in the order == 0 case and
+> consequently, wakeup_kcompactd() is never called.  On my machine prior to
+> apply this patch, the state of compaction from /proc/vmstat looked this
+> way after a day and a half +of uptime:
 > 
-> Ditto?
-
-Yeah, I have already mentioned about this after these data in
-the cover letter. This new flag is controlled from user space
-while invoking the system calls. Users should be careful in
-using it for scenarios where its useful and avoid it for cases
-where it hurts.
-
+> compact_migrate_scanned 240496
+> compact_free_scanned 76238632
+> compact_isolated 123472
+> compact_stall 1791
+> compact_fail 29
+> compact_success 1762
+> compact_daemon_wake 0
 > 
->> Moved 100000 normal pages in 1932.000000 msecs 0.197448 GBs **
->> Moved 195 huge pages in 54.000000 msecs 7.064254 GBs ***
->> Moved 195 huge pages in 86.000000 msecs 4.435694 GBs ***
->>
+> After applying the patch and about 10 hours of uptime the state looks
+> like this:
 > 
-> Could you also comment on the CPU utilization impact of these
-> patches. 
+> compact_migrate_scanned 59927299
+> compact_free_scanned 2021075136
+> compact_isolated 640926
+> compact_stall 4
+> compact_fail 2
+> compact_success 2
+> compact_daemon_wake 5160
+> 
+> Further notes from Mel that motivated him to pick this patch up and
+> resend it;
+> 
+> It was observed for the simoop workload (pressures the VM similar to HADOOP)
+> that kswapd was failing to keep ahead of direct reclaim. The investigation
+> noted that there was a need to rationalise kswapd decisions to reclaim
+> with kswapd decisions to sleep. With this patch on a 2-socket box, there
+> was a 43% reduction in direct reclaim scanning.
+> 
+> However, the impact otherwise is extremely negative. Kswapd reclaim
+> efficiency dropped from 98% to 76%. simoop has three latency-related
+> metrics for read, write and allocation (an anonymous mmap and fault).
+> 
+>                                          4.10.0-rc7            4.10.0-rc7
+>                                      mmots-20170209           fixcheck-v1
+> Amean    p50-Read             22325202.49 (  0.00%) 20026926.55 ( 10.29%)
+> Amean    p95-Read             26102988.80 (  0.00%) 27023360.00 ( -3.53%)
+> Amean    p99-Read             30935176.53 (  0.00%) 30994432.00 ( -0.19%)
+> Amean    p50-Write                 976.44 (  0.00%)     1905.28 (-95.12%)
+> Amean    p95-Write               15471.29 (  0.00%)    36210.09 (-134.05%)
+> Amean    p99-Write               35108.62 (  0.00%)   479494.96 (-1265.75%)
+> Amean    p50-Allocation          76382.61 (  0.00%)    87603.20 (-14.69%)
+> Amean    p95-Allocation         127777.39 (  0.00%)   244491.38 (-91.34%)
+> Amean    p99-Allocation         187937.39 (  0.00%)  1745237.33 (-828.63%)
+> 
+> There are also more allocation stalls. One of the largest impacts was due
+> to pages written back from kswapd context rising from 0 pages to 4516642
+> pages during the hour the workload ran for. By and large, the patch has very
+> bad behaviour but easily missed as the impact on a UMA machine is negligible.
+> 
+> This patch is included with the data in case a bisection leads to this area.
+> This patch is also a pre-requisite for the rest of the series.
+> 
+> Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Yeah, it really makes sense to analyze this impact. I have mentioned
-about this in the outstanding issues section of the series. But what
-exactly we need to analyze from CPU utilization impact point of view
-? Like whats the probability that the work queue requested jobs will
-throw some tasks from the run queue and make them starve for some
-more time ? Could you please give some details on this ?
+Hmm, I don't understand why we should bind wakeup_kcompactd to kswapd's
+short sleep point where every eligible zones are balanced.
+What's the correlation between them?
+
+Can't we wake up kcompactd once we found a zone has enough free pages
+above high watermark like this?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 26c3b405ef34..f4f0ad0e9ede 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3346,13 +3346,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
+ 		 * that pages and compaction may succeed so reset the cache.
+ 		 */
+ 		reset_isolation_suitable(pgdat);
+-
+-		/*
+-		 * We have freed the memory, now we should compact it to make
+-		 * allocation of the requested order possible.
+-		 */
+-		wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
+-
+ 		remaining = schedule_timeout(HZ/10);
+ 
+ 		/*
+@@ -3451,6 +3444,14 @@ static int kswapd(void *p)
+ 		bool ret;
+ 
+ kswapd_try_sleep:
++		/*
++		 * We have freed the memory, now we should compact it to make
++		 * allocation of the requested order possible.
++		 */
++		if (alloc_order > 0 && zone_balanced(zone, reclaim_order,
++							classzone_idx))
++			wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
++
+ 		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
+ 					classzone_idx);
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
