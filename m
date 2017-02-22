@@ -1,92 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 223FB6B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:29:27 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id s27so1651163wrb.5
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:29:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z64si973742wrc.201.2017.02.22.01.29.25
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 186E76B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:32:38 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id n186so4738092qkb.2
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:32:38 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d84si452812qkc.321.2017.02.22.01.32.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Feb 2017 01:29:25 -0800 (PST)
-Date: Wed, 22 Feb 2017 10:29:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-Message-ID: <20170222092921.GF5753@dhcp22.suse.cz>
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
- <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
- <20170217133237.v6rqpsoiolegbjye@suse.de>
- <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Feb 2017 01:32:37 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
+References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+Date: Wed, 22 Feb 2017 10:32:34 +0100
+In-Reply-To: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+	(Nathan Fontenot's message of "Tue, 21 Feb 2017 12:22:34 -0500")
+Message-ID: <878toy1sgd.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
 
-On Tue 21-02-17 18:39:17, Anshuman Khandual wrote:
-> On 02/17/2017 07:02 PM, Mel Gorman wrote:
-[...]
-> > Why can this not be expressed with cpusets and memory policies
-> > controlled by a combination of administrative steps for a privileged
-> > application and an application that is CDM aware?
-> 
-> Hmm, that can be done but having an in kernel infrastructure has the
-> following benefits.
-> 
-> * Administrator does not have to listen to node add notifications
->   and keep the isolation/allowed cpusets upto date all the time.
->   This can be a significant overhead on the admin/userspace which
->   have a number of separate device memory nodes.
+Hi,
 
-But the application has to communicate with the device so why it cannot
-use a device specific allocation as well? I really fail to see why
-something this special should hide behind a generic API to spread all
-the special casing into the kernel instead.
- 
-> * With cpuset solution, tasks which are part of CDM allowed cpuset
->   can have all it's VMAs allocate from CDM memory which may not be
->   something the user want. For example user may not want to have
->   the text segments, libraries allocate from CDM. To achieve this
->   the user will have to explicitly block allocation access from CDM
->   through mbind(MPOL_BIND) memory policy setups. This negative setup
->   is a big overhead. But with in kernel CDM framework, isolation is
->   enabled by default. For CDM allocations the application just has
->   to setup memory policy with CDM node in the allowed nodemask.
+s,memhp_auto_offline,memhp_auto_online, in the subject please :-)
 
-Which makes cpusets vs. mempolicies even bigger mess, doesn't it? So say
-that you have an application which wants to benefit from CDM and use
-mbind to have an access to this memory for particular buffer. Now you
-try to run this application in a cpuset which doesn't include this node
-and now what? Cpuset will override the application policy so the buffer
-will never reach the requested node. At least not without even more
-hacks to cpuset handling. I really do not like that!
+Nathan Fontenot <nfont@linux.vnet.ibm.com> writes:
 
-[...]
-> These are the reasons which prohibit the use of HMM for coherent
-> addressable device memory purpose.
-> 
-[...]
-> (3) Application cannot directly allocate into device memory from user
-> space using existing memory related system calls like mmap() and mbind()
-> as the device memory hides away in ZONE_DEVICE.
+> Commit 31bc3858e "add automatic onlining policy for the newly added memory"
+> provides the capability to have added memory automatically onlined
+> during add, but this appears to be slightly broken.
+>
+> The current implementation uses walk_memory_range() to call
+> online_memory_block, which uses memory_block_change_state() to online
+> the memory. Instead I think we should be calling device_online()
+> for the memory block in online_memory_block. This would online
+> the memory (the memory bus online routine memory_subsys_online()
+> called from device_online calls memory_block_change_state()) and
+> properly update the device struct offline flag.
+>
+> As a result of the current implementation, attempting to remove
+> a memory block after adding it using auto online fails.
+> This is
+> because doing a remove, for instance
+> 'echo offline > /sys/devices/system/memory/memoryXXX/state', uses
+> device_offline() which checks the dev->offline flag.
 
-Why cannot the application simply use mmap on the device file?
+I see the issue.
 
-> Apart from that, CDM framework provides a different approach to device
-> memory representation which does not require special device memory kind
-> of handling and associated call backs as implemented by HMM. It provides
-> NUMA node based visibility to the user space which can be extended to
-> support new features.
+>
+> There is a workaround in that a user could online the memory or have
+> a udev rule to online the memory by using the sysfs interface. The
+> sysfs interface to online memory goes through device_online() which
+> should updated the dev->offline flag. I'm not sure that having kernel
+> memory hotplug rely on userspace actions is the correct way to go.
 
-What do you mean by new features and how users will use/request those
-features (aka what is the API)?
+Using udev rule for memory onlining is possible when you disable
+memhp_auto_online but in some cases it doesn't work well, e.g. when we
+use memory hotplug to address memory pressure the loop through userspace
+is really slow and memory consuming, we may hit OOM before we manage to
+online newly added memory. In addition to that, systemd/udev folks
+continuosly refused to add this udev rule to udev calling it stupid as
+it actually is an unconditional and redundant ping-pong between kernel
+and udev.
+
+>
+> I have tried reading through the email threads when the origianl patch
+> was submitted and could not determine if this is the expected behavior.
+> The problem with the current behavior was found when trying to update
+> memory hotplug on powerpc to use auto online.
+>
+> -Nathan Fontenot
+> ---
+>  drivers/base/memory.c  |    2 +-
+>  include/linux/memory.h |    3 ---
+>  mm/memory_hotplug.c    |    2 +-
+>  3 files changed, 2 insertions(+), 5 deletions(-)
+>
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 8ab8ea1..ede46f3 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -249,7 +249,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
+>  	return ret;
+>  }
+>
+> -int memory_block_change_state(struct memory_block *mem,
+> +static int memory_block_change_state(struct memory_block *mem,
+>  		unsigned long to_state, unsigned long from_state_req)
+>  {
+>  	int ret = 0;
+> diff --git a/include/linux/memory.h b/include/linux/memory.h
+> index 093607f..b723a68 100644
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -109,9 +109,6 @@ static inline int memory_isolate_notify(unsigned long val, void *v)
+>  extern int register_memory_isolate_notifier(struct notifier_block *nb);
+>  extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+>  extern int register_new_memory(int, struct mem_section *);
+> -extern int memory_block_change_state(struct memory_block *mem,
+> -				     unsigned long to_state,
+> -				     unsigned long from_state_req);
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  extern int unregister_memory_section(struct mem_section *);
+>  #endif
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index e43142c1..6f7a289 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1329,7 +1329,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+>
+>  static int online_memory_block(struct memory_block *mem, void *arg)
+>  {
+> -	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
+> +	return device_online(&mem->dev);
+>  }
+>
+>  /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+
+Your patch looks good to me, I tested it on x86 (Hyper-V) and it seems
+to work.
+
+Thanks!
+
 -- 
-Michal Hocko
-SUSE Labs
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
