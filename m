@@ -1,77 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F146B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 08:24:47 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id u63so853295wmu.0
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 05:24:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q18si1759582wra.35.2017.02.22.05.24.45
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DBF0B6B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:03:03 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f21so5205615pgi.4
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:03:03 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q78si1313180pfj.291.2017.02.22.06.03.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Feb 2017 05:24:46 -0800 (PST)
-Date: Wed, 22 Feb 2017 14:24:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: provide shmem statistics
-Message-ID: <20170222132444.GK5753@dhcp22.suse.cz>
-References: <20170221164343.32252-1-hannes@cmpxchg.org>
- <20170222081230.GC5753@dhcp22.suse.cz>
- <20170222124501.GA9184@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Feb 2017 06:03:02 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1MDx4S0098803
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:03:02 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28s5ksgbae-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:03:01 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 22 Feb 2017 14:02:58 -0000
+Subject: Re: [PATCH] mm/cgroup: avoid panic when init with low memory
+References: <1487154969-6704-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170220130123.GI2431@dhcp22.suse.cz>
+ <934d40ec-060b-4794-2fdc-35a7ea1dc9e2@linux.vnet.ibm.com>
+ <20170220174258.GA31541@dhcp22.suse.cz>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 22 Feb 2017 15:02:54 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170222124501.GA9184@cmpxchg.org>
+In-Reply-To: <20170220174258.GA31541@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <9414873a-6c64-7b96-6251-f0ddba2b256e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Chris Down <cdown@fb.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 22-02-17 07:45:01, Johannes Weiner wrote:
-> On Wed, Feb 22, 2017 at 09:12:31AM +0100, Michal Hocko wrote:
-> > On Tue 21-02-17 11:43:43, Johannes Weiner wrote:
-> > > Cgroups currently don't report how much shmem they use, which can be
-> > > useful data to have, in particular since shmem is included in the
-> > > cache/file item while being reclaimed like anonymous memory.
-> > > 
-> > > Add a counter to track shmem pages during charging and uncharging.
-> > 
-> > Yes this is indeed useful. Accounting shmem to the page cache was a
-> > mistake because this is more than confusing. Sad we cannot fix that.
+On 20/02/2017 18:42, Michal Hocko wrote:
+> On Mon 20-02-17 18:09:43, Laurent Dufour wrote:
+>> On 20/02/2017 14:01, Michal Hocko wrote:
+>>> On Wed 15-02-17 11:36:09, Laurent Dufour wrote:
+>>>> The system may panic when initialisation is done when almost all the
+>>>> memory is assigned to the huge pages using the kernel command line
+>>>> parameter hugepage=xxxx. Panic may occur like this:
+>>>
+>>> I am pretty sure the system might blow up in many other ways when you
+>>> misconfigure it and pull basically all the memory out. Anyway...
+>>>
+>>> [...]
+>>>
+>>>> This is a chicken and egg issue where the kernel try to get free
+>>>> memory when allocating per node data in mem_cgroup_init(), but in that
+>>>> path mem_cgroup_soft_limit_reclaim() is called which assumes that
+>>>> these data are allocated.
+>>>>
+>>>> As mem_cgroup_soft_limit_reclaim() is best effort, it should return
+>>>> when these data are not yet allocated.
+>>>
+>>> ... this makes some sense. Especially when there is no soft limit
+>>> configured. So this is a good step. I would just like to ask you to go
+>>> one step further. Can we make the whole soft reclaim thing uninitialized
+>>> until the soft limit is actually set? Soft limit is not used in cgroup
+>>> v2 at all and I would strongly discourage it in v1 as well. We will save
+>>> few bytes as a bonus.
+>>
+>> Hi Michal, and thanks for the review.
+>>
+>> I'm not familiar with that part of the kernel, so to be sure we are on
+>> the same line, are you suggesting to set soft_limit_tree at the first
+>> time mem_cgroup_write() is called to set a soft_limit field ?
 > 
-> Agreed, this continues to cause confusion with many Linux users :(
+> yes
 > 
-> > I would have just one concern with this patch. You are relying on
-> > PageSwapBacked check but it looks like we are going to implement
-> > MADV_FREE by dropping this flag. I know we do not support MADV_FREE
-> > on shared mappings but if we ever do then the accounting will become
-> > subtly broken. Can/Should we rely on shmem_mapping() check instead?
+>> Obviously, all callers to soft_limit_tree_node() and
+>> soft_limit_tree_from_page() will have to check for the return pointer to
+>> be NULL.
 > 
-> Yes, right now we do MADV_FREE only on private pages, so this patch is
-> safe with Shaohua's changes to how we use PG_swapbacked.
-> 
-> Should we support MADV_FREE on shared mappings in the future, using
-> shmem_mapping() for memcg accounting won't work unfortunately, because
-> shared pages are truncated from the page cache before uncharging, and
-> that clears the page->mapping pointer.
+> All callers that need to access the tree unconditionally, yes. Which is
+> the case anyway, right? I haven't checked the check you have added is
+> sufficient, but we shouldn't have that many of them because some code
+> paths are called only when the soft limit is enabled.
 
-You are right!
-
-> However, in that case we could
-> probably unaccount the pages from shmem at the time of MADV_FREE, when
-> we clear the PG_swapbacked bit.
-
-Or we can just keep the code as is and add a comment to
-madvise_free_single_vma to remind that memcg charging would have to be
-handled properly if we want to drop vma_is_anonymous check there. It is
-really hard to tell whether we ever get a support for MADV_FREE for
-shared pages.
-
-> > Other than that the patch looks good to me.
-> 
-> Thanks!
-
--- 
-Michal Hocko
-SUSE Labs
+You're right there are not so much callers to fix.
+I'll send a new series containing the previous patch fixing the initial
+panic and another one delaying the data allocation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
