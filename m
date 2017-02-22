@@ -1,112 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BDEF86B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:50:46 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id q124so2188693wmg.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:50:46 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F28156B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 05:43:08 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id v77so2616196wmv.5
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 02:43:08 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 17si1941882wmv.65.2017.02.22.01.50.45
+        by mx.google.com with ESMTPS id l95si1239732wrc.30.2017.02.22.02.43.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Feb 2017 01:50:45 -0800 (PST)
-Date: Wed, 22 Feb 2017 10:50:43 +0100
+        Wed, 22 Feb 2017 02:43:07 -0800 (PST)
+Date: Wed, 22 Feb 2017 11:43:04 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-Message-ID: <20170222095043.GG5753@dhcp22.suse.cz>
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
- <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
- <20170221111107.GJ15595@dhcp22.suse.cz>
- <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+Subject: Re: + mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch added
+ to -mm tree
+Message-ID: <20170222104303.GH5753@dhcp22.suse.cz>
+References: <58a38a94.nb3wSoo24sv+3Kju%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+In-Reply-To: <58a38a94.nb3wSoo24sv+3Kju%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: akpm@linux-foundation.org
+Cc: vinmenon@codeaurora.org, anton.vorontsov@linaro.org, hannes@cmpxchg.org, mgorman@techsingularity.net, minchan@kernel.org, riel@redhat.com, shashim@codeaurora.org, vbabka@suse.cz, vdavydov.dev@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 21-02-17 19:09:18, Anshuman Khandual wrote:
-> On 02/21/2017 04:41 PM, Michal Hocko wrote:
-> > On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
-> > [...]
-> >> * User space using mbind() to get CDM memory is an additional benefit
-> >>   we get by making the CDM plug in as a node and be part of the buddy
-> >>   allocator. But the over all idea from the user space point of view
-> >>   is that the application can allocate any generic buffer and try to
-> >>   use the buffer either from the CPU side or from the device without
-> >>   knowing about where the buffer is really mapped physically. That
-> >>   gives a seamless and transparent view to the user space where CPU
-> >>   compute and possible device based compute can work together. This
-> >>   is not possible through a driver allocated buffer.
-> > 
-> > But how are you going to define any policy around that. Who is allowed
+On Tue 14-02-17 14:54:12, akpm@linux-foundation.org wrote:
+> From: Vinayak Menon <vinmenon@codeaurora.org>
+> Subject: mm: vmscan: do not pass reclaimed slab to vmpressure
 > 
-> The user space VMA can define the policy with a mbind(MPOL_BIND) call
-> with CDM/CDMs in the nodemask.
->
-> > to allocate and how much of this "special memory". Is it possible that
+> During global reclaim, the nr_reclaimed passed to vmpressure includes the
+> pages reclaimed from slab.  But the corresponding scanned slab pages is
+> not passed.  There is an impact to the vmpressure values because of this. 
+> While moving from kernel version 3.18 to 4.4, a difference is seen in the
+> vmpressure values for the same workload resulting in a different behaviour
+> of the vmpressure consumer.  One such case is of a vmpressure based
+> lowmemorykiller.  It is observed that the vmpressure events are received
+> late and less in number resulting in tasks not being killed at the right
+> time.  The following numbers show the impact on reclaim activity due to
+> the change in behaviour of lowmemorykiller on a 4GB device.  The test
+> launches a number of apps in sequence and repeats it multiple times.
 > 
-> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
-> the nodemask can allocate from the CDM memory. "How much" gets controlled
-> by how we fault from CPU and the default behavior of the buddy allocator.
-
-In other words the policy is implemented by the kernel. Why is this a
-good thing?
-
-> > we will eventually need some access control mechanism? If yes then mbind
+>                       v4.4           v3.18
+> pgpgin                163016456      145617236
+> pgpgout               4366220        4188004
+> workingset_refault    29857868       26781854
+> workingset_activate   6293946        5634625
+> pswpin                1327601        1133912
+> pswpout               3593842        3229602
+> pgalloc_dma           99520618       94402970
+> pgalloc_normal        104046854      98124798
+> pgfree                203772640      192600737
+> pgmajfault            2126962        1851836
+> pgsteal_kswapd_dma    19732899       18039462
+> pgsteal_kswapd_normal 19945336       17977706
+> pgsteal_direct_dma    206757         131376
+> pgsteal_direct_normal 236783         138247
+> pageoutrun            116622         108370
+> allocstall            7220           4684
+> compact_stall         931            856
 > 
-> No access control mechanism is needed. If an application wants to use
-> CDM memory by specifying in the mbind() it can. Nothing prevents it
-> from using the CDM memory.
-
-What if we find out that an access control _is_ really needed? I can
-easily imagine that some devices will come up with really fast and expensive
-memory. You do not want some random user to steal it from you when you
-want to use it for your workload.
-
-> > is really not suitable interface to (ab)use. Also what should happen if
-> > the mbind mentions only CDM memory and that is depleted?
+> This is a regression introduced by commit 6b4f7799c6a5 ("mm: vmscan:
+> invoke slab shrinkers from shrink_zone()").
 > 
-> IIUC *only CDM* cannot be requested from user space as there are no user
-> visible interface which can translate to __GFP_THISNODE.
+> So do not consider reclaimed slab pages for vmpressure calculation.  The
+> reclaimed pages from slab can be excluded because the freeing of a page by
+> slab shrinking depends on each slab's object population, making the cost
+> model (i.e.  scan:free) different from that of LRU.  Also, not every
+> shrinker accounts the pages it reclaims.  But ideally the pages reclaimed
+> from slab should be passed to vmpressure, otherwise higher vmpressure
+> levels can be triggered even when there is a reclaim progress.  But
+> accounting only the reclaimed slab pages without the scanned, and adding
+> something which does not fit into the cost model just adds noise to the
+> vmpressure values.
 
-I do not understand what __GFP_THISNODE has to do with this. This is an
-internal flag.
-
-> MPOL_BIND with
-> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
-> have zones of the system including CDM ones. If the resultant CDM zones
-> run out of memory, we fail the allocation request as usual.
-
-OK, so let's say you mbind to a single node which is CDM. You seem to be
-saying that we will simply break the NUMA affinity in this special case?
-Currently we invoke the OOM killer if nodes which the application binds
-to are depleted and cannot be reclaimed.
+I believe there are still some of my questions which are not answered by
+the changelog update. Namely
+- vmstat numbers without mentioning vmpressure events for those 2
+  kernels have basically no meaning.
+- the changelog doesn't mention that the test case basically benefits
+  from as many lmk interventions as possible. Does this represent a real
+  life workload? If not is there any real life workload which would
+  benefit from the new behavior.
+- I would be also very careful calling this a regression without having
+  any real workload as an example
+- Arguments about the cost model is are true but the resulting code is
+  not a 100% win either and the changelog should be explicit about the
+  consequences - aka more critical events can fire early while there is
+  still slab making a reclaim progress.
  
-> > Could you also explain why the transparent view is really better than
-> > using a device specific mmap (aka CDM awareness)?
+> Fixes: 6b4f7799c6a5 ("mm: vmscan: invoke slab shrinkers from shrink_zone()")
+> Link: http://lkml.kernel.org/r/1486641577-11685-2-git-send-email-vinmenon@codeaurora.org
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
+> Cc: Shiraz Hashim <shashim@codeaurora.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
 > 
-> Okay with a transparent view, we can achieve a control flow of application
-> like the following.
+>  mm/vmscan.c |   17 ++++++++++++-----
+>  1 file changed, 12 insertions(+), 5 deletions(-)
 > 
-> (1) Allocate a buffer:		alloc_buffer(buf, size)
-> (2) CPU compute on buffer:	cpu_compute(buf, size)
-> (3) Device compute on buffer:	device_compute(buf, size)
-> (4) CPU compute on buffer:	cpu_compute(buf, size)
-> (5) Release the buffer:		release_buffer(buf, size)
+> diff -puN mm/vmscan.c~mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure mm/vmscan.c
+> --- a/mm/vmscan.c~mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure
+> +++ a/mm/vmscan.c
+> @@ -2603,16 +2603,23 @@ static bool shrink_node(pg_data_t *pgdat
+>  				    sc->nr_scanned - nr_scanned,
+>  				    node_lru_pages);
+>  
+> +		/*
+> +		 * Record the subtree's reclaim efficiency. The reclaimed
+> +		 * pages from slab is excluded here because the corresponding
+> +		 * scanned pages is not accounted. Moreover, freeing a page
+> +		 * by slab shrinking depends on each slab's object population,
+> +		 * making the cost model (i.e. scan:free) different from that
+> +		 * of LRU.
+> +		 */
+> +		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+> +			   sc->nr_scanned - nr_scanned,
+> +			   sc->nr_reclaimed - nr_reclaimed);
+> +
+>  		if (reclaim_state) {
+>  			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+>  			reclaim_state->reclaimed_slab = 0;
+>  		}
+>  
+> -		/* Record the subtree's reclaim efficiency */
+> -		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+> -			   sc->nr_scanned - nr_scanned,
+> -			   sc->nr_reclaimed - nr_reclaimed);
+> -
+>  		if (sc->nr_reclaimed - nr_reclaimed)
+>  			reclaimable = true;
+>  
+> _
 > 
-> With assistance from a device specific driver, the actual page mapping of
-> the buffer can change between system RAM and device memory depending on
-> which side is accessing at a given point. This will be achieved through
-> driver initiated migrations.
+> Patches currently in -mm which might be from vinmenon@codeaurora.org are
+> 
+> mm-vmpressure-fix-sending-wrong-events-on-underflow.patch
+> mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
+> 
 
-But then you do not need any NUMA affinity, right? The driver can do
-all this automagically. How does the numa policy comes into the game in
-your above example. Sorry for being dense, I might be really missing
-something important here, but I really fail to see why the NUMA is the
-proper interface here.
 -- 
 Michal Hocko
 SUSE Labs
