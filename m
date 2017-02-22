@@ -1,179 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 57EC96B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:04:58 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id n37so4103767qtb.7
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:04:58 -0800 (PST)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id t188si413016qkh.308.2017.02.22.01.04.56
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 223FB6B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:29:27 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id s27so1651163wrb.5
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:29:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z64si973742wrc.201.2017.02.22.01.29.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 01:04:56 -0800 (PST)
-Received: by mail-qt0-x244.google.com with SMTP id n37so514990qtb.3
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:04:56 -0800 (PST)
-From: Jia He <hejianet@gmail.com>
-Subject: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there 
-Date: Wed, 22 Feb 2017 17:04:48 +0800
-Message-Id: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Feb 2017 01:29:25 -0800 (PST)
+Date: Wed, 22 Feb 2017 10:29:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+Message-ID: <20170222092921.GF5753@dhcp22.suse.cz>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170217133237.v6rqpsoiolegbjye@suse.de>
+ <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Jia He <hejianet@gmail.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-When I try to dynamically allocate the hugepages more than system total
-free memory:
-e.g. echo 4000 >/proc/sys/vm/nr_hugepages
+On Tue 21-02-17 18:39:17, Anshuman Khandual wrote:
+> On 02/17/2017 07:02 PM, Mel Gorman wrote:
+[...]
+> > Why can this not be expressed with cpusets and memory policies
+> > controlled by a combination of administrative steps for a privileged
+> > application and an application that is CDM aware?
+> 
+> Hmm, that can be done but having an in kernel infrastructure has the
+> following benefits.
+> 
+> * Administrator does not have to listen to node add notifications
+>   and keep the isolation/allowed cpusets upto date all the time.
+>   This can be a significant overhead on the admin/userspace which
+>   have a number of separate device memory nodes.
 
-Then the kswapd will take 100% cpu for a long time(more than 3 hours, and
-will not be about to end)
-top result:
-top - 13:42:59 up  3:37,  1 user,  load average: 1.09, 1.03, 1.01
-Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
-%Cpu(s):  0.0 us, 12.5 sy,  0.0 ni, 85.5 id,  2.0 wa,  0.0 hi,  0.0 si,  0.0 st
-KiB Mem:  31371520 total, 30915136 used,   456384 free,      320 buffers
-KiB Swap:  6284224 total,   115712 used,  6168512 free.    48192 cached Mem
-
-  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND    
-   76 root      20   0       0      0      0 R 100.0 0.000 217:17.29 kswapd3 
-
-The root cause is kswapd3 is trying to do relaim again and again but it 
-makes no progress
-# numactl -H
-available: 3 nodes (0,2-3)
-node 0 cpus:
-node 0 size: 0 MB
-node 0 free: 0 MB
-node 2 cpus: 0 1 2 3 4 5 6 7
-node 2 size: 15299 MB
-node 2 free: 289 MB
-node 3 cpus:
-node 3 size: 15336 MB
-node 3 free: 184 MB        <--- kswapd works
-node distances:
-node   0   2   3 
-  0:  10  40  40 
-  2:  40  10  20 
-  3:  40  20  10 
-At that time, there are no relaimable pages in that node:
-Node 3, zone      DMA
-  per-node stats
-      nr_inactive_anon 0
-      nr_active_anon 0
-      nr_inactive_file 0
-      nr_active_file 0
-      nr_unevictable 0
-      nr_isolated_anon 0
-      nr_isolated_file 0
-      nr_pages_scanned 0
-      workingset_refault 0
-      workingset_activate 0
-      workingset_nodereclaim 0
-      nr_anon_pages 0
-      nr_mapped    0
-      nr_file_pages 0
-      nr_dirty     0
-      nr_writeback 0
-      nr_writeback_temp 0
-      nr_shmem     0
-      nr_shmem_hugepages 0
-      nr_shmem_pmdmapped 0
-      nr_anon_transparent_hugepages 0
-      nr_unstable  0
-      nr_vmscan_write 0
-      nr_vmscan_immediate_reclaim 0
-      nr_dirtied   0
-      nr_written   0
-  pages free     2951
-        min      2821
-        low      3526
-        high     4231
-   node_scanned  0
-        spanned  245760
-        present  245760
-        managed  245388
-      nr_free_pages 2951
-      nr_zone_inactive_anon 0
-      nr_zone_active_anon 0
-      nr_zone_inactive_file 0
-      nr_zone_active_file 0
-      nr_zone_unevictable 0
-      nr_zone_write_pending 0
-      nr_mlock     0
-      nr_slab_reclaimable 46
-      nr_slab_unreclaimable 90
-      nr_page_table_pages 0
-      nr_kernel_stack 0
-      nr_bounce    0
-      nr_zspages   0
-      numa_hit     2257
-      numa_miss    0
-      numa_foreign 0
-      numa_interleave 982
-      numa_local   0
-      numa_other   2257
-      nr_free_cma  0
-        protection: (0, 0, 0, 0) 
-  
-This patch resolves the issue from 2 aspects:
-1. In prepare_kswapd_sleep, only when zone is not balanced and there is
-  reclaimable pages in this zone, kswapd will go to do relaim without sleeping
-2. Don't wake up kswapd if there are no reclaimable pages in that node
-
-After this patch:
-top - 07:13:40 up 28 min,  1 user,  load average: 0.00, 0.00, 0.00
-Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
-%Cpu(s):  0.0 us,  0.0 sy,  0.0 ni, 99.9 id,  0.1 wa,  0.0 hi,  0.0 si,  0.0 st
-KiB Mem:  31371520 total, 30908096 used,   463424 free,      384 buffers
-KiB Swap:  6284224 total,    77504 used,  6206720 free.   131328 cached Mem
-
-  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND    
-   77 root      20   0       0      0      0 S 0.000 0.000   0:00.00 kswapd3
-
-Signed-off-by: Jia He <hejianet@gmail.com>
----
- mm/vmscan.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 532a2a7..a05e3ab 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3139,7 +3139,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		if (!managed_zone(zone))
- 			continue;
+But the application has to communicate with the device so why it cannot
+use a device specific allocation as well? I really fail to see why
+something this special should hide behind a generic API to spread all
+the special casing into the kernel instead.
  
--		if (!zone_balanced(zone, order, classzone_idx))
-+		if (!zone_balanced(zone, order, classzone_idx)
-+			&& zone_reclaimable_pages(zone))
- 			return false;
- 	}
- 
-@@ -3502,6 +3503,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- {
- 	pg_data_t *pgdat;
- 	int z;
-+	int node_has_relaimable_pages = 0;
- 
- 	if (!managed_zone(zone))
- 		return;
-@@ -3522,8 +3524,15 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 
- 		if (zone_balanced(zone, order, classzone_idx))
- 			return;
-+
-+		if (!zone_reclaimable_pages(zone))
-+			node_has_relaimable_pages = 1;
- 	}
- 
-+	/* Dont wake kswapd if no reclaimable pages */
-+	if (!node_has_relaimable_pages)
-+		return;
-+
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
- 	wake_up_interruptible(&pgdat->kswapd_wait);
- }
+> * With cpuset solution, tasks which are part of CDM allowed cpuset
+>   can have all it's VMAs allocate from CDM memory which may not be
+>   something the user want. For example user may not want to have
+>   the text segments, libraries allocate from CDM. To achieve this
+>   the user will have to explicitly block allocation access from CDM
+>   through mbind(MPOL_BIND) memory policy setups. This negative setup
+>   is a big overhead. But with in kernel CDM framework, isolation is
+>   enabled by default. For CDM allocations the application just has
+>   to setup memory policy with CDM node in the allowed nodemask.
+
+Which makes cpusets vs. mempolicies even bigger mess, doesn't it? So say
+that you have an application which wants to benefit from CDM and use
+mbind to have an access to this memory for particular buffer. Now you
+try to run this application in a cpuset which doesn't include this node
+and now what? Cpuset will override the application policy so the buffer
+will never reach the requested node. At least not without even more
+hacks to cpuset handling. I really do not like that!
+
+[...]
+> These are the reasons which prohibit the use of HMM for coherent
+> addressable device memory purpose.
+> 
+[...]
+> (3) Application cannot directly allocate into device memory from user
+> space using existing memory related system calls like mmap() and mbind()
+> as the device memory hides away in ZONE_DEVICE.
+
+Why cannot the application simply use mmap on the device file?
+
+> Apart from that, CDM framework provides a different approach to device
+> memory representation which does not require special device memory kind
+> of handling and associated call backs as implemented by HMM. It provides
+> NUMA node based visibility to the user space which can be extended to
+> support new features.
+
+What do you mean by new features and how users will use/request those
+features (aka what is the API)?
 -- 
-1.8.5.6
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
