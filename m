@@ -1,83 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 506DE6B0389
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 15:30:01 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u63so4764299wmu.0
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 12:30:01 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p106si3085212wrb.39.2017.02.22.12.29.59
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AE0396B0038
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 17:19:28 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id h10so5939579ith.2
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 14:19:28 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z202si2928890itc.63.2017.02.22.14.19.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 12:29:59 -0800 (PST)
-Date: Wed, 22 Feb 2017 15:24:06 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
-Message-ID: <20170222202406.GB6534@cmpxchg.org>
-References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
- <20170222201657.GA6534@cmpxchg.org>
+        Wed, 22 Feb 2017 14:19:27 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1MMIndH143066
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 17:19:27 -0500
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28sf7pa0mh-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 17:19:27 -0500
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
+	Wed, 22 Feb 2017 17:19:26 -0500
+Subject: [PATCH] memory-hotplug: Use dev_online for memhp_auto_online
+From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Date: Wed, 22 Feb 2017 17:09:26 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170222201657.GA6534@cmpxchg.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20170222220744.8119.19687.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jia He <hejianet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org, vkuznets@redhat.com
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
 
-On Wed, Feb 22, 2017 at 03:16:57PM -0500, Johannes Weiner wrote:
-> [...] And then it sounds pretty much like what the allocator/direct
-> reclaim already does.
+Commit 31bc3858e "add automatic onlining policy for the newly added memory"
+provides the capability to have added memory automatically onlined
+during add, but this appears to be slightly broken.
 
-On a side note: Michal, I'm not sure I fully understand why we need
-the backoff code in should_reclaim_retry(). If no_progress_loops is
-growing steadily, then we quickly reach 16 and bail anyway. Layering
-on top a backoff function that *might* cut out an iteration or two
-earlier in the cold path of an OOM situation seems unnecessary.
-Conversely, if there *are* intermittent reclaims, no_progress_loops
-gets reset straight to 0, which then also makes the backoff function
-jump back to square one. So in the only situation where backing off
-would make sense - making some progress, but not enough - it's not
-actually backing off. It seems to me it should be enough to bail after
-either 16 iterations or when free + reclaimable < watermark.
+The current implementation uses walk_memory_range() to call
+online_memory_block, which uses memory_block_change_state() to online
+the memory. Instead, we should be calling device_online()
+for the memory block in online_memory_block(). This would online
+the memory (the memory bus online routine memory_subsys_online()
+called from device_online calls memory_block_change_state()) and
+properly update the device struct offline flag.
 
-Hm?
+As a result of the current implementation, attempting to remove
+a memory block after adding it using auto online fails. This is
+because doing a remove, for instance
+'echo offline > /sys/devices/system/memory/memoryXXX/state', uses
+device_offline() which checks the dev->offline flag.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c470b8fe28cf..b0e9495c0530 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3396,11 +3396,10 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- /*
-  * Checks whether it makes sense to retry the reclaim to make a forward progress
-  * for the given allocation request.
-- * The reclaim feedback represented by did_some_progress (any progress during
-- * the last reclaim round) and no_progress_loops (number of reclaim rounds without
-- * any progress in a row) is considered as well as the reclaimable pages on the
-- * applicable zone list (with a backoff mechanism which is a function of
-- * no_progress_loops).
-+ *
-+ * We give up when we either have tried MAX_RECLAIM_RETRIES in a row
-+ * without success, or when we couldn't even meet the watermark if we
-+ * reclaimed all remaining pages on the LRU lists.
-  *
-  * Returns true if a retry is viable or false to enter the oom path.
-  */
-@@ -3441,13 +3440,11 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 		unsigned long reclaimable;
+Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+---
+ drivers/base/memory.c  |    2 +-
+ include/linux/memory.h |    3 ---
+ mm/memory_hotplug.c    |    2 +-
+ 3 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 8ab8ea1..ede46f3 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -249,7 +249,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
+ 	return ret;
+ }
  
- 		available = reclaimable = zone_reclaimable_pages(zone);
--		available -= DIV_ROUND_UP((*no_progress_loops) * available,
--					  MAX_RECLAIM_RETRIES);
- 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+-int memory_block_change_state(struct memory_block *mem,
++static int memory_block_change_state(struct memory_block *mem,
+ 		unsigned long to_state, unsigned long from_state_req)
+ {
+ 	int ret = 0;
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index 093607f..b723a68 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -109,9 +109,6 @@ static inline int memory_isolate_notify(unsigned long val, void *v)
+ extern int register_memory_isolate_notifier(struct notifier_block *nb);
+ extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+ extern int register_new_memory(int, struct mem_section *);
+-extern int memory_block_change_state(struct memory_block *mem,
+-				     unsigned long to_state,
+-				     unsigned long from_state_req);
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern int unregister_memory_section(struct mem_section *);
+ #endif
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index e43142c1..6f7a289 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1329,7 +1329,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
  
- 		/*
--		 * Would the allocation succeed if we reclaimed the whole
--		 * available?
-+		 * Would the allocation succeed if we reclaimed all
-+		 * the reclaimable pages?
- 		 */
- 		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
- 				ac_classzone_idx(ac), alloc_flags, available)) {
+ static int online_memory_block(struct memory_block *mem, void *arg)
+ {
+-	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
++	return device_online(&mem->dev);
+ }
+ 
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
