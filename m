@@ -1,61 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D1E656B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 07:45:12 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id x4so470654wme.3
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:45:12 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y6si2015411wmg.57.2017.02.22.04.45.11
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E84326B0389
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 08:04:56 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id 89so749397wrr.2
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 05:04:56 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id y62si2084956wmb.48.2017.02.22.05.04.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 04:45:11 -0800 (PST)
-Date: Wed, 22 Feb 2017 07:45:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcontrol: provide shmem statistics
-Message-ID: <20170222124501.GA9184@cmpxchg.org>
-References: <20170221164343.32252-1-hannes@cmpxchg.org>
- <20170222081230.GC5753@dhcp22.suse.cz>
+        Wed, 22 Feb 2017 05:04:55 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id i186so357543wmf.1
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 05:04:55 -0800 (PST)
+Date: Wed, 22 Feb 2017 16:04:51 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3 33/33] mm, x86: introduce PR_SET_MAX_VADDR and
+ PR_GET_MAX_VADDR
+Message-ID: <20170222130451.GA23555@node.shutemov.name>
+References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
+ <20170217141328.164563-34-kirill.shutemov@linux.intel.com>
+ <CA+55aFwgbHxV-Ha2n1H=Z7P6bgcQ3D8aW=fr8ZrQ5OnvZ1vOYg@mail.gmail.com>
+ <20170218092133.GA17471@node.shutemov.name>
+ <20170220131515.GA9502@node.shutemov.name>
+ <0d05ac45-a139-6f8e-f98b-71876fbb509d@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170222081230.GC5753@dhcp22.suse.cz>
+In-Reply-To: <0d05ac45-a139-6f8e-f98b-71876fbb509d@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Chris Down <cdown@fb.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Feb 22, 2017 at 09:12:31AM +0100, Michal Hocko wrote:
-> On Tue 21-02-17 11:43:43, Johannes Weiner wrote:
-> > Cgroups currently don't report how much shmem they use, which can be
-> > useful data to have, in particular since shmem is included in the
-> > cache/file item while being reclaimed like anonymous memory.
-> > 
-> > Add a counter to track shmem pages during charging and uncharging.
+On Tue, Feb 21, 2017 at 12:46:55PM -0800, Dave Hansen wrote:
+> Let me make sure I'm grokking what you're trying to do here.
 > 
-> Yes this is indeed useful. Accounting shmem to the page cache was a
-> mistake because this is more than confusing. Sad we cannot fix that.
+> On 02/20/2017 05:15 AM, Kirill A. Shutemov wrote:
+> > +/* MPX cannot handle addresses above 47-bits yet. */
+> > +unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
+> > +		unsigned long flags)
+> > +{
+> > +	if (!kernel_managing_mpx_tables(current->mm))
+> > +		return addr;
+> > +	if (addr + len <= DEFAULT_MAP_WINDOW)
+> > +		return addr;
+> 
+> At this point, we know MPX management is on and the hint is for memory
+> above DEFAULT_MAP_WINDOW?
 
-Agreed, this continues to cause confusion with many Linux users :(
+Right.
 
-> I would have just one concern with this patch. You are relying on
-> PageSwapBacked check but it looks like we are going to implement
-> MADV_FREE by dropping this flag. I know we do not support MADV_FREE
-> on shared mappings but if we ever do then the accounting will become
-> subtly broken. Can/Should we rely on shmem_mapping() check instead?
+> > +	if (flags & MAP_FIXED)
+> > +		return -ENOMEM;
+> 
+> ... and if it's a MAP_FIXED request, fail it.
 
-Yes, right now we do MADV_FREE only on private pages, so this patch is
-safe with Shaohua's changes to how we use PG_swapbacked.
+Yep.
 
-Should we support MADV_FREE on shared mappings in the future, using
-shmem_mapping() for memcg accounting won't work unfortunately, because
-shared pages are truncated from the page cache before uncharging, and
-that clears the page->mapping pointer. However, in that case we could
-probably unaccount the pages from shmem at the time of MADV_FREE, when
-we clear the PG_swapbacked bit.
+> > +	if (len > DEFAULT_MAP_WINDOW)
+> > +		return -ENOMEM;
+> 
+> What is this case for?  If addr+len wraps?
 
-> Other than that the patch looks good to me.
+If len is too big to fit into DEFAULT_MAP_WINDOW there's no point in
+resetting hint address as we know we can't satisfy it -- fail early.
+> 
+> > +	/* Look for unmap area within DEFAULT_MAP_WINDOW */
+> > +	return 0;
+> > +}
+> 
+> Otherwise, blow away the hint, which we know is high and needs to
+> be discarded?
 
-Thanks!
+Right.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
