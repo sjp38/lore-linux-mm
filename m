@@ -1,132 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 186E76B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:32:38 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id n186so4738092qkb.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:32:38 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d84si452812qkc.321.2017.02.22.01.32.36
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BDEF86B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 04:50:46 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id q124so2188693wmg.2
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 01:50:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 17si1941882wmv.65.2017.02.22.01.50.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 01:32:37 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
-References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
-Date: Wed, 22 Feb 2017 10:32:34 +0100
-In-Reply-To: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
-	(Nathan Fontenot's message of "Tue, 21 Feb 2017 12:22:34 -0500")
-Message-ID: <878toy1sgd.fsf@vitty.brq.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Feb 2017 01:50:45 -0800 (PST)
+Date: Wed, 22 Feb 2017 10:50:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+Message-ID: <20170222095043.GG5753@dhcp22.suse.cz>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170221111107.GJ15595@dhcp22.suse.cz>
+ <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-Hi,
-
-s,memhp_auto_offline,memhp_auto_online, in the subject please :-)
-
-Nathan Fontenot <nfont@linux.vnet.ibm.com> writes:
-
-> Commit 31bc3858e "add automatic onlining policy for the newly added memory"
-> provides the capability to have added memory automatically onlined
-> during add, but this appears to be slightly broken.
+On Tue 21-02-17 19:09:18, Anshuman Khandual wrote:
+> On 02/21/2017 04:41 PM, Michal Hocko wrote:
+> > On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+> > [...]
+> >> * User space using mbind() to get CDM memory is an additional benefit
+> >>   we get by making the CDM plug in as a node and be part of the buddy
+> >>   allocator. But the over all idea from the user space point of view
+> >>   is that the application can allocate any generic buffer and try to
+> >>   use the buffer either from the CPU side or from the device without
+> >>   knowing about where the buffer is really mapped physically. That
+> >>   gives a seamless and transparent view to the user space where CPU
+> >>   compute and possible device based compute can work together. This
+> >>   is not possible through a driver allocated buffer.
+> > 
+> > But how are you going to define any policy around that. Who is allowed
+> 
+> The user space VMA can define the policy with a mbind(MPOL_BIND) call
+> with CDM/CDMs in the nodemask.
 >
-> The current implementation uses walk_memory_range() to call
-> online_memory_block, which uses memory_block_change_state() to online
-> the memory. Instead I think we should be calling device_online()
-> for the memory block in online_memory_block. This would online
-> the memory (the memory bus online routine memory_subsys_online()
-> called from device_online calls memory_block_change_state()) and
-> properly update the device struct offline flag.
->
-> As a result of the current implementation, attempting to remove
-> a memory block after adding it using auto online fails.
-> This is
-> because doing a remove, for instance
-> 'echo offline > /sys/devices/system/memory/memoryXXX/state', uses
-> device_offline() which checks the dev->offline flag.
+> > to allocate and how much of this "special memory". Is it possible that
+> 
+> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
+> the nodemask can allocate from the CDM memory. "How much" gets controlled
+> by how we fault from CPU and the default behavior of the buddy allocator.
 
-I see the issue.
+In other words the policy is implemented by the kernel. Why is this a
+good thing?
 
->
-> There is a workaround in that a user could online the memory or have
-> a udev rule to online the memory by using the sysfs interface. The
-> sysfs interface to online memory goes through device_online() which
-> should updated the dev->offline flag. I'm not sure that having kernel
-> memory hotplug rely on userspace actions is the correct way to go.
+> > we will eventually need some access control mechanism? If yes then mbind
+> 
+> No access control mechanism is needed. If an application wants to use
+> CDM memory by specifying in the mbind() it can. Nothing prevents it
+> from using the CDM memory.
 
-Using udev rule for memory onlining is possible when you disable
-memhp_auto_online but in some cases it doesn't work well, e.g. when we
-use memory hotplug to address memory pressure the loop through userspace
-is really slow and memory consuming, we may hit OOM before we manage to
-online newly added memory. In addition to that, systemd/udev folks
-continuosly refused to add this udev rule to udev calling it stupid as
-it actually is an unconditional and redundant ping-pong between kernel
-and udev.
+What if we find out that an access control _is_ really needed? I can
+easily imagine that some devices will come up with really fast and expensive
+memory. You do not want some random user to steal it from you when you
+want to use it for your workload.
 
->
-> I have tried reading through the email threads when the origianl patch
-> was submitted and could not determine if this is the expected behavior.
-> The problem with the current behavior was found when trying to update
-> memory hotplug on powerpc to use auto online.
->
-> -Nathan Fontenot
-> ---
->  drivers/base/memory.c  |    2 +-
->  include/linux/memory.h |    3 ---
->  mm/memory_hotplug.c    |    2 +-
->  3 files changed, 2 insertions(+), 5 deletions(-)
->
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 8ab8ea1..ede46f3 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -249,7 +249,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
->  	return ret;
->  }
->
-> -int memory_block_change_state(struct memory_block *mem,
-> +static int memory_block_change_state(struct memory_block *mem,
->  		unsigned long to_state, unsigned long from_state_req)
->  {
->  	int ret = 0;
-> diff --git a/include/linux/memory.h b/include/linux/memory.h
-> index 093607f..b723a68 100644
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -109,9 +109,6 @@ static inline int memory_isolate_notify(unsigned long val, void *v)
->  extern int register_memory_isolate_notifier(struct notifier_block *nb);
->  extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
->  extern int register_new_memory(int, struct mem_section *);
-> -extern int memory_block_change_state(struct memory_block *mem,
-> -				     unsigned long to_state,
-> -				     unsigned long from_state_req);
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  extern int unregister_memory_section(struct mem_section *);
->  #endif
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index e43142c1..6f7a289 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1329,7 +1329,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
->
->  static int online_memory_block(struct memory_block *mem, void *arg)
->  {
-> -	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
-> +	return device_online(&mem->dev);
->  }
->
->  /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+> > is really not suitable interface to (ab)use. Also what should happen if
+> > the mbind mentions only CDM memory and that is depleted?
+> 
+> IIUC *only CDM* cannot be requested from user space as there are no user
+> visible interface which can translate to __GFP_THISNODE.
 
-Your patch looks good to me, I tested it on x86 (Hyper-V) and it seems
-to work.
+I do not understand what __GFP_THISNODE has to do with this. This is an
+internal flag.
 
-Thanks!
+> MPOL_BIND with
+> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
+> have zones of the system including CDM ones. If the resultant CDM zones
+> run out of memory, we fail the allocation request as usual.
 
+OK, so let's say you mbind to a single node which is CDM. You seem to be
+saying that we will simply break the NUMA affinity in this special case?
+Currently we invoke the OOM killer if nodes which the application binds
+to are depleted and cannot be reclaimed.
+ 
+> > Could you also explain why the transparent view is really better than
+> > using a device specific mmap (aka CDM awareness)?
+> 
+> Okay with a transparent view, we can achieve a control flow of application
+> like the following.
+> 
+> (1) Allocate a buffer:		alloc_buffer(buf, size)
+> (2) CPU compute on buffer:	cpu_compute(buf, size)
+> (3) Device compute on buffer:	device_compute(buf, size)
+> (4) CPU compute on buffer:	cpu_compute(buf, size)
+> (5) Release the buffer:		release_buffer(buf, size)
+> 
+> With assistance from a device specific driver, the actual page mapping of
+> the buffer can change between system RAM and device memory depending on
+> which side is accessing at a given point. This will be achieved through
+> driver initiated migrations.
+
+But then you do not need any NUMA affinity, right? The driver can do
+all this automagically. How does the numa policy comes into the game in
+your above example. Sorry for being dense, I might be really missing
+something important here, but I really fail to see why the NUMA is the
+proper interface here.
 -- 
-  Vitaly
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
