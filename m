@@ -1,102 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0396B0038
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 17:19:28 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id h10so5939579ith.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 14:19:28 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z202si2928890itc.63.2017.02.22.14.19.27
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 77DEE6B0389
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 18:58:49 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id r67so11668502pfr.6
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 15:58:49 -0800 (PST)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id m124si2566187pgm.123.2017.02.22.15.58.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 14:19:27 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1MMIndH143066
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 17:19:27 -0500
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28sf7pa0mh-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 17:19:27 -0500
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
-	Wed, 22 Feb 2017 17:19:26 -0500
-Subject: [PATCH] memory-hotplug: Use dev_online for memhp_auto_online
-From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Date: Wed, 22 Feb 2017 17:09:26 -0500
+        Wed, 22 Feb 2017 15:58:48 -0800 (PST)
+Subject: Re: [HMM v17 00/14] HMM (Heterogeneous Memory Management) v17
+References: <1485557541-7806-1-git-send-email-jglisse@redhat.com>
+ <20170222071915.GE9967@balbir.ozlabs.ibm.com>
+ <20170222001603.162a1209efc06b6c46556383@linux-foundation.org>
+ <CAKTCnzmA3B4r956GXv8UKxmCTqxdt=uoXr4KBbvzzfc=ciz03A@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <f748e40a-04ff-9907-f25d-dfc8d4e5e7b7@nvidia.com>
+Date: Wed, 22 Feb 2017 15:58:46 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <CAKTCnzmA3B4r956GXv8UKxmCTqxdt=uoXr4KBbvzzfc=ciz03A@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <20170222220744.8119.19687.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, vkuznets@redhat.com
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
+To: Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, haren@linux.vnet.ibm.com, Evgeny Baskakov <ebaskakov@nvidia.com>
 
-Commit 31bc3858e "add automatic onlining policy for the newly added memory"
-provides the capability to have added memory automatically onlined
-during add, but this appears to be slightly broken.
+On 02/22/2017 12:27 AM, Balbir Singh wrote:
+> On Wed, Feb 22, 2017 at 7:16 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Wed, 22 Feb 2017 18:19:15 +1100 Balbir Singh <bsingharora@gmail.com> wrote:
+>>>
+>>> Andrew, do we expect to get this in 4.11/4.12? Just curious.
+>>>
+>>
+>> I'll be taking a serious look after -rc1.
+>>
+>> The lack of reviewed-by, acked-by and tested-by is a concern.  It's
+>> rather odd for a patchset in the 17th revision!  What's up with that?
+>>
+>> Have you reviewed or tested the patches?
+>
+> I reviewed v14/15 of the patches. Aneesh reviewed some versions as
+> well. I know a few people who tested a small subset of the patches,
+> I'll get them to report back as well. I think John Hubbard has been
+> testing iterations as well. CC'ing other interested people as well
+>
+> Balbir
+>
 
-The current implementation uses walk_memory_range() to call
-online_memory_block, which uses memory_block_change_state() to online
-the memory. Instead, we should be calling device_online()
-for the memory block in online_memory_block(). This would online
-the memory (the memory bus online routine memory_subsys_online()
-called from device_online calls memory_block_change_state()) and
-properly update the device struct offline flag.
+Yes, Evgeny Baskakov and I have been testing each of the posted versions. We are using both 
+migration and mirroring, and have a small set of multi-threaded and multi-device tests. I've been 
+procastinating about writing up a summary of the test results, partly because the patchset is still 
+changing (bug fixes, new features, API changes) and so we keep resetting our testing.
 
-As a result of the current implementation, attempting to remove
-a memory block after adding it using auto online fails. This is
-because doing a remove, for instance
-'echo offline > /sys/devices/system/memory/memoryXXX/state', uses
-device_offline() which checks the dev->offline flag.
+We (ahem, actually Evgeny has done most of the work) have been debugging and proposing fixes 
+directly to Jerome, and that email traffic with Jerome has not been CC-ing this list, so things have 
+looked a little quieter than they really were.
 
-Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
----
- drivers/base/memory.c  |    2 +-
- include/linux/memory.h |    3 ---
- mm/memory_hotplug.c    |    2 +-
- 3 files changed, 2 insertions(+), 5 deletions(-)
+Anyway, a very rudimentary testing report:
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 8ab8ea1..ede46f3 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -249,7 +249,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
- 	return ret;
- }
- 
--int memory_block_change_state(struct memory_block *mem,
-+static int memory_block_change_state(struct memory_block *mem,
- 		unsigned long to_state, unsigned long from_state_req)
- {
- 	int ret = 0;
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 093607f..b723a68 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -109,9 +109,6 @@ static inline int memory_isolate_notify(unsigned long val, void *v)
- extern int register_memory_isolate_notifier(struct notifier_block *nb);
- extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
- extern int register_new_memory(int, struct mem_section *);
--extern int memory_block_change_state(struct memory_block *mem,
--				     unsigned long to_state,
--				     unsigned long from_state_req);
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern int unregister_memory_section(struct mem_section *);
- #endif
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e43142c1..6f7a289 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1329,7 +1329,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
- 
- static int online_memory_block(struct memory_block *mem, void *arg)
- {
--	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
-+	return device_online(&mem->dev);
- }
- 
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+1. What we are testing: Our latest testing (in the last few weeks) has been against Jerome's repo, here:
+	git://people.freedesktop.org/~glisse/linux (branch: hmm-next)
+
+which has moved ahead from his hmm-v17 branch. hmm-next adds a few bug fixes, and a new feature 
+(populating CPU pages on a GPU fault). Here are the differences in summary:
+
+$ git diff --stat hmm-v17 hmm-next
+  drivers/char/Kconfig             |   10 +
+  drivers/char/Makefile            |    1 +
+  drivers/char/hmm_dmirror.c       | 1168 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+  include/linux/migrate.h          |    8 +-
+  include/uapi/linux/hmm_dmirror.h |   54 +++
+  mm/hmm.c                         |    6 +-
+  mm/migrate.c                     |  174 ++++++--
+  7 files changed, 1388 insertions(+), 33 deletions(-)
+
+
+2. API: As for the driver-kernel API: this is looking OK, although of course the documentation can 
+be improved. As Jerome already explained, there are missing pieces functionality[1] that will be 
+added later, and this may change the API, but for now, OK. With this initial API, we can handle both 
+"device" and CPU page faults, and migrate pages around.
+
+3. More testing plans: TODO: there are a lot of programs that can be easily modified, to use malloc 
+instead of a special device-centric allocator. On our list.
+
+4. Stability: still a little shaky, as we have some pretty recent bug fixes to try out.
+
+5. Performance: I'll send out another note for that at some point. There was a performance bug that 
+Jerome just recently fixed, and I want to see how it looks with that fix applied. No real surprises 
+though.
+
+6. Code reviews: the large size of the patchset, plus the requirement for a complicated driver to 
+exercise it, makes it less likely for other people to review this patch series. It's a bit 
+chicken-and-eggy, too, because our UVM driver can't be checked in and shipped until the kernel API 
+stabilizes. heh.
+
+-----
+
+[1] For example, due to lacking file-backed memory support, some userspace program variables that 
+are file-backed (initialized globals, etc) have to be mapped (from the device) instead of migrated 
+to the device, on a device fault.
+
+thanks,
+john h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
