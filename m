@@ -1,72 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0095B6B0038
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 12:50:28 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id h10so3177599ith.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:50:27 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x127si2240737itd.17.2017.02.22.09.50.27
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EE36C6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 13:13:03 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id 48so6854004uaf.7
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:13:03 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id a2si2298750itd.61.2017.02.22.10.13.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 09:50:27 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1MHmjE4110878
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 12:50:26 -0500
-Received: from e06smtp09.uk.ibm.com (e06smtp09.uk.ibm.com [195.75.94.105])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28ruy1049g-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 12:50:26 -0500
-Received: from localhost
-	by e06smtp09.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 22 Feb 2017 17:50:23 -0000
-Subject: Re: [PATCH 2/2] mm/cgroup: delay soft limit data allocation
-References: <1487779091-31381-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1487779091-31381-3-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170222171132.GB26472@dhcp22.suse.cz>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 22 Feb 2017 18:50:19 +0100
+        Wed, 22 Feb 2017 10:13:02 -0800 (PST)
+Subject: Re: [RFC PATCH v4 07/28] x86: Provide general kernel support for
+ memory encryption
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154332.19244.55451.stgit@tlendack-t1.amdoffice.net>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <a3f56612-396e-b230-d909-93a7128ea2fc@intel.com>
+Date: Wed, 22 Feb 2017 10:13:00 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170222171132.GB26472@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20170216154332.19244.55451.stgit@tlendack-t1.amdoffice.net>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <3b8d0a31-d869-4564-0e03-ac621af43ce7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On 22/02/2017 18:11, Michal Hocko wrote:
-> On Wed 22-02-17 16:58:11, Laurent Dufour wrote:
-> [...]
->>  static struct mem_cgroup_tree_per_node *
->>  soft_limit_tree_node(int nid)
->>  {
->> @@ -465,6 +497,8 @@ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
->>  	struct mem_cgroup_tree_per_node *mctz;
->>  
->>  	mctz = soft_limit_tree_from_page(page);
->> +	if (!mctz)
->> +		return;
->>  	/*
->>  	 * Necessary to update all ancestors when hierarchy is used.
->>  	 * because their event counter is not touched.
->> @@ -502,7 +536,8 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
->>  	for_each_node(nid) {
->>  		mz = mem_cgroup_nodeinfo(memcg, nid);
->>  		mctz = soft_limit_tree_node(nid);
->> -		mem_cgroup_remove_exceeded(mz, mctz);
->> +		if (mctz)
->> +			mem_cgroup_remove_exceeded(mz, mctz);
->>  	}
->>  }
->>  
-> 
-> this belongs to the previous patch, right?
+On 02/16/2017 07:43 AM, Tom Lendacky wrote:
+>  static inline unsigned long pte_pfn(pte_t pte)
+>  {
+> -	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
+> +	return (pte_val(pte) & ~sme_me_mask & PTE_PFN_MASK) >> PAGE_SHIFT;
+>  }
+>  
+>  static inline unsigned long pmd_pfn(pmd_t pmd)
+>  {
+> -	return (pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+> +	return (pmd_val(pmd) & ~sme_me_mask & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+>  }
 
-It may. I made the first patch fixing the panic I saw but if you prefer
-this to be part of the first one, fair enough.
-Tell me what you like.
+Could you talk a bit about why you chose to do the "~sme_me_mask" bit in
+here instead of making it a part of PTE_PFN_MASK / pmd_pfn_mask(pmd)?
+
+It might not matter, but I'd be worried that this ends up breaking
+direct users of PTE_PFN_MASK / pmd_pfn_mask(pmd) since they now no
+longer mask the PFN out of a PTE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
