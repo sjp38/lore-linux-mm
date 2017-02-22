@@ -1,152 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 69E466B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:32:06 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id 205so4278176yws.0
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:32:06 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id a13si1385026plt.291.2017.02.22.06.32.05
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B463C6B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:59:23 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id r45so3218161qte.6
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:59:23 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p84si1060579qkl.16.2017.02.22.06.59.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 06:32:05 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id 5so651324pgj.0
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:32:05 -0800 (PST)
-Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
-References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
- <20170222114105.GI5753@dhcp22.suse.cz>
-From: hejianet <hejianet@gmail.com>
-Message-ID: <e07c7437-37e4-3630-0bd9-3f225412fd52@gmail.com>
-Date: Wed, 22 Feb 2017 22:31:50 +0800
+        Wed, 22 Feb 2017 06:59:22 -0800 (PST)
+Date: Wed, 22 Feb 2017 09:59:15 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+Message-ID: <20170222145915.GA4852@redhat.com>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170217133237.v6rqpsoiolegbjye@suse.de>
+ <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
+ <20170222092921.GF5753@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170222114105.GI5753@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170222092921.GF5753@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-Hi Michal
+On Wed, Feb 22, 2017 at 10:29:21AM +0100, Michal Hocko wrote:
+> On Tue 21-02-17 18:39:17, Anshuman Khandual wrote:
+> > On 02/17/2017 07:02 PM, Mel Gorman wrote:
 
-On 22/02/2017 7:41 PM, Michal Hocko wrote:
-> On Wed 22-02-17 17:04:48, Jia He wrote:
->> When I try to dynamically allocate the hugepages more than system total
->> free memory:
->> e.g. echo 4000 >/proc/sys/vm/nr_hugepages
->
-> I assume that the command has terminated with less huge pages allocated
-> than requested but
->
-Yes, at last the allocated hugepages are less than 4000
-HugePages_Total:    1864
-HugePages_Free:     1864
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:      16384 kB
+[...]
 
-In the bad case, although kswapd takes 100% cpu, the number of
-HugePages_Total is not increase at all.
-
->> Node 3, zone      DMA
 > [...]
->>   pages free     2951
->>         min      2821
->>         low      3526
->>         high     4231
->
-> it left the zone below high watermark with
->
->>    node_scanned  0
->>         spanned  245760
->>         present  245760
->>         managed  245388
->>       nr_free_pages 2951
->>       nr_zone_inactive_anon 0
->>       nr_zone_active_anon 0
->>       nr_zone_inactive_file 0
->>       nr_zone_active_file 0
->
-> no pages reclaimable, so kswapd will not go to sleep. It would be quite
-> easy and comfortable to call it a misconfiguration but it seems that
-> it might be quite easy to hit with NUMA machines which have large
-> differences in the node sizes. I guess it makes sense to back off
-> the kswapd rather than burning CPU without any way to make forward
-> progress.
-agree.
->
+> > These are the reasons which prohibit the use of HMM for coherent
+> > addressable device memory purpose.
+> > 
 > [...]
->
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 532a2a7..a05e3ab 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -3139,7 +3139,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
->>  		if (!managed_zone(zone))
->>  			continue;
->>
->> -		if (!zone_balanced(zone, order, classzone_idx))
->> +		if (!zone_balanced(zone, order, classzone_idx)
->> +			&& zone_reclaimable_pages(zone))
->>  			return false;
->
-> OK, this makes some sense, although zone_reclaimable_pages doesn't count
-> SLAB reclaimable pages. So we might go to sleep with a reclaimable slab
-> still around. This is not really easy to address because the reclaimable
-> slab doesn't really imply that those pages will be reclaimed...
-Yes, even in the bad case, when kswapd takes all the cpu, the reclaimable
-pages are not decreased
->
->>  	}
->>
->> @@ -3502,6 +3503,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
->>  {
->>  	pg_data_t *pgdat;
->>  	int z;
->> +	int node_has_relaimable_pages = 0;
->>
->>  	if (!managed_zone(zone))
->>  		return;
->> @@ -3522,8 +3524,15 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
->>
->>  		if (zone_balanced(zone, order, classzone_idx))
->>  			return;
->> +
->> +		if (!zone_reclaimable_pages(zone))
->> +			node_has_relaimable_pages = 1;
->
-> What, this doesn't make any sense? Did you mean if (zone_reclaimable_pages)?
-I mean, if any one zone has reclaimable pages, then this zone's *node* has
-reclaimable pages. Thus, the kswapN for this node should be waken up.
-e.g. node 1 has 2 zones.
-zone A has no reclaimable pages but zone B has.
-Thus node 1 has reclaimable pages, and kswapd1 will be waken up.
-I use node_has_relaimable_pages in the loop to check all the zones' reclaimable
-pages number. So I prefer the name node_has_relaimable_pages instead of
-zone_has_relaimable_pages
+> > (3) Application cannot directly allocate into device memory from user
+> > space using existing memory related system calls like mmap() and mbind()
+> > as the device memory hides away in ZONE_DEVICE.
+> 
+> Why cannot the application simply use mmap on the device file?
 
-Did I understand it correctly? Thanks
+This has been said before but we want to share the address space this do
+imply that you can not rely on special allocator. For instance you can
+have an application that use a library and the library use the GPU but
+the application is un-aware and those any data provided by the application
+to the library will come from generic malloc (mmap anonymous or from
+regular file).
 
-B.R.
-Jia
->
->>  	}
->>
->> +	/* Dont wake kswapd if no reclaimable pages */
->> +	if (!node_has_relaimable_pages)
->> +		return;
->> +
->>  	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
->>  	wake_up_interruptible(&pgdat->kswapd_wait);
->>  }
->> --
->> 1.8.5.6
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Currently what happens is that the library reallocate memory through
+special allocator and copy thing. Not only does this waste memory (the
+new memory is often regular memory too) but you also have to paid the
+cost of copying GB of data.
+
+Last bullet to this, is complex data structure (list, tree, ...) having
+to go through special allocator means you have re-build the whole structure
+with the duplicated memory.
+
+
+Allowing to directly use memory allocated from malloc (mmap anonymous
+private or from a regular file) avoid the copy operation and the complex
+duplication of data structure. Moving the dataset to the GPU is then a
+simple memory migration from kernel point of view.
+
+This is share address space without special allocator is mandatory in new
+or future standard such as OpenCL, Cuda, C++, OpenMP, ... some other OS
+already have this and the industry want it. So the questions is do we
+want to support any of this, do we care about GPGPU ?
+
+
+I believe we want to support all this new standard but maybe i am the
+only one.
+
+In HMM case i have the extra painfull fact that the device memory is
+not accessible by the CPU. For CDM on contrary, CPU can access in a
+cache coherent way the device memory and all operation behave as regular
+memory (thing like atomic operation for instance).
+
+
+I hope this clearly explain why we can no longer rely on dedicated/
+specialized memory allocator.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
