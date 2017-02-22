@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B40A16B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:15:11 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id m57so3696455qtc.4
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 07:15:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o1si1097073qkd.15.2017.02.22.07.15.09
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F255F6B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:31:26 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id j18so2062725ioe.3
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 07:31:26 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d15si1839423ioj.51.2017.02.22.07.31.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 07:15:10 -0800 (PST)
-Date: Wed, 22 Feb 2017 16:15:07 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] userfaultfd: hugetlbfs: add UFFDIO_COPY support for
- shared mappings
-Message-ID: <20170222151507.GI5037@redhat.com>
-References: <1487195210-12839-1-git-send-email-mike.kravetz@oracle.com>
- <20170216184100.GS25530@redhat.com>
- <20170221132545.GD13174@node.shutemov.name>
+        Wed, 22 Feb 2017 07:31:26 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1MFTpvB104347
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:31:25 -0500
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28s5ahdt6n-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:31:25 -0500
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Wed, 22 Feb 2017 10:31:24 -0500
+Date: Wed, 22 Feb 2017 09:31:18 -0600
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [HMM v17 06/14] mm/migrate: new memory migration helper for use
+ with device memory v3
+References: <1485557541-7806-1-git-send-email-jglisse@redhat.com>
+ <1485557541-7806-7-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20170221132545.GD13174@node.shutemov.name>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1485557541-7806-7-git-send-email-jglisse@redhat.com>
+Message-Id: <20170222153118.xi7rom4mbi4jt37n@arbab-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Pavel Emelyanov <xemul@parallels.com>
+To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Tue, Feb 21, 2017 at 04:25:45PM +0300, Kirill A. Shutemov wrote:
-> I think more strict vma_is_anonymous() is a good thing.
-> 
-> But I don't see a point introducing one more helper. Let's just make the
-> existing helper work better.
+On Fri, Jan 27, 2017 at 05:52:13PM -0500, Jerome Glisse wrote:
+>This patch add a new memory migration helpers, which migrate memory
+>backing a range of virtual address of a process to different memory
+>(which can be allocated through special allocator). It differs from
+>numa migration by working on a range of virtual address and thus by
+>doing migration in chunk that can be large enough to use DMA engine
+>or special copy offloading engine.
 
-That would be simpler agreed. The point of having an "unsafe" faster
-version was only for code running in page fault context where the
-additional check is unnecessary.
+Just wanted to say I've found these migration helpers quite useful. I've 
+been prototyping some driver code which uses them, rebasing on each HMM 
+revision since v14. So for what it's worth, 
+
+Acked-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+Tested-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
