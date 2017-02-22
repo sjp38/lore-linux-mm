@@ -1,205 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BE19E6B0387
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:18:11 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 65so5662539pgi.7
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:18:11 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id l1si1386081pln.71.2017.02.22.06.18.10
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 69E466B0387
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 09:32:06 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id 205so4278176yws.0
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:32:06 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id a13si1385026plt.291.2017.02.22.06.32.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 06:18:10 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id 1so584898pgz.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:18:10 -0800 (PST)
-Date: Wed, 22 Feb 2017 22:18:04 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: return 0 in case this node has no page
- within the zone
-Message-ID: <20170222141804.GA81216@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170206154314.15705-1-richard.weiyang@gmail.com>
- <20170207094557.GE5065@dhcp22.suse.cz>
- <20170207153247.GB31837@WeideMBP.lan>
- <20170207154120.GW5065@dhcp22.suse.cz>
- <20170209135929.GA59297@WeideMacBook-Pro.local>
- <20170222084947.GE5753@dhcp22.suse.cz>
- <20170222105131.GA57616@WeideMacBook-Pro.local>
- <20170222114521.GJ5753@dhcp22.suse.cz>
+        Wed, 22 Feb 2017 06:32:05 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id 5so651324pgj.0
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 06:32:05 -0800 (PST)
+Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
+References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
+ <20170222114105.GI5753@dhcp22.suse.cz>
+From: hejianet <hejianet@gmail.com>
+Message-ID: <e07c7437-37e4-3630-0bd9-3f225412fd52@gmail.com>
+Date: Wed, 22 Feb 2017 22:31:50 +0800
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="J2SCkAp4GZ/dPZZf"
-Content-Disposition: inline
-In-Reply-To: <20170222114521.GJ5753@dhcp22.suse.cz>
+In-Reply-To: <20170222114105.GI5753@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, vbabka@suse.cz, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
+Hi Michal
 
---J2SCkAp4GZ/dPZZf
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, Feb 22, 2017 at 12:45:22PM +0100, Michal Hocko wrote:
->On Wed 22-02-17 18:51:31, Wei Yang wrote:
->> On Wed, Feb 22, 2017 at 09:49:47AM +0100, Michal Hocko wrote:
->> >On Thu 09-02-17 21:59:29, Wei Yang wrote:
->> >> On Tue, Feb 07, 2017 at 04:41:21PM +0100, Michal Hocko wrote:
->> >> >On Tue 07-02-17 23:32:47, Wei Yang wrote:
->> >> >> On Tue, Feb 07, 2017 at 10:45:57AM +0100, Michal Hocko wrote:
->> >> >[...]
->> >> >> >Is there any reason why for_each_mem_pfn_range cannot be changed =
-to
->> >> >> >honor the given start/end pfns instead? I can imagine that a smal=
-l zone
->> >> >> >would see a similar pointless iterations...
->> >> >> >
->> >> >>=20
->> >> >> Hmm... No special reason, just not thought about this implementati=
-on. And
->> >> >> actually I just do the similar thing as in zone_spanned_pages_in_n=
-ode(), in
->> >> >> which also return 0 when there is no overlap.
->> >> >>=20
->> >> >> BTW, I don't get your point. You wish to put the check in
->> >> >> for_each_mem_pfn_range() definition?
->> >> >
->> >> >My point was that you are handling one special case (an empty zone) =
-but
->> >> >the underlying problem is that __absent_pages_in_range might be wast=
-ing
->> >> >cycles iterating over memblocks that are way outside of the given pfn
->> >> >range. At least this is my understanding. If you fix that you do not
->> >> >need the special case, right?
->> >> >--=20
->> >> >Michal Hocko
->> >> >SUSE Labs
->> >>=20
->> >> > Not really, sorry, this area is full of awkward and subtle code whe=
-n new
->> >> > changes build on top of previous awkwardness/surprises. Any cleanup
->> >> > would be really appreciated. That is the reason I didn't like the
->> >> > initial check all that much.
->> >>=20
->> >> Looks my fetchmail failed to get your last reply. So I copied it here.
->> >>=20
->> >> Yes, the change here looks not that nice, while currently this is wha=
-t I can't
->> >> come up with.
->> >
->> >THen I will suggest dropping this patch from the mmotm tree because it
->> >doesn't sound like a big improvement and I would encourage you or
->> >anybody else to take a deeper look and unclutter this area to be more
->> >readable and better maintainable.
->>=20
->> Hi, Michal
->>=20
->> I don't get your point, which part of the code makes you feel uncomforta=
-ble?
+On 22/02/2017 7:41 PM, Michal Hocko wrote:
+> On Wed 22-02-17 17:04:48, Jia He wrote:
+>> When I try to dynamically allocate the hugepages more than system total
+>> free memory:
+>> e.g. echo 4000 >/proc/sys/vm/nr_hugepages
 >
->It adds a check which would better be handled at a different level. I've
->tried to explain what are my concerns about quick&dirty solutions in
->this area. I would agree to add the check as a immediate workaround if
->this had some measurable benefits but the changelog doesn't mention
->any. So I do not really see this as an improvement in the end. If we
->want to address the suboptimal code, let's do it properly rather than
->spewing ifs all over the code.
-
-Yep, I agree that to pursuit a better solution in the project is our ultima=
-te
-goal.
-
-First let me explain why it is not enough to add it in the "different level=
-" .
-As you mentioned, it would be better to add this check in
-__absent_pages_in_range(). Yes, I agree this would be proper place to add
-this check at first sight. While __absent_pages_in_range() return 0 is not a
-guarantee the ZONE_MOVEABLE handling would get 0 absent_page . So if we add=
- the
-check in __absent_pages_in_range(), we still need to add a check before
-ZONE_MOVEABLE handling to avoid the iteration in this loop.
-
-Here is a code snippet, I could come up with your suggestion.
-
-	zone_absent_pages_in_node()
-	=09
-		__absent_pages_in_range()
-			check zone and node overlap
-
-		check zone and node overlap
-		handle ZONE_MOVEABLE
-
-Then let me explain why it is not necessary to add the check in
-__absent_pages_in_range() now. Hmm... this looks a very good place to add t=
-his
-check, since it would guard all cases to avoid these invalid
-iterations. While in current implementation zone_absent_pages_in_node() is =
-the
-only place where the (start_pfn =3D=3D end_pfn) could happen.
-
-The __absent_pages_in_range() is invoked at three places:
-
-* numa_meminfo_cover_memory()
-* zone_absent_pages_in_node()
-* absent_pages_in_range()
-
-And looks the other two would have no chance to pass two equal parameters,
-which falls into the check. So it looks not necessary to add a check here f=
-or
-more general cases. The detailed explanation is posted in this mail,
-https://lkml.org/lkml/2017/2/8/337
-
-Based on these two analysis, I choose to put the check outside
-__absent_pages_in_range(), which makes the code look like this:
-
-	zone_absent_pages_in_node()
-	=09
-		check zone and node overlap
-		__absent_pages_in_range()
-
-		handle ZONE_MOVEABLE
-
-So only one check instead of two.
-
-Last but not the least, yes, I agree with you that this check is better to
-be put in a different level while it may not as good as we think for current
-implementation.
-
-Glad to discuss with you about these details. Not sure which one you like or
-you don't like any of them?
-
+> I assume that the command has terminated with less huge pages allocated
+> than requested but
 >
->--=20
->Michal Hocko
->SUSE Labs
+Yes, at last the allocated hugepages are less than 4000
+HugePages_Total:    1864
+HugePages_Free:     1864
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:      16384 kB
 
---=20
-Wei Yang
-Help you, Help me
+In the bad case, although kswapd takes 100% cpu, the number of
+HugePages_Total is not increase at all.
 
---J2SCkAp4GZ/dPZZf
-Content-Type: application/pgp-signature; name="signature.asc"
+>> Node 3, zone      DMA
+> [...]
+>>   pages free     2951
+>>         min      2821
+>>         low      3526
+>>         high     4231
+>
+> it left the zone below high watermark with
+>
+>>    node_scanned  0
+>>         spanned  245760
+>>         present  245760
+>>         managed  245388
+>>       nr_free_pages 2951
+>>       nr_zone_inactive_anon 0
+>>       nr_zone_active_anon 0
+>>       nr_zone_inactive_file 0
+>>       nr_zone_active_file 0
+>
+> no pages reclaimable, so kswapd will not go to sleep. It would be quite
+> easy and comfortable to call it a misconfiguration but it seems that
+> it might be quite easy to hit with NUMA machines which have large
+> differences in the node sizes. I guess it makes sense to back off
+> the kswapd rather than burning CPU without any way to make forward
+> progress.
+agree.
+>
+> [...]
+>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 532a2a7..a05e3ab 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -3139,7 +3139,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+>>  		if (!managed_zone(zone))
+>>  			continue;
+>>
+>> -		if (!zone_balanced(zone, order, classzone_idx))
+>> +		if (!zone_balanced(zone, order, classzone_idx)
+>> +			&& zone_reclaimable_pages(zone))
+>>  			return false;
+>
+> OK, this makes some sense, although zone_reclaimable_pages doesn't count
+> SLAB reclaimable pages. So we might go to sleep with a reclaimable slab
+> still around. This is not really easy to address because the reclaimable
+> slab doesn't really imply that those pages will be reclaimed...
+Yes, even in the bad case, when kswapd takes all the cpu, the reclaimable
+pages are not decreased
+>
+>>  	}
+>>
+>> @@ -3502,6 +3503,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+>>  {
+>>  	pg_data_t *pgdat;
+>>  	int z;
+>> +	int node_has_relaimable_pages = 0;
+>>
+>>  	if (!managed_zone(zone))
+>>  		return;
+>> @@ -3522,8 +3524,15 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+>>
+>>  		if (zone_balanced(zone, order, classzone_idx))
+>>  			return;
+>> +
+>> +		if (!zone_reclaimable_pages(zone))
+>> +			node_has_relaimable_pages = 1;
+>
+> What, this doesn't make any sense? Did you mean if (zone_reclaimable_pages)?
+I mean, if any one zone has reclaimable pages, then this zone's *node* has
+reclaimable pages. Thus, the kswapN for this node should be waken up.
+e.g. node 1 has 2 zones.
+zone A has no reclaimable pages but zone B has.
+Thus node 1 has reclaimable pages, and kswapd1 will be waken up.
+I use node_has_relaimable_pages in the loop to check all the zones' reclaimable
+pages number. So I prefer the name node_has_relaimable_pages instead of
+zone_has_relaimable_pages
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+Did I understand it correctly? Thanks
 
-iQIcBAEBCAAGBQJYrZ2cAAoJEKcLNpZP5cTd+L0QALTEA7ocdIrB1hayoDDPYr6j
-fv8OLT/inrS0pWVXV91eg3Lh8hPxb3RZJDz+VV5eMN6LPSgVIVIlCfE00NJGhS/6
-0Vg4p1DNqPqMrb+Glo4BL9tD04wp45NsMGU4kOfFSP5gNeCVY9hcCwjGznkFBJsd
-Kosip82SBThPbTNLO4JTmw4WR/cu6TyCup503xKBdxcM+Lq2OVrzZawUC+EkVecl
-zS/9Ixdmv+6I0RMNf+70qOhP3ju+j1HLnsN8XE60TSmzSgQY7rqixohKgCW5nGSB
-ZJ6UrlNZMAoQA/Oed5QFxz385by3dB0COu3E95SxHVJGAEANKbCPcdkrkPMNo6cz
-OaQWmNUQBIY8/hs17Sc8Liev4hl4yr+8X5bg7kpCWdvTqQGsZdbJIorYZNCJYvg8
-AfUIv9AWSZOv2Nm4EkGWzQk0zGeo+3+4tm4NP2lSlr8EYqmv7bEJDl5ePbN/yVw6
-wagTcGOybJZRZqA9+uGKcDrAirRipFNNIw/1c+uxo5DY+fMyJNOuJ/+sG87eMdW2
-DJywg0wBhCc4IQHeWC8xF5zTVUYJy48Ygf9fQFWfCbPpD8eZgL57Xcpdwl4IQ3H9
-n92MwibNRK1jquoSYuPq42INV6A0ivF+Cs2dMP9Mo/pTGOP+HUGiRmal+7sjAuHR
-86lpnu5HhD/0dK+dwbCB
-=qR9t
------END PGP SIGNATURE-----
-
---J2SCkAp4GZ/dPZZf--
+B.R.
+Jia
+>
+>>  	}
+>>
+>> +	/* Dont wake kswapd if no reclaimable pages */
+>> +	if (!node_has_relaimable_pages)
+>> +		return;
+>> +
+>>  	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
+>>  	wake_up_interruptible(&pgdat->kswapd_wait);
+>>  }
+>> --
+>> 1.8.5.6
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
