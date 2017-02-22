@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D477E6B038D
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E81C76B038B
 	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 13:50:48 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id n13so8180876qtc.0
+Received: by mail-yw0-f198.google.com with SMTP id 204so11187270ywo.6
         for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:50:48 -0800 (PST)
 Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id v9si2420081itb.99.2017.02.22.10.50.47
+        by mx.google.com with ESMTPS id 203si2444378iti.26.2017.02.22.10.50.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 10:50:47 -0800 (PST)
+        Wed, 22 Feb 2017 10:50:48 -0800 (PST)
 Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.20/8.16.0.20) with SMTP id v1MIkRnP001703
+	by m0001303.ppops.net (8.16.0.20/8.16.0.20) with SMTP id v1MIkNvC001694
 	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:50:47 -0800
 Received: from mail.thefacebook.com ([199.201.64.23])
-	by m0001303.ppops.net with ESMTP id 28scegrv1d-5
+	by m0001303.ppops.net with ESMTP id 28scegrv1c-9
 	(version=TLSv1 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 10:50:47 -0800
 Received: from facebook.com (2401:db00:21:603d:face:0:19:0)	by
- mx-out.facebook.com (10.102.107.97) with ESMTP	id
- d0fc22c2f92f11e6a5530002c99331b0-d51f8a00 for <linux-mm@kvack.org>;	Wed, 22
- Feb 2017 10:50:44 -0800
+ mx-out.facebook.com (10.223.100.97) with ESMTP	id
+ d115aefef92f11e6ab8124be0593f280-908fca00 for <linux-mm@kvack.org>;	Wed, 22
+ Feb 2017 10:50:45 -0800
 From: Shaohua Li <shli@fb.com>
-Subject: [PATCH V4 6/6] proc: show MADV_FREE pages info in smaps
-Date: Wed, 22 Feb 2017 10:50:44 -0800
-Message-ID: <7f22d33b2f388ce33448faa75be75f9a52d57052.1487788131.git.shli@fb.com>
+Subject: [PATCH V4 2/6] mm: don't assume anonymous pages have SwapBacked flag
+Date: Wed, 22 Feb 2017 10:50:40 -0800
+Message-ID: <d6ad5526bb152bb1576704cce517c12de9e6a479.1487788131.git.shli@fb.com>
 In-Reply-To: <cover.1487788131.git.shli@fb.com>
 References: <cover.1487788131.git.shli@fb.com>
 MIME-Version: 1.0
@@ -33,88 +33,99 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-show MADV_FREE pages info of each vma in smaps. The interface is for
-diganose or monitoring purpose, userspace could use it to understand
-what happens in the application. Since userspace could dirty MADV_FREE
-pages without notice from kernel, this interface is the only place we
-can get accurate accounting info about MADV_FREE pages.
+There are a few places the code assumes anonymous pages should have
+SwapBacked flag set. MADV_FREE pages are anonymous pages but we are
+going to add them to LRU_INACTIVE_FILE list and clear SwapBacked flag
+for them. The assumption doesn't hold any more, so fix them.
 
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Shaohua Li <shli@fb.com>
 ---
- Documentation/filesystems/proc.txt | 4 ++++
- fs/proc/task_mmu.c                 | 8 +++++++-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 1 -
+ mm/khugepaged.c  | 8 +++-----
+ mm/migrate.c     | 3 ++-
+ mm/rmap.c        | 3 ++-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index c94b467..45853e1 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -412,6 +412,7 @@ Private_Clean:         0 kB
- Private_Dirty:         0 kB
- Referenced:          892 kB
- Anonymous:             0 kB
-+LazyFree:              0 kB
- AnonHugePages:         0 kB
- ShmemPmdMapped:        0 kB
- Shared_Hugetlb:        0 kB
-@@ -441,6 +442,9 @@ accessed.
- "Anonymous" shows the amount of memory that does not belong to any file.  Even
- a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
- and a page is modified, the file page is replaced by a private anonymous copy.
-+"LazyFree" shows the amount of memory which is marked by madvise(MADV_FREE).
-+The memory isn't freed immediately with madvise(). It's freed in memory
-+pressure if the memory is clean.
- "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
- "ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
- huge pages.
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index ee3efb2..8a5ec00 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -440,6 +440,7 @@ struct mem_size_stats {
- 	unsigned long private_dirty;
- 	unsigned long referenced;
- 	unsigned long anonymous;
-+	unsigned long lazyfree;
- 	unsigned long anonymous_thp;
- 	unsigned long shmem_thp;
- 	unsigned long swap;
-@@ -456,8 +457,11 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
- 	int i, nr = compound ? 1 << compound_order(page) : 1;
- 	unsigned long size = nr * PAGE_SIZE;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7dda8d6..cf9fb46 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2361,7 +2361,6 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
  
--	if (PageAnon(page))
-+	if (PageAnon(page)) {
- 		mss->anonymous += size;
-+		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
-+			mss->lazyfree += size;
-+	}
+ 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+-	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
  
- 	mss->resident += size;
- 	/* Accumulate the size in pages that have been accessed. */
-@@ -770,6 +774,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   "Private_Dirty:  %8lu kB\n"
- 		   "Referenced:     %8lu kB\n"
- 		   "Anonymous:      %8lu kB\n"
-+		   "LazyFree:       %8lu kB\n"
- 		   "AnonHugePages:  %8lu kB\n"
- 		   "ShmemPmdMapped: %8lu kB\n"
- 		   "Shared_Hugetlb: %8lu kB\n"
-@@ -788,6 +793,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   mss.private_dirty >> 10,
- 		   mss.referenced >> 10,
- 		   mss.anonymous >> 10,
-+		   mss.lazyfree >> 10,
- 		   mss.anonymous_thp >> 10,
- 		   mss.shmem_thp >> 10,
- 		   mss.shared_hugetlb >> 10,
+ 	if (PageAnon(head)) {
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 34bce5c..a4b499f 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -481,8 +481,7 @@ void __khugepaged_exit(struct mm_struct *mm)
+ 
+ static void release_pte_page(struct page *page)
+ {
+-	/* 0 stands for page_is_file_cache(page) == false */
+-	dec_node_page_state(page, NR_ISOLATED_ANON + 0);
++	dec_node_page_state(page, NR_ISOLATED_ANON + page_is_file_cache(page));
+ 	unlock_page(page);
+ 	putback_lru_page(page);
+ }
+@@ -530,7 +529,6 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 
+ 		VM_BUG_ON_PAGE(PageCompound(page), page);
+ 		VM_BUG_ON_PAGE(!PageAnon(page), page);
+-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 
+ 		/*
+ 		 * We can do it before isolate_lru_page because the
+@@ -577,8 +575,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 			result = SCAN_DEL_PAGE_LRU;
+ 			goto out;
+ 		}
+-		/* 0 stands for page_is_file_cache(page) == false */
+-		inc_node_page_state(page, NR_ISOLATED_ANON + 0);
++		inc_node_page_state(page,
++				NR_ISOLATED_ANON + page_is_file_cache(page));
+ 		VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 		VM_BUG_ON_PAGE(PageLRU(page), page);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 2c63ac0..7c8df1f 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1943,7 +1943,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 
+ 	/* Prepare a page as a migration target */
+ 	__SetPageLocked(new_page);
+-	__SetPageSwapBacked(new_page);
++	if (PageSwapBacked(page))
++		__SetPageSwapBacked(new_page);
+ 
+ 	/* anon mapping, we can simply copy page->mapping to the new page: */
+ 	new_page->mapping = page->mapping;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 96eb85c..c621088 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1416,7 +1416,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			 * Store the swap location in the pte.
+ 			 * See handle_pte_fault() ...
+ 			 */
+-			VM_BUG_ON_PAGE(!PageSwapCache(page), page);
++			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
++				page);
+ 
+ 			if (!PageDirty(page)) {
+ 				/* It's a freeable page by MADV_FREE */
 -- 
 2.9.3
 
