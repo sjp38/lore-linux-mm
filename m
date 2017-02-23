@@ -1,191 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BBB4D6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 11:12:31 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id w185so2478111ita.5
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 08:12:31 -0800 (PST)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0097.outbound.protection.outlook.com. [104.47.36.97])
-        by mx.google.com with ESMTPS id s27si5155520ioi.18.2017.02.23.08.12.27
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D24B06B0387
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 11:12:46 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id s27so18099884wrb.5
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 08:12:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o64si7007946wmo.90.2017.02.23.08.12.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 23 Feb 2017 08:12:27 -0800 (PST)
-Message-ID: <58AF09D9.3050401@cs.rutgers.edu>
-Date: Thu, 23 Feb 2017 10:12:09 -0600
-From: Zi Yan <zi.yan@cs.rutgers.edu>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Feb 2017 08:12:45 -0800 (PST)
+Date: Thu, 23 Feb 2017 17:12:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
+Message-ID: <20170223161241.GG29056@dhcp22.suse.cz>
+References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+ <878toy1sgd.fsf@vitty.brq.redhat.com>
+ <20170223125643.GA29064@dhcp22.suse.cz>
+ <87bmttyqxf.fsf@vitty.brq.redhat.com>
+ <20170223150920.GB29056@dhcp22.suse.cz>
+ <877f4gzz4d.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 00/14] mm: page migration enhancement for thp
-References: <20170205161252.85004-1-zi.yan@sent.com>
-In-Reply-To: <20170205161252.85004-1-zi.yan@sent.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature";
-	boundary="------------enigE8B6B278229F6B3388EF32F3"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <877f4gzz4d.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, akpm@linux-foundation.org
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
 
---------------enigE8B6B278229F6B3388EF32F3
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Thu 23-02-17 16:49:06, Vitaly Kuznetsov wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> > On Thu 23-02-17 14:31:24, Vitaly Kuznetsov wrote:
+> >> Michal Hocko <mhocko@kernel.org> writes:
+> >> 
+> >> > On Wed 22-02-17 10:32:34, Vitaly Kuznetsov wrote:
+> >> > [...]
+> >> >> > There is a workaround in that a user could online the memory or have
+> >> >> > a udev rule to online the memory by using the sysfs interface. The
+> >> >> > sysfs interface to online memory goes through device_online() which
+> >> >> > should updated the dev->offline flag. I'm not sure that having kernel
+> >> >> > memory hotplug rely on userspace actions is the correct way to go.
+> >> >> 
+> >> >> Using udev rule for memory onlining is possible when you disable
+> >> >> memhp_auto_online but in some cases it doesn't work well, e.g. when we
+> >> >> use memory hotplug to address memory pressure the loop through userspace
+> >> >> is really slow and memory consuming, we may hit OOM before we manage to
+> >> >> online newly added memory.
+> >> >
+> >> > How does the in-kernel implementation prevents from that?
+> >> >
+> >> 
+> >> Onlining memory on hot-plug is much more reliable, e.g. if we were able
+> >> to add it in add_memory_resource() we'll also manage to online it.
+> >
+> > How does that differ from initiating online from the users?
+> >
+> >> With
+> >> udev rule we may end up adding many blocks and then (as udev is
+> >> asynchronous) failing to online any of them.
+> >
+> > Why would it fail?
+> >
+> >> In-kernel operation is synchronous.
+> >
+> > which doesn't mean anything as the context is preemptible AFAICS.
+> >
+> 
+> It actually does,
+> 
+> imagine the following example: you run a small guest (256M of memory)
+> and now there is a request to add 1000 128mb blocks to it. 
 
-Ping.
+Is a grow from 256M -> 128GB really something that happens in real life?
+Don't get me wrong but to me this sounds quite exaggerated. Hotmem add
+which is an operation which has to allocate memory has to scale with the
+currently available memory IMHO.
 
-Just want to get comments on THP migration part (Patch 4-14). If they
-look OK, I can rebase THP migration part on mmotm-2017-02-22-16-28 and
-send them out for merging.
+> In case you
+> do it the old way you're very likely to get OOM somewhere in the middle
+> as you keep adding blocks which requere kernel memory and nobody is
+> onlining it (or, at least you're racing with the onliner). With
+> in-kernel implementation we're going to online the first block when it's
+> added and only then go to the second.
 
-Thanks.
+Yes, adding a memory will cost you some memory and that is why I am
+really skeptical when memory hotplug is used under a strong memory
+pressure. This can lead to OOMs even when you online one block at the
+time.
 
-Zi Yan wrote:
-> From: Zi Yan <ziy@nvidia.com>
->=20
-> Hi all,
->=20
-> The patches are rebased on mmotm-2017-02-01-15-35 with feedbacks from=20
-> Naoya Horiguchi's v2 patches.
->=20
-> I fix a bug in zap_pmd_range() and include the fixes in Patches 1-3.
-> The racy check in zap_pmd_range() can miss pmd_protnone and pmd_migrati=
-on_entry,
-> which leads to PTE page table not freed.
->=20
-> In Patch 4, I move _PAGE_SWP_SOFT_DIRTY to bit 1. Because bit 6 (used i=
-n v2)
-> can be set by some CPUs by mistake and the new swap entry format does n=
-ot use
-> bit 1-4.
->=20
-> I also adjust two core migration functions, set_pmd_migration_entry() a=
-nd
-> remove_migration_pmd(), to use Kirill A. Shutemov's page_vma_mapped_wal=
-k()
-> function. Patch 8 needs Kirill's comments, since I also add changes
-> to his page_vma_mapped_walk() function with pmd_migration_entry handlin=
-g.
->=20
-> In Patch 8, I replace pmdp_huge_get_and_clear() with pmdp_huge_clear_fl=
-ush()
-> in set_pmd_migration_entry() to avoid data corruption after page migrat=
-ion.
->=20
-> In Patch 9, I include is_pmd_migration_entry() in pmd_none_or_trans_hug=
-e_or_clear_bad().
-> Otherwise, a pmd_migration_entry is treated as pmd_bad and cleared, whi=
-ch
-> leads to deposited PTE page table not freed.
->=20
-> I personally use this patchset with my customized kernel to test freque=
-nt
-> page migrations by replacing page reclaim with page migration.
-> The bugs fixed in Patches 1-3 and 8 was discovered while I am testing m=
-y kernel.
-> I did a 16-hour stress test that has ~7 billion total page migrations.
-> No error or data corruption was found.=20
->=20
->=20
-> General description=20
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->=20
-> This patchset enhances page migration functionality to handle thp migra=
-tion
-> for various page migration's callers:
->  - mbind(2)
->  - move_pages(2)
->  - migrate_pages(2)
->  - cgroup/cpuset migration
->  - memory hotremove
->  - soft offline
->=20
-> The main benefit is that we can avoid unnecessary thp splits, which hel=
-ps us
-> avoid performance decrease when your applications handles NUMA optimiza=
-tion on
-> their own.
->=20
-> The implementation is similar to that of normal page migration, the key=
- point
-> is that we modify a pmd to a pmd migration entry in swap-entry like for=
-mat.
->=20
->=20
-> Any comments or advices are welcomed.
->=20
-> Best Regards,
-> Yan Zi
->=20
-> Naoya Horiguchi (11):
->   mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to bit 1
->   mm: mempolicy: add queue_pages_node_check()
->   mm: thp: introduce separate TTU flag for thp freezing
->   mm: thp: introduce CONFIG_ARCH_ENABLE_THP_MIGRATION
->   mm: thp: enable thp migration in generic path
->   mm: thp: check pmd migration entry in common path
->   mm: soft-dirty: keep soft-dirty bits over thp migration
->   mm: hwpoison: soft offline supports thp migration
->   mm: mempolicy: mbind and migrate_pages support thp migration
->   mm: migrate: move_pages() supports thp migration
->   mm: memory_hotplug: memory hotremove supports thp migration
->=20
-> Zi Yan (3):
->   mm: thp: make __split_huge_pmd_locked visible.
->   mm: thp: create new __zap_huge_pmd_locked function.
->   mm: use pmd lock instead of racy checks in zap_pmd_range()
->=20
->  arch/x86/Kconfig                     |   4 +
->  arch/x86/include/asm/pgtable.h       |  17 ++
->  arch/x86/include/asm/pgtable_64.h    |   2 +
->  arch/x86/include/asm/pgtable_types.h |  10 +-
->  arch/x86/mm/gup.c                    |   4 +-
->  fs/proc/task_mmu.c                   |  37 +++--
->  include/asm-generic/pgtable.h        | 105 ++++--------
->  include/linux/huge_mm.h              |  36 ++++-
->  include/linux/rmap.h                 |   1 +
->  include/linux/swapops.h              | 146 ++++++++++++++++-
->  mm/Kconfig                           |   3 +
->  mm/gup.c                             |  20 ++-
->  mm/huge_memory.c                     | 302 +++++++++++++++++++++++++++=
-++------
->  mm/madvise.c                         |   2 +
->  mm/memcontrol.c                      |   2 +
->  mm/memory-failure.c                  |  31 ++--
->  mm/memory.c                          |  33 ++--
->  mm/memory_hotplug.c                  |  17 +-
->  mm/mempolicy.c                       | 124 ++++++++++----
->  mm/migrate.c                         |  66 ++++++--
->  mm/mprotect.c                        |   6 +-
->  mm/mremap.c                          |   2 +-
->  mm/page_vma_mapped.c                 |  13 +-
->  mm/pagewalk.c                        |   2 +
->  mm/pgtable-generic.c                 |   3 +-
->  mm/rmap.c                            |  21 ++-
->  26 files changed, 770 insertions(+), 239 deletions(-)
->=20
+[...]
+> > This was not my decision so I can only guess but to me it makes sense.
+> > Both memory and cpus can be physically present and offline which is a
+> > perfectly reasonable state. So having a two phase physicall hotadd is
+> > just built on top of physical vs. logical distinction. I completely
+> > understand that some usecases will really like to online the whole node
+> > as soon as it appears present. But an automatic in-kernel implementation
+> > has its down sites - e.g. if this operation fails in the middle you will
+> > not know about that unless you check all the memblocks in sysfs. This is
+> > really a poor interface.
+> 
+> And how do you know that some blocks failed to online with udev?
 
---=20
-Best Regards,
-Yan Zi
+Because the udev will run a code which can cope with that - retry if the
+error is recoverable or simply report with all the details. Compare that
+to crawling the system log to see that something has broken...
 
+> Who
+> handles these failures and how? And, the last but not least, why do
+> these failures happen?
 
---------------enigE8B6B278229F6B3388EF32F3
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
-
-iQEcBAEBCAAGBQJYrwnZAAoJEEGLLxGcTqbMsmcH/R8UUSIQRS573AkfTRdrWpCP
-3pdoTD9m3DTUEwKUiEDs6oRY4h3wt+mRRmFURf4yDKLkmReQJ0M1EBdaSmet7hzr
-EXJvSfGZc6tT1qoVEWoYRrxmdun+kNh0X0iV5CHlFzFT1cZMiUUybOK7tn+qwNxw
-db568YnbGGRJb0bA06nGGLs1u52yVhnO4WCOFdGv1FRGXKRsXVgVrs2bIjMCDGmr
-QQaNzkss2vjEXSNHoZqSL379T26xxalBSNYZ1d1sJyvM/xtRePgFgFrgYm3d1o5h
-7dYF5pCi0fErGXAkMHrDJEWAaJ4JLiFfxqlcXJywdEeg3wzkfcqn8pRBDDPhHhM=
-=Bzuf
------END PGP SIGNATURE-----
-
---------------enigE8B6B278229F6B3388EF32F3--
+I haven't heard reports about the failures and from looking into the
+code those are possible but very unlikely.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
