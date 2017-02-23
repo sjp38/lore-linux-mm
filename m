@@ -1,147 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 47DBE6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:04:38 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id r67so26369720pfr.6
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:04:38 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id p1si3761396pld.270.2017.02.23.01.04.36
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44AAD6B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:15:12 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 186so2511884oid.2
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:15:12 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id o190si4188473ioo.207.2017.02.23.01.15.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 01:04:37 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 07/14] migrate: Add copy_page_lists_mthread()
- function.
-Date: Thu, 23 Feb 2017 08:54:20 +0000
-Message-ID: <20170223085419.GA28246@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170217150551.117028-1-zi.yan@sent.com>
- <20170217150551.117028-8-zi.yan@sent.com>
-In-Reply-To: <20170217150551.117028-8-zi.yan@sent.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <731ADF738A99824D842AE3D2FF0811A3@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Thu, 23 Feb 2017 01:15:11 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1N9DoVv120907
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:15:11 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28sdf63q4f-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:15:10 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 23 Feb 2017 09:15:08 -0000
+Subject: Re: [PATCH 2/2] mm/cgroup: delay soft limit data allocation
+References: <1487779091-31381-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1487779091-31381-3-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170223011644.GB8841@balbir.ozlabs.ibm.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Thu, 23 Feb 2017 10:15:03 +0100
 MIME-Version: 1.0
+In-Reply-To: <20170223011644.GB8841@balbir.ozlabs.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <d301eb31-9c95-60c2-3d41-fc2fcb53f2eb@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "apopple@au1.ibm.com" <apopple@au1.ibm.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Feb 17, 2017 at 10:05:44AM -0500, Zi Yan wrote:
-> From: Zi Yan <ziy@nvidia.com>
->=20
-> It supports copying a list of pages via multi-threaded process.
-> It evenly distributes a list of pages to a group of threads and
-> uses the same subroutine as copy_page_mthread()
+On 23/02/2017 02:16, Balbir Singh wrote:
+> On Wed, Feb 22, 2017 at 04:58:11PM +0100, Laurent Dufour wrote:
+>> Until a soft limit is set to a cgroup, the soft limit data are useless
+>> so delay this allocation when a limit is set.
+>>
+>> Suggested-by: Michal Hocko <mhocko@kernel.org>
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>> ---
+> <snip>
+>> @@ -3000,6 +3035,8 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
+>>  		}
+>>  		break;
+>>  	case RES_SOFT_LIMIT:
+>> +		if (!soft_limit_initialized)
+>> +			soft_limit_initialize();
+> 
+> What happens if this fails? Do we disable this interface?
+> It's a good idea, but I wonder if we can deal with certain
+> memory cgroups not supporting soft limits due to memory
+> shortage at the time of using them.
 
-The new function has many duplicate lines with copy_page_mthread(),
-so please consider factoring out them into a common routine.
-That makes your code more readable/maintainable.
+Thanks Balbir for the review.
 
-Thanks,
-Naoya Horiguchi
+Regarding this point, Michal sent a new proposal which will return
+-ENOMEM in the case the initialization failed. I'll send a new series in
+that way.
 
->=20
-> Signed-off-by: Zi Yan <ziy@nvidia.com>
-> ---
->  mm/copy_pages.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++=
-++++++
->  mm/internal.h   |  3 +++
->  2 files changed, 65 insertions(+)
->=20
-> diff --git a/mm/copy_pages.c b/mm/copy_pages.c
-> index c357e7b01042..516c0a1a57f3 100644
-> --- a/mm/copy_pages.c
-> +++ b/mm/copy_pages.c
-> @@ -84,3 +84,65 @@ int copy_pages_mthread(struct page *to, struct page *f=
-rom, int nr_pages)
->  	kfree(work_items);
->  	return 0;
->  }
-> +
-> +int copy_page_lists_mthread(struct page **to, struct page **from, int nr=
-_pages)=20
-> +{
-> +	int err =3D 0;
-> +	unsigned int cthreads, node =3D page_to_nid(*to);
-> +	int i;
-> +	struct copy_info *work_items;
-> +	int nr_pages_per_page =3D hpage_nr_pages(*from);
-> +	const struct cpumask *cpumask =3D cpumask_of_node(node);
-> +	int cpu_id_list[32] =3D {0};
-> +	int cpu;
-> +
-> +	cthreads =3D nr_copythreads;
-> +	cthreads =3D min_t(unsigned int, cthreads, cpumask_weight(cpumask));
-> +	cthreads =3D (cthreads / 2) * 2;
-> +	cthreads =3D min_t(unsigned int, nr_pages, cthreads);
-> +
-> +	work_items =3D kzalloc(sizeof(struct copy_info)*nr_pages,
-> +						 GFP_KERNEL);
-> +	if (!work_items)
-> +		return -ENOMEM;
-> +
-> +	i =3D 0;
-> +	for_each_cpu(cpu, cpumask) {
-> +		if (i >=3D cthreads)
-> +			break;
-> +		cpu_id_list[i] =3D cpu;
-> +		++i;
-> +	}
-> +
-> +	for (i =3D 0; i < nr_pages; ++i) {
-> +		int thread_idx =3D i % cthreads;
-> +
-> +		INIT_WORK((struct work_struct *)&work_items[i],=20
-> +				  copythread);
-> +
-> +		work_items[i].to =3D kmap(to[i]);
-> +		work_items[i].from =3D kmap(from[i]);
-> +		work_items[i].chunk_size =3D PAGE_SIZE * hpage_nr_pages(from[i]);
-> +
-> +		BUG_ON(nr_pages_per_page !=3D hpage_nr_pages(from[i]));
-> +		BUG_ON(nr_pages_per_page !=3D hpage_nr_pages(to[i]));
-> +
-> +
-> +		queue_work_on(cpu_id_list[thread_idx],=20
-> +					  system_highpri_wq,=20
-> +					  (struct work_struct *)&work_items[i]);
-> +	}
-> +
-> +	/* Wait until it finishes  */
-> +	for (i =3D 0; i < cthreads; ++i)
-> +		flush_work((struct work_struct *) &work_items[i]);
-> +
-> +	for (i =3D 0; i < nr_pages; ++i) {
-> +			kunmap(to[i]);
-> +			kunmap(from[i]);
-> +	}
-> +
-> +	kfree(work_items);
-> +
-> +	return err;
-> +}
-> diff --git a/mm/internal.h b/mm/internal.h
-> index ccfc2a2969f4..175e08ed524a 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -498,4 +498,7 @@ extern const struct trace_print_flags pageflag_names[=
-];
->  extern const struct trace_print_flags vmaflag_names[];
->  extern const struct trace_print_flags gfpflag_names[];
-> =20
-> +extern int copy_page_lists_mthread(struct page **to,
-> +			struct page **from, int nr_pages);
-> +
->  #endif	/* __MM_INTERNAL_H */
-> --=20
-> 2.11.0
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
+> 
+>>  		memcg->soft_limit = nr_pages;
+>>  		ret = 0;
+>>  		break;
+> 
+> Balbir Singh.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
