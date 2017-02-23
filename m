@@ -1,71 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EF026B0387
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 14:05:14 -0500 (EST)
-Received: by mail-yb0-f199.google.com with SMTP id d88so105467ybi.3
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 11:05:14 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id g88si5562786ioj.172.2017.02.23.11.05.13
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D8596B0388
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 14:09:11 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id e15so3950407wmd.6
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 11:09:11 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p44si1469468wrb.57.2017.02.23.11.09.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 11:05:13 -0800 (PST)
-Date: Thu, 23 Feb 2017 11:04:46 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH V4 3/6] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
- list
-Message-ID: <20170223190446.GA32825@shli-mbp.local>
-References: <cover.1487788131.git.shli@fb.com>
- <a1a28aa85280a7b3fd6145604eed4132228bd6d1.1487788131.git.shli@fb.com>
- <20170223155827.GB4031@cmpxchg.org>
- <20170223162601.GA18526@brenorobert-mbp.dhcp.thefacebook.com>
- <20170223182206.GA5686@cmpxchg.org>
+        Thu, 23 Feb 2017 11:09:10 -0800 (PST)
+Date: Thu, 23 Feb 2017 14:03:13 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 2/2] mm/cgroup: delay soft limit data allocation
+Message-ID: <20170223190313.GB6088@cmpxchg.org>
+References: <1487856999-16581-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1487856999-16581-3-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170223153107.GD29056@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170223182206.GA5686@cmpxchg.org>
+In-Reply-To: <20170223153107.GD29056@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 23, 2017 at 01:22:06PM -0500, Johannes Weiner wrote:
-> On Thu, Feb 23, 2017 at 08:26:03AM -0800, Shaohua Li wrote:
-> > On Thu, Feb 23, 2017 at 10:58:27AM -0500, Johannes Weiner wrote:
-> > > Hi Shaohua,
-> > > 
-> > > On Wed, Feb 22, 2017 at 10:50:41AM -0800, Shaohua Li wrote:
-> > > > @@ -268,6 +268,12 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
-> > > >  		int lru = page_lru_base_type(page);
-> > > >  
-> > > >  		del_page_from_lru_list(page, lruvec, lru);
-> > > > +		if (PageAnon(page) && !PageSwapBacked(page)) {
-> > > > +			SetPageSwapBacked(page);
-> > > > +			/* charge to anon scanned/rotated reclaim_stat */
-> > > > +			file = 0;
-> > > > +			lru = LRU_INACTIVE_ANON;
-> > > > +		}
-> > > 
-> > > As per my previous feedback, please remove this. Write-after-free will
-> > > be caught and handled in the reclaimer, read-after-free is a bug that
-> > > really doesn't require optimizing page aging for. And we definitely
-> > > shouldn't declare invalid data suddenly valid because it's being read.
-> > 
-> > GUP could run into this. Don't we move the page because it's hot? I think it's
-> > not just about page aging. If we leave the page there, page reclaim will just
-> > waste time to reclaim the pages which should't be reclaimed.
+On Thu, Feb 23, 2017 at 04:31:07PM +0100, Michal Hocko wrote:
+> On Thu 23-02-17 14:36:39, Laurent Dufour wrote:
+> > Until a soft limit is set to a cgroup, the soft limit data are useless
+> > so delay this allocation when a limit is set.
 > 
-> There is just no convincing justification to add this code, because it
-> optimizes something that doesn't have a real world application. If we
-> just delete this branch, for all intents and purposes the outcome will
-> be perfectly acceptable.
+> Hmm, I am still undecided whether this is actually worth it. On one hand
+> distribution kernels tend to have quite large NUMA_SHIFT (e.g. SLES has
+> NUMA_SHIFT=10 and then we will save 8kB+12kB which is not hell of a lot
+> but always good if we can save that, especially for a rarely used
+> feature. The code grown on the other hand (it was in __init section
+> previously) which is a minus, on the other hand.
+> 
+> What do you think Johannes?
 
-Ok, looks you want to ignore all corner cases, the gup case is one and the
-unmap failure and mlock case we discussed before are another. I don't disagree
-with the intention, but I had the feeling those code will eventually come back.
-Anyway, I'll delete this code in next post.
-
-Thanks,
-Shaohua
+Hohumm, saving 5 pages on a NUMA machine vs. the additional complexity
+and the increased risk of memory problems when somebody sets up a soft
+limit after some uptime... I don't think I can give a strong yes or no
+on this one, so inertia wins for me; I'd just leave it alone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
