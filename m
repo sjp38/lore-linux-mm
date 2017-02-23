@@ -1,467 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D67D6B038B
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 21:46:19 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id o64so16832468pfb.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 18:46:19 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id t12si2949781pfj.24.2017.02.22.18.46.17
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 42DAE6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2017 22:25:24 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id b2so31099221pgc.6
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 19:25:24 -0800 (PST)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id q21si2978423pgi.412.2017.02.22.19.25.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 18:46:17 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id 1so2803995pgz.2
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 18:46:17 -0800 (PST)
-Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
-References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
- <20170222201657.GA6534@cmpxchg.org>
-From: hejianet <hejianet@gmail.com>
-Message-ID: <28d09cda-e020-8289-1b1f-e19fbd3b3aeb@gmail.com>
-Date: Thu, 23 Feb 2017 10:46:01 +0800
+        Wed, 22 Feb 2017 19:25:23 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
+Date: Thu, 23 Feb 2017 03:23:49 +0000
+Message-ID: <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+ <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <A628664CADC03043A6588BB4C56BA8CB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20170222201657.GA6534@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Jan Stancek <jstancek@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
-sorry, resend it due to a delivery-failure:
-"Wrong MIME labeling on 8-bit character texts"
-I am sorry if anybody received it twice
-------------
-Hi Johannes
-On 23/02/2017 4:16 AM, Johannes Weiner wrote:
-> On Wed, Feb 22, 2017 at 05:04:48PM +0800, Jia He wrote:
->> When I try to dynamically allocate the hugepages more than system total
->> free memory:
->
->> Then the kswapd will take 100% cpu for a long time(more than 3 hours, and
->> will not be about to end)
->
->> The root cause is kswapd3 is trying to do relaim again and again but it
->> makes no progress
->
->> At that time, there are no relaimable pages in that node:
->
-> Yes, this is a problem with the current kswapd code.
->
-> A less artificial scenario that I observed recently was machines with
-> two NUMA nodes, after being up for 200+ days, getting into a state
-> where node0 is mostly consumed by anon and some kernel allocations,
-> leaving less than the high watermark free. The machines don't have
-> swap, so the anon isn't reclaimable. But also, anon LRU is never even
-> *scanned*, so the "all unreclaimable" logic doesn't kick in. Kswapd is
-> spinning at 100% CPU calculating scan counts and checking zone states.
->
-> One specific problem with your patch, Jia, is that there might be some
-> cache pages that are pinned one way or another. That was the case on
-> our machines, and so reclaimable pages wasn't 0. Even if we check the
-> reclaimable pages, we need a hard cutoff after X attempts. And then it
-> sounds pretty much like what the allocator/direct reclaim already does.
->
-> Can we use the *exact* same cutoff conditions for direct reclaim and
-> kswapd, though? I don't think so. For direct reclaim, the goal is the
-> watermark, to make an allocation happen in the caller. While kswapd
-> tries to restore the watermarks too, it might never meet them but
-> still do useful work on behalf of concurrently allocating threads. It
-> should only stop when it tries and fails to free any pages at all.
->
-Yes, this is what I thought before this patchi 1/4 ?but seems Michal
-doesn't like this idea :)
-Please see https://lkml.org/lkml/2017/1/24/543
+On Mon, Feb 20, 2017 at 05:00:17AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(B =
+=1B$BD>Li=1B(B) wrote:
+> On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
+> > Hi,
+> >
+> > code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
+> > unless I touch/prefault page before call to madvise().
+> >
+> > Is this expected behavior?
+>=20
+> Thank you for reporting.
+>=20
+> madvise(MADV_HWPOISON) triggers page fault when called on the address
+> over which no page is faulted-in, so I think that SIGBUS should be
+> called in such case.
+>=20
+> But it seems that memory error handler considers such a page as "reserved
+> kernel page" and recovery action fails (see below.)
+>=20
+>   [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcdc5690=
+00
+>   [  383.375678] Memory failure: 0x1f10: reserved kernel page still refer=
+enced by 1 users
+>   [  383.377570] Memory failure: 0x1f10: recovery action for reserved ker=
+nel page: Failed
+>=20
+> I'm not sure how/when this behavior was introduced, so I try to understan=
+d.
 
-Frankly speaking, it did a little impact but not so much on
-kswapd high cpu usage(not tested your patch here but I've tested
-my 1st patch)
+I found that this is a zero page, which is not recoverable for memory
+error now.
 
-Because in the case when the memory in nodeN is mostly consumed,
-any direct reclaim path will try to wake up the kswapd:
-__alloc_pages_slowpath
-     wake_all_kswapds
-         wakeup_kswapd
-             retry for 16 times
+> IMO, the test code below looks valid to me, so no need to change.
 
-Compared with the idea which limited the no progress loop of kswapd,
-avoiding wakeup kswapd can have significant impact on the high cpu
-usage.
+I think that what the testcase effectively does is to test whether memory
+handling on zero pages works or not.
+And the testcase's failure seems acceptable, because it's simply not-implem=
+ented yet.
+Maybe recovering from error on zero page is possible (because there's no da=
+ta
+loss for memory error,) but I'm not sure that code might be simple enough a=
+nd/or
+it's worth doing ...
 
-B.R.
-Jia
-> The recent removal of the scanned > reclaimable * 6 exit condition
-> from kswapd was a mistake, we need something like it. But it's also
-> broken the way we perform reclaim on swapless systems, so instead of
-> re-instating it, we should remove the remnants and do something new.
->
-> Can we simply count the number of balance_pgdat() runs that didn't
-> reclaim anything and have kswapd sleep after MAX_RECLAIM_RETRIES?
->
-> And a follow-up: once it gives up, when should kswapd return to work?
-> We used to reset NR_PAGES_SCANNED whenever a page gets freed. But
-> that's a branch in a common allocator path, just to recover kswapd - a
-> latency tool, not a necessity for functional correctness - from a
-> situation that's exceedingly pretty rare. How about we leave it
-> disabled until a direct reclaimer manages to free something?
->
-> Something like this (untested):
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 96c78d840916..611c5fb52d7b 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -149,7 +149,6 @@ enum node_stat_item {
->  	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
->  	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
->  	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
-> -	NR_PAGES_SCANNED,	/* pages scanned since last reclaim */
->  	PGSCAN_ANON,
->  	PGSCAN_FILE,
->  	PGSTEAL_ANON,
-> @@ -630,6 +629,8 @@ typedef struct pglist_data {
->  	int kswapd_order;
->  	enum zone_type kswapd_classzone_idx;
->
-> +	int kswapd_failed_runs;
-> +
->  #ifdef CONFIG_COMPACTION
->  	int kcompactd_max_order;
->  	enum zone_type kcompactd_classzone_idx;
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 145005e6dc85..9de49e2710af 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -285,8 +285,8 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
->  						struct vm_area_struct *vma);
->
->  /* linux/mm/vmscan.c */
-> +#define MAX_RECLAIM_RETRIES 16
->  extern unsigned long zone_reclaimable_pages(struct zone *zone);
-> -extern unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat);
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
->  extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 537ac9951f5f..812e1aaf4142 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -78,7 +78,6 @@ extern unsigned long highest_memmap_pfn;
->   */
->  extern int isolate_lru_page(struct page *page);
->  extern void putback_lru_page(struct page *page);
-> -extern bool pgdat_reclaimable(struct pglist_data *pgdat);
->
->  /*
->   * in mm/rmap.c:
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index c83186c61257..d4f0a499b4e5 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1731,9 +1731,6 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
->  {
->  	int z;
->
-> -	if (!pgdat_reclaimable(pgdat))
-> -		return false;
-> -
->  	for (z = pgdat->nr_zones - 1; z >= 0; z--) {
->  		struct zone *zone = pgdat->node_zones + z;
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c470b8fe28cf..c467a4fff16a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1087,15 +1087,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  {
->  	int migratetype = 0;
->  	int batch_free = 0;
-> -	unsigned long nr_scanned;
->  	bool isolated_pageblocks;
->
->  	spin_lock(&zone->lock);
->  	isolated_pageblocks = has_isolate_pageblock(zone);
-> -	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
-> -	if (nr_scanned)
-> -		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
-> -
->  	while (count) {
->  		struct page *page;
->  		struct list_head *list;
-> @@ -1147,12 +1142,7 @@ static void free_one_page(struct zone *zone,
->  				unsigned int order,
->  				int migratetype)
->  {
-> -	unsigned long nr_scanned;
->  	spin_lock(&zone->lock);
-> -	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
-> -	if (nr_scanned)
-> -		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
-> -
->  	if (unlikely(has_isolate_pageblock(zone) ||
->  		is_migrate_isolate(migratetype))) {
->  		migratetype = get_pfnblock_migratetype(page, pfn);
-> @@ -3388,12 +3378,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  }
->
->  /*
-> - * Maximum number of reclaim retries without any progress before OOM killer
-> - * is consider as the only way to move forward.
-> - */
-> -#define MAX_RECLAIM_RETRIES 16
-> -
-> -/*
->   * Checks whether it makes sense to retry the reclaim to make a forward progress
->   * for the given allocation request.
->   * The reclaim feedback represented by did_some_progress (any progress during
-> @@ -4301,7 +4285,6 @@ void show_free_areas(unsigned int filter)
->  #endif
->  			" writeback_tmp:%lukB"
->  			" unstable:%lukB"
-> -			" pages_scanned:%lu"
->  			" all_unreclaimable? %s"
->  			"\n",
->  			pgdat->node_id,
-> @@ -4324,8 +4307,8 @@ void show_free_areas(unsigned int filter)
->  			K(node_page_state(pgdat, NR_SHMEM)),
->  			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
->  			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
-> -			node_page_state(pgdat, NR_PAGES_SCANNED),
-> -			!pgdat_reclaimable(pgdat) ? "yes" : "no");
-> +		        pgdat->kswapd_failed_runs >= MAX_RECLAIM_RETRIES ?
-> +				"yes" : "no");
->  	}
->
->  	for_each_populated_zone(zone) {
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1b112f291fbe..2b4ce7cd97d8 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -212,28 +212,6 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
->  	return nr;
->  }
->
-> -unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat)
-> -{
-> -	unsigned long nr;
-> -
-> -	nr = node_page_state_snapshot(pgdat, NR_ACTIVE_FILE) +
-> -	     node_page_state_snapshot(pgdat, NR_INACTIVE_FILE) +
-> -	     node_page_state_snapshot(pgdat, NR_ISOLATED_FILE);
-> -
-> -	if (get_nr_swap_pages() > 0)
-> -		nr += node_page_state_snapshot(pgdat, NR_ACTIVE_ANON) +
-> -		      node_page_state_snapshot(pgdat, NR_INACTIVE_ANON) +
-> -		      node_page_state_snapshot(pgdat, NR_ISOLATED_ANON);
-> -
-> -	return nr;
-> -}
-> -
-> -bool pgdat_reclaimable(struct pglist_data *pgdat)
-> -{
-> -	return node_page_state_snapshot(pgdat, NR_PAGES_SCANNED) <
-> -		pgdat_reclaimable_pages(pgdat) * 6;
-> -}
-> -
->  unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru)
->  {
->  	if (!mem_cgroup_disabled())
-> @@ -1438,10 +1416,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  			continue;
->  		}
->
-> -		/*
-> -		 * Account for scanned and skipped separetly to avoid the pgdat
-> -		 * being prematurely marked unreclaimable by pgdat_reclaimable.
-> -		 */
->  		scan++;
->
->  		switch (__isolate_lru_page(page, mode)) {
-> @@ -1728,7 +1702,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->
->  	if (global_reclaim(sc)) {
->  		__mod_node_page_state(pgdat, PGSCAN_ANON + file, nr_scanned);
-> -		__mod_node_page_state(pgdat, NR_PAGES_SCANNED, nr_scanned);
->  		if (current_is_kswapd())
->  			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
->  		else
-> @@ -1916,8 +1889,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
->
->  	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
->
-> -	if (global_reclaim(sc))
-> -		__mod_node_page_state(pgdat, NR_PAGES_SCANNED, nr_scanned);
->  	__count_vm_events(PGREFILL, nr_scanned);
->
->  	spin_unlock_irq(&pgdat->lru_lock);
-> @@ -2114,12 +2085,8 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
->  	 * latencies, so it's better to scan a minimum amount there as
->  	 * well.
->  	 */
-> -	if (current_is_kswapd()) {
-> -		if (!pgdat_reclaimable(pgdat))
-> -			force_scan = true;
-> -		if (!mem_cgroup_online(memcg))
-> -			force_scan = true;
-> -	}
-> +	if (current_is_kswapd() && !mem_cgroup_online(memcg))
-> +		force_scan = true;
->  	if (!global_reclaim(sc))
->  		force_scan = true;
->
-> @@ -2593,6 +2560,14 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
->  					 sc->nr_scanned - nr_scanned, sc));
->
-> +	/*
-> +	 * Kswapd might have declared a node hopeless after too many
-> +	 * successless balancing attempts. If we reclaim anything at
-> +	 * all here, knock it loose.
-> +	 */
-> +	if (reclaimable)
-> +		pgdat->kswapd_failed_runs = 0;
-> +
->  	return reclaimable;
->  }
->
-> @@ -2667,10 +2642,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  						 GFP_KERNEL | __GFP_HARDWALL))
->  				continue;
->
-> -			if (sc->priority != DEF_PRIORITY &&
-> -			    !pgdat_reclaimable(zone->zone_pgdat))
-> -				continue;	/* Let kswapd poll it */
-> -
->  			/*
->  			 * If we already have plenty of memory free for
->  			 * compaction in this zone, don't free any more.
-> @@ -2817,8 +2788,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
->
->  	for (i = 0; i <= ZONE_NORMAL; i++) {
->  		zone = &pgdat->node_zones[i];
-> -		if (!managed_zone(zone) ||
-> -		    pgdat_reclaimable_pages(pgdat) == 0)
-> +		if (!managed_zone(zone))
->  			continue;
->
->  		pfmemalloc_reserve += min_wmark_pages(zone);
-> @@ -3117,6 +3087,10 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
->  	if (waitqueue_active(&pgdat->pfmemalloc_wait))
->  		wake_up_all(&pgdat->pfmemalloc_wait);
->
-> +	/* Hopeless node until direct reclaim knocks us free */
-> +	if (pgdat->kswapd_failed_runs >= MAX_RECLAIM_RETRIES)
-> +		return true;
-> +
->  	for (i = 0; i <= classzone_idx; i++) {
->  		struct zone *zone = pgdat->node_zones + i;
->
-> @@ -3260,7 +3234,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  		 * If we're getting trouble reclaiming, start doing writepage
->  		 * even in laptop mode.
->  		 */
-> -		if (sc.priority < DEF_PRIORITY - 2 || !pgdat_reclaimable(pgdat))
-> +		if (sc.priority < DEF_PRIORITY - 2)
->  			sc.may_writepage = 1;
->
->  		/* Call soft limit reclaim before calling shrink_node. */
-> @@ -3299,6 +3273,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			sc.priority--;
->  	} while (sc.priority >= 1);
->
-> +	if (!sc.nr_reclaimed)
-> +		pgdat->kswapd_failed_runs++;
-> +
->  out:
->  	/*
->  	 * Return the order kswapd stopped reclaiming at as
-> @@ -3498,6 +3475,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
->  	if (!waitqueue_active(&pgdat->kswapd_wait))
->  		return;
->
-> +	/* Hopeless node until direct reclaim knocks us free */
-> +	if (pgdat->kswapd_failed_runs >= MAX_RECLAIM_RETRIES)
-> +		return;
-> +
->  	/* Only wake kswapd if all zones are unbalanced */
->  	for (z = 0; z <= classzone_idx; z++) {
->  		zone = pgdat->node_zones + z;
-> @@ -3768,9 +3749,6 @@ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
->  	    sum_zone_node_page_state(pgdat->node_id, NR_SLAB_RECLAIMABLE) <= pgdat->min_slab_pages)
->  		return NODE_RECLAIM_FULL;
->
-> -	if (!pgdat_reclaimable(pgdat))
-> -		return NODE_RECLAIM_FULL;
-> -
->  	/*
->  	 * Do not scan if the allocation should not be delayed.
->  	 */
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index ef3b683f1f56..2e022d537d25 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -954,7 +954,6 @@ const char * const vmstat_text[] = {
->  	"nr_unevictable",
->  	"nr_isolated_anon",
->  	"nr_isolated_file",
-> -	"nr_pages_scanned",
->  	"pgscan_anon",
->  	"pgscan_file",
->  	"pgsteal_anon",
-> @@ -1378,7 +1377,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  		   "\n        min      %lu"
->  		   "\n        low      %lu"
->  		   "\n        high     %lu"
-> -		   "\n   node_scanned  %lu"
->  		   "\n        spanned  %lu"
->  		   "\n        present  %lu"
->  		   "\n        managed  %lu",
-> @@ -1386,7 +1384,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  		   min_wmark_pages(zone),
->  		   low_wmark_pages(zone),
->  		   high_wmark_pages(zone),
-> -		   node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED),
->  		   zone->spanned_pages,
->  		   zone->present_pages,
->  		   zone->managed_pages);
-> @@ -1425,7 +1422,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  		   "\n  node_unreclaimable:  %u"
->  		   "\n  start_pfn:           %lu"
->  		   "\n  node_inactive_ratio: %u",
-> -		   !pgdat_reclaimable(zone->zone_pgdat),
-> +		   zone->zone_pgdat->kswapd_failed_runs >= MAX_RECLAIM_RETRIES,
->  		   zone->zone_start_pfn,
->  		   zone->zone_pgdat->inactive_ratio);
->  	seq_putc(m, '\n');
-> @@ -1587,26 +1584,11 @@ int vmstat_refresh(struct ctl_table *table, int write,
->  	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
->  		val = atomic_long_read(&vm_zone_stat[i]);
->  		if (val < 0) {
-> -			switch (i) {
-> -			case NR_PAGES_SCANNED:
-> -				/*
-> -				 * This is often seen to go negative in
-> -				 * recent kernels, but not to go permanently
-> -				 * negative.  Whilst it would be nicer not to
-> -				 * have exceptions, rooting them out would be
-> -				 * another task, of rather low priority.
-> -				 */
-> -				break;
-> -			default:
-> -				pr_warn("%s: %s %ld\n",
-> -					__func__, vmstat_text[i], val);
-> -				err = -EINVAL;
-> -				break;
-> -			}
-> +			pr_warn("%s: %s %ld\n",
-> +				__func__, vmstat_text[i], val);
-> +			return -EINVAL;
->  		}
->  	}
-> -	if (err)
-> -		return err;
->  	if (write)
->  		*ppos += *lenp;
->  	else
->
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
