@@ -1,101 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CD1426B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 13:14:31 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id x71so41924610qkb.6
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:14:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n14si3857618qkl.104.2017.02.23.10.14.30
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CBED6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 13:28:03 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id x4so3497382wme.3
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:28:03 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id v15si7062554wra.112.2017.02.23.10.28.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 10:14:30 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
-References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
-	<878toy1sgd.fsf@vitty.brq.redhat.com>
-	<20170223125643.GA29064@dhcp22.suse.cz>
-	<87bmttyqxf.fsf@vitty.brq.redhat.com>
-	<20170223150920.GB29056@dhcp22.suse.cz>
-	<877f4gzz4d.fsf@vitty.brq.redhat.com>
-	<20170223161241.GG29056@dhcp22.suse.cz>
-	<8737f4zwx5.fsf@vitty.brq.redhat.com>
-	<20170223174106.GB13822@dhcp22.suse.cz>
-Date: Thu, 23 Feb 2017 19:14:27 +0100
-In-Reply-To: <20170223174106.GB13822@dhcp22.suse.cz> (Michal Hocko's message
-	of "Thu, 23 Feb 2017 18:41:07 +0100")
-Message-ID: <87tw7kydto.fsf@vitty.brq.redhat.com>
+        Thu, 23 Feb 2017 10:28:02 -0800 (PST)
+Date: Thu, 23 Feb 2017 13:22:06 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V4 3/6] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
+ list
+Message-ID: <20170223182206.GA5686@cmpxchg.org>
+References: <cover.1487788131.git.shli@fb.com>
+ <a1a28aa85280a7b3fd6145604eed4132228bd6d1.1487788131.git.shli@fb.com>
+ <20170223155827.GB4031@cmpxchg.org>
+ <20170223162601.GA18526@brenorobert-mbp.dhcp.thefacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170223162601.GA18526@brenorobert-mbp.dhcp.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com, kys@microsoft.com
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-Michal Hocko <mhocko@kernel.org> writes:
+On Thu, Feb 23, 2017 at 08:26:03AM -0800, Shaohua Li wrote:
+> On Thu, Feb 23, 2017 at 10:58:27AM -0500, Johannes Weiner wrote:
+> > Hi Shaohua,
+> > 
+> > On Wed, Feb 22, 2017 at 10:50:41AM -0800, Shaohua Li wrote:
+> > > @@ -268,6 +268,12 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
+> > >  		int lru = page_lru_base_type(page);
+> > >  
+> > >  		del_page_from_lru_list(page, lruvec, lru);
+> > > +		if (PageAnon(page) && !PageSwapBacked(page)) {
+> > > +			SetPageSwapBacked(page);
+> > > +			/* charge to anon scanned/rotated reclaim_stat */
+> > > +			file = 0;
+> > > +			lru = LRU_INACTIVE_ANON;
+> > > +		}
+> > 
+> > As per my previous feedback, please remove this. Write-after-free will
+> > be caught and handled in the reclaimer, read-after-free is a bug that
+> > really doesn't require optimizing page aging for. And we definitely
+> > shouldn't declare invalid data suddenly valid because it's being read.
+> 
+> GUP could run into this. Don't we move the page because it's hot? I think it's
+> not just about page aging. If we leave the page there, page reclaim will just
+> waste time to reclaim the pages which should't be reclaimed.
 
-> On Thu 23-02-17 17:36:38, Vitaly Kuznetsov wrote:
->> Michal Hocko <mhocko@kernel.org> writes:
-> [...]
->> > Is a grow from 256M -> 128GB really something that happens in real life?
->> > Don't get me wrong but to me this sounds quite exaggerated. Hotmem add
->> > which is an operation which has to allocate memory has to scale with the
->> > currently available memory IMHO.
->> 
->> With virtual machines this is very real and not exaggerated at
->> all. E.g. Hyper-V host can be tuned to automatically add new memory when
->> guest is running out of it. Even 100 blocks can represent an issue.
->
-> Do you have any reference to a bug report. I am really curious because
-> something really smells wrong and it is not clear that the chosen
-> solution is really the best one.
-
-Unfortunately I'm not aware of any publicly posted bug reports (CC:
-K. Y. - he may have a reference) but I think I still remember everything
-correctly. Not sure how deep you want me to go into details though...
-
-Virtual guests under stress were getting into OOM easily and the OOM
-killer was even killing the udev process trying to online the
-memory. There was a workaround for the issue added to the hyper-v driver
-doing memory add:
-
-hv_mem_hot_add(...) {
-...
- add_memory(....);
- wait_for_completion_timeout(..., 5*HZ);
- ...
-}
-
-the completion was done by observing for the MEM_ONLINE event. This, of
-course, was slowing things down significantly and waiting for a
-userspace action in kernel is not a nice thing to have (not speaking
-about all other memory adding methods which had the same issue). Just
-removing this wait was leading us to the same OOM as the hypervisor was
-adding more and more memory and eventually even add_memory() was
-failing, udev and other processes were killed,...
-
-With the feature in place we have new memory available right after we do
-add_memory(), everything is serialized.
-
-> [...]
->> > Because the udev will run a code which can cope with that - retry if the
->> > error is recoverable or simply report with all the details. Compare that
->> > to crawling the system log to see that something has broken...
->> 
->> I don't know much about udev, but the most common rule to online memory
->> I've met is:
->> 
->> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline",  ATTR{state}="online"
->> 
->> doesn't do anything smart.
->
-> So what? Is there anything that prevents doing something smarter?
-
-Yes, the asynchronous nature of all this stuff. There is no way you can
-stop other blocks from being added to the system while you're processing
-something in userspace.
-
--- 
-  Vitaly
+There is just no convincing justification to add this code, because it
+optimizes something that doesn't have a real world application. If we
+just delete this branch, for all intents and purposes the outcome will
+be perfectly acceptable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
