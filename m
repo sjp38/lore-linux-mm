@@ -1,120 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D24B06B0387
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 11:12:46 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id s27so18099884wrb.5
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 08:12:46 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o64si7007946wmo.90.2017.02.23.08.12.45
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EECBD6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 11:19:39 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id z61so17703196wrc.6
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 08:19:39 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id o110si6645202wrc.152.2017.02.23.08.19.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Feb 2017 08:12:45 -0800 (PST)
-Date: Thu, 23 Feb 2017 17:12:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
-Message-ID: <20170223161241.GG29056@dhcp22.suse.cz>
-References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
- <878toy1sgd.fsf@vitty.brq.redhat.com>
- <20170223125643.GA29064@dhcp22.suse.cz>
- <87bmttyqxf.fsf@vitty.brq.redhat.com>
- <20170223150920.GB29056@dhcp22.suse.cz>
- <877f4gzz4d.fsf@vitty.brq.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Feb 2017 08:19:38 -0800 (PST)
+Date: Thu, 23 Feb 2017 11:13:42 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V4 4/6] mm: reclaim MADV_FREE pages
+Message-ID: <20170223161342.GC4031@cmpxchg.org>
+References: <cover.1487788131.git.shli@fb.com>
+ <94eccf0fcf927f31377a60d7a9f900b7e743fb06.1487788131.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <877f4gzz4d.fsf@vitty.brq.redhat.com>
+In-Reply-To: <94eccf0fcf927f31377a60d7a9f900b7e743fb06.1487788131.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Thu 23-02-17 16:49:06, Vitaly Kuznetsov wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
-> > On Thu 23-02-17 14:31:24, Vitaly Kuznetsov wrote:
-> >> Michal Hocko <mhocko@kernel.org> writes:
-> >> 
-> >> > On Wed 22-02-17 10:32:34, Vitaly Kuznetsov wrote:
-> >> > [...]
-> >> >> > There is a workaround in that a user could online the memory or have
-> >> >> > a udev rule to online the memory by using the sysfs interface. The
-> >> >> > sysfs interface to online memory goes through device_online() which
-> >> >> > should updated the dev->offline flag. I'm not sure that having kernel
-> >> >> > memory hotplug rely on userspace actions is the correct way to go.
-> >> >> 
-> >> >> Using udev rule for memory onlining is possible when you disable
-> >> >> memhp_auto_online but in some cases it doesn't work well, e.g. when we
-> >> >> use memory hotplug to address memory pressure the loop through userspace
-> >> >> is really slow and memory consuming, we may hit OOM before we manage to
-> >> >> online newly added memory.
-> >> >
-> >> > How does the in-kernel implementation prevents from that?
-> >> >
-> >> 
-> >> Onlining memory on hot-plug is much more reliable, e.g. if we were able
-> >> to add it in add_memory_resource() we'll also manage to online it.
-> >
-> > How does that differ from initiating online from the users?
-> >
-> >> With
-> >> udev rule we may end up adding many blocks and then (as udev is
-> >> asynchronous) failing to online any of them.
-> >
-> > Why would it fail?
-> >
-> >> In-kernel operation is synchronous.
-> >
-> > which doesn't mean anything as the context is preemptible AFAICS.
-> >
-> 
-> It actually does,
-> 
-> imagine the following example: you run a small guest (256M of memory)
-> and now there is a request to add 1000 128mb blocks to it. 
+On Wed, Feb 22, 2017 at 10:50:42AM -0800, Shaohua Li wrote:
+> @@ -1424,6 +1424,12 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  				dec_mm_counter(mm, MM_ANONPAGES);
+>  				rp->lazyfreed++;
+>  				goto discard;
+> +			} else if (!PageSwapBacked(page)) {
+> +				/* dirty MADV_FREE page */
+> +				set_pte_at(mm, address, pvmw.pte, pteval);
+> +				ret = SWAP_DIRTY;
+> +				page_vma_mapped_walk_done(&pvmw);
+> +				break;
+>  			}
+>  
+>  			if (swap_duplicate(entry) < 0) {
+> @@ -1525,8 +1531,8 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+>  
+>  	if (ret != SWAP_MLOCK && !page_mapcount(page)) {
+>  		ret = SWAP_SUCCESS;
+> -		if (rp.lazyfreed && !PageDirty(page))
+> -			ret = SWAP_LZFREE;
+> +		if (rp.lazyfreed && PageDirty(page))
+> +			ret = SWAP_DIRTY;
 
-Is a grow from 256M -> 128GB really something that happens in real life?
-Don't get me wrong but to me this sounds quite exaggerated. Hotmem add
-which is an operation which has to allocate memory has to scale with the
-currently available memory IMHO.
+Can this actually happen? If the page is dirty, ret should already be
+SWAP_DIRTY, right? How would a dirty page get fully unmapped?
 
-> In case you
-> do it the old way you're very likely to get OOM somewhere in the middle
-> as you keep adding blocks which requere kernel memory and nobody is
-> onlining it (or, at least you're racing with the onliner). With
-> in-kernel implementation we're going to online the first block when it's
-> added and only then go to the second.
+It seems to me rp.lazyfreed can be removed entirely now that we don't
+have to identify the lazyfree case anymore. The failure case is much
+easier to identify - all it takes is a single pte to be dirty.
 
-Yes, adding a memory will cost you some memory and that is why I am
-really skeptical when memory hotplug is used under a strong memory
-pressure. This can lead to OOMs even when you online one block at the
-time.
+> @@ -1118,8 +1120,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		/*
+>  		 * Anonymous process memory has backing store?
+>  		 * Try to allocate it some swap space here.
+> +		 * Lazyfree page could be freed directly
+>  		 */
+> -		if (PageAnon(page) && !PageSwapCache(page)) {
+> +		if (PageAnon(page) && !PageSwapCache(page) &&
+> +		    PageSwapBacked(page)) {
 
-[...]
-> > This was not my decision so I can only guess but to me it makes sense.
-> > Both memory and cpus can be physically present and offline which is a
-> > perfectly reasonable state. So having a two phase physicall hotadd is
-> > just built on top of physical vs. logical distinction. I completely
-> > understand that some usecases will really like to online the whole node
-> > as soon as it appears present. But an automatic in-kernel implementation
-> > has its down sites - e.g. if this operation fails in the middle you will
-> > not know about that unless you check all the memblocks in sysfs. This is
-> > really a poor interface.
-> 
-> And how do you know that some blocks failed to online with udev?
+Nit: I'd do PageAnon(page) && PageSwapBacked(page) && !PageSwapCache()
+since anon && swapbacked together describe the page type and swapcache
+the state. Plus, anon && swapbacked go together everywhere else.
 
-Because the udev will run a code which can cope with that - retry if the
-error is recoverable or simply report with all the details. Compare that
-to crawling the system log to see that something has broken...
+Otherwise, looks very straight-forward!
 
-> Who
-> handles these failures and how? And, the last but not least, why do
-> these failures happen?
-
-I haven't heard reports about the failures and from looking into the
-code those are possible but very unlikely.
--- 
-Michal Hocko
-SUSE Labs
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
