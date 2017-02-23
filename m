@@ -1,105 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FC7D6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 06:16:14 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e15so3193297wmd.6
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:16:14 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 215AC6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 07:56:47 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id z61so15315007wrc.6
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:56:47 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m19si6035732wmg.107.2017.02.23.03.16.12
+        by mx.google.com with ESMTPS id b62si6002052wrd.98.2017.02.23.04.56.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Feb 2017 03:16:12 -0800 (PST)
-Date: Thu, 23 Feb 2017 12:16:09 +0100
+        Thu, 23 Feb 2017 04:56:45 -0800 (PST)
+Date: Thu, 23 Feb 2017 13:56:43 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
-Message-ID: <20170223111609.hlncnvokhq3quxwz@dhcp22.suse.cz>
-References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
- <20170222201657.GA6534@cmpxchg.org>
+Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
+Message-ID: <20170223125643.GA29064@dhcp22.suse.cz>
+References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+ <878toy1sgd.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170222201657.GA6534@cmpxchg.org>
+In-Reply-To: <878toy1sgd.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jia He <hejianet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
 
-On Wed 22-02-17 15:16:57, Johannes Weiner wrote:
+On Wed 22-02-17 10:32:34, Vitaly Kuznetsov wrote:
 [...]
-> And a follow-up: once it gives up, when should kswapd return to work?
-> We used to reset NR_PAGES_SCANNED whenever a page gets freed. But
-> that's a branch in a common allocator path, just to recover kswapd - a
-> latency tool, not a necessity for functional correctness - from a
-> situation that's exceedingly pretty rare. How about we leave it
-> disabled until a direct reclaimer manages to free something?
+> > There is a workaround in that a user could online the memory or have
+> > a udev rule to online the memory by using the sysfs interface. The
+> > sysfs interface to online memory goes through device_online() which
+> > should updated the dev->offline flag. I'm not sure that having kernel
+> > memory hotplug rely on userspace actions is the correct way to go.
+> 
+> Using udev rule for memory onlining is possible when you disable
+> memhp_auto_online but in some cases it doesn't work well, e.g. when we
+> use memory hotplug to address memory pressure the loop through userspace
+> is really slow and memory consuming, we may hit OOM before we manage to
+> online newly added memory.
 
-Hmm, I guess we also want to reset the counter after OOM invocation
-which might free a lot of memory and we do not want to wait for the
-direct reclaim to resurrect the kswapd. Something like the following on
-top of yours
----
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ddf27c435225..6be11c18551f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3446,7 +3446,8 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
- 
--static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
-+static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac,
-+		bool force)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
-@@ -3454,8 +3455,11 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
- 
- 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
- 					ac->high_zoneidx, ac->nodemask) {
--		if (last_pgdat != zone->zone_pgdat)
-+		if (last_pgdat != zone->zone_pgdat) {
-+			if (force)
-+				zone->zone_pgdat->kswapd_failed_runs = 0;
- 			wakeup_kswapd(zone, order, ac->high_zoneidx);
-+		}
- 		last_pgdat = zone->zone_pgdat;
- 	}
- }
-@@ -3640,6 +3644,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	unsigned long alloc_start = jiffies;
- 	unsigned int stall_timeout = 10 * HZ;
- 	unsigned int cpuset_mems_cookie;
-+	bool kick_kswapd = false;
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3685,7 +3690,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto nopage;
- 
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
--		wake_all_kswapds(order, ac);
-+		wake_all_kswapds(order, ac, false);
- 
- 	/*
- 	 * The adjusted alloc_flags might result in immediate success, so try
-@@ -3738,7 +3743,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- retry:
- 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
--		wake_all_kswapds(order, ac);
-+		wake_all_kswapds(order, ac, kick_kswapd);
-+	kick_kswapd = false;
- 
- 	if (gfp_pfmemalloc_allowed(gfp_mask))
- 		alloc_flags = ALLOC_NO_WATERMARKS;
-@@ -3833,6 +3839,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	/* Retry as long as the OOM killer is making progress */
- 	if (did_some_progress) {
- 		no_progress_loops = 0;
-+		kick_kswapd = true;
- 		goto retry;
- 	}
- 
+How does the in-kernel implementation prevents from that?
+
+> In addition to that, systemd/udev folks
+> continuosly refused to add this udev rule to udev calling it stupid as
+> it actually is an unconditional and redundant ping-pong between kernel
+> and udev.
+
+This is a policy and as such it doesn't belong to the kernel. The whole
+auto-enable in the kernel is just plain wrong IMHO and we shouldn't have
+merged it.
 -- 
 Michal Hocko
 SUSE Labs
