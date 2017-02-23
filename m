@@ -1,95 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D1EDF6B0387
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:58:14 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u63so1018334wmu.0
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 14:58:14 -0800 (PST)
-Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
-        by mx.google.com with ESMTP id x200si8156052wme.45.2017.02.23.14.58.13
-        for <linux-mm@kvack.org>;
-        Thu, 23 Feb 2017 14:58:13 -0800 (PST)
-Date: Thu, 23 Feb 2017 14:58:09 -0800
-From: Maxime Ripard <maxime.ripard@free-electrons.com>
-Subject: Re: [PATCH 3/8] mm: cma: Export a few symbols
-Message-ID: <20170223225809.rnpbjnli4wa5kims@lukather>
-References: <cover.7101c7323e6f22e281ad70b93488cf44caca4ca0.1486655917.git-series.maxime.ripard@free-electrons.com>
- <2dee6c0baaf08e2c7d48ceb7e97e511c914d0f87.1486655917.git-series.maxime.ripard@free-electrons.com>
- <20170209192046.GB31906@dhcp22.suse.cz>
- <20170213134416.akgmtv3lv5m65fwx@lukather>
- <20170220123550.GH2431@dhcp22.suse.cz>
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C74D36B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 18:12:46 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id y13so9727173oty.2
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 15:12:46 -0800 (PST)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0074.outbound.protection.outlook.com. [104.47.42.74])
+        by mx.google.com with ESMTPS id y74si6105972ioi.133.2017.02.23.15.12.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Feb 2017 15:12:45 -0800 (PST)
+Subject: Re: [RFC PATCH v4 07/28] x86: Provide general kernel support for
+ memory encryption
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154332.19244.55451.stgit@tlendack-t1.amdoffice.net>
+ <a3f56612-396e-b230-d909-93a7128ea2fc@intel.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <73a2c1f7-bc71-3ca8-c312-9a930250cb18@amd.com>
+Date: Thu, 23 Feb 2017 17:12:38 -0600
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="s63xugflc7zhlrdx"
-Content-Disposition: inline
-In-Reply-To: <20170220123550.GH2431@dhcp22.suse.cz>
+In-Reply-To: <a3f56612-396e-b230-d909-93a7128ea2fc@intel.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Chen-Yu Tsai <wens@csie.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Joonsoo Kim <js1304@gmail.com>, m.szyprowski@samsung.com
+To: Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
+On 2/22/2017 12:13 PM, Dave Hansen wrote:
+> On 02/16/2017 07:43 AM, Tom Lendacky wrote:
+>>  static inline unsigned long pte_pfn(pte_t pte)
+>>  {
+>> -	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
+>> +	return (pte_val(pte) & ~sme_me_mask & PTE_PFN_MASK) >> PAGE_SHIFT;
+>>  }
+>>
+>>  static inline unsigned long pmd_pfn(pmd_t pmd)
+>>  {
+>> -	return (pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+>> +	return (pmd_val(pmd) & ~sme_me_mask & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+>>  }
+>
+> Could you talk a bit about why you chose to do the "~sme_me_mask" bit in
+> here instead of making it a part of PTE_PFN_MASK / pmd_pfn_mask(pmd)?
 
---s63xugflc7zhlrdx
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I think that's a good catch.  Let me look at it, but I believe that it
+should be possible to do and avoid what you're worried about below.
 
-On Mon, Feb 20, 2017 at 01:35:50PM +0100, Michal Hocko wrote:
-> On Mon 13-02-17 14:44:16, Maxime Ripard wrote:
-> > Hi Michal,
-> >=20
-> > On Thu, Feb 09, 2017 at 08:20:47PM +0100, Michal Hocko wrote:
-> > > [CC CMA people]
-> > >=20
-> > > On Thu 09-02-17 17:39:17, Maxime Ripard wrote:
-> > > > Modules might want to check their CMA pool size and address for deb=
-ugging
-> > > > and / or have additional checks.
-> > > >=20
-> > > > The obvious way to do this would be through dev_get_cma_area and
-> > > > cma_get_base and cma_get_size, that are currently not exported, whi=
-ch
-> > > > results in a build failure.
-> > > >=20
-> > > > Export them to prevent such a failure.
-> > >=20
-> > > Who actually uses those exports. None of the follow up patches does
-> > > AFAICS.
-> >=20
-> > This is for the ARM Mali GPU driver that is out of tree, unfortunately.
->=20
-> We do not export symbols which do not have any in-tree users.
+Thanks,
+Tom
 
-Ok, sorry for the noise.
-
-Thanks!
-Maxime
-
---=20
-Maxime Ripard, Free Electrons
-Embedded Linux and Kernel engineering
-http://free-electrons.com
-
---s63xugflc7zhlrdx
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBCAAGBQJYr2j9AAoJEBx+YmzsjxAg1psP/AxBecNFS/F6Lg4/68RQPm6E
-aPq5uFQGu/20PngWJhVRT1XVvQGFTbzht/EZMrfOweSSvmRyguekdWD6zkxitxJO
-gjAdoKU8WKzkDBEMsTh3dMQu/Gqfq6jaGeDwvJKcnlt7OpX7RJza75TJE1K2hkTH
-IhNEa19Cs+8xbtDARDDnCsiVuZ42Gku16p8s/h7+jjgOdJoKmdXBQAoplCiWdftO
-kqmGa2n4dAUC2S02ao8dpiiVjnnT4tBzMyoOY/HynaJ+IMLwhscFKa3f54SQX82h
-3bKK8n+c2avDIm3pCot4UsJS+TcKmlVa0zd3NavrU5Vl+0qXr90MUPe4ULghb8qt
-z2bSpib5V6PZJxScMNQRw6bcRHjeajL1PeeYJB9VTFATmHh3/oUrn6gJZ00ap2Hc
-WnFZPb49z10eo0oHyU2wuktqxTPWn5brTLCMbTsGrmEZITPh9IaMaEOmJa+FFA6d
-5zDqZr7YW4LZ9f72EsARbk8F3ZE6fzRzEPlje2Ea5hvOosi32/GjP7sX49wY/0zJ
-qQeePSPGyueawsyRGTidK12iB/RM2dO9kDhbDr23pHdKDAZQ1cyKoeWI3SAzD+wN
-VBnFmMn3aM/m6a5h+A8YUF2kOXDGQXIeUS54MTAGhWvVoBcqwpG82QgC5qer2y+G
-dzqy1P6jVdM3MyR3IL+f
-=88L1
------END PGP SIGNATURE-----
-
---s63xugflc7zhlrdx--
+>
+> It might not matter, but I'd be worried that this ends up breaking
+> direct users of PTE_PFN_MASK / pmd_pfn_mask(pmd) since they now no
+> longer mask the PFN out of a PTE.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
