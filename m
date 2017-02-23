@@ -1,83 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C63B56B0387
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 08:31:27 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id 42so30082771qtn.2
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 05:31:27 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l66si3304351qkd.4.2017.02.23.05.31.26
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 212546B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 08:31:47 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r18so7185952wmd.1
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 05:31:47 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d12si6106850wrb.170.2017.02.23.05.31.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 05:31:26 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
-References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
-	<878toy1sgd.fsf@vitty.brq.redhat.com>
-	<20170223125643.GA29064@dhcp22.suse.cz>
-Date: Thu, 23 Feb 2017 14:31:24 +0100
-In-Reply-To: <20170223125643.GA29064@dhcp22.suse.cz> (Michal Hocko's message
-	of "Thu, 23 Feb 2017 13:56:43 +0100")
-Message-ID: <87bmttyqxf.fsf@vitty.brq.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Feb 2017 05:31:46 -0800 (PST)
+Date: Thu, 23 Feb 2017 14:31:44 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: + mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch added
+ to -mm tree
+Message-ID: <20170223133144.GA29056@dhcp22.suse.cz>
+References: <58a38a94.nb3wSoo24sv+3Kju%akpm@linux-foundation.org>
+ <20170222104303.GH5753@dhcp22.suse.cz>
+ <4378f15c-91fa-2ad1-4c32-2fce11262ef3@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4378f15c-91fa-2ad1-4c32-2fce11262ef3@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: akpm@linux-foundation.org, anton.vorontsov@linaro.org, hannes@cmpxchg.org, mgorman@techsingularity.net, minchan@kernel.org, riel@redhat.com, shashim@codeaurora.org, vbabka@suse.cz, vdavydov.dev@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko <mhocko@kernel.org> writes:
-
-> On Wed 22-02-17 10:32:34, Vitaly Kuznetsov wrote:
-> [...]
->> > There is a workaround in that a user could online the memory or have
->> > a udev rule to online the memory by using the sysfs interface. The
->> > sysfs interface to online memory goes through device_online() which
->> > should updated the dev->offline flag. I'm not sure that having kernel
->> > memory hotplug rely on userspace actions is the correct way to go.
->> 
->> Using udev rule for memory onlining is possible when you disable
->> memhp_auto_online but in some cases it doesn't work well, e.g. when we
->> use memory hotplug to address memory pressure the loop through userspace
->> is really slow and memory consuming, we may hit OOM before we manage to
->> online newly added memory.
+On Thu 23-02-17 14:31:51, Vinayak Menon wrote:
+> 
+> On 2/22/2017 4:13 PM, Michal Hocko wrote:
+[...]
+> > - the changelog doesn't mention that the test case basically benefits
+> >   from as many lmk interventions as possible. Does this represent a real
+> >   life workload? If not is there any real life workload which would
+> >   benefit from the new behavior.
 >
-> How does the in-kernel implementation prevents from that?
->
+> The use case does not actually benefit from as many lmk interventions
+> as possible. Because it has to also take care of maximizing the number
+> of applications sustained. 
 
-Onlining memory on hot-plug is much more reliable, e.g. if we were able
-to add it in add_memory_resource() we'll also manage to online it. With
-udev rule we may end up adding many blocks and then (as udev is
-asynchronous) failing to online any of them. In-kernel operation is
-synchronous.
+exactly and that is why I am questioning a more pessimistic events. LMK
+is a disruptive action so reporting critical actions too early can have
+negative impact.
 
->> In addition to that, systemd/udev folks
->> continuosly refused to add this udev rule to udev calling it stupid as
->> it actually is an unconditional and redundant ping-pong between kernel
->> and udev.
->
-> This is a policy and as such it doesn't belong to the kernel. The whole
-> auto-enable in the kernel is just plain wrong IMHO and we shouldn't have
-> merged it.
+> IMHO Android using a vmpressure based user
+> space lowmemorykiller is a real life workload. But the lowmemorykiller
+> killer example was just to show the difference in vmpressure events
+> between 2 kernel versions. Any workload which uses vmpressure would
+> be something similar ? It would take an action by killing tasks, or
+> releasing some buffers etc as I understand. The patch was actually
+> meant to fix the addition of noise to vmpressure by adding reclaimed
+> without accounting the cost and the lmk example was just to indicate
+> the difference in vmpressure events.
 
-I disagree.
+OK, it seems I have to repeat myself again. So what is the advantage of
+getting more pessimistic events and potentially fire disruptive actions
+sooner while we could still reclaim slab? Who is going to benefit from
+this except from the initial test case which, we agreed, is artificial?
+Why does the "noise" even matter?
 
-First of all it's not a policy, it is a default. We have many other
-defaults in kernel. When I add a network card or a storage, for example,
-I don't need to go anywhere and 'enable' it before I'm able to use
-it from userspace. An for memory (and CPUs) we, for some unknown reason
-opted for something completely different. If someone is plugging new
-memory into a box he probably wants to use it, I don't see much value in
-waiting for a special confirmation from him. 
-
-Second, this feature is optional. If you want to keep old behavior just
-don't enable it.
-
-Third, this solves real world issues. With Hyper-V it is very easy to
-show udev failing on stress. No other solution to the issue was ever
-suggested.
+I am sorry but this whole change smells like "let's fix the test case"
+rather than "let's think what the real life use cases will benefit from"
+to me. As I've said I will not block this change because the cost model
+is so fuzzy that one way or another there will always be somebody
+complaining about it... So please, at least, make sure that somebody
+hunting a vmpressure misbehavior know why this has been changed! If this
+really is a test case motivated change then I would encourage you to
+withdraw this patch and instead try to think how to make the vmpressure
+more robust.
 
 -- 
-  Vitaly
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
