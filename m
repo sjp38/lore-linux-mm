@@ -1,299 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 693996B0389
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:15:38 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id d9so4956403itc.4
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 00:15:38 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s4si4044248itg.124.2017.02.23.00.15.37
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D86616B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:53:40 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j5so26346263pfb.3
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 00:53:40 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l187si3747781pfl.162.2017.02.23.00.53.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 00:15:37 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1N8E9Df146899
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:15:37 -0500
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28sqc6hm4v-1
+        Thu, 23 Feb 2017 00:53:39 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1N8rXDb003557
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:53:39 -0500
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com [125.16.236.4])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28srg4gsgc-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:15:36 -0500
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:53:38 -0500
 Received: from localhost
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 23 Feb 2017 18:15:13 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 014822CE8056
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 19:15:12 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1N8F3b750069652
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 19:15:11 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1N8Ed0q013276
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 19:14:39 +1100
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+	Thu, 23 Feb 2017 14:23:04 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id E219D3940061
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 14:23:01 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1N8r1O111927692
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 14:23:01 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1N8r0WG029716
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 14:23:01 +0530
 Subject: Re: [PATCH V3 0/4] Define coherent device memory node
 References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
  <20170215182010.reoahjuei5eaxr5s@suse.de>
  <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
  <20170217133237.v6rqpsoiolegbjye@suse.de>
  <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
- <20170221201436.GA4573@redhat.com>
-Date: Thu, 23 Feb 2017 13:44:06 +0530
+ <20170222092921.GF5753@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 23 Feb 2017 14:22:54 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170221201436.GA4573@redhat.com>
+In-Reply-To: <20170222092921.GF5753@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Message-Id: <0b73cfd2-d70c-ccd8-9bf0-7bd060b16ce9@linux.vnet.ibm.com>
+Message-Id: <5b9159e3-8780-bc18-dac1-87c1235603db@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On 02/22/2017 01:44 AM, Jerome Glisse wrote:
-> On Tue, Feb 21, 2017 at 06:39:17PM +0530, Anshuman Khandual wrote:
+On 02/22/2017 02:59 PM, Michal Hocko wrote:
+> On Tue 21-02-17 18:39:17, Anshuman Khandual wrote:
 >> On 02/17/2017 07:02 PM, Mel Gorman wrote:
->>> On Fri, Feb 17, 2017 at 05:11:57PM +0530, Anshuman Khandual wrote:
->>>> On 02/15/2017 11:50 PM, Mel Gorman wrote:
->>>>> On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
+> [...]
+>>> Why can this not be expressed with cpusets and memory policies
+>>> controlled by a combination of administrative steps for a privileged
+>>> application and an application that is CDM aware?
+>>
+>> Hmm, that can be done but having an in kernel infrastructure has the
+>> following benefits.
+>>
+>> * Administrator does not have to listen to node add notifications
+>>   and keep the isolation/allowed cpusets upto date all the time.
+>>   This can be a significant overhead on the admin/userspace which
+>>   have a number of separate device memory nodes.
+> 
+> But the application has to communicate with the device so why it cannot
+> use a device specific allocation as well? I really fail to see why
+> something this special should hide behind a generic API to spread all
+> the special casing into the kernel instead.
+
+Eventually both memory as well as compute parts in a hybrid
+CPU/device scheme should be implemented through generic API.
+The scheduler should be able to take inputs from user space
+to schedule a device compute specific function on a device
+compute thread for a single run. Scheduler should then have
+calls backs registered from the device which can be called
+to schedule the function for a device compute. But right now
+we are not there yet. So we are walking half the way and
+trying to do it only for memory now.
+
+>  
+>> * With cpuset solution, tasks which are part of CDM allowed cpuset
+>>   can have all it's VMAs allocate from CDM memory which may not be
+>>   something the user want. For example user may not want to have
+>>   the text segments, libraries allocate from CDM. To achieve this
+>>   the user will have to explicitly block allocation access from CDM
+>>   through mbind(MPOL_BIND) memory policy setups. This negative setup
+>>   is a big overhead. But with in kernel CDM framework, isolation is
+>>   enabled by default. For CDM allocations the application just has
+>>   to setup memory policy with CDM node in the allowed nodemask.
+> 
+> Which makes cpusets vs. mempolicies even bigger mess, doesn't it? So say
+
+Hence I am trying to defend CDM framework in comparison to cpuset
++ mbind() solution from user space as suggested by Mel.
+
+> that you have an application which wants to benefit from CDM and use
+> mbind to have an access to this memory for particular buffer. Now you
+> try to run this application in a cpuset which doesn't include this node
+> and now what? Cpuset will override the application policy so the buffer
+> will never reach the requested node. At least not without even more
+> hacks to cpuset handling. I really do not like that!
+
+
+Right, it will not reach the CDM. The cpuset based solution was to
+have the applications which want CDM in a CDM including cpuset and
+all other applications/tasks in a CDM excluded cpuset. CDM aware
+application can then set their own memory policies which *may*
+include CDM and it will be allowed as their cpuset contain the
+nodes. But these two cpusets once containing all CDM and one without
+these CDMs should be maintained all the time. No kernel cpuset
+hacks will be required.
+
 > 
 > [...]
-> 
->>>> * The placement of the memory on the buffer can happen on system memory
->>>>   when the CPU faults while accessing it. But a driver can manage the
->>>>   migration between system RAM and CDM memory once the buffer is being
->>>>   used from CPU and the device interchangeably.
->>>
->>> While I'm not familiar with the details because I'm not generally involved
->>> in hardware enablement, why was HMM not suitable? I know HMM had it's own
->>> problems with merging but as it also managed migrations between RAM and
->>> device memory, how did it not meet your requirements? If there were parts
->>> of HMM missing, why was that not finished?
->>
->>
 >> These are the reasons which prohibit the use of HMM for coherent
 >> addressable device memory purpose.
 >>
->> (1) IIUC HMM currently supports only a subset of anon mapping in the
->> user space. It does not support shared anon mapping or any sort of file
->> mapping for that matter. We need support for all mapping in the user space
->> for the CPU/device compute to be effective and transparent. As HMM depends
->> on ZONE DEVICE for device memory representation, there are some unique
->> challenges in making it work for file mapping (and page cache) during
->> migrations between system RAM and device memory.
-> 
-> I need to debunk that. HMM does not support file back page (or share memory)
-> for a single reason: CPU can not access HMM memory. If the device memory is
-> accessible from CPU in cache coherent fashion then adding support for file
-> back page is easy. There is only an handfull of place in the filesystem that
-
-This needs to be done in all file systems possible which supports file
-mapping in the user space and page caches ?
-
-> assume page are on the lru and all that is needed is allowing file back page
-> to not be on the lru. Extra thing would be to forbid GUP but that is easy.
-
-If its not on LRU how we are going to manage the reclaim and write back
-into the disk for the dirty pages ? In which order ? Then a brand new
-infrastructure needs to be created for that purpose ? Why GUP access
-needs to be blocked for these device pages ?
-
-> 
-> 
->>
->> (2) ZONE_DEVICE has been modified to support un-addressable memory apart
->> from addressable persistent memory which is not movable. It still would
->> have to support coherent device memory which will be movable.
-> 
-> Again this isn't how it is implemented. I splitted the un-addressable part
-> from the move-able property. So you can implement addressable and moveable
-> memory using HMM modification to ZONE_DEVICE.
-
-Need to check this again but yes its not a very big issue.
-
-> 
->>
+> [...]
 >> (3) Application cannot directly allocate into device memory from user
 >> space using existing memory related system calls like mmap() and mbind()
 >> as the device memory hides away in ZONE_DEVICE.
 > 
-> That's true but this is deliberate choice. From the begining my choice
-> have been guided by the principle that i do not want to add or modify
-> existing syscall because we do not have real world experience with this.
+> Why cannot the application simply use mmap on the device file?
 
-With the current proposal for CDM, memory system calls just work
-on CDM without requiring any changes.
+Yeah thats possible but then it does not go through core VM any more.
 
 > 
-> Once HMM is use with real world workload by people other than me or
-> NVidia and we get feedback on what people writting application leveraging
-> this would like to do. Then we might start thinking about mbind() or other
-> API to expose more policy control to application.
-
-I am not really sure how much of effort would be required to make
-ZONE_DEVICE pages to be accessible from user space with existing
-memory system calls. NUMA representation just makes it work without
-any further changes. But I got your point.
-
-> 
-> For time being all policy and migration decision are done by the driver
-> that collect hint and statistic from the userspace driver of the GPU.
-> So this is all device specific and it use existing driver mechanism.
-
-CDM framework also has the exact same expectations from the driver. But
-it gives user space more control and visibility regarding whats happening
-with the memory buffer.
-
-> 
->>
 >> Apart from that, CDM framework provides a different approach to device
 >> memory representation which does not require special device memory kind
 >> of handling and associated call backs as implemented by HMM. It provides
 >> NUMA node based visibility to the user space which can be extended to
 >> support new features.
 > 
-> True we diverge there. I am not convince that NUMA is the right direction.
+> What do you mean by new features and how users will use/request those
+> features (aka what is the API)?
 
-Yeah true, we diverge here :)
-
-> NUMA was design for CPU and CDM or device memory is more at a sub-level
-> than NUMA. Each device is attach to a given CPU node itself part of the
-> NUMA hierarchy. So to me CDM is more about having a hierarchy of memory
-> at node level and thus should not be implemented in NUMA. Something new
-
-Currently NUMA does not support any memory hierarchy at node level.
-
-> is needed. Not only for device memory but for thing like stack memory
-> that won't use as last level cache as it has been done in existing Intel
-> CPU. I believe we will have deeper hierarchy of memory, from fast high
-> bandwidth stack memory (on top of CPU/GPU die) to the regular memory as
-> we know it and also device memory.
-
-I agree but in absence of the infrastructure NUMA seems to be a suitable
-fallback for now.
- 
->  
-> 
->>> I know HMM had a history of problems getting merged but part of that was a
->>> chicken and egg problem where it was a lot of infrastructure to maintain
->>> with no in-kernel users. If CDM is a potential user then CDM could be
->>
->> CDM is not a user there, HMM needs to change (with above challenges) to
->> accommodate coherent device memory which it does not support at this
->> moment.
-> 
-> There is no need to change anything with current HMM to support CDM. What
-> you would want is to add file back page which would require to allow non
-> lru page (this lru assumption of file back page exist only in couple place
-> and i don't remember thinking it would be a challenge to change that).
-
-I am afraid this statement over simplifies the challenge in hand. May be
-we need to start looking into actual details to figure out how much of
-changes are really required for this enablement.
-
-> 
-> 
->>> built on top and ask for a merge of both the core infrastructure required
->>> and the drivers at the same time.
->>
->> I am afraid the drivers would be HW vendor specific.
->>
->>>
->>> It's not an easy path but the difficulties there do not justify special
->>> casing CDM in the core allocator.
->>
->> Hmm. Even if HMM supports all sorts of mappings in user space and related
->> migrations, we still will not have direct allocations from user space with
->> mmap() and mbind() system calls.
-> 
-> I am not sure we want to have this kind of direct allocation from day one.
-> I would rather have the whole thing fire tested with real application and
-> real user through device driver. Then wait to see if common usage pattern
-> warrant to create a generic API to direct new memory allocation to device
-> memory.
-
-But we should not also over look this aspect and go in a direction
-where it can be difficult to implement at later point in time. I am
-not saying its going to be difficult but its something we have to
-find out.
-
-
-> 
->  
->>>>   As you have mentioned
->>>>   driver will have more information about where which part of the buffer
->>>>   should be placed at any point of time and it can make it happen with
->>>>   migration. So both allocation and placement are decided by the driver
->>>>   during runtime. CDM provides the framework for this can kind device
->>>>   assisted compute and driver managed memory placements.
->>>>
->>>
->>> Which sounds like what HMM needed and the problems of co-ordinating whether
->>> data within a VMA is located on system RAM or device memory and what that
->>> means is not addressed by the series.
->>
->> Did not get that. What is not addressed by this series ? How is the
->> requirements of HMM and CDM framework are different ?
-> 
-> The VMA flag of CDM is really really bad from my point of view. I do
-> understand and agree that you want to block auto-numa and ksm or any-
-> thing similar from happening to CDM memory but this is a property of
-> the memory that back some address in a given VMA. It is not a property
-> of a VMA region. Given that auto-numa and KSM work from VMA down to
-> memory i understand why one would want to block it there but it is
-> wrong.
-
-Okay. We have already discussed these and the current proposed patch
-series does not have these changes. I had decided to split the previous
-series and posted only the isolation bits of it. We can debate about
-the VMA/page aspect of the solution but after we reach an agreement
-on the isolation parts.
-
-> 
-> I already said that a common pattern will be fragmented VMA ie a VMA
-> in which you have some address back by device memory and other back
-> by regular memory (and no you do not want to split VMA). So to me it
-> is clear you need to block KSM or auto-numa at page level ie by using
-> memory type property from node to which the page belong for instance.
-> 
-> Droping the CDM flag would simplify your whole patchset.
-
-Okay, got your point.
-
-> 
->  
->>>
->>> Even if HMM is unsuitable, it should be clearly explained why
->>
->> I just did explain in the previous paragraphs above.
->>
->>>
->>>> * If any application is not using CDM memory for along time placed on
->>>>   its buffer and another application is forced to fallback on system
->>>>   RAM when it really wanted is CDM, the driver can detect these kind
->>>>   of situations through memory access patterns on the device HW and
->>>>   take necessary migration decisions.
->>>>
->>>> I hope this explains the rationale of the framework. In fact these
->>>> four patches give logically complete CPU/Device operating framework.
->>>> Other parts of the bigger picture are VMA management, KSM, Auto NUMA
->>>> etc which are improvements on top of this basic framework.
->>>>
->>>
->>> Automatic NUMA balancing is a particular oddity as that is about
->>> CPU->RAM locality and not RAM->device considerations.
->>
->> Right. But when there are migrations happening between system RAM and
->> device memory. Auto NUMA with its CPU fault information can migrate
->> between system RAM nodes which might not be necessary and can lead to
->> conflict or overhead. Hence Auto NUMA needs to be switched off at times
->> for the VMAs of concern but its not addressed in the patch series. As
->> mentioned before, it will be in the follow up work as improvements on
->> this series.
-> 
-> I do not think auto-numa need to be switch of for the whole VMA but only
-> block it for device memory. Because auto-numa can't gather device memory
-> usage statistics.
-
-Right.
+I dont have plans for this right now. But what I meant was once core
+VM understand CDM even its represented as NUMA node, the existing APIs
+can be be modified to accommodate special functions for CDM memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
