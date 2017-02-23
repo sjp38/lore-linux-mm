@@ -1,104 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B4016B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 02:29:43 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id z61so11463336wrc.6
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 23:29:43 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u18si4902765wrd.248.2017.02.22.23.29.42
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9350E6B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 02:51:29 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f21so38205676pgi.4
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 23:51:29 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f68si3618338pfd.98.2017.02.22.23.51.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Feb 2017 23:29:42 -0800 (PST)
-Date: Thu, 23 Feb 2017 08:29:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
-Message-ID: <20170223072938.6kff34eebtspv2fh@dhcp22.suse.cz>
-References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
- <20170222201657.GA6534@cmpxchg.org>
- <20170222202406.GB6534@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Feb 2017 23:51:28 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1N7nnh0108891
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 02:51:28 -0500
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28shbjdc5r-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 02:51:28 -0500
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 23 Feb 2017 17:51:25 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id A3FB93578065
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 18:51:20 +1100 (EST)
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1N7pCRf49479926
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 18:51:20 +1100
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1N7oln7025864
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 18:50:48 +1100
+Subject: Re: [RFC PATCH 03/14] mm/migrate: Add copy_pages_mthread function
+References: <20170217150551.117028-1-zi.yan@sent.com>
+ <20170217150551.117028-4-zi.yan@sent.com>
+ <20170223060649.GA7336@hori1.linux.bs1.fc.nec.co.jp>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 23 Feb 2017 13:20:16 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170222202406.GB6534@cmpxchg.org>
+In-Reply-To: <20170223060649.GA7336@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Message-Id: <ff44b5a5-d022-5c68-b067-634614f0a28c@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jia He <hejianet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@sent.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "apopple@au1.ibm.com" <apopple@au1.ibm.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
 
-On Wed 22-02-17 15:24:06, Johannes Weiner wrote:
-> On Wed, Feb 22, 2017 at 03:16:57PM -0500, Johannes Weiner wrote:
-> > [...] And then it sounds pretty much like what the allocator/direct
-> > reclaim already does.
+On 02/23/2017 11:36 AM, Naoya Horiguchi wrote:
+> On Fri, Feb 17, 2017 at 10:05:40AM -0500, Zi Yan wrote:
+>> From: Zi Yan <ziy@nvidia.com>
+>>
+>> This change adds a new function copy_pages_mthread to enable multi threaded
+>> page copy which can be utilized during migration. This function splits the
+>> page copy request into multiple threads which will handle individual chunk
+>> and send them as jobs to system_highpri_wq work queue.
+>>
+>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>> ---
+>>  include/linux/highmem.h |  2 ++
+>>  mm/Makefile             |  2 ++
+>>  mm/copy_pages.c         | 86 +++++++++++++++++++++++++++++++++++++++++++++++++
+>>  3 files changed, 90 insertions(+)
+>>  create mode 100644 mm/copy_pages.c
+>>
+>> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+>> index bb3f3297062a..e1f4f1b82812 100644
+>> --- a/include/linux/highmem.h
+>> +++ b/include/linux/highmem.h
+>> @@ -236,6 +236,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
+>>  
+>>  #endif
+>>  
+>> +int copy_pages_mthread(struct page *to, struct page *from, int nr_pages);
+>> +
+>>  static inline void copy_highpage(struct page *to, struct page *from)
+>>  {
+>>  	char *vfrom, *vto;
+>> diff --git a/mm/Makefile b/mm/Makefile
+>> index aa0aa17cb413..cdd4bab9cc66 100644
+>> --- a/mm/Makefile
+>> +++ b/mm/Makefile
+>> @@ -43,6 +43,8 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
+>>  
+>>  obj-y += init-mm.o
+>>  
+>> +obj-y += copy_pages.o
+>> +
+>>  ifdef CONFIG_NO_BOOTMEM
+>>  	obj-y		+= nobootmem.o
+>>  else
+>> diff --git a/mm/copy_pages.c b/mm/copy_pages.c
+>> new file mode 100644
+>> index 000000000000..c357e7b01042
+>> --- /dev/null
+>> +++ b/mm/copy_pages.c
+>> @@ -0,0 +1,86 @@
+>> +/*
+>> + * This implements parallel page copy function through multi threaded
+>> + * work queues.
+>> + *
+>> + * Zi Yan <ziy@nvidia.com>
+>> + *
+>> + * This work is licensed under the terms of the GNU GPL, version 2.
+>> + */
+>> +#include <linux/highmem.h>
+>> +#include <linux/workqueue.h>
+>> +#include <linux/slab.h>
+>> +#include <linux/freezer.h>
+>> +
+>> +/*
+>> + * nr_copythreads can be the highest number of threads for given node
+>> + * on any architecture. The actual number of copy threads will be
+>> + * limited by the cpumask weight of the target node.
+>> + */
+>> +unsigned int nr_copythreads = 8;
 > 
-> On a side note: Michal, I'm not sure I fully understand why we need
-> the backoff code in should_reclaim_retry(). If no_progress_loops is
-> growing steadily, then we quickly reach 16 and bail anyway. Layering
-> on top a backoff function that *might* cut out an iteration or two
-> earlier in the cold path of an OOM situation seems unnecessary.
-> Conversely, if there *are* intermittent reclaims, no_progress_loops
-> gets reset straight to 0, which then also makes the backoff function
-> jump back to square one. So in the only situation where backing off
-> would make sense - making some progress, but not enough - it's not
-> actually backing off. It seems to me it should be enough to bail after
-> either 16 iterations or when free + reclaimable < watermark.
+> If you give this as a constant, how about defining as macro?
 
-Hmm, yes you are right! I wanted to use this backoff to reduce chances
-to trash over last remaining reclaimable pages. But the code evolved in
-a way that this no longer works that way, as you say. I just got stuck
-with the code without rethinking its relevance during the development.
-
-That being said, I think we will eventually want some backoff logic for
-those cases where we still make a little progress but not enough (e.g.
-count the number of reclaimed pages and give up when we reach a portion
-of available reclaimable memory), but the patch below is a good start to
-make the code simpler. Feel free to add my Acked-by when posting a full
-patch.
-
-Thanks!
+Sure, will change it up next time around.
 
 > 
-> Hm?
+>> +
+>> +struct copy_info {
+>> +	struct work_struct copy_work;
+>> +	char *to;
+>> +	char *from;
+>> +	unsigned long chunk_size;
+>> +};
+>> +
+>> +static void copy_pages(char *vto, char *vfrom, unsigned long size)
+>> +{
+>> +	memcpy(vto, vfrom, size);
+>> +}
+>> +
+>> +static void copythread(struct work_struct *work)
+>> +{
+>> +	struct copy_info *info = (struct copy_info *) work;
+>> +
+>> +	copy_pages(info->to, info->from, info->chunk_size);
+>> +}
+>> +
+>> +int copy_pages_mthread(struct page *to, struct page *from, int nr_pages)
+>> +{
+>> +	unsigned int node = page_to_nid(to);
+>> +	const struct cpumask *cpumask = cpumask_of_node(node);
+>> +	struct copy_info *work_items;
+>> +	char *vto, *vfrom;
+>> +	unsigned long i, cthreads, cpu, chunk_size;
+>> +	int cpu_id_list[32] = {0};
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c470b8fe28cf..b0e9495c0530 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3396,11 +3396,10 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  /*
->   * Checks whether it makes sense to retry the reclaim to make a forward progress
->   * for the given allocation request.
-> - * The reclaim feedback represented by did_some_progress (any progress during
-> - * the last reclaim round) and no_progress_loops (number of reclaim rounds without
-> - * any progress in a row) is considered as well as the reclaimable pages on the
-> - * applicable zone list (with a backoff mechanism which is a function of
-> - * no_progress_loops).
-> + *
-> + * We give up when we either have tried MAX_RECLAIM_RETRIES in a row
-> + * without success, or when we couldn't even meet the watermark if we
-> + * reclaimed all remaining pages on the LRU lists.
->   *
->   * Returns true if a retry is viable or false to enter the oom path.
->   */
-> @@ -3441,13 +3440,11 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->  		unsigned long reclaimable;
->  
->  		available = reclaimable = zone_reclaimable_pages(zone);
-> -		available -= DIV_ROUND_UP((*no_progress_loops) * available,
-> -					  MAX_RECLAIM_RETRIES);
->  		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
->  
->  		/*
-> -		 * Would the allocation succeed if we reclaimed the whole
-> -		 * available?
-> +		 * Would the allocation succeed if we reclaimed all
-> +		 * the reclaimable pages?
->  		 */
->  		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
->  				ac_classzone_idx(ac), alloc_flags, available)) {
+> Why 32? Maybe you can set the array size with nr_copythreads (macro version.)
 
--- 
-Michal Hocko
-SUSE Labs
+Sure, will do.
+
+> 
+>> +
+>> +	cthreads = nr_copythreads;
+>> +	cthreads = min_t(unsigned int, cthreads, cpumask_weight(cpumask));
+> 
+> nitpick, but looks a little wordy, can it be simply like below?
+> 
+>   cthreads = min_t(unsigned int, nr_copythreads, cpumask_weight(cpumask));
+> 
+>> +	cthreads = (cthreads / 2) * 2;
+> 
+> I'm not sure the intention here. # of threads should be even number?
+
+Yes.
+
+> If cpumask_weight() is 1, cthreads is 0, that could cause zero division.
+> So you had better making sure to prevent it.
+
+If cpumask_weight() is 1, then min_t(unsigned int, 8, 1) should be
+greater that equal to 1. Then cthreads can end up in 0. That is
+possible. But how there is a chance of zero division ? May be its
+possible if we are trying move into a CPU less memory only node
+where cpumask_weight() is 0 ?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
