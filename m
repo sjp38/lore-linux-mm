@@ -1,61 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CBED6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 13:28:03 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id x4so3497382wme.3
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:28:03 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id B20E66B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 13:45:58 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u63so3796329wmu.0
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:45:58 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v15si7062554wra.112.2017.02.23.10.28.02
+        by mx.google.com with ESMTPS id f87si8007400wmh.24.2017.02.23.10.45.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 10:28:02 -0800 (PST)
-Date: Thu, 23 Feb 2017 13:22:06 -0500
+        Thu, 23 Feb 2017 10:45:57 -0800 (PST)
+Date: Thu, 23 Feb 2017 13:39:59 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V4 3/6] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
- list
-Message-ID: <20170223182206.GA5686@cmpxchg.org>
-References: <cover.1487788131.git.shli@fb.com>
- <a1a28aa85280a7b3fd6145604eed4132228bd6d1.1487788131.git.shli@fb.com>
- <20170223155827.GB4031@cmpxchg.org>
- <20170223162601.GA18526@brenorobert-mbp.dhcp.thefacebook.com>
+Subject: Re: [PATCH v2 1/2] mm/cgroup: avoid panic when init with low memory
+Message-ID: <20170223183959.GA6088@cmpxchg.org>
+References: <1487856999-16581-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1487856999-16581-2-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170223162601.GA18526@brenorobert-mbp.dhcp.thefacebook.com>
+In-Reply-To: <1487856999-16581-2-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 23, 2017 at 08:26:03AM -0800, Shaohua Li wrote:
-> On Thu, Feb 23, 2017 at 10:58:27AM -0500, Johannes Weiner wrote:
-> > Hi Shaohua,
-> > 
-> > On Wed, Feb 22, 2017 at 10:50:41AM -0800, Shaohua Li wrote:
-> > > @@ -268,6 +268,12 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
-> > >  		int lru = page_lru_base_type(page);
-> > >  
-> > >  		del_page_from_lru_list(page, lruvec, lru);
-> > > +		if (PageAnon(page) && !PageSwapBacked(page)) {
-> > > +			SetPageSwapBacked(page);
-> > > +			/* charge to anon scanned/rotated reclaim_stat */
-> > > +			file = 0;
-> > > +			lru = LRU_INACTIVE_ANON;
-> > > +		}
-> > 
-> > As per my previous feedback, please remove this. Write-after-free will
-> > be caught and handled in the reclaimer, read-after-free is a bug that
-> > really doesn't require optimizing page aging for. And we definitely
-> > shouldn't declare invalid data suddenly valid because it's being read.
+On Thu, Feb 23, 2017 at 02:36:38PM +0100, Laurent Dufour wrote:
+> The system may panic when initialisation is done when almost all the
+> memory is assigned to the huge pages using the kernel command line
+> parameter hugepage=xxxx. Panic may occur like this:
 > 
-> GUP could run into this. Don't we move the page because it's hot? I think it's
-> not just about page aging. If we leave the page there, page reclaim will just
-> waste time to reclaim the pages which should't be reclaimed.
+> [    0.082289] Unable to handle kernel paging request for data at address 0x00000000
+> [    0.082338] Faulting instruction address: 0xc000000000302b88
+> [    0.082377] Oops: Kernel access of bad area, sig: 11 [#1]
+> [    0.082408] SMP NR_CPUS=2048 [    0.082424] NUMA
+> [    0.082440] pSeries
+> [    0.082457] Modules linked in:
+> [    0.082490] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.9.0-15-generic #16-Ubuntu
+> [    0.082536] task: c00000021ed01600 task.stack: c00000010d108000
+> [    0.082575] NIP: c000000000302b88 LR: c000000000270e04 CTR: c00000000016cfd0
+> [    0.082621] REGS: c00000010d10b2c0 TRAP: 0300   Not tainted (4.9.0-15-generic)
+> [    0.082666] MSR: 8000000002009033 <SF,VEC,EE,ME,IR,DR,RI,LE>[ 0.082770]   CR: 28424422  XER: 00000000
+> [    0.082793] CFAR: c0000000003d28b8 DAR: 0000000000000000 DSISR: 40000000 SOFTE: 1
+> GPR00: c000000000270e04 c00000010d10b540 c00000000141a300 c00000010fff6300
+> GPR04: 0000000000000000 00000000026012c0 c00000010d10b630 0000000487ab0000
+> GPR08: 000000010ee90000 c000000001454fd8 0000000000000000 0000000000000000
+> GPR12: 0000000000004400 c00000000fb80000 00000000026012c0 00000000026012c0
+> GPR16: 00000000026012c0 0000000000000000 0000000000000000 0000000000000002
+> GPR20: 000000000000000c 0000000000000000 0000000000000000 00000000024200c0
+> GPR24: c0000000016eef48 0000000000000000 c00000010fff7d00 00000000026012c0
+> GPR28: 0000000000000000 c00000010fff7d00 c00000010fff6300 c00000010d10b6d0
+> NIP [c000000000302b88] mem_cgroup_soft_limit_reclaim+0xf8/0x4f0
+> [    0.083456] LR [c000000000270e04] do_try_to_free_pages+0x1b4/0x450
+> [    0.083494] Call Trace:
+> [    0.083511] [c00000010d10b540] [c00000010d10b640] 0xc00000010d10b640 (unreliable)
+> [    0.083567] [c00000010d10b610] [c000000000270e04] do_try_to_free_pages+0x1b4/0x450
+> [    0.083622] [c00000010d10b6b0] [c000000000271198] try_to_free_pages+0xf8/0x270
+> [    0.083676] [c00000010d10b740] [c000000000259dd8] __alloc_pages_nodemask+0x7a8/0xff0
+> [    0.083729] [c00000010d10b960] [c0000000002dd274] new_slab+0x104/0x8e0
+> [    0.083776] [c00000010d10ba40] [c0000000002e03d0] ___slab_alloc+0x620/0x700
+> [    0.083822] [c00000010d10bb70] [c0000000002e04e4] __slab_alloc+0x34/0x60
+> [    0.083868] [c00000010d10bba0] [c0000000002e101c] kmem_cache_alloc_node_trace+0xdc/0x310
+> [    0.083947] [c00000010d10bc00] [c000000000eb8120] mem_cgroup_init+0x158/0x1c8
+> [    0.083994] [c00000010d10bc40] [c00000000000dde8] do_one_initcall+0x68/0x1d0
+> [    0.084041] [c00000010d10bd00] [c000000000e84184] kernel_init_freeable+0x278/0x360
+> [    0.084094] [c00000010d10bdc0] [c00000000000e714] kernel_init+0x24/0x170
+> [    0.084143] [c00000010d10be30] [c00000000000c0e8] ret_from_kernel_thread+0x5c/0x74
+> [    0.084195] Instruction dump:
+> [    0.084220] eb81ffe0 eba1ffe8 ebc1fff0 ebe1fff8 4e800020 3d230001 e9499a42 3d220004
+> [    0.084300] 3929acd8 794a1f24 7d295214 eac90100 <e9360000> 2fa90000 419eff74 3b200000
+> [    0.084382] ---[ end trace 342f5208b00d01b6 ]---
+> 
+> This is a chicken and egg issue where the kernel try to get free
+> memory when allocating per node data in mem_cgroup_init(), but in that
+> path mem_cgroup_soft_limit_reclaim() is called which assumes that
+> these data are allocated.
+> 
+> As mem_cgroup_soft_limit_reclaim() is best effort, it should return
+> when these data are not yet allocated.
+> 
+> This patch also fixes potential null pointer access in
+> mem_cgroup_remove_from_trees() and mem_cgroup_update_tree().
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-There is just no convincing justification to add this code, because it
-optimizes something that doesn't have a real world application. If we
-just delete this branch, for all intents and purposes the outcome will
-be perfectly acceptable.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
