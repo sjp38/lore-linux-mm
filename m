@@ -1,201 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 923906B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:09:13 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 68so22128860pfx.1
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 22:09:13 -0800 (PST)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id v1si3383424pfg.106.2017.02.22.22.09.11
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E645C6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:53:50 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id q4so24198989qkh.4
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 22:53:50 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a22si3891222itb.97.2017.02.22.22.53.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 22:09:12 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 03/14] mm/migrate: Add copy_pages_mthread function
-Date: Thu, 23 Feb 2017 06:06:50 +0000
-Message-ID: <20170223060649.GA7336@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170217150551.117028-1-zi.yan@sent.com>
- <20170217150551.117028-4-zi.yan@sent.com>
-In-Reply-To: <20170217150551.117028-4-zi.yan@sent.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <9BE662D79A00AD46824CB3079090EE6A@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Wed, 22 Feb 2017 22:53:50 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1N6riG2166192
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:53:49 -0500
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28sdf5xqfc-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:53:49 -0500
+Received: from localhost
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 23 Feb 2017 16:53:44 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3787F2BB0057
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:53:42 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1N6rYrU42598632
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:53:42 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1N6r9AB029142
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:53:10 +1100
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170221111107.GJ15595@dhcp22.suse.cz>
+ <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+ <20170222095043.GG5753@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 23 Feb 2017 12:22:40 +0530
 MIME-Version: 1.0
+In-Reply-To: <20170222095043.GG5753@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <a69556b2-7273-108b-3ec1-ccbce468cf1c@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "apopple@au1.ibm.com" <apopple@au1.ibm.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Fri, Feb 17, 2017 at 10:05:40AM -0500, Zi Yan wrote:
-> From: Zi Yan <ziy@nvidia.com>
->=20
-> This change adds a new function copy_pages_mthread to enable multi thread=
-ed
-> page copy which can be utilized during migration. This function splits th=
-e
-> page copy request into multiple threads which will handle individual chun=
-k
-> and send them as jobs to system_highpri_wq work queue.
->=20
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> ---
->  include/linux/highmem.h |  2 ++
->  mm/Makefile             |  2 ++
->  mm/copy_pages.c         | 86 +++++++++++++++++++++++++++++++++++++++++++=
-++++++
->  3 files changed, 90 insertions(+)
->  create mode 100644 mm/copy_pages.c
->=20
-> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> index bb3f3297062a..e1f4f1b82812 100644
-> --- a/include/linux/highmem.h
-> +++ b/include/linux/highmem.h
-> @@ -236,6 +236,8 @@ static inline void copy_user_highpage(struct page *to=
-, struct page *from,
-> =20
->  #endif
-> =20
-> +int copy_pages_mthread(struct page *to, struct page *from, int nr_pages)=
-;
-> +
->  static inline void copy_highpage(struct page *to, struct page *from)
->  {
->  	char *vfrom, *vto;
-> diff --git a/mm/Makefile b/mm/Makefile
-> index aa0aa17cb413..cdd4bab9cc66 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -43,6 +43,8 @@ obj-y			:=3D filemap.o mempool.o oom_kill.o \
-> =20
->  obj-y +=3D init-mm.o
-> =20
-> +obj-y +=3D copy_pages.o
-> +
->  ifdef CONFIG_NO_BOOTMEM
->  	obj-y		+=3D nobootmem.o
->  else
-> diff --git a/mm/copy_pages.c b/mm/copy_pages.c
-> new file mode 100644
-> index 000000000000..c357e7b01042
-> --- /dev/null
-> +++ b/mm/copy_pages.c
-> @@ -0,0 +1,86 @@
-> +/*
-> + * This implements parallel page copy function through multi threaded
-> + * work queues.
-> + *
-> + * Zi Yan <ziy@nvidia.com>
-> + *
-> + * This work is licensed under the terms of the GNU GPL, version 2.
-> + */
-> +#include <linux/highmem.h>
-> +#include <linux/workqueue.h>
-> +#include <linux/slab.h>
-> +#include <linux/freezer.h>
-> +
-> +/*
-> + * nr_copythreads can be the highest number of threads for given node
-> + * on any architecture. The actual number of copy threads will be
-> + * limited by the cpumask weight of the target node.
-> + */
-> +unsigned int nr_copythreads =3D 8;
+On 02/22/2017 03:20 PM, Michal Hocko wrote:
+> On Tue 21-02-17 19:09:18, Anshuman Khandual wrote:
+>> On 02/21/2017 04:41 PM, Michal Hocko wrote:
+>>> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+>>> [...]
+>>>> * User space using mbind() to get CDM memory is an additional benefit
+>>>>   we get by making the CDM plug in as a node and be part of the buddy
+>>>>   allocator. But the over all idea from the user space point of view
+>>>>   is that the application can allocate any generic buffer and try to
+>>>>   use the buffer either from the CPU side or from the device without
+>>>>   knowing about where the buffer is really mapped physically. That
+>>>>   gives a seamless and transparent view to the user space where CPU
+>>>>   compute and possible device based compute can work together. This
+>>>>   is not possible through a driver allocated buffer.
+>>>
+>>> But how are you going to define any policy around that. Who is allowed
+>>
+>> The user space VMA can define the policy with a mbind(MPOL_BIND) call
+>> with CDM/CDMs in the nodemask.
+>>
+>>> to allocate and how much of this "special memory". Is it possible that
+>>
+>> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
+>> the nodemask can allocate from the CDM memory. "How much" gets controlled
+>> by how we fault from CPU and the default behavior of the buddy allocator.
+> 
+> In other words the policy is implemented by the kernel. Why is this a
+> good thing?
 
-If you give this as a constant, how about defining as macro?
+Its controlled by the kernel only during page fault paths of either CPU
+or device. But the device driver will actually do the placements after
+wards after taking into consideration access patterns and relative
+performance. We dont want the driver to be involved during page fault
+path memory allocations which should naturally go through the buddy
+allocator.
 
-> +
-> +struct copy_info {
-> +	struct work_struct copy_work;
-> +	char *to;
-> +	char *from;
-> +	unsigned long chunk_size;
-> +};
-> +
-> +static void copy_pages(char *vto, char *vfrom, unsigned long size)
-> +{
-> +	memcpy(vto, vfrom, size);
-> +}
-> +
-> +static void copythread(struct work_struct *work)
-> +{
-> +	struct copy_info *info =3D (struct copy_info *) work;
-> +
-> +	copy_pages(info->to, info->from, info->chunk_size);
-> +}
-> +
-> +int copy_pages_mthread(struct page *to, struct page *from, int nr_pages)
-> +{
-> +	unsigned int node =3D page_to_nid(to);
-> +	const struct cpumask *cpumask =3D cpumask_of_node(node);
-> +	struct copy_info *work_items;
-> +	char *vto, *vfrom;
-> +	unsigned long i, cthreads, cpu, chunk_size;
-> +	int cpu_id_list[32] =3D {0};
+> 
+>>> we will eventually need some access control mechanism? If yes then mbind
+>>
+>> No access control mechanism is needed. If an application wants to use
+>> CDM memory by specifying in the mbind() it can. Nothing prevents it
+>> from using the CDM memory.
+> 
+> What if we find out that an access control _is_ really needed? I can
+> easily imagine that some devices will come up with really fast and expensive
+> memory. You do not want some random user to steal it from you when you
+> want to use it for your workload.
 
-Why 32? Maybe you can set the array size with nr_copythreads (macro version=
-.)
+Hmm, it makes sense but I think its not something we have to deal with
+right away. Later we may have to think about some generic access control
+mechanism for mbind() and then accommodate CDM with it.
 
-> +
-> +	cthreads =3D nr_copythreads;
-> +	cthreads =3D min_t(unsigned int, cthreads, cpumask_weight(cpumask));
+> 
+>>> is really not suitable interface to (ab)use. Also what should happen if
+>>> the mbind mentions only CDM memory and that is depleted?
+>>
+>> IIUC *only CDM* cannot be requested from user space as there are no user
+>> visible interface which can translate to __GFP_THISNODE.
+> 
+> I do not understand what __GFP_THISNODE has to do with this. This is an
+> internal flag.
 
-nitpick, but looks a little wordy, can it be simply like below?
+Right. My bad. I was just referring to the fact that there is nothing in
+user space which can make buddy allocator pick NOFALLBACK list instead of
+FALLBACK list.
 
-  cthreads =3D min_t(unsigned int, nr_copythreads, cpumask_weight(cpumask))=
-;
+> 
+>> MPOL_BIND with
+>> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
+>> have zones of the system including CDM ones. If the resultant CDM zones
+>> run out of memory, we fail the allocation request as usual.
+> 
+> OK, so let's say you mbind to a single node which is CDM. You seem to be
+> saying that we will simply break the NUMA affinity in this special case?
 
-> +	cthreads =3D (cthreads / 2) * 2;
+Why ? It should simply follow what happens when we pick a single NUMA node
+in previous situations.
 
-I'm not sure the intention here. # of threads should be even number?
-If cpumask_weight() is 1, cthreads is 0, that could cause zero division.
-So you had better making sure to prevent it.
+> Currently we invoke the OOM killer if nodes which the application binds
+> to are depleted and cannot be reclaimed.
 
-Thanks,
-Naoya Horiguchi
+Right, the same should happen here for CDM as well.
 
-> +	work_items =3D kcalloc(cthreads, sizeof(struct copy_info), GFP_KERNEL);
-> +	if (!work_items)
-> +		return -ENOMEM;
-> +
-> +	i =3D 0;
-> +	for_each_cpu(cpu, cpumask) {
-> +		if (i >=3D cthreads)
-> +			break;
-> +		cpu_id_list[i] =3D cpu;
-> +		++i;
-> +	}
-> +
-> +	vfrom =3D kmap(from);
-> +	vto =3D kmap(to);
-> +	chunk_size =3D PAGE_SIZE * nr_pages / cthreads;
-> +
-> +	for (i =3D 0; i < cthreads; ++i) {
-> +		INIT_WORK((struct work_struct *) &work_items[i], copythread);
-> +
-> +		work_items[i].to =3D vto + i * chunk_size;
-> +		work_items[i].from =3D vfrom + i * chunk_size;
-> +		work_items[i].chunk_size =3D chunk_size;
-> +
-> +		queue_work_on(cpu_id_list[i], system_highpri_wq,
-> +					  (struct work_struct *) &work_items[i]);
-> +	}
-> +
-> +	for (i =3D 0; i < cthreads; ++i)
-> +		flush_work((struct work_struct *) &work_items[i]);
-> +
-> +	kunmap(to);
-> +	kunmap(from);
-> +	kfree(work_items);
-> +	return 0;
-> +}
-> --=20
-> 2.11.0
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
+>  
+>>> Could you also explain why the transparent view is really better than
+>>> using a device specific mmap (aka CDM awareness)?
+>>
+>> Okay with a transparent view, we can achieve a control flow of application
+>> like the following.
+>>
+>> (1) Allocate a buffer:		alloc_buffer(buf, size)
+>> (2) CPU compute on buffer:	cpu_compute(buf, size)
+>> (3) Device compute on buffer:	device_compute(buf, size)
+>> (4) CPU compute on buffer:	cpu_compute(buf, size)
+>> (5) Release the buffer:		release_buffer(buf, size)
+>>
+>> With assistance from a device specific driver, the actual page mapping of
+>> the buffer can change between system RAM and device memory depending on
+>> which side is accessing at a given point. This will be achieved through
+>> driver initiated migrations.
+> 
+> But then you do not need any NUMA affinity, right? The driver can do
+> all this automagically. How does the numa policy comes into the game in
+> your above example. Sorry for being dense, I might be really missing
+> something important here, but I really fail to see why the NUMA is the
+> proper interface here.
+
+You are right. Driver can migrate any mapping in the userspace to any
+where on the system as long as cpuset does not prohibit it. But we still
+want the driver to conform to the applicable VMA memory policy set from
+the userspace. Hence a VMA policy needs to be set from the user space.
+NUMA VMA memory policy also restricts the allocations inside the
+applicable nodemask during page fault paths (CPU and device) as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
