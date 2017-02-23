@@ -1,128 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 49E1F6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:55:52 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id v63so37089348pgv.0
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 22:55:52 -0800 (PST)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id g10si3471137pln.268.2017.02.22.22.55.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DE1526B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 02:21:27 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id s27so11668104wrb.5
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2017 23:21:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 8si4891676wrt.162.2017.02.22.23.21.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Feb 2017 22:55:51 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 04/14] mm/migrate: Add new migrate mode MIGRATE_MT
-Date: Thu, 23 Feb 2017 06:54:30 +0000
-Message-ID: <20170223065429.GB7336@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170217150551.117028-1-zi.yan@sent.com>
- <20170217150551.117028-5-zi.yan@sent.com>
-In-Reply-To: <20170217150551.117028-5-zi.yan@sent.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <7C32D14FD977964591A41B43B9497B5A@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Feb 2017 23:21:26 -0800 (PST)
+Date: Thu, 23 Feb 2017 08:21:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm/vmscan: fix high cpu usage of kswapd if there
+Message-ID: <20170223072120.5herkdrum3t4l223@dhcp22.suse.cz>
+References: <1487754288-5149-1-git-send-email-hejianet@gmail.com>
+ <20170222201657.GA6534@cmpxchg.org>
+ <28d09cda-e020-8289-1b1f-e19fbd3b3aeb@gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <28d09cda-e020-8289-1b1f-e19fbd3b3aeb@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "apopple@au1.ibm.com" <apopple@au1.ibm.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
+To: hejianet <hejianet@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Fri, Feb 17, 2017 at 10:05:41AM -0500, Zi Yan wrote:
-> From: Zi Yan <ziy@nvidia.com>
->=20
-> This change adds a new migration mode called MIGRATE_MT to enable multi
-> threaded page copy implementation inside copy_huge_page() function by
-> selectively calling copy_pages_mthread() when requested. But it still
-> falls back using the regular page copy mechanism instead the previous
-> multi threaded attempt fails. It also attempts multi threaded copy for
-> regular pages.
->=20
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> ---
->  include/linux/migrate_mode.h |  1 +
->  mm/migrate.c                 | 25 ++++++++++++++++++-------
->  2 files changed, 19 insertions(+), 7 deletions(-)
->=20
-> diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
-> index 89c170060e5b..d344ad60f499 100644
-> --- a/include/linux/migrate_mode.h
-> +++ b/include/linux/migrate_mode.h
-> @@ -12,6 +12,7 @@ enum migrate_mode {
->  	MIGRATE_SYNC_LIGHT	=3D 1<<1,
->  	MIGRATE_SYNC		=3D 1<<2,
->  	MIGRATE_ST		=3D 1<<3,
-> +	MIGRATE_MT		=3D 1<<4,
+On Thu 23-02-17 10:46:01, hejianet wrote:
+> sorry, resend it due to a delivery-failure:
+> "Wrong MIME labeling on 8-bit character texts"
+> I am sorry if anybody received it twice
+> ------------
+> Hi Johannes
+> On 23/02/2017 4:16 AM, Johannes Weiner wrote:
+> > On Wed, Feb 22, 2017 at 05:04:48PM +0800, Jia He wrote:
+> > > When I try to dynamically allocate the hugepages more than system total
+> > > free memory:
+> > 
+> > > Then the kswapd will take 100% cpu for a long time(more than 3 hours, and
+> > > will not be about to end)
+> > 
+> > > The root cause is kswapd3 is trying to do relaim again and again but it
+> > > makes no progress
+> > 
+> > > At that time, there are no relaimable pages in that node:
+> > 
+> > Yes, this is a problem with the current kswapd code.
+> > 
+> > A less artificial scenario that I observed recently was machines with
+> > two NUMA nodes, after being up for 200+ days, getting into a state
+> > where node0 is mostly consumed by anon and some kernel allocations,
+> > leaving less than the high watermark free. The machines don't have
+> > swap, so the anon isn't reclaimable. But also, anon LRU is never even
+> > *scanned*, so the "all unreclaimable" logic doesn't kick in. Kswapd is
+> > spinning at 100% CPU calculating scan counts and checking zone states.
+> > 
+> > One specific problem with your patch, Jia, is that there might be some
+> > cache pages that are pinned one way or another. That was the case on
+> > our machines, and so reclaimable pages wasn't 0. Even if we check the
+> > reclaimable pages, we need a hard cutoff after X attempts. And then it
+> > sounds pretty much like what the allocator/direct reclaim already does.
+> > 
+> > Can we use the *exact* same cutoff conditions for direct reclaim and
+> > kswapd, though? I don't think so. For direct reclaim, the goal is the
+> > watermark, to make an allocation happen in the caller. While kswapd
+> > tries to restore the watermarks too, it might never meet them but
+> > still do useful work on behalf of concurrently allocating threads. It
+> > should only stop when it tries and fails to free any pages at all.
+> > 
+> Yes, this is what I thought before this patchi 1/4 ?but seems Michal
+> doesn't like this idea :)
+> Please see https://lkml.org/lkml/2017/1/24/543
 
-Could you update the comment above this definition to cover the new flags.
-
-Thanks,
-Naoya Horiguchi
-
->  };
-> =20
->  #endif		/* MIGRATE_MODE_H_INCLUDED */
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 87253cb9b50a..21307219428d 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -601,6 +601,7 @@ static void copy_huge_page(struct page *dst, struct p=
-age *src,
->  {
->  	int i;
->  	int nr_pages;
-> +	int rc =3D -EFAULT;
-> =20
->  	if (PageHuge(src)) {
->  		/* hugetlbfs page */
-> @@ -617,10 +618,14 @@ static void copy_huge_page(struct page *dst, struct=
- page *src,
->  		nr_pages =3D hpage_nr_pages(src);
->  	}
-> =20
-> -	for (i =3D 0; i < nr_pages; i++) {
-> -		cond_resched();
-> -		copy_highpage(dst + i, src + i);
-> -	}
-> +	if (mode & MIGRATE_MT)
-> +		rc =3D copy_pages_mthread(dst, src, nr_pages);
-> +
-> +	if (rc)
-> +		for (i =3D 0; i < nr_pages; i++) {
-> +			cond_resched();
-> +			copy_highpage(dst + i, src + i);
-> +		}
->  }
-> =20
->  /*
-> @@ -631,10 +636,16 @@ void migrate_page_copy(struct page *newpage, struct=
- page *page,
->  {
->  	int cpupid;
-> =20
-> -	if (PageHuge(page) || PageTransHuge(page))
-> +	if (PageHuge(page) || PageTransHuge(page)) {
->  		copy_huge_page(newpage, page, mode);
-> -	else
-> -		copy_highpage(newpage, page);
-> +	} else {
-> +		if (mode & MIGRATE_MT) {
-> +			if (copy_pages_mthread(newpage, page, 1))
-> +				copy_highpage(newpage, page);
-> +		} else {
-> +			copy_highpage(newpage, page);
-> +		}
-> +	}
-> =20
->  	if (PageError(page))
->  		SetPageError(newpage);
-> --=20
-> 2.11.0
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
+Yeah, I didn't like the hard limit on kswapd retries as you proposed it.
+It didn't make much sense to me because the current condition for kswapd
+to back off is to have all zones balanced. Without further criterion
+kswapd would just wake up and go around the same retry loops again with
+no progress. I didn't realize that a direct reclaim progress might be
+that criterion. Proposal from Johannes makes much more sense. I have to
+think about it some more but this looks like a way forward.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
