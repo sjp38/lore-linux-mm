@@ -1,104 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3436B038A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:05:38 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id z61so16939331wrc.6
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 07:05:38 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id 16si6407738wrb.160.2017.02.23.07.05.36
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A2B96B0388
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:09:26 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id x4so932030wme.3
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 07:09:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a19si6393716wra.291.2017.02.23.07.09.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Feb 2017 07:05:37 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 152F0994B1
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 15:05:36 +0000 (UTC)
-Date: Thu, 23 Feb 2017 15:05:34 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/3] mm, vmscan: fix zone balance check in
- prepare_kswapd_sleep
-Message-ID: <20170223150534.64fpsvlse33rj2aa@techsingularity.net>
-References: <20170215092247.15989-1-mgorman@techsingularity.net>
- <20170215092247.15989-2-mgorman@techsingularity.net>
- <20170222070036.GA17962@bbox>
+        Thu, 23 Feb 2017 07:09:23 -0800 (PST)
+Date: Thu, 23 Feb 2017 16:09:20 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
+Message-ID: <20170223150920.GB29056@dhcp22.suse.cz>
+References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+ <878toy1sgd.fsf@vitty.brq.redhat.com>
+ <20170223125643.GA29064@dhcp22.suse.cz>
+ <87bmttyqxf.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170222070036.GA17962@bbox>
+In-Reply-To: <87bmttyqxf.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com
 
-On Wed, Feb 22, 2017 at 04:00:36PM +0900, Minchan Kim wrote:
-> > There are also more allocation stalls. One of the largest impacts was due
-> > to pages written back from kswapd context rising from 0 pages to 4516642
-> > pages during the hour the workload ran for. By and large, the patch has very
-> > bad behaviour but easily missed as the impact on a UMA machine is negligible.
-> > 
-> > This patch is included with the data in case a bisection leads to this area.
-> > This patch is also a pre-requisite for the rest of the series.
-> > 
-> > Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On Thu 23-02-17 14:31:24, Vitaly Kuznetsov wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
 > 
-> Hmm, I don't understand why we should bind wakeup_kcompactd to kswapd's
-> short sleep point where every eligible zones are balanced.
-> What's the correlation between them?
+> > On Wed 22-02-17 10:32:34, Vitaly Kuznetsov wrote:
+> > [...]
+> >> > There is a workaround in that a user could online the memory or have
+> >> > a udev rule to online the memory by using the sysfs interface. The
+> >> > sysfs interface to online memory goes through device_online() which
+> >> > should updated the dev->offline flag. I'm not sure that having kernel
+> >> > memory hotplug rely on userspace actions is the correct way to go.
+> >> 
+> >> Using udev rule for memory onlining is possible when you disable
+> >> memhp_auto_online but in some cases it doesn't work well, e.g. when we
+> >> use memory hotplug to address memory pressure the loop through userspace
+> >> is really slow and memory consuming, we may hit OOM before we manage to
+> >> online newly added memory.
+> >
+> > How does the in-kernel implementation prevents from that?
+> >
 > 
+> Onlining memory on hot-plug is much more reliable, e.g. if we were able
+> to add it in add_memory_resource() we'll also manage to online it.
 
-If kswapd is ready for a short sleep, eligible zones are balanced for
-order-0 but not necessarily the originally requested order if kswapd
-gave up reclaiming as compaction was ready to start. As kswapd is ready
-to sleep for a short period, it's a suitable time for kcompactd to decide
-if it should start working or not. There is no need for kswapd to be aware
-of kcompactd's wakeup criteria.
+How does that differ from initiating online from the users?
 
-> Can't we wake up kcompactd once we found a zone has enough free pages
-> above high watermark like this?
+> With
+> udev rule we may end up adding many blocks and then (as udev is
+> asynchronous) failing to online any of them.
+
+Why would it fail?
+
+> In-kernel operation is synchronous.
+
+which doesn't mean anything as the context is preemptible AFAICS.
+
+> >> In addition to that, systemd/udev folks
+> >> continuosly refused to add this udev rule to udev calling it stupid as
+> >> it actually is an unconditional and redundant ping-pong between kernel
+> >> and udev.
+> >
+> > This is a policy and as such it doesn't belong to the kernel. The whole
+> > auto-enable in the kernel is just plain wrong IMHO and we shouldn't have
+> > merged it.
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 26c3b405ef34..f4f0ad0e9ede 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3346,13 +3346,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
->  		 * that pages and compaction may succeed so reset the cache.
->  		 */
->  		reset_isolation_suitable(pgdat);
-> -
-> -		/*
-> -		 * We have freed the memory, now we should compact it to make
-> -		 * allocation of the requested order possible.
-> -		 */
-> -		wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
-> -
->  		remaining = schedule_timeout(HZ/10);
->  
->  		/*
-> @@ -3451,6 +3444,14 @@ static int kswapd(void *p)
->  		bool ret;
->  
->  kswapd_try_sleep:
-> +		/*
-> +		 * We have freed the memory, now we should compact it to make
-> +		 * allocation of the requested order possible.
-> +		 */
-> +		if (alloc_order > 0 && zone_balanced(zone, reclaim_order,
-> +							classzone_idx))
-> +			wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
-> +
->  		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
->  					classzone_idx);
+> I disagree.
+> 
+> First of all it's not a policy, it is a default. We have many other
+> defaults in kernel. When I add a network card or a storage, for example,
+> I don't need to go anywhere and 'enable' it before I'm able to use
+> it from userspace. An for memory (and CPUs) we, for some unknown reason
+> opted for something completely different. If someone is plugging new
+> memory into a box he probably wants to use it, I don't see much value in
+> waiting for a special confirmation from him. 
 
-That's functionally very similar to what happens already.  wakeup_kcompactd
-checks the order and does not wake for order-0. It also makes its own
-decisions that include zone_balanced on whether it is safe to wakeup.
+This was not my decision so I can only guess but to me it makes sense.
+Both memory and cpus can be physically present and offline which is a
+perfectly reasonable state. So having a two phase physicall hotadd is
+just built on top of physical vs. logical distinction. I completely
+understand that some usecases will really like to online the whole node
+as soon as it appears present. But an automatic in-kernel implementation
+has its down sites - e.g. if this operation fails in the middle you will
+not know about that unless you check all the memblocks in sysfs. This is
+really a poor interface.
 
-I doubt there would be any measurable difference from a patch like this
-and to my mind at least, it does not improve the readability or flow of
-the code.
+> Second, this feature is optional. If you want to keep old behavior just
+> don't enable it.
+
+It just adds unnecessary configuration noise as well
+
+> Third, this solves real world issues. With Hyper-V it is very easy to
+> show udev failing on stress. 
+
+What is the reason for this failures. Do you have any link handy?
+
+> No other solution to the issue was ever suggested.
+
+you mean like using ballooning for the memory overcommit like other more
+reasonable virtualization solutions?
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
