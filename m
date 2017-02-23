@@ -1,134 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 68D5E6B0388
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:12:36 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id x4so976250wme.3
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 07:12:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p10si6434147wrd.131.2017.02.23.07.12.34
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C34E6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 10:27:18 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id x71so37543976qkb.6
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 07:27:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a192si3536059qkc.54.2017.02.23.07.27.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Feb 2017 07:12:35 -0800 (PST)
-Date: Thu, 23 Feb 2017 16:12:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm/cgroup: avoid panic when init with low memory
-Message-ID: <20170223151232.GC29056@dhcp22.suse.cz>
-References: <1487856999-16581-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1487856999-16581-2-git-send-email-ldufour@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Feb 2017 07:27:16 -0800 (PST)
+Date: Thu, 23 Feb 2017 10:27:13 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+Message-ID: <20170223152712.GA3165@redhat.com>
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170217133237.v6rqpsoiolegbjye@suse.de>
+ <697214d2-9e75-1b37-0922-68c413f96ef9@linux.vnet.ibm.com>
+ <20170221201436.GA4573@redhat.com>
+ <0b73cfd2-d70c-ccd8-9bf0-7bd060b16ce9@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1487856999-16581-2-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <0b73cfd2-d70c-ccd8-9bf0-7bd060b16ce9@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Thu 23-02-17 14:36:38, Laurent Dufour wrote:
-> The system may panic when initialisation is done when almost all the
-> memory is assigned to the huge pages using the kernel command line
-> parameter hugepage=xxxx. Panic may occur like this:
+On Thu, Feb 23, 2017 at 01:44:06PM +0530, Anshuman Khandual wrote:
+> On 02/22/2017 01:44 AM, Jerome Glisse wrote:
+> > On Tue, Feb 21, 2017 at 06:39:17PM +0530, Anshuman Khandual wrote:
+> >> On 02/17/2017 07:02 PM, Mel Gorman wrote:
+> >>> On Fri, Feb 17, 2017 at 05:11:57PM +0530, Anshuman Khandual wrote:
+> >>>> On 02/15/2017 11:50 PM, Mel Gorman wrote:
+> >>>>> On Wed, Feb 15, 2017 at 05:37:22PM +0530, Anshuman Khandual wrote:
+> > 
+> > [...]
+> > 
+> >>>> * The placement of the memory on the buffer can happen on system memory
+> >>>>   when the CPU faults while accessing it. But a driver can manage the
+> >>>>   migration between system RAM and CDM memory once the buffer is being
+> >>>>   used from CPU and the device interchangeably.
+> >>>
+> >>> While I'm not familiar with the details because I'm not generally involved
+> >>> in hardware enablement, why was HMM not suitable? I know HMM had it's own
+> >>> problems with merging but as it also managed migrations between RAM and
+> >>> device memory, how did it not meet your requirements? If there were parts
+> >>> of HMM missing, why was that not finished?
+> >>
+> >>
+> >> These are the reasons which prohibit the use of HMM for coherent
+> >> addressable device memory purpose.
+> >>
+> >> (1) IIUC HMM currently supports only a subset of anon mapping in the
+> >> user space. It does not support shared anon mapping or any sort of file
+> >> mapping for that matter. We need support for all mapping in the user space
+> >> for the CPU/device compute to be effective and transparent. As HMM depends
+> >> on ZONE DEVICE for device memory representation, there are some unique
+> >> challenges in making it work for file mapping (and page cache) during
+> >> migrations between system RAM and device memory.
+> > 
+> > I need to debunk that. HMM does not support file back page (or share memory)
+> > for a single reason: CPU can not access HMM memory. If the device memory is
+> > accessible from CPU in cache coherent fashion then adding support for file
+> > back page is easy. There is only an handfull of place in the filesystem that
 > 
-> [    0.082289] Unable to handle kernel paging request for data at address 0x00000000
-> [    0.082338] Faulting instruction address: 0xc000000000302b88
-> [    0.082377] Oops: Kernel access of bad area, sig: 11 [#1]
-> [    0.082408] SMP NR_CPUS=2048 [    0.082424] NUMA
-> [    0.082440] pSeries
-> [    0.082457] Modules linked in:
-> [    0.082490] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.9.0-15-generic #16-Ubuntu
-> [    0.082536] task: c00000021ed01600 task.stack: c00000010d108000
-> [    0.082575] NIP: c000000000302b88 LR: c000000000270e04 CTR: c00000000016cfd0
-> [    0.082621] REGS: c00000010d10b2c0 TRAP: 0300   Not tainted (4.9.0-15-generic)
-> [    0.082666] MSR: 8000000002009033 <SF,VEC,EE,ME,IR,DR,RI,LE>[ 0.082770]   CR: 28424422  XER: 00000000
-> [    0.082793] CFAR: c0000000003d28b8 DAR: 0000000000000000 DSISR: 40000000 SOFTE: 1
-> GPR00: c000000000270e04 c00000010d10b540 c00000000141a300 c00000010fff6300
-> GPR04: 0000000000000000 00000000026012c0 c00000010d10b630 0000000487ab0000
-> GPR08: 000000010ee90000 c000000001454fd8 0000000000000000 0000000000000000
-> GPR12: 0000000000004400 c00000000fb80000 00000000026012c0 00000000026012c0
-> GPR16: 00000000026012c0 0000000000000000 0000000000000000 0000000000000002
-> GPR20: 000000000000000c 0000000000000000 0000000000000000 00000000024200c0
-> GPR24: c0000000016eef48 0000000000000000 c00000010fff7d00 00000000026012c0
-> GPR28: 0000000000000000 c00000010fff7d00 c00000010fff6300 c00000010d10b6d0
-> NIP [c000000000302b88] mem_cgroup_soft_limit_reclaim+0xf8/0x4f0
-> [    0.083456] LR [c000000000270e04] do_try_to_free_pages+0x1b4/0x450
-> [    0.083494] Call Trace:
-> [    0.083511] [c00000010d10b540] [c00000010d10b640] 0xc00000010d10b640 (unreliable)
-> [    0.083567] [c00000010d10b610] [c000000000270e04] do_try_to_free_pages+0x1b4/0x450
-> [    0.083622] [c00000010d10b6b0] [c000000000271198] try_to_free_pages+0xf8/0x270
-> [    0.083676] [c00000010d10b740] [c000000000259dd8] __alloc_pages_nodemask+0x7a8/0xff0
-> [    0.083729] [c00000010d10b960] [c0000000002dd274] new_slab+0x104/0x8e0
-> [    0.083776] [c00000010d10ba40] [c0000000002e03d0] ___slab_alloc+0x620/0x700
-> [    0.083822] [c00000010d10bb70] [c0000000002e04e4] __slab_alloc+0x34/0x60
-> [    0.083868] [c00000010d10bba0] [c0000000002e101c] kmem_cache_alloc_node_trace+0xdc/0x310
-> [    0.083947] [c00000010d10bc00] [c000000000eb8120] mem_cgroup_init+0x158/0x1c8
-> [    0.083994] [c00000010d10bc40] [c00000000000dde8] do_one_initcall+0x68/0x1d0
-> [    0.084041] [c00000010d10bd00] [c000000000e84184] kernel_init_freeable+0x278/0x360
-> [    0.084094] [c00000010d10bdc0] [c00000000000e714] kernel_init+0x24/0x170
-> [    0.084143] [c00000010d10be30] [c00000000000c0e8] ret_from_kernel_thread+0x5c/0x74
-> [    0.084195] Instruction dump:
-> [    0.084220] eb81ffe0 eba1ffe8 ebc1fff0 ebe1fff8 4e800020 3d230001 e9499a42 3d220004
-> [    0.084300] 3929acd8 794a1f24 7d295214 eac90100 <e9360000> 2fa90000 419eff74 3b200000
-> [    0.084382] ---[ end trace 342f5208b00d01b6 ]---
-> 
-> This is a chicken and egg issue where the kernel try to get free
-> memory when allocating per node data in mem_cgroup_init(), but in that
-> path mem_cgroup_soft_limit_reclaim() is called which assumes that
-> these data are allocated.
-> 
-> As mem_cgroup_soft_limit_reclaim() is best effort, it should return
-> when these data are not yet allocated.
-> 
-> This patch also fixes potential null pointer access in
-> mem_cgroup_remove_from_trees() and mem_cgroup_update_tree().
-> 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> This needs to be done in all file systems possible which supports file
+> mapping in the user space and page caches ?
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+No, last time i check only couple filesystem made assumption in couple of
+place about page being on lru (fuse and xfs if my memory serves me right).
 
-Thanks!
+Remaining place is a single function in common fs code (again if my memory
+is serving me properly).
 
-> ---
->  mm/memcontrol.c | 7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
+
+> > assume page are on the lru and all that is needed is allowing file back page
+> > to not be on the lru. Extra thing would be to forbid GUP but that is easy.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 45867e439d31..a9f10fde44a6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -465,6 +465,8 @@ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
->  	struct mem_cgroup_tree_per_node *mctz;
->  
->  	mctz = soft_limit_tree_from_page(page);
-> +	if (!mctz)
-> +		return;
->  	/*
->  	 * Necessary to update all ancestors when hierarchy is used.
->  	 * because their event counter is not touched.
-> @@ -502,7 +504,8 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
->  	for_each_node(nid) {
->  		mz = mem_cgroup_nodeinfo(memcg, nid);
->  		mctz = soft_limit_tree_node(nid);
-> -		mem_cgroup_remove_exceeded(mz, mctz);
-> +		if (mctz)
-> +			mem_cgroup_remove_exceeded(mz, mctz);
->  	}
->  }
->  
-> @@ -2557,7 +2560,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
->  	 * is empty. Do it lockless to prevent lock bouncing. Races
->  	 * are acceptable as soft limit is best effort anyway.
->  	 */
-> -	if (RB_EMPTY_ROOT(&mctz->rb_root))
-> +	if (!mctz || RB_EMPTY_ROOT(&mctz->rb_root))
->  		return 0;
->  
->  	/*
-> -- 
-> 2.7.4
+> If its not on LRU how we are going to manage the reclaim and write back
+> into the disk for the dirty pages ? In which order ? Then a brand new
+> infrastructure needs to be created for that purpose ? Why GUP access
+> needs to be blocked for these device pages ?
 
--- 
-Michal Hocko
-SUSE Labs
+Writeback does not rely on lru last time i check, so write back is fine.
+Reclaim is obviously ignoring the page, this can trigger issue i guess if
+we have enough page in such memory that we reach threshold that constantly
+force regular page to be reclaim.
+
+To me the question is do we want regular reclaim ? I do not think so as
+the current reclaim code can not gather statistics from each devices to
+know what memory is being use by who. I see reclaim as a per device, per
+node problem. Regular memory should be reclaim with existing mechanism
+but device memory should be reclaim with new infrastructure that can work
+with device driver to know what memory and when to reclaim it.
+
+Existing reclaim have been fine tune for CPU workload over the years and
+i would rather not disturb that for new workload we don't have much
+experience with yet.
+
+GUP blocking is to forbid anyone from pining a page inside device memory
+so that device memory can always be reclaim. What i would really like is
+to add a new API for thing like direct I/O that only need to pin memory
+for short period of time versus driver abusing GUP to pin memory for
+device purposes. That way thing like direct I/O could work while blocking
+long live pin.
+
+I want to block pin because many GPU have contiguous memory requirement for
+their graphic side (compute side doesn't have this kind of restriction). So
+that you do not want to fragment device memory with pinned pages.
+
+
+> >> (2) ZONE_DEVICE has been modified to support un-addressable memory apart
+> >> from addressable persistent memory which is not movable. It still would
+> >> have to support coherent device memory which will be movable.
+> > 
+> > Again this isn't how it is implemented. I splitted the un-addressable part
+> > from the move-able property. So you can implement addressable and moveable
+> > memory using HMM modification to ZONE_DEVICE.
+> 
+> Need to check this again but yes its not a very big issue.
+> 
+> > 
+> >>
+> >> (3) Application cannot directly allocate into device memory from user
+> >> space using existing memory related system calls like mmap() and mbind()
+> >> as the device memory hides away in ZONE_DEVICE.
+> > 
+> > That's true but this is deliberate choice. From the begining my choice
+> > have been guided by the principle that i do not want to add or modify
+> > existing syscall because we do not have real world experience with this.
+> 
+> With the current proposal for CDM, memory system calls just work
+> on CDM without requiring any changes.
+> 
+> > 
+> > Once HMM is use with real world workload by people other than me or
+> > NVidia and we get feedback on what people writting application leveraging
+> > this would like to do. Then we might start thinking about mbind() or other
+> > API to expose more policy control to application.
+> 
+> I am not really sure how much of effort would be required to make
+> ZONE_DEVICE pages to be accessible from user space with existing
+> memory system calls. NUMA representation just makes it work without
+> any further changes. But I got your point.
+> 
+> > 
+> > For time being all policy and migration decision are done by the driver
+> > that collect hint and statistic from the userspace driver of the GPU.
+> > So this is all device specific and it use existing driver mechanism.
+> 
+> CDM framework also has the exact same expectations from the driver. But
+> it gives user space more control and visibility regarding whats happening
+> with the memory buffer.
+
+I understand you want generic API to expose to userspace to allow program
+finer control on where memory is allocated and i want that too long term.
+I just don't think we have enough experience with real workload to make
+sure we are making the right decision. The fact that you use existing API
+is good in my view as it means you are not adding thing we will regret
+latter :) If CDM NUMA node is not working well we can just stop reporting
+CDM NUMA node and thus i don't think your patchset is cornering us. So
+i believe it is worth adding now and gather experience with it. We can
+easily back off.
+
+ 
+> >> Apart from that, CDM framework provides a different approach to device
+> >> memory representation which does not require special device memory kind
+> >> of handling and associated call backs as implemented by HMM. It provides
+> >> NUMA node based visibility to the user space which can be extended to
+> >> support new features.
+> > 
+> > True we diverge there. I am not convince that NUMA is the right direction.
+> 
+> Yeah true, we diverge here :)
+> 
+> > NUMA was design for CPU and CDM or device memory is more at a sub-level
+> > than NUMA. Each device is attach to a given CPU node itself part of the
+> > NUMA hierarchy. So to me CDM is more about having a hierarchy of memory
+> > at node level and thus should not be implemented in NUMA. Something new
+> 
+> Currently NUMA does not support any memory hierarchy at node level.
+
+Yes and this is what i would like to see, this is something we will need
+with CPU with big chunk of on die fast memory and then the regular memory
+and you can even add persistent memory to the mix as a bigger chunk but
+slower kind of memory. I think this something we need to think about and
+that it will be needed and not only for device memory.
+
+I do not think that we should hold of CDM until we have that. From my point
+of view beside the VMA flag, CDM is fine (thought i won't go into the CPU
+set discussion as i am ignorant of that part). But i believe this NUMA
+solution you have shouldn't be the end of it.
+
+
+> > is needed. Not only for device memory but for thing like stack memory
+> > that won't use as last level cache as it has been done in existing Intel
+> > CPU. I believe we will have deeper hierarchy of memory, from fast high
+> > bandwidth stack memory (on top of CPU/GPU die) to the regular memory as
+> > we know it and also device memory.
+> 
+> I agree but in absence of the infrastructure NUMA seems to be a suitable
+> fallback for now.
+
+Yes agree.
+  
+> >>> I know HMM had a history of problems getting merged but part of that was a
+> >>> chicken and egg problem where it was a lot of infrastructure to maintain
+> >>> with no in-kernel users. If CDM is a potential user then CDM could be
+> >>
+> >> CDM is not a user there, HMM needs to change (with above challenges) to
+> >> accommodate coherent device memory which it does not support at this
+> >> moment.
+> > 
+> > There is no need to change anything with current HMM to support CDM. What
+> > you would want is to add file back page which would require to allow non
+> > lru page (this lru assumption of file back page exist only in couple place
+> > and i don't remember thinking it would be a challenge to change that).
+> 
+> I am afraid this statement over simplifies the challenge in hand. May be
+> we need to start looking into actual details to figure out how much of
+> changes are really required for this enablement.
+
+Like i said from memory, writeback is fine as it doesn't deal with lru, the
+only place that does is read ahead and generic read helper that populate
+the page cache. This can be prototyped without device memory just using
+regular memory and pretend it is device memory. I can take a look into that,
+maybe before mm summit.
+
+ 
+> >> I am afraid the drivers would be HW vendor specific.
+> >>
+> >>>
+> >>> It's not an easy path but the difficulties there do not justify special
+> >>> casing CDM in the core allocator.
+> >>
+> >> Hmm. Even if HMM supports all sorts of mappings in user space and related
+> >> migrations, we still will not have direct allocations from user space with
+> >> mmap() and mbind() system calls.
+> > 
+> > I am not sure we want to have this kind of direct allocation from day one.
+> > I would rather have the whole thing fire tested with real application and
+> > real user through device driver. Then wait to see if common usage pattern
+> > warrant to create a generic API to direct new memory allocation to device
+> > memory.
+> 
+> But we should not also over look this aspect and go in a direction
+> where it can be difficult to implement at later point in time. I am
+> not saying its going to be difficult but its something we have to
+> find out.
+
+Yes agree.
+
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
