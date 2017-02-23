@@ -1,109 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 855D56B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:02:00 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id t184so40378430pgt.1
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:02:00 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id l28si3777966pgc.81.2017.02.23.01.01.59
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 47DBE6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:04:38 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id r67so26369720pfr.6
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:04:38 -0800 (PST)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id p1si3761396pld.270.2017.02.23.01.04.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 01:01:59 -0800 (PST)
-Subject: Re: + mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch added
- to -mm tree
-References: <58a38a94.nb3wSoo24sv+3Kju%akpm@linux-foundation.org>
- <20170222104303.GH5753@dhcp22.suse.cz>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <4378f15c-91fa-2ad1-4c32-2fce11262ef3@codeaurora.org>
-Date: Thu, 23 Feb 2017 14:31:51 +0530
+        Thu, 23 Feb 2017 01:04:37 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC PATCH 07/14] migrate: Add copy_page_lists_mthread()
+ function.
+Date: Thu, 23 Feb 2017 08:54:20 +0000
+Message-ID: <20170223085419.GA28246@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170217150551.117028-1-zi.yan@sent.com>
+ <20170217150551.117028-8-zi.yan@sent.com>
+In-Reply-To: <20170217150551.117028-8-zi.yan@sent.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <731ADF738A99824D842AE3D2FF0811A3@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20170222104303.GH5753@dhcp22.suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org
-Cc: anton.vorontsov@linaro.org, hannes@cmpxchg.org, mgorman@techsingularity.net, minchan@kernel.org, riel@redhat.com, shashim@codeaurora.org, vbabka@suse.cz, vdavydov.dev@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Zi Yan <zi.yan@sent.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "apopple@au1.ibm.com" <apopple@au1.ibm.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
 
+On Fri, Feb 17, 2017 at 10:05:44AM -0500, Zi Yan wrote:
+> From: Zi Yan <ziy@nvidia.com>
+>=20
+> It supports copying a list of pages via multi-threaded process.
+> It evenly distributes a list of pages to a group of threads and
+> uses the same subroutine as copy_page_mthread()
 
-On 2/22/2017 4:13 PM, Michal Hocko wrote:
-> On Tue 14-02-17 14:54:12, akpm@linux-foundation.org wrote:
->> From: Vinayak Menon <vinmenon@codeaurora.org>
->> Subject: mm: vmscan: do not pass reclaimed slab to vmpressure
->>
->> During global reclaim, the nr_reclaimed passed to vmpressure includes the
->> pages reclaimed from slab.  But the corresponding scanned slab pages is
->> not passed.  There is an impact to the vmpressure values because of this. 
->> While moving from kernel version 3.18 to 4.4, a difference is seen in the
->> vmpressure values for the same workload resulting in a different behaviour
->> of the vmpressure consumer.  One such case is of a vmpressure based
->> lowmemorykiller.  It is observed that the vmpressure events are received
->> late and less in number resulting in tasks not being killed at the right
->> time.  The following numbers show the impact on reclaim activity due to
->> the change in behaviour of lowmemorykiller on a 4GB device.  The test
->> launches a number of apps in sequence and repeats it multiple times.
->>
->>                       v4.4           v3.18
->> pgpgin                163016456      145617236
->> pgpgout               4366220        4188004
->> workingset_refault    29857868       26781854
->> workingset_activate   6293946        5634625
->> pswpin                1327601        1133912
->> pswpout               3593842        3229602
->> pgalloc_dma           99520618       94402970
->> pgalloc_normal        104046854      98124798
->> pgfree                203772640      192600737
->> pgmajfault            2126962        1851836
->> pgsteal_kswapd_dma    19732899       18039462
->> pgsteal_kswapd_normal 19945336       17977706
->> pgsteal_direct_dma    206757         131376
->> pgsteal_direct_normal 236783         138247
->> pageoutrun            116622         108370
->> allocstall            7220           4684
->> compact_stall         931            856
->>
->> This is a regression introduced by commit 6b4f7799c6a5 ("mm: vmscan:
->> invoke slab shrinkers from shrink_zone()").
->>
->> So do not consider reclaimed slab pages for vmpressure calculation.  The
->> reclaimed pages from slab can be excluded because the freeing of a page by
->> slab shrinking depends on each slab's object population, making the cost
->> model (i.e.  scan:free) different from that of LRU.  Also, not every
->> shrinker accounts the pages it reclaims.  But ideally the pages reclaimed
->> from slab should be passed to vmpressure, otherwise higher vmpressure
->> levels can be triggered even when there is a reclaim progress.  But
->> accounting only the reclaimed slab pages without the scanned, and adding
->> something which does not fit into the cost model just adds noise to the
->> vmpressure values.
-> I believe there are still some of my questions which are not answered by
-> the changelog update. Namely
-> - vmstat numbers without mentioning vmpressure events for those 2
->   kernels have basically no meaning.
-Sending a new version. The vmpressure events difference is added.
-> - the changelog doesn't mention that the test case basically benefits
->   from as many lmk interventions as possible. Does this represent a real
->   life workload? If not is there any real life workload which would
->   benefit from the new behavior.
-The use case does not actually benefit from as many lmk interventions as possible. Because it has to also take care
-of maximizing the number of applications sustained. IMHO Android using a vmpressure based user space lowmemorykiller
-is a real life workload. But the lowmemorykiller killer example was just to show the difference in vmpressure events between
-2 kernel versions. Any workload which uses vmpressure would be something similar ? It would take an action by killing tasks,
-or releasing some buffers etc as I understand. The patch was actually meant to fix the addition of noise to vmpressure by
-adding reclaimed without accounting the cost and the lmk example was just to indicate the difference in vmpressure events.
-> - I would be also very careful calling this a regression without having
->   any real workload as an example
-Okay. I have removed that from changelog.
-> - Arguments about the cost model is are true but the resulting code is
->   not a 100% win either and the changelog should be explicit about the
->   consequences - aka more critical events can fire early while there is
->   still slab making a reclaim progress.
->  
-This line was added to changelog indicating the consequence.
-"Ideally the pages reclaimed from slab should be passed to vmpressure, otherwise higher vmpressure levels can
- be triggered even when there is a reclaim progress."
+The new function has many duplicate lines with copy_page_mthread(),
+so please consider factoring out them into a common routine.
+That makes your code more readable/maintainable.
 
 Thanks,
-Vinayak
+Naoya Horiguchi
+
+>=20
+> Signed-off-by: Zi Yan <ziy@nvidia.com>
+> ---
+>  mm/copy_pages.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++=
+++++++
+>  mm/internal.h   |  3 +++
+>  2 files changed, 65 insertions(+)
+>=20
+> diff --git a/mm/copy_pages.c b/mm/copy_pages.c
+> index c357e7b01042..516c0a1a57f3 100644
+> --- a/mm/copy_pages.c
+> +++ b/mm/copy_pages.c
+> @@ -84,3 +84,65 @@ int copy_pages_mthread(struct page *to, struct page *f=
+rom, int nr_pages)
+>  	kfree(work_items);
+>  	return 0;
+>  }
+> +
+> +int copy_page_lists_mthread(struct page **to, struct page **from, int nr=
+_pages)=20
+> +{
+> +	int err =3D 0;
+> +	unsigned int cthreads, node =3D page_to_nid(*to);
+> +	int i;
+> +	struct copy_info *work_items;
+> +	int nr_pages_per_page =3D hpage_nr_pages(*from);
+> +	const struct cpumask *cpumask =3D cpumask_of_node(node);
+> +	int cpu_id_list[32] =3D {0};
+> +	int cpu;
+> +
+> +	cthreads =3D nr_copythreads;
+> +	cthreads =3D min_t(unsigned int, cthreads, cpumask_weight(cpumask));
+> +	cthreads =3D (cthreads / 2) * 2;
+> +	cthreads =3D min_t(unsigned int, nr_pages, cthreads);
+> +
+> +	work_items =3D kzalloc(sizeof(struct copy_info)*nr_pages,
+> +						 GFP_KERNEL);
+> +	if (!work_items)
+> +		return -ENOMEM;
+> +
+> +	i =3D 0;
+> +	for_each_cpu(cpu, cpumask) {
+> +		if (i >=3D cthreads)
+> +			break;
+> +		cpu_id_list[i] =3D cpu;
+> +		++i;
+> +	}
+> +
+> +	for (i =3D 0; i < nr_pages; ++i) {
+> +		int thread_idx =3D i % cthreads;
+> +
+> +		INIT_WORK((struct work_struct *)&work_items[i],=20
+> +				  copythread);
+> +
+> +		work_items[i].to =3D kmap(to[i]);
+> +		work_items[i].from =3D kmap(from[i]);
+> +		work_items[i].chunk_size =3D PAGE_SIZE * hpage_nr_pages(from[i]);
+> +
+> +		BUG_ON(nr_pages_per_page !=3D hpage_nr_pages(from[i]));
+> +		BUG_ON(nr_pages_per_page !=3D hpage_nr_pages(to[i]));
+> +
+> +
+> +		queue_work_on(cpu_id_list[thread_idx],=20
+> +					  system_highpri_wq,=20
+> +					  (struct work_struct *)&work_items[i]);
+> +	}
+> +
+> +	/* Wait until it finishes  */
+> +	for (i =3D 0; i < cthreads; ++i)
+> +		flush_work((struct work_struct *) &work_items[i]);
+> +
+> +	for (i =3D 0; i < nr_pages; ++i) {
+> +			kunmap(to[i]);
+> +			kunmap(from[i]);
+> +	}
+> +
+> +	kfree(work_items);
+> +
+> +	return err;
+> +}
+> diff --git a/mm/internal.h b/mm/internal.h
+> index ccfc2a2969f4..175e08ed524a 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -498,4 +498,7 @@ extern const struct trace_print_flags pageflag_names[=
+];
+>  extern const struct trace_print_flags vmaflag_names[];
+>  extern const struct trace_print_flags gfpflag_names[];
+> =20
+> +extern int copy_page_lists_mthread(struct page **to,
+> +			struct page **from, int nr_pages);
+> +
+>  #endif	/* __MM_INTERNAL_H */
+> --=20
+> 2.11.0
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
