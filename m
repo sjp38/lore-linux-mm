@@ -1,204 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB1506B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:59:15 -0500 (EST)
-Received: by mail-vk0-f69.google.com with SMTP id t8so19893393vke.3
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 00:59:15 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id b1si4145370iog.75.2017.02.23.00.59.14
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 855D56B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 04:02:00 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id t184so40378430pgt.1
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 01:02:00 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id l28si3777966pgc.81.2017.02.23.01.01.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 00:59:15 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1N8rUR2023630
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:59:14 -0500
-Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com [195.75.94.102])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28sau4bt66-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 03:59:14 -0500
-Received: from localhost
-	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 23 Feb 2017 08:59:12 -0000
-Subject: Re: [PATCH 2/2] mm/cgroup: delay soft limit data allocation
-References: <1487779091-31381-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1487779091-31381-3-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170222171132.GB26472@dhcp22.suse.cz>
- <3b8d0a31-d869-4564-0e03-ac621af43ce7@linux.vnet.ibm.com>
- <20170222182414.4r3ytqi3ajtceumo@dhcp22.suse.cz>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Thu, 23 Feb 2017 09:59:09 +0100
+        Thu, 23 Feb 2017 01:01:59 -0800 (PST)
+Subject: Re: + mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch added
+ to -mm tree
+References: <58a38a94.nb3wSoo24sv+3Kju%akpm@linux-foundation.org>
+ <20170222104303.GH5753@dhcp22.suse.cz>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <4378f15c-91fa-2ad1-4c32-2fce11262ef3@codeaurora.org>
+Date: Thu, 23 Feb 2017 14:31:51 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170222182414.4r3ytqi3ajtceumo@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20170222104303.GH5753@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <f9520440-eefc-3511-4cad-825a5e58d788@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org
+Cc: anton.vorontsov@linaro.org, hannes@cmpxchg.org, mgorman@techsingularity.net, minchan@kernel.org, riel@redhat.com, shashim@codeaurora.org, vbabka@suse.cz, vdavydov.dev@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On 22/02/2017 19:24, Michal Hocko wrote:
-> On Wed 22-02-17 18:50:19, Laurent Dufour wrote:
->> On 22/02/2017 18:11, Michal Hocko wrote:
->>> On Wed 22-02-17 16:58:11, Laurent Dufour wrote:
->>> [...]
->>>>  static struct mem_cgroup_tree_per_node *
->>>>  soft_limit_tree_node(int nid)
->>>>  {
->>>> @@ -465,6 +497,8 @@ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
->>>>  	struct mem_cgroup_tree_per_node *mctz;
->>>>  
->>>>  	mctz = soft_limit_tree_from_page(page);
->>>> +	if (!mctz)
->>>> +		return;
->>>>  	/*
->>>>  	 * Necessary to update all ancestors when hierarchy is used.
->>>>  	 * because their event counter is not touched.
->>>> @@ -502,7 +536,8 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
->>>>  	for_each_node(nid) {
->>>>  		mz = mem_cgroup_nodeinfo(memcg, nid);
->>>>  		mctz = soft_limit_tree_node(nid);
->>>> -		mem_cgroup_remove_exceeded(mz, mctz);
->>>> +		if (mctz)
->>>> +			mem_cgroup_remove_exceeded(mz, mctz);
->>>>  	}
->>>>  }
->>>>  
->>>
->>> this belongs to the previous patch, right?
+
+On 2/22/2017 4:13 PM, Michal Hocko wrote:
+> On Tue 14-02-17 14:54:12, akpm@linux-foundation.org wrote:
+>> From: Vinayak Menon <vinmenon@codeaurora.org>
+>> Subject: mm: vmscan: do not pass reclaimed slab to vmpressure
 >>
->> It may. I made the first patch fixing the panic I saw but if you prefer
->> this to be part of the first one, fair enough.
-> 
-> Without these you would just blow up later AFAICS so the fix is not
-> complete. Also this patch is not complete because the initialization
-> code should clean up if the allocation fails half way. I have tried to
-> do that and it blows the code size a bit. I am not convinced this is
-> worth the savings after all...
+>> During global reclaim, the nr_reclaimed passed to vmpressure includes the
+>> pages reclaimed from slab.  But the corresponding scanned slab pages is
+>> not passed.  There is an impact to the vmpressure values because of this. 
+>> While moving from kernel version 3.18 to 4.4, a difference is seen in the
+>> vmpressure values for the same workload resulting in a different behaviour
+>> of the vmpressure consumer.  One such case is of a vmpressure based
+>> lowmemorykiller.  It is observed that the vmpressure events are received
+>> late and less in number resulting in tasks not being killed at the right
+>> time.  The following numbers show the impact on reclaim activity due to
+>> the change in behaviour of lowmemorykiller on a 4GB device.  The test
+>> launches a number of apps in sequence and repeats it multiple times.
+>>
+>>                       v4.4           v3.18
+>> pgpgin                163016456      145617236
+>> pgpgout               4366220        4188004
+>> workingset_refault    29857868       26781854
+>> workingset_activate   6293946        5634625
+>> pswpin                1327601        1133912
+>> pswpout               3593842        3229602
+>> pgalloc_dma           99520618       94402970
+>> pgalloc_normal        104046854      98124798
+>> pgfree                203772640      192600737
+>> pgmajfault            2126962        1851836
+>> pgsteal_kswapd_dma    19732899       18039462
+>> pgsteal_kswapd_normal 19945336       17977706
+>> pgsteal_direct_dma    206757         131376
+>> pgsteal_direct_normal 236783         138247
+>> pageoutrun            116622         108370
+>> allocstall            7220           4684
+>> compact_stall         931            856
+>>
+>> This is a regression introduced by commit 6b4f7799c6a5 ("mm: vmscan:
+>> invoke slab shrinkers from shrink_zone()").
+>>
+>> So do not consider reclaimed slab pages for vmpressure calculation.  The
+>> reclaimed pages from slab can be excluded because the freeing of a page by
+>> slab shrinking depends on each slab's object population, making the cost
+>> model (i.e.  scan:free) different from that of LRU.  Also, not every
+>> shrinker accounts the pages it reclaims.  But ideally the pages reclaimed
+>> from slab should be passed to vmpressure, otherwise higher vmpressure
+>> levels can be triggered even when there is a reclaim progress.  But
+>> accounting only the reclaimed slab pages without the scanned, and adding
+>> something which does not fit into the cost model just adds noise to the
+>> vmpressure values.
+> I believe there are still some of my questions which are not answered by
+> the changelog update. Namely
+> - vmstat numbers without mentioning vmpressure events for those 2
+>   kernels have basically no meaning.
+Sending a new version. The vmpressure events difference is added.
+> - the changelog doesn't mention that the test case basically benefits
+>   from as many lmk interventions as possible. Does this represent a real
+>   life workload? If not is there any real life workload which would
+>   benefit from the new behavior.
+The use case does not actually benefit from as many lmk interventions as possible. Because it has to also take care
+of maximizing the number of applications sustained. IMHO Android using a vmpressure based user space lowmemorykiller
+is a real life workload. But the lowmemorykiller killer example was just to show the difference in vmpressure events between
+2 kernel versions. Any workload which uses vmpressure would be something similar ? It would take an action by killing tasks,
+or releasing some buffers etc as I understand. The patch was actually meant to fix the addition of noise to vmpressure by
+adding reclaimed without accounting the cost and the lmk example was just to indicate the difference in vmpressure events.
+> - I would be also very careful calling this a regression without having
+>   any real workload as an example
+Okay. I have removed that from changelog.
+> - Arguments about the cost model is are true but the resulting code is
+>   not a 100% win either and the changelog should be explicit about the
+>   consequences - aka more critical events can fire early while there is
+>   still slab making a reclaim progress.
+>  
+This line was added to changelog indicating the consequence.
+"Ideally the pages reclaimed from slab should be passed to vmpressure, otherwise higher vmpressure levels can
+ be triggered even when there is a reclaim progress."
 
-I do agree, we will have more code than the data we don't want to allocate.
-
-Bur your proposal sounds to be the cleanest way to handle that, despite
-the larger size of the code.
-I'll send a new series in that way.
-
-> 
-> Here is what I ended up:
-> --- 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 44fb1e80701a..54d73c20124e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -141,7 +141,7 @@ struct mem_cgroup_tree {
->  	struct mem_cgroup_tree_per_node *rb_tree_per_node[MAX_NUMNODES];
->  };
-> 
-> -static struct mem_cgroup_tree soft_limit_tree __read_mostly;
-> +static struct mem_cgroup_tree *soft_limit_tree __read_mostly;
-> 
->  /* for OOM */
->  struct mem_cgroup_eventfd_list {
-> @@ -381,7 +381,9 @@ mem_cgroup_page_nodeinfo(struct mem_cgroup *memcg, struct page *page)
->  static struct mem_cgroup_tree_per_node *
->  soft_limit_tree_node(int nid)
->  {
-> -	return soft_limit_tree.rb_tree_per_node[nid];
-> +	if (!soft_limit_tree_node)
-> +		return NULL;
-> +	return soft_limit_tree->rb_tree_per_node[nid];
->  }
-> 
->  static struct mem_cgroup_tree_per_node *
-> @@ -389,7 +391,9 @@ soft_limit_tree_from_page(struct page *page)
->  {
->  	int nid = page_to_nid(page);
-> 
-> -	return soft_limit_tree.rb_tree_per_node[nid];
-> +	if (!soft_limit_tree_node)
-> +		return NULL;
-> +	return soft_limit_tree->rb_tree_per_node[nid];
->  }
-> 
->  static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
-> @@ -2969,6 +2973,46 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
->  	return ret;
->  }
-> 
-> +static bool soft_limit_initialize(void)
-> +{
-> +	static DEFINE_MUTEX(soft_limit_mutex);
-> +	struct mem_cgroup_tree *tree;
-> +	bool ret = true;
-> +	int node;
-> +
-> +	mutex_lock(&soft_limit_mutex);
-> +	if (soft_limit_tree)
-> +		goto out_unlock;
-> +
-> +	tree = kmalloc(sizeof(*soft_limit_tree), GFP_KERNEL);
-> +	if (!tree) {
-> +		ret = false;
-> +		goto out;
-> +	}
-> +	for_each_node(node) {
-> +		struct mem_cgroup_tree_per_node *rtpn;
-> +
-> +		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
-> +				    node_online(node) ? node : NUMA_NO_NODE);
-> +		if (!rtpn)
-> +			goto out_free;
-> +
-> +		rtpn->rb_root = RB_ROOT;
-> +		spin_lock_init(&rtpn->lock);
-> +		tree->rb_tree_per_node[node] = rtpn;
-> +	}
-> +	WRITE_ONCE(soft_limit_tree, tree);
-> +out_unlock:
-> +	mutex_unlock(&soft_limit_tree);
-> +	return ret;
-> +out_free:
-> +	for_each_node(node)
-> +		kfree(tree->rb_tree_per_node[node]);
-> +	kfree(tree);
-> +	ret = false;
-> +	goto out_unlock;
-> +}
-> +
->  /*
->   * The user of this function is...
->   * RES_LIMIT.
-> @@ -3007,6 +3051,11 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
->  		}
->  		break;
->  	case RES_SOFT_LIMIT:
-> +		if (!soft_limit_initialize()) {
-> +			ret = -ENOMEM;
-> +			break;
-> +		}
-> +
->  		memcg->soft_limit = nr_pages;
->  		ret = 0;
->  		break;
-> @@ -5800,17 +5849,6 @@ static int __init mem_cgroup_init(void)
->  		INIT_WORK(&per_cpu_ptr(&memcg_stock, cpu)->work,
->  			  drain_local_stock);
-> 
-> -	for_each_node(node) {
-> -		struct mem_cgroup_tree_per_node *rtpn;
-> -
-> -		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
-> -				    node_online(node) ? node : NUMA_NO_NODE);
-> -
-> -		rtpn->rb_root = RB_ROOT;
-> -		spin_lock_init(&rtpn->lock);
-> -		soft_limit_tree.rb_tree_per_node[node] = rtpn;
-> -	}
-> -
->  	return 0;
->  }
->  subsys_initcall(mem_cgroup_init);
-> 
+Thanks,
+Vinayak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
