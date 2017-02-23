@@ -1,66 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3802A6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 12:19:37 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id e4so31080783uae.4
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 09:19:37 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id o4si5310887iti.126.2017.02.23.09.19.36
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CAC56B0038
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 12:28:04 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id t184so57036505pgt.1
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 09:28:04 -0800 (PST)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0077.outbound.protection.outlook.com. [104.47.40.77])
+        by mx.google.com with ESMTPS id q9si4873752pli.125.2017.02.23.09.28.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 09:19:36 -0800 (PST)
-Date: Thu, 23 Feb 2017 09:19:01 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH V4 4/6] mm: reclaim MADV_FREE pages
-Message-ID: <20170223171901.GA20444@shli-mbp.local>
-References: <cover.1487788131.git.shli@fb.com>
- <94eccf0fcf927f31377a60d7a9f900b7e743fb06.1487788131.git.shli@fb.com>
- <20170223161342.GC4031@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Feb 2017 09:28:03 -0800 (PST)
+Subject: Re: [RFC PATCH v4 13/28] efi: Update efi_mem_type() to return defined
+ EFI mem types
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154457.19244.5369.stgit@tlendack-t1.amdoffice.net>
+ <20170221120505.GQ28416@codeblueprint.co.uk>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <41d5df05-14be-ff33-a7e2-6b2f51e2605a@amd.com>
+Date: Thu, 23 Feb 2017 11:27:55 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170223161342.GC4031@cmpxchg.org>
+In-Reply-To: <20170221120505.GQ28416@codeblueprint.co.uk>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu, Feb 23, 2017 at 11:13:42AM -0500, Johannes Weiner wrote:
-> On Wed, Feb 22, 2017 at 10:50:42AM -0800, Shaohua Li wrote:
-> > @@ -1424,6 +1424,12 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> >  				dec_mm_counter(mm, MM_ANONPAGES);
-> >  				rp->lazyfreed++;
-> >  				goto discard;
-> > +			} else if (!PageSwapBacked(page)) {
-> > +				/* dirty MADV_FREE page */
-> > +				set_pte_at(mm, address, pvmw.pte, pteval);
-> > +				ret = SWAP_DIRTY;
-> > +				page_vma_mapped_walk_done(&pvmw);
-> > +				break;
-> >  			}
-> >  
-> >  			if (swap_duplicate(entry) < 0) {
-> > @@ -1525,8 +1531,8 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
-> >  
-> >  	if (ret != SWAP_MLOCK && !page_mapcount(page)) {
-> >  		ret = SWAP_SUCCESS;
-> > -		if (rp.lazyfreed && !PageDirty(page))
-> > -			ret = SWAP_LZFREE;
-> > +		if (rp.lazyfreed && PageDirty(page))
-> > +			ret = SWAP_DIRTY;
-> 
-> Can this actually happen? If the page is dirty, ret should already be
-> SWAP_DIRTY, right? How would a dirty page get fully unmapped?
-> 
-> It seems to me rp.lazyfreed can be removed entirely now that we don't
-> have to identify the lazyfree case anymore. The failure case is much
-> easier to identify - all it takes is a single pte to be dirty.
+On 2/21/2017 6:05 AM, Matt Fleming wrote:
+> On Thu, 16 Feb, at 09:44:57AM, Tom Lendacky wrote:
+>> Update the efi_mem_type() to return EFI_RESERVED_TYPE instead of a
+>> hardcoded 0.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/platform/efi/efi.c |    4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/x86/platform/efi/efi.c b/arch/x86/platform/efi/efi.c
+>> index a15cf81..6407103 100644
+>> --- a/arch/x86/platform/efi/efi.c
+>> +++ b/arch/x86/platform/efi/efi.c
+>> @@ -1037,7 +1037,7 @@ u32 efi_mem_type(unsigned long phys_addr)
+>>  	efi_memory_desc_t *md;
+>>
+>>  	if (!efi_enabled(EFI_MEMMAP))
+>> -		return 0;
+>> +		return EFI_RESERVED_TYPE;
+>>
+>>  	for_each_efi_memory_desc(md) {
+>>  		if ((md->phys_addr <= phys_addr) &&
+>> @@ -1045,7 +1045,7 @@ u32 efi_mem_type(unsigned long phys_addr)
+>>  				  (md->num_pages << EFI_PAGE_SHIFT))))
+>>  			return md->type;
+>>  	}
+>> -	return 0;
+>> +	return EFI_RESERVED_TYPE;
+>>  }
+>
+> I see what you're getting at here, but arguably the return value in
+> these cases never should have been zero to begin with (your change
+> just makes that more obvious).
+>
+> Returning EFI_RESERVED_TYPE implies an EFI memmap entry exists for
+> this address, which is misleading because it doesn't in the hunks
+> you've modified above.
+>
+> Instead, could you look at returning a negative error value in the
+> usual way we do in the Linux kernel, and update the function prototype
+> to match? I don't think any callers actually require the return type
+> to be u32.
 
-ok, I get mixed up. Yes, this couldn't happen any more since we changed the
-behavior of try_to_unmap_one. Will delete this in next post.
+I can do that, I'll change the return type to an int. For the
+!efi_enabled I can return -ENOTSUPP and for when an entry isn't
+found I can return -EINVAL.  Sound good?
+
+The ia64 arch is the only other arch that defines the function. It
+has just a single return 0 that I'll change to -EINVAL.
 
 Thanks,
-Shaohua
+Tom
+
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
