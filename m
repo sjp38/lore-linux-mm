@@ -1,108 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 456966B0387
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:04:00 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id v30so12447208wrc.4
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 07:04:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x78si3246064wrb.74.2017.02.24.07.03.58
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6310D6B0388
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:04:39 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id 186so41246770oid.2
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 07:04:39 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0066.outbound.protection.outlook.com. [104.47.38.66])
+        by mx.google.com with ESMTPS id m124si1858220itd.13.2017.02.24.07.04.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Feb 2017 07:03:59 -0800 (PST)
-Date: Fri, 24 Feb 2017 16:03:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] staging, android: remove lowmemory killer from the tree
-Message-ID: <20170224150357.GK19161@dhcp22.suse.cz>
-References: <20170222120121.12601-1-mhocko@kernel.org>
- <CANcMJZBNe10dtK8ANtLSWS3UXeePhndN=S5otADhQdfQKOAhOw@mail.gmail.com>
- <CA+_MTtzj9z3JEH528iTjAuNivKo9tNzAx9dwpAJo6U5kgf636g@mail.gmail.com>
- <855e929a-a891-a435-8f75-3674d8a3e96d@sonymobile.com>
- <20170224122830.GG19161@dhcp22.suse.cz>
- <9ffdcc79-12d4-00c5-182c-498b8ca951cc@sonymobile.com>
- <20170224141144.GI19161@dhcp22.suse.cz>
- <3336a503-c73f-9fe4-a17a-36629a54a97b@sonymobile.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 24 Feb 2017 07:04:38 -0800 (PST)
+Subject: Re: [RFC PATCH v4 14/28] Add support to access boot related data in
+ the clear
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154508.19244.58580.stgit@tlendack-t1.amdoffice.net>
+ <20170221150625.lohyskz5bjuey7fa@pd.tnic>
+ <031277bf-25ad-3d41-d189-1ad6b4d27c93@amd.com>
+ <20170224102155.4pauis3acrzp3rwz@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <8c8bf255-c48d-ac7f-e344-8059e1ffedb3@amd.com>
+Date: Fri, 24 Feb 2017 09:04:21 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3336a503-c73f-9fe4-a17a-36629a54a97b@sonymobile.com>
+In-Reply-To: <20170224102155.4pauis3acrzp3rwz@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sonymobile.com>
-Cc: Martijn Coenen <maco@google.com>, John Stultz <john.stultz@linaro.org>, Greg KH <gregkh@linuxfoundation.org>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Todd Kjos <tkjos@google.com>, Android Kernel Team <kernel-team@android.com>, Rom Lemarchand <romlem@google.com>, Tim Murray <timmurray@google.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Fri 24-02-17 15:42:49, peter enderborg wrote:
-> On 02/24/2017 03:11 PM, Michal Hocko wrote:
-> > On Fri 24-02-17 14:16:34, peter enderborg wrote:
-> >> On 02/24/2017 01:28 PM, Michal Hocko wrote:
-> > [...]
-> >>> Yeah, I strongly believe that the chosen approach is completely wrong.
-> >>> Both in abusing the shrinker interface and abusing oom_score_adj as the
-> >>> only criterion for the oom victim selection.
-> >> No one is arguing that shrinker is not problematic. And would be great
-> >> if it is removed from lmk.  The oom_score_adj is the way user-space
-> >> tells the kernel what the user-space has as prio. And android is using
-> >> that very much. It's a core part.
-> > Is there any documentation which describes how this is done?
-> >
-> >> I have never seen it be used on
-> >> other linux system so what is the intended usage of oom_score_adj? Is
-> >> this really abusing?
-> > oom_score_adj is used to _adjust_ the calculated oom score. It is not a
-> > criterion on its own, well, except for the extreme sides of the range
-> > which are defined to enforce resp. disallow selecting the task. The
-> > global oom killer calculates the oom score as a function of the memory
-> > consumption. Your patch simply ignores the memory consumption (and uses
-> > pids to sort tasks with the same oom score which is just mind boggling)
+On 2/24/2017 4:21 AM, Borislav Petkov wrote:
+> On Thu, Feb 23, 2017 at 03:34:30PM -0600, Tom Lendacky wrote:
+>> Hmm... maybe I'm missing something here.  This doesn't have anything to
+>> do with kexec or efi_reuse_config.  This has to do with the fact that
 >
-> How much it uses is of very little importance for android.
-
-But it is relevant for the global oom killer which is the main consumer of
-the oom_score_adj.
-
-> The score
-> used are only for apps and their services. System related are not
-> touched by android lmk. The pid is only to have a unique key to be
-> able to have it fast within a rbtree.  One idea was to use task_pid to
-> get a strict age of process to get a round robin but since it does not
-> matter i skipped that idea since it does not matter.
-
-Pid will not tell you anything about the age. Pids do wrap around.
-
-> > and that is what I call the abuse. The oom score calculation might
-> > change in future, of course, but all consumers of the oom_score_adj
-> > really have to agree on the base which is adjusted by this tunable
-> > otherwise you can see a lot of unexpected behavior.
+> I said kexec because kexec uses the setup_data mechanism to pass config
+> tables to the second kernel, for example.
 >
-> Then can we just define a range that is strictly for user-space?
-
-This is already well defined. The whole range OOM_SCORE_ADJ_{MIN,MAX}
-is usable.
-
-> > I would even argue that nobody outside of mm/oom_kill.c should really
-> > have any business with this tunable.  You can of course tweak the value
-> > from the userspace and help to chose a better oom victim this way but
-> > that is it.
+>> when a system boots the setup data and the EFI data are not encrypted.
+>> Since it's not encrypted we need to be sure that any early_memremap()
+>> and memremap() calls remove the encryption mask from the resulting
+>> pagetable entry that is created so the data can be accessed properly.
 >
-> Why only help? If userspace can give an exact order to kernel that
-> must be a good thing; other wise kernel have to guess and when
-> can that be better? 
+> Anyway, I'd prefer not to do this ad-hoc caching if it can be
+> helped. You're imposing an arbitrary limit of 32 there which the
+> setup_data linked list doesn't have. So if you really want to go
+> inspect those elements, you could iterate over them starting from
+> boot_params.hdr.setup_data, just like parse_setup_data() does. Most of
+> the time that list should be non-existent and if it is, it will be short
+> anyway.
+>
 
-Because userspace doesn't know who is the best victim in 99% cases.
-Android might be different, although, I am a bit skeptical - especially
-after hearing quite some complains about random application being
-killed... If you do believe that you know better then, by all means,
-implement your custom user space LMK and chose the oom victim on a
-different basis but try to understand that the global OOM killer is the
-last resort measure to make the system usable again. There is a good
-reason why the kernel uses the current badness calculation. The previous
-implementation which considered the process age ad other things was just
-too random to have a understandable behavior.
+I looked at doing that but you get into this cyclical situation unless
+you specifically map each setup data elemement as decrypted. This is ok
+for early_memremap since we have early_memremap_decrypted() but a new
+memremap_decrypted() would have to be added. But I was trying to avoid
+having to do multiple mapping calls inside the current mapping call.
 
-In any case playing nasty games with the oom killer tunables might and
-will lead, well, to unexpected behavior.
--- 
-Michal Hocko
-SUSE Labs
+I can always look at converting the setup_data_list from an array
+into a list to eliminate the 32 entry limit, too.
+
+Let me look at adding the early_memremap_decrypted() type support to
+memremap() and see how that looks.
+
+> And if we really decide that we need to cache it for later inspection
+> due to speed considerations, as you do in memremap_is_setup_data(), you
+> could do that in the default: branch of parse_setup_data() and do it
+> just once: I don't see why you need to do add_to_setup_data_list() *and*
+> update_setup_data_list() when you could add both pointer and updated
+> size once.
+
+I do the add followed by the update because we can't determine the true
+size of the setup data until it is first mapped so that the data->len
+field can be accessed. In order to map it properly the physical
+address range needs to be added to the list before it is mapped. After
+it's mapped, the true physical address range can be calculated and
+updated.
+
+Thanks,
+Tom
+
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
