@@ -1,103 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BFE26B0038
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:20:02 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id r90so25974747qki.0
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:20:02 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 897E46B0388
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:20:03 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id n127so26089597qkf.3
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:20:03 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p13si6184448qtg.6.2017.02.24.10.20.01
+        by mx.google.com with ESMTPS id s11si6177752qtg.168.2017.02.24.10.20.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Feb 2017 10:20:01 -0800 (PST)
+        Fri, 24 Feb 2017 10:20:02 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 3/3] userfaultfd: non-cooperative: release all ctx in dup_userfaultfd_complete
-Date: Fri, 24 Feb 2017 19:19:57 +0100
-Message-Id: <20170224181957.19736-4-aarcange@redhat.com>
-In-Reply-To: <20170224181957.19736-1-aarcange@redhat.com>
-References: <20170224181957.19736-1-aarcange@redhat.com>
+Subject: [PATCH 0/3] userfaultfd non-cooperative further update for 4.11 merge window
+Date: Fri, 24 Feb 2017 19:19:54 +0100
+Message-Id: <20170224181957.19736-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Don't stop running dup_fctx() even if
-userfaultfd_event_wait_completion fails as it has to run
-userfaultfd_ctx_put on all ctx to pair against the userfaultfd_ctx_get
-that was run on all fctx->orig in dup_userfaultfd.
+Hello,
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- fs/userfaultfd.c | 18 +++++-------------
- 1 file changed, 5 insertions(+), 13 deletions(-)
+unfortunately I noticed one relevant bug in userfaultfd_exit while
+doing more testing. I've been doing testing before and this was also
+tested by kbuild bot and exercised by the selftest, but this bug never
+reproduced before.
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 3d7c248..0072f04 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -526,16 +526,12 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
- 	return ret;
- }
- 
--static int userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
--					     struct userfaultfd_wait_queue *ewq)
-+static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
-+					      struct userfaultfd_wait_queue *ewq)
- {
--	int ret;
--
--	ret = -1;
- 	if (WARN_ON_ONCE(current->flags & PF_EXITING))
- 		goto out;
- 
--	ret = 0;
- 	ewq->ctx = ctx;
- 	init_waitqueue_entry(&ewq->wq, current);
- 
-@@ -551,7 +547,6 @@ static int userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
- 			break;
- 		if (ACCESS_ONCE(ctx->released) ||
- 		    fatal_signal_pending(current)) {
--			ret = -1;
- 			__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
- 			break;
- 		}
-@@ -572,7 +567,6 @@ static int userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
- 	 */
- out:
- 	userfaultfd_ctx_put(ctx);
--	return ret;
- }
- 
- static void userfaultfd_event_complete(struct userfaultfd_ctx *ctx,
-@@ -630,7 +624,7 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
- 	return 0;
- }
- 
--static int dup_fctx(struct userfaultfd_fork_ctx *fctx)
-+static void dup_fctx(struct userfaultfd_fork_ctx *fctx)
- {
- 	struct userfaultfd_ctx *ctx = fctx->orig;
- 	struct userfaultfd_wait_queue ewq;
-@@ -640,17 +634,15 @@ static int dup_fctx(struct userfaultfd_fork_ctx *fctx)
- 	ewq.msg.event = UFFD_EVENT_FORK;
- 	ewq.msg.arg.reserved.reserved1 = (unsigned long)fctx->new;
- 
--	return userfaultfd_event_wait_completion(ctx, &ewq);
-+	userfaultfd_event_wait_completion(ctx, &ewq);
- }
- 
- void dup_userfaultfd_complete(struct list_head *fcs)
- {
--	int ret = 0;
- 	struct userfaultfd_fork_ctx *fctx, *n;
- 
- 	list_for_each_entry_safe(fctx, n, fcs, list) {
--		if (!ret)
--			ret = dup_fctx(fctx);
-+		dup_fctx(fctx);
- 		list_del(&fctx->list);
- 		kfree(fctx);
- 	}
+I dropped userfaultfd_exit as result. I dropped it because of
+implementation difficulty in receiving signals in __mmput and because
+I think -ENOSPC as result from the background UFFDIO_COPY should be
+enough already.
+
+Before I decided to remove userfaultfd_exit, I noticed
+userfaultfd_exit wasn't exercised by the selftest and when I tried to
+exercise it, after moving it to a more correct place in __mmput where
+it would make more sense and where the vma list is stable, it resulted
+in the event_wait_completion in D state. So then I added the second
+patch to be sure even if we call userfaultfd_event_wait_completion too
+late during task exit(), we won't risk to generate tasks in D
+state. The same check exists in handle_userfault() for the same
+reason, except it makes a difference there, while here is just a
+robustness check and it's run under WARN_ON_ONCE.
+
+While looking at the userfaultfd_event_wait_completion() function I
+looked back at its callers too while at it and I think it's not ok to
+stop executing dup_fctx on the fcs list because we relay on
+userfaultfd_event_wait_completion to execute
+userfaultfd_ctx_put(fctx->orig) which is paired against
+userfaultfd_ctx_get(fctx->orig) in dup_userfault just before
+list_add(fcs). This change only takes care of fctx->orig but this area
+also needs further review looking for similar problems in fctx->new.
+
+The only patch that is urgent is the first because it's an use after
+free during a SMP race condition that affects all processes if
+CONFIG_USERFAULTFD=y. Very hard to reproduce though and probably
+impossible without SLUB poisoning enabled.
+
+Mike and Pavel please review, thanks!
+Andrea
+
+Andrea Arcangeli (3):
+  userfaultfd: non-cooperative: rollback userfaultfd_exit
+  userfaultfd: non-cooperative: robustness check
+  userfaultfd: non-cooperative: release all ctx in
+    dup_userfaultfd_complete
+
+ fs/userfaultfd.c                 | 47 +++++++---------------------------------
+ include/linux/userfaultfd_k.h    |  6 -----
+ include/uapi/linux/userfaultfd.h |  5 +----
+ kernel/exit.c                    |  1 -
+ 4 files changed, 9 insertions(+), 50 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
