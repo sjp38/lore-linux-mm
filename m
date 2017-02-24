@@ -1,130 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 727676B0387
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 23:53:17 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id u188so11538310qkc.1
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 20:53:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t17si4862172qtt.84.2017.02.23.20.53.16
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 979FA6B0387
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 01:14:38 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id n76so20098869ybg.0
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 22:14:38 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id e4si1844519ywh.194.2017.02.23.22.14.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Feb 2017 20:53:16 -0800 (PST)
-Date: Thu, 23 Feb 2017 23:53:11 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-Message-ID: <20170224045311.GA15343@redhat.com>
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
- <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
- <20170221111107.GJ15595@dhcp22.suse.cz>
- <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
- <60b3dd35-a802-ba93-c2c5-d6b2b3dd72ea@huawei.com>
+        Thu, 23 Feb 2017 22:14:37 -0800 (PST)
+Date: Thu, 23 Feb 2017 22:14:13 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH V4 4/6] mm: reclaim MADV_FREE pages
+Message-ID: <20170224061412.GA86912@brenorobert-mbp.dhcp.thefacebook.com>
+References: <cover.1487788131.git.shli@fb.com>
+ <94eccf0fcf927f31377a60d7a9f900b7e743fb06.1487788131.git.shli@fb.com>
+ <20170224021218.GD9818@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <60b3dd35-a802-ba93-c2c5-d6b2b3dd72ea@huawei.com>
+In-Reply-To: <20170224021218.GD9818@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Fri, Feb 24, 2017 at 09:06:19AM +0800, Bob Liu wrote:
-> On 2017/2/21 21:39, Anshuman Khandual wrote:
-> > On 02/21/2017 04:41 PM, Michal Hocko wrote:
-> >> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
-> >> [...]
-> >>> * User space using mbind() to get CDM memory is an additional benefit
-> >>>   we get by making the CDM plug in as a node and be part of the buddy
-> >>>   allocator. But the over all idea from the user space point of view
-> >>>   is that the application can allocate any generic buffer and try to
-> >>>   use the buffer either from the CPU side or from the device without
-> >>>   knowing about where the buffer is really mapped physically. That
-> >>>   gives a seamless and transparent view to the user space where CPU
-> >>>   compute and possible device based compute can work together. This
-> >>>   is not possible through a driver allocated buffer.
-> >>
-> >> But how are you going to define any policy around that. Who is allowed
+On Fri, Feb 24, 2017 at 11:12:18AM +0900, Minchan Kim wrote:
+> On Wed, Feb 22, 2017 at 10:50:42AM -0800, Shaohua Li wrote:
+> > When memory pressure is high, we free MADV_FREE pages. If the pages are
+> > not dirty in pte, the pages could be freed immediately. Otherwise we
+> > can't reclaim them. We put the pages back to anonumous LRU list (by
+> > setting SwapBacked flag) and the pages will be reclaimed in normal
+> > swapout way.
 > > 
-> > The user space VMA can define the policy with a mbind(MPOL_BIND) call
-> > with CDM/CDMs in the nodemask.
+> > We use normal page reclaim policy. Since MADV_FREE pages are put into
+> > inactive file list, such pages and inactive file pages are reclaimed
+> > according to their age. This is expected, because we don't want to
+> > reclaim too many MADV_FREE pages before used once pages.
 > > 
-> >> to allocate and how much of this "special memory". Is it possible that
+> > Based on Minchan's original patch
 > > 
-> > Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
-> > the nodemask can allocate from the CDM memory. "How much" gets controlled
-> > by how we fault from CPU and the default behavior of the buddy allocator.
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: Mel Gorman <mgorman@techsingularity.net>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Shaohua Li <shli@fb.com>
+> > ---
+> >  include/linux/rmap.h |  2 +-
+> >  mm/huge_memory.c     |  2 ++
+> >  mm/madvise.c         |  1 +
+> >  mm/rmap.c            | 10 ++++++++--
+> >  mm/vmscan.c          | 34 ++++++++++++++++++++++------------
+> >  5 files changed, 34 insertions(+), 15 deletions(-)
 > > 
-> >> we will eventually need some access control mechanism? If yes then mbind
-> > 
-> > No access control mechanism is needed. If an application wants to use
-> > CDM memory by specifying in the mbind() it can. Nothing prevents it
-> > from using the CDM memory.
-> > 
-> >> is really not suitable interface to (ab)use. Also what should happen if
-> >> the mbind mentions only CDM memory and that is depleted?
-> > 
-> > IIUC *only CDM* cannot be requested from user space as there are no user
-> > visible interface which can translate to __GFP_THISNODE. MPOL_BIND with
-> > CDM in the nodemask will eventually pick a FALLBACK zonelist which will
-> > have zones of the system including CDM ones. If the resultant CDM zones
-> > run out of memory, we fail the allocation request as usual.
-> > 
-> >>
-> >> Could you also explain why the transparent view is really better than
-> >> using a device specific mmap (aka CDM awareness)?
-> > 
-> > Okay with a transparent view, we can achieve a control flow of application
-> > like the following.
-> > 
-> > (1) Allocate a buffer:		alloc_buffer(buf, size)
-> > (2) CPU compute on buffer:	cpu_compute(buf, size)
-> > (3) Device compute on buffer:	device_compute(buf, size)
-> > (4) CPU compute on buffer:	cpu_compute(buf, size)
-> > (5) Release the buffer:		release_buffer(buf, size)
-> > 
-> > With assistance from a device specific driver, the actual page mapping of
-> > the buffer can change between system RAM and device memory depending on
-> > which side is accessing at a given point. This will be achieved through
-> > driver initiated migrations.
-> > 
+> > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> > index e2cd8f9..2bfd8c6 100644
+> > --- a/include/linux/rmap.h
+> > +++ b/include/linux/rmap.h
+> > @@ -300,6 +300,6 @@ static inline int page_mkclean(struct page *page)
+> >  #define SWAP_AGAIN	1
+> >  #define SWAP_FAIL	2
+> >  #define SWAP_MLOCK	3
+> > -#define SWAP_LZFREE	4
+> > +#define SWAP_DIRTY	4
 > 
-> Sorry, I'm a bit confused here.
-> What's the difference with the Heterogeneous memory management?
-> Which also "allows to use device memory transparently inside any process
-> without any modifications to process program code."
+> Could you write down about SWAP_DIRTY in try_to_unmap's description?
+> 
+> < snip >
+> 
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index c621088..083f32e 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1424,6 +1424,12 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> >  				dec_mm_counter(mm, MM_ANONPAGES);
+> >  				rp->lazyfreed++;
+> >  				goto discard;
+> > +			} else if (!PageSwapBacked(page)) {
+> > +				/* dirty MADV_FREE page */
+> > +				set_pte_at(mm, address, pvmw.pte, pteval);
+> > +				ret = SWAP_DIRTY;
+> > +				page_vma_mapped_walk_done(&pvmw);
+> > +				break;
+> >  			}
+> >  
+> >  			if (swap_duplicate(entry) < 0) {
+> > @@ -1525,8 +1531,8 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+> >  
+> >  	if (ret != SWAP_MLOCK && !page_mapcount(page)) {
+> >  		ret = SWAP_SUCCESS;
+> > -		if (rp.lazyfreed && !PageDirty(page))
+> > -			ret = SWAP_LZFREE;
+> > +		if (rp.lazyfreed && PageDirty(page))
+> > +			ret = SWAP_DIRTY;
+> 
+> Hmm, I don't understand why we need to introduce new return value.
+> Can't we set SetPageSwapBacked and return SWAP_FAIL in try_to_unmap_one?
 
-HMM is first and foremost for platform (like Intel) where CPU can not
-access device memory in cache coherent way or at all. CDM is for more
-advance platform with a system bus that allow the CPU to access device
-memory in cache coherent way.
+Original idea in my mind is to activate page in SWAP_DIRTY but not activate
+page in SWAP_FAIL for other failures. But later we choose to ignore all corner
+cases and always activate pages for all failures. So you are right, we don't
+need the new return value right now.
 
-Hence CDM was design to integrate more closely in existing concept like
-NUMA. From my point of view it is like another level in the memory
-hierarchy. Nowaday you have local node memory and other node memory.
-In not too distant future you will have fast CPU on die memory, local
-memory (you beloved DDR3/DDR4), slightly slower but gigantic persistant
-memory and also device memory (all those local to a node).
-
-On top of that you will still have the regular NUMA hierarchy between
-nodes. But each node will have its own local hierarchy of memory.
-
-CDM wants to integrate with existing memory hinting API and i believe
-this is needed to get some experience with how end user might want to
-use this to fine tune their application.
-
-Some bit of HMM are generic and will be reuse by CDM, for instance the
-DMA capable memory migration helpers. Wether they can also share HMM
-approach of using ZONE_DEVICE is yet to be proven but it comes with
-limitations (can't be on lru or have device lru) that might hinder a
-closer integration of CDM memory with many aspect of kernel mm.
-
-
-This is my own view and it likely differ in some way from the view of
-the people behind CDM :)
-
-Cheers,
-Jerome
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
