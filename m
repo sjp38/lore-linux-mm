@@ -1,77 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D51326B0387
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 08:56:44 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v63so39180839pgv.0
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 05:56:44 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id q9si7462977pli.125.2017.02.24.05.56.43
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 328396B0387
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 09:10:33 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id j30so12026872qta.2
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 06:10:33 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f15si4960355qtg.29.2017.02.24.06.10.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Feb 2017 05:56:43 -0800 (PST)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id E5C49201F2
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:56:42 +0000 (UTC)
-Received: from mail-yw0-f170.google.com (mail-yw0-f170.google.com [209.85.161.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CE5592021A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:56:39 +0000 (UTC)
-Received: by mail-yw0-f170.google.com with SMTP id q127so9989561ywg.0
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 05:56:39 -0800 (PST)
+        Fri, 24 Feb 2017 06:10:32 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
+References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+	<878toy1sgd.fsf@vitty.brq.redhat.com>
+	<20170223125643.GA29064@dhcp22.suse.cz>
+	<87bmttyqxf.fsf@vitty.brq.redhat.com>
+	<20170223150920.GB29056@dhcp22.suse.cz>
+	<877f4gzz4d.fsf@vitty.brq.redhat.com>
+	<20170223161241.GG29056@dhcp22.suse.cz>
+	<8737f4zwx5.fsf@vitty.brq.redhat.com>
+	<20170223174106.GB13822@dhcp22.suse.cz>
+	<87tw7kydto.fsf@vitty.brq.redhat.com>
+	<20170224133714.GH19161@dhcp22.suse.cz>
+Date: Fri, 24 Feb 2017 15:10:29 +0100
+In-Reply-To: <20170224133714.GH19161@dhcp22.suse.cz> (Michal Hocko's message
+	of "Fri, 24 Feb 2017 14:37:14 +0100")
+Message-ID: <87efyny90q.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1c13f7a8-b355-b985-c02f-a50bebfc86a7@math.uni-bielefeld.de>
-References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
- <20170216184524.cxcy2ux37yrwutla@lukather> <2cecfc48-576f-3888-08aa-1fe2edc3c752@math.uni-bielefeld.de>
- <20170217154219.d4z2gylzcrzntlt3@piout.net> <1c13f7a8-b355-b985-c02f-a50bebfc86a7@math.uni-bielefeld.de>
-From: Rob Herring <robh+dt@kernel.org>
-Date: Fri, 24 Feb 2017 07:56:18 -0600
-Message-ID: <CAL_JsqKYSKnYzddh+utr9BUth60xVM7fGN_6yxk3tuGTNabUmg@mail.gmail.com>
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>
-Cc: Alexandre Belloni <alexandre.belloni@free-electrons.com>, Maxime Ripard <maxime.ripard@free-electrons.com>, Mark Rutland <mark.rutland@arm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, ML dri-devel <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen-Yu Tsai <wens@csie.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com, kys@microsoft.com
 
-On Fri, Feb 17, 2017 at 9:56 AM, Tobias Jakobi
-<tjakobi@math.uni-bielefeld.de> wrote:
-> Alexandre Belloni wrote:
->> On 17/02/2017 at 13:45:44 +0100, Tobias Jakobi wrote:
->>>> The device tree is a representation of the hardware itself. The state
->>>> of the driver support doesn't change the hardware you're running on,
->>>> just like your BIOS/UEFI on x86 won't change the device it reports to
->>>> Linux based on whether it has a driver for it.
->>> Like Emil already said, the new bindings and the DT entries are solely
->>> introduced to support a proprietary out-of-tree module.
->>>
->>
->> Because device tree describes the hardware, the added binding doesn't
->> support any particular module. The eventually upstreamed drvier will
->> share the same bindings.
-> OK, can we then agree that we _only_ merge the bindings and the entries,
-> once this driver is upstream?
+Michal Hocko <mhocko@kernel.org> writes:
 
-Absolutely not.
-
-> Driver upstreaming and DT work go hand-in-hand. It's usually after a lot
-> of discussion that new bindings get finalised. And for that discussion
-> to happen we need to know how the driver uses the information from the
-> DT. Otherwise we have no way to evaluate if the description is in any
-> way "appropriate".
+> On Thu 23-02-17 19:14:27, Vitaly Kuznetsov wrote:
+>> Michal Hocko <mhocko@kernel.org> writes:
+>> 
+>> > On Thu 23-02-17 17:36:38, Vitaly Kuznetsov wrote:
+>> >> Michal Hocko <mhocko@kernel.org> writes:
+>> > [...]
+>> >> > Is a grow from 256M -> 128GB really something that happens in real life?
+>> >> > Don't get me wrong but to me this sounds quite exaggerated. Hotmem add
+>> >> > which is an operation which has to allocate memory has to scale with the
+>> >> > currently available memory IMHO.
+>> >> 
+>> >> With virtual machines this is very real and not exaggerated at
+>> >> all. E.g. Hyper-V host can be tuned to automatically add new memory when
+>> >> guest is running out of it. Even 100 blocks can represent an issue.
+>> >
+>> > Do you have any reference to a bug report. I am really curious because
+>> > something really smells wrong and it is not clear that the chosen
+>> > solution is really the best one.
+>> 
+>> Unfortunately I'm not aware of any publicly posted bug reports (CC:
+>> K. Y. - he may have a reference) but I think I still remember everything
+>> correctly. Not sure how deep you want me to go into details though...
 >
-> And no, I don't follow the "DT is a separate/independent thing" thought.
-> It maybe is in an ideal world, but we've seen it now often enough that
-> bindings turned out to be poorly designed, even though they looked fine
-> at first.
+> As much as possible to understand what was really going on...
+>
+>> Virtual guests under stress were getting into OOM easily and the OOM
+>> killer was even killing the udev process trying to online the
+>> memory.
+>
+> Do you happen to have any OOM report? I am really surprised that udev
+> would be an oom victim because that process is really small. Who is
+> consuming all the memory then?
 
-Certainly, that happens (though arguably that was more often from lack
-of review). But this one is self contained, using standard, existing
-properties. I'm not worried about us getting it right. If this was
-something new or different, then certainly yes I would want to see the
-code.
+It's been a while since I worked on this and unfortunatelly I don't have
+a log. From what I remember, the kernel itself was consuming all memory
+so *all* processes were victims.
 
-Rob
+>
+> Have you measured how much memory do we need to allocate to add one
+> memblock?
+
+No, it's actually a good idea if we decide to do some sort of pre-allocation.
+
+Just did a quick (and probably dirty) test, increasing guest memory from
+4G to 8G (32 x 128mb blocks) require 68Mb of memory, so it's roughly 2Mb
+per block. It's really easy to trigger OOM for small guests.
+
+>
+>> There was a workaround for the issue added to the hyper-v driver
+>> doing memory add:
+>> 
+>> hv_mem_hot_add(...) {
+>> ...
+>>  add_memory(....);
+>>  wait_for_completion_timeout(..., 5*HZ);
+>>  ...
+>> }
+>
+> I can still see 
+> 		/*
+> 		 * Wait for the memory block to be onlined when memory onlining
+> 		 * is done outside of kernel (memhp_auto_online). Since the hot
+> 		 * add has succeeded, it is ok to proceed even if the pages in
+> 		 * the hot added region have not been "onlined" within the
+> 		 * allowed time.
+> 		 */
+> 		if (dm_device.ha_waiting)
+> 			wait_for_completion_timeout(&dm_device.ol_waitevent,
+> 						    5*HZ);
+>
+
+See 
+
+ dm_device.ha_waiting = !memhp_auto_online;
+
+30 lines above. The workaround is still there for udev case and it is
+still equaly bad.
+
+>> the completion was done by observing for the MEM_ONLINE event. This, of
+>> course, was slowing things down significantly and waiting for a
+>> userspace action in kernel is not a nice thing to have (not speaking
+>> about all other memory adding methods which had the same issue). Just
+>> removing this wait was leading us to the same OOM as the hypervisor was
+>> adding more and more memory and eventually even add_memory() was
+>> failing, udev and other processes were killed,...
+>
+> Yes, I agree that waiting on a user action from the kernel is very far
+> from ideal.
+>
+>> With the feature in place we have new memory available right after we do
+>> add_memory(), everything is serialized.
+>
+> What prevented you from onlining the memory explicitly from
+> hv_mem_hot_add path? Why do you need a user visible policy for that at
+> all? You could also add a parameter to add_memory that would do the same
+> thing. Or am I missing something?
+
+We have different mechanisms for adding memory, I'm aware of at least 3:
+ACPI, Xen, Hyper-V. The issue I'm addressing is general enough, I'm
+pretty sure I can reproduce the issue on Xen, for example - just boot a
+small guest and try adding tons of memory. Why should we have different
+defaults for different technologies? 
+
+And, BTW, the link to the previous discussion:
+https://groups.google.com/forum/#!msg/linux.kernel/AxvyuQjr4GY/TLC-K0sL_NEJ
+
+-- 
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
