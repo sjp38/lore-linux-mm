@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D099544059E
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A746B038A
 	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 16:31:53 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id n73so3503167ion.1
+Received: by mail-pf0-f198.google.com with SMTP id j5so48776294pfb.3
         for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:31:53 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id k21si8970191iok.15.2017.02.24.13.31.52
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id t18si8339664pfj.268.2017.02.24.13.31.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Feb 2017 13:31:53 -0800 (PST)
-Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.20/8.16.0.20) with SMTP id v1OLMA6m031393
+        Fri, 24 Feb 2017 13:31:52 -0800 (PST)
+Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1OLTv2S027952
 	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:31:52 -0800
 Received: from mail.thefacebook.com ([199.201.64.23])
-	by m0001303.ppops.net with ESMTP id 28tuhrg8hw-1
+	by mx0a-00082601.pphosted.com with ESMTP id 28tunc88bb-4
 	(version=TLSv1 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 13:31:52 -0800
 Received: from facebook.com (2401:db00:21:603d:face:0:19:0)	by
- mx-out.facebook.com (10.102.107.99) with ESMTP	id
- a77d3260fad811e684420002c99293a0-df9d4a00 for <linux-mm@kvack.org>;	Fri, 24
+ mx-out.facebook.com (10.222.219.45) with ESMTP	id
+ a7154c9afad811e684a124be05904660-70dfda00 for <linux-mm@kvack.org>;	Fri, 24
  Feb 2017 13:31:51 -0800
 From: Shaohua Li <shli@fb.com>
-Subject: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
-Date: Fri, 24 Feb 2017 13:31:49 -0800
-Message-ID: <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
-In-Reply-To: <cover.1487965799.git.shli@fb.com>
-References: <cover.1487965799.git.shli@fb.com>
+Subject: [PATCH V5 0/6] mm: fix some MADV_FREE issues
+Date: Fri, 24 Feb 2017 13:31:43 -0800
+Message-ID: <cover.1487965799.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -33,88 +31,109 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-show MADV_FREE pages info of each vma in smaps. The interface is for
-diganose or monitoring purpose, userspace could use it to understand
-what happens in the application. Since userspace could dirty MADV_FREE
-pages without notice from kernel, this interface is the only place we
-can get accurate accounting info about MADV_FREE pages.
+Hi,
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Shaohua Li <shli@fb.com>
----
- Documentation/filesystems/proc.txt | 4 ++++
- fs/proc/task_mmu.c                 | 8 +++++++-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+We are trying to use MADV_FREE in jemalloc. Several issues are found. Without
+solving the issues, jemalloc can't use the MADV_FREE feature.
+- Doesn't support system without swap enabled. Because if swap is off, we can't
+  or can't efficiently age anonymous pages. And since MADV_FREE pages are mixed
+  with other anonymous pages, we can't reclaim MADV_FREE pages. In current
+  implementation, MADV_FREE will fallback to MADV_DONTNEED without swap enabled.
+  But in our environment, a lot of machines don't enable swap. This will prevent
+  our setup using MADV_FREE.
+- Increases memory pressure. page reclaim bias file pages reclaim against
+  anonymous pages. This doesn't make sense for MADV_FREE pages, because those
+  pages could be freed easily and refilled with very slight penality. Even page
+  reclaim doesn't bias file pages, there is still an issue, because MADV_FREE
+  pages and other anonymous pages are mixed together. To reclaim a MADV_FREE
+  page, we probably must scan a lot of other anonymous pages, which is
+  inefficient. In our test, we usually see oom with MADV_FREE enabled and nothing
+  without it.
+- Accounting. There are two accounting problems. We don't have a global
+  accounting. If the system is abnormal, we don't know if it's a problem from
+  MADV_FREE side. The other problem is RSS accounting. MADV_FREE pages are
+  accounted as normal anon pages and reclaimed lazily, so application's RSS
+  becomes bigger. This confuses our workloads. We have monitoring daemon running
+  and if it finds applications' RSS becomes abnormal, the daemon will kill the
+  applications even kernel can reclaim the memory easily.
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index c94b467..45853e1 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -412,6 +412,7 @@ Private_Clean:         0 kB
- Private_Dirty:         0 kB
- Referenced:          892 kB
- Anonymous:             0 kB
-+LazyFree:              0 kB
- AnonHugePages:         0 kB
- ShmemPmdMapped:        0 kB
- Shared_Hugetlb:        0 kB
-@@ -441,6 +442,9 @@ accessed.
- "Anonymous" shows the amount of memory that does not belong to any file.  Even
- a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
- and a page is modified, the file page is replaced by a private anonymous copy.
-+"LazyFree" shows the amount of memory which is marked by madvise(MADV_FREE).
-+The memory isn't freed immediately with madvise(). It's freed in memory
-+pressure if the memory is clean.
- "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
- "ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
- huge pages.
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index ee3efb2..8a5ec00 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -440,6 +440,7 @@ struct mem_size_stats {
- 	unsigned long private_dirty;
- 	unsigned long referenced;
- 	unsigned long anonymous;
-+	unsigned long lazyfree;
- 	unsigned long anonymous_thp;
- 	unsigned long shmem_thp;
- 	unsigned long swap;
-@@ -456,8 +457,11 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
- 	int i, nr = compound ? 1 << compound_order(page) : 1;
- 	unsigned long size = nr * PAGE_SIZE;
- 
--	if (PageAnon(page))
-+	if (PageAnon(page)) {
- 		mss->anonymous += size;
-+		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
-+			mss->lazyfree += size;
-+	}
- 
- 	mss->resident += size;
- 	/* Accumulate the size in pages that have been accessed. */
-@@ -770,6 +774,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   "Private_Dirty:  %8lu kB\n"
- 		   "Referenced:     %8lu kB\n"
- 		   "Anonymous:      %8lu kB\n"
-+		   "LazyFree:       %8lu kB\n"
- 		   "AnonHugePages:  %8lu kB\n"
- 		   "ShmemPmdMapped: %8lu kB\n"
- 		   "Shared_Hugetlb: %8lu kB\n"
-@@ -788,6 +793,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   mss.private_dirty >> 10,
- 		   mss.referenced >> 10,
- 		   mss.anonymous >> 10,
-+		   mss.lazyfree >> 10,
- 		   mss.anonymous_thp >> 10,
- 		   mss.shmem_thp >> 10,
- 		   mss.shared_hugetlb >> 10,
+To address the first the two issues, we can either put MADV_FREE pages into a
+separate LRU list (Minchan's previous patches and V1 patches), or put them into
+LRU_INACTIVE_FILE list (suggested by Johannes). The patchset use the second
+idea. The reason is LRU_INACTIVE_FILE list is tiny nowadays and should be full
+of used once file pages. So we can still efficiently reclaim MADV_FREE pages
+there without interference with other anon and active file pages. Putting the
+pages into inactive file list also has an advantage which allows page reclaim
+to prioritize MADV_FREE pages and used once file pages. MADV_FREE pages are put
+into the lru list and clear SwapBacked flag, so PageAnon(page) &&
+!PageSwapBacked(page) will indicate a MADV_FREE pages. These pages will
+directly freed without pageout if they are clean, otherwise normal swap will
+reclaim them.
+
+For the third issue, the previous post adds global accounting and a separate
+RSS count for MADV_FREE pages. The problem is we never get accurate accounting
+for MADV_FREE pages. The pages are mapped to userspace, can be dirtied without
+notice from kernel side. To get accurate accounting, we could write protect the
+page, but then there is extra page fault overhead, which people don't want to
+pay. Jemalloc guys have concerns about the inaccurate accounting, so this post
+drops the accounting patches temporarily. The info exported to /proc/pid/smaps
+for MADV_FREE pages are kept, which is the only place we can get accurate
+accounting right now.
+
+Thanks,
+Shaohua
+
+V4->V5:
+- Fix some minor issues pointed out by Johannes
+- Integrate Johannes's cleanup patch
+- Fix a bug to avoid swapin page is dicarded silently
+
+V3->V4:
+- rebase to latest -mm tree
+- Address several issues pointed out by Johannes and Minchan
+- Dropped vmstat and RSS accounting
+http://marc.info/?l=linux-mm&m=148778961127710&w=2
+
+V2->V3:
+- rebase to latest -mm tree
+- Address severl issues pointed out by Minchan
+- Add more descriptions
+http://marc.info/?l=linux-mm&m=148710098701674&w=2
+
+V1->V2:
+- Put MADV_FREE pages into LRU_INACTIVE_FILE list instead of adding a new lru
+  list, suggested by Johannes
+- Add RSS support
+http://marc.info/?l=linux-mm&m=148616481928054&w=2
+
+Minchan previous patches:
+http://marc.info/?l=linux-mm&m=144800657002763&w=2
+
+----------------------
+Shaohua Li (6):
+  mm: delete unnecessary TTU_* flags
+  mm: don't assume anonymous pages have SwapBacked flag
+  mm: move MADV_FREE pages into LRU_INACTIVE_FILE list
+  mm: reclaim MADV_FREE pages
+  mm: enable MADV_FREE for swapless system
+  proc: show MADV_FREE pages info in smaps
+
+ Documentation/filesystems/proc.txt |  4 +++
+ fs/proc/task_mmu.c                 |  8 +++++-
+ include/linux/rmap.h               | 24 ++++++++----------
+ include/linux/swap.h               |  2 +-
+ include/linux/vm_event_item.h      |  2 +-
+ mm/huge_memory.c                   |  6 ++---
+ mm/khugepaged.c                    |  8 +++---
+ mm/madvise.c                       | 11 ++-------
+ mm/memory-failure.c                |  2 +-
+ mm/migrate.c                       |  3 ++-
+ mm/rmap.c                          | 43 +++++++++++++++-----------------
+ mm/swap.c                          | 50 +++++++++++++++++++++-----------------
+ mm/vmscan.c                        | 45 +++++++++++++++++++---------------
+ mm/vmstat.c                        |  1 +
+ 14 files changed, 107 insertions(+), 102 deletions(-)
+
 -- 
 2.9.3
 
