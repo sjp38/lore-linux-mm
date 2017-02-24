@@ -1,116 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C28F6B0389
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 20:09:58 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id t7so12719314yba.1
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:09:58 -0800 (PST)
-Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
-        by mx.google.com with ESMTPS id l68si1679387ywd.108.2017.02.23.17.09.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Feb 2017 17:09:56 -0800 (PST)
-Subject: Re: [PATCH V3 0/4] Define coherent device memory node
-References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
- <20170215182010.reoahjuei5eaxr5s@suse.de>
- <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
- <20170221111107.GJ15595@dhcp22.suse.cz>
- <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <60b3dd35-a802-ba93-c2c5-d6b2b3dd72ea@huawei.com>
-Date: Fri, 24 Feb 2017 09:06:19 +0800
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 219AA6B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 20:17:09 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 68so11992692pfx.1
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:17:09 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id y22si5777127pli.233.2017.02.23.17.17.07
+        for <linux-mm@kvack.org>;
+        Thu, 23 Feb 2017 17:17:08 -0800 (PST)
+Date: Fri, 24 Feb 2017 10:17:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/3] mm, vmscan: fix zone balance check in
+ prepare_kswapd_sleep
+Message-ID: <20170224011706.GA9818@bbox>
+References: <20170215092247.15989-1-mgorman@techsingularity.net>
+ <20170215092247.15989-2-mgorman@techsingularity.net>
+ <20170222070036.GA17962@bbox>
+ <20170223150534.64fpsvlse33rj2aa@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170223150534.64fpsvlse33rj2aa@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 2017/2/21 21:39, Anshuman Khandual wrote:
-> On 02/21/2017 04:41 PM, Michal Hocko wrote:
->> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
->> [...]
->>> * User space using mbind() to get CDM memory is an additional benefit
->>>   we get by making the CDM plug in as a node and be part of the buddy
->>>   allocator. But the over all idea from the user space point of view
->>>   is that the application can allocate any generic buffer and try to
->>>   use the buffer either from the CPU side or from the device without
->>>   knowing about where the buffer is really mapped physically. That
->>>   gives a seamless and transparent view to the user space where CPU
->>>   compute and possible device based compute can work together. This
->>>   is not possible through a driver allocated buffer.
->>
->> But how are you going to define any policy around that. Who is allowed
-> 
-> The user space VMA can define the policy with a mbind(MPOL_BIND) call
-> with CDM/CDMs in the nodemask.
-> 
->> to allocate and how much of this "special memory". Is it possible that
-> 
-> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
-> the nodemask can allocate from the CDM memory. "How much" gets controlled
-> by how we fault from CPU and the default behavior of the buddy allocator.
-> 
->> we will eventually need some access control mechanism? If yes then mbind
-> 
-> No access control mechanism is needed. If an application wants to use
-> CDM memory by specifying in the mbind() it can. Nothing prevents it
-> from using the CDM memory.
-> 
->> is really not suitable interface to (ab)use. Also what should happen if
->> the mbind mentions only CDM memory and that is depleted?
-> 
-> IIUC *only CDM* cannot be requested from user space as there are no user
-> visible interface which can translate to __GFP_THISNODE. MPOL_BIND with
-> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
-> have zones of the system including CDM ones. If the resultant CDM zones
-> run out of memory, we fail the allocation request as usual.
-> 
->>
->> Could you also explain why the transparent view is really better than
->> using a device specific mmap (aka CDM awareness)?
-> 
-> Okay with a transparent view, we can achieve a control flow of application
-> like the following.
-> 
-> (1) Allocate a buffer:		alloc_buffer(buf, size)
-> (2) CPU compute on buffer:	cpu_compute(buf, size)
-> (3) Device compute on buffer:	device_compute(buf, size)
-> (4) CPU compute on buffer:	cpu_compute(buf, size)
-> (5) Release the buffer:		release_buffer(buf, size)
-> 
-> With assistance from a device specific driver, the actual page mapping of
-> the buffer can change between system RAM and device memory depending on
-> which side is accessing at a given point. This will be achieved through
-> driver initiated migrations.
-> 
+Hi Mel,
 
-Sorry, I'm a bit confused here.
-What's the difference with the Heterogeneous memory management?
-Which also "allows to use device memory transparently inside any process
-without any modifications to process program code."
+On Thu, Feb 23, 2017 at 03:05:34PM +0000, Mel Gorman wrote:
+> On Wed, Feb 22, 2017 at 04:00:36PM +0900, Minchan Kim wrote:
+> > > There are also more allocation stalls. One of the largest impacts was due
+> > > to pages written back from kswapd context rising from 0 pages to 4516642
+> > > pages during the hour the workload ran for. By and large, the patch has very
+> > > bad behaviour but easily missed as the impact on a UMA machine is negligible.
+> > > 
+> > > This patch is included with the data in case a bisection leads to this area.
+> > > This patch is also a pre-requisite for the rest of the series.
+> > > 
+> > > Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
+> > > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> > 
+> > Hmm, I don't understand why we should bind wakeup_kcompactd to kswapd's
+> > short sleep point where every eligible zones are balanced.
+> > What's the correlation between them?
+> > 
+> 
+> If kswapd is ready for a short sleep, eligible zones are balanced for
+> order-0 but not necessarily the originally requested order if kswapd
+> gave up reclaiming as compaction was ready to start. As kswapd is ready
+> to sleep for a short period, it's a suitable time for kcompactd to decide
+> if it should start working or not. There is no need for kswapd to be aware
+> of kcompactd's wakeup criteria.
 
-Thanks,
--Bob
+If all eligible zones are balanced for order-0, I agree it's good timing
+because high-order alloc's ratio would be higher since kcompactd can compact
+eligible zones, not that only classzone.
+However, this patch breaks it as well as long time kswapd behavior which
+continues to balance eligible zones for order-0.
+Is it really okay now?
 
->>  
->>> * The placement of the memory on the buffer can happen on system memory
->>>   when the CPU faults while accessing it. But a driver can manage the
->>>   migration between system RAM and CDM memory once the buffer is being
->>>   used from CPU and the device interchangeably. As you have mentioned
->>>   driver will have more information about where which part of the buffer
->>>   should be placed at any point of time and it can make it happen with
->>>   migration. So both allocation and placement are decided by the driver
->>>   during runtime. CDM provides the framework for this can kind device
->>>   assisted compute and driver managed memory placements.
->>>
->>> * If any application is not using CDM memory for along time placed on
->>>   its buffer and another application is forced to fallback on system
->>>   RAM when it really wanted is CDM, the driver can detect these kind
->>>   of situations through memory access patterns on the device HW and
->>>   take necessary migration decisions.
+> 
+> > Can't we wake up kcompactd once we found a zone has enough free pages
+> > above high watermark like this?
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 26c3b405ef34..f4f0ad0e9ede 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -3346,13 +3346,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
+> >  		 * that pages and compaction may succeed so reset the cache.
+> >  		 */
+> >  		reset_isolation_suitable(pgdat);
+> > -
+> > -		/*
+> > -		 * We have freed the memory, now we should compact it to make
+> > -		 * allocation of the requested order possible.
+> > -		 */
+> > -		wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
+> > -
+> >  		remaining = schedule_timeout(HZ/10);
+> >  
+> >  		/*
+> > @@ -3451,6 +3444,14 @@ static int kswapd(void *p)
+> >  		bool ret;
+> >  
+> >  kswapd_try_sleep:
+> > +		/*
+> > +		 * We have freed the memory, now we should compact it to make
+> > +		 * allocation of the requested order possible.
+> > +		 */
+> > +		if (alloc_order > 0 && zone_balanced(zone, reclaim_order,
+> > +							classzone_idx))
+> > +			wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
+> > +
+> >  		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
+> >  					classzone_idx);
+> 
+> That's functionally very similar to what happens already.  wakeup_kcompactd
+> checks the order and does not wake for order-0. It also makes its own
+> decisions that include zone_balanced on whether it is safe to wakeup.
 
+Agree.
+
+> 
+> I doubt there would be any measurable difference from a patch like this
+> and to my mind at least, it does not improve the readability or flow of
+> the code.
+
+However, my concern is premature kswapd sleep for order-0 which has been
+long time behavior so I hope it should be documented why it's okay now.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
