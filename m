@@ -1,117 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 219AA6B0389
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 20:17:09 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 68so11992692pfx.1
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:17:09 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id y22si5777127pli.233.2017.02.23.17.17.07
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5318C6B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 20:25:20 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f21so14221806pgi.4
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:25:20 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id v75si5799117pfa.126.2017.02.23.17.25.18
         for <linux-mm@kvack.org>;
-        Thu, 23 Feb 2017 17:17:08 -0800 (PST)
-Date: Fri, 24 Feb 2017 10:17:06 +0900
+        Thu, 23 Feb 2017 17:25:19 -0800 (PST)
+Date: Fri, 24 Feb 2017 10:25:16 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/3] mm, vmscan: fix zone balance check in
- prepare_kswapd_sleep
-Message-ID: <20170224011706.GA9818@bbox>
-References: <20170215092247.15989-1-mgorman@techsingularity.net>
- <20170215092247.15989-2-mgorman@techsingularity.net>
- <20170222070036.GA17962@bbox>
- <20170223150534.64fpsvlse33rj2aa@techsingularity.net>
+Subject: Re: [PATCH V4 1/6] mm: delete unnecessary TTU_* flags
+Message-ID: <20170224012516.GB9818@bbox>
+References: <cover.1487788131.git.shli@fb.com>
+ <6e99fbb58c019dac280dde73a96586c0eba880d0.1487788131.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170223150534.64fpsvlse33rj2aa@techsingularity.net>
+In-Reply-To: <6e99fbb58c019dac280dde73a96586c0eba880d0.1487788131.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shantanu Goel <sgoel01@yahoo.com>, Chris Mason <clm@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-Hi Mel,
-
-On Thu, Feb 23, 2017 at 03:05:34PM +0000, Mel Gorman wrote:
-> On Wed, Feb 22, 2017 at 04:00:36PM +0900, Minchan Kim wrote:
-> > > There are also more allocation stalls. One of the largest impacts was due
-> > > to pages written back from kswapd context rising from 0 pages to 4516642
-> > > pages during the hour the workload ran for. By and large, the patch has very
-> > > bad behaviour but easily missed as the impact on a UMA machine is negligible.
-> > > 
-> > > This patch is included with the data in case a bisection leads to this area.
-> > > This patch is also a pre-requisite for the rest of the series.
-> > > 
-> > > Signed-off-by: Shantanu Goel <sgoel01@yahoo.com>
-> > > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > 
-> > Hmm, I don't understand why we should bind wakeup_kcompactd to kswapd's
-> > short sleep point where every eligible zones are balanced.
-> > What's the correlation between them?
-> > 
+On Wed, Feb 22, 2017 at 10:50:39AM -0800, Shaohua Li wrote:
+> Johannes pointed out TTU_LZFREE is unnecessary. It's true because we
+> always have the flag set if we want to do an unmap. For cases we don't
+> do an unmap, the TTU_LZFREE part of code should never run.
 > 
-> If kswapd is ready for a short sleep, eligible zones are balanced for
-> order-0 but not necessarily the originally requested order if kswapd
-> gave up reclaiming as compaction was ready to start. As kswapd is ready
-> to sleep for a short period, it's a suitable time for kcompactd to decide
-> if it should start working or not. There is no need for kswapd to be aware
-> of kcompactd's wakeup criteria.
-
-If all eligible zones are balanced for order-0, I agree it's good timing
-because high-order alloc's ratio would be higher since kcompactd can compact
-eligible zones, not that only classzone.
-However, this patch breaks it as well as long time kswapd behavior which
-continues to balance eligible zones for order-0.
-Is it really okay now?
-
+> Also the TTU_UNMAP is unnecessary. If no other flags set (for
+> example, TTU_MIGRATION), an unmap is implied.
 > 
-> > Can't we wake up kcompactd once we found a zone has enough free pages
-> > above high watermark like this?
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 26c3b405ef34..f4f0ad0e9ede 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -3346,13 +3346,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
-> >  		 * that pages and compaction may succeed so reset the cache.
-> >  		 */
-> >  		reset_isolation_suitable(pgdat);
-> > -
-> > -		/*
-> > -		 * We have freed the memory, now we should compact it to make
-> > -		 * allocation of the requested order possible.
-> > -		 */
-> > -		wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
-> > -
-> >  		remaining = schedule_timeout(HZ/10);
-> >  
-> >  		/*
-> > @@ -3451,6 +3444,14 @@ static int kswapd(void *p)
-> >  		bool ret;
-> >  
-> >  kswapd_try_sleep:
-> > +		/*
-> > +		 * We have freed the memory, now we should compact it to make
-> > +		 * allocation of the requested order possible.
-> > +		 */
-> > +		if (alloc_order > 0 && zone_balanced(zone, reclaim_order,
-> > +							classzone_idx))
-> > +			wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
-> > +
-> >  		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
-> >  					classzone_idx);
-> 
-> That's functionally very similar to what happens already.  wakeup_kcompactd
-> checks the order and does not wake for order-0. It also makes its own
-> decisions that include zone_balanced on whether it is safe to wakeup.
-
-Agree.
-
-> 
-> I doubt there would be any measurable difference from a patch like this
-> and to my mind at least, it does not improve the readability or flow of
-> the code.
-
-However, my concern is premature kswapd sleep for order-0 which has been
-long time behavior so I hope it should be documented why it's okay now.
-
-Thanks.
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Shaohua Li <shli@fb.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
