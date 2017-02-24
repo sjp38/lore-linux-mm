@@ -1,117 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 16C1D6B0387
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 19:19:26 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v77so1650075wmv.5
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 16:19:26 -0800 (PST)
-Received: from mail.free-electrons.com (mail.free-electrons.com. [62.4.15.54])
-        by mx.google.com with ESMTP id v188si100852wmf.44.2017.02.23.16.19.24
-        for <linux-mm@kvack.org>;
-        Thu, 23 Feb 2017 16:19:24 -0800 (PST)
-Date: Thu, 23 Feb 2017 16:19:21 -0800
-From: Maxime Ripard <maxime.ripard@free-electrons.com>
-Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
-Message-ID: <20170224001921.wsis65um3jnhtpil@lukather>
-References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
- <CACvgo51p+aqegjkbF6jGggwr+KXq_71w0VFzJvFAF6_egT1-kA@mail.gmail.com>
- <20170217154419.xr4n2ikp4li3c7co@lukather>
- <CACvgo51vLca_Ji8VQBO5fqCrbhpm_=6mrqx1K-7GddVv5yMKWg@mail.gmail.com>
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C28F6B0389
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2017 20:09:58 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id t7so12719314yba.1
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2017 17:09:58 -0800 (PST)
+Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
+        by mx.google.com with ESMTPS id l68si1679387ywd.108.2017.02.23.17.09.55
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Feb 2017 17:09:56 -0800 (PST)
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170221111107.GJ15595@dhcp22.suse.cz>
+ <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <60b3dd35-a802-ba93-c2c5-d6b2b3dd72ea@huawei.com>
+Date: Fri, 24 Feb 2017 09:06:19 +0800
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="qtgdrqfl5qdnwbjc"
-Content-Disposition: inline
-In-Reply-To: <CACvgo51vLca_Ji8VQBO5fqCrbhpm_=6mrqx1K-7GddVv5yMKWg@mail.gmail.com>
+In-Reply-To: <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Emil Velikov <emil.l.velikov@gmail.com>
-Cc: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>, ML dri-devel <dri-devel@lists.freedesktop.org>, Mark Rutland <mark.rutland@arm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, devicetree <devicetree@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Chen-Yu Tsai <wens@csie.org>, Rob Herring <robh+dt@kernel.org>, LAKML <linux-arm-kernel@lists.infradead.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
+On 2017/2/21 21:39, Anshuman Khandual wrote:
+> On 02/21/2017 04:41 PM, Michal Hocko wrote:
+>> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+>> [...]
+>>> * User space using mbind() to get CDM memory is an additional benefit
+>>>   we get by making the CDM plug in as a node and be part of the buddy
+>>>   allocator. But the over all idea from the user space point of view
+>>>   is that the application can allocate any generic buffer and try to
+>>>   use the buffer either from the CPU side or from the device without
+>>>   knowing about where the buffer is really mapped physically. That
+>>>   gives a seamless and transparent view to the user space where CPU
+>>>   compute and possible device based compute can work together. This
+>>>   is not possible through a driver allocated buffer.
+>>
+>> But how are you going to define any policy around that. Who is allowed
+> 
+> The user space VMA can define the policy with a mbind(MPOL_BIND) call
+> with CDM/CDMs in the nodemask.
+> 
+>> to allocate and how much of this "special memory". Is it possible that
+> 
+> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
+> the nodemask can allocate from the CDM memory. "How much" gets controlled
+> by how we fault from CPU and the default behavior of the buddy allocator.
+> 
+>> we will eventually need some access control mechanism? If yes then mbind
+> 
+> No access control mechanism is needed. If an application wants to use
+> CDM memory by specifying in the mbind() it can. Nothing prevents it
+> from using the CDM memory.
+> 
+>> is really not suitable interface to (ab)use. Also what should happen if
+>> the mbind mentions only CDM memory and that is depleted?
+> 
+> IIUC *only CDM* cannot be requested from user space as there are no user
+> visible interface which can translate to __GFP_THISNODE. MPOL_BIND with
+> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
+> have zones of the system including CDM ones. If the resultant CDM zones
+> run out of memory, we fail the allocation request as usual.
+> 
+>>
+>> Could you also explain why the transparent view is really better than
+>> using a device specific mmap (aka CDM awareness)?
+> 
+> Okay with a transparent view, we can achieve a control flow of application
+> like the following.
+> 
+> (1) Allocate a buffer:		alloc_buffer(buf, size)
+> (2) CPU compute on buffer:	cpu_compute(buf, size)
+> (3) Device compute on buffer:	device_compute(buf, size)
+> (4) CPU compute on buffer:	cpu_compute(buf, size)
+> (5) Release the buffer:		release_buffer(buf, size)
+> 
+> With assistance from a device specific driver, the actual page mapping of
+> the buffer can change between system RAM and device memory depending on
+> which side is accessing at a given point. This will be achieved through
+> driver initiated migrations.
+> 
 
---qtgdrqfl5qdnwbjc
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Sorry, I'm a bit confused here.
+What's the difference with the Heterogeneous memory management?
+Which also "allows to use device memory transparently inside any process
+without any modifications to process program code."
 
-Hi,
+Thanks,
+-Bob
 
-On Fri, Feb 17, 2017 at 08:39:33PM +0000, Emil Velikov wrote:
-> As I feared things have taken a turn for the bitter end :-]
->=20
-> It seems that this is a heated topic, so I'l kindly ask that we try
-> the following:
->=20
->  - For people such as myself/Tobias/others who feel that driver and DT
-> bindings should go hand in hand, prove them wrong.
-> But please, do so by pointing to the documentation (conclusion of a
-> previous discussion). This way you don't have to repeat yourself and
-> get [too] annoyed over silly suggestions.
+>>  
+>>> * The placement of the memory on the buffer can happen on system memory
+>>>   when the CPU faults while accessing it. But a driver can manage the
+>>>   migration between system RAM and CDM memory once the buffer is being
+>>>   used from CPU and the device interchangeably. As you have mentioned
+>>>   driver will have more information about where which part of the buffer
+>>>   should be placed at any point of time and it can make it happen with
+>>>   migration. So both allocation and placement are decided by the driver
+>>>   during runtime. CDM provides the framework for this can kind device
+>>>   assisted compute and driver managed memory placements.
+>>>
+>>> * If any application is not using CDM memory for along time placed on
+>>>   its buffer and another application is forced to fallback on system
+>>>   RAM when it really wanted is CDM, the driver can detect these kind
+>>>   of situations through memory access patterns on the device HW and
+>>>   take necessary migration decisions.
 
-http://lxr.free-electrons.com/source/Documentation/devicetree/usage-model.t=
-xt#L13
-
-"The "Open Firmware Device Tree", or simply Device Tree (DT), is a
-data structure and language for describing hardware. More
-specifically, it is a description of hardware that is readable by an
-operating system so that the operating system doesn't need to hard
-code details of the machine"
-
-http://lxr.free-electrons.com/source/Documentation/devicetree/usage-model.t=
-xt#L79
-
-"What it does do is provide a language for decoupling the hardware
-configuration from the board and device driver support in the Linux
-kernel (or any other operating system for that matter)."
-
-And like I said, we already had bindings for out of tree bindings,
-like this one:
-https://patchwork.kernel.org/patch/9275707/
-
-Which triggered no discussion at the time (but the technical one,
-hence a v2, that should always be done).
-
-> - The series has code changes which [seemingly] cater for out of tree
-> module(s).
-
-That patch was dropped, only DT changes remains now, and do not depend
-of that missing patch anyway.
-
-> Clearly state in the commit message who is the user, why it's save to
-> do so and get an Ack from more prominent [DRM] developers.
-
-DRM is really not important here. We could implement a driver using
-i2c as far as the DT is concerned.
-
-FreeBSD for example uses a different, !DRM framework to support our
-display stack, and still uses the DT.
-
-Maxime
-
---=20
-Maxime Ripard, Free Electrons
-Embedded Linux and Kernel engineering
-http://free-electrons.com
-
---qtgdrqfl5qdnwbjc
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBCAAGBQJYr3wEAAoJEBx+YmzsjxAgEO8P/2RPiI1tCakZ/C8Bv7y6nNkL
-R0cAOiZEI6SJsxwKM9cP0LtC0jaZYTaRKy1SS5VXm9DCtPx00yhABI3FeXlFdwdW
-Vq64affQg5owXUI365hARieEPXSNJMvC+nUYVv42QtKIL4U9+H//7ez4hcLTWb/B
-GhWo369UALIN/dhtrfF+xL3Cf85S9/AMl7ct4oIlnnzbZI9hX+5r4uZ+rBoY0UO0
-mbRemuJ5zny74epRcG1snLVlDl/a+8GTlcnDpY6E6E5Uqx3XpdHYMJxzaGxWYaiR
-72sYAgIN9l2gZ1TIY8+Sv1LLRL365MwF8SJoeOe3r3BcBz+slFoaBqvC2USiZF9E
-x5RgdbUy5DGppXGuo2xSkzR8/nY1uQFZ6xqnV7SILqHY6tD656wgdLb/mLZVQBxM
-UyvfMiPnTqGcvpU0FkebGo8Zw/pUzjAGEtuVqKmYCsaUM9SUCjonPCtD5aAmcBMu
-Ooe+ik2yAHDe0DxUbm7RcxcAD/uO7rAYTc3sDDMJHjctCEaRu2/eU6ZUQsJZG8xv
-CCIWTGAxMefbQDlVorIDsYGIVsHDdRH1xopWTU+PSt7+4GnD+eYjAcBlGk8wSg0V
-krPU+HUTNJp8MphOZpKjATpaaM+HT+sGk+WQOl5NgwOAFvKC6AdrQOIl8hJ2pyZN
-eYUVvxLmF2lgIedeU3r5
-=+DZ7
------END PGP SIGNATURE-----
-
---qtgdrqfl5qdnwbjc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
