@@ -1,108 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BC46B0387
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:40:47 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id k202so11232330lfe.7
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 07:40:47 -0800 (PST)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id h198si4439036lfg.132.2017.02.24.07.40.46
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 20C826B0387
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:42:57 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id l22so5499137wmi.2
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 07:42:57 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 8si2904337wmh.1.2017.02.24.07.42.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Feb 2017 07:40:46 -0800 (PST)
-Subject: Re: [PATCH] staging, android: remove lowmemory killer from the tree
-References: <20170222120121.12601-1-mhocko@kernel.org>
- <CANcMJZBNe10dtK8ANtLSWS3UXeePhndN=S5otADhQdfQKOAhOw@mail.gmail.com>
- <CA+_MTtzj9z3JEH528iTjAuNivKo9tNzAx9dwpAJo6U5kgf636g@mail.gmail.com>
- <855e929a-a891-a435-8f75-3674d8a3e96d@sonymobile.com>
- <20170224122830.GG19161@dhcp22.suse.cz>
- <9ffdcc79-12d4-00c5-182c-498b8ca951cc@sonymobile.com>
- <20170224141144.GI19161@dhcp22.suse.cz>
- <3336a503-c73f-9fe4-a17a-36629a54a97b@sonymobile.com>
- <20170224150357.GK19161@dhcp22.suse.cz>
-From: peter enderborg <peter.enderborg@sonymobile.com>
-Message-ID: <51884001-ed1a-e116-8ffc-cd6305316981@sonymobile.com>
-Date: Fri, 24 Feb 2017 16:40:13 +0100
+        Fri, 24 Feb 2017 07:42:55 -0800 (PST)
+Date: Fri, 24 Feb 2017 10:36:55 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V4 4/6] mm: reclaim MADV_FREE pages
+Message-ID: <20170224153655.GA20092@cmpxchg.org>
+References: <cover.1487788131.git.shli@fb.com>
+ <94eccf0fcf927f31377a60d7a9f900b7e743fb06.1487788131.git.shli@fb.com>
+ <20170224021218.GD9818@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20170224150357.GK19161@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170224021218.GD9818@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Martijn Coenen <maco@google.com>, John Stultz <john.stultz@linaro.org>, Greg KH <gregkh@linuxfoundation.org>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Todd Kjos <tkjos@google.com>, Android Kernel Team <kernel-team@android.com>, Rom Lemarchand <romlem@google.com>, Tim Murray <timmurray@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On 02/24/2017 04:03 PM, Michal Hocko wrote:
-> On Fri 24-02-17 15:42:49, peter enderborg wrote:
->> On 02/24/2017 03:11 PM, Michal Hocko wrote:
->>> On Fri 24-02-17 14:16:34, peter enderborg wrote:
->>>> On 02/24/2017 01:28 PM, Michal Hocko wrote:
->>> [...]
->>>>> Yeah, I strongly believe that the chosen approach is completely wrong.
->>>>> Both in abusing the shrinker interface and abusing oom_score_adj as the
->>>>> only criterion for the oom victim selection.
->>>> No one is arguing that shrinker is not problematic. And would be great
->>>> if it is removed from lmk.  The oom_score_adj is the way user-space
->>>> tells the kernel what the user-space has as prio. And android is using
->>>> that very much. It's a core part.
->>> Is there any documentation which describes how this is done?
->>>
->>>> I have never seen it be used on
->>>> other linux system so what is the intended usage of oom_score_adj? Is
->>>> this really abusing?
->>> oom_score_adj is used to _adjust_ the calculated oom score. It is not a
->>> criterion on its own, well, except for the extreme sides of the range
->>> which are defined to enforce resp. disallow selecting the task. The
->>> global oom killer calculates the oom score as a function of the memory
->>> consumption. Your patch simply ignores the memory consumption (and uses
->>> pids to sort tasks with the same oom score which is just mind boggling)
->> How much it uses is of very little importance for android.
-> But it is relevant for the global oom killer which is the main consumer of
-> the oom_score_adj.
->
->> The score
->> used are only for apps and their services. System related are not
->> touched by android lmk. The pid is only to have a unique key to be
->> able to have it fast within a rbtree.  One idea was to use task_pid to
->> get a strict age of process to get a round robin but since it does not
->> matter i skipped that idea since it does not matter.
-> Pid will not tell you anything about the age. Pids do wrap around.
->
->>> and that is what I call the abuse. The oom score calculation might
->>> change in future, of course, but all consumers of the oom_score_adj
->>> really have to agree on the base which is adjusted by this tunable
->>> otherwise you can see a lot of unexpected behavior.
->> Then can we just define a range that is strictly for user-space?
-> This is already well defined. The whole range OOM_SCORE_ADJ_{MIN,MAX}
-> is usable.
-So we use them in userspace and kernel space but where is the abuse then?
->>> I would even argue that nobody outside of mm/oom_kill.c should really
->>> have any business with this tunable.  You can of course tweak the value
->>> from the userspace and help to chose a better oom victim this way but
->>> that is it.
->> Why only help? If userspace can give an exact order to kernel that
->> must be a good thing; other wise kernel have to guess and when
->> can that be better? 
-> Because userspace doesn't know who is the best victim in 99% cases.
-If user-space does not tell kernel what to it have to guess, android
-user-space does, and maybe other should too.
-> Android might be different, although, I am a bit skeptical - especially
-> after hearing quite some complains about random application being
-> killed... If you do believe that you know better then, by all means,
-> implement your custom user space LMK and chose the oom victim on a
-> different basis but try to understand that the global OOM killer is the
-> last resort measure to make the system usable again. There is a good
-> reason why the kernel uses the current badness calculation. The previous
-> implementation which considered the process age ad other things was just
-> too random to have a understandable behavior.
-I think it make sense that there is only one way to describe what is
-important what is not. And oom_kill is the last resort is one problem
-for android. Android lowmemorykiller balance memory usage and
-tries to be more proactive and that is why shrinkers work so well.
-> In any case playing nasty games with the oom killer tunables might and
-> will lead, well, to unexpected behavior.
+On Fri, Feb 24, 2017 at 11:12:18AM +0900, Minchan Kim wrote:
+> > @@ -1525,8 +1531,8 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+> >  
+> >  	if (ret != SWAP_MLOCK && !page_mapcount(page)) {
+> >  		ret = SWAP_SUCCESS;
+> > -		if (rp.lazyfreed && !PageDirty(page))
+> > -			ret = SWAP_LZFREE;
+> > +		if (rp.lazyfreed && PageDirty(page))
+> > +			ret = SWAP_DIRTY;
+> 
+> Hmm, I don't understand why we need to introduce new return value.
+> Can't we set SetPageSwapBacked and return SWAP_FAIL in try_to_unmap_one?
 
-I don't follow. If we only use values  OOM_SCORE_ADJ_{MIN,MAX} can
-we then be "safe"?
+I think that's a bad idea. A function called "try_to_unmap" shouldn't
+have as a side effect that it changes the page's LRU type in an error
+case. Let try_to_unmap be about unmapping the page. If it fails, make
+it report why and let the caller deal with the fallout. Any LRU fixups
+are much better placed in vmscan.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
