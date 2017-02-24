@@ -1,119 +1,353 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE6C6B0387
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 10:52:40 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r141so10161373wmg.4
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 07:52:40 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l200si2883683wmd.149.2017.02.24.07.52.38
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Feb 2017 07:52:39 -0800 (PST)
-Date: Fri, 24 Feb 2017 16:52:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] staging, android: remove lowmemory killer from the tree
-Message-ID: <20170224155236.GM19161@dhcp22.suse.cz>
-References: <20170222120121.12601-1-mhocko@kernel.org>
- <CANcMJZBNe10dtK8ANtLSWS3UXeePhndN=S5otADhQdfQKOAhOw@mail.gmail.com>
- <CA+_MTtzj9z3JEH528iTjAuNivKo9tNzAx9dwpAJo6U5kgf636g@mail.gmail.com>
- <855e929a-a891-a435-8f75-3674d8a3e96d@sonymobile.com>
- <20170224122830.GG19161@dhcp22.suse.cz>
- <9ffdcc79-12d4-00c5-182c-498b8ca951cc@sonymobile.com>
- <20170224141144.GI19161@dhcp22.suse.cz>
- <3336a503-c73f-9fe4-a17a-36629a54a97b@sonymobile.com>
- <20170224150357.GK19161@dhcp22.suse.cz>
- <51884001-ed1a-e116-8ffc-cd6305316981@sonymobile.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51884001-ed1a-e116-8ffc-cd6305316981@sonymobile.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 200736B0387
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 11:05:39 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id o64so36815038pfb.2
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 08:05:39 -0800 (PST)
+Received: from localhost.localdomain ([14.140.2.178])
+        by mx.google.com with ESMTP id e5si7728451pgg.25.2017.02.24.08.05.37
+        for <linux-mm@kvack.org>;
+        Fri, 24 Feb 2017 08:05:37 -0800 (PST)
+From: Mahipal Challa <Mahipal.Challa@cavium.com>
+Subject: [PATCH v2 1/1] mm: zswap - Add crypto acomp/scomp framework support
+Date: Fri, 24 Feb 2017 21:35:13 +0530
+Message-Id: <1487952313-22381-2-git-send-email-Mahipal.Challa@cavium.com>
+In-Reply-To: <1487952313-22381-1-git-send-email-Mahipal.Challa@cavium.com>
+References: <1487952313-22381-1-git-send-email-Mahipal.Challa@cavium.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sonymobile.com>
-Cc: Martijn Coenen <maco@google.com>, John Stultz <john.stultz@linaro.org>, Greg KH <gregkh@linuxfoundation.org>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Todd Kjos <tkjos@google.com>, Android Kernel Team <kernel-team@android.com>, Rom Lemarchand <romlem@google.com>, Tim Murray <timmurray@google.com>
+To: sjenning@redhat.com, ddstreet@ieee.org, linux-mm@kvack.org
+Cc: herbert@gondor.apana.org.au, linux-kernel@vger.kernel.org, pathreya@cavium.com, vnair@cavium.com, Mahipal Challa <Mahipal.Challa@cavium.com>, Vishnu Nair <Vishnu.Nair@cavium.com>
 
-On Fri 24-02-17 16:40:13, peter enderborg wrote:
-> On 02/24/2017 04:03 PM, Michal Hocko wrote:
-> > On Fri 24-02-17 15:42:49, peter enderborg wrote:
-> >> On 02/24/2017 03:11 PM, Michal Hocko wrote:
-> >>> On Fri 24-02-17 14:16:34, peter enderborg wrote:
-> >>>> On 02/24/2017 01:28 PM, Michal Hocko wrote:
-> >>> [...]
-> >>>>> Yeah, I strongly believe that the chosen approach is completely wrong.
-> >>>>> Both in abusing the shrinker interface and abusing oom_score_adj as the
-> >>>>> only criterion for the oom victim selection.
-> >>>> No one is arguing that shrinker is not problematic. And would be great
-> >>>> if it is removed from lmk.  The oom_score_adj is the way user-space
-> >>>> tells the kernel what the user-space has as prio. And android is using
-> >>>> that very much. It's a core part.
-> >>> Is there any documentation which describes how this is done?
-> >>>
-> >>>> I have never seen it be used on
-> >>>> other linux system so what is the intended usage of oom_score_adj? Is
-> >>>> this really abusing?
-> >>> oom_score_adj is used to _adjust_ the calculated oom score. It is not a
-> >>> criterion on its own, well, except for the extreme sides of the range
-> >>> which are defined to enforce resp. disallow selecting the task. The
-> >>> global oom killer calculates the oom score as a function of the memory
-> >>> consumption. Your patch simply ignores the memory consumption (and uses
-> >>> pids to sort tasks with the same oom score which is just mind boggling)
-> >> How much it uses is of very little importance for android.
-> > But it is relevant for the global oom killer which is the main consumer of
-> > the oom_score_adj.
-> >
-> >> The score
-> >> used are only for apps and their services. System related are not
-> >> touched by android lmk. The pid is only to have a unique key to be
-> >> able to have it fast within a rbtree.  One idea was to use task_pid to
-> >> get a strict age of process to get a round robin but since it does not
-> >> matter i skipped that idea since it does not matter.
-> > Pid will not tell you anything about the age. Pids do wrap around.
-> >
-> >>> and that is what I call the abuse. The oom score calculation might
-> >>> change in future, of course, but all consumers of the oom_score_adj
-> >>> really have to agree on the base which is adjusted by this tunable
-> >>> otherwise you can see a lot of unexpected behavior.
-> >> Then can we just define a range that is strictly for user-space?
-> > This is already well defined. The whole range OOM_SCORE_ADJ_{MIN,MAX}
-> > is usable.
->
-> So we use them in userspace and kernel space but where is the abuse then?
+This adds support for kernel's new crypto acomp/scomp framework
+to zswap.
 
-I believe I have already answered that.
+Signed-off-by: Mahipal Challa <Mahipal.Challa@cavium.com>
+Signed-off-by: Vishnu Nair <Vishnu.Nair@cavium.com>
+---
+ mm/zswap.c | 192 +++++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 162 insertions(+), 30 deletions(-)
 
-> >>> I would even argue that nobody outside of mm/oom_kill.c should really
-> >>> have any business with this tunable.  You can of course tweak the value
-> >>> from the userspace and help to chose a better oom victim this way but
-> >>> that is it.
-> >> Why only help? If userspace can give an exact order to kernel that
-> >> must be a good thing; other wise kernel have to guess and when
-> >> can that be better? 
-> > Because userspace doesn't know who is the best victim in 99% cases.
->
-> If user-space does not tell kernel what to it have to guess, android
-> user-space does, and maybe other should too.
-
-I believe they would do if this was so simple. This is not as easy to
-answer as you might think. If you ask, everybody will consider their
-task important enough to be killed.
-
-[...]
-
-> > In any case playing nasty games with the oom killer tunables might and
-> > will lead, well, to unexpected behavior.
-> 
-> I don't follow. If we only use values  OOM_SCORE_ADJ_{MIN,MAX} can
-> we then be "safe"?
-
-I didn't say that. I was just trying to say that you cannot give a
-single knob two different semantics depending on who is using them. That
-simply won't work. So if you believe that your LMK knows better then try
-to use something else for your heuristics.
-
-Anyway, this is still offtopic I believe.
+diff --git a/mm/zswap.c b/mm/zswap.c
+index cabf09e..b29d109 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -33,8 +33,10 @@
+ #include <linux/rbtree.h>
+ #include <linux/swap.h>
+ #include <linux/crypto.h>
++#include <linux/scatterlist.h>
+ #include <linux/mempool.h>
+ #include <linux/zpool.h>
++#include <crypto/acompress.h>
+ 
+ #include <linux/mm_types.h>
+ #include <linux/page-flags.h>
+@@ -118,9 +120,21 @@ static int zswap_compressor_param_set(const char *,
+ * data structures
+ **********************************/
+ 
++/**
++ * struct zswap_acomp_result - Data structure to store result of acomp callback
++ * @completion: zswap will wait for completion on this entry
++ * @err       : return value from acomp algorithm will be stored here
++ */
++struct zswap_acomp_result {
++	struct completion completion;
++	int err;
++};
++
+ struct zswap_pool {
+ 	struct zpool *zpool;
+-	struct crypto_comp * __percpu *tfm;
++	struct crypto_acomp * __percpu *acomp;
++	struct acomp_req * __percpu *acomp_req;
++	struct zswap_acomp_result * __percpu *result;
+ 	struct kref kref;
+ 	struct list_head list;
+ 	struct work_struct work;
+@@ -388,30 +402,66 @@ static int zswap_dstmem_dead(unsigned int cpu)
+ static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_node *node)
+ {
+ 	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
+-	struct crypto_comp *tfm;
++	struct crypto_acomp *acomp;
++	struct acomp_req *acomp_req;
++	struct zswap_acomp_result *result;
+ 
+-	if (WARN_ON(*per_cpu_ptr(pool->tfm, cpu)))
++	if (WARN_ON(*per_cpu_ptr(pool->acomp, cpu)))
+ 		return 0;
++	if (WARN_ON(*per_cpu_ptr(pool->acomp_req, cpu)))
++		return 0;
++	if (WARN_ON(*per_cpu_ptr(pool->result, cpu)))
++		return 0;
++
++	acomp = crypto_alloc_acomp(pool->tfm_name, 0, 0);
++	if (IS_ERR_OR_NULL(acomp)) {
++		pr_err("could not alloc crypto acomp %s : %ld\n",
++		       pool->tfm_name, PTR_ERR(acomp));
++		return -ENOMEM;
++	}
++	*per_cpu_ptr(pool->acomp, cpu) = acomp;
++
++	acomp_req = acomp_request_alloc(acomp);
++	if (IS_ERR_OR_NULL(acomp_req)) {
++		pr_err("could not alloc crypto acomp %s : %ld\n",
++		       pool->tfm_name, PTR_ERR(acomp));
++		return -ENOMEM;
++	}
++	*per_cpu_ptr(pool->acomp_req, cpu) = acomp_req;
+ 
+-	tfm = crypto_alloc_comp(pool->tfm_name, 0, 0);
+-	if (IS_ERR_OR_NULL(tfm)) {
+-		pr_err("could not alloc crypto comp %s : %ld\n",
+-		       pool->tfm_name, PTR_ERR(tfm));
++	result = kzalloc(sizeof(*result), GFP_KERNEL);
++	if (IS_ERR_OR_NULL(result)) {
++		pr_err("Could not initialize completion on result\n");
+ 		return -ENOMEM;
+ 	}
+-	*per_cpu_ptr(pool->tfm, cpu) = tfm;
++	init_completion(&result->completion);
++	*per_cpu_ptr(pool->result, cpu) = result;
++
+ 	return 0;
+ }
+ 
+ static int zswap_cpu_comp_dead(unsigned int cpu, struct hlist_node *node)
+ {
+ 	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
+-	struct crypto_comp *tfm;
++	struct crypto_acomp *acomp;
++	struct acomp_req *acomp_req;
++	struct zswap_acomp_result *result;
++
++	acomp_req = *per_cpu_ptr(pool->acomp_req, cpu);
++	if (!IS_ERR_OR_NULL(acomp_req))
++		acomp_request_free(acomp_req);
++	*per_cpu_ptr(pool->acomp_req, cpu) = NULL;
++
++	acomp = *per_cpu_ptr(pool->acomp, cpu);
++	if (!IS_ERR_OR_NULL(acomp))
++		crypto_free_acomp(acomp);
++	*per_cpu_ptr(pool->acomp, cpu) = NULL;
++
++	result = *per_cpu_ptr(pool->result, cpu);
++	if (!IS_ERR_OR_NULL(result))
++		kfree(result);
++	*per_cpu_ptr(pool->result, cpu) = NULL;
+ 
+-	tfm = *per_cpu_ptr(pool->tfm, cpu);
+-	if (!IS_ERR_OR_NULL(tfm))
+-		crypto_free_comp(tfm);
+-	*per_cpu_ptr(pool->tfm, cpu) = NULL;
+ 	return 0;
+ }
+ 
+@@ -512,8 +562,20 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
+ 	pr_debug("using %s zpool\n", zpool_get_type(pool->zpool));
+ 
+ 	strlcpy(pool->tfm_name, compressor, sizeof(pool->tfm_name));
+-	pool->tfm = alloc_percpu(struct crypto_comp *);
+-	if (!pool->tfm) {
++	pool->acomp = alloc_percpu(struct crypto_acomp *);
++	if (!pool->acomp) {
++		pr_err("percpu alloc failed\n");
++		goto error;
++	}
++
++	pool->acomp_req = alloc_percpu(struct acomp_req *);
++	if (!pool->acomp_req) {
++		pr_err("percpu alloc failed\n");
++		goto error;
++	}
++
++	pool->result = alloc_percpu(struct zswap_acomp_result *);
++	if (!pool->result) {
+ 		pr_err("percpu alloc failed\n");
+ 		goto error;
+ 	}
+@@ -535,7 +597,9 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
+ 	return pool;
+ 
+ error:
+-	free_percpu(pool->tfm);
++	free_percpu(pool->result);
++	free_percpu(pool->acomp_req);
++	free_percpu(pool->acomp);
+ 	if (pool->zpool)
+ 		zpool_destroy_pool(pool->zpool);
+ 	kfree(pool);
+@@ -575,7 +639,9 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
+ 	zswap_pool_debug("destroying", pool);
+ 
+ 	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->node);
+-	free_percpu(pool->tfm);
++	free_percpu(pool->result);
++	free_percpu(pool->acomp_req);
++	free_percpu(pool->acomp);
+ 	zpool_destroy_pool(pool->zpool);
+ 	kfree(pool);
+ }
+@@ -622,6 +688,30 @@ static void zswap_pool_put(struct zswap_pool *pool)
+ }
+ 
+ /*********************************
++* CRYPTO_ACOMPRESS wait and callbacks
++**********************************/
++static void zswap_acomp_callback(struct crypto_async_request *req, int err)
++{
++	struct zswap_acomp_result *res = req->data;
++
++	if (err == -EINPROGRESS)
++		return;
++
++	res->err = err;
++	complete(&res->completion);
++}
++
++static int zswap_wait_acomp(struct zswap_acomp_result *res, int ret)
++{
++	if (ret == -EINPROGRESS || ret == -EBUSY) {
++		wait_for_completion(&res->completion);
++		reinit_completion(&res->completion);
++		ret = res->err;
++	}
++	return ret;
++}
++
++/*********************************
+ * param callbacks
+ **********************************/
+ 
+@@ -788,7 +878,9 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	pgoff_t offset;
+ 	struct zswap_entry *entry;
+ 	struct page *page;
+-	struct crypto_comp *tfm;
++	struct scatterlist input, output;
++	struct acomp_req *req;
++	struct zswap_acomp_result *result;
+ 	u8 *src, *dst;
+ 	unsigned int dlen;
+ 	int ret;
+@@ -828,14 +920,25 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 
+ 	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
+ 		/* decompress */
++		req = *get_cpu_ptr(entry->pool->acomp_req);
+ 		dlen = PAGE_SIZE;
+ 		src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+ 				ZPOOL_MM_RO) + sizeof(struct zswap_header);
+ 		dst = kmap_atomic(page);
+-		tfm = *get_cpu_ptr(entry->pool->tfm);
+-		ret = crypto_comp_decompress(tfm, src, entry->length,
+-					     dst, &dlen);
+-		put_cpu_ptr(entry->pool->tfm);
++
++		result = *get_cpu_ptr(entry->pool->result);
++		sg_init_one(&input, src, entry->length);
++		sg_init_one(&output, dst, dlen);
++		acomp_request_set_params(req, &input, &output, entry->length,
++					 dlen);
++		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
++					   zswap_acomp_callback, result);
++
++		ret = zswap_wait_acomp(result, crypto_acomp_decompress(req));
++
++		dlen = req->dlen;
++		put_cpu_ptr(entry->pool->acomp_req);
++		put_cpu_ptr(entry->pool->result);
+ 		kunmap_atomic(dst);
+ 		zpool_unmap_handle(entry->pool->zpool, entry->handle);
+ 		BUG_ON(ret);
+@@ -911,7 +1014,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ {
+ 	struct zswap_tree *tree = zswap_trees[type];
+ 	struct zswap_entry *entry, *dupentry;
+-	struct crypto_comp *tfm;
++	struct scatterlist input, output;
++	struct acomp_req *req;
++	struct zswap_acomp_result *result;
+ 	int ret;
+ 	unsigned int dlen = PAGE_SIZE, len;
+ 	unsigned long handle;
+@@ -950,12 +1055,24 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	}
+ 
+ 	/* compress */
++	req = *get_cpu_ptr(entry->pool->acomp_req);
++	result = *get_cpu_ptr(entry->pool->result);
++
+ 	dst = get_cpu_var(zswap_dstmem);
+-	tfm = *get_cpu_ptr(entry->pool->tfm);
+ 	src = kmap_atomic(page);
+-	ret = crypto_comp_compress(tfm, src, PAGE_SIZE, dst, &dlen);
++
++	sg_init_one(&input, src, PAGE_SIZE);
++	/* zswap_dstmem is of size (PAGE_SIZE * 2). Reflect same in sg_list */
++	sg_init_one(&output, dst, PAGE_SIZE * 2);
++	acomp_request_set_params(req, &input, &output, PAGE_SIZE, dlen);
++	acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
++				   zswap_acomp_callback, result);
++
++	ret = zswap_wait_acomp(result, crypto_acomp_compress(req));
+ 	kunmap_atomic(src);
+-	put_cpu_ptr(entry->pool->tfm);
++	put_cpu_ptr(entry->pool->acomp_req);
++	put_cpu_ptr(entry->pool->result);
++	dlen = req->dlen;
+ 	if (ret) {
+ 		ret = -EINVAL;
+ 		goto put_dstmem;
+@@ -1023,7 +1140,9 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ {
+ 	struct zswap_tree *tree = zswap_trees[type];
+ 	struct zswap_entry *entry;
+-	struct crypto_comp *tfm;
++	struct scatterlist input, output;
++	struct acomp_req *req;
++	struct zswap_acomp_result *result;
+ 	u8 *src, *dst;
+ 	unsigned int dlen;
+ 	int ret;
+@@ -1039,13 +1158,25 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	spin_unlock(&tree->lock);
+ 
+ 	/* decompress */
++	req = *get_cpu_ptr(entry->pool->acomp_req);
++	result = *get_cpu_ptr(entry->pool->result);
++
+ 	dlen = PAGE_SIZE;
+ 	src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+ 			ZPOOL_MM_RO) + sizeof(struct zswap_header);
+ 	dst = kmap_atomic(page);
+-	tfm = *get_cpu_ptr(entry->pool->tfm);
+-	ret = crypto_comp_decompress(tfm, src, entry->length, dst, &dlen);
+-	put_cpu_ptr(entry->pool->tfm);
++
++	sg_init_one(&input, src, entry->length);
++	sg_init_one(&output, dst, dlen);
++	acomp_request_set_params(req, &input, &output, entry->length, dlen);
++	acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
++				   zswap_acomp_callback, result);
++
++	ret = zswap_wait_acomp(result, crypto_acomp_decompress(req));
++
++	dlen = req->dlen;
++	put_cpu_ptr(entry->pool->acomp_req);
++	put_cpu_ptr(entry->pool->result);
+ 	kunmap_atomic(dst);
+ 	zpool_unmap_handle(entry->pool->zpool, entry->handle);
+ 	BUG_ON(ret);
+@@ -1237,3 +1368,4 @@ static int __init init_zswap(void)
+ MODULE_LICENSE("GPL");
+ MODULE_AUTHOR("Seth Jennings <sjennings@variantweb.net>");
+ MODULE_DESCRIPTION("Compressed cache for swap pages");
++
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
