@@ -1,62 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 83B9B6B0387
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 08:28:19 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id d18so37940446pgh.2
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 05:28:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n11si7377941plg.275.2017.02.24.05.28.18
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 65AD06B0387
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 08:37:18 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id v77so8757869wmv.5
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 05:37:18 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k7si2499495wmk.40.2017.02.24.05.37.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Feb 2017 05:28:18 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1ODPItL119208
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 08:28:18 -0500
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28t0awdfma-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 08:28:17 -0500
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 24 Feb 2017 08:28:16 -0500
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] mm/autonuma: Don't mark pte saved write in case of dirty_accountable.
-Date: Fri, 24 Feb 2017 18:58:04 +0530
-Message-Id: <1487942884-16517-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Feb 2017 05:37:17 -0800 (PST)
+Date: Fri, 24 Feb 2017 14:37:14 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] memory-hotplug: Use dev_online for memhp_auto_offline
+Message-ID: <20170224133714.GH19161@dhcp22.suse.cz>
+References: <20170221172234.8047.33382.stgit@ltcalpine2-lp14.aus.stglabs.ibm.com>
+ <878toy1sgd.fsf@vitty.brq.redhat.com>
+ <20170223125643.GA29064@dhcp22.suse.cz>
+ <87bmttyqxf.fsf@vitty.brq.redhat.com>
+ <20170223150920.GB29056@dhcp22.suse.cz>
+ <877f4gzz4d.fsf@vitty.brq.redhat.com>
+ <20170223161241.GG29056@dhcp22.suse.cz>
+ <8737f4zwx5.fsf@vitty.brq.redhat.com>
+ <20170223174106.GB13822@dhcp22.suse.cz>
+ <87tw7kydto.fsf@vitty.brq.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87tw7kydto.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, linux-mm@kvack.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, mdroth@linux.vnet.ibm.com, kys@microsoft.com
 
-We never request for protection update with ditry_accountable set and prot_numa
-set. Hence mark the pte with mkwrite instead mk_savedwrite.
+On Thu 23-02-17 19:14:27, Vitaly Kuznetsov wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> > On Thu 23-02-17 17:36:38, Vitaly Kuznetsov wrote:
+> >> Michal Hocko <mhocko@kernel.org> writes:
+> > [...]
+> >> > Is a grow from 256M -> 128GB really something that happens in real life?
+> >> > Don't get me wrong but to me this sounds quite exaggerated. Hotmem add
+> >> > which is an operation which has to allocate memory has to scale with the
+> >> > currently available memory IMHO.
+> >> 
+> >> With virtual machines this is very real and not exaggerated at
+> >> all. E.g. Hyper-V host can be tuned to automatically add new memory when
+> >> guest is running out of it. Even 100 blocks can represent an issue.
+> >
+> > Do you have any reference to a bug report. I am really curious because
+> > something really smells wrong and it is not clear that the chosen
+> > solution is really the best one.
+> 
+> Unfortunately I'm not aware of any publicly posted bug reports (CC:
+> K. Y. - he may have a reference) but I think I still remember everything
+> correctly. Not sure how deep you want me to go into details though...
 
-Found this when running stress-ng test with debug check enabled. This trigger
-the VM_BUG_ON in pte_mk_savedwrite()
+As much as possible to understand what was really going on...
 
-Fixes: http://ozlabs.org/~akpm/mmots/broken-out/mm-autonuma-let-architecture-override-how-the-write-bit-should-be-stashed-in-a-protnone-pte.patch
+> Virtual guests under stress were getting into OOM easily and the OOM
+> killer was even killing the udev process trying to online the
+> memory.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- mm/mprotect.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Do you happen to have any OOM report? I am really surprised that udev
+would be an oom victim because that process is really small. Who is
+consuming all the memory then?
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 15f5c174a7c1..bccccc73080d 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -119,7 +119,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 			if (dirty_accountable && pte_dirty(ptent) &&
- 					(pte_soft_dirty(ptent) ||
- 					 !(vma->vm_flags & VM_SOFTDIRTY))) {
--				ptent = pte_mk_savedwrite(ptent);
-+				ptent = pte_mkwrite(ptent);
- 			}
- 			ptep_modify_prot_commit(mm, addr, pte, ptent);
- 			pages++;
+Have you measured how much memory do we need to allocate to add one
+memblock?
+
+> There was a workaround for the issue added to the hyper-v driver
+> doing memory add:
+> 
+> hv_mem_hot_add(...) {
+> ...
+>  add_memory(....);
+>  wait_for_completion_timeout(..., 5*HZ);
+>  ...
+> }
+
+I can still see 
+		/*
+		 * Wait for the memory block to be onlined when memory onlining
+		 * is done outside of kernel (memhp_auto_online). Since the hot
+		 * add has succeeded, it is ok to proceed even if the pages in
+		 * the hot added region have not been "onlined" within the
+		 * allowed time.
+		 */
+		if (dm_device.ha_waiting)
+			wait_for_completion_timeout(&dm_device.ol_waitevent,
+						    5*HZ);
+ 
+> the completion was done by observing for the MEM_ONLINE event. This, of
+> course, was slowing things down significantly and waiting for a
+> userspace action in kernel is not a nice thing to have (not speaking
+> about all other memory adding methods which had the same issue). Just
+> removing this wait was leading us to the same OOM as the hypervisor was
+> adding more and more memory and eventually even add_memory() was
+> failing, udev and other processes were killed,...
+
+Yes, I agree that waiting on a user action from the kernel is very far
+from ideal.
+ 
+> With the feature in place we have new memory available right after we do
+> add_memory(), everything is serialized.
+
+What prevented you from onlining the memory explicitly from
+hv_mem_hot_add path? Why do you need a user visible policy for that at
+all? You could also add a parameter to add_memory that would do the same
+thing. Or am I missing something?
+ 
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
