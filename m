@@ -1,75 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DFBC16B0038
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2017 21:28:47 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id r67so55914738pfr.6
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2017 18:28:47 -0800 (PST)
-Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
-        by mx.google.com with ESMTPS id k184si480623pgd.247.2017.02.24.18.28.46
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A10C26B0038
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 09:42:27 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id v63so90570474pgv.0
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 06:42:27 -0800 (PST)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id 64si10336798plk.173.2017.02.25.06.42.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Feb 2017 18:28:46 -0800 (PST)
-Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
- <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
- <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
-Date: Sat, 25 Feb 2017 10:28:15 +0800
-MIME-Version: 1.0
-In-Reply-To: <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+        Sat, 25 Feb 2017 06:42:26 -0800 (PST)
+Received: from epcas5p1.samsung.com (unknown [182.195.41.39])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OLX01TFQQ6NIT10@mailout2.samsung.com> for linux-mm@kvack.org;
+ Sat, 25 Feb 2017 23:42:23 +0900 (KST)
+MIME-version: 1.0
+Subject: [PATCH] zswap: Zero-filled pages handling
+Reply-to: srividya.dr@samsung.com
+From: Srividya Desireddy <srividya.dr@samsung.com>
+Message-id: <20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p1>
+Date: Sat, 25 Feb 2017 14:42:22 +0000
+Content-type: multipart/related;
+ boundary="----=_Part_104336_1056305183.1488033742030"
+References: 
+ <CGME20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Stancek <jstancek@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "penberg@kernel.org" <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>, Sarbojit Ganguly <ganguly.s@samsung.com>
 
-hi Naoya,
+------=_Part_104336_1056305183.1488033742030
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="utf-8"
 
-On 2017/2/23 11:23, Naoya Horiguchi wrote:
-> On Mon, Feb 20, 2017 at 05:00:17AM +0000, Horiguchi Naoya(堀口 直也) wrote:
->> On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
->>> Hi,
->>>
->>> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
->>> unless I touch/prefault page before call to madvise().
->>>
->>> Is this expected behavior?
->>
->> Thank you for reporting.
->>
->> madvise(MADV_HWPOISON) triggers page fault when called on the address
->> over which no page is faulted-in, so I think that SIGBUS should be
->> called in such case.
->>
->> But it seems that memory error handler considers such a page as "reserved
->> kernel page" and recovery action fails (see below.)
->>
->>   [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcdc569000
->>   [  383.375678] Memory failure: 0x1f10: reserved kernel page still referenced by 1 users
->>   [  383.377570] Memory failure: 0x1f10: recovery action for reserved kernel page: Failed
->>
->> I'm not sure how/when this behavior was introduced, so I try to understand.
-> 
-> I found that this is a zero page, which is not recoverable for memory
-> error now.
-> 
->> IMO, the test code below looks valid to me, so no need to change.
-> 
-> I think that what the testcase effectively does is to test whether memory
-> handling on zero pages works or not.
-> And the testcase's failure seems acceptable, because it's simply not-implemented yet.
-> Maybe recovering from error on zero page is possible (because there's no data
-> loss for memory error,) but I'm not sure that code might be simple enough and/or
-> it's worth doing ...
-I question about it,  if a memory error happened on zero page, it will
-cause all of data read from zero page is error, I mean no-zero, right?
-And can we just use re-initial it with zero data maybe by memset ?
-
-Thanks
-Yisheng Xie.
-
+RnJvbTogU3JpdmlkeWEgRGVzaXJlZGR5IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4NCkRhdGU6
+IFRodSwgMjMgRmViIDIwMTcgMTU6MDQ6MDYgKzA1MzANClN1YmplY3Q6IFtQQVRDSF0genN3YXA6
+IFplcm8tZmlsbGVkIHBhZ2VzIGhhbmRsaW5nDQoNClpzd2FwIGlzIGEgY2FjaGUgd2hpY2ggY29t
+cHJlc3NlcyB0aGUgcGFnZXMgdGhhdCBhcmUgYmVpbmcgc3dhcHBlZCBvdXQNCmFuZCBzdG9yZXMg
+dGhlbSBpbnRvIGEgZHluYW1pY2FsbHkgYWxsb2NhdGVkIFJBTS1iYXNlZCBtZW1vcnkgcG9vbC4N
+CkV4cGVyaW1lbnRzIGhhdmUgc2hvd24gdGhhdCBhcm91bmQgMTAtMjAlIG9mIHBhZ2VzIHN0b3Jl
+ZCBpbiB6c3dhcA0KYXJlIHplcm8tZmlsbGVkIHBhZ2VzIChpLmUuIGNvbnRlbnRzIG9mIHRoZSBw
+YWdlIGFyZSBhbGwgemVyb3MpLCBidXQNCnRoZXNlIHBhZ2VzIGFyZSBoYW5kbGVkIGFzIG5vcm1h
+bCBwYWdlcyBieSBjb21wcmVzc2luZyBhbmQgYWxsb2NhdGluZw0KbWVtb3J5IGluIHRoZSBwb29s
+Lg0KDQpUaGlzIHBhdGNoIGFkZHMgYSBjaGVjayBpbiB6c3dhcF9mcm9udHN3YXBfc3RvcmUoKSB0
+byBpZGVudGlmeSB6ZXJvLWZpbGxlZA0KcGFnZSBiZWZvcmUgY29tcHJlc3Npb24gb2YgdGhlIHBh
+Z2UuIElmIHRoZSBwYWdlIGlzIGEgemVyby1maWxsZWQgcGFnZSwgc2V0DQp6c3dhcF9lbnRyeS56
+ZXJvZmxhZyBhbmQgc2tpcCB0aGUgY29tcHJlc3Npb24gb2YgdGhlIHBhZ2UgYW5kIGFsbG9jdGlv
+bg0Kb2YgbWVtb3J5IGluIHpwb29sLiBJbiB6c3dhcF9mcm9udHN3YXBfbG9hZCgpLCBjaGVjayBp
+ZiB0aGUgemVyb2ZsYWcgaXMNCnNldCBmb3IgdGhlIHBhZ2UgaW4genN3YXBfZW50cnkuIElmIHRo
+ZSBmbGFnIGlzIHNldCwgbWVtc2V0IHRoZSBwYWdlIHdpdGgNCnplcm8uIFRoaXMgc2F2ZXMgdGhl
+IGRlY29tcHJlc3Npb24gdGltZSBkdXJpbmcgbG9hZC4NCg0KVGhlIG92ZXJhbGwgb3ZlcmhlYWQg
+Y2F1c2VkIHRvIGNoZWNrIGZvciBhIHplcm8tZmlsbGVkIHBhZ2UgaXMgdmVyeSBtaW5pbWFsDQp3
+aGVuIGNvbXBhcmVkIHRvIHRoZSB0aW1lIHNhdmVkIGJ5IGF2b2lkaW5nIGNvbXByZXNzaW9uIGFu
+ZCBhbGxvY2F0aW9uIGluDQpjYXNlIG9mIHplcm8tZmlsbGVkIHBhZ2VzLiBBbHRob3VnaCwgY29t
+cHJlc3NlZCBzaXplIG9mIGEgemVyby1maWxsZWQgcGFnZQ0KaXMgdmVyeSBsZXNzLCB3aXRoIHRo
+aXMgcGF0Y2ggbG9hZCB0aW1lIG9mIGEgemVyby1maWxsZWQgcGFnZSBpcyByZWR1Y2VkIGJ5DQo4
+MCUgd2hlbiBjb21wYXJlZCB0byBiYXNlbGluZS4NCg0KU2lnbmVkLW9mZi1ieTogU3JpdmlkeWEg
+RGVzaXJlZGR5IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4NCi0tLQ0KIG1tL3pzd2FwLmMgfCAg
+IDQ4ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKy0tLQ0KIDEg
+ZmlsZSBjaGFuZ2VkLCA0NSBpbnNlcnRpb25zKCspLCAzIGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0t
+Z2l0IGEvbW0venN3YXAuYyBiL21tL3pzd2FwLmMNCmluZGV4IDA2N2EwZDYuLmE1NzQwMDggMTAw
+NjQ0DQotLS0gYS9tbS96c3dhcC5jDQorKysgYi9tbS96c3dhcC5jDQpAQCAtNDksNiArNDksOCBA
+QA0KIHN0YXRpYyB1NjQgenN3YXBfcG9vbF90b3RhbF9zaXplOw0KIC8qIFRoZSBudW1iZXIgb2Yg
+Y29tcHJlc3NlZCBwYWdlcyBjdXJyZW50bHkgc3RvcmVkIGluIHpzd2FwICovDQogc3RhdGljIGF0
+b21pY190IHpzd2FwX3N0b3JlZF9wYWdlcyA9IEFUT01JQ19JTklUKDApOw0KKy8qIFRoZSBudW1i
+ZXIgb2YgemVybyBmaWxsZWQgcGFnZXMgc3dhcHBlZCBvdXQgdG8genN3YXAgKi8NCitzdGF0aWMg
+YXRvbWljX3QgenN3YXBfemVyb19wYWdlcyA9IEFUT01JQ19JTklUKDApOw0KIA0KIC8qDQogICog
+VGhlIHN0YXRpc3RpY3MgYmVsb3cgYXJlIG5vdCBwcm90ZWN0ZWQgZnJvbSBjb25jdXJyZW50IGFj
+Y2VzcyBmb3INCkBAIC0xNDAsNiArMTQyLDggQEAgc3RydWN0IHpzd2FwX3Bvb2wgew0KICAqICAg
+ICAgICAgIGRlY29tcHJlc3Npb24NCiAgKiBwb29sIC0gdGhlIHpzd2FwX3Bvb2wgdGhlIGVudHJ5
+J3MgZGF0YSBpcyBpbg0KICAqIGhhbmRsZSAtIHpwb29sIGFsbG9jYXRpb24gaGFuZGxlIHRoYXQg
+c3RvcmVzIHRoZSBjb21wcmVzc2VkIHBhZ2UgZGF0YQ0KKyAqIHplcm9mbGFnIC0gdGhlIGZsYWcg
+aXMgc2V0IGlmIHRoZSBjb250ZW50IG9mIHRoZSBwYWdlIGlzIGZpbGxlZCB3aXRoDQorICogICAg
+ICAgICAgICB6ZXJvcw0KICAqLw0KIHN0cnVjdCB6c3dhcF9lbnRyeSB7DQogCXN0cnVjdCByYl9u
+b2RlIHJibm9kZTsNCkBAIC0xNDgsNiArMTUyLDcgQEAgc3RydWN0IHpzd2FwX2VudHJ5IHsNCiAJ
+dW5zaWduZWQgaW50IGxlbmd0aDsNCiAJc3RydWN0IHpzd2FwX3Bvb2wgKnBvb2w7DQogCXVuc2ln
+bmVkIGxvbmcgaGFuZGxlOw0KKwl1bnNpZ25lZCBjaGFyIHplcm9mbGFnOw0KIH07DQogDQogc3Ry
+dWN0IHpzd2FwX2hlYWRlciB7DQpAQCAtMjM2LDYgKzI0MSw3IEBAIHN0YXRpYyBzdHJ1Y3QgenN3
+YXBfZW50cnkgKnpzd2FwX2VudHJ5X2NhY2hlX2FsbG9jKGdmcF90IGdmcCkNCiAJaWYgKCFlbnRy
+eSkNCiAJCXJldHVybiBOVUxMOw0KIAllbnRyeS0+cmVmY291bnQgPSAxOw0KKwllbnRyeS0+emVy
+b2ZsYWcgPSAwOw0KIAlSQl9DTEVBUl9OT0RFKCZlbnRyeS0+cmJub2RlKTsNCiAJcmV0dXJuIGVu
+dHJ5Ow0KIH0NCkBAIC0zMDYsOCArMzEyLDEyIEBAIHN0YXRpYyB2b2lkIHpzd2FwX3JiX2VyYXNl
+KHN0cnVjdCByYl9yb290ICpyb290LCBzdHJ1Y3QgenN3YXBfZW50cnkgKmVudHJ5KQ0KICAqLw0K
+IHN0YXRpYyB2b2lkIHpzd2FwX2ZyZWVfZW50cnkoc3RydWN0IHpzd2FwX2VudHJ5ICplbnRyeSkN
+CiB7DQotCXpwb29sX2ZyZWUoZW50cnktPnBvb2wtPnpwb29sLCBlbnRyeS0+aGFuZGxlKTsNCi0J
+enN3YXBfcG9vbF9wdXQoZW50cnktPnBvb2wpOw0KKwlpZiAoZW50cnktPnplcm9mbGFnKQ0KKwkJ
+YXRvbWljX2RlYygmenN3YXBfemVyb19wYWdlcyk7DQorCWVsc2Ugew0KKwkJenBvb2xfZnJlZShl
+bnRyeS0+cG9vbC0+enBvb2wsIGVudHJ5LT5oYW5kbGUpOw0KKwkJenN3YXBfcG9vbF9wdXQoZW50
+cnktPnBvb2wpOw0KKwl9DQogCXpzd2FwX2VudHJ5X2NhY2hlX2ZyZWUoZW50cnkpOw0KIAlhdG9t
+aWNfZGVjKCZ6c3dhcF9zdG9yZWRfcGFnZXMpOw0KIAl6c3dhcF91cGRhdGVfdG90YWxfc2l6ZSgp
+Ow0KQEAgLTg3Nyw2ICs4ODcsMTkgQEAgc3RhdGljIGludCB6c3dhcF9zaHJpbmsodm9pZCkNCiAJ
+cmV0dXJuIHJldDsNCiB9DQogDQorc3RhdGljIGludCB6c3dhcF9pc19wYWdlX3plcm9fZmlsbGVk
+KHZvaWQgKnB0cikNCit7DQorCXVuc2lnbmVkIGludCBwb3M7DQorCXVuc2lnbmVkIGxvbmcgKnBh
+Z2U7DQorDQorCXBhZ2UgPSAodW5zaWduZWQgbG9uZyAqKXB0cjsNCisJZm9yIChwb3MgPSAwOyBw
+b3MgIT0gUEFHRV9TSVpFIC8gc2l6ZW9mKCpwYWdlKTsgcG9zKyspIHsNCisJCWlmIChwYWdlW3Bv
+c10pDQorCQkJcmV0dXJuIDA7DQorCX0NCisJcmV0dXJuIDE7DQorfQ0KKw0KIC8qKioqKioqKioq
+KioqKioqKioqKioqKioqKioqKioqKioNCiAqIGZyb250c3dhcCBob29rcw0KICoqKioqKioqKioq
+KioqKioqKioqKioqKioqKioqKioqKiovDQpAQCAtOTE3LDYgKzk0MCwxNSBAQCBzdGF0aWMgaW50
+IHpzd2FwX2Zyb250c3dhcF9zdG9yZSh1bnNpZ25lZCB0eXBlLCBwZ29mZl90IG9mZnNldCwNCiAJ
+CWdvdG8gcmVqZWN0Ow0KIAl9DQogDQorCXNyYyA9IGttYXBfYXRvbWljKHBhZ2UpOw0KKwlpZiAo
+enN3YXBfaXNfcGFnZV96ZXJvX2ZpbGxlZChzcmMpKSB7DQorCQlrdW5tYXBfYXRvbWljKHNyYyk7
+DQorCQllbnRyeS0+b2Zmc2V0ID0gb2Zmc2V0Ow0KKwkJZW50cnktPnplcm9mbGFnID0gMTsNCisJ
+CWF0b21pY19pbmMoJnpzd2FwX3plcm9fcGFnZXMpOw0KKwkJZ290byBpbnNlcnRfZW50cnk7DQor
+CX0NCisNCiAJLyogaWYgZW50cnkgaXMgc3VjY2Vzc2Z1bGx5IGFkZGVkLCBpdCBrZWVwcyB0aGUg
+cmVmZXJlbmNlICovDQogCWVudHJ5LT5wb29sID0genN3YXBfcG9vbF9jdXJyZW50X2dldCgpOw0K
+IAlpZiAoIWVudHJ5LT5wb29sKSB7DQpAQCAtOTI3LDcgKzk1OSw2IEBAIHN0YXRpYyBpbnQgenN3
+YXBfZnJvbnRzd2FwX3N0b3JlKHVuc2lnbmVkIHR5cGUsIHBnb2ZmX3Qgb2Zmc2V0LA0KIAkvKiBj
+b21wcmVzcyAqLw0KIAlkc3QgPSBnZXRfY3B1X3Zhcih6c3dhcF9kc3RtZW0pOw0KIAl0Zm0gPSAq
+Z2V0X2NwdV9wdHIoZW50cnktPnBvb2wtPnRmbSk7DQotCXNyYyA9IGttYXBfYXRvbWljKHBhZ2Up
+Ow0KIAlyZXQgPSBjcnlwdG9fY29tcF9jb21wcmVzcyh0Zm0sIHNyYywgUEFHRV9TSVpFLCBkc3Qs
+ICZkbGVuKTsNCiAJa3VubWFwX2F0b21pYyhzcmMpOw0KIAlwdXRfY3B1X3B0cihlbnRyeS0+cG9v
+bC0+dGZtKTsNCkBAIC05NjEsNiArOTkyLDcgQEAgc3RhdGljIGludCB6c3dhcF9mcm9udHN3YXBf
+c3RvcmUodW5zaWduZWQgdHlwZSwgcGdvZmZfdCBvZmZzZXQsDQogCWVudHJ5LT5oYW5kbGUgPSBo
+YW5kbGU7DQogCWVudHJ5LT5sZW5ndGggPSBkbGVuOw0KIA0KK2luc2VydF9lbnRyeToNCiAJLyog
+bWFwICovDQogCXNwaW5fbG9jaygmdHJlZS0+bG9jayk7DQogCWRvIHsNCkBAIC0xMDEzLDYgKzEw
+NDUsMTMgQEAgc3RhdGljIGludCB6c3dhcF9mcm9udHN3YXBfbG9hZCh1bnNpZ25lZCB0eXBlLCBw
+Z29mZl90IG9mZnNldCwNCiAJfQ0KIAlzcGluX3VubG9jaygmdHJlZS0+bG9jayk7DQogDQorCWlm
+IChlbnRyeS0+emVyb2ZsYWcpIHsNCisJCWRzdCA9IGttYXBfYXRvbWljKHBhZ2UpOw0KKwkJbWVt
+c2V0KGRzdCwgMCwgUEFHRV9TSVpFKTsNCisJCWt1bm1hcF9hdG9taWMoZHN0KTsNCisJCWdvdG8g
+ZnJlZWVudHJ5Ow0KKwl9DQorDQogCS8qIGRlY29tcHJlc3MgKi8NCiAJZGxlbiA9IFBBR0VfU0la
+RTsNCiAJc3JjID0gKHU4ICopenBvb2xfbWFwX2hhbmRsZShlbnRyeS0+cG9vbC0+enBvb2wsIGVu
+dHJ5LT5oYW5kbGUsDQpAQCAtMTAyNSw2ICsxMDY0LDcgQEAgc3RhdGljIGludCB6c3dhcF9mcm9u
+dHN3YXBfbG9hZCh1bnNpZ25lZCB0eXBlLCBwZ29mZl90IG9mZnNldCwNCiAJenBvb2xfdW5tYXBf
+aGFuZGxlKGVudHJ5LT5wb29sLT56cG9vbCwgZW50cnktPmhhbmRsZSk7DQogCUJVR19PTihyZXQp
+Ow0KIA0KK2ZyZWVlbnRyeToNCiAJc3Bpbl9sb2NrKCZ0cmVlLT5sb2NrKTsNCiAJenN3YXBfZW50
+cnlfcHV0KHRyZWUsIGVudHJ5KTsNCiAJc3Bpbl91bmxvY2soJnRyZWUtPmxvY2spOw0KQEAgLTEx
+MzMsNiArMTE3Myw4IEBAIHN0YXRpYyBpbnQgX19pbml0IHpzd2FwX2RlYnVnZnNfaW5pdCh2b2lk
+KQ0KIAkJCXpzd2FwX2RlYnVnZnNfcm9vdCwgJnpzd2FwX3Bvb2xfdG90YWxfc2l6ZSk7DQogCWRl
+YnVnZnNfY3JlYXRlX2F0b21pY190KCJzdG9yZWRfcGFnZXMiLCBTX0lSVUdPLA0KIAkJCXpzd2Fw
+X2RlYnVnZnNfcm9vdCwgJnpzd2FwX3N0b3JlZF9wYWdlcyk7DQorCWRlYnVnZnNfY3JlYXRlX2F0
+b21pY190KCJ6ZXJvX3BhZ2VzIiwgMDQ0NCwNCisJCQl6c3dhcF9kZWJ1Z2ZzX3Jvb3QsICZ6c3dh
+cF96ZXJvX3BhZ2VzKTsNCiANCiAJcmV0dXJuIDA7DQogfQ0KLS0gDQoxLjcuOS41
+------=_Part_104336_1056305183.1488033742030--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
