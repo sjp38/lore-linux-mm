@@ -1,72 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 50E8F6B0038
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 16:00:13 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f21so103637509pgi.4
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 13:00:13 -0800 (PST)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id m1si10969336pld.241.2017.02.25.13.00.12
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D8D46B0389
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 16:00:27 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id b2so103572885pgc.6
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 13:00:27 -0800 (PST)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id n59si10976776plb.191.2017.02.25.13.00.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Feb 2017 13:00:12 -0800 (PST)
-Received: by mail-pf0-x22c.google.com with SMTP id j5so1448714pfb.2
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 13:00:12 -0800 (PST)
+        Sat, 25 Feb 2017 13:00:26 -0800 (PST)
+Received: by mail-pg0-x234.google.com with SMTP id p5so2667943pga.1
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 13:00:26 -0800 (PST)
 From: Tahsin Erdogan <tahsin@google.com>
-Subject: [PATCH 1/3] percpu: remove unused chunk_alloc parameter from pcpu_get_pages()
-Date: Sat, 25 Feb 2017 12:59:26 -0800
-Message-Id: <20170225205926.23431-1-tahsin@google.com>
+Subject: [PATCH 2/3] percpu: acquire pcpu_lock when updating pcpu_nr_empty_pop_pages
+Date: Sat, 25 Feb 2017 13:00:19 -0800
+Message-Id: <20170225210019.23610-1-tahsin@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tahsin Erdogan <tahsin@google.com>
 
-pcpu_get_pages() doesn't use chunk_alloc parameter, remove it.
+Update to pcpu_nr_empty_pop_pages in pcpu_alloc() is currently done
+without holding pcpu_lock. This can lead to bad updates to the variable.
+Add missing lock calls.
 
-Fixes: fbbb7f4e149f ("percpu: remove the usage of separate populated bitmap in percpu-vm")
+Fixes: b539b87fed37 ("percpu: implmeent pcpu_nr_empty_pop_pages and chunk->nr_populated")
 Signed-off-by: Tahsin Erdogan <tahsin@google.com>
 ---
- mm/percpu-vm.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ mm/percpu.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index 538998a137d2..9ac639499bd1 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -21,7 +21,6 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 0686f566d347..232356a2d914 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1011,8 +1011,11 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 		mutex_unlock(&pcpu_alloc_mutex);
+ 	}
  
- /**
-  * pcpu_get_pages - get temp pages array
-- * @chunk: chunk of interest
-  *
-  * Returns pointer to array of pointers to struct page which can be indexed
-  * with pcpu_page_idx().  Note that there is only one array and accesses
-@@ -30,7 +29,7 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
-  * RETURNS:
-  * Pointer to temp pages array on success.
-  */
--static struct page **pcpu_get_pages(struct pcpu_chunk *chunk_alloc)
-+static struct page **pcpu_get_pages(void)
- {
- 	static struct page **pages;
- 	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
-@@ -275,7 +274,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
- {
- 	struct page **pages;
+-	if (chunk != pcpu_reserved_chunk)
++	if (chunk != pcpu_reserved_chunk) {
++		spin_lock_irqsave(&pcpu_lock, flags);
+ 		pcpu_nr_empty_pop_pages -= occ_pages;
++		spin_unlock_irqrestore(&pcpu_lock, flags);
++	}
  
--	pages = pcpu_get_pages(chunk);
-+	pages = pcpu_get_pages();
- 	if (!pages)
- 		return -ENOMEM;
- 
-@@ -313,7 +312,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 	 * successful population attempt so the temp pages array must
- 	 * be available now.
- 	 */
--	pages = pcpu_get_pages(chunk);
-+	pages = pcpu_get_pages();
- 	BUG_ON(!pages);
- 
- 	/* unmap and free */
+ 	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
+ 		pcpu_schedule_balance_work();
 -- 
 2.11.0.483.g087da7b7c-goog
 
