@@ -1,979 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B32156B038C
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 16:00:50 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id t184so104049781pgt.1
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 13:00:50 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id p91si10998827plb.87.2017.02.25.13.00.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EF74D6B0038
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 18:55:12 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f21so109208741pgi.4
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 15:55:12 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id i9si11247455pli.318.2017.02.25.15.55.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Feb 2017 13:00:48 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id m88so1276940pfi.3
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 13:00:48 -0800 (PST)
-From: Tahsin Erdogan <tahsin@google.com>
-Subject: [PATCH 3/3] percpu: improve allocation success rate for non-GFP_KERNEL callers
-Date: Sat, 25 Feb 2017 13:00:42 -0800
-Message-Id: <20170225210042.23678-1-tahsin@google.com>
+        Sat, 25 Feb 2017 15:55:11 -0800 (PST)
+Date: Sun, 26 Feb 2017 07:54:33 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 3/3] percpu: improve allocation success rate for
+ non-GFP_KERNEL callers
+Message-ID: <201702260741.hC1C7Czl%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="Qxx1br4bt0+wmkIi"
+Content-Disposition: inline
+In-Reply-To: <20170225210042.23678-1-tahsin@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tahsin Erdogan <tahsin@google.com>
+To: Tahsin Erdogan <tahsin@google.com>
+Cc: kbuild-all@01.org, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When pcpu_alloc() is called with gfp != GFP_KERNEL, the likelihood of
-a failure is higher than GFP_KERNEL case. This is mainly because
-pcpu_alloc() relies on previously allocated reserves and does not make
-an effort to add memory to its pools for non-GFP_KERNEL case.
 
-This issue is somewhat mitigated by kicking off a background work when
-a memory allocation failure occurs. But this doesn't really help the
-original victim of allocation failure.
+--Qxx1br4bt0+wmkIi
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-This problem affects blkg_lookup_create() callers on machines with a
-lot of cpus.
+Hi Tahsin,
 
-This patch reduces failure cases by trying to expand the memory pools.
-It passes along gfp flag so it is safe to allocate memory this way.
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.10 next-20170224]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-To make this work, a gfp flag aware vmalloc_gfp() function is added.
-Also, locking around vmap_area_lock has been updated to save/restore
-irq flags. This was needed to avoid a lockdep problem between
-request_queue->queue_lock and vmap_area_lock.
+url:    https://github.com/0day-ci/linux/commits/Tahsin-Erdogan/percpu-remove-unused-chunk_alloc-parameter-from-pcpu_get_pages/20170226-052515
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: sh-rsk7269_defconfig (attached as .config)
+compiler: sh4-linux-gnu-gcc (Debian 6.1.1-9) 6.1.1 20160705
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=sh 
 
-Signed-off-by: Tahsin Erdogan <tahsin@google.com>
+All errors (new ones prefixed by >>):
+
+   mm/built-in.o: In function `pcpu_mem_zalloc':
+>> percpu.c:(.text+0x12670): undefined reference to `vmalloc_gfp'
+
 ---
- include/linux/vmalloc.h |   5 +-
- mm/percpu-km.c          |   8 +--
- mm/percpu-vm.c          | 119 +++++++++++-------------------------
- mm/percpu.c             | 156 ++++++++++++++++++++++++++++--------------------
- mm/vmalloc.c            |  74 ++++++++++++++---------
- 5 files changed, 179 insertions(+), 183 deletions(-)
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index d68edffbf142..8110a0040b9d 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -72,6 +72,7 @@ extern void *vzalloc(unsigned long size);
- extern void *vmalloc_user(unsigned long size);
- extern void *vmalloc_node(unsigned long size, int node);
- extern void *vzalloc_node(unsigned long size, int node);
-+extern void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask);
- extern void *vmalloc_exec(unsigned long size);
- extern void *vmalloc_32(unsigned long size);
- extern void *vmalloc_32_user(unsigned long size);
-@@ -165,14 +166,14 @@ extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
- # ifdef CONFIG_MMU
- struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 				     const size_t *sizes, int nr_vms,
--				     size_t align);
-+				     size_t align, gfp_t gfp_mask);
- 
- void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms);
- # else
- static inline struct vm_struct **
- pcpu_get_vm_areas(const unsigned long *offsets,
- 		const size_t *sizes, int nr_vms,
--		size_t align)
-+		size_t align, gfp_t gfp_mask)
- {
- 	return NULL;
- }
-diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-index d66911ff42d9..599a9ce84544 100644
---- a/mm/percpu-km.c
-+++ b/mm/percpu-km.c
-@@ -34,7 +34,7 @@
- #include <linux/log2.h>
- 
- static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
--			       int page_start, int page_end)
-+			       int page_start, int page_end, gfp_t gfp)
- {
- 	return 0;
- }
-@@ -45,18 +45,18 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 	/* nada */
- }
- 
--static struct pcpu_chunk *pcpu_create_chunk(void)
-+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- {
- 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
- 	struct pcpu_chunk *chunk;
- 	struct page *pages;
- 	int i;
- 
--	chunk = pcpu_alloc_chunk();
-+	chunk = pcpu_alloc_chunk(gfp);
- 	if (!chunk)
- 		return NULL;
- 
--	pages = alloc_pages(GFP_KERNEL, order_base_2(nr_pages));
-+	pages = alloc_pages(gfp, order_base_2(nr_pages));
- 	if (!pages) {
- 		pcpu_free_chunk(chunk);
- 		return NULL;
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index 9ac639499bd1..42348a421ccf 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -20,28 +20,6 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
- }
- 
- /**
-- * pcpu_get_pages - get temp pages array
-- *
-- * Returns pointer to array of pointers to struct page which can be indexed
-- * with pcpu_page_idx().  Note that there is only one array and accesses
-- * should be serialized by pcpu_alloc_mutex.
-- *
-- * RETURNS:
-- * Pointer to temp pages array on success.
-- */
--static struct page **pcpu_get_pages(void)
--{
--	static struct page **pages;
--	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
--
--	lockdep_assert_held(&pcpu_alloc_mutex);
--
--	if (!pages)
--		pages = pcpu_mem_zalloc(pages_size);
--	return pages;
--}
--
--/**
-  * pcpu_free_pages - free pages which were allocated for @chunk
-  * @chunk: chunk pages were allocated for
-  * @pages: array of pages to be freed, indexed by pcpu_page_idx()
-@@ -73,15 +51,16 @@ static void pcpu_free_pages(struct pcpu_chunk *chunk,
-  * @pages: array to put the allocated pages into, indexed by pcpu_page_idx()
-  * @page_start: page index of the first page to be allocated
-  * @page_end: page index of the last page to be allocated + 1
-+ * @gfp: gfp flags
-  *
-  * Allocate pages [@page_start,@page_end) into @pages for all units.
-  * The allocation is for @chunk.  Percpu core doesn't care about the
-  * content of @pages and will pass it verbatim to pcpu_map_pages().
-  */
- static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
--			    struct page **pages, int page_start, int page_end)
-+			    struct page **pages, int page_start, int page_end,
-+			    gfp_t gfp)
- {
--	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
- 	unsigned int cpu, tcpu;
- 	int i;
- 
-@@ -135,38 +114,6 @@ static void __pcpu_unmap_pages(unsigned long addr, int nr_pages)
- }
- 
- /**
-- * pcpu_unmap_pages - unmap pages out of a pcpu_chunk
-- * @chunk: chunk of interest
-- * @pages: pages array which can be used to pass information to free
-- * @page_start: page index of the first page to unmap
-- * @page_end: page index of the last page to unmap + 1
-- *
-- * For each cpu, unmap pages [@page_start,@page_end) out of @chunk.
-- * Corresponding elements in @pages were cleared by the caller and can
-- * be used to carry information to pcpu_free_pages() which will be
-- * called after all unmaps are finished.  The caller should call
-- * proper pre/post flush functions.
-- */
--static void pcpu_unmap_pages(struct pcpu_chunk *chunk,
--			     struct page **pages, int page_start, int page_end)
--{
--	unsigned int cpu;
--	int i;
--
--	for_each_possible_cpu(cpu) {
--		for (i = page_start; i < page_end; i++) {
--			struct page *page;
--
--			page = pcpu_chunk_page(chunk, cpu, i);
--			WARN_ON(!page);
--			pages[pcpu_page_idx(cpu, i)] = page;
--		}
--		__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, page_start),
--				   page_end - page_start);
--	}
--}
--
--/**
-  * pcpu_post_unmap_tlb_flush - flush TLB after unmapping
-  * @chunk: pcpu_chunk the regions to be flushed belong to
-  * @page_start: page index of the first page to be flushed
-@@ -262,32 +209,38 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
-  * @chunk: chunk of interest
-  * @page_start: the start page
-  * @page_end: the end page
-+ * @gfp: gfp flags
-  *
-  * For each cpu, populate and map pages [@page_start,@page_end) into
-  * @chunk.
-- *
-- * CONTEXT:
-- * pcpu_alloc_mutex, does GFP_KERNEL allocation.
-  */
- static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
--			       int page_start, int page_end)
-+			       int page_start, int page_end, gfp_t gfp)
- {
- 	struct page **pages;
-+	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
-+	int ret;
- 
--	pages = pcpu_get_pages();
-+	pages = pcpu_mem_zalloc(pages_size, gfp);
- 	if (!pages)
- 		return -ENOMEM;
- 
--	if (pcpu_alloc_pages(chunk, pages, page_start, page_end))
--		return -ENOMEM;
-+	if (pcpu_alloc_pages(chunk, pages, page_start, page_end,
-+			     gfp | __GFP_HIGHMEM | __GFP_COLD)) {
-+		ret = -ENOMEM;
-+		goto out;
-+	}
- 
- 	if (pcpu_map_pages(chunk, pages, page_start, page_end)) {
- 		pcpu_free_pages(chunk, pages, page_start, page_end);
--		return -ENOMEM;
-+		ret = -ENOMEM;
-+		goto out;
- 	}
- 	pcpu_post_map_flush(chunk, page_start, page_end);
--
--	return 0;
-+	ret = 0;
-+out:
-+	pcpu_mem_free(pages);
-+	return ret;
- }
- 
- /**
-@@ -298,44 +251,40 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
-  *
-  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
-  * from @chunk.
-- *
-- * CONTEXT:
-- * pcpu_alloc_mutex.
-  */
- static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 				  int page_start, int page_end)
- {
--	struct page **pages;
--
--	/*
--	 * If control reaches here, there must have been at least one
--	 * successful population attempt so the temp pages array must
--	 * be available now.
--	 */
--	pages = pcpu_get_pages();
--	BUG_ON(!pages);
-+	unsigned int cpu;
-+	int i;
- 
--	/* unmap and free */
- 	pcpu_pre_unmap_flush(chunk, page_start, page_end);
- 
--	pcpu_unmap_pages(chunk, pages, page_start, page_end);
-+	for_each_possible_cpu(cpu)
-+		for (i = page_start; i < page_end; i++) {
-+			struct page *page;
-+
-+			page = pcpu_chunk_page(chunk, cpu, i);
-+			WARN_ON(!page);
- 
--	/* no need to flush tlb, vmalloc will handle it lazily */
-+			__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, i), 1);
- 
--	pcpu_free_pages(chunk, pages, page_start, page_end);
-+			if (likely(page))
-+				__free_page(page);
-+		}
- }
- 
--static struct pcpu_chunk *pcpu_create_chunk(void)
-+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- {
- 	struct pcpu_chunk *chunk;
- 	struct vm_struct **vms;
- 
--	chunk = pcpu_alloc_chunk();
-+	chunk = pcpu_alloc_chunk(gfp);
- 	if (!chunk)
- 		return NULL;
- 
- 	vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
--				pcpu_nr_groups, pcpu_atom_size);
-+				pcpu_nr_groups, pcpu_atom_size, gfp);
- 	if (!vms) {
- 		pcpu_free_chunk(chunk);
- 		return NULL;
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 232356a2d914..f2cee0ae8688 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -103,6 +103,11 @@
- #define __pcpu_ptr_to_addr(ptr)		(void __force *)(ptr)
- #endif	/* CONFIG_SMP */
- 
-+#define PCPU_BUSY_EXPAND_MAP		1	/* pcpu_alloc() is expanding the
-+						 * the map
-+						 */
-+#define PCPU_BUSY_POPULATE_CHUNK	2	/* chunk is being populated */
-+
- struct pcpu_chunk {
- 	struct list_head	list;		/* linked to pcpu_slot lists */
- 	int			free_size;	/* free bytes in the chunk */
-@@ -118,6 +123,7 @@ struct pcpu_chunk {
- 	int			first_free;	/* no free below this */
- 	bool			immutable;	/* no [de]population allowed */
- 	int			nr_populated;	/* # of populated pages */
-+	int			busy_flags;	/* type of work in progress */
- 	unsigned long		populated[];	/* populated bitmap */
- };
- 
-@@ -162,7 +168,6 @@ static struct pcpu_chunk *pcpu_reserved_chunk;
- static int pcpu_reserved_chunk_limit;
- 
- static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
--static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
- 
- static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
- 
-@@ -282,29 +287,31 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
- 	     (rs) < (re);						    \
- 	     (rs) = (re) + 1, pcpu_next_pop((chunk), &(rs), &(re), (end)))
- 
-+static bool pcpu_has_unpop_pages(struct pcpu_chunk *chunk, int start, int end)
-+{
-+	return find_next_zero_bit(chunk->populated, end, start) < end;
-+}
-+
- /**
-  * pcpu_mem_zalloc - allocate memory
-  * @size: bytes to allocate
-  *
-  * Allocate @size bytes.  If @size is smaller than PAGE_SIZE,
-- * kzalloc() is used; otherwise, vzalloc() is used.  The returned
-+ * kzalloc() is used; otherwise, vmalloc_gfp() is used.  The returned
-  * memory is always zeroed.
-  *
-- * CONTEXT:
-- * Does GFP_KERNEL allocation.
-- *
-  * RETURNS:
-  * Pointer to the allocated area on success, NULL on failure.
-  */
--static void *pcpu_mem_zalloc(size_t size)
-+static void *pcpu_mem_zalloc(size_t size, gfp_t gfp)
- {
- 	if (WARN_ON_ONCE(!slab_is_available()))
- 		return NULL;
- 
- 	if (size <= PAGE_SIZE)
--		return kzalloc(size, GFP_KERNEL);
-+		return kzalloc(size, gfp);
- 	else
--		return vzalloc(size);
-+		return vmalloc_gfp(size, gfp | __GFP_HIGHMEM | __GFP_ZERO);
- }
- 
- /**
-@@ -438,15 +445,14 @@ static int pcpu_need_to_extend(struct pcpu_chunk *chunk, bool is_atomic)
-  * RETURNS:
-  * 0 on success, -errno on failure.
-  */
--static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
-+static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc,
-+				gfp_t gfp)
- {
- 	int *old = NULL, *new = NULL;
- 	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
- 	unsigned long flags;
- 
--	lockdep_assert_held(&pcpu_alloc_mutex);
--
--	new = pcpu_mem_zalloc(new_size);
-+	new = pcpu_mem_zalloc(new_size, gfp);
- 	if (!new)
- 		return -ENOMEM;
- 
-@@ -716,16 +722,16 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
- 	pcpu_chunk_relocate(chunk, oslot);
- }
- 
--static struct pcpu_chunk *pcpu_alloc_chunk(void)
-+static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t gfp)
- {
- 	struct pcpu_chunk *chunk;
- 
--	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size);
-+	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size, gfp);
- 	if (!chunk)
- 		return NULL;
- 
- 	chunk->map = pcpu_mem_zalloc(PCPU_DFL_MAP_ALLOC *
--						sizeof(chunk->map[0]));
-+						sizeof(chunk->map[0]), gfp);
- 	if (!chunk->map) {
- 		pcpu_mem_free(chunk);
- 		return NULL;
-@@ -811,9 +817,10 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
-  * pcpu_addr_to_page		- translate address to physical address
-  * pcpu_verify_alloc_info	- check alloc_info is acceptable during init
-  */
--static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size);
-+static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size,
-+			       gfp_t gfp);
- static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size);
--static struct pcpu_chunk *pcpu_create_chunk(void);
-+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp);
- static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
- static struct page *pcpu_addr_to_page(void *addr);
- static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
-@@ -874,6 +881,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
- 	int occ_pages = 0;
- 	int slot, off, new_alloc, cpu, ret;
-+	int page_start, page_end;
- 	unsigned long flags;
- 	void __percpu *ptr;
- 
-@@ -893,9 +901,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 		return NULL;
- 	}
- 
--	if (!is_atomic)
--		mutex_lock(&pcpu_alloc_mutex);
--
- 	spin_lock_irqsave(&pcpu_lock, flags);
- 
- 	/* serve reserved allocations from the reserved chunk if available */
-@@ -909,8 +914,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 
- 		while ((new_alloc = pcpu_need_to_extend(chunk, is_atomic))) {
- 			spin_unlock_irqrestore(&pcpu_lock, flags);
--			if (is_atomic ||
--			    pcpu_extend_area_map(chunk, new_alloc) < 0) {
-+			if (pcpu_extend_area_map(chunk, new_alloc, gfp) < 0) {
- 				err = "failed to extend area map of reserved chunk";
- 				goto fail;
- 			}
-@@ -933,17 +937,24 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 			if (size > chunk->contig_hint)
- 				continue;
- 
-+			if (chunk->busy_flags & PCPU_BUSY_POPULATE_CHUNK)
-+				continue;
-+
- 			new_alloc = pcpu_need_to_extend(chunk, is_atomic);
- 			if (new_alloc) {
--				if (is_atomic)
--					continue;
-+				chunk->busy_flags |= PCPU_BUSY_EXPAND_MAP;
- 				spin_unlock_irqrestore(&pcpu_lock, flags);
--				if (pcpu_extend_area_map(chunk,
--							 new_alloc) < 0) {
-+
-+				ret = pcpu_extend_area_map(chunk, new_alloc,
-+							   gfp);
-+				spin_lock_irqsave(&pcpu_lock, flags);
-+				chunk->busy_flags &= ~PCPU_BUSY_EXPAND_MAP;
-+				if (ret < 0) {
-+					spin_unlock_irqrestore(&pcpu_lock,
-+							       flags);
- 					err = "failed to extend area map";
- 					goto fail;
- 				}
--				spin_lock_irqsave(&pcpu_lock, flags);
- 				/*
- 				 * pcpu_lock has been dropped, need to
- 				 * restart cpu_slot list walking.
-@@ -953,53 +964,59 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 
- 			off = pcpu_alloc_area(chunk, size, align, is_atomic,
- 					      &occ_pages);
-+			if (off < 0 && is_atomic) {
-+				/* Try non-populated areas. */
-+				off = pcpu_alloc_area(chunk, size, align, false,
-+						      &occ_pages);
-+			}
-+
- 			if (off >= 0)
- 				goto area_found;
- 		}
- 	}
- 
-+	WARN_ON(!list_empty(&pcpu_slot[pcpu_nr_slots - 1]));
-+
- 	spin_unlock_irqrestore(&pcpu_lock, flags);
- 
--	/*
--	 * No space left.  Create a new chunk.  We don't want multiple
--	 * tasks to create chunks simultaneously.  Serialize and create iff
--	 * there's still no empty chunk after grabbing the mutex.
--	 */
--	if (is_atomic)
-+	chunk = pcpu_create_chunk(gfp);
-+	if (!chunk) {
-+		err = "failed to allocate new chunk";
- 		goto fail;
-+	}
- 
--	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
--		chunk = pcpu_create_chunk();
--		if (!chunk) {
--			err = "failed to allocate new chunk";
--			goto fail;
--		}
-+	spin_lock_irqsave(&pcpu_lock, flags);
- 
--		spin_lock_irqsave(&pcpu_lock, flags);
-+	/* Check whether someone else added a chunk while lock was
-+	 * dropped.
-+	 */
-+	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1]))
- 		pcpu_chunk_relocate(chunk, -1);
--	} else {
--		spin_lock_irqsave(&pcpu_lock, flags);
--	}
-+	else
-+		pcpu_destroy_chunk(chunk);
- 
- 	goto restart;
- 
- area_found:
--	spin_unlock_irqrestore(&pcpu_lock, flags);
-+
-+	page_start = PFN_DOWN(off);
-+	page_end = PFN_UP(off + size);
- 
- 	/* populate if not all pages are already there */
--	if (!is_atomic) {
--		int page_start, page_end, rs, re;
-+	if (pcpu_has_unpop_pages(chunk, page_start, page_end)) {
-+		int rs, re;
- 
--		page_start = PFN_DOWN(off);
--		page_end = PFN_UP(off + size);
-+		chunk->busy_flags |= PCPU_BUSY_POPULATE_CHUNK;
-+		spin_unlock_irqrestore(&pcpu_lock, flags);
- 
- 		pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
- 			WARN_ON(chunk->immutable);
- 
--			ret = pcpu_populate_chunk(chunk, rs, re);
-+			ret = pcpu_populate_chunk(chunk, rs, re, gfp);
- 
- 			spin_lock_irqsave(&pcpu_lock, flags);
- 			if (ret) {
-+				chunk->busy_flags &= ~PCPU_BUSY_POPULATE_CHUNK;
- 				pcpu_free_area(chunk, off, &occ_pages);
- 				err = "failed to populate";
- 				goto fail_unlock;
-@@ -1008,18 +1025,18 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 			spin_unlock_irqrestore(&pcpu_lock, flags);
- 		}
- 
--		mutex_unlock(&pcpu_alloc_mutex);
-+		spin_lock_irqsave(&pcpu_lock, flags);
-+		chunk->busy_flags &= ~PCPU_BUSY_POPULATE_CHUNK;
- 	}
- 
--	if (chunk != pcpu_reserved_chunk) {
--		spin_lock_irqsave(&pcpu_lock, flags);
-+	if (chunk != pcpu_reserved_chunk)
- 		pcpu_nr_empty_pop_pages -= occ_pages;
--		spin_unlock_irqrestore(&pcpu_lock, flags);
--	}
- 
- 	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
- 		pcpu_schedule_balance_work();
- 
-+	spin_unlock_irqrestore(&pcpu_lock, flags);
-+
- 	/* clear the areas and return address relative to base address */
- 	for_each_possible_cpu(cpu)
- 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-@@ -1042,8 +1059,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 		/* see the flag handling in pcpu_blance_workfn() */
- 		pcpu_atomic_alloc_failed = true;
- 		pcpu_schedule_balance_work();
--	} else {
--		mutex_unlock(&pcpu_alloc_mutex);
- 	}
- 	return NULL;
- }
-@@ -1118,7 +1133,6 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 	 * There's no reason to keep around multiple unused chunks and VM
- 	 * areas can be scarce.  Destroy all free chunks except for one.
- 	 */
--	mutex_lock(&pcpu_alloc_mutex);
- 	spin_lock_irq(&pcpu_lock);
- 
- 	list_for_each_entry_safe(chunk, next, free_head, list) {
-@@ -1128,6 +1142,10 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 		if (chunk == list_first_entry(free_head, struct pcpu_chunk, list))
- 			continue;
- 
-+		if (chunk->busy_flags & (PCPU_BUSY_POPULATE_CHUNK |
-+					 PCPU_BUSY_EXPAND_MAP))
-+			continue;
-+
- 		list_del_init(&chunk->map_extend_list);
- 		list_move(&chunk->list, &to_free);
- 	}
-@@ -1162,7 +1180,7 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 		spin_unlock_irq(&pcpu_lock);
- 
- 		if (new_alloc)
--			pcpu_extend_area_map(chunk, new_alloc);
-+			pcpu_extend_area_map(chunk, new_alloc, GFP_KERNEL);
- 	} while (chunk);
- 
- 	/*
-@@ -1194,20 +1212,29 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 
- 		spin_lock_irq(&pcpu_lock);
- 		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
-+			if (chunk->busy_flags & PCPU_BUSY_POPULATE_CHUNK)
-+				continue;
- 			nr_unpop = pcpu_unit_pages - chunk->nr_populated;
- 			if (nr_unpop)
- 				break;
- 		}
-+
-+		if (nr_unpop)
-+			chunk->busy_flags |= PCPU_BUSY_POPULATE_CHUNK;
-+
- 		spin_unlock_irq(&pcpu_lock);
- 
- 		if (!nr_unpop)
- 			continue;
- 
--		/* @chunk can't go away while pcpu_alloc_mutex is held */
-+		/* @chunk can't go away because only pcpu_balance_workfn
-+		 * destroys it.
-+		 */
- 		pcpu_for_each_unpop_region(chunk, rs, re, 0, pcpu_unit_pages) {
- 			int nr = min(re - rs, nr_to_pop);
- 
--			ret = pcpu_populate_chunk(chunk, rs, rs + nr);
-+			ret = pcpu_populate_chunk(chunk, rs, rs + nr,
-+						  GFP_KERNEL);
- 			if (!ret) {
- 				nr_to_pop -= nr;
- 				spin_lock_irq(&pcpu_lock);
-@@ -1220,11 +1247,14 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 			if (!nr_to_pop)
- 				break;
- 		}
-+		spin_lock_irq(&pcpu_lock);
-+		chunk->busy_flags &= ~PCPU_BUSY_POPULATE_CHUNK;
-+		spin_unlock_irq(&pcpu_lock);
- 	}
- 
- 	if (nr_to_pop) {
- 		/* ran out of chunks to populate, create a new one and retry */
--		chunk = pcpu_create_chunk();
-+		chunk = pcpu_create_chunk(GFP_KERNEL);
- 		if (chunk) {
- 			spin_lock_irq(&pcpu_lock);
- 			pcpu_chunk_relocate(chunk, -1);
-@@ -1232,8 +1262,6 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 			goto retry_pop;
- 		}
- 	}
--
--	mutex_unlock(&pcpu_alloc_mutex);
- }
- 
- /**
-@@ -2297,7 +2325,7 @@ void __init percpu_init_late(void)
- 
- 		BUILD_BUG_ON(size > PAGE_SIZE);
- 
--		map = pcpu_mem_zalloc(size);
-+		map = pcpu_mem_zalloc(size, GFP_KERNEL);
- 		BUG_ON(!map);
- 
- 		spin_lock_irqsave(&pcpu_lock, flags);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d89034a393f2..01abc9ed5224 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -360,6 +360,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	unsigned long addr;
- 	int purged = 0;
- 	struct vmap_area *first;
-+	unsigned long flags;
- 
- 	BUG_ON(!size);
- 	BUG_ON(offset_in_page(size));
-@@ -379,7 +380,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
- 
- retry:
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	/*
- 	 * Invalidate cache if we have more permissive parameters.
- 	 * cached_hole_size notes the largest hole noticed _below_
-@@ -457,7 +458,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	va->flags = 0;
- 	__insert_vmap_area(va);
- 	free_vmap_cache = &va->rb_node;
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	BUG_ON(!IS_ALIGNED(va->va_start, align));
- 	BUG_ON(va->va_start < vstart);
-@@ -466,7 +467,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	return va;
- 
- overflow:
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 	if (!purged) {
- 		purge_vmap_area_lazy();
- 		purged = 1;
-@@ -541,9 +542,11 @@ static void __free_vmap_area(struct vmap_area *va)
-  */
- static void free_vmap_area(struct vmap_area *va)
- {
--	spin_lock(&vmap_area_lock);
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	__free_vmap_area(va);
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- }
- 
- /*
-@@ -629,6 +632,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 	struct vmap_area *va;
- 	struct vmap_area *n_va;
- 	bool do_free = false;
-+	unsigned long flags;
- 
- 	lockdep_assert_held(&vmap_purge_lock);
- 
-@@ -646,15 +650,17 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 
- 	flush_tlb_kernel_range(start, end);
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
- 		int nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
- 
- 		__free_vmap_area(va);
- 		atomic_sub(nr, &vmap_lazy_nr);
--		cond_resched_lock(&vmap_area_lock);
-+		spin_unlock_irqrestore(&vmap_area_lock, flags);
-+		cond_resched();
-+		spin_lock_irqsave(&vmap_area_lock, flags);
- 	}
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 	return true;
- }
- 
-@@ -713,10 +719,11 @@ static void free_unmap_vmap_area(struct vmap_area *va)
- static struct vmap_area *find_vmap_area(unsigned long addr)
- {
- 	struct vmap_area *va;
-+	unsigned long flags;
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	va = __find_vmap_area(addr);
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	return va;
- }
-@@ -1313,14 +1320,16 @@ EXPORT_SYMBOL_GPL(map_vm_area);
- static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 			      unsigned long flags, const void *caller)
- {
--	spin_lock(&vmap_area_lock);
-+	unsigned long irq_flags;
-+
-+	spin_lock_irqsave(&vmap_area_lock, irq_flags);
- 	vm->flags = flags;
- 	vm->addr = (void *)va->va_start;
- 	vm->size = va->va_end - va->va_start;
- 	vm->caller = caller;
- 	va->vm = vm;
- 	va->flags |= VM_VM_AREA;
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, irq_flags);
- }
- 
- static void clear_vm_uninitialized_flag(struct vm_struct *vm)
-@@ -1443,11 +1452,12 @@ struct vm_struct *remove_vm_area(const void *addr)
- 	va = find_vmap_area((unsigned long)addr);
- 	if (va && va->flags & VM_VM_AREA) {
- 		struct vm_struct *vm = va->vm;
-+		unsigned long flags;
- 
--		spin_lock(&vmap_area_lock);
-+		spin_lock_irqsave(&vmap_area_lock, flags);
- 		va->vm = NULL;
- 		va->flags &= ~VM_VM_AREA;
--		spin_unlock(&vmap_area_lock);
-+		spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 		vmap_debug_free_range(va->va_start, va->va_end);
- 		kasan_free_shadow(vm);
-@@ -1858,6 +1868,11 @@ void *vzalloc_node(unsigned long size, int node)
- }
- EXPORT_SYMBOL(vzalloc_node);
- 
-+void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask)
-+{
-+	return __vmalloc_node_flags(size, NUMA_NO_NODE, gfp_mask);
-+}
-+
- #ifndef PAGE_KERNEL_EXEC
- # define PAGE_KERNEL_EXEC PAGE_KERNEL
- #endif
-@@ -2038,12 +2053,13 @@ long vread(char *buf, char *addr, unsigned long count)
- 	char *vaddr, *buf_start = buf;
- 	unsigned long buflen = count;
- 	unsigned long n;
-+	unsigned long flags;
- 
- 	/* Don't allow overflow */
- 	if ((unsigned long) addr + count < count)
- 		count = -(unsigned long) addr;
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	list_for_each_entry(va, &vmap_area_list, list) {
- 		if (!count)
- 			break;
-@@ -2075,7 +2091,7 @@ long vread(char *buf, char *addr, unsigned long count)
- 		count -= n;
- 	}
- finished:
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	if (buf == buf_start)
- 		return 0;
-@@ -2119,13 +2135,14 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 	char *vaddr;
- 	unsigned long n, buflen;
- 	int copied = 0;
-+	unsigned long flags;
- 
- 	/* Don't allow overflow */
- 	if ((unsigned long) addr + count < count)
- 		count = -(unsigned long) addr;
- 	buflen = count;
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	list_for_each_entry(va, &vmap_area_list, list) {
- 		if (!count)
- 			break;
-@@ -2156,7 +2173,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 		count -= n;
- 	}
- finished:
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 	if (!copied)
- 		return 0;
- 	return buflen;
-@@ -2416,7 +2433,7 @@ static unsigned long pvm_determine_end(struct vmap_area **pnext,
-  */
- struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 				     const size_t *sizes, int nr_vms,
--				     size_t align)
-+				     size_t align, gfp_t gfp_mask)
- {
- 	const unsigned long vmalloc_start = ALIGN(VMALLOC_START, align);
- 	const unsigned long vmalloc_end = VMALLOC_END & ~(align - 1);
-@@ -2425,6 +2442,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 	int area, area2, last_area, term_area;
- 	unsigned long base, start, end, last_end;
- 	bool purged = false;
-+	unsigned long flags;
- 
- 	/* verify parameters and allocate data structures */
- 	BUG_ON(offset_in_page(align) || !is_power_of_2(align));
-@@ -2458,19 +2476,19 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 		return NULL;
- 	}
- 
--	vms = kcalloc(nr_vms, sizeof(vms[0]), GFP_KERNEL);
--	vas = kcalloc(nr_vms, sizeof(vas[0]), GFP_KERNEL);
-+	vms = kcalloc(nr_vms, sizeof(vms[0]), gfp_mask);
-+	vas = kcalloc(nr_vms, sizeof(vas[0]), gfp_mask);
- 	if (!vas || !vms)
- 		goto err_free2;
- 
- 	for (area = 0; area < nr_vms; area++) {
--		vas[area] = kzalloc(sizeof(struct vmap_area), GFP_KERNEL);
--		vms[area] = kzalloc(sizeof(struct vm_struct), GFP_KERNEL);
-+		vas[area] = kzalloc(sizeof(struct vmap_area), gfp_mask);
-+		vms[area] = kzalloc(sizeof(struct vm_struct), gfp_mask);
- 		if (!vas[area] || !vms[area])
- 			goto err_free;
- 	}
- retry:
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 
- 	/* start scanning - we scan from the top, begin with the last area */
- 	area = term_area = last_area;
-@@ -2492,7 +2510,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 		 * comparing.
- 		 */
- 		if (base + last_end < vmalloc_start + last_end) {
--			spin_unlock(&vmap_area_lock);
-+			spin_unlock_irqrestore(&vmap_area_lock, flags);
- 			if (!purged) {
- 				purge_vmap_area_lazy();
- 				purged = true;
-@@ -2547,7 +2565,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 
- 	vmap_area_pcpu_hole = base + offsets[last_area];
- 
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	/* insert all vm's */
- 	for (area = 0; area < nr_vms; area++)
-@@ -2589,7 +2607,7 @@ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
- static void *s_start(struct seq_file *m, loff_t *pos)
- 	__acquires(&vmap_area_lock)
- {
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irq(&vmap_area_lock);
- 	return seq_list_start(&vmap_area_list, *pos);
- }
- 
-@@ -2601,7 +2619,7 @@ static void *s_next(struct seq_file *m, void *p, loff_t *pos)
- static void s_stop(struct seq_file *m, void *p)
- 	__releases(&vmap_area_lock)
- {
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irq(&vmap_area_lock);
- }
- 
- static void show_numa_info(struct seq_file *m, struct vm_struct *v)
--- 
-2.11.0.483.g087da7b7c-goog
+--Qxx1br4bt0+wmkIi
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--Qxx1br4bt0+wmkIi--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
