@@ -1,209 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CE26B0038
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 12:18:11 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id k4so76043786otc.4
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 09:18:11 -0800 (PST)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id s11si4409051otb.118.2017.02.25.09.18.10
+	by kanga.kvack.org (Postfix) with ESMTP id 01F6F6B0038
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 14:03:29 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id 96so79262453ota.7
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 11:03:28 -0800 (PST)
+Received: from mail-ot0-x22d.google.com (mail-ot0-x22d.google.com. [2607:f8b0:4003:c0f::22d])
+        by mx.google.com with ESMTPS id k77si4469020oih.224.2017.02.25.11.03.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Feb 2017 09:18:10 -0800 (PST)
-Received: by mail-oi0-x242.google.com with SMTP id f204so3505549oia.1
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 09:18:10 -0800 (PST)
+        Sat, 25 Feb 2017 11:03:28 -0800 (PST)
+Received: by mail-ot0-x22d.google.com with SMTP id k4so32237295otc.0
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 11:03:28 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p1>
-References: <CGME20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p1>
- <20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p1>
-From: Sarbojit Ganguly <unixman.linuxboy@gmail.com>
-Date: Sat, 25 Feb 2017 22:48:10 +0530
-Message-ID: <CAP2rAF-C1Fti4qZRFgQxnzUucpm+KvrbPY3kEPi9zgyqC_y0DQ@mail.gmail.com>
-Subject: Re: [PATCH] zswap: Zero-filled pages handling
+In-Reply-To: <20170215205826.13356-1-nicstange@gmail.com>
+References: <20170215205826.13356-1-nicstange@gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 25 Feb 2017 11:03:27 -0800
+Message-ID: <CAPcyv4iwhkW+cLbsT1Ns4=DhnfvZvdhbEVmj0zZcS+PRP6GMpA@mail.gmail.com>
+Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64 ("mm: convert
+ kmalloc_section_memmap() to populate_section_memmap()") and Kasan
+ initialization on
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: srividya.dr@samsung.com
-Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "penberg@kernel.org" <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>, Sarbojit Ganguly <ganguly.s@samsung.com>
+To: Nicolai Stange <nicstange@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On 25 February 2017 at 20:12, Srividya Desireddy
-<srividya.dr@samsung.com> wrote:
-> From: Srividya Desireddy <srividya.dr@samsung.com>
-> Date: Thu, 23 Feb 2017 15:04:06 +0530
-> Subject: [PATCH] zswap: Zero-filled pages handling
->
-> Zswap is a cache which compresses the pages that are being swapped out
-> and stores them into a dynamically allocated RAM-based memory pool.
-> Experiments have shown that around 10-20% of pages stored in zswap
-> are zero-filled pages (i.e. contents of the page are all zeros), but
-> these pages are handled as normal pages by compressing and allocating
-> memory in the pool.
->
-> This patch adds a check in zswap_frontswap_store() to identify zero-filled
-> page before compression of the page. If the page is a zero-filled page, set
-> zswap_entry.zeroflag and skip the compression of the page and alloction
-> of memory in zpool. In zswap_frontswap_load(), check if the zeroflag is
-> set for the page in zswap_entry. If the flag is set, memset the page with
-> zero. This saves the decompression time during load.
->
-> The overall overhead caused to check for a zero-filled page is very minimal
-> when compared to the time saved by avoiding compression and allocation in
-> case of zero-filled pages. Although, compressed size of a zero-filled page
-> is very less, with this patch load time of a zero-filled page is reduced by
-> 80% when compared to baseline.
+[ adding kasan folks ]
 
-Is it possible to share the benchmark details?
+On Wed, Feb 15, 2017 at 12:58 PM, Nicolai Stange <nicstange@gmail.com> wrote:
+> Hi Dan,
+>
+> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
+> populate_section_memmap()") seems to cause some issues with respect to
+> Kasan initialization on x86.
+>
+> This is because Kasan's initialization (ab)uses the arch provided
+> vmemmap_populate().
+>
+> The first one is a boot failure, see [1/3]. The commit before the
+> aforementioned one works fine.
+>
+> The second one, i.e. [2/3], is something that hit my eye while browsing
+> the source and I verified that this is indeed an issue by printk'ing and
+> dumping the page tables.
+>
+> The third one are excessive warnings from vmemmap_verify() due to Kasan's
+> NUMA_NO_NODE page populations.
+>
+>
+> I'll be travelling the next two days and certainly not be able to respond
+> or polish these patches any further. Furthermore, the next merge window is
+> close. So please, take these three patches as bug reports only, meant to
+> illustrate the issues. Feel free to use, change and adopt them however
+> you deemed best.
+>
+> That being said,
+> - [2/3] will break arm64 due to the current lack of a pmd_large().
+> - Maybe it's easier and better to restore former behaviour by letting
+>   Kasan's shadow initialization on x86 use vmemmap_populate_hugepages()
+>   directly rather than vmemmap_populate(). This would require x86_64
+>   implying X86_FEATURE_PSE though. I'm not sure whether this holds,
+>   in particular not since the vmemmap_populate() from
+>   arch/x86/mm/init_64.c checks for it.
 
+I think your intuition is correct here, and yes, it is a safe
+assumption that x86_64 implies X86_FEATURE_PSE. The following patch
+works for me. If there's no objections I'll roll it into the series
+and resubmit the sub-section hotplug support after testing on top of
+4.11-rc1.
 
->
-> Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
-> ---
->  mm/zswap.c |   48 +++++++++++++++++++++++++++++++++++++++++++++---
->  1 file changed, 45 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 067a0d6..a574008 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -49,6 +49,8 @@
->  static u64 zswap_pool_total_size;
->  /* The number of compressed pages currently stored in zswap */
->  static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
-> +/* The number of zero filled pages swapped out to zswap */
-> +static atomic_t zswap_zero_pages = ATOMIC_INIT(0);
->
->  /*
->   * The statistics below are not protected from concurrent access for
-> @@ -140,6 +142,8 @@ struct zswap_pool {
->   *          decompression
->   * pool - the zswap_pool the entry's data is in
->   * handle - zpool allocation handle that stores the compressed page data
-> + * zeroflag - the flag is set if the content of the page is filled with
-> + *            zeros
->   */
->  struct zswap_entry {
->         struct rb_node rbnode;
-> @@ -148,6 +152,7 @@ struct zswap_entry {
->         unsigned int length;
->         struct zswap_pool *pool;
->         unsigned long handle;
-> +       unsigned char zeroflag;
->  };
->
->  struct zswap_header {
-> @@ -236,6 +241,7 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
->         if (!entry)
->                 return NULL;
->         entry->refcount = 1;
-> +       entry->zeroflag = 0;
->         RB_CLEAR_NODE(&entry->rbnode);
->         return entry;
->  }
-> @@ -306,8 +312,12 @@ static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
->   */
->  static void zswap_free_entry(struct zswap_entry *entry)
->  {
-> -       zpool_free(entry->pool->zpool, entry->handle);
-> -       zswap_pool_put(entry->pool);
-> +       if (entry->zeroflag)
-> +               atomic_dec(&zswap_zero_pages);
-> +       else {
-> +               zpool_free(entry->pool->zpool, entry->handle);
-> +               zswap_pool_put(entry->pool);
-> +       }
->         zswap_entry_cache_free(entry);
->         atomic_dec(&zswap_stored_pages);
->         zswap_update_total_size();
-> @@ -877,6 +887,19 @@ static int zswap_shrink(void)
->         return ret;
->  }
->
-> +static int zswap_is_page_zero_filled(void *ptr)
-> +{
-> +       unsigned int pos;
-> +       unsigned long *page;
-> +
-> +       page = (unsigned long *)ptr;
-> +       for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
-> +               if (page[pos])
-> +                       return 0;
-> +       }
-> +       return 1;
-> +}
-> +
->  /*********************************
->  * frontswap hooks
->  **********************************/
-> @@ -917,6 +940,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->                 goto reject;
->         }
->
-> +       src = kmap_atomic(page);
-> +       if (zswap_is_page_zero_filled(src)) {
-> +               kunmap_atomic(src);
-> +               entry->offset = offset;
-> +               entry->zeroflag = 1;
-> +               atomic_inc(&zswap_zero_pages);
-> +               goto insert_entry;
-> +       }
-> +
->         /* if entry is successfully added, it keeps the reference */
->         entry->pool = zswap_pool_current_get();
->         if (!entry->pool) {
-> @@ -927,7 +959,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->         /* compress */
->         dst = get_cpu_var(zswap_dstmem);
->         tfm = *get_cpu_ptr(entry->pool->tfm);
-> -       src = kmap_atomic(page);
->         ret = crypto_comp_compress(tfm, src, PAGE_SIZE, dst, &dlen);
->         kunmap_atomic(src);
->         put_cpu_ptr(entry->pool->tfm);
-> @@ -961,6 +992,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->         entry->handle = handle;
->         entry->length = dlen;
->
-> +insert_entry:
->         /* map */
->         spin_lock(&tree->lock);
->         do {
-> @@ -1013,6 +1045,13 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
->         }
->         spin_unlock(&tree->lock);
->
-> +       if (entry->zeroflag) {
-> +               dst = kmap_atomic(page);
-> +               memset(dst, 0, PAGE_SIZE);
-> +               kunmap_atomic(dst);
-> +               goto freeentry;
-> +       }
-> +
->         /* decompress */
->         dlen = PAGE_SIZE;
->         src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
-> @@ -1025,6 +1064,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
->         zpool_unmap_handle(entry->pool->zpool, entry->handle);
->         BUG_ON(ret);
->
-> +freeentry:
->         spin_lock(&tree->lock);
->         zswap_entry_put(tree, entry);
->         spin_unlock(&tree->lock);
-> @@ -1133,6 +1173,8 @@ static int __init zswap_debugfs_init(void)
->                         zswap_debugfs_root, &zswap_pool_total_size);
->         debugfs_create_atomic_t("stored_pages", S_IRUGO,
->                         zswap_debugfs_root, &zswap_stored_pages);
-> +       debugfs_create_atomic_t("zero_pages", 0444,
-> +                       zswap_debugfs_root, &zswap_zero_pages);
->
->         return 0;
->  }
-> --
-> 1.7.9.5
+--- gmail mangled-whitespace patch follows ---
 
+Subject: x86, kasan: clarify kasan's dependency on vmemmap_populate_hugepages()
 
+From: Dan Williams <dan.j.williams@intel.com>
 
--- 
-Regards,
-Sarbojit
+Historically kasan has not been careful about whether vmemmap_populate()
+internally allocates a section worth of memmap even if the parameters
+call for less.  For example, a request to shadow map a single page is
+internally results in mapping the full section (128MB) that contains
+that page. Also, kasan has not been careful to handle cases where this
+section promotion causes overlaps / overrides of previous calls to
+vmemmap_populate().
+
+Before we teach vmemmap_populate() to support sub-section hotplug,
+arrange for kasan to explicitly avoid vmemmap_populate_basepages().
+This should be functionally equivalent to the current state since
+CONFIG_KASAN requires x86_64 (implies PSE) and it does not collide with
+sub-section hotplug support since CONFIG_KASAN disables
+CONFIG_MEMORY_HOTPLUG.
+
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reported-by: Nicolai Stange <nicstange@gmail.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ arch/x86/mm/init_64.c       |    2 +-
+ arch/x86/mm/kasan_init_64.c |   30 ++++++++++++++++++++++++++----
+ include/linux/mm.h          |    2 ++
+ 3 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index af85b686a7b0..32e0befcbfe8 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1157,7 +1157,7 @@ static long __meminitdata addr_start, addr_end;
+ static void __meminitdata *p_start, *p_end;
+ static int __meminitdata node_start;
+
+-static int __meminit vmemmap_populate_hugepages(unsigned long start,
++int __meminit vmemmap_populate_hugepages(unsigned long start,
+  unsigned long end, int node, struct vmem_altmap *altmap)
+ {
+  unsigned long addr;
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 0493c17b8a51..4cfc0fb43af3 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -12,6 +12,25 @@
+ extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+ extern struct range pfn_mapped[E820_X_MAX];
+
++static int __init kasan_vmemmap_populate(unsigned long start,
+unsigned long end)
++{
++ /*
++ * Historically kasan has not been careful about whether
++ * vmemmap_populate() internally allocates a section worth of memmap
++ * even if the parameters call for less.  For example, a request to
++ * shadow map a single page is internally results in mapping the full
++ * section (128MB) that contains that page.  Also, kasan has not been
++ * careful to handle cases where this section promotion causes overlaps
++ * / overrides of previous calls to vmemmap_populate(). Make this
++ * implicit dependency explicit to avoid interactions with sub-section
++ * memory hotplug support.
++ */
++ if (!boot_cpu_has(X86_FEATURE_PSE))
++ return -ENXIO;
++
++ return vmemmap_populate_hugepages(start, end, NUMA_NO_NODE, NULL);
++}
++
+ static int __init map_range(struct range *range)
+ {
+  unsigned long start;
+@@ -25,7 +44,7 @@ static int __init map_range(struct range *range)
+  * to slightly speed up fastpath. In some rare cases we could cross
+  * boundary of mapped shadow, so we just map some more here.
+  */
+- return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
++ return kasan_vmemmap_populate(start, end + 1);
+ }
+
+ static void __init clear_pgds(unsigned long start,
+@@ -89,6 +108,10 @@ void __init kasan_init(void)
+ {
+  int i;
+
++ /* should never trigger, x86_64 implies PSE */
++ WARN(!boot_cpu_has(X86_FEATURE_PSE),
++ "kasan requires page size extensions\n");
++
+ #ifdef CONFIG_KASAN_INLINE
+  register_die_notifier(&kasan_die_notifier);
+ #endif
+@@ -113,9 +136,8 @@ void __init kasan_init(void)
+  kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
+  kasan_mem_to_shadow((void *)__START_KERNEL_map));
+
+- vmemmap_populate((unsigned long)kasan_mem_to_shadow(_stext),
+- (unsigned long)kasan_mem_to_shadow(_end),
+- NUMA_NO_NODE);
++ kasan_vmemmap_populate((unsigned long)kasan_mem_to_shadow(_stext),
++ (unsigned long)kasan_mem_to_shadow(_end));
+
+  kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_END),
+  (void *)KASAN_SHADOW_END);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b84615b0f64c..fb3e84aec5c4 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2331,6 +2331,8 @@ void vmemmap_verify(pte_t *, int, unsigned long,
+unsigned long);
+ int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+        int node);
+ int vmemmap_populate(unsigned long start, unsigned long end, int node);
++int vmemmap_populate_hugepages(unsigned long start, unsigned long
+end, int node,
++ struct vmem_altmap *altmap);
+ void vmemmap_populate_print_last(void);
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ void vmemmap_free(unsigned long start, unsigned long end);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
