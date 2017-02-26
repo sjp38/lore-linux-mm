@@ -1,95 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 126AF6B0038
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 06:42:55 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 1so127103781pgz.5
-        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 03:42:55 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l2si12482163pln.180.2017.02.26.03.42.53
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B556B0038
+	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 07:14:49 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id p36so33862767wrc.7
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 04:14:49 -0800 (PST)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id t19si17630492wrb.187.2017.02.26.04.14.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Feb 2017 03:42:54 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1QBdpNb064689
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 06:42:53 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28u88puemg-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 06:42:53 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sebott@linux.vnet.ibm.com>;
-	Sun, 26 Feb 2017 11:42:50 -0000
-Date: Sun, 26 Feb 2017 12:42:44 +0100 (CET)
-From: Sebastian Ott <sebott@linux.vnet.ibm.com>
-Subject: [PATCH] mm, add_memory_resource: hold device_hotplug lock over
- mem_hotplug_{begin, done}
+        Sun, 26 Feb 2017 04:14:48 -0800 (PST)
+Received: by mail-wr0-x244.google.com with SMTP id q39so7242155wrb.2
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 04:14:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Message-Id: <alpine.LFD.2.20.1702261231580.3067@schleppi.fritz.box>
+In-Reply-To: <20170224001921.wsis65um3jnhtpil@lukather>
+References: <10fd28cb-269a-ec38-ecfb-b7c86be3e716@math.uni-bielefeld.de>
+ <CACvgo51p+aqegjkbF6jGggwr+KXq_71w0VFzJvFAF6_egT1-kA@mail.gmail.com>
+ <20170217154419.xr4n2ikp4li3c7co@lukather> <CACvgo51vLca_Ji8VQBO5fqCrbhpm_=6mrqx1K-7GddVv5yMKWg@mail.gmail.com>
+ <20170224001921.wsis65um3jnhtpil@lukather>
+From: Emil Velikov <emil.l.velikov@gmail.com>
+Date: Sun, 26 Feb 2017 12:14:46 +0000
+Message-ID: <CACvgo51GKYEiXqV4SMFbucmE5SxLwh7Jd_zNMMWvxZwSRP5pWA@mail.gmail.com>
+Subject: Re: [PATCH 0/8] ARM: sun8i: a33: Mali improvements
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Maxime Ripard <maxime.ripard@free-electrons.com>
+Cc: Tobias Jakobi <tjakobi@math.uni-bielefeld.de>, ML dri-devel <dri-devel@lists.freedesktop.org>, Mark Rutland <mark.rutland@arm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, devicetree <devicetree@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Chen-Yu Tsai <wens@csie.org>, Rob Herring <robh+dt@kernel.org>, LAKML <linux-arm-kernel@lists.infradead.org>
 
-With 4.10.0-10265-gc4f3f22 the following warning is triggered on s390:
+Hi Maxime,
 
-WARNING: CPU: 6 PID: 1 at drivers/base/core.c:643 assert_held_device_hotplug+0x4a/0x58
-[    5.731214] Call Trace:
-[    5.731219] ([<000000000067b8b0>] assert_held_device_hotplug+0x40/0x58)
-[    5.731225]  [<0000000000337914>] mem_hotplug_begin+0x34/0xc8
-[    5.731231]  [<00000000008b897e>] add_memory_resource+0x7e/0x1f8
-[    5.731236]  [<00000000008b8bd2>] add_memory+0xda/0x130
-[    5.731243]  [<0000000000d7f0dc>] add_memory_merged+0x15c/0x178
-[    5.731247]  [<0000000000d7f3a6>] sclp_detect_standby_memory+0x2ae/0x2f8
-[    5.731252]  [<00000000001002ba>] do_one_initcall+0xa2/0x150
-[    5.731258]  [<0000000000d3adc0>] kernel_init_freeable+0x228/0x2d8
-[    5.731263]  [<00000000008b6572>] kernel_init+0x2a/0x140
-[    5.731267]  [<00000000008c3972>] kernel_thread_starter+0x6/0xc
-[    5.731272]  [<00000000008c396c>] kernel_thread_starter+0x0/0xc
-[    5.731276] no locks held by swapper/0/1.
-[    5.731280] Last Breaking-Event-Address:
-[    5.731285]  [<000000000067b8b6>] assert_held_device_hotplug+0x46/0x58
-[    5.731292] ---[ end trace 46480df21194c96a ]---
+Thanks for the links.
 
+On 24 February 2017 at 00:19, Maxime Ripard
+<maxime.ripard@free-electrons.com> wrote:
+> Hi,
+>
+> On Fri, Feb 17, 2017 at 08:39:33PM +0000, Emil Velikov wrote:
+>> As I feared things have taken a turn for the bitter end :-]
+>>
+>> It seems that this is a heated topic, so I'l kindly ask that we try
+>> the following:
+>>
+>>  - For people such as myself/Tobias/others who feel that driver and DT
+>> bindings should go hand in hand, prove them wrong.
+>> But please, do so by pointing to the documentation (conclusion of a
+>> previous discussion). This way you don't have to repeat yourself and
+>> get [too] annoyed over silly suggestions.
+>
+> http://lxr.free-electrons.com/source/Documentation/devicetree/usage-model.txt#L13
+>
+> "The "Open Firmware Device Tree", or simply Device Tree (DT), is a
+> data structure and language for describing hardware. More
+> specifically, it is a description of hardware that is readable by an
+> operating system so that the operating system doesn't need to hard
+> code details of the machine"
+>
+> http://lxr.free-electrons.com/source/Documentation/devicetree/usage-model.txt#L79
+>
+> "What it does do is provide a language for decoupling the hardware
+> configuration from the board and device driver support in the Linux
+> kernel (or any other operating system for that matter)."
+>
+The above seems to imply that there is (merged) device driver support
+in the Linux kernel (or other) that uses the bindings.
 
-The following patch fixes that for me:
+It's not my call to make any of the policy, so I'll just kindly
+suggest improving the existing documentation:
+ - Reword/elaborate if out of tree [Linux or in general?] drivers are
+suitable counterpart.
+ - Patches could/should reference the "other OS" driver, or the "other
+OS" name at least ?
 
------>8
-mm, add_memory_resource: hold device_hotplug lock over mem_hotplug_{begin, done}
+Rather than clumping the above in 2.1 a separate section would be better ?
 
-With commit 3fc219241 ("mm: validate device_hotplug is held for memory hotplug")
-a lock assertion was added to mem_hotplug_begin() which led to a warning
-when add_memory() is called. Fix this by acquiring device_hotplug_lock in
-add_memory_resource().
+> And like I said, we already had bindings for out of tree bindings,
+> like this one:
+> https://patchwork.kernel.org/patch/9275707/
+>
+> Which triggered no discussion at the time (but the technical one,
+> hence a v2, that should always be done).
+>
+Needless to say, there's many of us waiting to see a Mali driver land
+- hence the noise. It's not meant to belittle/sway the work you and
+others do.
 
-Signed-off-by: Sebastian Ott <sebott@linux.vnet.ibm.com>
----
- mm/memory_hotplug.c | 2 ++
- 1 file changed, 2 insertions(+)
+>> - The series has code changes which [seemingly] cater for out of tree
+>> module(s).
+>
+> That patch was dropped, only DT changes remains now, and do not depend
+> of that missing patch anyway.
+>
+>> Clearly state in the commit message who is the user, why it's save to
+>> do so and get an Ack from more prominent [DRM] developers.
+>
+> DRM is really not important here. We could implement a driver using
+> i2c as far as the DT is concerned.
+>
+What I meant to say is:
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 1d3ed58..c633bbc 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1361,6 +1361,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 		new_pgdat = !p;
- 	}
- 
-+	lock_device_hotplug();
- 	mem_hotplug_begin();
- 
- 	/*
-@@ -1416,6 +1417,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 
- out:
- 	mem_hotplug_done();
-+	unlock_device_hotplug();
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(add_memory_resource);
--- 
-2.3.0
+Please, provide clear expectations from the start - "Linux driver is
+OOT with no ETA on landing" or "driver for $FOO OS is at $LINK".
+Afaict Hans did the former in the patch mentioned. Perhaps you already
+did - in which case pardon for missing it.
+
+> FreeBSD for example uses a different, !DRM framework to support our
+> display stack, and still uses the DT.
+>
+Interesting - do you have a link handy ? Does it use open-source usespace ?
+
+Thanks
+Emil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
