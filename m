@@ -1,1001 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9866B0038
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2017 23:39:06 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id d18so116891973pgh.2
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 20:39:06 -0800 (PST)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id m8si8397086pln.122.2017.02.25.20.39.04
+	by kanga.kvack.org (Postfix) with ESMTP id A93FD6B0038
+	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 01:33:45 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d18so119732831pgh.2
+        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 22:33:45 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y22si11935336pli.233.2017.02.25.22.33.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Feb 2017 20:39:04 -0800 (PST)
-Received: by mail-pf0-x22a.google.com with SMTP id o64so2587285pfb.0
-        for <linux-mm@kvack.org>; Sat, 25 Feb 2017 20:39:04 -0800 (PST)
-From: Tahsin Erdogan <tahsin@google.com>
-Subject: [PATCH v2 3/3] percpu: improve allocation success rate for non-GFP_KERNEL callers
-Date: Sat, 25 Feb 2017 20:38:29 -0800
-Message-Id: <20170226043829.14270-1-tahsin@google.com>
-In-Reply-To: <201702260805.zhem8KFI%fengguang.wu@intel.com>
-References: <201702260805.zhem8KFI%fengguang.wu@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 25 Feb 2017 22:33:44 -0800 (PST)
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages per zone
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170221094034.GF15595@dhcp22.suse.cz>
+	<201702212335.DJB30777.JOFMHSFtVLQOOF@I-love.SAKURA.ne.jp>
+	<20170221155337.GK15595@dhcp22.suse.cz>
+	<201702221102.EHH69234.OQLOMFSOtJFVHF@I-love.SAKURA.ne.jp>
+	<20170222075450.GA5753@dhcp22.suse.cz>
+In-Reply-To: <20170222075450.GA5753@dhcp22.suse.cz>
+Message-Id: <201702261530.JDD56292.OFOLFHQtVMJSOF@I-love.SAKURA.ne.jp>
+Date: Sun, 26 Feb 2017 15:30:57 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Tahsin Erdogan <tahsin@google.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: david@fromorbit.com, dchinner@redhat.com, hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-When pcpu_alloc() is called with gfp != GFP_KERNEL, the likelihood of
-a failure is higher than GFP_KERNEL case. This is mainly because
-pcpu_alloc() relies on previously allocated reserves and does not make
-an effort to add memory to its pools for non-GFP_KERNEL case.
+Michal Hocko wrote:
+> On Wed 22-02-17 11:02:21, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 21-02-17 23:35:07, Tetsuo Handa wrote:
+> > > > Michal Hocko wrote:
+> > > > > OK, so it seems that all the distractions are handled now and linux-next
+> > > > > should provide a reasonable base for testing. You said you weren't able
+> > > > > to reproduce the original long stalls on too_many_isolated(). I would be
+> > > > > still interested to see those oom reports and potential anomalies in the
+> > > > > isolated counts before I send the patch for inclusion so your further
+> > > > > testing would be more than appreciated. Also stalls > 10s without any
+> > > > > previous occurrences would be interesting.
+> > > > 
+> > > > I confirmed that linux-next-20170221 with kmallocwd applied can reproduce
+> > > > infinite too_many_isolated() loop problem. Please send your patches to linux-next.
+> > > 
+> > > So I assume that you didn't see the lockup with the patch applied and
+> > > the OOM killer has resolved the situation by killing other tasks, right?
+> > > Can I assume your Tested-by?
+> > 
+> > No. I tested linux-next-20170221 which does not include your patch.
+> > I didn't test linux-next-20170221 with your patch applied. Your patch will
+> > avoid infinite too_many_isolated() loop problem in shrink_inactive_list().
+> > But we need to test different workloads by other people. Thus, I suggest
+> > you to send your patches to linux-next without my testing.
+> 
+> I will send the patch to Andrew later after merge window closes. It
+> would be really helpful, though, to see how it handles your workload
+> which is known to reproduce the oom starvation.
 
-This issue is somewhat mitigated by kicking off a background work when
-a memory allocation failure occurs. But this doesn't really help the
-original victim of allocation failure.
+I tested http://lkml.kernel.org/r/20170119112336.GN30786@dhcp22.suse.cz
+on top of linux-next-20170221 with kmallocwd applied.
 
-This problem affects blkg_lookup_create() callers on machines with a
-lot of cpus.
+I did not hit too_many_isolated() loop problem. But I hit an "unable to invoke
+the OOM killer due to !__GFP_FS allocation" lockup problem shown below.
 
-This patch reduces failure cases by trying to expand the memory pools.
-It passes along gfp flag so it is safe to allocate memory this way.
+Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20170226.txt.xz .
+----------
+[  444.281177] Killed process 9477 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  444.287046] oom_reaper: reaped process 9477 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+[  484.810225] BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 stuck for 38s!
+[  484.812907] BUG: workqueue lockup - pool cpus=2 node=0 flags=0x0 nice=0 stuck for 41s!
+[  484.815546] Showing busy workqueues and worker pools:
+[  484.817595] workqueue events: flags=0x0
+[  484.819456]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=3/256
+[  484.821666]     pending: vmpressure_work_fn, vmstat_shepherd, vmw_fb_dirty_flush [vmwgfx]
+[  484.824356]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=2/256
+[  484.826582]     pending: drain_local_pages_wq BAR(9595), e1000_watchdog [e1000]
+[  484.829091]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+[  484.831325]     in-flight: 7418:rht_deferred_worker
+[  484.833336]     pending: rht_deferred_worker
+[  484.835346] workqueue events_long: flags=0x0
+[  484.837343]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
+[  484.839566]     pending: gc_worker [nf_conntrack]
+[  484.841691] workqueue events_power_efficient: flags=0x80
+[  484.843873]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
+[  484.846103]     pending: fb_flashcursor
+[  484.847928]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+[  484.850149]     pending: neigh_periodic_work, neigh_periodic_work
+[  484.852403] workqueue events_freezable_power_: flags=0x84
+[  484.854534]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  484.856666]     in-flight: 27:disk_events_workfn
+[  484.858621] workqueue writeback: flags=0x4e
+[  484.860347]   pwq 256: cpus=0-127 flags=0x4 nice=0 active=2/256
+[  484.862415]     in-flight: 8444:wb_workfn wb_workfn
+[  484.864602] workqueue vmstat: flags=0xc
+[  484.866291]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  484.868307]     pending: vmstat_update
+[  484.869876]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
+[  484.871864]     pending: vmstat_update
+[  484.874058] workqueue mpt_poll_0: flags=0x8
+[  484.875698]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  484.877602]     pending: mpt_fault_reset_work [mptbase]
+[  484.879502] workqueue xfs-buf/sda1: flags=0xc
+[  484.881148]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/1
+[  484.883011]     pending: xfs_buf_ioend_work [xfs]
+[  484.884706] workqueue xfs-data/sda1: flags=0xc
+[  484.886367]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=27/256 MAYDAY
+[  484.888410]     in-flight: 5356:xfs_end_io [xfs], 451(RESCUER):xfs_end_io [xfs] xfs_end_io [xfs] xfs_end_io [xfs] xfs_end_io [xfs] xfs_end_io [xfs], 10498:xfs_end_io [xfs], 6386:xfs_end_io [xfs]
+[  484.893483]     pending: xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs]
+[  484.902636]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=21/256 MAYDAY
+[  484.904848]     in-flight: 535:xfs_end_io [xfs], 7416:xfs_end_io [xfs], 7415:xfs_end_io [xfs], 65:xfs_end_io [xfs]
+[  484.907863]     pending: xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs]
+[  484.916767]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=4/256 MAYDAY
+[  484.919024]     in-flight: 5357:xfs_end_io [xfs], 193:xfs_end_io [xfs], 52:xfs_end_io [xfs], 5358:xfs_end_io [xfs]
+[  484.922143]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=1/256
+[  484.924291]     in-flight: 2486:xfs_end_io [xfs]
+[  484.926248] workqueue xfs-reclaim/sda1: flags=0xc
+[  484.928216]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  484.930362]     pending: xfs_reclaim_worker [xfs]
+[  484.932312] pool 0: cpus=0 node=0 flags=0x0 nice=0 hung=0s workers=3 idle: 3 6387
+[  484.934766] pool 2: cpus=1 node=0 flags=0x0 nice=0 hung=38s workers=6 manager: 19
+[  484.937206] pool 4: cpus=2 node=0 flags=0x0 nice=0 hung=41s workers=6 manager: 157
+[  484.939629] pool 6: cpus=3 node=0 flags=0x0 nice=0 hung=41s workers=4 manager: 10499
+[  484.942303] pool 256: cpus=0-127 flags=0x4 nice=0 hung=38s workers=3 idle: 425 426
+[  518.090012] MemAlloc-Info: stalling=184 dying=1 exiting=0 victim=1 oom_count=8441307
+(...snipped...)
+[  518.900038] MemAlloc: kswapd0(69) flags=0xa40840 switches=23883 uninterruptible
+[  518.902095] kswapd0         D10776    69      2 0x00000000
+[  518.903784] Call Trace:
+[  518.904849]  __schedule+0x336/0xe00
+[  518.906118]  schedule+0x3d/0x90
+[  518.907314]  io_schedule+0x16/0x40
+[  518.908622]  __xfs_iflock+0x129/0x140 [xfs]
+[  518.910027]  ? autoremove_wake_function+0x60/0x60
+[  518.911559]  xfs_reclaim_inode+0x162/0x440 [xfs]
+[  518.913068]  xfs_reclaim_inodes_ag+0x2cf/0x4f0 [xfs]
+[  518.914611]  ? xfs_reclaim_inodes_ag+0xf2/0x4f0 [xfs]
+[  518.916148]  ? trace_hardirqs_on+0xd/0x10
+[  518.917465]  ? try_to_wake_up+0x59/0x7a0
+[  518.918758]  ? wake_up_process+0x15/0x20
+[  518.920067]  xfs_reclaim_inodes_nr+0x33/0x40 [xfs]
+[  518.921560]  xfs_fs_free_cached_objects+0x19/0x20 [xfs]
+[  518.923114]  super_cache_scan+0x181/0x190
+[  518.924435]  shrink_slab+0x29f/0x6d0
+[  518.925683]  shrink_node+0x2fa/0x310
+[  518.926909]  kswapd+0x362/0x9b0
+[  518.928061]  kthread+0x10f/0x150
+[  518.929218]  ? mem_cgroup_shrink_node+0x3b0/0x3b0
+[  518.930953]  ? kthread_create_on_node+0x70/0x70
+[  518.932380]  ret_from_fork+0x31/0x40
+(...snipped...)
+[  553.070829] MemAlloc-Info: stalling=184 dying=1 exiting=0 victim=1 oom_count=10318507
+[  575.432697] BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 stuck for 129s!
+[  575.435276] BUG: workqueue lockup - pool cpus=2 node=0 flags=0x0 nice=0 stuck for 131s!
+[  575.437863] Showing busy workqueues and worker pools:
+[  575.439837] workqueue events: flags=0x0
+[  575.441605]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=4/256
+[  575.443717]     pending: vmpressure_work_fn, vmstat_shepherd, vmw_fb_dirty_flush [vmwgfx], check_corruption
+[  575.446622]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=2/256
+[  575.448763]     pending: drain_local_pages_wq BAR(9595), e1000_watchdog [e1000]
+[  575.451173]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+[  575.453323]     in-flight: 7418:rht_deferred_worker
+[  575.455243]     pending: rht_deferred_worker
+[  575.457100] workqueue events_long: flags=0x0
+[  575.458960]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
+[  575.461099]     pending: gc_worker [nf_conntrack]
+[  575.463043] workqueue events_power_efficient: flags=0x80
+[  575.465110]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
+[  575.467252]     pending: fb_flashcursor
+[  575.468966]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+[  575.471109]     pending: neigh_periodic_work, neigh_periodic_work
+[  575.473289] workqueue events_freezable_power_: flags=0x84
+[  575.475378]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  575.477526]     in-flight: 27:disk_events_workfn
+[  575.479489] workqueue writeback: flags=0x4e
+[  575.481257]   pwq 256: cpus=0-127 flags=0x4 nice=0 active=2/256
+[  575.483368]     in-flight: 8444:wb_workfn wb_workfn
+[  575.485505] workqueue vmstat: flags=0xc
+[  575.487196]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
+[  575.489242]     pending: vmstat_update
+[  575.491403] workqueue mpt_poll_0: flags=0x8
+[  575.493106]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  575.495115]     pending: mpt_fault_reset_work [mptbase]
+[  575.497086] workqueue xfs-buf/sda1: flags=0xc
+[  575.498764]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/1
+[  575.500654]     pending: xfs_buf_ioend_work [xfs]
+[  575.502372] workqueue xfs-data/sda1: flags=0xc
+[  575.504024]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=27/256 MAYDAY
+[  575.506060]     in-flight: 5356:xfs_end_io [xfs], 451(RESCUER):xfs_end_io [xfs] xfs_end_io [xfs] xfs_end_io [xfs] xfs_end_io [xfs] xfs_end_io [xfs], 10498:xfs_end_io [xfs], 6386:xfs_end_io [xfs]
+[  575.511096]     pending: xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs]
+[  575.520157]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=21/256 MAYDAY
+[  575.522340]     in-flight: 535:xfs_end_io [xfs], 7416:xfs_end_io [xfs], 7415:xfs_end_io [xfs], 65:xfs_end_io [xfs]
+[  575.525387]     pending: xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs], xfs_end_io [xfs]
+[  575.534089]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=4/256 MAYDAY
+[  575.536407]     in-flight: 5357:xfs_end_io [xfs], 193:xfs_end_io [xfs], 52:xfs_end_io [xfs], 5358:xfs_end_io [xfs]
+[  575.539496]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=1/256
+[  575.541648]     in-flight: 2486:xfs_end_io [xfs]
+[  575.543591] workqueue xfs-reclaim/sda1: flags=0xc
+[  575.545540]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  575.547675]     pending: xfs_reclaim_worker [xfs]
+[  575.549719] workqueue xfs-log/sda1: flags=0x1c
+[  575.551591]   pwq 3: cpus=1 node=0 flags=0x0 nice=-20 active=1/256
+[  575.553750]     pending: xfs_log_worker [xfs]
+[  575.555552] pool 0: cpus=0 node=0 flags=0x0 nice=0 hung=0s workers=3 idle: 3 6387
+[  575.557979] pool 2: cpus=1 node=0 flags=0x0 nice=0 hung=129s workers=6 manager: 19
+[  575.560399] pool 4: cpus=2 node=0 flags=0x0 nice=0 hung=131s workers=6 manager: 157
+[  575.562843] pool 6: cpus=3 node=0 flags=0x0 nice=0 hung=132s workers=4 manager: 10499
+[  575.565450] pool 256: cpus=0-127 flags=0x4 nice=0 hung=129s workers=3 idle: 425 426
+(...snipped...)
+[  616.394649] MemAlloc-Info: stalling=186 dying=1 exiting=0 victim=1 oom_count=13908219
+(...snipped...)
+[  642.266252] MemAlloc-Info: stalling=186 dying=1 exiting=0 victim=1 oom_count=15180673
+(...snipped...)
+[  702.412189] MemAlloc-Info: stalling=187 dying=1 exiting=0 victim=1 oom_count=18732529
+(...snipped...)
+[  736.787879] MemAlloc-Info: stalling=187 dying=1 exiting=0 victim=1 oom_count=20565244
+(...snipped...)
+[  800.715759] MemAlloc-Info: stalling=188 dying=1 exiting=0 victim=1 oom_count=24411576
+(...snipped...)
+[  837.571405] MemAlloc-Info: stalling=188 dying=1 exiting=0 victim=1 oom_count=26463562
+(...snipped...)
+[  899.021495] MemAlloc-Info: stalling=189 dying=1 exiting=0 victim=1 oom_count=30144879
+(...snipped...)
+[  936.282709] MemAlloc-Info: stalling=189 dying=1 exiting=0 victim=1 oom_count=32129234
+(...snipped...)
+[  997.328119] MemAlloc-Info: stalling=190 dying=1 exiting=0 victim=1 oom_count=35657983
+(...snipped...)
+[ 1033.977265] MemAlloc-Info: stalling=190 dying=1 exiting=0 victim=1 oom_count=37659912
+(...snipped...)
+[ 1095.630961] MemAlloc-Info: stalling=190 dying=1 exiting=0 victim=1 oom_count=40639677
+(...snipped...)
+[ 1095.632984] MemAlloc: kswapd0(69) flags=0xa40840 switches=23883 uninterruptible
+[ 1095.632985] kswapd0         D10776    69      2 0x00000000
+[ 1095.632988] Call Trace:
+[ 1095.632991]  __schedule+0x336/0xe00
+[ 1095.632994]  schedule+0x3d/0x90
+[ 1095.632996]  io_schedule+0x16/0x40
+[ 1095.633017]  __xfs_iflock+0x129/0x140 [xfs]
+[ 1095.633021]  ? autoremove_wake_function+0x60/0x60
+[ 1095.633051]  xfs_reclaim_inode+0x162/0x440 [xfs]
+[ 1095.633072]  xfs_reclaim_inodes_ag+0x2cf/0x4f0 [xfs]
+[ 1095.633106]  ? xfs_reclaim_inodes_ag+0xf2/0x4f0 [xfs]
+[ 1095.633114]  ? trace_hardirqs_on+0xd/0x10
+[ 1095.633116]  ? try_to_wake_up+0x59/0x7a0
+[ 1095.633120]  ? wake_up_process+0x15/0x20
+[ 1095.633156]  xfs_reclaim_inodes_nr+0x33/0x40 [xfs]
+[ 1095.633178]  xfs_fs_free_cached_objects+0x19/0x20 [xfs]
+[ 1095.633180]  super_cache_scan+0x181/0x190
+[ 1095.633183]  shrink_slab+0x29f/0x6d0
+[ 1095.633189]  shrink_node+0x2fa/0x310
+[ 1095.633193]  kswapd+0x362/0x9b0
+[ 1095.633200]  kthread+0x10f/0x150
+[ 1095.633201]  ? mem_cgroup_shrink_node+0x3b0/0x3b0
+[ 1095.633202]  ? kthread_create_on_node+0x70/0x70
+[ 1095.633205]  ret_from_fork+0x31/0x40
+(...snipped...)
+[ 1095.821248] MemAlloc-Info: stalling=190 dying=1 exiting=0 victim=1 oom_count=40646791
+(...snipped...)
+[ 1125.236970] sysrq: SysRq : Resetting
+[ 1125.238669] ACPI MEMORY or I/O RESET_REG.
+----------
 
-To make this work, a gfp flag aware vmalloc_gfp() function is added.
-Also, locking around vmap_area_lock has been updated to save/restore
-irq flags. This was needed to avoid a lockdep problem between
-request_queue->queue_lock and vmap_area_lock.
+The switches= value (which is "struct task_struct"->nvcsw +
+"struct task_struct"->nivcsw ) of kswapd0(69) remained 23883 which means that
+kswapd0 was waiting forever at
 
-Signed-off-by: Tahsin Erdogan <tahsin@google.com>
----
-v2:
- added vmalloc_gfp() to mm/nommu.c as well
+----------
+void
+__xfs_iflock(
+        struct xfs_inode        *ip)
+{
+        wait_queue_head_t *wq = bit_waitqueue(&ip->i_flags, __XFS_IFLOCK_BIT);
+        DEFINE_WAIT_BIT(wait, &ip->i_flags, __XFS_IFLOCK_BIT);
 
- include/linux/vmalloc.h |   5 +-
- mm/nommu.c              |   5 ++
- mm/percpu-km.c          |   8 +--
- mm/percpu-vm.c          | 119 +++++++++++-------------------------
- mm/percpu.c             | 156 ++++++++++++++++++++++++++++--------------------
- mm/vmalloc.c            |  74 ++++++++++++++---------
- 6 files changed, 184 insertions(+), 183 deletions(-)
+        do {
+                prepare_to_wait_exclusive(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+                if (xfs_isiflocked(ip))
+                        io_schedule();      /***** <= This location. *****/
+        } while (!xfs_iflock_nowait(ip));
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index d68edffbf142..8110a0040b9d 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -72,6 +72,7 @@ extern void *vzalloc(unsigned long size);
- extern void *vmalloc_user(unsigned long size);
- extern void *vmalloc_node(unsigned long size, int node);
- extern void *vzalloc_node(unsigned long size, int node);
-+extern void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask);
- extern void *vmalloc_exec(unsigned long size);
- extern void *vmalloc_32(unsigned long size);
- extern void *vmalloc_32_user(unsigned long size);
-@@ -165,14 +166,14 @@ extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
- # ifdef CONFIG_MMU
- struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 				     const size_t *sizes, int nr_vms,
--				     size_t align);
-+				     size_t align, gfp_t gfp_mask);
- 
- void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms);
- # else
- static inline struct vm_struct **
- pcpu_get_vm_areas(const unsigned long *offsets,
- 		const size_t *sizes, int nr_vms,
--		size_t align)
-+		size_t align, gfp_t gfp_mask)
- {
- 	return NULL;
- }
-diff --git a/mm/nommu.c b/mm/nommu.c
-index bc964c26be8c..e81d4724ac07 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -359,6 +359,11 @@ void *vzalloc_node(unsigned long size, int node)
- }
- EXPORT_SYMBOL(vzalloc_node);
- 
-+void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask)
-+{
-+	return __vmalloc(size, gfp_mask, PAGE_KERNEL);
-+}
-+
- #ifndef PAGE_KERNEL_EXEC
- # define PAGE_KERNEL_EXEC PAGE_KERNEL
- #endif
-diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-index d66911ff42d9..599a9ce84544 100644
---- a/mm/percpu-km.c
-+++ b/mm/percpu-km.c
-@@ -34,7 +34,7 @@
- #include <linux/log2.h>
- 
- static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
--			       int page_start, int page_end)
-+			       int page_start, int page_end, gfp_t gfp)
- {
- 	return 0;
- }
-@@ -45,18 +45,18 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 	/* nada */
- }
- 
--static struct pcpu_chunk *pcpu_create_chunk(void)
-+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- {
- 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
- 	struct pcpu_chunk *chunk;
- 	struct page *pages;
- 	int i;
- 
--	chunk = pcpu_alloc_chunk();
-+	chunk = pcpu_alloc_chunk(gfp);
- 	if (!chunk)
- 		return NULL;
- 
--	pages = alloc_pages(GFP_KERNEL, order_base_2(nr_pages));
-+	pages = alloc_pages(gfp, order_base_2(nr_pages));
- 	if (!pages) {
- 		pcpu_free_chunk(chunk);
- 		return NULL;
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index 9ac639499bd1..42348a421ccf 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -20,28 +20,6 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
- }
- 
- /**
-- * pcpu_get_pages - get temp pages array
-- *
-- * Returns pointer to array of pointers to struct page which can be indexed
-- * with pcpu_page_idx().  Note that there is only one array and accesses
-- * should be serialized by pcpu_alloc_mutex.
-- *
-- * RETURNS:
-- * Pointer to temp pages array on success.
-- */
--static struct page **pcpu_get_pages(void)
--{
--	static struct page **pages;
--	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
--
--	lockdep_assert_held(&pcpu_alloc_mutex);
--
--	if (!pages)
--		pages = pcpu_mem_zalloc(pages_size);
--	return pages;
--}
--
--/**
-  * pcpu_free_pages - free pages which were allocated for @chunk
-  * @chunk: chunk pages were allocated for
-  * @pages: array of pages to be freed, indexed by pcpu_page_idx()
-@@ -73,15 +51,16 @@ static void pcpu_free_pages(struct pcpu_chunk *chunk,
-  * @pages: array to put the allocated pages into, indexed by pcpu_page_idx()
-  * @page_start: page index of the first page to be allocated
-  * @page_end: page index of the last page to be allocated + 1
-+ * @gfp: gfp flags
-  *
-  * Allocate pages [@page_start,@page_end) into @pages for all units.
-  * The allocation is for @chunk.  Percpu core doesn't care about the
-  * content of @pages and will pass it verbatim to pcpu_map_pages().
-  */
- static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
--			    struct page **pages, int page_start, int page_end)
-+			    struct page **pages, int page_start, int page_end,
-+			    gfp_t gfp)
- {
--	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
- 	unsigned int cpu, tcpu;
- 	int i;
- 
-@@ -135,38 +114,6 @@ static void __pcpu_unmap_pages(unsigned long addr, int nr_pages)
- }
- 
- /**
-- * pcpu_unmap_pages - unmap pages out of a pcpu_chunk
-- * @chunk: chunk of interest
-- * @pages: pages array which can be used to pass information to free
-- * @page_start: page index of the first page to unmap
-- * @page_end: page index of the last page to unmap + 1
-- *
-- * For each cpu, unmap pages [@page_start,@page_end) out of @chunk.
-- * Corresponding elements in @pages were cleared by the caller and can
-- * be used to carry information to pcpu_free_pages() which will be
-- * called after all unmaps are finished.  The caller should call
-- * proper pre/post flush functions.
-- */
--static void pcpu_unmap_pages(struct pcpu_chunk *chunk,
--			     struct page **pages, int page_start, int page_end)
--{
--	unsigned int cpu;
--	int i;
--
--	for_each_possible_cpu(cpu) {
--		for (i = page_start; i < page_end; i++) {
--			struct page *page;
--
--			page = pcpu_chunk_page(chunk, cpu, i);
--			WARN_ON(!page);
--			pages[pcpu_page_idx(cpu, i)] = page;
--		}
--		__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, page_start),
--				   page_end - page_start);
--	}
--}
--
--/**
-  * pcpu_post_unmap_tlb_flush - flush TLB after unmapping
-  * @chunk: pcpu_chunk the regions to be flushed belong to
-  * @page_start: page index of the first page to be flushed
-@@ -262,32 +209,38 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
-  * @chunk: chunk of interest
-  * @page_start: the start page
-  * @page_end: the end page
-+ * @gfp: gfp flags
-  *
-  * For each cpu, populate and map pages [@page_start,@page_end) into
-  * @chunk.
-- *
-- * CONTEXT:
-- * pcpu_alloc_mutex, does GFP_KERNEL allocation.
-  */
- static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
--			       int page_start, int page_end)
-+			       int page_start, int page_end, gfp_t gfp)
- {
- 	struct page **pages;
-+	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
-+	int ret;
- 
--	pages = pcpu_get_pages();
-+	pages = pcpu_mem_zalloc(pages_size, gfp);
- 	if (!pages)
- 		return -ENOMEM;
- 
--	if (pcpu_alloc_pages(chunk, pages, page_start, page_end))
--		return -ENOMEM;
-+	if (pcpu_alloc_pages(chunk, pages, page_start, page_end,
-+			     gfp | __GFP_HIGHMEM | __GFP_COLD)) {
-+		ret = -ENOMEM;
-+		goto out;
-+	}
- 
- 	if (pcpu_map_pages(chunk, pages, page_start, page_end)) {
- 		pcpu_free_pages(chunk, pages, page_start, page_end);
--		return -ENOMEM;
-+		ret = -ENOMEM;
-+		goto out;
- 	}
- 	pcpu_post_map_flush(chunk, page_start, page_end);
--
--	return 0;
-+	ret = 0;
-+out:
-+	pcpu_mem_free(pages);
-+	return ret;
- }
- 
- /**
-@@ -298,44 +251,40 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
-  *
-  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
-  * from @chunk.
-- *
-- * CONTEXT:
-- * pcpu_alloc_mutex.
-  */
- static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 				  int page_start, int page_end)
- {
--	struct page **pages;
--
--	/*
--	 * If control reaches here, there must have been at least one
--	 * successful population attempt so the temp pages array must
--	 * be available now.
--	 */
--	pages = pcpu_get_pages();
--	BUG_ON(!pages);
-+	unsigned int cpu;
-+	int i;
- 
--	/* unmap and free */
- 	pcpu_pre_unmap_flush(chunk, page_start, page_end);
- 
--	pcpu_unmap_pages(chunk, pages, page_start, page_end);
-+	for_each_possible_cpu(cpu)
-+		for (i = page_start; i < page_end; i++) {
-+			struct page *page;
-+
-+			page = pcpu_chunk_page(chunk, cpu, i);
-+			WARN_ON(!page);
- 
--	/* no need to flush tlb, vmalloc will handle it lazily */
-+			__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, i), 1);
- 
--	pcpu_free_pages(chunk, pages, page_start, page_end);
-+			if (likely(page))
-+				__free_page(page);
-+		}
- }
- 
--static struct pcpu_chunk *pcpu_create_chunk(void)
-+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- {
- 	struct pcpu_chunk *chunk;
- 	struct vm_struct **vms;
- 
--	chunk = pcpu_alloc_chunk();
-+	chunk = pcpu_alloc_chunk(gfp);
- 	if (!chunk)
- 		return NULL;
- 
- 	vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
--				pcpu_nr_groups, pcpu_atom_size);
-+				pcpu_nr_groups, pcpu_atom_size, gfp);
- 	if (!vms) {
- 		pcpu_free_chunk(chunk);
- 		return NULL;
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 232356a2d914..f2cee0ae8688 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -103,6 +103,11 @@
- #define __pcpu_ptr_to_addr(ptr)		(void __force *)(ptr)
- #endif	/* CONFIG_SMP */
- 
-+#define PCPU_BUSY_EXPAND_MAP		1	/* pcpu_alloc() is expanding the
-+						 * the map
-+						 */
-+#define PCPU_BUSY_POPULATE_CHUNK	2	/* chunk is being populated */
-+
- struct pcpu_chunk {
- 	struct list_head	list;		/* linked to pcpu_slot lists */
- 	int			free_size;	/* free bytes in the chunk */
-@@ -118,6 +123,7 @@ struct pcpu_chunk {
- 	int			first_free;	/* no free below this */
- 	bool			immutable;	/* no [de]population allowed */
- 	int			nr_populated;	/* # of populated pages */
-+	int			busy_flags;	/* type of work in progress */
- 	unsigned long		populated[];	/* populated bitmap */
- };
- 
-@@ -162,7 +168,6 @@ static struct pcpu_chunk *pcpu_reserved_chunk;
- static int pcpu_reserved_chunk_limit;
- 
- static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
--static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
- 
- static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
- 
-@@ -282,29 +287,31 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
- 	     (rs) < (re);						    \
- 	     (rs) = (re) + 1, pcpu_next_pop((chunk), &(rs), &(re), (end)))
- 
-+static bool pcpu_has_unpop_pages(struct pcpu_chunk *chunk, int start, int end)
-+{
-+	return find_next_zero_bit(chunk->populated, end, start) < end;
-+}
-+
- /**
-  * pcpu_mem_zalloc - allocate memory
-  * @size: bytes to allocate
-  *
-  * Allocate @size bytes.  If @size is smaller than PAGE_SIZE,
-- * kzalloc() is used; otherwise, vzalloc() is used.  The returned
-+ * kzalloc() is used; otherwise, vmalloc_gfp() is used.  The returned
-  * memory is always zeroed.
-  *
-- * CONTEXT:
-- * Does GFP_KERNEL allocation.
-- *
-  * RETURNS:
-  * Pointer to the allocated area on success, NULL on failure.
-  */
--static void *pcpu_mem_zalloc(size_t size)
-+static void *pcpu_mem_zalloc(size_t size, gfp_t gfp)
- {
- 	if (WARN_ON_ONCE(!slab_is_available()))
- 		return NULL;
- 
- 	if (size <= PAGE_SIZE)
--		return kzalloc(size, GFP_KERNEL);
-+		return kzalloc(size, gfp);
- 	else
--		return vzalloc(size);
-+		return vmalloc_gfp(size, gfp | __GFP_HIGHMEM | __GFP_ZERO);
- }
- 
- /**
-@@ -438,15 +445,14 @@ static int pcpu_need_to_extend(struct pcpu_chunk *chunk, bool is_atomic)
-  * RETURNS:
-  * 0 on success, -errno on failure.
-  */
--static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
-+static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc,
-+				gfp_t gfp)
- {
- 	int *old = NULL, *new = NULL;
- 	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
- 	unsigned long flags;
- 
--	lockdep_assert_held(&pcpu_alloc_mutex);
--
--	new = pcpu_mem_zalloc(new_size);
-+	new = pcpu_mem_zalloc(new_size, gfp);
- 	if (!new)
- 		return -ENOMEM;
- 
-@@ -716,16 +722,16 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
- 	pcpu_chunk_relocate(chunk, oslot);
- }
- 
--static struct pcpu_chunk *pcpu_alloc_chunk(void)
-+static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t gfp)
- {
- 	struct pcpu_chunk *chunk;
- 
--	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size);
-+	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size, gfp);
- 	if (!chunk)
- 		return NULL;
- 
- 	chunk->map = pcpu_mem_zalloc(PCPU_DFL_MAP_ALLOC *
--						sizeof(chunk->map[0]));
-+						sizeof(chunk->map[0]), gfp);
- 	if (!chunk->map) {
- 		pcpu_mem_free(chunk);
- 		return NULL;
-@@ -811,9 +817,10 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
-  * pcpu_addr_to_page		- translate address to physical address
-  * pcpu_verify_alloc_info	- check alloc_info is acceptable during init
-  */
--static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size);
-+static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size,
-+			       gfp_t gfp);
- static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size);
--static struct pcpu_chunk *pcpu_create_chunk(void);
-+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp);
- static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
- static struct page *pcpu_addr_to_page(void *addr);
- static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
-@@ -874,6 +881,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
- 	int occ_pages = 0;
- 	int slot, off, new_alloc, cpu, ret;
-+	int page_start, page_end;
- 	unsigned long flags;
- 	void __percpu *ptr;
- 
-@@ -893,9 +901,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 		return NULL;
- 	}
- 
--	if (!is_atomic)
--		mutex_lock(&pcpu_alloc_mutex);
--
- 	spin_lock_irqsave(&pcpu_lock, flags);
- 
- 	/* serve reserved allocations from the reserved chunk if available */
-@@ -909,8 +914,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 
- 		while ((new_alloc = pcpu_need_to_extend(chunk, is_atomic))) {
- 			spin_unlock_irqrestore(&pcpu_lock, flags);
--			if (is_atomic ||
--			    pcpu_extend_area_map(chunk, new_alloc) < 0) {
-+			if (pcpu_extend_area_map(chunk, new_alloc, gfp) < 0) {
- 				err = "failed to extend area map of reserved chunk";
- 				goto fail;
- 			}
-@@ -933,17 +937,24 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 			if (size > chunk->contig_hint)
- 				continue;
- 
-+			if (chunk->busy_flags & PCPU_BUSY_POPULATE_CHUNK)
-+				continue;
-+
- 			new_alloc = pcpu_need_to_extend(chunk, is_atomic);
- 			if (new_alloc) {
--				if (is_atomic)
--					continue;
-+				chunk->busy_flags |= PCPU_BUSY_EXPAND_MAP;
- 				spin_unlock_irqrestore(&pcpu_lock, flags);
--				if (pcpu_extend_area_map(chunk,
--							 new_alloc) < 0) {
-+
-+				ret = pcpu_extend_area_map(chunk, new_alloc,
-+							   gfp);
-+				spin_lock_irqsave(&pcpu_lock, flags);
-+				chunk->busy_flags &= ~PCPU_BUSY_EXPAND_MAP;
-+				if (ret < 0) {
-+					spin_unlock_irqrestore(&pcpu_lock,
-+							       flags);
- 					err = "failed to extend area map";
- 					goto fail;
- 				}
--				spin_lock_irqsave(&pcpu_lock, flags);
- 				/*
- 				 * pcpu_lock has been dropped, need to
- 				 * restart cpu_slot list walking.
-@@ -953,53 +964,59 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 
- 			off = pcpu_alloc_area(chunk, size, align, is_atomic,
- 					      &occ_pages);
-+			if (off < 0 && is_atomic) {
-+				/* Try non-populated areas. */
-+				off = pcpu_alloc_area(chunk, size, align, false,
-+						      &occ_pages);
-+			}
-+
- 			if (off >= 0)
- 				goto area_found;
- 		}
- 	}
- 
-+	WARN_ON(!list_empty(&pcpu_slot[pcpu_nr_slots - 1]));
-+
- 	spin_unlock_irqrestore(&pcpu_lock, flags);
- 
--	/*
--	 * No space left.  Create a new chunk.  We don't want multiple
--	 * tasks to create chunks simultaneously.  Serialize and create iff
--	 * there's still no empty chunk after grabbing the mutex.
--	 */
--	if (is_atomic)
-+	chunk = pcpu_create_chunk(gfp);
-+	if (!chunk) {
-+		err = "failed to allocate new chunk";
- 		goto fail;
-+	}
- 
--	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
--		chunk = pcpu_create_chunk();
--		if (!chunk) {
--			err = "failed to allocate new chunk";
--			goto fail;
--		}
-+	spin_lock_irqsave(&pcpu_lock, flags);
- 
--		spin_lock_irqsave(&pcpu_lock, flags);
-+	/* Check whether someone else added a chunk while lock was
-+	 * dropped.
-+	 */
-+	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1]))
- 		pcpu_chunk_relocate(chunk, -1);
--	} else {
--		spin_lock_irqsave(&pcpu_lock, flags);
--	}
-+	else
-+		pcpu_destroy_chunk(chunk);
- 
- 	goto restart;
- 
- area_found:
--	spin_unlock_irqrestore(&pcpu_lock, flags);
-+
-+	page_start = PFN_DOWN(off);
-+	page_end = PFN_UP(off + size);
- 
- 	/* populate if not all pages are already there */
--	if (!is_atomic) {
--		int page_start, page_end, rs, re;
-+	if (pcpu_has_unpop_pages(chunk, page_start, page_end)) {
-+		int rs, re;
- 
--		page_start = PFN_DOWN(off);
--		page_end = PFN_UP(off + size);
-+		chunk->busy_flags |= PCPU_BUSY_POPULATE_CHUNK;
-+		spin_unlock_irqrestore(&pcpu_lock, flags);
- 
- 		pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
- 			WARN_ON(chunk->immutable);
- 
--			ret = pcpu_populate_chunk(chunk, rs, re);
-+			ret = pcpu_populate_chunk(chunk, rs, re, gfp);
- 
- 			spin_lock_irqsave(&pcpu_lock, flags);
- 			if (ret) {
-+				chunk->busy_flags &= ~PCPU_BUSY_POPULATE_CHUNK;
- 				pcpu_free_area(chunk, off, &occ_pages);
- 				err = "failed to populate";
- 				goto fail_unlock;
-@@ -1008,18 +1025,18 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 			spin_unlock_irqrestore(&pcpu_lock, flags);
- 		}
- 
--		mutex_unlock(&pcpu_alloc_mutex);
-+		spin_lock_irqsave(&pcpu_lock, flags);
-+		chunk->busy_flags &= ~PCPU_BUSY_POPULATE_CHUNK;
- 	}
- 
--	if (chunk != pcpu_reserved_chunk) {
--		spin_lock_irqsave(&pcpu_lock, flags);
-+	if (chunk != pcpu_reserved_chunk)
- 		pcpu_nr_empty_pop_pages -= occ_pages;
--		spin_unlock_irqrestore(&pcpu_lock, flags);
--	}
- 
- 	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
- 		pcpu_schedule_balance_work();
- 
-+	spin_unlock_irqrestore(&pcpu_lock, flags);
-+
- 	/* clear the areas and return address relative to base address */
- 	for_each_possible_cpu(cpu)
- 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-@@ -1042,8 +1059,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 		/* see the flag handling in pcpu_blance_workfn() */
- 		pcpu_atomic_alloc_failed = true;
- 		pcpu_schedule_balance_work();
--	} else {
--		mutex_unlock(&pcpu_alloc_mutex);
- 	}
- 	return NULL;
- }
-@@ -1118,7 +1133,6 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 	 * There's no reason to keep around multiple unused chunks and VM
- 	 * areas can be scarce.  Destroy all free chunks except for one.
- 	 */
--	mutex_lock(&pcpu_alloc_mutex);
- 	spin_lock_irq(&pcpu_lock);
- 
- 	list_for_each_entry_safe(chunk, next, free_head, list) {
-@@ -1128,6 +1142,10 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 		if (chunk == list_first_entry(free_head, struct pcpu_chunk, list))
- 			continue;
- 
-+		if (chunk->busy_flags & (PCPU_BUSY_POPULATE_CHUNK |
-+					 PCPU_BUSY_EXPAND_MAP))
-+			continue;
-+
- 		list_del_init(&chunk->map_extend_list);
- 		list_move(&chunk->list, &to_free);
- 	}
-@@ -1162,7 +1180,7 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 		spin_unlock_irq(&pcpu_lock);
- 
- 		if (new_alloc)
--			pcpu_extend_area_map(chunk, new_alloc);
-+			pcpu_extend_area_map(chunk, new_alloc, GFP_KERNEL);
- 	} while (chunk);
- 
- 	/*
-@@ -1194,20 +1212,29 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 
- 		spin_lock_irq(&pcpu_lock);
- 		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
-+			if (chunk->busy_flags & PCPU_BUSY_POPULATE_CHUNK)
-+				continue;
- 			nr_unpop = pcpu_unit_pages - chunk->nr_populated;
- 			if (nr_unpop)
- 				break;
- 		}
-+
-+		if (nr_unpop)
-+			chunk->busy_flags |= PCPU_BUSY_POPULATE_CHUNK;
-+
- 		spin_unlock_irq(&pcpu_lock);
- 
- 		if (!nr_unpop)
- 			continue;
- 
--		/* @chunk can't go away while pcpu_alloc_mutex is held */
-+		/* @chunk can't go away because only pcpu_balance_workfn
-+		 * destroys it.
-+		 */
- 		pcpu_for_each_unpop_region(chunk, rs, re, 0, pcpu_unit_pages) {
- 			int nr = min(re - rs, nr_to_pop);
- 
--			ret = pcpu_populate_chunk(chunk, rs, rs + nr);
-+			ret = pcpu_populate_chunk(chunk, rs, rs + nr,
-+						  GFP_KERNEL);
- 			if (!ret) {
- 				nr_to_pop -= nr;
- 				spin_lock_irq(&pcpu_lock);
-@@ -1220,11 +1247,14 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 			if (!nr_to_pop)
- 				break;
- 		}
-+		spin_lock_irq(&pcpu_lock);
-+		chunk->busy_flags &= ~PCPU_BUSY_POPULATE_CHUNK;
-+		spin_unlock_irq(&pcpu_lock);
- 	}
- 
- 	if (nr_to_pop) {
- 		/* ran out of chunks to populate, create a new one and retry */
--		chunk = pcpu_create_chunk();
-+		chunk = pcpu_create_chunk(GFP_KERNEL);
- 		if (chunk) {
- 			spin_lock_irq(&pcpu_lock);
- 			pcpu_chunk_relocate(chunk, -1);
-@@ -1232,8 +1262,6 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 			goto retry_pop;
- 		}
- 	}
--
--	mutex_unlock(&pcpu_alloc_mutex);
- }
- 
- /**
-@@ -2297,7 +2325,7 @@ void __init percpu_init_late(void)
- 
- 		BUILD_BUG_ON(size > PAGE_SIZE);
- 
--		map = pcpu_mem_zalloc(size);
-+		map = pcpu_mem_zalloc(size, GFP_KERNEL);
- 		BUG_ON(!map);
- 
- 		spin_lock_irqsave(&pcpu_lock, flags);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d89034a393f2..01abc9ed5224 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -360,6 +360,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	unsigned long addr;
- 	int purged = 0;
- 	struct vmap_area *first;
-+	unsigned long flags;
- 
- 	BUG_ON(!size);
- 	BUG_ON(offset_in_page(size));
-@@ -379,7 +380,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
- 
- retry:
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	/*
- 	 * Invalidate cache if we have more permissive parameters.
- 	 * cached_hole_size notes the largest hole noticed _below_
-@@ -457,7 +458,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	va->flags = 0;
- 	__insert_vmap_area(va);
- 	free_vmap_cache = &va->rb_node;
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	BUG_ON(!IS_ALIGNED(va->va_start, align));
- 	BUG_ON(va->va_start < vstart);
-@@ -466,7 +467,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	return va;
- 
- overflow:
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 	if (!purged) {
- 		purge_vmap_area_lazy();
- 		purged = 1;
-@@ -541,9 +542,11 @@ static void __free_vmap_area(struct vmap_area *va)
-  */
- static void free_vmap_area(struct vmap_area *va)
- {
--	spin_lock(&vmap_area_lock);
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	__free_vmap_area(va);
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- }
- 
- /*
-@@ -629,6 +632,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 	struct vmap_area *va;
- 	struct vmap_area *n_va;
- 	bool do_free = false;
-+	unsigned long flags;
- 
- 	lockdep_assert_held(&vmap_purge_lock);
- 
-@@ -646,15 +650,17 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 
- 	flush_tlb_kernel_range(start, end);
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
- 		int nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
- 
- 		__free_vmap_area(va);
- 		atomic_sub(nr, &vmap_lazy_nr);
--		cond_resched_lock(&vmap_area_lock);
-+		spin_unlock_irqrestore(&vmap_area_lock, flags);
-+		cond_resched();
-+		spin_lock_irqsave(&vmap_area_lock, flags);
- 	}
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 	return true;
- }
- 
-@@ -713,10 +719,11 @@ static void free_unmap_vmap_area(struct vmap_area *va)
- static struct vmap_area *find_vmap_area(unsigned long addr)
- {
- 	struct vmap_area *va;
-+	unsigned long flags;
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	va = __find_vmap_area(addr);
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	return va;
- }
-@@ -1313,14 +1320,16 @@ EXPORT_SYMBOL_GPL(map_vm_area);
- static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 			      unsigned long flags, const void *caller)
- {
--	spin_lock(&vmap_area_lock);
-+	unsigned long irq_flags;
-+
-+	spin_lock_irqsave(&vmap_area_lock, irq_flags);
- 	vm->flags = flags;
- 	vm->addr = (void *)va->va_start;
- 	vm->size = va->va_end - va->va_start;
- 	vm->caller = caller;
- 	va->vm = vm;
- 	va->flags |= VM_VM_AREA;
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, irq_flags);
- }
- 
- static void clear_vm_uninitialized_flag(struct vm_struct *vm)
-@@ -1443,11 +1452,12 @@ struct vm_struct *remove_vm_area(const void *addr)
- 	va = find_vmap_area((unsigned long)addr);
- 	if (va && va->flags & VM_VM_AREA) {
- 		struct vm_struct *vm = va->vm;
-+		unsigned long flags;
- 
--		spin_lock(&vmap_area_lock);
-+		spin_lock_irqsave(&vmap_area_lock, flags);
- 		va->vm = NULL;
- 		va->flags &= ~VM_VM_AREA;
--		spin_unlock(&vmap_area_lock);
-+		spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 		vmap_debug_free_range(va->va_start, va->va_end);
- 		kasan_free_shadow(vm);
-@@ -1858,6 +1868,11 @@ void *vzalloc_node(unsigned long size, int node)
- }
- EXPORT_SYMBOL(vzalloc_node);
- 
-+void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask)
-+{
-+	return __vmalloc_node_flags(size, NUMA_NO_NODE, gfp_mask);
-+}
-+
- #ifndef PAGE_KERNEL_EXEC
- # define PAGE_KERNEL_EXEC PAGE_KERNEL
- #endif
-@@ -2038,12 +2053,13 @@ long vread(char *buf, char *addr, unsigned long count)
- 	char *vaddr, *buf_start = buf;
- 	unsigned long buflen = count;
- 	unsigned long n;
-+	unsigned long flags;
- 
- 	/* Don't allow overflow */
- 	if ((unsigned long) addr + count < count)
- 		count = -(unsigned long) addr;
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	list_for_each_entry(va, &vmap_area_list, list) {
- 		if (!count)
- 			break;
-@@ -2075,7 +2091,7 @@ long vread(char *buf, char *addr, unsigned long count)
- 		count -= n;
- 	}
- finished:
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	if (buf == buf_start)
- 		return 0;
-@@ -2119,13 +2135,14 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 	char *vaddr;
- 	unsigned long n, buflen;
- 	int copied = 0;
-+	unsigned long flags;
- 
- 	/* Don't allow overflow */
- 	if ((unsigned long) addr + count < count)
- 		count = -(unsigned long) addr;
- 	buflen = count;
- 
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 	list_for_each_entry(va, &vmap_area_list, list) {
- 		if (!count)
- 			break;
-@@ -2156,7 +2173,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 		count -= n;
- 	}
- finished:
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 	if (!copied)
- 		return 0;
- 	return buflen;
-@@ -2416,7 +2433,7 @@ static unsigned long pvm_determine_end(struct vmap_area **pnext,
-  */
- struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 				     const size_t *sizes, int nr_vms,
--				     size_t align)
-+				     size_t align, gfp_t gfp_mask)
- {
- 	const unsigned long vmalloc_start = ALIGN(VMALLOC_START, align);
- 	const unsigned long vmalloc_end = VMALLOC_END & ~(align - 1);
-@@ -2425,6 +2442,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 	int area, area2, last_area, term_area;
- 	unsigned long base, start, end, last_end;
- 	bool purged = false;
-+	unsigned long flags;
- 
- 	/* verify parameters and allocate data structures */
- 	BUG_ON(offset_in_page(align) || !is_power_of_2(align));
-@@ -2458,19 +2476,19 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 		return NULL;
- 	}
- 
--	vms = kcalloc(nr_vms, sizeof(vms[0]), GFP_KERNEL);
--	vas = kcalloc(nr_vms, sizeof(vas[0]), GFP_KERNEL);
-+	vms = kcalloc(nr_vms, sizeof(vms[0]), gfp_mask);
-+	vas = kcalloc(nr_vms, sizeof(vas[0]), gfp_mask);
- 	if (!vas || !vms)
- 		goto err_free2;
- 
- 	for (area = 0; area < nr_vms; area++) {
--		vas[area] = kzalloc(sizeof(struct vmap_area), GFP_KERNEL);
--		vms[area] = kzalloc(sizeof(struct vm_struct), GFP_KERNEL);
-+		vas[area] = kzalloc(sizeof(struct vmap_area), gfp_mask);
-+		vms[area] = kzalloc(sizeof(struct vm_struct), gfp_mask);
- 		if (!vas[area] || !vms[area])
- 			goto err_free;
- 	}
- retry:
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irqsave(&vmap_area_lock, flags);
- 
- 	/* start scanning - we scan from the top, begin with the last area */
- 	area = term_area = last_area;
-@@ -2492,7 +2510,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 		 * comparing.
- 		 */
- 		if (base + last_end < vmalloc_start + last_end) {
--			spin_unlock(&vmap_area_lock);
-+			spin_unlock_irqrestore(&vmap_area_lock, flags);
- 			if (!purged) {
- 				purge_vmap_area_lazy();
- 				purged = true;
-@@ -2547,7 +2565,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 
- 	vmap_area_pcpu_hole = base + offsets[last_area];
- 
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irqrestore(&vmap_area_lock, flags);
- 
- 	/* insert all vm's */
- 	for (area = 0; area < nr_vms; area++)
-@@ -2589,7 +2607,7 @@ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
- static void *s_start(struct seq_file *m, loff_t *pos)
- 	__acquires(&vmap_area_lock)
- {
--	spin_lock(&vmap_area_lock);
-+	spin_lock_irq(&vmap_area_lock);
- 	return seq_list_start(&vmap_area_list, *pos);
- }
- 
-@@ -2601,7 +2619,7 @@ static void *s_next(struct seq_file *m, void *p, loff_t *pos)
- static void s_stop(struct seq_file *m, void *p)
- 	__releases(&vmap_area_lock)
- {
--	spin_unlock(&vmap_area_lock);
-+	spin_unlock_irq(&vmap_area_lock);
- }
- 
- static void show_numa_info(struct seq_file *m, struct vm_struct *v)
--- 
-2.11.0.483.g087da7b7c-goog
+        finish_wait(wq, &wait.wait);
+}
+----------
+
+while the oom_count= value (which is number of times out_of_memory() was called)
+was increasing over time without emitting "Killed process " message.
+
+Reproducer I used is shown below.
+
+----------
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <poll.h>
+
+static char use_delay = 0;
+
+static void sigcld_handler(int unused)
+{
+        use_delay = 1;
+}
+
+int main(int argc, char *argv[])
+{
+        static char buffer[4096] = { };
+        char *buf = NULL;
+        unsigned long size;
+        int i;
+        signal(SIGCLD, sigcld_handler);
+        for (i = 0; i < 1024; i++) {
+                if (fork() == 0) {
+                        int fd = open("/proc/self/oom_score_adj", O_WRONLY);
+                        write(fd, "1000", 4);
+                        close(fd);
+                        sleep(1);
+                        if (!i)
+                                pause();
+                        snprintf(buffer, sizeof(buffer), "/tmp/file.%u", getpid());
+                        fd = open(buffer, O_WRONLY | O_CREAT | O_APPEND, 0600);
+                        while (write(fd, buffer, sizeof(buffer)) == sizeof(buffer)) {
+                                poll(NULL, 0, 10);
+                                fsync(fd);
+                        }
+                        _exit(0);
+                }
+        }
+        for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
+                char *cp = realloc(buf, size);
+                if (!cp) {
+                        size >>= 1;
+                        break;
+                }
+                buf = cp;
+        }
+        sleep(2);
+        /* Will cause OOM due to overcommit */
+        for (i = 0; i < size; i += 4096)
+                buf[i] = 0;
+        pause();
+        return 0;
+}
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
