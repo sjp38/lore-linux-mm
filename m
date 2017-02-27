@@ -1,106 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 554686B0038
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 20:21:06 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id t184so154622362pgt.1
-        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 17:21:06 -0800 (PST)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id i6si13747866plk.296.2017.02.26.17.21.05
+	by kanga.kvack.org (Postfix) with ESMTP id 814926B0389
+	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 20:56:39 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 1so155374353pgz.5
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 17:56:39 -0800 (PST)
+Received: from dggrg01-dlp.huawei.com ([45.249.212.187])
+        by mx.google.com with ESMTPS id a96si13835812pli.151.2017.02.26.17.56.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Feb 2017 17:21:05 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
-Date: Mon, 27 Feb 2017 01:20:30 +0000
-Message-ID: <20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
- <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
- <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
- <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
-In-Reply-To: <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <B8E09B5BFBBD2F43BD5369B1A5F4573B@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 26 Feb 2017 17:56:38 -0800 (PST)
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170221111107.GJ15595@dhcp22.suse.cz>
+ <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+ <60b3dd35-a802-ba93-c2c5-d6b2b3dd72ea@huawei.com>
+ <20170224045311.GA15343@redhat.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <fc486de7-81ce-6953-3e56-90f45a2e5527@huawei.com>
+Date: Mon, 27 Feb 2017 09:56:13 +0800
 MIME-Version: 1.0
+In-Reply-To: <20170224045311.GA15343@redhat.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Jan Stancek <jstancek@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, "dan.j.williams@intel.com; jhubbard"@nvidia.com
 
-On Sat, Feb 25, 2017 at 10:28:15AM +0800, Yisheng Xie wrote:
-> hi Naoya,
->=20
-> On 2017/2/23 11:23, Naoya Horiguchi wrote:
-> > On Mon, Feb 20, 2017 at 05:00:17AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(=
-B =1B$BD>Li=1B(B) wrote:
-> >> On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
-> >>> Hi,
-> >>>
-> >>> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
-> >>> unless I touch/prefault page before call to madvise().
-> >>>
-> >>> Is this expected behavior?
-> >>
-> >> Thank you for reporting.
-> >>
-> >> madvise(MADV_HWPOISON) triggers page fault when called on the address
-> >> over which no page is faulted-in, so I think that SIGBUS should be
-> >> called in such case.
-> >>
-> >> But it seems that memory error handler considers such a page as "reser=
-ved
-> >> kernel page" and recovery action fails (see below.)
-> >>
-> >>   [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcdc5=
-69000
-> >>   [  383.375678] Memory failure: 0x1f10: reserved kernel page still re=
-ferenced by 1 users
-> >>   [  383.377570] Memory failure: 0x1f10: recovery action for reserved =
-kernel page: Failed
-> >>
-> >> I'm not sure how/when this behavior was introduced, so I try to unders=
-tand.
-> >=20
-> > I found that this is a zero page, which is not recoverable for memory
-> > error now.
-> >=20
-> >> IMO, the test code below looks valid to me, so no need to change.
-> >=20
-> > I think that what the testcase effectively does is to test whether memo=
-ry
-> > handling on zero pages works or not.
-> > And the testcase's failure seems acceptable, because it's simply not-im=
-plemented yet.
-> > Maybe recovering from error on zero page is possible (because there's n=
-o data
-> > loss for memory error,) but I'm not sure that code might be simple enou=
-gh and/or
-> > it's worth doing ...
-> I question about it,  if a memory error happened on zero page, it will
-> cause all of data read from zero page is error, I mean no-zero, right?
+On 2017/2/24 12:53, Jerome Glisse wrote:
+> On Fri, Feb 24, 2017 at 09:06:19AM +0800, Bob Liu wrote:
+>> On 2017/2/21 21:39, Anshuman Khandual wrote:
+>>> On 02/21/2017 04:41 PM, Michal Hocko wrote:
+>>>> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+>>>> [...]
+>>>>> * User space using mbind() to get CDM memory is an additional benefit
+>>>>>   we get by making the CDM plug in as a node and be part of the buddy
+>>>>>   allocator. But the over all idea from the user space point of view
+>>>>>   is that the application can allocate any generic buffer and try to
+>>>>>   use the buffer either from the CPU side or from the device without
+>>>>>   knowing about where the buffer is really mapped physically. That
+>>>>>   gives a seamless and transparent view to the user space where CPU
+>>>>>   compute and possible device based compute can work together. This
+>>>>>   is not possible through a driver allocated buffer.
+>>>>
+>>>> But how are you going to define any policy around that. Who is allowed
+>>>
+>>> The user space VMA can define the policy with a mbind(MPOL_BIND) call
+>>> with CDM/CDMs in the nodemask.
+>>>
+>>>> to allocate and how much of this "special memory". Is it possible that
+>>>
+>>> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
+>>> the nodemask can allocate from the CDM memory. "How much" gets controlled
+>>> by how we fault from CPU and the default behavior of the buddy allocator.
+>>>
+>>>> we will eventually need some access control mechanism? If yes then mbind
+>>>
+>>> No access control mechanism is needed. If an application wants to use
+>>> CDM memory by specifying in the mbind() it can. Nothing prevents it
+>>> from using the CDM memory.
+>>>
+>>>> is really not suitable interface to (ab)use. Also what should happen if
+>>>> the mbind mentions only CDM memory and that is depleted?
+>>>
+>>> IIUC *only CDM* cannot be requested from user space as there are no user
+>>> visible interface which can translate to __GFP_THISNODE. MPOL_BIND with
+>>> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
+>>> have zones of the system including CDM ones. If the resultant CDM zones
+>>> run out of memory, we fail the allocation request as usual.
+>>>
+>>>>
+>>>> Could you also explain why the transparent view is really better than
+>>>> using a device specific mmap (aka CDM awareness)?
+>>>
+>>> Okay with a transparent view, we can achieve a control flow of application
+>>> like the following.
+>>>
+>>> (1) Allocate a buffer:		alloc_buffer(buf, size)
+>>> (2) CPU compute on buffer:	cpu_compute(buf, size)
+>>> (3) Device compute on buffer:	device_compute(buf, size)
+>>> (4) CPU compute on buffer:	cpu_compute(buf, size)
+>>> (5) Release the buffer:		release_buffer(buf, size)
+>>>
+>>> With assistance from a device specific driver, the actual page mapping of
+>>> the buffer can change between system RAM and device memory depending on
+>>> which side is accessing at a given point. This will be achieved through
+>>> driver initiated migrations.
+>>>
+>>
+>> Sorry, I'm a bit confused here.
+>> What's the difference with the Heterogeneous memory management?
+>> Which also "allows to use device memory transparently inside any process
+>> without any modifications to process program code."
+> 
+> HMM is first and foremost for platform (like Intel) where CPU can not
+> access device memory in cache coherent way or at all. CDM is for more
+> advance platform with a system bus that allow the CPU to access device
+> memory in cache coherent way.
+> 
+> Hence CDM was design to integrate more closely in existing concept like
+> NUMA. From my point of view it is like another level in the memory
+> hierarchy. Nowaday you have local node memory and other node memory.
+> In not too distant future you will have fast CPU on die memory, local
+> memory (you beloved DDR3/DDR4), slightly slower but gigantic persistant
+> memory and also device memory (all those local to a node).
+> 
+> On top of that you will still have the regular NUMA hierarchy between
+> nodes. But each node will have its own local hierarchy of memory.
+> 
+> CDM wants to integrate with existing memory hinting API and i believe
+> this is needed to get some experience with how end user might want to
+> use this to fine tune their application.
+> 
+> Some bit of HMM are generic and will be reuse by CDM, for instance the
+> DMA capable memory migration helpers. Wether they can also share HMM
+> approach of using ZONE_DEVICE is yet to be proven but it comes with
+> limitations (can't be on lru or have device lru) that might hinder a
+> closer integration of CDM memory with many aspect of kernel mm.
+> 
+> 
+> This is my own view and it likely differ in some way from the view of
+> the people behind CDM :)
+> 
 
-Hi Yisheng,
+Got it, thank you for the kindly explanation.
+And also thank you, John.
 
-Yes, the impact is serious (could affect many processes,) but it's possibil=
-ity
-is very low because there's only one page in a system that is used for zero=
- page.
-There are many other pages which are not recoverable for memory error like
-slab pages, so I'm not sure how I prioritize it (maybe it's not a
-top-priority thing, nor low-hanging fruit.)
-
-> And can we just use re-initial it with zero data maybe by memset ?
-
-Maybe it's not enoguh. Under a real hwpoison, we should isolate the error
-page to prevent the access on the broken data.
-But zero page is statically defined as an array of global variable, so
-it's not trival to replace it with a new zero page at runtime.
-
-Anyway, it's in my todo list, so hopefully revisited in the future.
-
-Thanks,
-Naoya Horiguchi=
+Regards,
+Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
