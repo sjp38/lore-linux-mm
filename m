@@ -1,135 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CE996B0387
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 07:56:43 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id q39so44743605wrb.3
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 04:56:43 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b76si21271823wrd.273.2017.02.27.04.56.41
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D19856B0389
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:00:36 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id 203so87778497ith.3
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 05:00:36 -0800 (PST)
+Received: from mail-io0-x235.google.com (mail-io0-x235.google.com. [2607:f8b0:4001:c06::235])
+        by mx.google.com with ESMTPS id m40si2699666ioi.53.2017.02.27.05.00.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Feb 2017 04:56:41 -0800 (PST)
-Date: Mon, 27 Feb 2017 13:56:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-Message-ID: <20170227125636.GB26504@dhcp22.suse.cz>
-References: <20170227092817.23571-1-mhocko@kernel.org>
- <87lgssvtni.fsf@vitty.brq.redhat.com>
- <20170227102132.GI14029@dhcp22.suse.cz>
- <87efyjx60o.fsf@vitty.brq.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Feb 2017 05:00:32 -0800 (PST)
+Received: by mail-io0-x235.google.com with SMTP id l7so17541181ioe.3
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 05:00:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87efyjx60o.fsf@vitty.brq.redhat.com>
+In-Reply-To: <20170227095258.GG14029@dhcp22.suse.cz>
+References: <201702260805.zhem8KFI%fengguang.wu@intel.com> <20170226043829.14270-1-tahsin@google.com>
+ <20170227095258.GG14029@dhcp22.suse.cz>
+From: Tahsin Erdogan <tahsin@google.com>
+Date: Mon, 27 Feb 2017 05:00:31 -0800
+Message-ID: <CAAeU0aMaGa63Nj=JvZKKy82FftAT9dF56=gZsufDvrkqDSGUrw@mail.gmail.com>
+Subject: Re: [PATCH v2 3/3] percpu: improve allocation success rate for
+ non-GFP_KERNEL callers
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 27-02-17 11:49:43, Vitaly Kuznetsov wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
-> > On Mon 27-02-17 11:02:09, Vitaly Kuznetsov wrote:
-> > [...]
-> >> I don't have anything new to add to the discussion happened last week
-> >> but I'd like to summarize my arguments against this change:
-> >> 
-> >> 1) This patch doesn't solve any issue. Configuration option is not an
-> >> issue by itself, it is an option for distros to decide what they want to
-> >> ship: udev rule with known issues (legacy mode) or enable the new
-> >> option. Distro makers and users building their kernels should be able to
-> >> answer this simple question "do you want to automatically online all
-> >> newly added memory or not".
-> >
-> > OK, so could you be more specific? Distributions have no clue about
-> > which HW their kernel runs on so how can they possibly make a sensible
-> > decision here?
-> 
-> They at least have an idea if they ship udev rule or not. I can also
-> imagine different choices for non-x86 architectures but I don't know
-> enough about them to have an opinion.
+On Mon, Feb 27, 2017 at 1:52 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Sat 25-02-17 20:38:29, Tahsin Erdogan wrote:
+>> When pcpu_alloc() is called with gfp != GFP_KERNEL, the likelihood of
+>> a failure is higher than GFP_KERNEL case. This is mainly because
+>> pcpu_alloc() relies on previously allocated reserves and does not make
+>> an effort to add memory to its pools for non-GFP_KERNEL case.
+>
+> Who is going to use a different mask?
 
-I really do not follow. If they know whether they ship the udev rule
-then why do they need a kernel help at all? Anyway this global policy
-actually breaks some usecases. Say you would have a default set to
-online. What should user do if _some_ nodes should be online_movable?
-Or, say that HyperV or other hotplug based ballooning implementation
-really want to online the movable memory in order to have a realiable
-hotremove. Now you have a global policy which goes against it.
+blkg_create() makes a call with a non-GFP_KERNEL mask:
+   new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT | __GFP_NOWARN);
 
-> >> There are distros already which ship kernels
-> >> with CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE enabled (Fedora 24 and 25 as
-> >> far as I remember, maybe someone else).
-> >> 
-> >> 2) This patch creates an imbalance between Xen/Hyper-V on one side and
-> >> KVM/Vmware on another. KVM/Vmware use pure ACPI memory hotplug and this
-> >> memory won't get onlined. I don't understand how this problem is
-> >> supposed to be solved by distros. They'll *have to* continue shipping
-> >> a udev rule which has and always will have issues.
-> >
-> > They have notifications for udev to online that memory and AFAICU
-> > neither KVM nor VMware are using memory hotplut for ballooning - unlike
-> > HyperV and Xen.
-> >
-> 
-> No, Hyper-V doesn't use memory hotplug for ballooning purposes. It is
-> just a memory hotplug. The fact that the code is located in hv_balloon
-> is just a coincidence.
+which turns into a call stack like below:
 
-OK, I might be wrong here but 1cac8cd4d146 ("Drivers: hv: balloon:
-Implement hot-add functionality") suggests otherwise.
+__vmalloc+0x45/0x50
+pcpu_mem_zalloc+0x50/0x80
+pcpu_populate_chunk+0x3b/0x380
+pcpu_alloc+0x588/0x6e0
+__alloc_percpu_gfp+0xd/0x10
+__percpu_counter_init+0x55/0xc0
+blkg_alloc+0x76/0x230
+blkg_create+0x489/0x670
+blkg_lookup_create+0x9a/0x230
+generic_make_request_checks+0x7dd/0x890
+generic_make_request+0x1f/0x180
+submit_bio+0x61/0x120
 
-> The difference with real hardware is how the operation is performed:
-> with real hardware you need to take a DIMM, go to your server room, open
-> the box, insert DIMM, go back to your seat. Asking to do some manual
-> action to actually enable memory is kinda OK. The beauty of hypervisors
-> is that everything happens automatically (e.g. when the VM is running
-> out of memory).
 
-I do not see your point. Either you have some (semi)automatic way to
-balance memory in guest based on the memory pressure (let's call it
-ballooning) or this is an administration operation (say you buy more
-DIMs or pay more to your virtualization provider) and then it is up to
-the guest owner to tell what to do about that memory. In other words you
-really do not want to wait in the first case as you are under memory
-pressure which is _actively_ managed or this is much more relaxed
-environment.
- 
-> >> 3) Kernel command line is not a viable choice, it is rather a debug
-> >> method.
-> >
-> > Why?
-> >
-> 
-> Because we usually have just a few things there (root=, console=) and
-> the rest is used when something goes wrong or for 'special' cases, not
-> for the majority of users.
+> We already have __vmalloc_gfp, why this cannot be used? Also note that
+> vmalloc dosn't really support arbitrary gfp flags. One have to be really
+> careful because there are some internal allocations which are hardcoded
+> GFP_KERNEL. Also this patch doesn't really add any new callers so it is
+> hard to tell whether what you do actually makes sense and is correct.
 
-auto online or even memory hotplug seems something that requires
-a special HW/configuration already so I fail to see your point. It is
-normal to put kernel parameters to override the default. And AFAIU
-default offline is a sensible default for the standard memory hotplug.
+Did you mean to say __vmalloc? If so, yes, I should use that.
 
-[...]
+By the way, I now noticed the might_sleep() in alloc_vmap_area() which makes
+it unsafe to call vmalloc* in GFP_ATOMIC contexts. It was added recently:
 
-> >> 2) Adding new memory can (in some extreme cases) still fail as we need
-> >> some *other* memory before we're able to online the newly added
-> >> block. This is an issue to be solved and it is doable (IMO) with some
-> >> pre-allocation.
-> >
-> > you cannot preallocate for all the possible memory that can be added.
-> 
-> For all, no, but for 1 next block - yes, and then I'll preallocate for
-> the next one.
+commit 5803ed292e63 ("mm: mark all calls into the vmalloc subsystem as
+potentially sleeping")
 
-You are still thinking in the scope of your particular use case and I
-believe the whole thing is shaped around that very same thing and that
-is why it should have been rejected in the first place. Especially when
-that use case can be handled without user visible configuration knob.
+Any suggestions on how to deal with that? For instance, would it be
+safe to replace it with:
 
--- 
-Michal Hocko
-SUSE Labs
+might_sleep_if(gfpflags_allow_blocking(gfp_mask));
+
+and then skip purge_vmap_area_lazy() if blocking is not allowed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
