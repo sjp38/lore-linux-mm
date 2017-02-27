@@ -1,46 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 73A2F6B0389
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 16:57:48 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v77so42231972wmv.5
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:57:48 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id e55si370wre.126.2017.02.27.13.57.47
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B92B16B0387
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 17:51:18 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id 68so44549375itg.0
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 14:51:18 -0800 (PST)
+Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
+        by mx.google.com with ESMTPS id q9si11569886ite.39.2017.02.27.14.51.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 13:57:47 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id u199so29769567wmd.1
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:57:47 -0800 (PST)
-Date: Mon, 27 Feb 2017 21:57:45 +0000
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [PATCH v2 2/2] efi: efi_mem_reserve(): don't reserve through
- memblock after mm_init()
-Message-ID: <20170227215745.GA28416@codeblueprint.co.uk>
-References: <20161222102340.2689-1-nicstange@gmail.com>
- <20161222102340.2689-2-nicstange@gmail.com>
- <20170105091242.GA11021@dhcp-128-65.nay.redhat.com>
- <20170109114400.GF16838@codeblueprint.co.uk>
- <20170109133152.2izkcrzgzinxdwux@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170109133152.2izkcrzgzinxdwux@techsingularity.net>
+        Mon, 27 Feb 2017 14:51:18 -0800 (PST)
+Received: by mail-io0-x244.google.com with SMTP id n76so5883392ioe.1
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 14:51:17 -0800 (PST)
+From: Andreas Dilger <adilger@dilger.ca>
+Message-Id: <DC27F5BA-BCCA-41FF-8D41-7BB99AA4DB26@dilger.ca>
+Content-Type: multipart/signed;
+ boundary="Apple-Mail=_56302843-AB58-4FCA-8E8C-CC5689E33D2A";
+ protocol="application/pgp-signature"; micalg=pgp-sha1
+Mime-Version: 1.0 (Mac OS X Mail 10.2 \(3259\))
+Subject: Re: [LSF/MM TOPIC] do we really need PG_error at all?
+Date: Mon, 27 Feb 2017 15:51:24 -0700
+In-Reply-To: <1488208047.2876.6.camel@redhat.com>
+References: <1488120164.2948.4.camel@redhat.com>
+ <1488129033.4157.8.camel@HansenPartnership.com>
+ <877f4cr7ew.fsf@notabene.neil.brown.name>
+ <1488151856.4157.50.camel@HansenPartnership.com>
+ <874lzgqy06.fsf@notabene.neil.brown.name>
+ <1488208047.2876.6.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Dave Young <dyoung@redhat.com>, Nicolai Stange <nicstange@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org, Mika =?iso-8859-1?Q?Penttil=E4?= <mika.penttila@nextfour.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: NeilBrown <neilb@suse.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, lsf-pc <lsf-pc@lists.linuxfoundation.org>, Neil Brown <neilb@suse.de>, linux-scsi <linux-scsi@vger.kernel.org>, linux-block@vger.kernel.org
 
-On Mon, 09 Jan, at 01:31:52PM, Mel Gorman wrote:
+
+--Apple-Mail=_56302843-AB58-4FCA-8E8C-CC5689E33D2A
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=us-ascii
+
+On Feb 27, 2017, at 8:07 AM, Jeff Layton <jlayton@redhat.com> wrote:
 > 
-> Well, you could put in a __init global variable about availability into
-> mm/memblock.c and then check it in memblock APIs like memblock_reserve()
-> to BUG_ON? I know BUG_ON is frowned upon but this is not likely to be a
-> situation that can be sensibly recovered.
+> On Mon, 2017-02-27 at 11:27 +1100, NeilBrown wrote:
+>> On Sun, Feb 26 2017, James Bottomley wrote:
+>> 
+>>> On Mon, 2017-02-27 at 08:03 +1100, NeilBrown wrote:
+>>>> On Sun, Feb 26 2017, James Bottomley wrote:
+>>>> 
+>>>>> [added linux-scsi and linux-block because this is part of our error
+>>>>> handling as well]
+>>>>> On Sun, 2017-02-26 at 09:42 -0500, Jeff Layton wrote:
+>>>>>> Proposing this as a LSF/MM TOPIC, but it may turn out to be me
+>>>>>> just not understanding the semantics here.
+>>>>>> 
+>>>>>> As I was looking into -ENOSPC handling in cephfs, I noticed that
+>>>>>> PG_error is only ever tested in one place [1]
+>>>>>> __filemap_fdatawait_range, which does this:
+>>>>>> 
+>>>>>> 	if (TestClearPageError(page))
+>>>>>> 		ret = -EIO;
+>>>>>> 
+>>>>>> This error code will override any AS_* error that was set in the
+>>>>>> mapping. Which makes me wonder...why don't we just set this error
+>>>>>> in the mapping and not bother with a per-page flag? Could we
+>>>>>> potentially free up a page flag by eliminating this?
+>>>>> 
+>>>>> Note that currently the AS_* codes are only set for write errors
+>>>>> not for reads and we have no mapping error handling at all for swap
+>>>>> pages, but I'm sure this is fixable.
+>>>> 
+>>>> How is a read error different from a failure to set PG_uptodate?
+>>>> Does PG_error suppress retries?
+>>> 
+>>> We don't do any retries in the code above the block layer (or at least
+>>> we shouldn't).
+>> 
+>> I was wondering about what would/should happen if a read request was
+>> re-issued for some reason.  Should the error flag on the page cause an
+>> immediate failure, or should it try again.
+>> If read-ahead sees a read-error on some future page, is it necessary to
+>> record the error so subsequent read-aheads don't notice the page is
+>> missing and repeatedly try to re-load it?
+>> When the application eventually gets to the faulty page, should a read
+>> be tried then, or is the read-ahead failure permanent?
+>> 
+>> 
+>> 
+>>> 
+>>>>> 
+>>>>> From the I/O layer point of view we take great pains to try to
+>>>>> pinpoint the error exactly to the sector.  We reflect this up by
+>>>>> setting the PG_error flag on the page where the error occurred.  If
+>>>>> we only set the error on the mapping, we lose that granularity,
+>>>>> because the mapping is mostly at the file level (or VMA level for
+>>>>> anon pages).
+>>>> 
+>>>> Are you saying that the IO layer finds the page in the bi_io_vec and
+>>>> explicitly sets PG_error,
+>>> 
+>>> I didn't say anything about the mechanism.  I think the function you're
+>>> looking for is fs/mpage.c:mpage_end_io().  layers below block indicate
+>>> the position in the request.  Block maps the position to bio and the
+>>> bio completion maps to page.  So the actual granularity seen in the
+>>> upper layer depends on how the page to bio mapping is done.
+>> 
+>> If the block layer is just returning the status at a per-bio level (which
+>> makes perfect sense), then this has nothing directly to do with the
+>> PG_error flag.
+>> 
+>> The page cache needs to do something with bi_error, but it isn't
+>> immediately clear that it needs to set PG_error.
+>> 
+>>> :q
+>>>> rather than just passing an error indication to bi_end_io ??  That
+>>>> would seem to be wrong as the page may not be in the page cache.
+>>> 
+>>> Usually pages in the mpage_end_io path are pinned, I think.
+>>> 
+>>>> So I guess I misunderstand you.
+>>>> 
+>>>>> 
+>>>>> So I think the question for filesystem people from us would be do
+>>>>> you care about this accuracy?  If it's OK just to know an error
+>>>>> occurred somewhere in this file, then perhaps we don't need it.
+>>>> 
+>>>> I had always assumed that a bio would either succeed or fail, and
+>>>> that no finer granularity could be available.
+>>> 
+>>> It does ... but a bio can be as small as a single page.
+>>> 
+>>>> I think the question here is: Do filesystems need the pagecache to
+>>>> record which pages have seen an IO error?
+>>> 
+>>> It's not just filesystems.  The partition code uses PageError() ... the
+>>> metadata code might as well (those are things with no mapping).  I'm
+>>> not saying we can't remove PG_error; I am saying it's not going to be
+>>> quite as simple as using the AS_ flags.
+>> 
+>> The partition code could use PageUptodate().
+>> mpage_end_io() calls page_endio() on each page, and on read error that
+>> calls:
+>> 
+>> 			ClearPageUptodate(page);
+>> 			SetPageError(page);
+>> 
+>> are both of these necessary?
+>> 
+> 
+>> fs/buffer.c can use several bios to read a single page.
+>> If any one returns an error, PG_error is set.  When all of them have
+>> completed, if PG_error is clear, PG_uptodate is then set.
+>> This is an opportunistic use of PG_error, rather than an essential use.
+>> It could be "fixed", and would need to be fixed if we were to deprecate
+>> use of PG_error for read errors.
+>> There are probably other usages like this.
+>> 
+> 
+> Ok, I think I get it (somewhat):
+> 
+> The tricky part there is how to handle the PageError check in
+> read_dev_sector if you don't use SetPageError in the result handler.
+> 
+> If we can count on read_pagecache_sector and read_dax_sector reliably
+> returning an error when the page is considered to be in the cache
+> (PageUpToDate) but had a read error, then that would work. I'm not sure
+> how you'd indicate that without something like PG_error though if you
+> don't want to retry on every attempt.
+> 
+> OTOH, if we want to always retry to read in pages that have had read
+> errors when someone requests them, then we can simply not set
+> PageUpToDate when readahead fails.
+> 
+> To chip away at the edges of this, what may make sense is to get this
+> flag out of the writeback code as much as we can. When a write fails and
+> SetPageError is called, we should also mark the mapping with an error.
+> Then, we should be able to stop overriding the mapping error with -EIO
+> in that codepath. Maybe call ClearPageError, or maybe leave it alone
+> there?
 
-What about something like this?
+My thought is that PG_error is definitely useful for applications to get
+correct errors back when doing write()/sync_file_range() so that they know
+there is an error in the data that _they_ wrote, rather than receiving an
+error for data that may have been written by another thread, and in turn
+clearing the error from another thread so it *doesn't* know it had a write
+error.
 
-BUG_ON() shouldn't actually be necessary because I couldn't think of a
-situation where A) memblock would be unavailable and B) returning an
-error would prevent us from making progress.
+As for stray sync() clearing PG_error from underneath an application, that
+shouldn't happen since filemap_fdatawait_keep_errors() doesn't clear errors
+and is used by device flushing code (fdatawait_one_bdev(), wait_sb_inodes()).
 
----->8----
+Cheers, Andreas
+
+>>> 
+>>> James
+>>> 
+>>>> I think that for write errors, there is no value in recording
+>>>> block-oriented error status - only file-oriented status.
+>>>> For read errors, it might if help to avoid indefinite read retries,
+>>>> but I don't know the code well enough to be sure if this is an issue.
+>>>> 
+>>>> NeilBrown
+>>>> 
+>>>> 
+>>>>> 
+>>>>> James
+>>>>> 
+>>>>>> The main argument I could see for keeping it is that removing it
+>>>>>> might subtly change the behavior of sync_file_range if you have
+>>>>>> tasks syncing different ranges in a file concurrently. I'm not
+>>>>>> sure if that would break any guarantees though.
+>>>>>> 
+>>>>>> Even if we do need it, I think we might need some cleanup here
+>>>>>> anyway. A lot of readpage operations end up setting that flag
+>>>>>> when they hit an error. Isn't it wrong to return an error on
+>>>>>> fsync, just because we had a read error somewhere in the file in
+>>>>>> a range that was never dirtied?
+>>>>>> 
+>>>>>> --
+>>>>>> [1]: there is another place in f2fs, but it's more or less
+>>>>>> equivalent to the call site in __filemap_fdatawait_range.
+>>>>>> 
+> 
+> --
+> Jeff Layton <jlayton@redhat.com>
+
+
+Cheers, Andreas
+
+
+
+
+
+
+--Apple-Mail=_56302843-AB58-4FCA-8E8C-CC5689E33D2A
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename=signature.asc
+Content-Type: application/pgp-signature;
+	name=signature.asc
+Content-Description: Message signed with OpenPGP
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - http://gpgtools.org
+
+iD8DBQFYtK1spIg59Q01vtYRAkRvAKCafaX3auOi8lr2Uyjmep9naOooLACdFuCR
+CGvl2yYDZtRfoI1BSmuP7AY=
+=06dk
+-----END PGP SIGNATURE-----
+
+--Apple-Mail=_56302843-AB58-4FCA-8E8C-CC5689E33D2A--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
