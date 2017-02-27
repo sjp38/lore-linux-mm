@@ -1,185 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CFCDB6B0387
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:48:56 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id w37so18231455wrc.2
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 05:48:56 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o110si21470245wrc.152.2017.02.27.05.48.55
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D6D6B0387
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:56:55 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f21so178382246pgi.4
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 05:56:55 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s9si15197828pgo.309.2017.02.27.05.56.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Feb 2017 05:48:55 -0800 (PST)
-Date: Mon, 27 Feb 2017 14:48:52 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V5 1/6] mm: delete unnecessary TTU_* flags
-Message-ID: <20170227134851.GD26504@dhcp22.suse.cz>
-References: <cover.1487965799.git.shli@fb.com>
- <4be3ea1bc56b26fd98a54d0a6f70bec63f6d8980.1487965799.git.shli@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4be3ea1bc56b26fd98a54d0a6f70bec63f6d8980.1487965799.git.shli@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Feb 2017 05:56:54 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1RDumau058636
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:56:53 -0500
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28u6atu1nu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:56:49 -0500
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 27 Feb 2017 06:56:47 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] powerpc/mm: Handle protnone ptes on fork
+Date: Mon, 27 Feb 2017 19:26:26 +0530
+Message-Id: <1488203787-17849-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: akpm@linux-foundation.org, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, paulus@ozlabs.org, benh@kernel.crashing.org, Michael Ellerman <mpe@ellerman.id.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri 24-02-17 13:31:44, Shaohua Li wrote:
-> Johannes pointed out TTU_LZFREE is unnecessary. It's true because we
-> always have the flag set if we want to do an unmap. For cases we don't
-> do an unmap, the TTU_LZFREE part of code should never run.
-> 
-> Also the TTU_UNMAP is unnecessary. If no other flags set (for
-> example, TTU_MIGRATION), an unmap is implied.
-> 
-> The patch includes Johannes's cleanup and dead TTU_ACTION macro removal
-> code
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Signed-off-by: Shaohua Li <shli@fb.com>
+We need mark pages of parent process read only on fork. Numa fault pte
+needs a protnone ptes variant with saved write flag set. On fork we need to
+make sure we remove the saved write bit. Instead of adding the protnone check
+in the caller update ptep_set_wrprotect variants to clear savedwrite bit.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Without this we see random segfaults in application on fork.
 
-> ---
->  include/linux/rmap.h | 22 +++++++++-------------
->  mm/memory-failure.c  |  2 +-
->  mm/rmap.c            |  2 +-
->  mm/vmscan.c          | 11 ++++-------
->  4 files changed, 15 insertions(+), 22 deletions(-)
-> 
-> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index 8c89e90..7a39414 100644
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -83,19 +83,17 @@ struct anon_vma_chain {
->  };
->  
->  enum ttu_flags {
-> -	TTU_UNMAP = 1,			/* unmap mode */
-> -	TTU_MIGRATION = 2,		/* migration mode */
-> -	TTU_MUNLOCK = 4,		/* munlock mode */
-> -	TTU_LZFREE = 8,			/* lazy free mode */
-> -	TTU_SPLIT_HUGE_PMD = 16,	/* split huge PMD if any */
-> -
-> -	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
-> -	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
-> -	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
-> -	TTU_BATCH_FLUSH = (1 << 11),	/* Batch TLB flushes where possible
-> +	TTU_MIGRATION		= 0x1,	/* migration mode */
-> +	TTU_MUNLOCK		= 0x2,	/* munlock mode */
-> +
-> +	TTU_SPLIT_HUGE_PMD	= 0x4,	/* split huge PMD if any */
-> +	TTU_IGNORE_MLOCK	= 0x8,	/* ignore mlock */
-> +	TTU_IGNORE_ACCESS	= 0x10,	/* don't age */
-> +	TTU_IGNORE_HWPOISON	= 0x20,	/* corrupted page is recoverable */
-> +	TTU_BATCH_FLUSH		= 0x40,	/* Batch TLB flushes where possible
->  					 * and caller guarantees they will
->  					 * do a final flush if necessary */
-> -	TTU_RMAP_LOCKED = (1 << 12)	/* do not grab rmap lock:
-> +	TTU_RMAP_LOCKED		= 0x80	/* do not grab rmap lock:
->  					 * caller holds it */
->  };
->  
-> @@ -193,8 +191,6 @@ static inline void page_dup_rmap(struct page *page, bool compound)
->  int page_referenced(struct page *, int is_locked,
->  			struct mem_cgroup *memcg, unsigned long *vm_flags);
->  
-> -#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
-> -
->  int try_to_unmap(struct page *, enum ttu_flags flags);
->  
->  /* Avoid racy checks */
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 3d0f2fd..b78d080 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -906,7 +906,7 @@ EXPORT_SYMBOL_GPL(get_hwpoison_page);
->  static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
->  				  int trapno, int flags, struct page **hpagep)
->  {
-> -	enum ttu_flags ttu = TTU_UNMAP | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
-> +	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
->  	struct address_space *mapping;
->  	LIST_HEAD(tokill);
->  	int ret;
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 8774791..96eb85c 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1418,7 +1418,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  			 */
->  			VM_BUG_ON_PAGE(!PageSwapCache(page), page);
->  
-> -			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
-> +			if (!PageDirty(page)) {
->  				/* It's a freeable page by MADV_FREE */
->  				dec_mm_counter(mm, MM_ANONPAGES);
->  				rp->lazyfreed++;
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 26c3b40..68ea50d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -971,7 +971,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		int may_enter_fs;
->  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
->  		bool dirty, writeback;
-> -		bool lazyfree = false;
->  		int ret = SWAP_SUCCESS;
->  
->  		cond_resched();
-> @@ -1125,7 +1124,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  				goto keep_locked;
->  			if (!add_to_swap(page, page_list))
->  				goto activate_locked;
-> -			lazyfree = true;
->  			may_enter_fs = 1;
->  
->  			/* Adding to swap updated mapping */
-> @@ -1143,9 +1141,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 * processes. Try to unmap it here.
->  		 */
->  		if (page_mapped(page) && mapping) {
-> -			switch (ret = try_to_unmap(page, lazyfree ?
-> -				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
-> -				(ttu_flags | TTU_BATCH_FLUSH))) {
-> +			switch (ret = try_to_unmap(page,
-> +				ttu_flags | TTU_BATCH_FLUSH)) {
->  			case SWAP_FAIL:
->  				nr_unmap_fail++;
->  				goto activate_locked;
-> @@ -1353,7 +1350,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
->  	}
->  
->  	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
-> -			TTU_UNMAP|TTU_IGNORE_ACCESS, NULL, true);
-> +			TTU_IGNORE_ACCESS, NULL, true);
->  	list_splice(&clean_pages, page_list);
->  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
->  	return ret;
-> @@ -1760,7 +1757,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	if (nr_taken == 0)
->  		return 0;
->  
-> -	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, TTU_UNMAP,
-> +	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, 0,
->  				&stat, false);
->  
->  	spin_lock_irq(&pgdat->lru_lock);
-> -- 
-> 2.9.3
-> 
+Fixes: c137a2757b886 ("powerpc/mm/autonuma: switch ppc64 to its own
+implementation of saved write")
 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 73 ++++++++++++++++------------
+ 1 file changed, 42 insertions(+), 31 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 1eeeb72c7015..f0b08acda5eb 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -347,23 +347,53 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
+ 	__r;							\
+ })
+ 
++static inline int pte_write(pte_t pte)
++{
++	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_WRITE));
++}
++
++#ifdef CONFIG_NUMA_BALANCING
++#define pte_savedwrite pte_savedwrite
++static inline bool pte_savedwrite(pte_t pte)
++{
++	/*
++	 * Saved write ptes are prot none ptes that doesn't have
++	 * privileged bit sit. We mark prot none as one which has
++	 * present and pviliged bit set and RWX cleared. To mark
++	 * protnone which used to have _PAGE_WRITE set we clear
++	 * the privileged bit.
++	 */
++	return !(pte_raw(pte) & cpu_to_be64(_PAGE_RWX | _PAGE_PRIVILEGED));
++}
++#else
++#define pte_savedwrite pte_savedwrite
++static inline bool pte_savedwrite(pte_t pte)
++{
++	return false;
++}
++#endif
++
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 				      pte_t *ptep)
+ {
+-	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
+-		return;
+-
+-	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
++	if (pte_write(*ptep))
++		pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
++	else if (unlikely(pte_savedwrite(*ptep)))
++		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 0);
+ }
+ 
+ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 					   unsigned long addr, pte_t *ptep)
+ {
+-	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
+-		return;
+-
+-	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 1);
++	/*
++	 * We should not find protnone for hugetlb, but this complete the
++	 * interface.
++	 */
++	if (pte_write(*ptep))
++		pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 1);
++	else if (unlikely(pte_savedwrite(*ptep)))
++		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 1);
+ }
+ 
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+@@ -397,11 +427,6 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
+ 	pte_update(mm, addr, ptep, ~0UL, 0, 0);
+ }
+ 
+-static inline int pte_write(pte_t pte)
+-{
+-	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_WRITE));
+-}
+-
+ static inline int pte_dirty(pte_t pte)
+ {
+ 	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_DIRTY));
+@@ -466,19 +491,6 @@ static inline pte_t pte_clear_savedwrite(pte_t pte)
+ 	return __pte(pte_val(pte) | _PAGE_PRIVILEGED);
+ }
+ 
+-#define pte_savedwrite pte_savedwrite
+-static inline bool pte_savedwrite(pte_t pte)
+-{
+-	/*
+-	 * Saved write ptes are prot none ptes that doesn't have
+-	 * privileged bit sit. We mark prot none as one which has
+-	 * present and pviliged bit set and RWX cleared. To mark
+-	 * protnone which used to have _PAGE_WRITE set we clear
+-	 * the privileged bit.
+-	 */
+-	VM_BUG_ON(!pte_protnone(pte));
+-	return !(pte_raw(pte) & cpu_to_be64(_PAGE_RWX | _PAGE_PRIVILEGED));
+-}
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+ static inline int pte_present(pte_t pte)
+@@ -982,11 +994,10 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 				      pmd_t *pmdp)
+ {
+-
+-	if ((pmd_raw(*pmdp) & cpu_to_be64(_PAGE_WRITE)) == 0)
+-		return;
+-
+-	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
++	if (pmd_write((*pmdp)))
++		pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
++	else if (unlikely(pmd_savedwrite(*pmdp)))
++		pmd_hugepage_update(mm, addr, pmdp, 0, _PAGE_PRIVILEGED);
+ }
+ 
+ static inline int pmd_trans_huge(pmd_t pmd)
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
