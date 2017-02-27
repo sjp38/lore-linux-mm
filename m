@@ -1,93 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C519A6B0038
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 14:35:32 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id t184so192706732pgt.1
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:35:32 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s23si15936320plk.205.2017.02.27.11.35.31
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D18C66B0038
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 14:47:17 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id u48so4513025wrc.0
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:47:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j4si22512665wrj.278.2017.02.27.11.47.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 11:35:31 -0800 (PST)
-Subject: Re: [PATCH] mm,x86: fix SMP x86 32bit build for native_pud_clear()
-References: <078cfd81-12d4-285e-d80d-7afd0f2e7e6d@redhat.com>
- <1488223776-10326-1-git-send-email-boris.ostrovsky@oracle.com>
-From: Dave Jiang <dave.jiang@intel.com>
-Message-ID: <ad15f426-62b5-95fa-2168-00b66dde0401@intel.com>
-Date: Mon, 27 Feb 2017 12:35:30 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Feb 2017 11:47:16 -0800 (PST)
+Date: Mon, 27 Feb 2017 20:47:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/3] percpu: improve allocation success rate for
+ non-GFP_KERNEL callers
+Message-ID: <20170227194711.GS26504@dhcp22.suse.cz>
+References: <201702260805.zhem8KFI%fengguang.wu@intel.com>
+ <20170226043829.14270-1-tahsin@google.com>
+ <20170227095258.GG14029@dhcp22.suse.cz>
+ <CAAeU0aMaGa63Nj=JvZKKy82FftAT9dF56=gZsufDvrkqDSGUrw@mail.gmail.com>
+ <20170227152516.GJ26504@dhcp22.suse.cz>
+ <CAAeU0aOCGrwmYGPWgA_7Y=2O2RXG_Ux14h4FrogpKPAKvVNaXg@mail.gmail.com>
+ <20170227170753.GO26504@dhcp22.suse.cz>
+ <20170227171404.GP26504@dhcp22.suse.cz>
+ <CAAeU0aNVMf6KD7oHNOjzZNqHwBDBpkpx1mtT1O4HipUv1CeLDQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1488223776-10326-1-git-send-email-boris.ostrovsky@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeU0aNVMf6KD7oHNOjzZNqHwBDBpkpx1mtT1O4HipUv1CeLDQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, labbott@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tahsin Erdogan <tahsin@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon 27-02-17 11:32:50, Tahsin Erdogan wrote:
+> >> >
+> >> > Yes, this prevents adding more pcpu chunks and so cause "atomic" allocations
+> >> > to fail more easily.
+> >>
+> >> Then I fail to see what is the problem you are trying to fix.
+> >
+> > To be more specific. Could you describe what more can we do in the
+> > vmalloc layer for GFP_NOWAIT allocations? They certainly cannot sleep
+> > and cannot perform the reclaim so you have to rely on the background
+> > work.
+> 
+> The main problem that I am trying to fix is in percpu.c code. It
+> currently doesn't even attempt to call vmalloc() for GFP_NOWAIT
+> case. It solely relies on the background allocator to replenish the
+> reserves. I would like percpu.c to call __vmalloc(GFP_NOWAIT) inline
+> and see whether that succeeds. If that fails, it is fair to fail the
+> call.
 
+OK, that wasn't really clean from the patch to me. I guess it would be
+much more easier if a preparatory patch did the gfp mask propagation and
+then have patch that changes the pcpu allocator the way you need.
+ 
+> For this to work, __vmalloc() should be ready to serve a caller
+> that is holding a spinlock. The might_sleep() in alloc_vmap_area()
+> basically prevents us calling vmalloc in this context.
 
-On 02/27/2017 12:29 PM, Boris Ostrovsky wrote:
->> On 02/15/2017 12:31 PM, Dave Jiang wrote:
->>> The fix introduced by e4decc90 to fix the UP case for 32bit x86, however
->>> that broke the SMP case that was working previously. Add ifdef so the dummy
->>> function only show up for 32bit UP case only.
->>>
->>> Fix: e4decc90 mm,x86: native_pud_clear missing on i386 build
->>>
->>> Reported-by: Alexander Kapshuk <alexander.kapshuk@gmail.com>
->>> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
->>> ---
->>>  arch/x86/include/asm/pgtable-3level.h |    2 ++
->>>  1 file changed, 2 insertions(+)
->>>
->>> diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
->>> index 50d35e3..8f50fb3 100644
->>> --- a/arch/x86/include/asm/pgtable-3level.h
->>> +++ b/arch/x86/include/asm/pgtable-3level.h
->>> @@ -121,9 +121,11 @@ static inline void native_pmd_clear(pmd_t *pmd)
->>>  	*(tmp + 1) = 0;
->>>  }
->>>  
->>> +#ifndef CONFIG_SMP
->>>  static inline void native_pud_clear(pud_t *pudp)
->>>  {
->>>  }
->>> +#endif
->>>  
->>>  static inline void pud_clear(pud_t *pudp)
->>>  {
->>>
-> 
->>
->> This breaks one of the Fedora configurations as of 
->> e5d56efc97f8240d0b5d66c03949382b6d7e5570
->>
->> In file included from ./include/linux/mm.h:68:0,
->>                  from ./include/linux/highmem.h:7,
->>                  from ./include/linux/bio.h:21,
->>                  from ./include/linux/writeback.h:205,
->>                  from ./include/linux/memcontrol.h:30,
->>                  from ./include/linux/swap.h:8,
->>                  from ./include/linux/suspend.h:4,
->>                  from arch/x86/kernel/asm-offsets.c:12:
->> ./arch/x86/include/asm/pgtable.h: In function 'native_local_pudp_get_and_clear':
->> ./arch/x86/include/asm/pgtable.h:888:2: error: implicit declaration of function 'native_pud_clear';did you mean 'native_pmd_clear'? [-Werror=implicit-function-declaration]
->>   native_pud_clear(pudp);
->>   ^~~~~~~~~~~~~~~~
->>
->> Kernel configuration attached. I'm probably just going to revert
->> this part unless someone sends me a better fix.
-> 
-> 
-> This breakage happens when CONFIG_HIGHMEM64G (i.e. CONFIG_X86_PAE) and CONFIG_PARAVIRT.
-
-Thanks for the additional breakage configs report. I think I need to
-extend that ifdef to additional configs. I'll send out a fix as soon as
-I test the various different combination of configs.
-
-> 
-> -boris
-> 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
