@@ -1,104 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 248EB6B0389
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:20:36 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v77so39746758wmv.5
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:20:36 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5E86B0389
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:30:14 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v77so39825225wmv.5
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:30:14 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 33si21894318wrm.266.2017.02.27.08.20.34
+        by mx.google.com with ESMTPS id o67si14046711wmo.87.2017.02.27.08.30.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Feb 2017 08:20:34 -0800 (PST)
-Date: Mon, 27 Feb 2017 17:20:31 +0100
+        Mon, 27 Feb 2017 08:30:13 -0800 (PST)
+Date: Mon, 27 Feb 2017 17:30:10 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, add_memory_resource: hold device_hotplug lock over
- mem_hotplug_{begin, done}
-Message-ID: <20170227162031.GA27937@dhcp22.suse.cz>
-References: <alpine.LFD.2.20.1702261231580.3067@schleppi.fritz.box>
+Subject: Re: [PATCH V5 3/6] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
+ list
+Message-ID: <20170227163009.GM26504@dhcp22.suse.cz>
+References: <cover.1487965799.git.shli@fb.com>
+ <2f87063c1e9354677b7618c647abde77b07561e5.1487965799.git.shli@fb.com>
+ <20170227062801.GB23612@bbox>
+ <20170227161309.GB62304@shli-mbp.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.20.1702261231580.3067@schleppi.fritz.box>
+In-Reply-To: <20170227161309.GB62304@shli-mbp.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Ott <sebott@linux.vnet.ibm.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Shaohua Li <shli@fb.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-[CC Rafael]
-
-I've got lost in the acpi indirection (again). I can see
-acpi_device_hotplug calling lock_device_hotplug() but i cannot find a
-path down to add_memory() which might call add_memory_resource. But the
-patch below sounds suspicious to me. Is it possible that this could lead
-to a deadlock. I would suspect that it is the s390 code which needs to
-do the locking. But I would have to double check - it is really easy to
-get lost there.
-
-On Sun 26-02-17 12:42:44, Sebastian Ott wrote:
-> With 4.10.0-10265-gc4f3f22 the following warning is triggered on s390:
+On Mon 27-02-17 08:13:10, Shaohua Li wrote:
+> On Mon, Feb 27, 2017 at 03:28:01PM +0900, Minchan Kim wrote:
+[...]
+> > This patch doesn't address I pointed out in v4.
+> > 
+> > https://marc.info/?i=20170224233752.GB4635%40bbox
+> > 
+> > Let's discuss it if you still are against.
 > 
-> WARNING: CPU: 6 PID: 1 at drivers/base/core.c:643 assert_held_device_hotplug+0x4a/0x58
-> [    5.731214] Call Trace:
-> [    5.731219] ([<000000000067b8b0>] assert_held_device_hotplug+0x40/0x58)
-> [    5.731225]  [<0000000000337914>] mem_hotplug_begin+0x34/0xc8
-> [    5.731231]  [<00000000008b897e>] add_memory_resource+0x7e/0x1f8
-> [    5.731236]  [<00000000008b8bd2>] add_memory+0xda/0x130
-> [    5.731243]  [<0000000000d7f0dc>] add_memory_merged+0x15c/0x178
-> [    5.731247]  [<0000000000d7f3a6>] sclp_detect_standby_memory+0x2ae/0x2f8
-> [    5.731252]  [<00000000001002ba>] do_one_initcall+0xa2/0x150
-> [    5.731258]  [<0000000000d3adc0>] kernel_init_freeable+0x228/0x2d8
-> [    5.731263]  [<00000000008b6572>] kernel_init+0x2a/0x140
-> [    5.731267]  [<00000000008c3972>] kernel_thread_starter+0x6/0xc
-> [    5.731272]  [<00000000008c396c>] kernel_thread_starter+0x0/0xc
-> [    5.731276] no locks held by swapper/0/1.
-> [    5.731280] Last Breaking-Event-Address:
-> [    5.731285]  [<000000000067b8b6>] assert_held_device_hotplug+0x46/0x58
-> [    5.731292] ---[ end trace 46480df21194c96a ]---
+> I really think a spearate patch makes the code clearer. There are a lot of
+> places we introduce a function but don't use it immediately, if the way makes
+> the code clearer. But anyway, I'll let Andrew decide if the two patches should
+> be merged.
 
-such an informtion belongs to the changelog
-
-> ----->8
-> mm, add_memory_resource: hold device_hotplug lock over mem_hotplug_{begin, done}
-> 
-> With commit 3fc219241 ("mm: validate device_hotplug is held for memory hotplug")
-> a lock assertion was added to mem_hotplug_begin() which led to a warning
-> when add_memory() is called. Fix this by acquiring device_hotplug_lock in
-> add_memory_resource().
-> 
-> Signed-off-by: Sebastian Ott <sebott@linux.vnet.ibm.com>
-> ---
->  mm/memory_hotplug.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 1d3ed58..c633bbc 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1361,6 +1361,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
->  		new_pgdat = !p;
->  	}
->  
-> +	lock_device_hotplug();
->  	mem_hotplug_begin();
->  
->  	/*
-> @@ -1416,6 +1417,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
->  
->  out:
->  	mem_hotplug_done();
-> +	unlock_device_hotplug();
->  	return ret;
->  }
->  EXPORT_SYMBOL_GPL(add_memory_resource);
-> -- 
-> 2.3.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+I agree that it is almost always _preferable_ to add new functions along
+with their callers. In this particular case I would lean towards keeping
+the separation the way Shaohua did it because it makes the code really
+cleaner IMHO.
 -- 
 Michal Hocko
 SUSE Labs
