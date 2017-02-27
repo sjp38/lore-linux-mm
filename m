@@ -1,138 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CFC216B038B
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:18:00 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id s186so132541597qkb.5
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 05:18:00 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r19si11732511qke.145.2017.02.27.05.17.59
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CFCDB6B0387
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:48:56 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id w37so18231455wrc.2
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 05:48:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o110si21470245wrc.152.2017.02.27.05.48.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 05:18:00 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-References: <20170227092817.23571-1-mhocko@kernel.org>
-	<87lgssvtni.fsf@vitty.brq.redhat.com>
-	<20170227102132.GI14029@dhcp22.suse.cz>
-	<87efyjx60o.fsf@vitty.brq.redhat.com>
-	<20170227125636.GB26504@dhcp22.suse.cz>
-Date: Mon, 27 Feb 2017 14:17:56 +0100
-In-Reply-To: <20170227125636.GB26504@dhcp22.suse.cz> (Michal Hocko's message
-	of "Mon, 27 Feb 2017 13:56:37 +0100")
-Message-ID: <87wpcbvkl7.fsf@vitty.brq.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Feb 2017 05:48:55 -0800 (PST)
+Date: Mon, 27 Feb 2017 14:48:52 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V5 1/6] mm: delete unnecessary TTU_* flags
+Message-ID: <20170227134851.GD26504@dhcp22.suse.cz>
+References: <cover.1487965799.git.shli@fb.com>
+ <4be3ea1bc56b26fd98a54d0a6f70bec63f6d8980.1487965799.git.shli@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4be3ea1bc56b26fd98a54d0a6f70bec63f6d8980.1487965799.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-Michal Hocko <mhocko@kernel.org> writes:
+On Fri 24-02-17 13:31:44, Shaohua Li wrote:
+> Johannes pointed out TTU_LZFREE is unnecessary. It's true because we
+> always have the flag set if we want to do an unmap. For cases we don't
+> do an unmap, the TTU_LZFREE part of code should never run.
+> 
+> Also the TTU_UNMAP is unnecessary. If no other flags set (for
+> example, TTU_MIGRATION), an unmap is implied.
+> 
+> The patch includes Johannes's cleanup and dead TTU_ACTION macro removal
+> code
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Signed-off-by: Shaohua Li <shli@fb.com>
 
-> On Mon 27-02-17 11:49:43, Vitaly Kuznetsov wrote:
->> Michal Hocko <mhocko@kernel.org> writes:
->> 
->> > On Mon 27-02-17 11:02:09, Vitaly Kuznetsov wrote:
->> > [...]
->> >> I don't have anything new to add to the discussion happened last week
->> >> but I'd like to summarize my arguments against this change:
->> >> 
->> >> 1) This patch doesn't solve any issue. Configuration option is not an
->> >> issue by itself, it is an option for distros to decide what they want to
->> >> ship: udev rule with known issues (legacy mode) or enable the new
->> >> option. Distro makers and users building their kernels should be able to
->> >> answer this simple question "do you want to automatically online all
->> >> newly added memory or not".
->> >
->> > OK, so could you be more specific? Distributions have no clue about
->> > which HW their kernel runs on so how can they possibly make a sensible
->> > decision here?
->> 
->> They at least have an idea if they ship udev rule or not. I can also
->> imagine different choices for non-x86 architectures but I don't know
->> enough about them to have an opinion.
->
-> I really do not follow. If they know whether they ship the udev rule
-> then why do they need a kernel help at all? Anyway this global policy
-> actually breaks some usecases. Say you would have a default set to
-> online. What should user do if _some_ nodes should be online_movable?
-> Or, say that HyperV or other hotplug based ballooning implementation
-> really want to online the movable memory in order to have a realiable
-> hotremove. Now you have a global policy which goes against it.
->
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-While I think that hotremove is a special case which really requires
-manual intervention (at least to decide which memory goes NORMAL and
-which MOVABLE), MEMORY_HOTPLUG_DEFAULT_ONLINE is probably not for it.
-
-[snip]
-
->
->> The difference with real hardware is how the operation is performed:
->> with real hardware you need to take a DIMM, go to your server room, open
->> the box, insert DIMM, go back to your seat. Asking to do some manual
->> action to actually enable memory is kinda OK. The beauty of hypervisors
->> is that everything happens automatically (e.g. when the VM is running
->> out of memory).
->
-> I do not see your point. Either you have some (semi)automatic way to
-> balance memory in guest based on the memory pressure (let's call it
-> ballooning) or this is an administration operation (say you buy more
-> DIMs or pay more to your virtualization provider) and then it is up to
-> the guest owner to tell what to do about that memory. In other words you
-> really do not want to wait in the first case as you are under memory
-> pressure which is _actively_ managed or this is much more relaxed
-> environment.
-
-I don't see a contradiction between what I say and what you say here :-)
-Yes, there are case when we're not in a hurry and there are cases when
-we can't wait.
-
->
->> >> 3) Kernel command line is not a viable choice, it is rather a debug
->> >> method.
->> >
->> > Why?
->> >
->> 
->> Because we usually have just a few things there (root=, console=) and
->> the rest is used when something goes wrong or for 'special' cases, not
->> for the majority of users.
->
-> auto online or even memory hotplug seems something that requires
-> a special HW/configuration already so I fail to see your point. It is
-> normal to put kernel parameters to override the default. And AFAIU
-> default offline is a sensible default for the standard memory hotplug.
->
-
-It depends how we define 'standard'. The point I'm trying to make is
-that it's really common for VMs to use this technique while in hardware
-(x86) world it is a rare occasion. The 'sensible default' may differ.
-
-> [...]
->
->> >> 2) Adding new memory can (in some extreme cases) still fail as we need
->> >> some *other* memory before we're able to online the newly added
->> >> block. This is an issue to be solved and it is doable (IMO) with some
->> >> pre-allocation.
->> >
->> > you cannot preallocate for all the possible memory that can be added.
->> 
->> For all, no, but for 1 next block - yes, and then I'll preallocate for
->> the next one.
->
-> You are still thinking in the scope of your particular use case and I
-> believe the whole thing is shaped around that very same thing and that
-> is why it should have been rejected in the first place. Especially when
-> that use case can be handled without user visible configuration knob.
-
-I think my use case is broad enough. At least it applies to all
-virtualization technoligies and not only to Hyper-V. But yes, I agree
-that adding a parameter to add_memory() solves my particular use case as
-well.
+> ---
+>  include/linux/rmap.h | 22 +++++++++-------------
+>  mm/memory-failure.c  |  2 +-
+>  mm/rmap.c            |  2 +-
+>  mm/vmscan.c          | 11 ++++-------
+>  4 files changed, 15 insertions(+), 22 deletions(-)
+> 
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 8c89e90..7a39414 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -83,19 +83,17 @@ struct anon_vma_chain {
+>  };
+>  
+>  enum ttu_flags {
+> -	TTU_UNMAP = 1,			/* unmap mode */
+> -	TTU_MIGRATION = 2,		/* migration mode */
+> -	TTU_MUNLOCK = 4,		/* munlock mode */
+> -	TTU_LZFREE = 8,			/* lazy free mode */
+> -	TTU_SPLIT_HUGE_PMD = 16,	/* split huge PMD if any */
+> -
+> -	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+> -	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+> -	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+> -	TTU_BATCH_FLUSH = (1 << 11),	/* Batch TLB flushes where possible
+> +	TTU_MIGRATION		= 0x1,	/* migration mode */
+> +	TTU_MUNLOCK		= 0x2,	/* munlock mode */
+> +
+> +	TTU_SPLIT_HUGE_PMD	= 0x4,	/* split huge PMD if any */
+> +	TTU_IGNORE_MLOCK	= 0x8,	/* ignore mlock */
+> +	TTU_IGNORE_ACCESS	= 0x10,	/* don't age */
+> +	TTU_IGNORE_HWPOISON	= 0x20,	/* corrupted page is recoverable */
+> +	TTU_BATCH_FLUSH		= 0x40,	/* Batch TLB flushes where possible
+>  					 * and caller guarantees they will
+>  					 * do a final flush if necessary */
+> -	TTU_RMAP_LOCKED = (1 << 12)	/* do not grab rmap lock:
+> +	TTU_RMAP_LOCKED		= 0x80	/* do not grab rmap lock:
+>  					 * caller holds it */
+>  };
+>  
+> @@ -193,8 +191,6 @@ static inline void page_dup_rmap(struct page *page, bool compound)
+>  int page_referenced(struct page *, int is_locked,
+>  			struct mem_cgroup *memcg, unsigned long *vm_flags);
+>  
+> -#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+> -
+>  int try_to_unmap(struct page *, enum ttu_flags flags);
+>  
+>  /* Avoid racy checks */
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 3d0f2fd..b78d080 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -906,7 +906,7 @@ EXPORT_SYMBOL_GPL(get_hwpoison_page);
+>  static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+>  				  int trapno, int flags, struct page **hpagep)
+>  {
+> -	enum ttu_flags ttu = TTU_UNMAP | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+> +	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+>  	struct address_space *mapping;
+>  	LIST_HEAD(tokill);
+>  	int ret;
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 8774791..96eb85c 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1418,7 +1418,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  			 */
+>  			VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+>  
+> -			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
+> +			if (!PageDirty(page)) {
+>  				/* It's a freeable page by MADV_FREE */
+>  				dec_mm_counter(mm, MM_ANONPAGES);
+>  				rp->lazyfreed++;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 26c3b40..68ea50d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -971,7 +971,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		int may_enter_fs;
+>  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
+>  		bool dirty, writeback;
+> -		bool lazyfree = false;
+>  		int ret = SWAP_SUCCESS;
+>  
+>  		cond_resched();
+> @@ -1125,7 +1124,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				goto keep_locked;
+>  			if (!add_to_swap(page, page_list))
+>  				goto activate_locked;
+> -			lazyfree = true;
+>  			may_enter_fs = 1;
+>  
+>  			/* Adding to swap updated mapping */
+> @@ -1143,9 +1141,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		 * processes. Try to unmap it here.
+>  		 */
+>  		if (page_mapped(page) && mapping) {
+> -			switch (ret = try_to_unmap(page, lazyfree ?
+> -				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
+> -				(ttu_flags | TTU_BATCH_FLUSH))) {
+> +			switch (ret = try_to_unmap(page,
+> +				ttu_flags | TTU_BATCH_FLUSH)) {
+>  			case SWAP_FAIL:
+>  				nr_unmap_fail++;
+>  				goto activate_locked;
+> @@ -1353,7 +1350,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  	}
+>  
+>  	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
+> -			TTU_UNMAP|TTU_IGNORE_ACCESS, NULL, true);
+> +			TTU_IGNORE_ACCESS, NULL, true);
+>  	list_splice(&clean_pages, page_list);
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
+>  	return ret;
+> @@ -1760,7 +1757,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	if (nr_taken == 0)
+>  		return 0;
+>  
+> -	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, TTU_UNMAP,
+> +	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, 0,
+>  				&stat, false);
+>  
+>  	spin_lock_irq(&pgdat->lru_lock);
+> -- 
+> 2.9.3
+> 
 
 -- 
-  Vitaly
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
