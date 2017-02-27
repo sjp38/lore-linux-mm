@@ -1,157 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 008E46B0038
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 23:27:15 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id m124so26201389oig.3
-        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 20:27:15 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0128.outbound.protection.outlook.com. [104.47.38.128])
-        by mx.google.com with ESMTPS id r18si1605099otc.62.2017.02.26.20.27.12
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 51DD46B0038
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 00:41:49 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 1so161789909pgz.5
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 21:41:49 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j21si14206822pgg.373.2017.02.26.21.41.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 26 Feb 2017 20:27:12 -0800 (PST)
-From: Zi Yan <zi.yan@cs.rutgers.edu>
-Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
-Date: Sun, 26 Feb 2017 22:27:02 -0600
-Message-ID: <22763879-C335-41E6-8102-2022EED75DAE@cs.rutgers.edu>
-In-Reply-To: <20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
- <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
- <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
- <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
- <20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 Feb 2017 21:41:48 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v1R5cowZ105437
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 00:41:47 -0500
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28uqvm473d-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 00:41:46 -0500
+Received: from localhost
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 27 Feb 2017 11:11:43 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 737AE125805B
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:11:52 +0530 (IST)
+Received: from d28av08.in.ibm.com (d28av08.in.ibm.com [9.184.220.148])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v1R5fgEZ15204586
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:11:42 +0530
+Received: from d28av08.in.ibm.com (localhost [127.0.0.1])
+	by d28av08.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v1R5fepH031028
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:11:41 +0530
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170221111107.GJ15595@dhcp22.suse.cz>
+ <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+ <60b3dd35-a802-ba93-c2c5-d6b2b3dd72ea@huawei.com>
+ <20170224045311.GA15343@redhat.com>
+ <fc486de7-81ce-6953-3e56-90f45a2e5527@huawei.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 27 Feb 2017 11:11:39 +0530
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-	boundary="=_MailMate_1523C952-EB8A-4F67-AF55-E5482DFF313B_=";
-	micalg=pgp-sha512; protocol="application/pgp-signature"
+In-Reply-To: <fc486de7-81ce-6953-3e56-90f45a2e5527@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <67a068c6-6970-aae1-9a1e-847e322f0e39@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, Jan Stancek <jstancek@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: Bob Liu <liubo95@huawei.com>, Jerome Glisse <jglisse@redhat.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, "dan.j.williams@intel.com; jhubbard"@nvidia.com
 
---=_MailMate_1523C952-EB8A-4F67-AF55-E5482DFF313B_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-On 26 Feb 2017, at 19:20, Naoya Horiguchi wrote:
-
-> On Sat, Feb 25, 2017 at 10:28:15AM +0800, Yisheng Xie wrote:
->> hi Naoya,
+On 02/27/2017 07:26 AM, Bob Liu wrote:
+> On 2017/2/24 12:53, Jerome Glisse wrote:
+>> On Fri, Feb 24, 2017 at 09:06:19AM +0800, Bob Liu wrote:
+>>> On 2017/2/21 21:39, Anshuman Khandual wrote:
+>>>> On 02/21/2017 04:41 PM, Michal Hocko wrote:
+>>>>> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+>>>>> [...]
+>>>>>> * User space using mbind() to get CDM memory is an additional benefit
+>>>>>>   we get by making the CDM plug in as a node and be part of the buddy
+>>>>>>   allocator. But the over all idea from the user space point of view
+>>>>>>   is that the application can allocate any generic buffer and try to
+>>>>>>   use the buffer either from the CPU side or from the device without
+>>>>>>   knowing about where the buffer is really mapped physically. That
+>>>>>>   gives a seamless and transparent view to the user space where CPU
+>>>>>>   compute and possible device based compute can work together. This
+>>>>>>   is not possible through a driver allocated buffer.
+>>>>>
+>>>>> But how are you going to define any policy around that. Who is allowed
+>>>>
+>>>> The user space VMA can define the policy with a mbind(MPOL_BIND) call
+>>>> with CDM/CDMs in the nodemask.
+>>>>
+>>>>> to allocate and how much of this "special memory". Is it possible that
+>>>>
+>>>> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
+>>>> the nodemask can allocate from the CDM memory. "How much" gets controlled
+>>>> by how we fault from CPU and the default behavior of the buddy allocator.
+>>>>
+>>>>> we will eventually need some access control mechanism? If yes then mbind
+>>>>
+>>>> No access control mechanism is needed. If an application wants to use
+>>>> CDM memory by specifying in the mbind() it can. Nothing prevents it
+>>>> from using the CDM memory.
+>>>>
+>>>>> is really not suitable interface to (ab)use. Also what should happen if
+>>>>> the mbind mentions only CDM memory and that is depleted?
+>>>>
+>>>> IIUC *only CDM* cannot be requested from user space as there are no user
+>>>> visible interface which can translate to __GFP_THISNODE. MPOL_BIND with
+>>>> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
+>>>> have zones of the system including CDM ones. If the resultant CDM zones
+>>>> run out of memory, we fail the allocation request as usual.
+>>>>
+>>>>>
+>>>>> Could you also explain why the transparent view is really better than
+>>>>> using a device specific mmap (aka CDM awareness)?
+>>>>
+>>>> Okay with a transparent view, we can achieve a control flow of application
+>>>> like the following.
+>>>>
+>>>> (1) Allocate a buffer:		alloc_buffer(buf, size)
+>>>> (2) CPU compute on buffer:	cpu_compute(buf, size)
+>>>> (3) Device compute on buffer:	device_compute(buf, size)
+>>>> (4) CPU compute on buffer:	cpu_compute(buf, size)
+>>>> (5) Release the buffer:		release_buffer(buf, size)
+>>>>
+>>>> With assistance from a device specific driver, the actual page mapping of
+>>>> the buffer can change between system RAM and device memory depending on
+>>>> which side is accessing at a given point. This will be achieved through
+>>>> driver initiated migrations.
+>>>>
+>>>
+>>> Sorry, I'm a bit confused here.
+>>> What's the difference with the Heterogeneous memory management?
+>>> Which also "allows to use device memory transparently inside any process
+>>> without any modifications to process program code."
 >>
->> On 2017/2/23 11:23, Naoya Horiguchi wrote:
->>> On Mon, Feb 20, 2017 at 05:00:17AM +0000, Horiguchi Naoya(=E5=A0=80=E5=
-=8F=A3 =E7=9B=B4=E4=B9=9F) wrote:
->>>> On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
->>>>> Hi,
->>>>>
->>>>> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
->>>>> unless I touch/prefault page before call to madvise().
->>>>>
->>>>> Is this expected behavior?
->>>>
->>>> Thank you for reporting.
->>>>
->>>> madvise(MADV_HWPOISON) triggers page fault when called on the addres=
-s
->>>> over which no page is faulted-in, so I think that SIGBUS should be
->>>> called in such case.
->>>>
->>>> But it seems that memory error handler considers such a page as "res=
-erved
->>>> kernel page" and recovery action fails (see below.)
->>>>
->>>>   [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcd=
-c569000
->>>>   [  383.375678] Memory failure: 0x1f10: reserved kernel page still =
-referenced by 1 users
->>>>   [  383.377570] Memory failure: 0x1f10: recovery action for reserve=
-d kernel page: Failed
->>>>
->>>> I'm not sure how/when this behavior was introduced, so I try to unde=
-rstand.
->>>
->>> I found that this is a zero page, which is not recoverable for memory=
+>> HMM is first and foremost for platform (like Intel) where CPU can not
+>> access device memory in cache coherent way or at all. CDM is for more
+>> advance platform with a system bus that allow the CPU to access device
+>> memory in cache coherent way.
+>>
+>> Hence CDM was design to integrate more closely in existing concept like
+>> NUMA. From my point of view it is like another level in the memory
+>> hierarchy. Nowaday you have local node memory and other node memory.
+>> In not too distant future you will have fast CPU on die memory, local
+>> memory (you beloved DDR3/DDR4), slightly slower but gigantic persistant
+>> memory and also device memory (all those local to a node).
+>>
+>> On top of that you will still have the regular NUMA hierarchy between
+>> nodes. But each node will have its own local hierarchy of memory.
+>>
+>> CDM wants to integrate with existing memory hinting API and i believe
+>> this is needed to get some experience with how end user might want to
+>> use this to fine tune their application.
+>>
+>> Some bit of HMM are generic and will be reuse by CDM, for instance the
+>> DMA capable memory migration helpers. Wether they can also share HMM
+>> approach of using ZONE_DEVICE is yet to be proven but it comes with
+>> limitations (can't be on lru or have device lru) that might hinder a
+>> closer integration of CDM memory with many aspect of kernel mm.
+>>
+>>
+>> This is my own view and it likely differ in some way from the view of
+>> the people behind CDM :)
+>>
+> 
+> Got it, thank you for the kindly explanation.
+> And also thank you, John.
 
->>> error now.
->>>
->>>> IMO, the test code below looks valid to me, so no need to change.
->>>
->>> I think that what the testcase effectively does is to test whether me=
-mory
->>> handling on zero pages works or not.
->>> And the testcase's failure seems acceptable, because it's simply not-=
-implemented yet.
->>> Maybe recovering from error on zero page is possible (because there's=
- no data
->>> loss for memory error,) but I'm not sure that code might be simple en=
-ough and/or
->>> it's worth doing ...
->> I question about it,  if a memory error happened on zero page, it will=
-
->> cause all of data read from zero page is error, I mean no-zero, right?=
-
->
-> Hi Yisheng,
->
-> Yes, the impact is serious (could affect many processes,) but it's poss=
-ibility
-> is very low because there's only one page in a system that is used for =
-zero page.
-> There are many other pages which are not recoverable for memory error l=
-ike
-> slab pages, so I'm not sure how I prioritize it (maybe it's not a
-> top-priority thing, nor low-hanging fruit.)
->
->> And can we just use re-initial it with zero data maybe by memset ?
->
-> Maybe it's not enoguh. Under a real hwpoison, we should isolate the err=
-or
-> page to prevent the access on the broken data.
-> But zero page is statically defined as an array of global variable, so
-> it's not trival to replace it with a new zero page at runtime.
->
-> Anyway, it's in my todo list, so hopefully revisited in the future.
->
-
-Hi Naoya,
-
-The test case tries to HWPOISON a range of virtual addresses that do not
-map to any physical pages.
-
-I expected either madvise should fail because HWPOISON does not work on
-non-existing physical pages or madvise_hwpoison() should populate
-some physical pages for that virtual address range and poison them.
-
-As I tested it on kernel v4.10, the test application exited at
-madvise, because madvise returns -1 and error message is
-"Device or resource busy". I think this is a proper behavior.
-
-There might be some confusion in madvise's man page on MADV_HWPOISON.
-If you add some text saying madvise fails if any page is not mapped in
-the given address range, that can eliminate the confusion.
-
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_1523C952-EB8A-4F67-AF55-E5482DFF313B_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJYs6qXAAoJEEGLLxGcTqbMi+cH/2LydO8wB9pA2qI+hQha6zT7
-inLGbVPinD8VxXr/pYCSNUq/D9tvRD2JPR4YLv4syaHYB6V3so31nyyG0oUlniEZ
-Rpw4wWwuBDa8T556XFKbgQgka7INSvPmepdqSeUjSSPvD0KoDMSOcuPLfZfrgZwT
-T+Y+FXkiwz7SpQDjb7puT4yJDc3mTeq0W73S4udqPq24CIVjIi2jxate3v9aqYsL
-v5WCUjOeU1AiYgAgkJ3Sb3xPyHdxJZ1+uD3W2YxW0AwQRryFAtGw/pQdNHOMx4BS
-uFYQNsD2569EoaPR+Z+KTY23TP6wRil59/QLGv1l9jF9La4MIMs7bCmGn5ueiAA=
-=QLzN
------END PGP SIGNATURE-----
-
---=_MailMate_1523C952-EB8A-4F67-AF55-E5482DFF313B_=--
+Thanks Jerome and John for helping out with the detailed explanation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
