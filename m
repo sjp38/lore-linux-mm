@@ -1,50 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CE136B038B
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:49:01 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x17so4315362pgi.3
-        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 22:49:01 -0800 (PST)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id n67si14372083pfk.77.2017.02.26.22.48.59
-        for <linux-mm@kvack.org>;
-        Sun, 26 Feb 2017 22:49:00 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <cover.1487965799.git.shli@fb.com> <3945232c0df3dd6c4ef001976f35a95f18dcb407.1487965799.git.shli@fb.com>
-In-Reply-To: <3945232c0df3dd6c4ef001976f35a95f18dcb407.1487965799.git.shli@fb.com>
-Subject: Re: [PATCH V5 2/6] mm: don't assume anonymous pages have SwapBacked flag
-Date: Mon, 27 Feb 2017 14:48:41 +0800
-Message-ID: <06b701d290c5$8909bec0$9b1d3c40$@alibaba-inc.com>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7CF6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 03:27:39 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id g10so40984948wrg.5
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 00:27:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g22si20505520wrb.234.2017.02.27.00.27.37
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Feb 2017 00:27:37 -0800 (PST)
+Date: Mon, 27 Feb 2017 09:27:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+Message-ID: <20170227082734.GB14029@dhcp22.suse.cz>
+References: <aa4a3217-f94c-0477-b573-796c84255d1e@wiesinger.com>
+ <c4ddfc91-7c84-19ed-b69a-18403e7590f9@wiesinger.com>
+ <b3d7a0f3-caa4-91f9-4148-b62cf5e23886@wiesinger.com>
+ <20161209134025.GB4342@dhcp22.suse.cz>
+ <a0bf765f-d5dd-7a51-1a6b-39cbda56bd58@wiesinger.com>
+ <20161223025505.GA30876@bbox>
+ <c2fe9c45-e25f-d3d6-7fe7-f91e353bc579@wiesinger.com>
+ <20170104091120.GD25453@dhcp22.suse.cz>
+ <82bce413-1bd7-7f66-1c3d-0d890bbaf6f1@wiesinger.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <82bce413-1bd7-7f66-1c3d-0d890bbaf6f1@wiesinger.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Shaohua Li' <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Gerhard Wiesinger <lists@wiesinger.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-
-On February 25, 2017 5:32 AM Shaohua Li wrote: 
+On Sun 26-02-17 09:40:42, Gerhard Wiesinger wrote:
+> On 04.01.2017 10:11, Michal Hocko wrote:
+> >>The VM stops working (e.g. not pingable) after around 8h (will be restarted
+> >>automatically), happened serveral times.
+> >>
+> >>Had also further OOMs which I sent to Mincham.
+> >Could you post them to the mailing list as well, please?
 > 
-> There are a few places the code assumes anonymous pages should have
-> SwapBacked flag set. MADV_FREE pages are anonymous pages but we are
-> going to add them to LRU_INACTIVE_FILE list and clear SwapBacked flag
-> for them. The assumption doesn't hold any more, so fix them.
+> Still OOMs on dnf update procedure with kernel 4.10: 4.10.0-1.fc26.x86_64 as
+> well on 4.9.9-200.fc25.x86_64
 > 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
-> ---
+> On 4.10er kernels:
+[...]
+> kernel: Node 0 DMA32 free:5012kB min:2264kB low:2828kB high:3392kB
+> active_anon:143580kB inactive_anon:143300kB active_file:2576kB
+> inactive_file:2560kB unevictable:0kB writepending:0kB present:376688kB
+> managed:353968kB mlocked:0kB slab_reclaimable:13708kB
+> slab_unreclaimable:18064kB kernel_stack:2352kB pagetables:12888kB bounce:0kB
+> free_pcp:412kB local_pcp:88kB free_cma:0kB
+[...]
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> On 4.9er kernels:
+[...]
+> kernel: Node 0 DMA32 free:3356kB min:2668kB low:3332kB high:3996kB
+> active_anon:122148kB inactive_anon:112068kB active_file:81324kB
+> inactive_file:101972kB unevictable:0kB writepending:4648kB present:507760kB
+> managed:484384kB mlocked:0kB slab_reclaimable:17660kB
+> slab_unreclaimable:21404kB kernel_stack:2432kB pagetables:10124kB bounce:0kB
+> free_pcp:120kB local_pcp:0kB free_cma:0kB
 
+In both cases the amount if free memory is above the min watermark, so
+we shouldn't be hitting the oom. We might have somebody freeing memory
+after the last attempt, though...
+
+[...]
+> Should be very easy to reproduce with a low mem VM (e.g. 192MB) under KVM
+> with ext4 and Fedora 25 and some memory load and updating the VM.
+> 
+> Any further progress?
+
+The linux-next (resp. mmotm tree) has new tracepoints which should help
+to tell us more about what is going on here. Could you try to enable
+oom/reclaim_retry_zone and vmscan/mm_vmscan_direct_reclaim_{begin,end}
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
