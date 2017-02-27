@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5E86B0389
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:30:14 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id v77so39825225wmv.5
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:30:14 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C1D416B038B
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 11:32:16 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id u48so2893382wrc.0
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 08:32:16 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o67si14046711wmo.87.2017.02.27.08.30.13
+        by mx.google.com with ESMTPS id k69si21950475wrc.76.2017.02.27.08.32.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Feb 2017 08:30:13 -0800 (PST)
-Date: Mon, 27 Feb 2017 17:30:10 +0100
+        Mon, 27 Feb 2017 08:32:15 -0800 (PST)
+Date: Mon, 27 Feb 2017 17:32:12 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V5 3/6] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
- list
-Message-ID: <20170227163009.GM26504@dhcp22.suse.cz>
+Subject: Re: [PATCH V5 4/6] mm: reclaim MADV_FREE pages
+Message-ID: <20170227163212.GN26504@dhcp22.suse.cz>
 References: <cover.1487965799.git.shli@fb.com>
- <2f87063c1e9354677b7618c647abde77b07561e5.1487965799.git.shli@fb.com>
- <20170227062801.GB23612@bbox>
- <20170227161309.GB62304@shli-mbp.local>
+ <14b8eb1d3f6bf6cc492833f183ac8c304e560484.1487965799.git.shli@fb.com>
+ <20170227063315.GC23612@bbox>
+ <20170227161907.GC62304@shli-mbp.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170227161309.GB62304@shli-mbp.local>
+In-Reply-To: <20170227161907.GC62304@shli-mbp.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@fb.com>
 Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Mon 27-02-17 08:13:10, Shaohua Li wrote:
-> On Mon, Feb 27, 2017 at 03:28:01PM +0900, Minchan Kim wrote:
+On Mon 27-02-17 08:19:08, Shaohua Li wrote:
+> On Mon, Feb 27, 2017 at 03:33:15PM +0900, Minchan Kim wrote:
 [...]
-> > This patch doesn't address I pointed out in v4.
+> > > --- a/include/linux/rmap.h
+> > > +++ b/include/linux/rmap.h
+> > > @@ -298,6 +298,6 @@ static inline int page_mkclean(struct page *page)
+> > >  #define SWAP_AGAIN	1
+> > >  #define SWAP_FAIL	2
+> > >  #define SWAP_MLOCK	3
+> > > -#define SWAP_LZFREE	4
+> > > +#define SWAP_DIRTY	4
 > > 
-> > https://marc.info/?i=20170224233752.GB4635%40bbox
+> > I still don't convinced why we should introduce SWAP_DIRTY in try_to_unmap.
+> > https://marc.info/?l=linux-mm&m=148797879123238&w=2
 > > 
-> > Let's discuss it if you still are against.
+> > We have been SetPageMlocked in there but why cannot we SetPageSwapBacked
+> > in there? It's not a thing to change LRU type but it's just indication
+> > we found the page's status changed in late.
 > 
-> I really think a spearate patch makes the code clearer. There are a lot of
-> places we introduce a function but don't use it immediately, if the way makes
-> the code clearer. But anyway, I'll let Andrew decide if the two patches should
-> be merged.
+> This one I don't have strong preference. Personally I agree with Johannes,
+> handling failure in vmscan sounds better. But since the failure handling is
+> just one statement, this probably doesn't make too much difference. If Johannes
+> and you made an agreement, I'll follow.
 
-I agree that it is almost always _preferable_ to add new functions along
-with their callers. In this particular case I would lean towards keeping
-the separation the way Shaohua did it because it makes the code really
-cleaner IMHO.
+FWIW I like your current SWAP_DIRTY and the later handling at the vmscan
+level more.
 -- 
 Michal Hocko
 SUSE Labs
