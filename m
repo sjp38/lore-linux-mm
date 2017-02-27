@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 073966B0387
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 16:28:19 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id r90so150795708qki.0
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:28:19 -0800 (PST)
-Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
-        by mx.google.com with ESMTPS id k1si7863734qtk.215.2017.02.27.13.28.18
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C7976B0387
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 16:44:43 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 1so196840897pgz.5
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:44:43 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id f35si16219404plh.40.2017.02.27.13.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 13:28:18 -0800 (PST)
-Received: by mail-yw0-x244.google.com with SMTP id 203so7140941ywz.1
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:28:18 -0800 (PST)
-Date: Mon, 27 Feb 2017 16:28:16 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 3/3] percpu: improve allocation success rate for
- non-GFP_KERNEL callers
-Message-ID: <20170227212816.GB11758@htj.duckdns.org>
-References: <201702260805.zhem8KFI%fengguang.wu@intel.com>
- <20170226043829.14270-1-tahsin@google.com>
- <20170227095258.GG14029@dhcp22.suse.cz>
- <CAAeU0aMaGa63Nj=JvZKKy82FftAT9dF56=gZsufDvrkqDSGUrw@mail.gmail.com>
- <20170227195126.GC8707@htj.duckdns.org>
- <CAAeU0aORY=N0e0gMKu-CBAEF=HLuHUNV6KWy27th1rwuPMcTMg@mail.gmail.com>
- <20170227202906.GF8707@htj.duckdns.org>
- <CAAeU0aMnz-nsXGy44mwBfzwfFJtVWNRQiAE0UAonBQA3iDJBqg@mail.gmail.com>
- <20170227204527.GG8707@htj.duckdns.org>
- <CAAeU0aPGvoYr=dtbRWT3=S5x9HmkUEiGmGWQy0JdFVu3F40N9g@mail.gmail.com>
+        Mon, 27 Feb 2017 13:44:42 -0800 (PST)
+Subject: [PATCH] mm,
+ x86: fix HIGHMEM64 && PARAVIRT build config for native_pud_clear()
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Mon, 27 Feb 2017 14:44:40 -0700
+Message-ID: <148823188084.56076.17451228917824355200.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeU0aPGvoYr=dtbRWT3=S5x9HmkUEiGmGWQy0JdFVu3F40N9g@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tahsin Erdogan <tahsin@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: dave.hansen@linux.intel.com, alexander.kapshuk@gmail.com, mawilcox@microsoft.com, boris.ostrovsky@oracle.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, labbott@redhat.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
 
-On Mon, Feb 27, 2017 at 01:12:11PM -0800, Tahsin Erdogan wrote:
-> That makes sense. I will work a patch that does that (unless you are
-> interested in implementing it yourself).
+Looks like I also missed the build config that includes
+CONFIG_HIGHMEM64G && CONFIG_PARAVIRT to export the native_pud_clear()
+dummy function.
 
-I'd really appreciate if you can work on it.  Thanks a lot!
+Fix: commit e5d56efc ("mm,x86: fix SMP x86 32bit build for native_pud_clear()")
 
--- 
-tejun
+Reported-by: Laura Abbott <labbott@redhat.com>
+Reported-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+---
+ arch/x86/include/asm/pgtable-3level.h |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+index 8f50fb3..72277b1 100644
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -121,7 +121,8 @@ static inline void native_pmd_clear(pmd_t *pmd)
+ 	*(tmp + 1) = 0;
+ }
+ 
+-#ifndef CONFIG_SMP
++#if !defined(CONFIG_SMP) || (defined(CONFIG_HIGHMEM64G) && \
++		defined(CONFIG_PARAVIRT))
+ static inline void native_pud_clear(pud_t *pudp)
+ {
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
