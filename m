@@ -1,329 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4286B0038
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 04:28:26 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c143so8429689wmd.2
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:28:26 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id c51si5328680wrc.313.2017.02.27.01.28.24
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 50C916B0038
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 04:35:11 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id 72so30535263uaf.7
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:35:11 -0800 (PST)
+Received: from mail-ua0-x236.google.com (mail-ua0-x236.google.com. [2607:f8b0:400c:c08::236])
+        by mx.google.com with ESMTPS id r202si2203471vkf.177.2017.02.27.01.35.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 01:28:24 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id u63so12396688wmu.2
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:28:24 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-Date: Mon, 27 Feb 2017 10:28:17 +0100
-Message-Id: <20170227092817.23571-1-mhocko@kernel.org>
+        Mon, 27 Feb 2017 01:35:10 -0800 (PST)
+Received: by mail-ua0-x236.google.com with SMTP id e4so15918052uae.0
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:35:10 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAPcyv4iwhkW+cLbsT1Ns4=DhnfvZvdhbEVmj0zZcS+PRP6GMpA@mail.gmail.com>
+References: <20170215205826.13356-1-nicstange@gmail.com> <CAPcyv4iwhkW+cLbsT1Ns4=DhnfvZvdhbEVmj0zZcS+PRP6GMpA@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 27 Feb 2017 10:34:49 +0100
+Message-ID: <CACT4Y+aHwos6PyYhRGx6Hn1xQkSkf1vWgzbYVdC=eLA8MknHeg@mail.gmail.com>
+Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64 ("mm: convert
+ kmalloc_section_memmap() to populate_section_memmap()") and Kasan
+ initialization on
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Nicolai Stange <nicstange@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Sat, Feb 25, 2017 at 8:03 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> [ adding kasan folks ]
+>
+> On Wed, Feb 15, 2017 at 12:58 PM, Nicolai Stange <nicstange@gmail.com> wrote:
+>> Hi Dan,
+>>
+>> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
+>> populate_section_memmap()") seems to cause some issues with respect to
+>> Kasan initialization on x86.
+>>
+>> This is because Kasan's initialization (ab)uses the arch provided
+>> vmemmap_populate().
+>>
+>> The first one is a boot failure, see [1/3]. The commit before the
+>> aforementioned one works fine.
+>>
+>> The second one, i.e. [2/3], is something that hit my eye while browsing
+>> the source and I verified that this is indeed an issue by printk'ing and
+>> dumping the page tables.
+>>
+>> The third one are excessive warnings from vmemmap_verify() due to Kasan's
+>> NUMA_NO_NODE page populations.
+>>
+>>
+>> I'll be travelling the next two days and certainly not be able to respond
+>> or polish these patches any further. Furthermore, the next merge window is
+>> close. So please, take these three patches as bug reports only, meant to
+>> illustrate the issues. Feel free to use, change and adopt them however
+>> you deemed best.
+>>
+>> That being said,
+>> - [2/3] will break arm64 due to the current lack of a pmd_large().
+>> - Maybe it's easier and better to restore former behaviour by letting
+>>   Kasan's shadow initialization on x86 use vmemmap_populate_hugepages()
+>>   directly rather than vmemmap_populate(). This would require x86_64
+>>   implying X86_FEATURE_PSE though. I'm not sure whether this holds,
+>>   in particular not since the vmemmap_populate() from
+>>   arch/x86/mm/init_64.c checks for it.
+>
+> I think your intuition is correct here, and yes, it is a safe
+> assumption that x86_64 implies X86_FEATURE_PSE. The following patch
+> works for me. If there's no objections I'll roll it into the series
+> and resubmit the sub-section hotplug support after testing on top of
+> 4.11-rc1.
+>
+> --- gmail mangled-whitespace patch follows ---
+>
+> Subject: x86, kasan: clarify kasan's dependency on vmemmap_populate_hugepages()
+>
+> From: Dan Williams <dan.j.williams@intel.com>
+>
+> Historically kasan has not been careful about whether vmemmap_populate()
+> internally allocates a section worth of memmap even if the parameters
+> call for less.  For example, a request to shadow map a single page is
+> internally results in mapping the full section (128MB) that contains
+> that page. Also, kasan has not been careful to handle cases where this
+> section promotion causes overlaps / overrides of previous calls to
+> vmemmap_populate().
+>
+> Before we teach vmemmap_populate() to support sub-section hotplug,
+> arrange for kasan to explicitly avoid vmemmap_populate_basepages().
+> This should be functionally equivalent to the current state since
+> CONFIG_KASAN requires x86_64 (implies PSE) and it does not collide with
+> sub-section hotplug support since CONFIG_KASAN disables
+> CONFIG_MEMORY_HOTPLUG.
+>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Alexander Potapenko <glider@google.com>
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Reported-by: Nicolai Stange <nicstange@gmail.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/x86/mm/init_64.c       |    2 +-
+>  arch/x86/mm/kasan_init_64.c |   30 ++++++++++++++++++++++++++----
+>  include/linux/mm.h          |    2 ++
+>  3 files changed, 29 insertions(+), 5 deletions(-)
+>
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index af85b686a7b0..32e0befcbfe8 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -1157,7 +1157,7 @@ static long __meminitdata addr_start, addr_end;
+>  static void __meminitdata *p_start, *p_end;
+>  static int __meminitdata node_start;
+>
+> -static int __meminit vmemmap_populate_hugepages(unsigned long start,
+> +int __meminit vmemmap_populate_hugepages(unsigned long start,
+>   unsigned long end, int node, struct vmem_altmap *altmap)
+>  {
+>   unsigned long addr;
+> diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+> index 0493c17b8a51..4cfc0fb43af3 100644
+> --- a/arch/x86/mm/kasan_init_64.c
+> +++ b/arch/x86/mm/kasan_init_64.c
+> @@ -12,6 +12,25 @@
+>  extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+>  extern struct range pfn_mapped[E820_X_MAX];
+>
+> +static int __init kasan_vmemmap_populate(unsigned long start,
+> unsigned long end)
+> +{
+> + /*
+> + * Historically kasan has not been careful about whether
+> + * vmemmap_populate() internally allocates a section worth of memmap
+> + * even if the parameters call for less.  For example, a request to
+> + * shadow map a single page is internally results in mapping the full
+> + * section (128MB) that contains that page.  Also, kasan has not been
+> + * careful to handle cases where this section promotion causes overlaps
+> + * / overrides of previous calls to vmemmap_populate(). Make this
+> + * implicit dependency explicit to avoid interactions with sub-section
+> + * memory hotplug support.
+> + */
+> + if (!boot_cpu_has(X86_FEATURE_PSE))
+> + return -ENXIO;
+> +
+> + return vmemmap_populate_hugepages(start, end, NUMA_NO_NODE, NULL);
+> +}
+> +
+>  static int __init map_range(struct range *range)
+>  {
+>   unsigned long start;
+> @@ -25,7 +44,7 @@ static int __init map_range(struct range *range)
+>   * to slightly speed up fastpath. In some rare cases we could cross
+>   * boundary of mapped shadow, so we just map some more here.
+>   */
+> - return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
+> + return kasan_vmemmap_populate(start, end + 1);
+>  }
+>
+>  static void __init clear_pgds(unsigned long start,
+> @@ -89,6 +108,10 @@ void __init kasan_init(void)
+>  {
+>   int i;
+>
+> + /* should never trigger, x86_64 implies PSE */
+> + WARN(!boot_cpu_has(X86_FEATURE_PSE),
+> + "kasan requires page size extensions\n");
+> +
+>  #ifdef CONFIG_KASAN_INLINE
+>   register_die_notifier(&kasan_die_notifier);
+>  #endif
+> @@ -113,9 +136,8 @@ void __init kasan_init(void)
+>   kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
+>   kasan_mem_to_shadow((void *)__START_KERNEL_map));
+>
+> - vmemmap_populate((unsigned long)kasan_mem_to_shadow(_stext),
+> - (unsigned long)kasan_mem_to_shadow(_end),
+> - NUMA_NO_NODE);
+> + kasan_vmemmap_populate((unsigned long)kasan_mem_to_shadow(_stext),
+> + (unsigned long)kasan_mem_to_shadow(_end));
+>
+>   kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_END),
+>   (void *)KASAN_SHADOW_END);
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index b84615b0f64c..fb3e84aec5c4 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2331,6 +2331,8 @@ void vmemmap_verify(pte_t *, int, unsigned long,
+> unsigned long);
+>  int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+>         int node);
+>  int vmemmap_populate(unsigned long start, unsigned long end, int node);
+> +int vmemmap_populate_hugepages(unsigned long start, unsigned long
+> end, int node,
+> + struct vmem_altmap *altmap);
+>  void vmemmap_populate_print_last(void);
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+>  void vmemmap_free(unsigned long start, unsigned long end);
 
-This knob has been added by 31bc3858ea3e ("memory-hotplug: add automatic
-onlining policy for the newly added memory") mainly to cover memory
-hotplug based balooning solutions currently implemented for HyperV
-and Xen. Both of them want to online the memory as soon after
-registering as possible otherwise they can register too much memory
-which cannot be used and trigger the oom killer (we need ~1.5% of the
-registered memory so a large increase can consume all the available
-memory). hv_mem_hot_add even waits for the userspace to online the
-memory if the auto onlining is disabled to mitigate that problem.
 
-Adding yet another knob and a config option just doesn't make much sense
-IMHO. How is a random user supposed to know when to enable this option?
-Ballooning drivers know much better that they want to do an immediate
-online rather than waiting for the userspace to do that. If the memory
-is onlined for a different purpose then we already have a notification
-for the userspace and udev can handle the onlining. So the knob as well
-as the config option for the default behavior just doesn't make any
-sense. Let's remove them and allow user of add_memory to request the
-online status explicitly. Not only it makes more sense it also removes a
-lot of clutter.
++kasan-dev
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
+Andrey, do you mind looking at this?
 
-Hi,
-I am sending this as an RFC because this is a user visible change. Maybe
-we won't be able to remove the sysfs knob which would be sad, especially
-when it has been added without a wider discussion and IMHO it is just
-wrong. Is there any reason why a kernel command line parameter wouldn't
-work just fine?
+What is the manifestation of the problem? I have kasan bots on tip of
+upstream/mmotm/linux-next and they seem to be working.
 
-Even in that case I believe that we should remove
-CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE knob. It just adds to an already
-messy config space. Does anybody depend on the policy during the early
-boot before the userspace can set the sysfs knob? Or why those users cannot
-simply use the kernel command line parameter.
+Re the added comment: is it true that we are wasting up to 128MB per
+region? We have some small ones (like text). So is it something to fix
+in future?
 
-I also believe that the wait-for-userspace in hyperV should just die. It
-should do the unconditional onlining. Same as Xen. I do not see any
-reason why those should depend on the userspace. This should be just
-fixed regardless of the sysfs/config part. I can separate this out of course.
-
-Thoughts/Concerns?
-
- drivers/acpi/acpi_memhotplug.c |  2 +-
- drivers/base/memory.c          | 33 +--------------------------------
- drivers/hv/hv_balloon.c        | 26 +-------------------------
- drivers/s390/char/sclp_cmd.c   |  2 +-
- drivers/xen/balloon.c          |  2 +-
- include/linux/memory_hotplug.h |  4 +---
- mm/Kconfig                     | 16 ----------------
- mm/memory_hotplug.c            | 22 ++--------------------
- 8 files changed, 8 insertions(+), 99 deletions(-)
-
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 6b0d3ef7309c..2b1c35fb36d1 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -228,7 +228,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
- 		if (node < 0)
- 			node = memory_add_physaddr_to_nid(info->start_addr);
- 
--		result = add_memory(node, info->start_addr, info->length);
-+		result = add_memory(node, info->start_addr, info->length, false);
- 
- 		/*
- 		 * If the memory block has been used by the kernel, add_memory()
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index fa26ffd25fa6..476c2c02f938 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -446,37 +446,6 @@ print_block_size(struct device *dev, struct device_attribute *attr,
- static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
- 
- /*
-- * Memory auto online policy.
-- */
--
--static ssize_t
--show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
--			char *buf)
--{
--	if (memhp_auto_online)
--		return sprintf(buf, "online\n");
--	else
--		return sprintf(buf, "offline\n");
--}
--
--static ssize_t
--store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
--			 const char *buf, size_t count)
--{
--	if (sysfs_streq(buf, "online"))
--		memhp_auto_online = true;
--	else if (sysfs_streq(buf, "offline"))
--		memhp_auto_online = false;
--	else
--		return -EINVAL;
--
--	return count;
--}
--
--static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
--		   store_auto_online_blocks);
--
--/*
-  * Some architectures will have custom drivers to do this, and
-  * will not need to do it from userspace.  The fake hot-add code
-  * as well as ppc64 will do all of their discovery in userspace
-@@ -500,7 +469,7 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
- 
- 	nid = memory_add_physaddr_to_nid(phys_addr);
- 	ret = add_memory(nid, phys_addr,
--			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
-+			 MIN_MEMORY_BLOCK_SIZE * sections_per_block, false);
- 
- 	if (ret)
- 		goto out;
-diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-index 14c3dc4bd23c..3e052bedade5 100644
---- a/drivers/hv/hv_balloon.c
-+++ b/drivers/hv/hv_balloon.c
-@@ -535,11 +535,6 @@ struct hv_dynmem_device {
- 	bool host_specified_ha_region;
- 
- 	/*
--	 * State to synchronize hot-add.
--	 */
--	struct completion  ol_waitevent;
--	bool ha_waiting;
--	/*
- 	 * This thread handles hot-add
- 	 * requests from the host as well as notifying
- 	 * the host with regards to memory pressure in
-@@ -587,11 +582,6 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
- 		spin_lock_irqsave(&dm_device.ha_lock, flags);
- 		dm_device.num_pages_onlined += mem->nr_pages;
- 		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
--	case MEM_CANCEL_ONLINE:
--		if (dm_device.ha_waiting) {
--			dm_device.ha_waiting = false;
--			complete(&dm_device.ol_waitevent);
--		}
- 		break;
- 
- 	case MEM_OFFLINE:
-@@ -683,12 +673,9 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
- 		has->covered_end_pfn +=  processed_pfn;
- 		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
- 
--		init_completion(&dm_device.ol_waitevent);
--		dm_device.ha_waiting = !memhp_auto_online;
--
- 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
- 		ret = add_memory(nid, PFN_PHYS((start_pfn)),
--				(HA_CHUNK << PAGE_SHIFT));
-+				(HA_CHUNK << PAGE_SHIFT), true);
- 
- 		if (ret) {
- 			pr_warn("hot_add memory failed error is %d\n", ret);
-@@ -708,17 +695,6 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
- 			spin_unlock_irqrestore(&dm_device.ha_lock, flags);
- 			break;
- 		}
--
--		/*
--		 * Wait for the memory block to be onlined when memory onlining
--		 * is done outside of kernel (memhp_auto_online). Since the hot
--		 * add has succeeded, it is ok to proceed even if the pages in
--		 * the hot added region have not been "onlined" within the
--		 * allowed time.
--		 */
--		if (dm_device.ha_waiting)
--			wait_for_completion_timeout(&dm_device.ol_waitevent,
--						    5*HZ);
- 		post_status(&dm_device);
- 	}
- 
-diff --git a/drivers/s390/char/sclp_cmd.c b/drivers/s390/char/sclp_cmd.c
-index b9c5522b8a68..f54c621195b6 100644
---- a/drivers/s390/char/sclp_cmd.c
-+++ b/drivers/s390/char/sclp_cmd.c
-@@ -404,7 +404,7 @@ static void __init add_memory_merged(u16 rn)
- 	if (!size)
- 		goto skip_add;
- 	for (addr = start; addr < start + size; addr += block_size)
--		add_memory(numa_pfn_to_nid(PFN_DOWN(addr)), addr, block_size);
-+		add_memory(numa_pfn_to_nid(PFN_DOWN(addr)), addr, block_size, false);
- skip_add:
- 	first_rn = rn;
- 	num = 1;
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index db107fa50ca1..fce961de8771 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -355,7 +355,7 @@ static enum bp_state reserve_additional_memory(void)
- 	 * callers drop the mutex before trying again.
- 	 */
- 	mutex_unlock(&balloon_mutex);
--	rc = add_memory_resource(nid, resource, memhp_auto_online);
-+	rc = add_memory_resource(nid, resource, true);
- 	mutex_lock(&balloon_mutex);
- 
- 	if (rc) {
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 134a2f69c21a..a72f7f64ee26 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -100,8 +100,6 @@ extern void __online_page_free(struct page *page);
- 
- extern int try_online_node(int nid);
- 
--extern bool memhp_auto_online;
--
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
- extern int arch_remove_memory(u64 start, u64 size);
-@@ -272,7 +270,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- 
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
--extern int add_memory(int nid, u64 start, u64 size);
-+extern int add_memory(int nid, u64 start, u64 size, bool online);
- extern int add_memory_resource(int nid, struct resource *resource, bool online);
- extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
- 		bool for_device);
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9b8fccb969dc..a64a3bca43d5 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -193,22 +193,6 @@ config MEMORY_HOTPLUG_SPARSE
- 	def_bool y
- 	depends on SPARSEMEM && MEMORY_HOTPLUG
- 
--config MEMORY_HOTPLUG_DEFAULT_ONLINE
--        bool "Online the newly added memory blocks by default"
--        default n
--        depends on MEMORY_HOTPLUG
--        help
--	  This option sets the default policy setting for memory hotplug
--	  onlining policy (/sys/devices/system/memory/auto_online_blocks) which
--	  determines what happens to newly added memory regions. Policy setting
--	  can always be changed at runtime.
--	  See Documentation/memory-hotplug.txt for more information.
--
--	  Say Y here if you want all hot-plugged memory blocks to appear in
--	  'online' state by default.
--	  Say N here if you want the default policy to keep all hot-plugged
--	  memory blocks in 'offline' state.
--
- config MEMORY_HOTREMOVE
- 	bool "Allow for memory hot remove"
- 	select MEMORY_ISOLATION
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c35dd1976574..8520c9166f47 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -78,24 +78,6 @@ static struct {
- #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
- #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
- 
--#ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
--bool memhp_auto_online;
--#else
--bool memhp_auto_online = true;
--#endif
--EXPORT_SYMBOL_GPL(memhp_auto_online);
--
--static int __init setup_memhp_default_state(char *str)
--{
--	if (!strcmp(str, "online"))
--		memhp_auto_online = true;
--	else if (!strcmp(str, "offline"))
--		memhp_auto_online = false;
--
--	return 1;
--}
--__setup("memhp_default_state=", setup_memhp_default_state);
--
- void get_online_mems(void)
- {
- 	might_sleep();
-@@ -1420,7 +1402,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- }
- EXPORT_SYMBOL_GPL(add_memory_resource);
- 
--int __ref add_memory(int nid, u64 start, u64 size)
-+int __ref add_memory(int nid, u64 start, u64 size, bool online)
- {
- 	struct resource *res;
- 	int ret;
-@@ -1429,7 +1411,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	if (IS_ERR(res))
- 		return PTR_ERR(res);
- 
--	ret = add_memory_resource(nid, res, memhp_auto_online);
-+	ret = add_memory_resource(nid, res, online);
- 	if (ret < 0)
- 		release_memory_resource(res);
- 	return ret;
--- 
-2.11.0
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
