@@ -1,304 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 81B246B0388
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:33:20 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 1so163288397pgz.5
-        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 22:33:20 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id f12si14305911pgn.102.2017.02.26.22.33.18
-        for <linux-mm@kvack.org>;
-        Sun, 26 Feb 2017 22:33:19 -0800 (PST)
-Date: Mon, 27 Feb 2017 15:33:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH V5 4/6] mm: reclaim MADV_FREE pages
-Message-ID: <20170227063315.GC23612@bbox>
-References: <cover.1487965799.git.shli@fb.com>
- <14b8eb1d3f6bf6cc492833f183ac8c304e560484.1487965799.git.shli@fb.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C73426B038B
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 01:44:12 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id v63so164123154pgv.0
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 22:44:12 -0800 (PST)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id j1si14340431pld.330.2017.02.26.22.44.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 Feb 2017 22:44:11 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
+Date: Mon, 27 Feb 2017 06:33:09 +0000
+Message-ID: <20170227063308.GA14387@hori1.linux.bs1.fc.nec.co.jp>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+ <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+ <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
+ <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
+ <20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
+ <22763879-C335-41E6-8102-2022EED75DAE@cs.rutgers.edu>
+In-Reply-To: <22763879-C335-41E6-8102-2022EED75DAE@cs.rutgers.edu>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <FE54BBF1088CA045825E0244CF1C29A9@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <14b8eb1d3f6bf6cc492833f183ac8c304e560484.1487965799.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Yisheng Xie <xieyisheng1@huawei.com>, Jan Stancek <jstancek@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
-Hi Shaohua,
+On Sun, Feb 26, 2017 at 10:27:02PM -0600, Zi Yan wrote:
+> On 26 Feb 2017, at 19:20, Naoya Horiguchi wrote:
+>=20
+> > On Sat, Feb 25, 2017 at 10:28:15AM +0800, Yisheng Xie wrote:
+> >> hi Naoya,
+> >>
+> >> On 2017/2/23 11:23, Naoya Horiguchi wrote:
+> >>> On Mon, Feb 20, 2017 at 05:00:17AM +0000, Horiguchi Naoya(=1B$BKY8}=
+=1B(B =1B$BD>Li=1B(B) wrote:
+> >>>> On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
+> >>>>> Hi,
+> >>>>>
+> >>>>> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
+> >>>>> unless I touch/prefault page before call to madvise().
+> >>>>>
+> >>>>> Is this expected behavior?
+> >>>>
+> >>>> Thank you for reporting.
+> >>>>
+> >>>> madvise(MADV_HWPOISON) triggers page fault when called on the addres=
+s
+> >>>> over which no page is faulted-in, so I think that SIGBUS should be
+> >>>> called in such case.
+> >>>>
+> >>>> But it seems that memory error handler considers such a page as "res=
+erved
+> >>>> kernel page" and recovery action fails (see below.)
+> >>>>
+> >>>>   [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcd=
+c569000
+> >>>>   [  383.375678] Memory failure: 0x1f10: reserved kernel page still =
+referenced by 1 users
+> >>>>   [  383.377570] Memory failure: 0x1f10: recovery action for reserve=
+d kernel page: Failed
+> >>>>
+> >>>> I'm not sure how/when this behavior was introduced, so I try to unde=
+rstand.
+> >>>
+> >>> I found that this is a zero page, which is not recoverable for memory
+> >>> error now.
+> >>>
+> >>>> IMO, the test code below looks valid to me, so no need to change.
+> >>>
+> >>> I think that what the testcase effectively does is to test whether me=
+mory
+> >>> handling on zero pages works or not.
+> >>> And the testcase's failure seems acceptable, because it's simply not-=
+implemented yet.
+> >>> Maybe recovering from error on zero page is possible (because there's=
+ no data
+> >>> loss for memory error,) but I'm not sure that code might be simple en=
+ough and/or
+> >>> it's worth doing ...
+> >> I question about it,  if a memory error happened on zero page, it will
+> >> cause all of data read from zero page is error, I mean no-zero, right?
+> >
+> > Hi Yisheng,
+> >
+> > Yes, the impact is serious (could affect many processes,) but it's poss=
+ibility
+> > is very low because there's only one page in a system that is used for =
+zero page.
+> > There are many other pages which are not recoverable for memory error l=
+ike
+> > slab pages, so I'm not sure how I prioritize it (maybe it's not a
+> > top-priority thing, nor low-hanging fruit.)
+> >
+> >> And can we just use re-initial it with zero data maybe by memset ?
+> >
+> > Maybe it's not enoguh. Under a real hwpoison, we should isolate the err=
+or
+> > page to prevent the access on the broken data.
+> > But zero page is statically defined as an array of global variable, so
+> > it's not trival to replace it with a new zero page at runtime.
+> >
+> > Anyway, it's in my todo list, so hopefully revisited in the future.
+> >
+>=20
+> Hi Naoya,
+>=20
+> The test case tries to HWPOISON a range of virtual addresses that do not
+> map to any physical pages.
+>=20
 
-On Fri, Feb 24, 2017 at 01:31:47PM -0800, Shaohua Li wrote:
-> When memory pressure is high, we free MADV_FREE pages. If the pages are
-> not dirty in pte, the pages could be freed immediately. Otherwise we
-> can't reclaim them. We put the pages back to anonumous LRU list (by
-> setting SwapBacked flag) and the pages will be reclaimed in normal
-> swapout way.
-> 
-> We use normal page reclaim policy. Since MADV_FREE pages are put into
-> inactive file list, such pages and inactive file pages are reclaimed
-> according to their age. This is expected, because we don't want to
-> reclaim too many MADV_FREE pages before used once pages.
-> 
-> Based on Minchan's original patch
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
-> ---
->  include/linux/rmap.h |  2 +-
->  mm/huge_memory.c     |  2 ++
->  mm/madvise.c         |  1 +
->  mm/rmap.c            | 40 +++++++++++++++++-----------------------
->  mm/vmscan.c          | 34 ++++++++++++++++++++++------------
->  5 files changed, 43 insertions(+), 36 deletions(-)
-> 
-> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index 7a39414..fee10d7 100644
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -298,6 +298,6 @@ static inline int page_mkclean(struct page *page)
->  #define SWAP_AGAIN	1
->  #define SWAP_FAIL	2
->  #define SWAP_MLOCK	3
-> -#define SWAP_LZFREE	4
-> +#define SWAP_DIRTY	4
+Hi Yan,
 
-I still don't convinced why we should introduce SWAP_DIRTY in try_to_unmap.
-https://marc.info/?l=linux-mm&m=148797879123238&w=2
+> I expected either madvise should fail because HWPOISON does not work on
+> non-existing physical pages or madvise_hwpoison() should populate
+> some physical pages for that virtual address range and poison them.
 
-We have been SetPageMlocked in there but why cannot we SetPageSwapBacked
-in there? It's not a thing to change LRU type but it's just indication
-we found the page's status changed in late.
+The latter is the current behavior. It just comes from get_user_pages_fast(=
+)
+which not only finds the page and takes refcount, but also touch the page.
 
->  
->  #endif	/* _LINUX_RMAP_H */
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 3b7ee0c..4c7454b 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1571,6 +1571,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  		set_pmd_at(mm, addr, pmd, orig_pmd);
->  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
->  	}
-> +
-> +	mark_page_lazyfree(page);
->  	ret = true;
->  out:
->  	spin_unlock(ptl);
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 61e10b1..225af7d 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -413,6 +413,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  			set_pte_at(mm, addr, pte, ptent);
->  			tlb_remove_tlb_entry(tlb, pte, addr);
->  		}
-> +		mark_page_lazyfree(page);
->  	}
->  out:
->  	if (nr_swap) {
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index c621088..bb45712 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1281,11 +1281,6 @@ void page_remove_rmap(struct page *page, bool compound)
->  	 */
->  }
->  
-> -struct rmap_private {
-> -	enum ttu_flags flags;
-> -	int lazyfreed;
-> -};
-> -
->  /*
->   * @arg: enum ttu_flags will be passed to this argument
->   */
-> @@ -1301,8 +1296,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  	pte_t pteval;
->  	struct page *subpage;
->  	int ret = SWAP_AGAIN;
-> -	struct rmap_private *rp = arg;
-> -	enum ttu_flags flags = rp->flags;
-> +	enum ttu_flags flags = (enum ttu_flags)arg;
->  
->  	/* munlock has nothing to gain from examining un-locked vmas */
->  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
-> @@ -1419,11 +1413,21 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
->  				page);
->  
-> -			if (!PageDirty(page)) {
-> +			/*
-> +			 * swapin page could be clean, it has data stored in
-> +			 * swap. We can't silently discard it without setting
-> +			 * swap entry in the page table.
-> +			 */
-> +			if (!PageDirty(page) && !PageSwapCache(page)) {
->  				/* It's a freeable page by MADV_FREE */
->  				dec_mm_counter(mm, MM_ANONPAGES);
-> -				rp->lazyfreed++;
->  				goto discard;
-> +			} else if (!PageSwapBacked(page)) {
-> +				/* dirty MADV_FREE page */
-> +				set_pte_at(mm, address, pvmw.pte, pteval);
-> +				ret = SWAP_DIRTY;
-> +				page_vma_mapped_walk_done(&pvmw);
-> +				break;
->  			}
->  
->  			if (swap_duplicate(entry) < 0) {
-> @@ -1491,18 +1495,15 @@ static int page_mapcount_is_zero(struct page *page)
->   * SWAP_AGAIN	- we missed a mapping, try again later
->   * SWAP_FAIL	- the page is unswappable
->   * SWAP_MLOCK	- page is mlocked.
-> + * SWAP_DIRTY	- page is dirty MADV_FREE page
->   */
->  int try_to_unmap(struct page *page, enum ttu_flags flags)
->  {
->  	int ret;
-> -	struct rmap_private rp = {
-> -		.flags = flags,
-> -		.lazyfreed = 0,
-> -	};
->  
->  	struct rmap_walk_control rwc = {
->  		.rmap_one = try_to_unmap_one,
-> -		.arg = &rp,
-> +		.arg = (void *)flags,
->  		.done = page_mapcount_is_zero,
->  		.anon_lock = page_lock_anon_vma_read,
->  	};
-> @@ -1523,11 +1524,8 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
->  	else
->  		ret = rmap_walk(page, &rwc);
->  
-> -	if (ret != SWAP_MLOCK && !page_mapcount(page)) {
-> +	if (ret != SWAP_MLOCK && !page_mapcount(page))
->  		ret = SWAP_SUCCESS;
-> -		if (rp.lazyfreed && !PageDirty(page))
-> -			ret = SWAP_LZFREE;
-> -	}
->  	return ret;
->  }
->  
-> @@ -1554,14 +1552,10 @@ static int page_not_mapped(struct page *page)
->  int try_to_munlock(struct page *page)
->  {
->  	int ret;
-> -	struct rmap_private rp = {
-> -		.flags = TTU_MUNLOCK,
-> -		.lazyfreed = 0,
-> -	};
->  
->  	struct rmap_walk_control rwc = {
->  		.rmap_one = try_to_unmap_one,
-> -		.arg = &rp,
-> +		.arg = (void *)TTU_MUNLOCK,
->  		.done = page_not_mapped,
->  		.anon_lock = page_lock_anon_vma_read,
->  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 68ea50d..16ad821 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -911,7 +911,8 @@ static void page_check_dirty_writeback(struct page *page,
->  	 * Anonymous pages are not handled by flushers and must be written
->  	 * from reclaim context. Do not stall reclaim based on them
->  	 */
-> -	if (!page_is_file_cache(page)) {
-> +	if (!page_is_file_cache(page) ||
-> +	    (PageAnon(page) && !PageSwapBacked(page))) {
->  		*dirty = false;
->  		*writeback = false;
->  		return;
-> @@ -992,7 +993,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			goto keep_locked;
->  
->  		/* Double the slab pressure for mapped and swapcache pages */
-> -		if (page_mapped(page) || PageSwapCache(page))
-> +		if ((page_mapped(page) || PageSwapCache(page)) &&
-> +		    !(PageAnon(page) && !PageSwapBacked(page)))
->  			sc->nr_scanned++;
->  
->  		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
-> @@ -1118,8 +1120,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		/*
->  		 * Anonymous process memory has backing store?
->  		 * Try to allocate it some swap space here.
-> +		 * Lazyfree page could be freed directly
->  		 */
-> -		if (PageAnon(page) && !PageSwapCache(page)) {
-> +		if (PageAnon(page) && PageSwapBacked(page) &&
-> +		    !PageSwapCache(page)) {
->  			if (!(sc->gfp_mask & __GFP_IO))
->  				goto keep_locked;
->  			if (!add_to_swap(page, page_list))
-> @@ -1140,9 +1144,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 * The page is mapped into the page tables of one or more
->  		 * processes. Try to unmap it here.
->  		 */
-> -		if (page_mapped(page) && mapping) {
-> +		if (page_mapped(page)) {
->  			switch (ret = try_to_unmap(page,
->  				ttu_flags | TTU_BATCH_FLUSH)) {
-> +			case SWAP_DIRTY:
-> +				SetPageSwapBacked(page);
-> +				/* fall through */
->  			case SWAP_FAIL:
->  				nr_unmap_fail++;
->  				goto activate_locked;
-> @@ -1150,8 +1157,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  				goto keep_locked;
->  			case SWAP_MLOCK:
->  				goto cull_mlocked;
-> -			case SWAP_LZFREE:
-> -				goto lazyfree;
->  			case SWAP_SUCCESS:
->  				; /* try to free the page below */
->  			}
-> @@ -1263,10 +1268,18 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			}
->  		}
->  
-> -lazyfree:
-> -		if (!mapping || !__remove_mapping(mapping, page, true))
-> -			goto keep_locked;
-> +		if (PageAnon(page) && !PageSwapBacked(page)) {
-> +			/* follow __remove_mapping for reference */
-> +			if (!page_ref_freeze(page, 1))
-> +				goto keep_locked;
-> +			if (PageDirty(page)) {
-> +				page_ref_unfreeze(page, 1);
-> +				goto keep_locked;
-> +			}
->  
-> +			count_vm_event(PGLAZYFREED);
-> +		} else if (!mapping || !__remove_mapping(mapping, page, true))
-> +			goto keep_locked;
->  		/*
->  		 * At this point, we have no other references and there is
->  		 * no way to pick any more up (removed from LRU, removed
-> @@ -1276,9 +1289,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 */
->  		__ClearPageLocked(page);
->  free_it:
-> -		if (ret == SWAP_LZFREE)
-> -			count_vm_event(PGLAZYFREED);
-> -
->  		nr_reclaimed++;
->  
->  		/*
-> -- 
-> 2.9.3
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+madvise(MADV_HWPOISON) is a test feature, and calling it for address backed
+by no page doesn't simulate anything real. IOW, the behavior is undefined.
+So I don't have a strong opinion about how it should behave.
+
+>=20
+> As I tested it on kernel v4.10, the test application exited at
+> madvise, because madvise returns -1 and error message is
+> "Device or resource busy". I think this is a proper behavior.
+
+yes, maybe we see the same thing, you can see in dmesg "recovery action
+for reserved kernel page: Failed" message.
+
+>=20
+> There might be some confusion in madvise's man page on MADV_HWPOISON.
+> If you add some text saying madvise fails if any page is not mapped in
+> the given address range, that can eliminate the confusion*
+
+Writing it down to man page makes readers think this behavior is a part of
+specification, that might not be good now because the failure in error
+handling of zero page is not the eventually fixed behavior.
+I mean that if zero page handles hwpoison properly in the future, madvise
+will succeed without any confusion.
+So I feel that we don't have to update man page for this issue.
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
