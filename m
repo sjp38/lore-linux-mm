@@ -1,198 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 38D926B0387
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 19:27:17 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id m5so23383560wrm.0
-        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 16:27:17 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 29si19378702wru.27.2017.02.26.16.27.15
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 554686B0038
+	for <linux-mm@kvack.org>; Sun, 26 Feb 2017 20:21:06 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id t184so154622362pgt.1
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2017 17:21:06 -0800 (PST)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id i6si13747866plk.296.2017.02.26.17.21.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 26 Feb 2017 16:27:15 -0800 (PST)
-From: NeilBrown <neilb@suse.com>
-Date: Mon, 27 Feb 2017 11:27:05 +1100
-Subject: Re: [LSF/MM TOPIC] do we really need PG_error at all?
-In-Reply-To: <1488151856.4157.50.camel@HansenPartnership.com>
-References: <1488120164.2948.4.camel@redhat.com> <1488129033.4157.8.camel@HansenPartnership.com> <877f4cr7ew.fsf@notabene.neil.brown.name> <1488151856.4157.50.camel@HansenPartnership.com>
-Message-ID: <874lzgqy06.fsf@notabene.neil.brown.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 Feb 2017 17:21:05 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
+Date: Mon, 27 Feb 2017 01:20:30 +0000
+Message-ID: <20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+ <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+ <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
+ <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
+In-Reply-To: <1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <B8E09B5BFBBD2F43BD5369B1A5F4573B@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>, Jeff Layton <jlayton@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: lsf-pc <lsf-pc@lists.linuxfoundation.org>, Neil Brown <neilb@suse.de>, linux-scsi <linux-scsi@vger.kernel.org>, linux-block@vger.kernel.org
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Jan Stancek <jstancek@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Sat, Feb 25, 2017 at 10:28:15AM +0800, Yisheng Xie wrote:
+> hi Naoya,
+>=20
+> On 2017/2/23 11:23, Naoya Horiguchi wrote:
+> > On Mon, Feb 20, 2017 at 05:00:17AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(=
+B =1B$BD>Li=1B(B) wrote:
+> >> On Tue, Feb 14, 2017 at 04:41:29PM +0100, Jan Stancek wrote:
+> >>> Hi,
+> >>>
+> >>> code below (and LTP madvise07 [1]) doesn't produce SIGBUS,
+> >>> unless I touch/prefault page before call to madvise().
+> >>>
+> >>> Is this expected behavior?
+> >>
+> >> Thank you for reporting.
+> >>
+> >> madvise(MADV_HWPOISON) triggers page fault when called on the address
+> >> over which no page is faulted-in, so I think that SIGBUS should be
+> >> called in such case.
+> >>
+> >> But it seems that memory error handler considers such a page as "reser=
+ved
+> >> kernel page" and recovery action fails (see below.)
+> >>
+> >>   [  383.371372] Injecting memory failure for page 0x1f10 at 0x7efcdc5=
+69000
+> >>   [  383.375678] Memory failure: 0x1f10: reserved kernel page still re=
+ferenced by 1 users
+> >>   [  383.377570] Memory failure: 0x1f10: recovery action for reserved =
+kernel page: Failed
+> >>
+> >> I'm not sure how/when this behavior was introduced, so I try to unders=
+tand.
+> >=20
+> > I found that this is a zero page, which is not recoverable for memory
+> > error now.
+> >=20
+> >> IMO, the test code below looks valid to me, so no need to change.
+> >=20
+> > I think that what the testcase effectively does is to test whether memo=
+ry
+> > handling on zero pages works or not.
+> > And the testcase's failure seems acceptable, because it's simply not-im=
+plemented yet.
+> > Maybe recovering from error on zero page is possible (because there's n=
+o data
+> > loss for memory error,) but I'm not sure that code might be simple enou=
+gh and/or
+> > it's worth doing ...
+> I question about it,  if a memory error happened on zero page, it will
+> cause all of data read from zero page is error, I mean no-zero, right?
 
-On Sun, Feb 26 2017, James Bottomley wrote:
+Hi Yisheng,
 
-> On Mon, 2017-02-27 at 08:03 +1100, NeilBrown wrote:
->> On Sun, Feb 26 2017, James Bottomley wrote:
->>=20
->> > [added linux-scsi and linux-block because this is part of our error
->> > handling as well]
->> > On Sun, 2017-02-26 at 09:42 -0500, Jeff Layton wrote:
->> > > Proposing this as a LSF/MM TOPIC, but it may turn out to be me=20
->> > > just not understanding the semantics here.
->> > >=20
->> > > As I was looking into -ENOSPC handling in cephfs, I noticed that
->> > > PG_error is only ever tested in one place [1]=20
->> > > __filemap_fdatawait_range, which does this:
->> > >=20
->> > > 	if (TestClearPageError(page))
->> > > 		ret =3D -EIO;
->> > >=20
->> > > This error code will override any AS_* error that was set in the
->> > > mapping. Which makes me wonder...why don't we just set this error=20
->> > > in the mapping and not bother with a per-page flag? Could we
->> > > potentially free up a page flag by eliminating this?
->> >=20
->> > Note that currently the AS_* codes are only set for write errors=20
->> > not for reads and we have no mapping error handling at all for swap
->> > pages, but I'm sure this is fixable.
->>=20
->> How is a read error different from a failure to set PG_uptodate?
->> Does PG_error suppress retries?
->
-> We don't do any retries in the code above the block layer (or at least
-> we shouldn't).
+Yes, the impact is serious (could affect many processes,) but it's possibil=
+ity
+is very low because there's only one page in a system that is used for zero=
+ page.
+There are many other pages which are not recoverable for memory error like
+slab pages, so I'm not sure how I prioritize it (maybe it's not a
+top-priority thing, nor low-hanging fruit.)
 
-I was wondering about what would/should happen if a read request was
-re-issued for some reason.  Should the error flag on the page cause an
-immediate failure, or should it try again.
-If read-ahead sees a read-error on some future page, is it necessary to
-record the error so subsequent read-aheads don't notice the page is
-missing and repeatedly try to re-load it?
-When the application eventually gets to the faulty page, should a read
-be tried then, or is the read-ahead failure permanent?
+> And can we just use re-initial it with zero data maybe by memset ?
 
+Maybe it's not enoguh. Under a real hwpoison, we should isolate the error
+page to prevent the access on the broken data.
+But zero page is statically defined as an array of global variable, so
+it's not trival to replace it with a new zero page at runtime.
 
-
->
->> >=20
->> > From the I/O layer point of view we take great pains to try to=20
->> > pinpoint the error exactly to the sector.  We reflect this up by=20
->> > setting the PG_error flag on the page where the error occurred.  If=20
->> > we only set the error on the mapping, we lose that granularity,=20
->> > because the mapping is mostly at the file level (or VMA level for
->> > anon pages).
->>=20
->> Are you saying that the IO layer finds the page in the bi_io_vec and
->> explicitly sets PG_error,
->
-> I didn't say anything about the mechanism.  I think the function you're
-> looking for is fs/mpage.c:mpage_end_io().  layers below block indicate
-> the position in the request.  Block maps the position to bio and the
-> bio completion maps to page.  So the actual granularity seen in the
-> upper layer depends on how the page to bio mapping is done.
-
-If the block layer is just returning the status at a per-bio level (which
-makes perfect sense), then this has nothing directly to do with the
-PG_error flag.
-
-The page cache needs to do something with bi_error, but it isn't
-immediately clear that it needs to set PG_error.
-
->
->>  rather than just passing an error indication to bi_end_io ??  That
->> would seem to be wrong as the page may not be in the page cache.
->
-> Usually pages in the mpage_end_io path are pinned, I think.
->
->>  So I guess I misunderstand you.
->>=20
->> >=20
->> > So I think the question for filesystem people from us would be do=20
->> > you care about this accuracy?  If it's OK just to know an error
->> > occurred somewhere in this file, then perhaps we don't need it.
->>=20
->> I had always assumed that a bio would either succeed or fail, and=20
->> that no finer granularity could be available.
->
-> It does ... but a bio can be as small as a single page.
->
->> I think the question here is: Do filesystems need the pagecache to
->> record which pages have seen an IO error?
->
-> It's not just filesystems.  The partition code uses PageError() ... the
-> metadata code might as well (those are things with no mapping).  I'm
-> not saying we can't remove PG_error; I am saying it's not going to be
-> quite as simple as using the AS_ flags.
-
-The partition code could use PageUptodate().
-mpage_end_io() calls page_endio() on each page, and on read error that
-calls:
-
-			ClearPageUptodate(page);
-			SetPageError(page);
-
-are both of these necessary?
-
-fs/buffer.c can use several bios to read a single page.
-If any one returns an error, PG_error is set.  When all of them have
-completed, if PG_error is clear, PG_uptodate is then set.
-This is an opportunistic use of PG_error, rather than an essential use.
-It could be "fixed", and would need to be fixed if we were to deprecate
-use of PG_error for read errors.
-There are probably other usages like this.
+Anyway, it's in my todo list, so hopefully revisited in the future.
 
 Thanks,
-NeilBrown
-
-
->
-> James
->
->> I think that for write errors, there is no value in recording
->> block-oriented error status - only file-oriented status.
->> For read errors, it might if help to avoid indefinite read retries,=20
->> but I don't know the code well enough to be sure if this is an issue.
->>=20
->> NeilBrown
->>=20
->>=20
->> >=20
->> > James
->> >=20
->> > > The main argument I could see for keeping it is that removing it=20
->> > > might subtly change the behavior of sync_file_range if you have=20
->> > > tasks syncing different ranges in a file concurrently. I'm not=20
->> > > sure if that would break any guarantees though.
->> > >=20
->> > > Even if we do need it, I think we might need some cleanup here=20
->> > > anyway. A lot of readpage operations end up setting that flag=20
->> > > when they hit an error. Isn't it wrong to return an error on=20
->> > > fsync, just because we had a read error somewhere in the file in=20
->> > > a range that was never dirtied?
->> > >=20
->> > > --
->> > > [1]: there is another place in f2fs, but it's more or less=20
->> > > equivalent to the call site in __filemap_fdatawait_range.
->> > >=20
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlizclkACgkQOeye3VZi
-gbmB3xAAhMb3rbqJsF2Eus5BD7J/YPlEbXALfVRTFM8ARBIJbEGbIvWr0OHIty9Y
-xgLJizLFYKEYfmRnDFleZTvdfgPI/XXPfq6iBZJe4kA5pib+hlAUlU4LG56WIJoK
-DliUmpSFJ87Ia7NchTNLJQPJ4gzgUrb2BRxt1uJ4jMEGcR7UTBCY0g4Ql9f4zbys
-ktRFIG3JWBVbFmovcT9Aa46sQr6Cl4afB+X5gLoox3IDSGAldcEBtm0dR1+2tLiB
-3OSc0JjYpR6P2jcI6kD7u1UVBbnUSJBzLNXwWw4+YU5hS8j2zVDFY0aSUu+sbnlC
-yV7lpxbj4hqa6D/HTteKdLaPY99tcyUEcSL35LuRYfkZ0J3UCDuoYMgxGFqhRhYi
-P4NZEdIOM4LtOgA/heYGwlneV6OJJalAvmbpjqIazGFBBYY7u8DeV8YVwFhGwdIm
-IoX0r12QG9Wn5+O7Ss9q+882sq7ES5yH9VfI17pkMtTe0TVUKMWAXpeJe87RddK9
-Sp6XRdQM5/PvMOqaS/rEcDDwtFcf1COO0hN+DO/I3VaQlzArt8q2ZDUNQbqSyUm3
-kfNzw16C/BzVYzRZqXwK1EsPyU9becsDoXxgicI92RsfdoMcDThz1CGN7zMmMQAj
-JYVUOzaILaqbmnLgrdNUzFwwW+ClYjWGyWbhccjNvS47q70AcQU=
-=u1MA
------END PGP SIGNATURE-----
---=-=-=--
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
