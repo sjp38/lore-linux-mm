@@ -1,59 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BCB56B0387
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 16:50:19 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id v66so18627246wrc.4
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:50:19 -0800 (PST)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id j34si5778376wre.209.2017.02.27.13.50.18
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 73A2F6B0389
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 16:57:48 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v77so42231972wmv.5
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:57:48 -0800 (PST)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id e55si370wre.126.2017.02.27.13.57.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 13:50:18 -0800 (PST)
-Received: by mail-wr0-x242.google.com with SMTP id q39so11982606wrb.2
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:50:18 -0800 (PST)
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: [PATCH RESEND] drm/via: use get_user_pages_unlocked()
-Date: Mon, 27 Feb 2017 21:50:08 +0000
-Message-Id: <20170227215008.21457-1-lstoakes@gmail.com>
+        Mon, 27 Feb 2017 13:57:47 -0800 (PST)
+Received: by mail-wm0-x236.google.com with SMTP id u199so29769567wmd.1
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 13:57:47 -0800 (PST)
+Date: Mon, 27 Feb 2017 21:57:45 +0000
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [PATCH v2 2/2] efi: efi_mem_reserve(): don't reserve through
+ memblock after mm_init()
+Message-ID: <20170227215745.GA28416@codeblueprint.co.uk>
+References: <20161222102340.2689-1-nicstange@gmail.com>
+ <20161222102340.2689-2-nicstange@gmail.com>
+ <20170105091242.GA11021@dhcp-128-65.nay.redhat.com>
+ <20170109114400.GF16838@codeblueprint.co.uk>
+ <20170109133152.2izkcrzgzinxdwux@techsingularity.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170109133152.2izkcrzgzinxdwux@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Lorenzo Stoakes <lstoakes@gmail.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Young <dyoung@redhat.com>, Nicolai Stange <nicstange@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org, Mika =?iso-8859-1?Q?Penttil=E4?= <mika.penttila@nextfour.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>
 
-Moving from get_user_pages() to get_user_pages_unlocked() simplifies the code
-and takes advantage of VM_FAULT_RETRY functionality when faulting in pages.
+On Mon, 09 Jan, at 01:31:52PM, Mel Gorman wrote:
+> 
+> Well, you could put in a __init global variable about availability into
+> mm/memblock.c and then check it in memblock APIs like memblock_reserve()
+> to BUG_ON? I know BUG_ON is frowned upon but this is not likely to be a
+> situation that can be sensibly recovered.
 
-Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
----
- drivers/gpu/drm/via/via_dmablit.c | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+What about something like this?
 
-diff --git a/drivers/gpu/drm/via/via_dmablit.c b/drivers/gpu/drm/via/via_dmablit.c
-index 1a3ad769f8c8..98aae9809249 100644
---- a/drivers/gpu/drm/via/via_dmablit.c
-+++ b/drivers/gpu/drm/via/via_dmablit.c
-@@ -238,13 +238,9 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
- 	vsg->pages = vzalloc(sizeof(struct page *) * vsg->num_pages);
- 	if (NULL == vsg->pages)
- 		return -ENOMEM;
--	down_read(&current->mm->mmap_sem);
--	ret = get_user_pages((unsigned long)xfer->mem_addr,
--			     vsg->num_pages,
--			     (vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0,
--			     vsg->pages, NULL);
--
--	up_read(&current->mm->mmap_sem);
-+	ret = get_user_pages_unlocked((unsigned long)xfer->mem_addr,
-+			vsg->num_pages, vsg->pages,
-+			(vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0);
- 	if (ret != vsg->num_pages) {
- 		if (ret < 0)
- 			return ret;
--- 
-2.11.1
+BUG_ON() shouldn't actually be necessary because I couldn't think of a
+situation where A) memblock would be unavailable and B) returning an
+error would prevent us from making progress.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---->8----
