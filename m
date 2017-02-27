@@ -1,153 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FED26B0388
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 12:14:37 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id j56so65929263uaa.0
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 09:14:37 -0800 (PST)
-Received: from mail-ua0-x22f.google.com (mail-ua0-x22f.google.com. [2607:f8b0:400c:c08::22f])
-        by mx.google.com with ESMTPS id z3si5450881uab.149.2017.02.27.09.14.35
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EEC66B0038
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 12:21:27 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 73so47269942wrb.1
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 09:21:27 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 33si22103988wrk.174.2017.02.27.09.21.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Feb 2017 09:14:36 -0800 (PST)
-Received: by mail-ua0-x22f.google.com with SMTP id f54so33208683uaa.1
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 09:14:35 -0800 (PST)
+        Mon, 27 Feb 2017 09:21:26 -0800 (PST)
+Date: Mon, 27 Feb 2017 12:15:33 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V5 3/6] mm: move MADV_FREE pages into LRU_INACTIVE_FILE
+ list
+Message-ID: <20170227171533.GB20423@cmpxchg.org>
+References: <cover.1487965799.git.shli@fb.com>
+ <2f87063c1e9354677b7618c647abde77b07561e5.1487965799.git.shli@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+bAF0Udejr0v7YAXhs753yDdyNtoQbORQ55yEWZ+4Wu5g@mail.gmail.com>
-References: <CACT4Y+bAF0Udejr0v7YAXhs753yDdyNtoQbORQ55yEWZ+4Wu5g@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 27 Feb 2017 18:14:14 +0100
-Message-ID: <CACT4Y+baRZfgPxSnzJnwF7ETS_7XLKdwZksnrLT7Xm_XU=oKxg@mail.gmail.com>
-Subject: Re: mm: GPF in bdi_put
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2f87063c1e9354677b7618c647abde77b07561e5.1487965799.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: syzkaller <syzkaller@googlegroups.com>
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Mon, Feb 27, 2017 at 6:11 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> Hello,
->
-> The following program triggers GPF in bdi_put:
-> https://gist.githubusercontent.com/dvyukov/15b3e211f937ff6abc558724369066ce/raw/cc017edf57963e30175a6a6fe2b8d917f6e92899/gistfile1.txt
->
-> general protection fault: 0000 [#1] SMP KASAN
-> Modules linked in:
-> CPU: 0 PID: 2952 Comm: a.out Not tainted 4.10.0+ #229
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> task: ffff880063e72180 task.stack: ffff880064a78000
-> RIP: 0010:__read_once_size include/linux/compiler.h:247 [inline]
-> RIP: 0010:atomic_read arch/x86/include/asm/atomic.h:26 [inline]
-> RIP: 0010:refcount_sub_and_test include/linux/refcount.h:156 [inline]
-> RIP: 0010:refcount_dec_and_test include/linux/refcount.h:181 [inline]
-> RIP: 0010:kref_put include/linux/kref.h:71 [inline]
-> RIP: 0010:bdi_put+0x8b/0x1d0 mm/backing-dev.c:914
-> RSP: 0018:ffff880064a7f0b0 EFLAGS: 00010202
-> RAX: 0000000000000007 RBX: 0000000000000000 RCX: 0000000000000000
-> RDX: ffff880064a7f118 RSI: 0000000000000001 RDI: 0000000000000000
-> RBP: ffff880064a7f140 R08: ffff880065603280 R09: 0000000000000001
-> R10: 0000000000000000 R11: 0000000000000001 R12: dffffc0000000000
-> R13: 0000000000000038 R14: 1ffff1000c94fe17 R15: ffff880064a7f218
-> FS:  0000000000eb5880(0000) GS:ffff88006d000000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000020914ffa CR3: 000000006bc37000 CR4: 00000000001426f0
-> Call Trace:
->  bdev_evict_inode+0x203/0x3a0 fs/block_dev.c:888
->  evict+0x46e/0x980 fs/inode.c:553
->  iput_final fs/inode.c:1515 [inline]
->  iput+0x589/0xb20 fs/inode.c:1542
->  dentry_unlink_inode+0x43b/0x600 fs/dcache.c:343
->  __dentry_kill+0x34d/0x740 fs/dcache.c:538
->  dentry_kill fs/dcache.c:579 [inline]
->  dput.part.27+0x5ce/0x7c0 fs/dcache.c:791
->  dput fs/dcache.c:753 [inline]
->  do_one_tree+0x43/0x50 fs/dcache.c:1454
->  shrink_dcache_for_umount+0xbb/0x2b0 fs/dcache.c:1468
->  generic_shutdown_super+0xcd/0x4c0 fs/super.c:421
->  kill_anon_super+0x3c/0x50 fs/super.c:988
->  deactivate_locked_super+0x88/0xd0 fs/super.c:309
->  deactivate_super+0x155/0x1b0 fs/super.c:340
->  cleanup_mnt+0xb2/0x160 fs/namespace.c:1112
->  __cleanup_mnt+0x16/0x20 fs/namespace.c:1119
->  task_work_run+0x18a/0x260 kernel/task_work.c:116
->  tracehook_notify_resume include/linux/tracehook.h:191 [inline]
->  exit_to_usermode_loop+0x23b/0x2a0 arch/x86/entry/common.c:160
->  prepare_exit_to_usermode arch/x86/entry/common.c:190 [inline]
->  syscall_return_slowpath+0x4d3/0x570 arch/x86/entry/common.c:259
->  entry_SYSCALL_64_fastpath+0xc0/0xc2
-> RIP: 0033:0x435e19
-> RSP: 002b:00007ffc9d7f2748 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
-> RAX: ffffffffffffffea RBX: 0100000000000000 RCX: 0000000000435e19
-> RDX: 0000000020063000 RSI: 0000000020914ffa RDI: 0000000020037000
-> RBP: 00007ffc9d7f2fe0 R08: 0000000020039000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000000
-> R13: 0000000000402b70 R14: 0000000000402c00 R15: 0000000000000000
-> Code: 04 f2 f2 f2 c7 40 08 f3 f3 f3 f3 e8 f0 ec de ff 48 8d 45 98 48
-> 8b 95 70 ff ff ff 48 c1 e8 03 42 c6 04 20 04 4c 89 e8 48 c1 e8 03 <42>
-> 0f b6 0c 20 4c 89 e8 83 e0 07 83 c0 03 38 c8 7c 08 84 c9 0f
-> RIP: __read_once_size include/linux/compiler.h:247 [inline] RSP:
-> ffff880064a7f0b0
-> RIP: atomic_read arch/x86/include/asm/atomic.h:26 [inline] RSP: ffff880064a7f0b0
-> RIP: refcount_sub_and_test include/linux/refcount.h:156 [inline] RSP:
-> ffff880064a7f0b0
-> RIP: refcount_dec_and_test include/linux/refcount.h:181 [inline] RSP:
-> ffff880064a7f0b0
-> RIP: kref_put include/linux/kref.h:71 [inline] RSP: ffff880064a7f0b0
-> RIP: bdi_put+0x8b/0x1d0 mm/backing-dev.c:914 RSP: ffff880064a7f0b0
-> ---[ end trace 8991b3d16ac9bf93 ]---
->
-> On commit e5d56efc97f8240d0b5d66c03949382b6d7e5570.
+On Fri, Feb 24, 2017 at 01:31:46PM -0800, Shaohua Li wrote:
+> madv MADV_FREE indicate pages are 'lazyfree'. They are still anonymous
+> pages, but they can be freed without pageout. To destinguish them
+> against normal anonymous pages, we clear their SwapBacked flag.
+> 
+> MADV_FREE pages could be freed without pageout, so they pretty much like
+> used once file pages. For such pages, we'd like to reclaim them once
+> there is memory pressure. Also it might be unfair reclaiming MADV_FREE
+> pages always before used once file pages and we definitively want to
+> reclaim the pages before other anonymous and file pages.
+> 
+> To speed up MADV_FREE pages reclaim, we put the pages into
+> LRU_INACTIVE_FILE list. The rationale is LRU_INACTIVE_FILE list is tiny
+> nowadays and should be full of used once file pages. Reclaiming
+> MADV_FREE pages will not have much interfere of anonymous and active
+> file pages. And the inactive file pages and MADV_FREE pages will be
+> reclaimed according to their age, so we don't reclaim too many MADV_FREE
+> pages too. Putting the MADV_FREE pages into LRU_INACTIVE_FILE_LIST also
+> means we can reclaim the pages without swap support. This idea is
+> suggested by Johannes.
+> 
+> This patch doesn't move MADV_FREE pages to LRU_INACTIVE_FILE list yet to
+> avoid bisect failure, next patch will do it.
+> 
+> The patch is based on Minchan's original patch.
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Shaohua Li <shli@fb.com>
 
-
-I also wee the following WARNING. Do you think it' the same underlying bug?
-
-------------[ cut here ]------------
-WARNING: CPU: 1 PID: 24265 at mm/backing-dev.c:899
-bdi_exit+0x13e/0x160 mm/backing-dev.c:899
-Kernel panic - not syncing: panic_on_warn set ...
-
-CPU: 1 PID: 24265 Comm: syz-executor3 Not tainted 4.10.0-next-20170227+ #1
-Hardware name: Google Google Compute Engine/Google Compute Engine,
-BIOS Google 01/01/2011
-Call Trace:
- __dump_stack lib/dump_stack.c:15 [inline]
- dump_stack+0x2ee/0x3ef lib/dump_stack.c:51
- panic+0x1fb/0x412 kernel/panic.c:179
- __warn+0x1c4/0x1e0 kernel/panic.c:540
- warn_slowpath_null+0x2c/0x40 kernel/panic.c:583
- bdi_exit+0x13e/0x160 mm/backing-dev.c:899
- release_bdi+0x19/0x30 mm/backing-dev.c:908
- kref_put include/linux/kref.h:72 [inline]
- bdi_put+0x2a/0x40 mm/backing-dev.c:914
- bdev_evict_inode+0x203/0x3a0 fs/block_dev.c:888
- evict+0x46e/0x980 fs/inode.c:553
- iput_final fs/inode.c:1515 [inline]
- iput+0x589/0xb20 fs/inode.c:1542
- dentry_unlink_inode+0x43b/0x600 fs/dcache.c:343
- __dentry_kill+0x34d/0x740 fs/dcache.c:538
- dentry_kill fs/dcache.c:579 [inline]
- dput.part.27+0x5ce/0x7c0 fs/dcache.c:791
- dput fs/dcache.c:753 [inline]
- do_one_tree+0x43/0x50 fs/dcache.c:1454
- shrink_dcache_for_umount+0xbb/0x2b0 fs/dcache.c:1468
- generic_shutdown_super+0xcd/0x4c0 fs/super.c:421
- kill_anon_super+0x3c/0x50 fs/super.c:988
- deactivate_locked_super+0x88/0xd0 fs/super.c:309
- deactivate_super+0x155/0x1b0 fs/super.c:340
- cleanup_mnt+0xb2/0x160 fs/namespace.c:1112
- __cleanup_mnt+0x16/0x20 fs/namespace.c:1119
- task_work_run+0x18a/0x260 kernel/task_work.c:116
- tracehook_notify_resume include/linux/tracehook.h:191 [inline]
- exit_to_usermode_loop+0x23b/0x2a0 arch/x86/entry/common.c:160
- prepare_exit_to_usermode arch/x86/entry/common.c:190 [inline]
- syscall_return_slowpath+0x4d3/0x570 arch/x86/entry/common.c:259
- entry_SYSCALL_64_fastpath+0xc0/0xc2
-RIP: 0033:0x44fb79
-RSP: 002b:00007fd57a8a0b58 EFLAGS: 00000212 ORIG_RAX: 00000000000000a5
-RAX: ffffffffffffffea RBX: 0000000000708000 RCX: 000000000044fb79
-RDX: 00000000208cf000 RSI: 0000000020058ffd RDI: 0000000020fc2000
-RBP: 00000000000002f7 R08: 0000000020691000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000212 R12: 0000000020fc2000
-R13: 0000000020058ffd R14: 00000000208cf000 R15: 0000000000000000
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
