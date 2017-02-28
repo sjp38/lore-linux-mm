@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AB936B03AC
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 08:25:03 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id d18so16412653pgh.2
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 05:25:03 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id l1si1791983pln.71.2017.02.28.05.25.01
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DA296B03AF
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 08:28:37 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id h72so14617164pfd.5
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 05:28:37 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id g12si1808395pla.21.2017.02.28.05.28.36
         for <linux-mm@kvack.org>;
-        Tue, 28 Feb 2017 05:25:02 -0800 (PST)
-Date: Tue, 28 Feb 2017 22:24:44 +0900
+        Tue, 28 Feb 2017 05:28:36 -0800 (PST)
+Date: Tue, 28 Feb 2017 22:28:20 +0900
 From: Byungchul Park <byungchul.park@lge.com>
 Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170228132444.GG3817@X58A-UD3R>
+Message-ID: <20170228132820.GH3817@X58A-UD3R>
 References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
  <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228131012.GI5680@worktop>
+ <20170228130513.GH5680@worktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170228130513.GH5680@worktop>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170228131012.GI5680@worktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Tue, Feb 28, 2017 at 02:10:12PM +0100, Peter Zijlstra wrote:
+On Tue, Feb 28, 2017 at 02:05:13PM +0100, Peter Zijlstra wrote:
+> On Wed, Jan 18, 2017 at 10:17:32PM +0900, Byungchul Park wrote:
+> > +#define MAX_XHLOCKS_NR 64UL
+> 
 > > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> > +
-> > +#define idx(t)			((t)->xhlock_idx)
-> > +#define idx_prev(i)		((i) ? (i) - 1 : MAX_XHLOCKS_NR - 1)
-> > +#define idx_next(i)		(((i) + 1) % MAX_XHLOCKS_NR)
+> > +	if (tsk->xhlocks) {
+> > +		void *tmp = tsk->xhlocks;
+> > +		/* Disable crossrelease for current */
+> > +		tsk->xhlocks = NULL;
+> > +		vfree(tmp);
+> > +	}
+> > +#endif
 > 
-> Note that:
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +	p->xhlock_idx = 0;
+> > +	p->xhlock_idx_soft = 0;
+> > +	p->xhlock_idx_hard = 0;
+> > +	p->xhlock_idx_nmi = 0;
+> > +	p->xhlocks = vzalloc(sizeof(struct hist_lock) * MAX_XHLOCKS_NR);
 > 
-> #define idx_prev(i)		(((i) - 1) % MAX_XHLOCKS_NR)
-> #define idx_next(i)		(((i) + 1) % MAX_XHLOCKS_NR)
-> 
-> is more symmetric and easier to understand.
+> I don't think we need vmalloc for this now.
 
-OK. I will do it after forcing MAX_XHLOCKS_NR to be power of 2. Current
-value of it is already power of 2 but I need to add comment explaning it.
+Really? When is a better time to do it?
 
-> > +
-> > +/* For easy access to xhlock */
-> > +#define xhlock(t, i)		((t)->xhlocks + (i))
-> > +#define xhlock_prev(t, l)	xhlock(t, idx_prev((l) - (t)->xhlocks))
-> > +#define xhlock_curr(t)		xhlock(t, idx(t))
-> 
-> So these result in an xhlock pointer
-> 
-> > +#define xhlock_incr(t)		({idx(t) = idx_next(idx(t));})
-> 
-> This does not; which is confusing seeing how they share the same
-> namespace; also incr is weird.
+I think the time creating a task is the best time to initialize it. No?
 
-OK.. Could you suggest a better name? xhlock_adv()? advance_xhlock()?
-And.. replace it with a function?
+> 
+> > +	p->work_id = 0;
+> > +#endif
+> 
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +	if (p->xhlocks) {
+> > +		void *tmp = p->xhlocks;
+> > +		/* Diable crossrelease for current */
+> > +		p->xhlocks = NULL;
+> > +		vfree(tmp);
+> > +	}
+> > +#endif
+> 
+> Second instance of the same code, which would suggest using a function
+> for this. Also, with a function you can loose the #ifdeffery.
+
+Yes. It looks much better.
+
+Thank you very much.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
