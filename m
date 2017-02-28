@@ -1,34 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 263E86B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:32:16 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id 68so26685315itg.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:32:16 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id a189si3416711ite.108.2017.02.28.13.32.15
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA566B0038
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:46:13 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u63so9373733wmu.0
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:46:13 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id e1si3985580wrd.138.2017.02.28.13.46.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 13:32:15 -0800 (PST)
-Date: Tue, 28 Feb 2017 15:32:12 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: [LSF/MM TOPIC] Movable memory and reliable higher order
- allocations
-Message-ID: <alpine.DEB.2.20.1702281526170.31946@east.gentwo.org>
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 28 Feb 2017 13:46:12 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 0/9] mm: kswapd spinning on unreclaimable nodes - fixes and cleanups
+Date: Tue, 28 Feb 2017 16:39:58 -0500
+Message-Id: <20170228214007.5621-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, riel@redhat.com, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jia He <hejianet@gmail.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-This has come up lots of times. We talked about this at linux.conf.au
-again and agreed to try to make the radix tree movable. Sadly I have not
-had enough time yet to make progress on this one but reliable higher order
-allocations or some sort of other solution are needed for performance
-reasons in many places. Recently there was demand from the developers in
-the network stack and in the RDMA subsystems for large contiguous
-allocation for performance reasons. I would like to talk about this (yes
-the gazillionth time) to see what avenues there are to make progress on
-this one.
+Hi,
+
+Jia reported a scenario in which the kswapd of a node indefinitely
+spins at 100% CPU usage. We have seen similar cases at Facebook.
+
+The kernel's current method of judging its ability to reclaim a node
+(or whether to back off and sleep) is based on the amount of scanned
+pages in proportion to the amount of reclaimable pages. In Jia's and
+our scenarios, there are no reclaimable pages in the node, however,
+and the condition for backing off is never met. Kswapd busyloops in an
+attempt to restore the watermarks while having nothing to work with.
+
+This series reworks the definition of an unreclaimable node based not
+on scanning but on whether kswapd is able to actually reclaim pages in
+MAX_RECLAIM_RETRIES (16) consecutive runs. This is the same criteria
+the page allocator uses for giving up on direct reclaim and invoking
+the OOM killer. If it cannot free any pages, kswapd will go to sleep
+and leave further attempts to direct reclaim invocations, which will
+either make progress and re-enable kswapd, or invoke the OOM killer.
+
+Patch #1 fixes the immediate problem Jia reported, the remainder are
+smaller fixlets, cleanups, and overall phasing out of the old method.
+
+Patch #6 is the odd one out. It's a nice cleanup to get_scan_count(),
+and directly related to #5, but in itself not relevant to the series.
+
+If the whole series is too ambitious for 4.11, I would consider the
+first three patches fixes, the rest cleanups.
+
+Thanks
+
+ include/linux/mmzone.h |   3 +-
+ mm/internal.h          |   7 +-
+ mm/migrate.c           |   3 -
+ mm/page_alloc.c        |  39 +++--------
+ mm/vmscan.c            | 169 ++++++++++++++++++-----------------------------
+ mm/vmstat.c            |  24 ++-----
+ 6 files changed, 89 insertions(+), 156 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
