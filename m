@@ -1,77 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7B36B0392
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:46:34 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id q39so9391434wrb.3
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:46:34 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id z23si4006859wrb.20.2017.02.28.13.46.33
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A17AF6B0038
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 17:09:56 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id x17so32277571pgi.3
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 14:09:56 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h6si2854359pln.175.2017.02.28.14.09.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 13:46:33 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 9/9] mm: remove unnecessary back-off function when retrying page reclaim
-Date: Tue, 28 Feb 2017 16:40:07 -0500
-Message-Id: <20170228214007.5621-10-hannes@cmpxchg.org>
-In-Reply-To: <20170228214007.5621-1-hannes@cmpxchg.org>
-References: <20170228214007.5621-1-hannes@cmpxchg.org>
+        Tue, 28 Feb 2017 14:09:55 -0800 (PST)
+Date: Tue, 28 Feb 2017 14:09:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] fix for direct-I/O to DAX mappings
+Message-Id: <20170228140954.09b9a85dd626a632d3beeb07@linux-foundation.org>
+In-Reply-To: <CA+55aFy3kkfNtdmiGj5+xsJdOuid1V+FFkm_hji0DSuBGqL7jA@mail.gmail.com>
+References: <148804250784.36605.12832323062093584440.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<CA+55aFy3kkfNtdmiGj5+xsJdOuid1V+FFkm_hji0DSuBGqL7jA@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jia He <hejianet@gmail.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, the arch/x86 maintainers <x86@kernel.org>, Xiong Zhou <xzhou@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-The backoff mechanism is not needed. If we have MAX_RECLAIM_RETRIES
-loops without progress, we'll OOM anyway; backing off might cut one or
-two iterations off that in the rare OOM case. If we have intermittent
-success reclaiming a few pages, the backoff function gets reset also,
-and so is of little help in these scenarios.
+On Tue, 28 Feb 2017 09:10:39 -0800 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-We might want a backoff function for when there IS progress, but not
-enough to be satisfactory. But this isn't that. Remove it.
+> On Sat, Feb 25, 2017 at 9:08 AM, Dan Williams <dan.j.williams@intel.com> wrote:
+> >
+> > I'm sending this through the -mm tree for a double-check from memory
+> > management folks. It has a build success notification from the kbuild
+> > robot.
+> 
+> I'm just checking that this isn't lost - I didn't get it in the latest
+> patch-bomb from Andrew.
+> 
+> I'm assuming it's still percolating through your system, Andrew, but
+> if not, holler.
+> 
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/page_alloc.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9ac639864bed..223644afed28 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3511,11 +3511,10 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- /*
-  * Checks whether it makes sense to retry the reclaim to make a forward progress
-  * for the given allocation request.
-- * The reclaim feedback represented by did_some_progress (any progress during
-- * the last reclaim round) and no_progress_loops (number of reclaim rounds without
-- * any progress in a row) is considered as well as the reclaimable pages on the
-- * applicable zone list (with a backoff mechanism which is a function of
-- * no_progress_loops).
-+ *
-+ * We give up when we either have tried MAX_RECLAIM_RETRIES in a row
-+ * without success, or when we couldn't even meet the watermark if we
-+ * reclaimed all remaining pages on the LRU lists.
-  *
-  * Returns true if a retry is viable or false to enter the oom path.
-  */
-@@ -3560,13 +3559,11 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 		bool wmark;
- 
- 		available = reclaimable = zone_reclaimable_pages(zone);
--		available -= DIV_ROUND_UP((*no_progress_loops) * available,
--					  MAX_RECLAIM_RETRIES);
- 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
- 
- 		/*
--		 * Would the allocation succeed if we reclaimed the whole
--		 * available?
-+		 * Would the allocation succeed if we reclaimed all
-+		 * reclaimable pages?
- 		 */
- 		wmark = __zone_watermark_ok(zone, order, min_wmark,
- 				ac_classzone_idx(ac), alloc_flags, available);
--- 
-2.11.1
+Yup, I've got them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
