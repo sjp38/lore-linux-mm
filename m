@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 120926B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 17:34:48 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id x17so32914252pgi.3
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 14:34:48 -0800 (PST)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0047.outbound.protection.outlook.com. [104.47.40.47])
-        by mx.google.com with ESMTPS id q77si2908078pfi.41.2017.02.28.14.34.46
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A52356B0038
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 17:46:27 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id q127so21285848oih.1
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 14:46:27 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0058.outbound.protection.outlook.com. [104.47.38.58])
+        by mx.google.com with ESMTPS id e140si1333257oih.71.2017.02.28.14.46.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 28 Feb 2017 14:34:46 -0800 (PST)
-Subject: Re: [RFC PATCH v4 11/28] x86: Add support to determine the E820 type
- of an address
+        Tue, 28 Feb 2017 14:46:24 -0800 (PST)
+Subject: Re: [RFC PATCH v4 16/28] x86: Add support for changing memory
+ encryption attribute
 References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154430.19244.95519.stgit@tlendack-t1.amdoffice.net>
- <20170220200955.32e2wqxgulswnr55@pd.tnic>
+ <20170216154535.19244.6294.stgit@tlendack-t1.amdoffice.net>
+ <20170222185215.atbntnyw7252kkbk@pd.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <e6146786-16c5-99ab-52c9-2bdd50c7d9ba@amd.com>
-Date: Tue, 28 Feb 2017 16:34:39 -0600
+Message-ID: <409ec9f1-896d-a9f0-0e4c-4d102cbf86cf@amd.com>
+Date: Tue, 28 Feb 2017 16:46:15 -0600
 MIME-Version: 1.0
-In-Reply-To: <20170220200955.32e2wqxgulswnr55@pd.tnic>
+In-Reply-To: <20170222185215.atbntnyw7252kkbk@pd.tnic>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,72 +28,139 @@ Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, 
  Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
  Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On 2/20/2017 2:09 PM, Borislav Petkov wrote:
-> On Thu, Feb 16, 2017 at 09:44:30AM -0600, Tom Lendacky wrote:
->> This patch adds support to return the E820 type associated with an address
+On 2/22/2017 12:52 PM, Borislav Petkov wrote:
+> On Thu, Feb 16, 2017 at 09:45:35AM -0600, Tom Lendacky wrote:
+>> Add support for changing the memory encryption attribute for one or more
+>> memory pages.
 >
-> s/This patch adds/Add/
+> "This will be useful when we, ...., for example."
+
+Yup, will expand on the "why".
+
 >
->> range.
->>
 >> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 >> ---
->>  arch/x86/include/asm/e820/api.h   |    2 ++
->>  arch/x86/include/asm/e820/types.h |    2 ++
->>  arch/x86/kernel/e820.c            |   26 +++++++++++++++++++++++---
->>  3 files changed, 27 insertions(+), 3 deletions(-)
+>>  arch/x86/include/asm/cacheflush.h |    3 ++
+>>  arch/x86/mm/pageattr.c            |   66 +++++++++++++++++++++++++++++++++++++
+>>  2 files changed, 69 insertions(+)
 >>
->> diff --git a/arch/x86/include/asm/e820/api.h b/arch/x86/include/asm/e820/api.h
->> index 8e0f8b8..7c1bdc9 100644
->> --- a/arch/x86/include/asm/e820/api.h
->> +++ b/arch/x86/include/asm/e820/api.h
->> @@ -38,6 +38,8 @@
->>  extern void e820__reallocate_tables(void);
->>  extern void e820__register_nosave_regions(unsigned long limit_pfn);
+>> diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+>> index 872877d..33ae60a 100644
+>> --- a/arch/x86/include/asm/cacheflush.h
+>> +++ b/arch/x86/include/asm/cacheflush.h
+>> @@ -12,6 +12,7 @@
+>>   * Executability : eXeutable, NoteXecutable
+>>   * Read/Write    : ReadOnly, ReadWrite
+>>   * Presence      : NotPresent
+>> + * Encryption    : Encrypted, Decrypted
+>>   *
+>>   * Within a category, the attributes are mutually exclusive.
+>>   *
+>> @@ -47,6 +48,8 @@
+>>  int set_memory_rw(unsigned long addr, int numpages);
+>>  int set_memory_np(unsigned long addr, int numpages);
+>>  int set_memory_4k(unsigned long addr, int numpages);
+>> +int set_memory_encrypted(unsigned long addr, int numpages);
+>> +int set_memory_decrypted(unsigned long addr, int numpages);
 >>
->> +extern enum e820_type e820__get_entry_type(u64 start, u64 end);
+>>  int set_memory_array_uc(unsigned long *addr, int addrinarray);
+>>  int set_memory_array_wc(unsigned long *addr, int addrinarray);
+>> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+>> index 91c5c63..9710f5c 100644
+>> --- a/arch/x86/mm/pageattr.c
+>> +++ b/arch/x86/mm/pageattr.c
+>> @@ -1742,6 +1742,72 @@ int set_memory_4k(unsigned long addr, int numpages)
+>>  					__pgprot(0), 1, 0, NULL);
+>>  }
+>>
+>> +static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
+>> +{
+>> +	struct cpa_data cpa;
+>> +	unsigned long start;
+>> +	int ret;
 >> +
->>  /*
->>   * Returns true iff the specified range [start,end) is completely contained inside
->>   * the ISA region.
->> diff --git a/arch/x86/include/asm/e820/types.h b/arch/x86/include/asm/e820/types.h
->> index 4adeed0..bf49591 100644
->> --- a/arch/x86/include/asm/e820/types.h
->> +++ b/arch/x86/include/asm/e820/types.h
->> @@ -7,6 +7,8 @@
->>   * These are the E820 types known to the kernel:
->>   */
->>  enum e820_type {
->> +	E820_TYPE_INVALID	= 0,
+>> +	/* Nothing to do if the _PAGE_ENC attribute is zero */
+>> +	if (_PAGE_ENC == 0)
+>
+> Why not:
+>
+> 	if (!sme_active())
+>
+> ?
+
+Yup, it would be more clear.
+
+>
+>> +		return 0;
 >> +
+>> +	/* Save original start address since it will be modified */
 >
-> Now this is strange - ACPI spec doesn't explicitly say that range type 0
-> is invalid. Am I looking at the wrong place?
->
-> "Table 15-312 Address Range Types12" in ACPI spec 6.
->
-> If 0 is really the invalid entry, then e820_print_type() needs updating
-> too. And then the invalid-entry-add should be a separate patch.
+> That's obvious - it is a small-enough function to fit on the screen. No
+> need for the comment.
 
-The 0 return (originally) was to indicate that an e820 entry for the
-range wasn't found. This series just gave it a name.  So it's not that
-the type field held a 0.  Since 0 isn't defined in the ACPI spec I don't
-see an issue with creating it and I can add a comment to the effect that
-this value is used for the type when an e820 entry isn't found. I could
-always rename it to E820_TYPE_NOT_FOUND if that would help.
-
-Or if we want to guard against ACPI adding a type 0 in the future, I
-could make the function return an int and then return -EINVAL if an e820
-entry isn't found.  This might be the better option.
-
-Thanks,
-Tom
-
+Ok.
 
 >
->>  	E820_TYPE_RAM		= 1,
->>  	E820_TYPE_RESERVED	= 2,
->>  	E820_TYPE_ACPI		= 3,
+>> +	start = addr;
+>> +
+>> +	memset(&cpa, 0, sizeof(cpa));
+>> +	cpa.vaddr = &addr;
+>> +	cpa.numpages = numpages;
+>> +	cpa.mask_set = enc ? __pgprot(_PAGE_ENC) : __pgprot(0);
+>> +	cpa.mask_clr = enc ? __pgprot(0) : __pgprot(_PAGE_ENC);
+>> +	cpa.pgd = init_mm.pgd;
+>> +
+>> +	/* Should not be working on unaligned addresses */
+>> +	if (WARN_ONCE(*cpa.vaddr & ~PAGE_MASK,
+>> +		      "misaligned address: %#lx\n", *cpa.vaddr))
+>
+> Use addr here so that you don't have to deref. gcc is probably smart
+> enough but the code should look more readable this way too.
+>
+
+Ok.
+
+>> +		*cpa.vaddr &= PAGE_MASK;
+>
+> I know, you must use cpa.vaddr here but if you move that alignment check
+> over the cpa assignment, you can use addr solely.
+
+Ok.
+
+>
+>> +
+>> +	/* Must avoid aliasing mappings in the highmem code */
+>> +	kmap_flush_unused();
+>> +	vm_unmap_aliases();
+>> +
+>> +	/*
+>> +	 * Before changing the encryption attribute, we need to flush caches.
+>> +	 */
+>> +	if (static_cpu_has(X86_FEATURE_CLFLUSH))
+>> +		cpa_flush_range(start, numpages, 1);
+>> +	else
+>> +		cpa_flush_all(1);
+>
+> I guess we don't really need the distinction since a SME CPU most
+> definitely implies CLFLUSH support but ok, let's be careful.
+>
+>> +
+>> +	ret = __change_page_attr_set_clr(&cpa, 1);
+>> +
+>> +	/*
+>> +	 * After changing the encryption attribute, we need to flush TLBs
+>> +	 * again in case any speculative TLB caching occurred (but no need
+>> +	 * to flush caches again).  We could just use cpa_flush_all(), but
+>> +	 * in case TLB flushing gets optimized in the cpa_flush_range()
+>> +	 * path use the same logic as above.
+>> +	 */
+>> +	if (static_cpu_has(X86_FEATURE_CLFLUSH))
+>> +		cpa_flush_range(start, numpages, 0);
+>> +	else
+>> +		cpa_flush_all(0);
+>> +
+>> +	return ret;
+>> +}
 >
 
 --
