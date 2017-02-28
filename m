@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A5796B038A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:13:56 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id x66so21749488pfb.2
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:13:56 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 343416B038C
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:13:57 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x17so25064423pgi.3
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:13:57 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b189si2403388pga.296.2017.02.28.10.13.52
+        by mx.google.com with ESMTPS id p17si2431485pgi.67.2017.02.28.10.13.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 10:13:52 -0800 (PST)
+        Tue, 28 Feb 2017 10:13:53 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 2/2] XArray: Convert IDR and add test suite
-Date: Tue, 28 Feb 2017 10:13:43 -0800
-Message-Id: <20170228181343.16588-3-willy@infradead.org>
+Subject: [PATCH 1/2] Add XArray
+Date: Tue, 28 Feb 2017 10:13:42 -0800
+Message-Id: <20170228181343.16588-2-willy@infradead.org>
 In-Reply-To: <20170228181343.16588-1-willy@infradead.org>
 References: <20170228181343.16588-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,2050 +22,2119 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The test suite for the xarray is still quite modest, but converting
-the IDR and the IDA to use the xarray lets me use the IDR & IDA test
-suites to test the xarray.  They have been very helpful in finding bugs
-(and poor design decisions).
+The xarray is an array of 2^BITS_PER_LONG pointers which handles its own
+locking and memory allocation.  It is intended to replace the radix tree.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/idr.h                            | 136 ++-----
- lib/idr.c                                      | 503 +++++++++++++++----------
- lib/radix-tree.c                               | 169 +--------
- tools/include/asm/bug.h                        |   4 +
- tools/include/linux/kernel.h                   |   1 +
- tools/include/linux/spinlock.h                 |   7 +-
- tools/testing/radix-tree/.gitignore            |   4 +-
- tools/testing/radix-tree/Makefile              |  34 +-
- tools/testing/radix-tree/{idr-test.c => idr.c} |  37 +-
- tools/testing/radix-tree/linux.c               |   2 +-
- tools/testing/radix-tree/linux/radix-tree.h    |   5 -
- tools/testing/radix-tree/linux/rcupdate.h      |   2 +
- tools/testing/radix-tree/linux/xarray.h        |   1 +
- tools/testing/radix-tree/test.c                |  59 +--
- tools/testing/radix-tree/test.h                |  48 ++-
- tools/testing/radix-tree/xarray.c              | 241 ++++++++++++
- 16 files changed, 712 insertions(+), 541 deletions(-)
- rename tools/testing/radix-tree/{idr-test.c => idr.c} (91%)
- create mode 100644 tools/testing/radix-tree/linux/xarray.h
- create mode 100644 tools/testing/radix-tree/xarray.c
+ include/linux/xarray.h |  764 ++++++++++++++++++++++++++++
+ lib/Makefile           |    3 +-
+ lib/xarray.c           | 1305 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 2071 insertions(+), 1 deletion(-)
+ create mode 100644 include/linux/xarray.h
+ create mode 100644 lib/xarray.c
 
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index bf70b3ef0a07..681cc6e7591f 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -9,100 +9,58 @@
-  * tables.
-  */
- 
--#ifndef __IDR_H__
--#define __IDR_H__
-+#ifndef _LINUX_IDR_H
-+#define _LINUX_IDR_H
- 
--#include <linux/radix-tree.h>
-+#include <linux/xarray.h>
- #include <linux/gfp.h>
- #include <linux/percpu.h>
-+#include <linux/preempt.h>
- 
- struct idr {
--	struct radix_tree_root	idr_rt;
--	unsigned int		idr_next;
-+	struct xarray	idxa;
- };
- 
--/*
-- * The IDR API does not expose the tagging functionality of the radix tree
-- * to users.  Use tag 0 to track whether a node has free space below it.
-- */
--#define IDR_FREE	0
--
--/* Set the IDR flag and the IDR_FREE tag */
--#define IDR_RT_MARKER		((__force gfp_t)(3 << __GFP_BITS_SHIFT))
--
--#define IDR_INIT							\
--{									\
--	.idr_rt = RADIX_TREE_INIT(IDR_RT_MARKER)			\
--}
--#define DEFINE_IDR(name)	struct idr name = IDR_INIT
--
--/**
-- * idr_get_cursor - Return the current position of the cyclic allocator
-- * @idr: idr handle
-- *
-- * The value returned is the value that will be next returned from
-- * idr_alloc_cyclic() if it is free (otherwise the search will start from
-- * this position).
-- */
--static inline unsigned int idr_get_cursor(const struct idr *idr)
--{
--	return READ_ONCE(idr->idr_next);
--}
--
--/**
-- * idr_set_cursor - Set the current position of the cyclic allocator
-- * @idr: idr handle
-- * @val: new position
-- *
-- * The next call to idr_alloc_cyclic() will return @val if it is free
-- * (otherwise the search will start from this position).
-- */
--static inline void idr_set_cursor(struct idr *idr, unsigned int val)
--{
--	WRITE_ONCE(idr->idr_next, val);
-+#define IDR_INIT(name)					\
-+{							\
-+	.idxa = XARRAY_FREE_INIT(name.idxa)		\
- }
-+#define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
-+#define idr_init(idr) do {				\
-+	*(idr) = IDR_INIT(#idr)				\
-+} while (0)
- 
- /**
-  * DOC: idr sync
-- * idr synchronization (stolen from radix-tree.h)
-+ * idr synchronization
-  *
-- * idr_find() is able to be called locklessly, using RCU. The caller must
-- * ensure calls to this function are made within rcu_read_lock() regions.
-- * Other readers (lock-free or otherwise) and modifications may be running
-- * concurrently.
-+ * The IDR manages its own locking, using irqsafe spinlocks for operations
-+ * which modify the IDR and RCU for operations which do not.  The user of
-+ * the IDR may choose to wrap accesses to it in another lock if it needs
-+ * to guarantee the IDR does not change during a read access.
-  *
-- * It is still required that the caller manage the synchronization and
-- * lifetimes of the items. So if RCU lock-free lookups are used, typically
-- * this would mean that the items have their own locks, or are amenable to
-- * lock-free access; and that the items are freed by RCU (or only freed after
-- * having been deleted from the idr tree *and* a synchronize_rcu() grace
-- * period).
-+ * The caller must still manage the synchronization and lifetimes of the
-+ * items.  So if RCU lock-free lookups are used, typically this would mean
-+ * that the items have their own locks, or are amenable to lock-free access;
-+ * and that the items are freed by RCU (or only freed after having been
-+ * deleted from the IDR *and* a synchronize_rcu() grace period).
-  */
- 
--void idr_preload(gfp_t gfp_mask);
-+void idr_preload(gfp_t);
- int idr_alloc(struct idr *, void *entry, int start, int end, gfp_t);
--int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
-+int idr_alloc_cyclic(struct idr *, int *cursor, void *entry,
-+		int start, int end, gfp_t);
-+void *idr_find(const struct idr *, int id);
- int idr_for_each(const struct idr *,
- 		 int (*fn)(int id, void *p, void *data), void *data);
--void *idr_get_next(struct idr *, int *nextid);
-+void *idr_get_next(const struct idr *, int *nextid);
- void *idr_replace(struct idr *, void *, int id);
-+void *idr_remove(struct idr *, int id);
- void idr_destroy(struct idr *);
- 
--static inline void *idr_remove(struct idr *idr, int id)
--{
--	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
--}
--
--static inline void idr_init(struct idr *idr)
--{
--	INIT_RADIX_TREE(&idr->idr_rt, IDR_RT_MARKER);
--	idr->idr_next = 0;
--}
--
- static inline bool idr_is_empty(const struct idr *idr)
- {
--	return radix_tree_empty(&idr->idr_rt) &&
--		radix_tree_tagged(&idr->idr_rt, IDR_FREE);
-+	return xa_empty(&idr->idxa);
- }
- 
- /**
-@@ -117,23 +75,6 @@ static inline void idr_preload_end(void)
- }
- 
- /**
-- * idr_find - return pointer for given id
-- * @idr: idr handle
-- * @id: lookup key
-- *
-- * Return the pointer given the id it has been registered with.  A %NULL
-- * return indicates that @id is not valid or you passed %NULL in
-- * idr_get_new().
-- *
-- * This function can be called under rcu_read_lock(), given that the leaf
-- * pointers lifetimes are correctly managed.
-- */
--static inline void *idr_find(const struct idr *idr, int id)
--{
--	return radix_tree_lookup(&idr->idr_rt, id);
--}
--
--/**
-  * idr_for_each_entry - iterate over an idr's elements of a given type
-  * @idr:     idr handle
-  * @entry:   the type * to use as cursor
-@@ -175,13 +116,13 @@ struct ida_bitmap {
- DECLARE_PER_CPU(struct ida_bitmap *, ida_bitmap);
- 
- struct ida {
--	struct radix_tree_root	ida_rt;
-+	struct xarray idxa;
- };
- 
--#define IDA_INIT	{						\
--	.ida_rt = RADIX_TREE_INIT(IDR_RT_MARKER | GFP_NOWAIT),		\
-+#define IDA_INIT(name)	{				\
-+	.idxa = XARRAY_FREE_INIT(name.idxa)		\
- }
--#define DEFINE_IDA(name)	struct ida name = IDA_INIT
-+#define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
- 
- int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
- int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
-@@ -190,12 +131,7 @@ void ida_destroy(struct ida *ida);
- 
- int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
- 		   gfp_t gfp_mask);
--void ida_simple_remove(struct ida *ida, unsigned int id);
--
--static inline void ida_init(struct ida *ida)
--{
--	INIT_RADIX_TREE(&ida->ida_rt, IDR_RT_MARKER | GFP_NOWAIT);
--}
-+#define ida_simple_remove(ida, id) ida_remove(ida, id);
- 
- /**
-  * ida_get_new - allocate new ID
-@@ -211,6 +147,6 @@ static inline int ida_get_new(struct ida *ida, int *p_id)
- 
- static inline bool ida_is_empty(const struct ida *ida)
- {
--	return radix_tree_empty(&ida->ida_rt);
-+	return xa_empty(&ida->idxa);
- }
--#endif /* __IDR_H__ */
-+#endif /* __LINUX_IDR_H */
-diff --git a/lib/idr.c b/lib/idr.c
-index b13682bb0a1c..c280f0ee9440 100644
---- a/lib/idr.c
-+++ b/lib/idr.c
-@@ -1,14 +1,94 @@
-+#define XA_ADVANCED
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+new file mode 100644
+index 000000000000..646ff84b4444
+--- /dev/null
++++ b/include/linux/xarray.h
+@@ -0,0 +1,764 @@
++#ifndef _LINUX_XARRAY_H
++#define _LINUX_XARRAY_H
++/*
++ * eXtensible Arrays
++ * Copyright (c) 2017 Microsoft Corporation
++ * Author: Matthew Wilcox <mawilcox@microsoft.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of
++ * the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
 +
- #include <linux/bitmap.h>
-+#include <linux/err.h>
- #include <linux/export.h>
- #include <linux/idr.h>
-+#include <linux/percpu.h>
-+#include <linux/preempt.h>
-+#include <linux/radix-tree.h>
- #include <linux/slab.h>
- #include <linux/spinlock.h>
-+#include <linux/xarray.h>
- 
- DEFINE_PER_CPU(struct ida_bitmap *, ida_bitmap);
--static DEFINE_SPINLOCK(simple_ida_lock);
++/**
++ * An eXtensible Array is an array of pointers indexed by an unsigned
++ * long.  The xarray takes care of its own locking, using an irqsafe
++ * spinlock for operations that modify the array and RCU for operations
++ * which only read from the array.
++ *
++ * The xarray can store exceptional entries as well as pointers.
++ * Exceptional entries have a value between 0 and 2^(BITS_PER_LONG - 1).
++ * You cannot store arbitrary unsigned longs in the xarray as some
++ * values are reserved for internal use.  It is better to avoid storing
++ * IS_ERR() pointers in the array as it is hard to distinguish between
++ * xa_store() having failed to allocate memory, and a previously successful
++ * store of the entry ERR_PTR(-ENOMEM) in the array.
++ *
++ * A freshly initialised xarray is full of NULL pointers.  You can set
++ * the entry at any index by calling xa_store(), and get the value by
++ * calling xa_load().  There is no difference between an entry which has
++ * never been stored to and an entry which has most recently had NULL stored
++ * to it.  You can conditionally update the value of an entry by calling
++ * xa_replace().  Each entry which isn't NULL can be tagged with up to three
++ * bits of extra information, accessed through xa_get_tag(), xa_set_tag() and
++ * xa_clear_tag().  You can copy batches of entries out of the array by
++ * calling xa_get_entries() or xa_get_tagged().  You can iterate over present
++ * entries in the array by calling xa_find(), xa_next() or xa_for_each().
++ *
++ * There are two levels of API provided.  Normal and Advanced.  Define
++ * XA_ADVANCED before including this file to get access to the extra API.
++ * The advanced API has sharp edges and you can easily corrupt an xarray.
++ */
 +
-+static inline void *idr_null(void *entry)
-+{
-+	return entry == XA_IDR_NULL ? NULL : entry;
++#include <linux/bug.h>
++#include <linux/compiler.h>
++#include <linux/kernel.h>
++#include <linux/rcupdate.h>
++#include <linux/spinlock.h>
++
++/**
++ * struct xarray - The anchor of the XArray
++ * @xa_lock: Lock protecting writes to the array.
++ * @xa_flags: Internal XArray flags.
++ * @xa_head: The first pointer in the array.
++ *
++ * If all of the pointers in the array are NULL, @xa_head is a NULL pointer.
++ * If the only non-NULL pointer in the array is at index 0, @xa_head is that
++ * pointer.  If any other pointer in the array is non-NULL, @xa_head points
++ * to an @xa_node.
++ */
++struct xarray {
++	spinlock_t xa_lock;
++	unsigned int xa_flags;
++	void __rcu *xa_head;
++};
++
++#define __XARRAY_INIT(name, flags) {				\
++	.xa_lock = __SPIN_LOCK_UNLOCKED(name.xa_lock),		\
++	.xa_flags = flags,					\
++	.xa_head = NULL,					\
 +}
 +
-+/* Until we get the IDR preload API fixed */
-+struct radix_tree_preload {
-+	unsigned nr;
-+	struct radix_tree_node *nodes;
-+};
-+DECLARE_PER_CPU(struct radix_tree_preload, radix_tree_preloads);
++#define XARRAY_INIT(name) __XARRAY_INIT(name, 0)
++#define XARRAY_FREE_INIT(name) __XARRAY_INIT(name, XA_FLAG_TRACK_FREE | 1)
 +
-+static bool idr_nomem(struct xa_state *xas, gfp_t gfp)
++#define DEFINE_XARRAY(name) struct xarray name = XARRAY_INIT(name)
++
++/*
++ * The low three bits of the flag field are used for storing the tags.
++ *
++ * The TRACK_FREE flag indicates that the XA_FREE_TAG tag is used to track
++ * free entries in the xarray.  If you set this flag, only tags 1 & 2
++ * are available for you to use.
++ */
++#define XA_FLAG_TRACK_FREE	(1 << 3)
++
++void *xa_load(const struct xarray *, unsigned long index);
++void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
++void *xa_replace(struct xarray *, unsigned long index,
++		void *entry, void *old, gfp_t);
++
++typedef unsigned __bitwise xa_tag_t;
++#define XA_TAG_0	((__force xa_tag_t)0U)
++#define XA_TAG_1	((__force xa_tag_t)1U)
++#define XA_TAG_2	((__force xa_tag_t)2U)
++
++#define XA_TAG_MAX	XA_TAG_2
++#define XA_FREE_TAG	XA_TAG_0
++
++/*
++ * The vast majority of users have a constant tag, so the compiler can
++ * optimise this away.
++ */
++static inline bool xa_bad_tag(xa_tag_t tag)
 +{
-+	struct radix_tree_preload *rtp;
++	return (WARN_ON_ONCE((__force unsigned)tag >
++				(__force unsigned)XA_TAG_MAX));
++}
 +
-+	BUILD_BUG_ON(sizeof(struct radix_tree_node) != sizeof(struct xa_node));
++/**
++ * xa_tagged() - Inquire whether any entry in this array has a tag set
++ * @xa: Array
++ * @tag: Tag value
++ *
++ * Return: True if any entry has this tag set, false if no entry does.
++ */
++static inline bool xa_tagged(const struct xarray *xa, xa_tag_t tag)
++{
++	if (xa_bad_tag(tag))
++		return false;
++	return xa->xa_flags & (1 << (__force unsigned)tag);
++}
++
++bool __xa_get_tag(const struct xarray *, unsigned long index, xa_tag_t);
++void *__xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
++void *__xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
++
++#define xa_get_tag(xa, index, tag) \
++	(!xa_bad_tag(tag) && __xa_get_tag(xa, index, tag))
++#define xa_set_tag(xa, index, tag) \
++	(xa_bad_tag(tag) ? ERR_PTR(-EINVAL) : __xa_set_tag(xa, index, tag))
++#define xa_clear_tag(xa, index, tag) \
++	(xa_bad_tag(tag) ? ERR_PTR(-EINVAL) : __xa_clear_tag(xa, index, tag))
++
++int xa_get_entries(const struct xarray *, unsigned long start, void **dst,
++		unsigned int n);
++int xa_get_tagged(const struct xarray *, unsigned long start, void **dst,
++		unsigned int n, xa_tag_t);
++
++/**
++ * xa_empty() - Determine if an array has any present entries
++ * @xa: Array
++ *
++ * Return: True if the array has no entries in it.
++ */
++static inline bool xa_empty(const struct xarray *xa)
++{
++	return xa->xa_head == NULL;
++}
++
++void *xa_find(const struct xarray *xa, unsigned long *index, unsigned long max);
++void *xa_next(const struct xarray *xa, unsigned long *index, unsigned long max);
++
++/**
++ * xa_for_each() - Iterate over a portion of an array
++ * @xa: Array
++ * @entry: Pointer retrieved from array
++ * @index: Index of pointer retrieved from the array
++ * @max: Maximum index to retrieve from array
++ *
++ * Initialise @index to the minimum index you want to retrieve from
++ * the array.  During the iteration, @entry will have the value of the
++ * pointer stored in @xa at @index.  The iteration will skip all NULL
++ * pointers in the array.  You may modify @index during the
++ * iteration if you want to skip indices.  It is safe to modify the
++ * array during the iteration.  At the end of the iteration, @entry will
++ * be set to NULL and @index will have a value less than or equal to max.
++ *
++ * xa_for_each() is O(n.log(n)) while xas_for_each() is O(n).  You have
++ * to handle your own locking with xas_for_each(), and if you have to unlock
++ * after each iteration, it will also end up being O(n.log(n)).
++ */
++#define xa_for_each(xa, entry, index, max) \
++	for (entry = xa_find(xa, &index, max); entry; \
++	     entry = xa_next(xa, &index, max))
++
++/**
++ * xa_mk_exceptional() - Create an exceptional entry
++ * @v: value to store in exceptional entry
++ */
++static inline void *xa_mk_exceptional(unsigned long v)
++{
++	WARN_ON(v > LONG_MAX);
++	return (void *)((v << 1) | 1);
++}
++
++/**
++ * xa_exceptional_value() - Get value stored in an exceptional entry
++ * @entry: Value stored in xarray
++ */
++static inline unsigned long xa_exceptional_value(void *entry)
++{
++	return (unsigned long)entry >> 1;
++}
++
++/**
++ * xa_is_exceptional() - Determine if an entry is exceptional
++ * @entry: Value stored in xarray
++ *
++ * Return: True if the entry is exceptional
++ */
++static inline bool xa_is_exceptional(void *entry)
++{
++	return (unsigned long)entry & 1;
++}
++
++#ifdef XA_ADVANCED
++
++#ifdef XA_DEBUG
++#define XA_BUG_ON(x) BUG_ON(x)
++#else
++#define XA_BUG_ON(x)
++#endif
++
++/* XXX: unused */
++typedef unsigned __bitwise xa_tags_t;
++
++#define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock);
++#define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
++#define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
++#define xa_lock_irq(xa)		spin_lock_irq(&(xa)->xa_lock)
++#define xa_unlock_irq(xa)	spin_unlock_irq(&(xa)->xa_lock)
++#define xa_lock_irqsave(xa, flags) \
++				spin_lock_irqsave(&(xa)->xa_lock, flags)
++#define xa_unlock_irqrestore(xa, flags) \
++				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
++
++/*
++ * The xarray is constructed out of a set of 'chunks' of pointers.  Choosing
++ * the best chunk size requires some tradeoffs.  A power of two recommends
++ * itself so that we can arrange the chunks into a tree and navigate based
++ * purely on shifts and masks.  Generally, the larger the better; as the
++ * number of slots per level of the tree increases, the less tall the tree
++ * needs to be.  But that needs to be balanced against the memory consumption
++ * of each node.  On a 64-bit system, xa_node is currently 576 bytes, and we
++ * get 7 of them per 4kB page.  If we doubled the number of slots per node,
++ * we'd get only 3 nodes per 4kB page.
++ */
++#define XA_CHUNK_SHIFT		6
++#define XA_CHUNK_SIZE		(1 << XA_CHUNK_SHIFT)
++#define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
++#define XA_MAX_TAGS		3
++#define XA_TAG_LONGS 		(XA_CHUNK_SIZE / BITS_PER_LONG)
++#define XA_PREALLOC_COUNT	((BITS_PER_LONG / XA_CHUNK_SHIFT) * 2 + 1)
++
++struct xa_node {
++	union {
++		unsigned char offset;
++		unsigned char max;
++	};
++	unsigned char shift;
++	unsigned char count;
++	unsigned char exceptional;
++	struct xa_node __rcu *parent;
++	struct xarray *array;
++	union {
++		struct list_head private_list;
++		struct rcu_head rcu_head;
++	};
++	unsigned long tags[XA_MAX_TAGS][XA_TAG_LONGS];
++	void __rcu *slots[XA_CHUNK_SIZE];
++};
++
++/*
++ * Entries in the xarray have three possible types:
++ * 1. Kernel pointers.  These have the bottom two bits clear.
++ * 2. Exceptional entries.  These have the bottom bit set.
++ * 3. Internal entries.  These have the bottom two bits equal to 10b.
++ *
++ * Internal entries can only be observed if you're using the advanced
++ * API; the normal API will not expose them to the user.
++ *
++ * There are six subtypes of internal entries:
++ * 3a. Node entry.  This entry points to a node closer to the edge.
++ * 3b. Retry entry.  This indicates that the entry you're looking for is
++ *     in the array, but it's been moved to a different node.  Retry your
++ *     lookup from the head of the array.
++ * 3c. Sibling entry.  This indicates that the entry you're looking for
++ *     is stored in a different slot in the same node.
++ * 3d. Cousin entry.  This indicates that the entry you're looking for
++ *     is stored in a slot in a different node.
++ * 3e. IDR NULL entry.  The IDR distinguishes between allocated NULL pointers
++ *     and free entries.  The easiest way to support this in the xarray is to
++ *     substitute an internal entry for the NULL pointer.
++ * 3f. Walk End entry.  This entry is never found in the array.  It is
++ *     returned by iteration functions to signal that the iteration has
++ *     finished.
++ *
++ * The head of the array never contains a retry, sibling or cousin entry;
++ * these entries can only be found in array nodes.
++ */
++
++static inline void *xa_mk_internal(unsigned long v)
++{
++	return (void *)((v << 2) | 2);
++}
++
++static inline unsigned long xa_internal_value(void *entry)
++{
++	return (unsigned long)entry >> 2;
++}
++
++static inline bool xa_is_internal(void *entry)
++{
++	return ((unsigned long)entry & 3) == 2;
++}
++
++static inline void *xa_mk_node(struct xa_node *node)
++{
++	return (void *)((unsigned long)node | 2);
++}
++
++static inline struct xa_node *xa_node(void *entry)
++{
++	return (struct xa_node *)((unsigned long)entry & ~3UL);
++}
++
++static inline bool xa_is_node(void *entry)
++{
++	return xa_is_internal(entry) && (unsigned long)entry > 4096;
++}
++
++static inline void *xa_mk_sibling(unsigned int offset)
++{
++	return xa_mk_internal(offset);
++}
++
++static inline unsigned long xa_sibling_offset(void *entry)
++{
++	return xa_internal_value(entry);
++}
++
++static inline bool xa_is_sibling(void *entry)
++{
++	return xa_is_internal(entry) && xa_sibling_offset(entry) < 256;
++}
++
++static inline void *xa_mk_cousin(unsigned long offset)
++{
++	return xa_mk_internal(offset + 256);
++}
++
++static inline unsigned long xa_cousin_offset(void *entry)
++{
++	return xa_internal_value(entry) - 256;
++}
++
++static inline bool xa_is_cousin(void *entry)
++{
++	return xa_is_internal(entry) && xa_cousin_offset(entry) < 256;
++}
++
++static inline bool xa_is_relative(void *entry)
++{
++	return xa_is_internal(entry) && xa_internal_value(entry) < 512;
++}
++
++/*
++ * Values 0-255 are reserved for sibling entries (0-62 actually used)
++ * Values 256-511 are reserved for cousin entries (0-62, 64 actually used)
++ * 515-1023 are available for use before we start packing siblings & cousins
++ * closer together.
++ */
++#define XA_IDR_NULL		xa_mk_internal(512)
++#define XA_RETRY_ENTRY		xa_mk_internal(513)
++#define XA_WALK_END		xa_mk_internal(514)
++
++/*
++ * These are not array entries.  They are found only in xas->xa_node and
++ * mean that the lookup should be restarted from the top.  They must be
++ * distinct from NULL, any valid node pointer and the IS_ERR() range.
++ * Making them small means we can test for them cheaply.
++ */
++#define XA_WALK_RESTART		((struct xa_node *)1)
++#define XA_RESTART_FIND		((struct xa_node *)1)
++#define XA_RESTART_NEXT		((struct xa_node *)2)
++
++static inline bool xa_is_retry(void *entry)
++{
++	return unlikely(entry == XA_RETRY_ENTRY);
++}
++
++static inline bool xa_is_idr_null(void *entry)
++{
++	return entry == XA_IDR_NULL;
++}
++
++static inline bool xa_track_free(struct xarray *xa)
++{
++	return xa->xa_flags & XA_FLAG_TRACK_FREE;
++}
++
++static inline void *xa_head(const struct xarray *xa)
++{
++	return rcu_dereference_check(xa->xa_head,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_head_locked(const struct xarray *xa)
++{
++	return rcu_dereference_protected(xa->xa_head,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_entry(const struct xarray *xa,
++		const struct xa_node *node, unsigned int offset)
++{
++	XA_BUG_ON(offset >= XA_CHUNK_SIZE);
++	return rcu_dereference_check(node->slots[offset],
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_entry_locked(const struct xarray *xa,
++		const struct xa_node *node, unsigned int offset)
++{
++	XA_BUG_ON(offset >= XA_CHUNK_SIZE);
++	return rcu_dereference_protected(node->slots[offset],
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_parent(const struct xarray *xa,
++		const struct xa_node *node)
++{
++	return rcu_dereference_check(node->parent,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_parent_locked(const struct xarray *xa,
++		const struct xa_node *node)
++{
++	return rcu_dereference_protected(node->parent,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_deref_locked(struct xarray *xa, void __rcu **slot)
++{
++	return rcu_dereference_protected(*slot, lockdep_is_held(&xa->xa_lock));
++}
++
++typedef void (*xa_update_node_t)(struct xa_node *);
++
++/**
++ * xa_state - XArray operation state
++ * @xa_index: The index which this operation is currently about.
++ * @xa_shift: The shift of the node containing the entry we're interested in.
++ * @xa_slots: The number of slots occupied by that entry in that node.
++ * @xa_flags: Flags, see below
++ * @xa_offset: This entry's offset within the chunk of slots.
++ * @xa_node: The node containing this entry, or NULL if the entry is at
++ *	     xa_head, or XA_WALK_RESTART to start walking through the array
++ *	     from the head, or an IS_ERR pointer if an error occurred.
++ * @xa_alloc: One preallocated node.
++ * @xa_count: Number of entries added/deleted so far during this operation.
++ * @xa_exceptional: Number of exceptional entries added/deleted.
++ * @xa_update: Callback when updating a node.
++ *
++ * Some of this state may seem redundant, but some of it is input state and
++ * some is output state.  For example, xa_shift is not equal to xa_node->shift
++ * until we have walked through the array to the correct xa_node.
++ */
++struct xa_state {
++	unsigned long xa_index;
++	unsigned char xa_shift;
++	unsigned char xa_slots;
++	unsigned char xa_offset;
++	unsigned char xa_flags;
++	struct xa_node *xa_node;
++	struct xa_node *xa_alloc;
++	long xa_count;
++	long xa_exceptional;
++	xa_update_node_t xa_update;
++};
++
++/*
++ * XAS_FLAG_LOOKUP - Find this index.  If clear, it means we're searching for
++ * the next index.  This only makes a difference if we see a multislot entry;
++ * if set, we move backwards to return the entry.  If clear, we move forwards
++ * and find the next entry.
++ */
++#define XAS_FLAG_LOOKUP	1
++
++static inline int xas_error(const struct xa_state *xas)
++{
++	return IS_ERR(xas->xa_node) ? PTR_ERR(xas->xa_node) : 0;
++}
++
++static inline void xas_set_err(struct xa_state *xas, int err)
++{
++	XA_BUG_ON(err > 0);
++	xas->xa_node = ERR_PTR(err);
++}
++
++static inline bool xas_restart(const struct xa_state *xas)
++{
++	return unlikely(xas->xa_node == XA_WALK_RESTART);
++}
++
++static inline void xas_retry(struct xa_state *xas)
++{
++	xas->xa_flags |= XAS_FLAG_LOOKUP;
++	xas->xa_node = XA_WALK_RESTART;
++}
++
++static inline void xas_pause(struct xa_state *xas)
++{
++	xas->xa_node = XA_WALK_RESTART;
++}
++
++static inline void xas_jump(struct xa_state *xas, unsigned long index)
++{
++	xas->xa_index = index;
++	xas->xa_node = XA_WALK_RESTART;
++}
++
++void xas_init_range(struct xa_state *, unsigned long index,
++		unsigned char shift, unsigned char slots);
++void xas_destroy(struct xa_state *);
++bool xas_nomem(struct xa_state *, gfp_t);
++
++void *xas_load(const struct xarray *, struct xa_state *);
++void *xas_store(struct xarray *, struct xa_state *, void *entry);
++void *xas_create(struct xarray *, struct xa_state *);
++int xas_split(struct xarray *, struct xa_state *, unsigned int order);
++
++bool xas_get_tag(const struct xarray *, const struct xa_state *, xa_tag_t);
++void xas_set_tag(struct xarray *, const struct xa_state *, xa_tag_t);
++void xas_clear_tag(struct xarray *, const struct xa_state *, xa_tag_t);
++void xas_init_tags(struct xarray *, const struct xa_state *);
++void *xas_find_tag(const struct xarray *, struct xa_state *, unsigned long max,
++		xa_tag_t);
++
++void *xas_next_entry(const struct xarray *, struct xa_state *,
++		unsigned long max);
++void *__xas_prev_slot(const struct xarray *, struct xa_state *,
++		unsigned long min);
++
++/*
++ * xas_init() - Set up xarray operation state
++ * @xas: Array operation state.
++ * @index: Target of the operation.
++ */
++static inline void xas_init(struct xa_state *xas, unsigned long index)
++{
++	xas_init_range(xas, index, 0, 1);
++}
++
++/**
++ * xas_init_order() - Set up xarray operation state for a multislot entry
++ * @xas: Array operation state.
++ * @index: Target of the operation.
++ * @order: Entry occupies 2^@order indices.
++ */
++static inline void xas_init_order(struct xa_state *xas, unsigned long index,
++		unsigned int order)
++{
++	unsigned char shift = order - (order % XA_CHUNK_SHIFT);
++	unsigned char slots = 1 << (order % XA_CHUNK_SHIFT);
++
++	index = ((index >> shift) & ~(slots - 1UL)) << shift;
++	xas_init_range(xas, index, shift, slots);
++}
++
++static inline void *xas_next(const struct xarray *xa, struct xa_state *xas,
++		unsigned long max)
++{
++	struct xa_node *node = xas->xa_node;
++	void *entry;
++
++	if (unlikely(!node) || IS_ERR(node))
++		return XA_WALK_END;
++	if (unlikely(node == XA_WALK_RESTART))
++		return xas_next_entry(xa, xas, max);
++
++	do {
++		xas->xa_index = (xas->xa_index |
++					((1UL << node->shift) - 1)) + 1;
++		if (unlikely(xas->xa_index > max))
++			return XA_WALK_END;
++
++		if (unlikely(++xas->xa_offset == XA_CHUNK_SIZE))
++			return xas_next_entry(xa, xas, max);
++		entry = xa_entry(xa, node, xas->xa_offset);
++		if (unlikely(xa_is_internal(entry)))
++			return xas_next_entry(xa, xas, max);
++	} while (!entry);
++
++	return entry;
++}
++
++static inline unsigned int xas_chunk_tag(const struct xa_state *xas,
++		xa_tag_t tag)
++{
++	unsigned long *addr = xas->xa_node->tags[(__force unsigned)tag];
++
++	return find_next_bit(addr, XA_CHUNK_SIZE, xas->xa_offset);
++}
++
++static inline void *xas_next_tag(const struct xarray *xa, struct xa_state *xas,
++		unsigned long max, xa_tag_t tag)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset;
++
++	if (unlikely(!node) || IS_ERR(node))
++		return XA_WALK_END;
++	if (unlikely(node == XA_WALK_RESTART))
++		return xas_find_tag(xa, xas, max, tag);
++
++	xas->xa_offset++;
++	xas->xa_index = (xas->xa_index | ((1UL << node->shift) - 1)) + 1;
++	if (unlikely(xas->xa_index > max))
++		return XA_WALK_END;
++	offset = xas_chunk_tag(xas, tag);
++	if (offset == XA_CHUNK_SIZE)
++		return xas_find_tag(xa, xas, max, tag);
++	if (offset != xas->xa_offset) {
++		xas->xa_index += (offset - xas->xa_offset) << node->shift;
++		xas->xa_offset = offset;
++		if (unlikely(xas->xa_index > max))
++			return XA_WALK_END;
++	}
++
++	return xa_entry(xa, node, offset);
++}
++
++static inline void *xas_prev_slot(const struct xarray *xa,
++		struct xa_state *xas, unsigned long min)
++{
++	struct xa_node *node = xas->xa_node;
++	void *entry;
++
++	if (xas->xa_index <= min || !node)
++		return XA_WALK_END;
++	if (unlikely(node == XA_WALK_RESTART ||
++				++xas->xa_offset == XA_CHUNK_SIZE))
++		return __xas_prev_slot(xa, xas, min);
++	entry = xa_entry(xa, node, xas->xa_offset);
++	if (unlikely(xa_is_internal(entry)))
++		return __xas_prev_slot(xa, xas, min);
++	xas->xa_index -= 1UL << node->shift;
++	return entry;
++}
++
++/**
++ * xas_for_each() - Iterate over all present entries in this range
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @max: Highest index to return
++ *
++ * The loop body will be invoked for each entry present in the xarray
++ * between the current xas position and @max.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each(xa, xas, entry, max) \
++	for (entry = xas_next(xa, xas, max); \
++	     entry != XA_WALK_END; \
++	     entry = xas_next(xa, xas, max))
++
++/**
++ * xas_for_each_slot() - Iterate over all slots in this range
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @max: Highest index to return
++ *
++ * The loop body will be executed for each allocated slot in the xarray
++ * between the current xas position and @max.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each_slot(xa, xas, entry, max) \
++	for (entry = xas_next_slot(xa, xas); \
++	     entry != XA_WALK_END; \
++	     entry = xas_next_slot(xa, xas, max))
++
++/**
++ * xas_for_each_tag() - Iterate over all tagged entries in this range
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @max: Highest index to return
++ *
++ * The loop body will be executed for each tagged entry in the xarray
++ * between the current xas position and @max.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each_tag(xa, xas, entry, max) \
++	for (entry = xas_next_tag(xa, xas, max, tag); \
++	     entry != XA_WALK_END; \
++	     entry = xas_next_tag(xa, xas, max, tag))
++
++/**
++ * xas_for_each_slot_rev() - Iterate over all slots in this range backwards
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @min: Lowest index to return
++ *
++ * The loop body will be executed for each allocated slot in the xarray
++ * between the current xas position and @min.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each_slot_rev(xa, xas, entry, min) \
++	for (entry = xas_prev_slot(xa, xas); \
++	     entry != XA_WALK_END; \
++	     entry = xas_prev_slot(xa, xas, max))
++
++/**
++ * xas_store_for_each() - Iterate over all entries, then replace them
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @index: Index to store new entry at
++ * @order: Order of new entry
++ * @new: New entry
++ *
++ * The loop body will be executed for each entry present in the range
++ * specified by @index and @order.  After all entries have been processed,
++ * the @new entry will be atomically stored in the xarray.
++ * RCU readers may temporarily see retry entries.  If you break out of the
++ * loop, no modifications will have been made to the xarray.
++ */
++#define xas_store_for_each(xa, xas, entry, index, order, new)		\
++	for (entry = xas_store_begin(xa, xas, index, order);		\
++	     entry = xas_store_finish(xa, xas, index, order, new); )
++
++/**
++ * xas_split_for_each() - Create new entries to replace a multislot entry
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @index: Index of entry to split
++ * @order: Order of new entries to create
++ *
++ * The loop body will be executed for each new entry present in the range
++ * specified by @index and @order.  The loop will see the index of the new
++ * entry in @xas->xa_index.  It should call xas_store() to set up each new
++ * entry.  After the loop has successfully terminated, the new entries will
++ * be atomically stored in the xarray.  RCU readers may temporarily see
++ * retry entries.  If you break out of the loop, no modifications will have
++ * been made to the xarray and the temporary memory allocation will be freed
++ * by xas_destroy().
++ */
++#define xas_split_for_each(xa, xas, entry, index, order)                \
++	for (entry = xas_split_begin(xa, xas, index, order);            \
++	     entry = xas_split_finish(xa, xas, index, order); )
++
++/* Really advanced. */
++extern struct kmem_cache *xa_node_cache;
++void xas_delete_node(struct xarray *, struct xa_state *);
++
++#endif /* XA_ADVANCED */
++
++extern void xarray_init(void);
++#endif /* _LINUX_XARRAY_H */
+diff --git a/lib/Makefile b/lib/Makefile
+index 43a80ec3bd10..d8744c25ab29 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -17,7 +17,7 @@ KCOV_INSTRUMENT_debugobjects.o := n
+ KCOV_INSTRUMENT_dynamic_debug.o := n
+ 
+ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+-	 rbtree.o radix-tree.o dump_stack.o timerqueue.o\
++	 xarray.o rbtree.o radix-tree.o dump_stack.o timerqueue.o\
+ 	 idr.o int_sqrt.o extable.o \
+ 	 sha1.o chacha20.o md5.o irq_regs.o argv_split.o \
+ 	 flex_proportions.o ratelimit.o show_mem.o \
+@@ -26,6 +26,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+ 
+ CFLAGS_radix-tree.o += -DCONFIG_SPARSE_RCU_POINTER
+ CFLAGS_idr.o += -DCONFIG_SPARSE_RCU_POINTER
++CFLAGS_xarray.o += -DCONFIG_SPARSE_RCU_POINTER
+ 
+ lib-$(CONFIG_MMU) += ioremap.o
+ lib-$(CONFIG_SMP) += cpumask.o
+diff --git a/lib/xarray.c b/lib/xarray.c
+new file mode 100644
+index 000000000000..fd33b5b91013
+--- /dev/null
++++ b/lib/xarray.c
+@@ -0,0 +1,1305 @@
++#define XA_ADVANCED
++
++#include <linux/bitmap.h>
++#include <linux/bitops.h>
++#include <linux/export.h>
++#include <linux/gfp.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/list.h>
++#include <linux/rcupdate.h>
++#include <linux/slab.h>
++#include <linux/xarray.h>
++
++#ifdef XA_DEBUG
++#define XA_BUG_ON(x) BUG_ON(x)
++#else
++#define XA_BUG_ON(x)
++#endif
++
++#define inc_tag(tag) do { \
++	tag = (__force xa_tag_t)((__force unsigned)(tag) + 1); \
++} while (0)
++
++static inline void xa_tag_set(struct xarray *xa, xa_tag_t tag)
++{
++	if (!(xa->xa_flags & (1 << (__force unsigned)tag)))
++		xa->xa_flags |= (1 << (__force unsigned)tag);
++}
++
++static inline void xa_tag_clear(struct xarray *xa, xa_tag_t tag)
++{
++	if (xa->xa_flags & (1 << (__force unsigned)tag))
++		xa->xa_flags &= ~(1 << (__force unsigned)tag);
++}
++
++static inline bool tag_get(const struct xa_node *node, unsigned int offset,
++		xa_tag_t tag)
++{
++	return test_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void tag_set(struct xa_node *node, unsigned int offset,
++		xa_tag_t tag)
++{
++	__set_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void tag_clear(struct xa_node *node, unsigned int offset,
++		xa_tag_t tag)
++{
++	__clear_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void tag_set_all(struct xa_node *node, xa_tag_t tag)
++{
++	bitmap_fill(node->tags[(__force unsigned)tag], XA_CHUNK_SIZE);
++}
++
++static inline bool tag_any_set(struct xa_node *node, xa_tag_t tag)
++{
++	return !bitmap_empty(node->tags[(__force unsigned)tag], XA_CHUNK_SIZE);
++}
++
++/*
++ * Use this to calculate the maximum index that will need to be created
++ * in order to add the entry described by @xas.  Because we cannot store a
++ * multiple-slot entry at index 0, the calculation is a little more complex
++ * than you might expect.
++ */
++static unsigned long xas_max(struct xa_state *xas)
++{
++	unsigned long mask, max = xas->xa_index;
++
++	if (xas->xa_shift || xas->xa_slots > 1) {
++		mask = ((xas->xa_slots << xas->xa_shift) - 1);
++		max |= mask;
++		if (mask == max)
++			max++;
++	}
++	return max;
++}
++
++static unsigned long set_index(struct xa_node *node, unsigned int offset,
++		unsigned long index)
++{
++	unsigned long mask = ((unsigned long)XA_CHUNK_SIZE << node->shift) - 1;
++
++	return (index & ~mask) + ((unsigned long)offset << node->shift);
++}
++
++/* XXX: kill? */
++static unsigned int node_offset(struct xa_node *node, unsigned long index)
++{
++	return (index >> node->shift) & XA_CHUNK_MASK;
++}
++
++static unsigned long xas_offset(struct xa_state *xas)
++{
++	return (xas->xa_index >> xas->xa_node->shift) & XA_CHUNK_MASK;
++}
++
++/* Returns true if 'entry' can contain 'index' */
++static bool xa_bounds(unsigned long index, void *entry)
++{
++	struct xa_node *node;
++	unsigned int max;
++
++	if (!xa_is_node(entry))
++		return index == 0;
++	node = xa_node(entry);
++	max = node->max;
++	if (max == 0)
++		max = 63;
++	return (index >> node->shift) <= max;
++}
++
++static void *xas_start(const struct xarray *xa, struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++	void *entry;
++	unsigned long offset;
++
++	if (!xas_restart(xas)) {
++		if (node)
++			return xa_entry(xa, xas->xa_node, xas->xa_offset);
++		else
++			return xa_head(xa);
++	}
++
++	entry = xa_head(xa);
++	if (!xa_is_node(entry)) {
++		if (xas->xa_index)
++			return XA_WALK_END;
++		xas->xa_node = NULL;
++		return entry;
++	}
++
++	node = xa_node(entry);
++	if (xas->xa_shift > node->shift) {
++		xas->xa_node = NULL;
++		return entry;
++	}
++
++	offset = xas->xa_index >> node->shift;
++	if (offset > XA_CHUNK_MASK)
++		return XA_WALK_END;
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
++}
++
++/**
++ * xas_init_range() - Initialise xarray operation state for a multislot entry
++ * @xas: Array operation state.
++ * @index: Eventual target of the operation.
++ * @shift: Shift of the node this will occupy
++ * @slots: Number of slots in that node to occupy
++ */
++void xas_init_range(struct xa_state *xas, unsigned long index,
++		unsigned char shift, unsigned char slots)
++{
++	xas->xa_index = index;
++	xas->xa_shift = shift;
++	xas->xa_slots = slots;
++	xas->xa_offset = 0;
++	xas->xa_flags = XAS_FLAG_LOOKUP;
++	xas->xa_node = XA_WALK_RESTART;
++	xas->xa_alloc = NULL;
++	xas->xa_count = 0;
++	xas->xa_exceptional = 0;
++	xas->xa_update = NULL;
++}
++EXPORT_SYMBOL_GPL(xas_init_range);
++
++struct kmem_cache *xa_node_cache;
++
++static void xa_node_ctor(void *p)
++{
++	struct xa_node *node = p;
++
++	memset(&node->tags, 0, sizeof(node->tags));
++	memset(&node->slots, 0, sizeof(node->slots));
++	INIT_LIST_HEAD(&node->private_list);
++}
++
++static void xa_node_rcu_free(struct rcu_head *head)
++{
++	struct xa_node *node = container_of(head, struct xa_node, rcu_head);
++
++	xa_node_ctor(node);
++	kmem_cache_free(xa_node_cache, node);
++}
++
++static void xa_node_free(struct xa_node *node)
++{
++	call_rcu(&node->rcu_head, xa_node_rcu_free);
++}
++
++/**
++ * xas_destroy() - Dispose of any resources used during the xarray operation
++ * @xas: Array operation state.
++ *
++ * If the operation only involved read accesses to the XArray or modifying
++ * existing data in the XArray, there is no need to call this function
++ * (eg xa_set_tag()).  However, if you may have allocated memory (for
++ * example by calling xas_nomem()), then call this function.
++ *
++ * This function does not reinitialise the state, so you may continue to
++ * call xas_error(), and you would want to call xas_init() before reusing
++ * this structure.  It only releases any resources.
++ */
++void xas_destroy(struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_alloc;
++
++	if (!node)
++		return;
++#if 0
++	while (node->count)
++		kmem_cache_free(xa_node_cache, node->slots[node->count - 1]);
++#endif
++	kmem_cache_free(xa_node_cache, node);
++	xas->xa_alloc = NULL;
++}
++EXPORT_SYMBOL_GPL(xas_destroy);
++
++/**
++ * xas_nomem() - Allocate memory if needed
++ * @xas: Array operation state
++ * @gfp: Memory allocation flags
++ *
++ * If we need to add new nodes to the xarray, we try to allocate memory
++ * with GFP_NOWAIT while holding the lock, which will usually succeed.
++ * If it fails, @xas is flagged as needing memory to continue.  The caller
++ * should drop the lock and call xas_nomem().  If xas_nomem() succeeds,
++ * the caller should retry the operation.
++ *
++ * Forward progress is guaranteed as one node is allocated here and is
++ * available to the memory allocators.
++ *
++ * Return: true if memory was needed, and was successfully allocated.
++ */
++bool xas_nomem(struct xa_state *xas, gfp_t gfp)
++{
 +	if (xas->xa_node != ERR_PTR(-ENOMEM))
 +		return false;
-+	xas->xa_alloc = kmem_cache_alloc(xa_node_cache, gfp | __GFP_NOWARN);
-+	if (xas->xa_alloc)
-+		goto alloc;
-+
-+	rtp = this_cpu_ptr(&radix_tree_preloads);
-+	if (!rtp->nr)
++	xas->xa_alloc = kmem_cache_alloc(xa_node_cache, gfp);
++	if (!xas->xa_alloc)
 +		return false;
-+	xas->xa_alloc = (struct xa_node *)rtp->nodes;
-+	rtp->nodes = (struct radix_tree_node *)xas->xa_alloc->parent;
-+	rtp->nr--;
-+
-+alloc:
 +	xas->xa_node = XA_WALK_RESTART;
 +	return true;
 +}
++EXPORT_SYMBOL_GPL(xas_nomem);
 +
-+static int __idr_alloc(struct idr *idr, void *ptr, int start, int min,
-+		int end, gfp_t gfp)
++static void *xas_alloc(struct xarray *xa, struct xa_state *xas,
++		unsigned int shift)
 +{
-+	struct xa_state xas;
-+	unsigned long flags;
-+	void *entry;
-+	int id;
-+	unsigned long max = (end > 0) ? end - 1 : INT_MAX;
++	struct xa_node *parent = xas->xa_node;
++	struct xa_node *node = xas->xa_alloc;
 +
-+	if (WARN_ON_ONCE(xa_is_internal(ptr)))
-+		return -EINVAL;
-+	if (!ptr)
-+		ptr = XA_IDR_NULL;
++	if (IS_ERR(parent))
++		return NULL;
 +
-+	xas_init(&xas, start);
-+	do {
-+		xa_lock_irqsave(&idr->idxa, flags);
-+		entry = xas_find_tag(&idr->idxa, &xas, max, XA_FREE_TAG);
-+		if (entry == XA_WALK_END) {
-+			if ((xas.xa_index > max) && (min < start)) {
-+				xas_jump(&xas, min);
-+				entry = xas_find_tag(&idr->idxa, &xas, max,
-+							XA_FREE_TAG);
-+			}
-+			if (xas.xa_index > max)
-+				xas_set_err(&xas, -ENOSPC);
++	if (node) {
++		xas->xa_alloc = NULL;
++	} else {
++		node = kmem_cache_alloc(xa_node_cache,
++					GFP_NOWAIT | __GFP_NOWARN);
++		if (!node) {
++			xas->xa_node = ERR_PTR(-ENOMEM);
++			return NULL;
 +		}
-+		xas_store(&idr->idxa, &xas, ptr);
-+		xa_unlock_irqrestore(&idr->idxa, flags);
-+	} while (idr_nomem(&xas, gfp));
++	}
 +
-+	id = xas.xa_index;
-+	if (IS_ERR(xas.xa_node))
-+		id = PTR_ERR(xas.xa_node);
-+	xas_destroy(&xas);
++	if (xas->xa_node) {
++		node->offset = xas->xa_offset;
++		parent->count++;
++		XA_BUG_ON(parent->count > XA_CHUNK_SIZE);
++	} else {
++		node->max = XA_CHUNK_MASK;
++	}
++	XA_BUG_ON(shift > BITS_PER_LONG);
++	node->shift = shift;
++	node->count = 0;
++	node->exceptional = 0;
++	RCU_INIT_POINTER(node->parent, xas->xa_node);
++	node->array = xa;
 +
-+	return id;
++	return node;
 +}
- 
- /**
-- * idr_alloc - allocate an id
-+ * idr_alloc() - allocate an id
-  * @idr: idr handle
-  * @ptr: pointer to be associated with the new id
-  * @start: the minimum id (inclusive)
-@@ -21,34 +101,16 @@ static DEFINE_SPINLOCK(simple_ida_lock);
-  * Note that @end is treated as max when <= 0.  This is to always allow
-  * using @start + N as @end as long as N is inside integer range.
-  *
-- * Simultaneous modifications to the @idr are not allowed and should be
-- * prevented by the user, usually with a lock.  idr_alloc() may be called
-- * concurrently with read-only accesses to the @idr, such as idr_find() and
-- * idr_for_each_entry().
-+ * Protected by the irqsafe spinlock
-  */
- int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
- {
--	void __rcu **slot;
--	struct radix_tree_iter iter;
--
--	if (WARN_ON_ONCE(start < 0))
--		return -EINVAL;
--	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
--		return -EINVAL;
--
--	radix_tree_iter_init(&iter, start);
--	slot = idr_get_free(&idr->idr_rt, &iter, gfp, end);
--	if (IS_ERR(slot))
--		return PTR_ERR(slot);
--
--	radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
--	radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
--	return iter.index;
-+	return __idr_alloc(idr, ptr, start, start, end, gfp);
- }
- EXPORT_SYMBOL_GPL(idr_alloc);
- 
- /**
-- * idr_alloc_cyclic - allocate new idr entry in a cyclical fashion
-+ * idr_alloc_cyclic() - allocate new idr entry in a cyclical fashion
-  * @idr: idr handle
-  * @ptr: pointer to be associated with the new id
-  * @start: the minimum id (inclusive)
-@@ -58,27 +120,43 @@ EXPORT_SYMBOL_GPL(idr_alloc);
-  * Allocates an ID larger than the last ID allocated if one is available.
-  * If not, it will attempt to allocate the smallest ID that is larger or
-  * equal to @start.
-+ *
-+ * Protected by the irqsafe spinlock
-  */
--int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
-+int idr_alloc_cyclic(struct idr *idr, int *cursor, void *ptr,
-+		int start, int end, gfp_t gfp)
- {
--	int id, curr = idr->idr_next;
-+	int curr = *cursor;
-+	int id;
- 
- 	if (curr < start)
- 		curr = start;
--
--	id = idr_alloc(idr, ptr, curr, end, gfp);
--	if ((id == -ENOSPC) && (curr > start))
--		id = idr_alloc(idr, ptr, start, curr, gfp);
-+	id = __idr_alloc(idr, ptr, curr, start, end, gfp);
- 
- 	if (id >= 0)
--		idr->idr_next = id + 1U;
--
-+		*cursor = id + 1U;
- 	return id;
- }
--EXPORT_SYMBOL(idr_alloc_cyclic);
- 
- /**
-- * idr_for_each - iterate through all stored pointers
-+ * idr_find() - return pointer for given id
-+ * @idr: idr handle
-+ * @id: lookup key
-+ *
-+ * Return the pointer given the id it has been registered with.  A %NULL
-+ * return indicates that @id is not valid or you passed %NULL in
-+ * idr_get_new().
-+ *
-+ * This function is protected by the RCU read lock.
-+ */
-+void *idr_find(const struct idr *idr, int id)
++
++#if 0
++static void *xas_find_cousin(const struct xarray *xa, struct xa_state *xas)
 +{
-+	return idr_null(xa_load(&idr->idxa, id));
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++	void *entry;
++
++	while (offset == 0) {
++		offset = node->offset;
++		node = xa_parent(xa, node);
++		XA_BUG_ON(!node);
++	}
++
++	offset--;
++
++	for (;;) {
++		entry = xa_entry(xa, node, offset);
++
++		if (xa_is_sibling(entry)) {
++			offset = xa_sibling_offset(entry);
++			entry = xa_entry(xa, node, offset);
++		}
++
++		if (!xa_is_node(entry))
++			break;
++		node = xa_node(entry);
++		offset = XA_CHUNK_SIZE - 1;
++	}
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
 +}
-+EXPORT_SYMBOL(idr_find);
++	} else if (unlikely(xa_cousin_entry(entry))) {
++		return xas_find_cousin(xa, xas);
++#endif
++
++static void *xas_descend(const struct xarray *xa, struct xa_state *xas,
++		struct xa_node *node)
++{
++	unsigned int offset = node_offset(node, xas->xa_index);
++	void *entry = xa_entry(xa, node, offset);
++
++	if (xa_is_sibling(entry)) {
++		offset = xa_sibling_offset(entry);
++		entry = xa_entry(xa, node, offset);
++	}
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
++}
 +
 +/**
-+ * idr_for_each() - iterate through all stored pointers
-  * @idr: idr handle
-  * @fn: function to be called for each pointer
-  * @data: data passed to callback function
-@@ -89,19 +167,19 @@ EXPORT_SYMBOL(idr_alloc_cyclic);
-  * If @fn returns anything other than %0, the iteration stops and that
-  * value is returned from this function.
-  *
-- * idr_for_each() can be called concurrently with idr_alloc() and
-- * idr_remove() if protected by RCU.  Newly added entries may not be
-- * seen and deleted entries may be seen, but adding and removing entries
-- * will not cause other entries to be skipped, nor spurious ones to be seen.
-+ * This iteration is protected by the RCU lock.  That means that the
-+ * callback function may not sleep.  If your callback function must sleep,
-+ * then you will have to use a mutex to prevent allocation / removal from
-+ * modifying the IDR while the callback function is sleeping.
-  */
- int idr_for_each(const struct idr *idr,
--		int (*fn)(int id, void *p, void *data), void *data)
-+		int (*fn)(int id, void *ptr, void *data), void *data)
- {
--	struct radix_tree_iter iter;
--	void __rcu **slot;
-+	unsigned long i = 0;
-+	void *p;
- 
--	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
--		int ret = fn(iter.index, rcu_dereference_raw(*slot), data);
-+	xa_for_each(&idr->idxa, p, i, INT_MAX) {
-+		int ret = fn(i, p, data);
- 		if (ret)
- 			return ret;
- 	}
-@@ -111,7 +189,7 @@ int idr_for_each(const struct idr *idr,
- EXPORT_SYMBOL(idr_for_each);
- 
- /**
-- * idr_get_next - Find next populated entry
-+ * idr_get_next() - Find next populated entry
-  * @idr: idr handle
-  * @nextid: Pointer to lowest possible ID to return
-  *
-@@ -119,55 +197,88 @@ EXPORT_SYMBOL(idr_for_each);
-  * or equal to the value pointed to by @nextid.  On exit, @nextid is updated
-  * to the ID of the found value.  To use in a loop, the value pointed to by
-  * nextid must be incremented by the user.
++ * xas_get_tag() - Returns the state of this tag
++ * @xa: Array
++ * @xas: Array operation state
++ * @tag: Tag value
 + *
-+ * Protects itself with the irqsafe spinlock.
-  */
--void *idr_get_next(struct idr *idr, int *nextid)
-+void *idr_get_next(const struct idr *idr, int *id)
- {
--	struct radix_tree_iter iter;
--	void __rcu **slot;
--
--	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
--	if (!slot)
--		return NULL;
-+	unsigned long index = *id;
-+	void *entry = xa_find(&idr->idxa, &index, INT_MAX);
- 
--	*nextid = iter.index;
--	return rcu_dereference_raw(*slot);
-+	*id = index;
-+	return entry;
- }
- EXPORT_SYMBOL(idr_get_next);
- 
- /**
-- * idr_replace - replace pointer for given id
-+ * idr_replace() - replace pointer for given id
-  * @idr: idr handle
-  * @ptr: New pointer to associate with the ID
-  * @id: Lookup key
-  *
-  * Replace the pointer registered with an ID and return the old value.
-- * This function can be called under the RCU read lock concurrently with
-- * idr_alloc() and idr_remove() (as long as the ID being removed is not
-- * the one being replaced!).
-+ * This function takes the irqsafe spinlock.
-  *
-- * Returns: 0 on success.  %-ENOENT indicates that @id was not found.
-+ * Return: 0 on success.  %-ENOENT indicates that @id was not found.
-  * %-EINVAL indicates that @id or @ptr were not valid.
-  */
- void *idr_replace(struct idr *idr, void *ptr, int id)
- {
--	struct radix_tree_node *node;
--	void __rcu **slot = NULL;
--	void *entry;
-+	struct xa_state xas;
-+	unsigned long flags;
-+	void *curr;
- 
--	if (WARN_ON_ONCE(id < 0))
--		return ERR_PTR(-EINVAL);
--	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
-+	if (WARN_ON_ONCE(xa_is_internal(ptr)))
- 		return ERR_PTR(-EINVAL);
-+	if (!ptr)
-+		ptr = XA_IDR_NULL;
++ * Return: true if the tag is set, false if the tag is clear.
++ */
++bool xas_get_tag(const struct xarray *xa, const struct xa_state *xas,
++		xa_tag_t tag)
++{
++	if (xas_restart(xas) || xas_error(xas))
++		return false;
++	if (!xas->xa_node)
++		return xa_tagged(xa, tag);
++	return tag_get(xas->xa_node, xas->xa_offset, tag);
++}
++EXPORT_SYMBOL_GPL(xas_get_tag);
 +
-+	xas_init(&xas, id);
-+	xa_lock_irqsave(&idr->idxa, flags);
-+	curr = xas_load(&idr->idxa, &xas);
-+	if (curr && curr != XA_WALK_END)
-+		curr = idr_null(xas_store(&idr->idxa, &xas, ptr));
++/**
++ * xas_set_tag() - Sets the tag on this entry and its parents
++ * @xa: Array
++ * @xas: Array operation state
++ * @tag: Tag value
++ *
++ * Sets the specified tag on this entry, and walks up the tree setting it
++ * on all the ancestor entries.
++ */
++void xas_set_tag(struct xarray *xa, const struct xa_state *xas, xa_tag_t tag)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++
++	if (IS_ERR(node))
++		return;
++
++	while (node) {
++		if (tag_get(node, offset, tag))
++			return;
++		tag_set(node, offset, tag);
++		offset = node->offset;
++		node = xa_parent(xa, node);
++	}
++
++	if (!xa_tagged(xa, tag))
++		xa_tag_set(xa, tag);
++}
++EXPORT_SYMBOL_GPL(xas_set_tag);
++
++/**
++ * xas_clear_tag() - Clears the tag on this entry and its parents
++ * @xa: Array
++ * @xas: Array operation state
++ * @tag: Tag value
++ *
++ * Clears the specified tag on this entry, and walks up the tree
++ * attempting to clear it on all the ancestor entries.  A tag may
++ * only be cleared on an ancestor entry if none of its children
++ * have that tag set.
++ */
++void xas_clear_tag(struct xarray *xa, const struct xa_state *xas, xa_tag_t tag)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++
++	if (IS_ERR(node))
++		return;
++
++	while (node) {
++		if (!tag_get(node, offset, tag))
++			return;
++		tag_clear(node, offset, tag);
++		if (tag_any_set(node, tag))
++			return;
++
++		offset = node->offset;
++		node = xa_parent(xa, node);
++	}
++
++	if (xa_tagged(xa, tag))
++		xa_tag_clear(xa, tag);
++}
++EXPORT_SYMBOL_GPL(xas_clear_tag);
++
++/**
++ * xas_init_tags() - Initialise all tags for the entry
++ * @xa: Array
++ * @xas: Array operations state.
++ *
++ * Initialise all tags for the entry specified by @xas.  If we're tracking
++ * free entries with a tag, we need to set it on all entries.  All other
++ * tags are cleared.
++ *
++ * This implementation is not as efficient as it could be; we may walk
++ * up the tree multiple times.
++ */
++void xas_init_tags(struct xarray *xa, const struct xa_state *xas)
++{
++	xa_tag_t tag = 0;
++
++	if (xa_track_free(xa)) {
++		xas_set_tag(xa, xas, XA_FREE_TAG);
++		inc_tag(tag);
++	}
++	for (;;) {
++		xas_clear_tag(xa, xas, tag);
++		if (tag == XA_TAG_MAX)
++			break;
++		inc_tag(tag);
++	}
++}
++EXPORT_SYMBOL_GPL(xas_init_tags);
++
++/**
++ * xas_load() - Find the entry for the index
++ * @xa: Array.
++ * @xas: Array operation state.
++ *
++ * If the @xas is in an error state, returns the error in the state.
++ * If it is in the RESTART_WALK state, will return XA_WALK_END if the
++ * xa_index cannot be contained in the current xarray without expanding it.
++ * If there is no entry for the index, the walk may stop at a level in the
++ * tree higher than the entry, or even at the root.
++ *
++ * Return: An entry in the tree that is not a sibling or node entry.  May be
++ * a NULL pointer, a user pointer, exceptional entry, retry entry, or an
++ * IDR_NULL.
++ */
++void *xas_load(const struct xarray *xa, struct xa_state *xas)
++{
++	void *entry;
++
++	if (xas_error(xas))
++		return xas->xa_node;
++
++	entry = xas_start(xa, xas);
++	while (xa_is_node(entry)) {
++		struct xa_node *node = xa_node(entry);
++
++		if (xas->xa_shift > node->shift)
++			break;
++		entry = xas_descend(xa, xas, node);
++	}
++	return entry;
++}
++EXPORT_SYMBOL_GPL(xas_load);
++
++static void xas_shrink(struct xarray *xa, const struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	for (;;) {
++		void *entry;
++
++		XA_BUG_ON(node->count > XA_CHUNK_SIZE);
++		if (node->count != 1)
++			break;
++		entry = xa_entry_locked(xa, node, 0);
++		if (!entry)
++			break;
++		if (!xa_is_node(entry) && node->shift)
++			break;
++
++		RCU_INIT_POINTER(xa->xa_head, entry);
++		if (xa_track_free(xa) && !tag_get(node, 0, XA_FREE_TAG))
++			xa_tag_clear(xa, XA_FREE_TAG);
++
++		node->count = 0;
++		node->exceptional = 0;
++		if (xa_is_node(entry))
++			RCU_INIT_POINTER(node->slots[0], XA_RETRY_ENTRY);
++		VM_WARN_ON_ONCE(!list_empty(&node->private_list));
++		xa_node_free(node);
++		if (!xa_is_node(entry))
++			break;
++		node = xa_node(entry);
++		if (xas->xa_update)
++			xas->xa_update(node);
++	}
++}
++
++void xas_delete_node(struct xarray *xa, struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	for (;;) {
++		struct xa_node *parent;
++
++		XA_BUG_ON(node->count > XA_CHUNK_SIZE);
++		if (node->count)
++			break;
++
++		parent = xa_parent_locked(xa, node);
++		VM_WARN_ON_ONCE(!list_empty(&node->private_list));
++		xas->xa_node = parent;
++		xas->xa_offset = node->offset;
++		xa_node_free(node);
++
++		if (!parent) {
++			xa->xa_head = NULL;
++			xas->xa_node = XA_WALK_RESTART;
++			return;
++		}
++
++		parent->slots[xas->xa_offset] = NULL;
++		parent->count--;
++		XA_BUG_ON(parent->count > XA_CHUNK_SIZE);
++		node = parent;
++		if (xas->xa_update)
++			xas->xa_update(node);
++	}
++
++	if (!node->parent)
++		xas_shrink(xa, xas);
++}
++
++/**
++ * xas_free_nodes() - Free this node and all nodes that it references
++ * @xa: Array
++ * @xas: Array operation state
++ * @top: Node to free
++ *
++ * This node has been removed from the tree.  We must now free it and all
++ * of its subnodes.  There may be RCU walkers with references into the tree,
++ * so we must replace all entries with retry markers.
++ */
++static void xas_free_nodes(const struct xarray *xa, struct xa_state *xas,
++		struct xa_node *top)
++{
++	unsigned int offset = 0;
++	struct xa_node *node = top;
++
++	for (;;) {
++		void *entry = xa_entry_locked(xa, node, offset);
++
++		if (xa_is_node(entry)) {
++			node = xa_node(entry);
++			offset = 0;
++			continue;
++		}
++		if (entry) {
++			RCU_INIT_POINTER(node->slots[offset], XA_RETRY_ENTRY);
++			if (xa_is_exceptional(entry))
++				xas->xa_exceptional--;
++			xas->xa_count--;
++		}
++		offset++;
++		while (offset == XA_CHUNK_SIZE) {
++			struct xa_node *parent = xa_parent_locked(xa, node);
++
++			offset = node->offset + 1;
++			node->count = 0;
++			node->exceptional = 0;
++			if (xas->xa_update)
++				xas->xa_update(node);
++			VM_WARN_ON_ONCE(!list_empty(&node->private_list));
++			xa_node_free(node);
++			if (node == top)
++				return;
++			node = parent;
++		}
++	}
++}
++
++/*
++ * xas_expand adds nodes to the head of the tree until it has reached
++ * sufficient height to be able to contain index
++ */
++static int xas_expand(struct xarray *xa, struct xa_state *xas, void *entry)
++{
++	struct xa_node *node = NULL;
++	unsigned int shift = 0;
++	unsigned long max = xas_max(xas);
++
++	if (!entry) {
++		if (max == 0)
++			return 0;
++		while ((max >> shift) >= XA_CHUNK_SIZE)
++			shift += XA_CHUNK_SHIFT;
++		return shift + XA_CHUNK_SHIFT;
++	} else if (xa_is_node(entry)) {
++		node = xa_node(entry);
++		shift = node->shift + XA_CHUNK_SHIFT;
++	}
++	xas->xa_node = NULL;
++
++	while (!xa_bounds(max, entry)) {
++		xa_tag_t tag = 0;
++
++		XA_BUG_ON(shift > BITS_PER_LONG);
++		node = xas_alloc(xa, xas, shift);
++		if (!node)
++			return -ENOMEM;
++
++		node->count = 1;
++		if (xa_is_exceptional(entry))
++			node->exceptional = 1;
++		RCU_INIT_POINTER(node->slots[0], entry);
++
++		/* Propagate the aggregated tag info to the new child */
++		if (xa_track_free(xa)) {
++			tag_set_all(node, XA_FREE_TAG);
++			if (!xa_tagged(xa, XA_FREE_TAG)) {
++				tag_clear(node, 0, XA_FREE_TAG);
++				xa_tag_set(xa, XA_FREE_TAG);
++			}
++			inc_tag(tag);
++		}
++		for (;;) {
++			if (xa_tagged(xa, tag))
++				tag_set(node, 0, tag);
++			if (tag == XA_TAG_MAX)
++				break;
++			inc_tag(tag);
++		}
++
++		/*
++		 * Now that the new node is fully initialised, we can add
++		 * it to the tree
++		 */
++		if (xa_is_node(entry)) {
++			xa_node(entry)->offset = 0;
++			rcu_assign_pointer(xa_node(entry)->parent, node);
++		}
++		entry = xa_mk_node(node);
++		rcu_assign_pointer(xa->xa_head, entry);
++
++		shift += XA_CHUNK_SHIFT;
++	}
++
++	xas->xa_node = node;
++	return shift;
++}
++
++void *xas_create(struct xarray *xa, struct xa_state *xas)
++{
++	void *entry;
++	void __rcu **slot;
++	struct xa_node *node = xas->xa_node;
++	int shift;
++	unsigned int order = xas->xa_shift;
++
++	if (node == XA_WALK_RESTART) {
++		entry = xa_head_locked(xa);
++		xas->xa_node = NULL;
++		shift = xas_expand(xa, xas, entry);
++		if (shift < 0)
++			goto err;
++		entry = xa_head_locked(xa);
++		slot = &xa->xa_head;
++	} else if (IS_ERR(node)) {
++		return node;
++	} else if (node) {
++		unsigned int offset = xas->xa_offset;
++
++		shift = node->shift;
++		entry = xa_entry_locked(xa, node, offset);
++		slot = &node->slots[offset];
++	} else {
++		shift = 0;
++		entry = xa_head_locked(xa);
++		slot = &xa->xa_head;
++	}
++
++	while (shift > order) {
++		shift -= XA_CHUNK_SHIFT;
++		if (!entry) {
++			node = xas_alloc(xa, xas, shift);
++			if (!node)
++				break;
++			if (xa_track_free(xa))
++				tag_set_all(node, XA_FREE_TAG);
++			rcu_assign_pointer(*slot, xa_mk_node(node));
++		} else if (xa_is_node(entry)) {
++			node = xa_node(entry);
++		} else {
++			break;
++		}
++		entry = xas_descend(xa, xas, node);
++		slot = &node->slots[xas->xa_offset];
++	}
++
++	return entry;
++err:
++	xas_set_err(xas, -ENOMEM);
++	return xas->xa_node;
++}
++EXPORT_SYMBOL_GPL(xas_create);
++
++/* XXX: mishandles counts if you have something like
++ * exceptional, sibling, NULL, normal and store something
++ * over the top of all four.  write a testcase for it, then fix it.
++ */
++static void handle_sibling_slots(const struct xarray *xa, struct xa_state *xas,
++		void *entry, int *countp, int *exceptionalp)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++	unsigned int slots = xas->xa_slots;
++	void *sibling = entry ? xa_mk_sibling(offset) : NULL;
++
++	while (++offset < XA_CHUNK_SIZE) {
++		void *next = xa_entry(xa, node, offset);
++
++		if (--slots)
++			RCU_INIT_POINTER(node->slots[offset], sibling);
++		else if (!xa_is_sibling(next))
++			break;
++
++		if (xa_is_node(next))
++			xas_free_nodes(xa, xas, xa_node(next));
++		*countp += !next - !entry;
++		*exceptionalp += !xa_is_exceptional(next) -
++				 !xa_is_exceptional(entry);
++	}
++}
++
++/**
++ * xas_store() - Store this entry in the array
++ * @xa: Array
++ * @xas: State
++ * @entry: New entry
++ *
++ * Return: The old value at this index or ERR_PTR() if an error happened
++ */
++void *xas_store(struct xarray *xa, struct xa_state *xas, void *entry)
++{
++	struct xa_node *node;
++	int count, exceptional;
++	void *curr;
++
++	if (entry)
++		curr = xas_create(xa, xas);
 +	else
-+		curr = ERR_PTR(-ENOENT);
-+	xa_unlock_irqrestore(&idr->idxa, flags);
++		curr = xas_load(xa, xas);
++	if (xas_restart(xas))
++		return NULL;
++
++	node = xas->xa_node;
++	if (IS_ERR(node))
++		return node;
++	if (node)
++		rcu_assign_pointer(node->slots[xas->xa_offset], entry);
++	else
++		rcu_assign_pointer(xa->xa_head, entry);
++	if (!entry)
++		xas_init_tags(xa, xas);
++	else if (xa_track_free(xa))
++		xas_clear_tag(xa, xas, XA_FREE_TAG);
++
++	exceptional = !xa_is_exceptional(curr) - !xa_is_exceptional(entry);
++	count = !curr - !entry;
++	if (xa_is_node(curr))
++		xas_free_nodes(xa, xas, xa_node(curr));
++	if (node)
++		handle_sibling_slots(xa, xas, entry, &count, &exceptional);
++
++	if (!xa_is_internal(entry)) {
++		xas->xa_count += count;
++		xas->xa_exceptional += exceptional;
++	}
++	if (node) {
++		node->count += count;
++		XA_BUG_ON(node->count > XA_CHUNK_SIZE);
++		node->exceptional += exceptional;
++		XA_BUG_ON(node->exceptional > XA_CHUNK_SIZE);
++		if ((count || exceptional) && xas->xa_update)
++			xas->xa_update(node);
++		if (count < 0)
++			xas_delete_node(xa, xas);
++	}
 +
 +	return curr;
 +}
-+EXPORT_SYMBOL(idr_replace);
++EXPORT_SYMBOL_GPL(xas_store);
++
++static bool xas_is_sibling(const struct xa_state *xas, void *entry)
++{
++	return (xas->xa_flags & XAS_FLAG_LOOKUP) && xa_is_sibling(entry);
++}
++
++/*
++ * xas_next_entry() - Helper for other tree walking functions
++ *
++ * As a helper, this function has a lot of rough edges.  On entry,
++ * xas->xa_index may not lay within xas->xa_node (which is why we
++ * start by walking back up the tree if it isn't).  xas->xa_index
++ * is assumed to have been rounded to point to the head of the next entry,
++ * even if the previous iteration hit in the middle of a multislot entry.
++ */
++void *xas_next_entry(const struct xarray *xa, struct xa_state *xas,
++		unsigned long max)
++{
++	XA_BUG_ON(xas_error(xas));
++
++	while (xas->xa_node) {
++		void *entry;
++
++		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
++			xas->xa_offset = xas->xa_node->offset + 1;
++			xas->xa_node = xa_parent(xa, xas->xa_node);
++			continue;
++		}
++		entry = xas_load(xa, xas);
++
++		if (xa_is_node(entry)) {
++			xas->xa_node = xa_node(entry);
++			xas->xa_offset = xas_offset(xas);
++			continue;
++		} else if (xas_is_sibling(xas, entry)) {
++			xas->xa_offset = xa_sibling_offset(entry);
++			entry = xa_entry(xa, xas->xa_node, xas->xa_offset);
++			xas->xa_flags &= ~XAS_FLAG_LOOKUP;
++			return entry;
++		} else if (entry && !xa_is_internal(entry))
++			return entry;
++
++		if (xas->xa_node <= XA_WALK_RESTART)
++			break;
++		xas->xa_offset++;
++		xas->xa_index += 1UL << xas->xa_node->shift;
++		if (xas->xa_index > max)
++			break;
++	}
++
++	return XA_WALK_END;
++}
++EXPORT_SYMBOL_GPL(xas_next_entry);
 +
 +/**
-+ * idr_remove() - Free an allocated ID
-+ * @idr: idr handle
-+ * @id: Lookup key
++ * xas_find_tag() - Search the xarray for a tagged entry
++ * @xa: Array
++ * @xas: Array operation state
++ * @max: Maximum value to return
++ * @tag: Tag number to search for
 + *
-+ * This function protects itself with the irqsafe spinlock.
++ * Finds the first tagged entry at or after the index in @xas
++ * tag set and is less than or equal to @max.
 + *
-+ * Return: The previous pointer associated with this ID.
++ * Return: The entry, if found, otherwise XA_WALK_END.
 + */
-+void *idr_remove(struct idr *idr, int id)
++void *xas_find_tag(const struct xarray *xa, struct xa_state *xas,
++		unsigned long max, xa_tag_t tag)
 +{
-+	return idr_null(xa_store(&idr->idxa, id, NULL, GFP_NOWAIT));
-+}
-+EXPORT_SYMBOL(idr_remove);
++	void *entry = XA_WALK_END;
++	int offset;
 +
-+/* Move to xarray.c? */
-+static void xa_destroy(struct xarray *xa)
-+{
-+	struct xa_state xas;
-+	unsigned long flags;
- 
--	entry = __radix_tree_lookup(&idr->idr_rt, id, &node, &slot);
--	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
--		return ERR_PTR(-ENOENT);
-+	xas_init_order(&xas, 0, BITS_PER_LONG);
- 
--	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL, NULL);
-+	xa_lock_irqsave(xa, flags);
-+	xas_store(xa, &xas, NULL);
-+	xa_unlock_irqrestore(xa, flags);
-+}
- 
--	return entry;
-+void idr_destroy(struct idr *idr)
-+{
-+	xa_destroy(&idr->idxa);
- }
--EXPORT_SYMBOL(idr_replace);
-+EXPORT_SYMBOL(idr_destroy);
- 
- /**
-  * DOC: IDA description
-@@ -181,9 +292,7 @@ EXPORT_SYMBOL(idr_replace);
-  *
-  * If you have more complex locking requirements, use a loop around
-  * ida_pre_get() and ida_get_new() to allocate a new ID.  Then use
-- * ida_remove() to free an ID.  You must make sure that ida_get_new() and
-- * ida_remove() cannot be called at the same time as each other for the
-- * same IDA.
-+ * ida_remove() to free an ID.
-  *
-  * You can also use ida_get_new_above() if you need an ID to be allocated
-  * above a particular number.  ida_destroy() can be used to dispose of an
-@@ -197,28 +306,20 @@ EXPORT_SYMBOL(idr_replace);
- /*
-  * Developer's notes:
-  *
-- * The IDA uses the functionality provided by the IDR & radix tree to store
-- * bitmaps in each entry.  The IDR_FREE tag means there is at least one bit
-+ * The IDA uses the functionality provided by the xarray to store bitmaps
-+ * in each entry.  The XA_FREE_TAG tag means there is at least one bit
-  * free, unlike the IDR where it means at least one entry is free.
-  *
-- * I considered telling the radix tree that each slot is an order-10 node
-- * and storing the bit numbers in the radix tree, but the radix tree can't
-+ * I considered telling the xarray that each slot is an order-10 node
-+ * and storing the bit numbers in the xarray, but the xarray can't
-  * allow a single multiorder entry at index 0, which would significantly
-  * increase memory consumption for the IDA.  So instead we divide the index
-- * by the number of bits in the leaf bitmap before doing a radix tree lookup.
-+ * by the number of bits in the leaf bitmap before doing an xarray load.
-  *
-  * As an optimisation, if there are only a few low bits set in any given
-- * leaf, instead of allocating a 128-byte bitmap, we use the 'exceptional
-- * entry' functionality of the radix tree to store BITS_PER_LONG - 2 bits
-- * directly in the entry.  By being really tricksy, we could store
-- * BITS_PER_LONG - 1 bits, but there're diminishing returns after optimising
-- * for 0-3 allocated IDs.
-- *
-- * We allow the radix tree 'exceptional' count to get out of date.  Nothing
-- * in the IDA nor the radix tree code checks it.  If it becomes important
-- * to maintain an accurate exceptional count, switch the rcu_assign_pointer()
-- * calls to radix_tree_iter_replace() which will correct the exceptional
-- * count.
-+ * entry, instead of allocating a 128-byte bitmap, we use the 'exceptional
-+ * entry' functionality of the xarray to store BITS_PER_LONG - 1 bits
-+ * directly in the entry.
-  *
-  * The IDA always requires a lock to alloc/free.  If we add a 'test_bit'
-  * equivalent, it will still need locking.  Going to RCU lookup would require
-@@ -230,7 +331,7 @@ EXPORT_SYMBOL(idr_replace);
- #define IDA_MAX (0x80000000U / IDA_BITMAP_BITS)
- 
- /**
-- * ida_get_new_above - allocate new ID above or equal to a start id
-+ * ida_get_new_above() - allocate new ID above or equal to a start id
-  * @ida: ida handle
-  * @start: id to start search at
-  * @id: pointer to the allocated handle
-@@ -249,52 +350,55 @@ EXPORT_SYMBOL(idr_replace);
-  */
- int ida_get_new_above(struct ida *ida, int start, int *id)
- {
--	struct radix_tree_root *root = &ida->ida_rt;
--	void __rcu **slot;
--	struct radix_tree_iter iter;
-+	struct xarray *xa = &ida->idxa;
-+	struct xa_state xas;
-+	unsigned long flags;
- 	struct ida_bitmap *bitmap;
- 	unsigned long index;
- 	unsigned bit, ebit;
- 	int new;
-+	bool retry;
- 
- 	index = start / IDA_BITMAP_BITS;
- 	bit = start % IDA_BITMAP_BITS;
--	ebit = bit + RADIX_TREE_EXCEPTIONAL_SHIFT;
--
--	slot = radix_tree_iter_init(&iter, index);
--	for (;;) {
--		if (slot)
--			slot = radix_tree_next_slot(slot, &iter,
--						RADIX_TREE_ITER_TAGGED);
--		if (!slot) {
--			slot = idr_get_free(root, &iter, GFP_NOWAIT, IDA_MAX);
--			if (IS_ERR(slot)) {
--				if (slot == ERR_PTR(-ENOMEM))
--					return -EAGAIN;
--				return PTR_ERR(slot);
--			}
--		}
--		if (iter.index > index) {
-+	ebit = bit + 1;
++	XA_BUG_ON(xas_error(xas));
 +
-+	xas_init(&xas, index);
-+	xa_lock_irqsave(xa, flags);
-+	do {
-+		retry = false;
-+		bitmap = xas_find_tag(xa, &xas, IDA_MAX, XA_FREE_TAG);
-+		if (xas.xa_index > IDA_MAX)
-+			goto nospc;
-+		if (xas.xa_index > index) {
- 			bit = 0;
--			ebit = RADIX_TREE_EXCEPTIONAL_SHIFT;
-+			ebit = 1;
- 		}
--		new = iter.index * IDA_BITMAP_BITS;
--		bitmap = rcu_dereference_raw(*slot);
--		if (radix_tree_exception(bitmap)) {
-+		new = xas.xa_index * IDA_BITMAP_BITS;
-+		if (bitmap == XA_WALK_END) {
-+			bitmap = NULL;
-+		} else if (xa_is_exceptional(bitmap)) {
- 			unsigned long tmp = (unsigned long)bitmap;
- 			ebit = find_next_zero_bit(&tmp, BITS_PER_LONG, ebit);
- 			if (ebit < BITS_PER_LONG) {
- 				tmp |= 1UL << ebit;
--				rcu_assign_pointer(*slot, (void *)tmp);
--				*id = new + ebit - RADIX_TREE_EXCEPTIONAL_SHIFT;
--				return 0;
-+				xas_store(xa, &xas, (void *)tmp);
-+				xas_set_tag(xa, &xas, XA_FREE_TAG); /* Hmm */
-+				bit = ebit - 1;
-+				new += bit;
-+				continue;
- 			}
- 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
--			if (!bitmap)
--				return -EAGAIN;
-+			if (!bitmap) {
-+				bitmap = ERR_PTR(-EAGAIN);
-+				break;
-+			}
- 			memset(bitmap, 0, sizeof(*bitmap));
--			bitmap->bitmap[0] = tmp >> RADIX_TREE_EXCEPTIONAL_SHIFT;
--			rcu_assign_pointer(*slot, bitmap);
-+			bitmap->bitmap[0] = tmp >> 1;
-+			xas_store(xa, &xas, bitmap);
-+			if (xas_error(&xas))
-+				bitmap = this_cpu_xchg(ida_bitmap, bitmap);
-+			xas_set_tag(xa, &xas, XA_FREE_TAG); /* Hmm */
- 		}
- 
- 		if (bitmap) {
-@@ -302,113 +406,133 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
- 							IDA_BITMAP_BITS, bit);
- 			new += bit;
- 			if (new < 0)
--				return -ENOSPC;
--			if (bit == IDA_BITMAP_BITS)
-+				goto nospc;
-+			if (bit == IDA_BITMAP_BITS) {
-+				retry = true;
-+				xas_jump(&xas, xas.xa_index + 1);
- 				continue;
-+			}
- 
- 			__set_bit(bit, bitmap->bitmap);
- 			if (bitmap_full(bitmap->bitmap, IDA_BITMAP_BITS))
--				radix_tree_iter_tag_clear(root, &iter,
--								IDR_FREE);
-+				xas_clear_tag(xa, &xas, XA_FREE_TAG);
-+			break;
- 		} else {
- 			new += bit;
- 			if (new < 0)
--				return -ENOSPC;
-+				goto nospc;
- 			if (ebit < BITS_PER_LONG) {
--				bitmap = (void *)((1UL << ebit) |
--						RADIX_TREE_EXCEPTIONAL_ENTRY);
--				radix_tree_iter_replace(root, &iter, slot,
--						bitmap);
--				*id = new;
--				return 0;
-+				bitmap = xa_mk_exceptional(1UL << bit);
-+				xas_store(xa, &xas, bitmap);
-+				xas_set_tag(xa, &xas, XA_FREE_TAG); /* Hmm */
-+				continue;
- 			}
- 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
--			if (!bitmap)
--				return -EAGAIN;
-+			if (!bitmap) {
-+				bitmap = ERR_PTR(-EAGAIN);
-+				break;
-+			}
- 			memset(bitmap, 0, sizeof(*bitmap));
- 			__set_bit(bit, bitmap->bitmap);
--			radix_tree_iter_replace(root, &iter, slot, bitmap);
-+			xas_store(xa, &xas, bitmap);
-+			if (xas_error(&xas))
-+				bitmap = this_cpu_xchg(ida_bitmap, bitmap);
-+			xas_set_tag(xa, &xas, XA_FREE_TAG); /* Hmm */
- 		}
--
--		*id = new;
--		return 0;
--	}
-+	} while (retry || idr_nomem(&xas, GFP_NOWAIT));
-+	xa_unlock_irqrestore(xa, flags);
++	if (xas->xa_index > max)
++		return entry;
 +
-+	if (IS_ERR(bitmap))
-+		return PTR_ERR(bitmap);
-+	if (xas_error(&xas) == -ENOMEM)
-+		return -EAGAIN;
-+	*id = new;
-+	return 0;
-+nospc:
-+	xa_unlock_irqrestore(xa, flags);
-+	return -ENOSPC;
- }
- EXPORT_SYMBOL(ida_get_new_above);
- 
- /**
-- * ida_remove - Free the given ID
-+ * ida_remove() - Free the given ID
-  * @ida: ida handle
-  * @id: ID to free
-  *
-- * This function should not be called at the same time as ida_get_new_above().
-+ * This function is protected by the irqsafe spinlock.
-  */
- void ida_remove(struct ida *ida, int id)
- {
--	unsigned long index = id / IDA_BITMAP_BITS;
--	unsigned offset = id % IDA_BITMAP_BITS;
-+	struct xarray *xa = &ida->idxa;
-+	struct xa_state xas;
-+	unsigned long flags;
- 	struct ida_bitmap *bitmap;
-+	unsigned long index = id / IDA_BITMAP_BITS;
-+	unsigned bit = id % IDA_BITMAP_BITS;
- 	unsigned long *btmp;
--	struct radix_tree_iter iter;
--	void __rcu **slot;
- 
--	slot = radix_tree_iter_lookup(&ida->ida_rt, &iter, index);
--	if (!slot)
-+	xas_init(&xas, index);
-+	xa_lock_irqsave(xa, flags);
-+	bitmap = xas_load(xa, &xas);
-+	if (bitmap == XA_WALK_END)
- 		goto err;
--
--	bitmap = rcu_dereference_raw(*slot);
--	if (radix_tree_exception(bitmap)) {
--		btmp = (unsigned long *)slot;
--		offset += RADIX_TREE_EXCEPTIONAL_SHIFT;
--		if (offset >= BITS_PER_LONG)
-+	if (xa_is_exceptional(bitmap)) {
-+		btmp = (unsigned long *)&bitmap;
-+		bit++;
-+		if (bit >= BITS_PER_LONG)
- 			goto err;
- 	} else {
- 		btmp = bitmap->bitmap;
- 	}
--	if (!test_bit(offset, btmp))
--		goto err;
- 
--	__clear_bit(offset, btmp);
--	radix_tree_iter_tag_set(&ida->ida_rt, &iter, IDR_FREE);
--	if (radix_tree_exception(bitmap)) {
--		if (rcu_dereference_raw(*slot) ==
--					(void *)RADIX_TREE_EXCEPTIONAL_ENTRY)
--			radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
-+	if (!test_bit(bit, btmp))
-+		goto err;
-+	__clear_bit(bit, btmp);
-+	if (xa_is_exceptional(bitmap)) {
-+		if (xa_exceptional_value(bitmap) == 0)
-+			bitmap = NULL;
-+		xas_store(xa, &xas, bitmap);
-+		xas_set_tag(xa, &xas, XA_FREE_TAG); /* Hmm */
- 	} else if (bitmap_empty(btmp, IDA_BITMAP_BITS)) {
- 		kfree(bitmap);
--		radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
-+		xas_store(xa, &xas, NULL);
-+	} else {
-+		xas_set_tag(xa, &xas, XA_FREE_TAG);
- 	}
-+	xa_unlock_irqrestore(xa, flags);
- 	return;
-  err:
-+	xa_unlock_irqrestore(xa, flags);
- 	WARN(1, "ida_remove called for id=%d which is not allocated.\n", id);
- }
- EXPORT_SYMBOL(ida_remove);
- 
- /**
-- * ida_destroy - Free the contents of an ida
-+ * ida_destroy() - Free the contents of an ida
-  * @ida: ida handle
-  *
-  * Calling this function releases all resources associated with an IDA.  When
-- * this call returns, the IDA is empty and can be reused or freed.  The caller
-- * should not allow ida_remove() or ida_get_new_above() to be called at the
-- * same time.
-+ * this call returns, the IDA is empty and can be reused or freed.
-  */
- void ida_destroy(struct ida *ida)
- {
--	struct radix_tree_iter iter;
--	void __rcu **slot;
-+	struct xa_state xas;
-+	unsigned long flags;
-+	struct ida_bitmap *bitmap;
- 
--	radix_tree_for_each_slot(slot, &ida->ida_rt, &iter, 0) {
--		struct ida_bitmap *bitmap = rcu_dereference_raw(*slot);
--		if (!radix_tree_exception(bitmap))
-+	xas_init(&xas, 0);
-+	xa_lock_irqsave(&ida->idxa, flags);
-+	xas_for_each(&ida->idxa, &xas, bitmap, ~0UL) {
-+		if (!xa_is_exceptional(bitmap))
- 			kfree(bitmap);
--		radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
-+		xas_store(&ida->idxa, &xas, NULL);
- 	}
-+	xa_unlock_irqrestore(&ida->idxa, flags);
- }
- EXPORT_SYMBOL(ida_destroy);
- 
- /**
-- * ida_simple_get - get a new id.
-+ * ida_simple_get() - get a new id.
-  * @ida: the (initialized) ida.
-  * @start: the minimum id (inclusive, < 0x8000000)
-  * @end: the maximum id (exclusive, < 0x8000000 or 0)
-@@ -416,18 +540,12 @@ EXPORT_SYMBOL(ida_destroy);
-  *
-  * Allocates an id in the range start <= id < end, or returns -ENOSPC.
-  * On memory allocation failure, returns -ENOMEM.
-- *
-- * Compared to ida_get_new_above() this function does its own locking, and
-- * should be used unless there are special requirements.
-- *
-- * Use ida_simple_remove() to get rid of an id.
-  */
- int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
- 		   gfp_t gfp_mask)
- {
- 	int ret, id;
- 	unsigned int max;
--	unsigned long flags;
- 
- 	BUG_ON((int)start < 0);
- 	BUG_ON((int)end < 0);
-@@ -440,10 +558,6 @@ int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
- 	}
- 
- again:
--	if (!ida_pre_get(ida, gfp_mask))
--		return -ENOMEM;
--
--	spin_lock_irqsave(&simple_ida_lock, flags);
- 	ret = ida_get_new_above(ida, start, &id);
- 	if (!ret) {
- 		if (id > max) {
-@@ -453,32 +567,13 @@ int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
- 			ret = id;
- 		}
- 	}
--	spin_unlock_irqrestore(&simple_ida_lock, flags);
- 
--	if (unlikely(ret == -EAGAIN))
-+	if (unlikely(ret == -EAGAIN)) {
-+		if (!ida_pre_get(ida, gfp_mask))
-+			return -ENOMEM;
- 		goto again;
++	if (xas_restart(xas)) {
++		struct xa_node *node;
++		unsigned long offset;
++
++		entry = xa_head(xa);
++		if (!xa_tagged(xa, tag)) {
++			if (xa_is_node(entry))
++				xas->xa_index = XA_CHUNK_SIZE <<
++						xa_node(entry)->shift;
++			else if (xas->xa_index < 1)
++				xas->xa_index = 1;
++			return XA_WALK_END;
++		}
++		if (!xa_is_node(entry)) {
++			if (xas->xa_index)
++				return XA_WALK_END;
++			xas->xa_node = NULL;
++			return entry;
++		}
++		node = xa_node(entry);
++		offset = xas->xa_index >> node->shift;
++		if (offset > XA_CHUNK_MASK)
++			return XA_WALK_END;
++		xas->xa_node = node;
++		xas->xa_offset = offset;
++		entry = XA_WALK_END;
 +	}
- 
- 	return ret;
- }
- EXPORT_SYMBOL(ida_simple_get);
--
--/**
-- * ida_simple_remove - remove an allocated id.
-- * @ida: the (initialized) ida.
-- * @id: the id returned by ida_simple_get.
-- *
-- * Use to release an id allocated with ida_simple_get().
-- *
-- * Compared to ida_remove() this function does its own locking, and should be
-- * used unless there are special requirements.
-- */
--void ida_simple_remove(struct ida *ida, unsigned int id)
--{
--	unsigned long flags;
--
--	BUG_ON((int)id < 0);
--	spin_lock_irqsave(&simple_ida_lock, flags);
--	ida_remove(ida, id);
--	spin_unlock_irqrestore(&simple_ida_lock, flags);
--}
--EXPORT_SYMBOL(ida_simple_remove);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 9c0fa4df736b..8d2563097133 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -269,13 +269,6 @@ static inline unsigned long node_maxindex(const struct radix_tree_node *node)
- 	return shift_maxindex(node->shift);
- }
- 
--static unsigned long next_index(unsigned long index,
--				const struct radix_tree_node *node,
--				unsigned long offset)
--{
--	return (index & ~node_maxindex(node)) + (offset << node->shift);
--}
--
- #ifndef __KERNEL__
- static void dump_node(struct radix_tree_node *node, unsigned long index)
- {
-@@ -319,54 +312,6 @@ static void radix_tree_dump(struct radix_tree_root *root)
- 		return;
- 	dump_node(entry_to_node(root->rnode), 0);
- }
--
--static void dump_ida_node(void *entry, unsigned long index)
--{
--	unsigned long i;
--
--	if (!entry)
--		return;
--
--	if (radix_tree_is_internal_node(entry)) {
--		struct radix_tree_node *node = entry_to_node(entry);
--
--		pr_debug("ida node: %p offset %d indices %lu-%lu parent %p free %lx shift %d count %d\n",
--			node, node->offset, index * IDA_BITMAP_BITS,
--			((index | node_maxindex(node)) + 1) *
--				IDA_BITMAP_BITS - 1,
--			node->parent, node->tags[0][0], node->shift,
--			node->count);
--		for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
--			dump_ida_node(node->slots[i],
--					index | (i << node->shift));
--	} else if (radix_tree_exceptional_entry(entry)) {
--		pr_debug("ida excp: %p offset %d indices %lu-%lu data %lx\n",
--				entry, (int)(index & RADIX_TREE_MAP_MASK),
--				index * IDA_BITMAP_BITS,
--				index * IDA_BITMAP_BITS + BITS_PER_LONG -
--					RADIX_TREE_EXCEPTIONAL_SHIFT,
--				(unsigned long)entry >>
--					RADIX_TREE_EXCEPTIONAL_SHIFT);
--	} else {
--		struct ida_bitmap *bitmap = entry;
--
--		pr_debug("ida btmp: %p offset %d indices %lu-%lu data", bitmap,
--				(int)(index & RADIX_TREE_MAP_MASK),
--				index * IDA_BITMAP_BITS,
--				(index + 1) * IDA_BITMAP_BITS - 1);
--		for (i = 0; i < IDA_BITMAP_LONGS; i++)
--			pr_cont(" %lx", bitmap->bitmap[i]);
--		pr_cont("\n");
--	}
--}
--
--static void ida_dump(struct ida *ida)
--{
--	struct radix_tree_root *root = &ida->ida_rt;
--	pr_debug("ida: %p node %p free %d\n", ida, root->rnode,
--				root->gfp_mask >> ROOT_TAG_SHIFT);
--	dump_ida_node(root->rnode, 0);
--}
- #endif
- 
- /*
-@@ -629,7 +574,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
- 		maxshift += RADIX_TREE_MAP_SHIFT;
- 
- 	entry = rcu_dereference_raw(root->rnode);
--	if (!entry && (!is_idr(root) || root_tag_get(root, IDR_FREE)))
-+	if (!entry && (!is_idr(root) || root_tag_get(root, XA_FREE_TAG)))
- 		goto out;
- 
- 	do {
-@@ -639,10 +584,10 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
- 			return -ENOMEM;
- 
- 		if (is_idr(root)) {
--			all_tag_set(node, IDR_FREE);
--			if (!root_tag_get(root, IDR_FREE)) {
--				tag_clear(node, IDR_FREE, 0);
--				root_tag_set(root, IDR_FREE);
-+			all_tag_set(node, XA_FREE_TAG);
-+			if (!root_tag_get(root, XA_FREE_TAG)) {
-+				tag_clear(node, XA_FREE_TAG, 0);
-+				root_tag_set(root, XA_FREE_TAG);
- 			}
- 		} else {
- 			/* Propagate the aggregated tag info to the new child */
-@@ -714,8 +659,8 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 		 * one (root->rnode) as far as dependent read barriers go.
- 		 */
- 		root->rnode = (void __rcu *)child;
--		if (is_idr(root) && !tag_get(node, IDR_FREE, 0))
--			root_tag_clear(root, IDR_FREE);
-+		if (is_idr(root) && !tag_get(node, XA_FREE_TAG, 0))
-+			root_tag_clear(root, XA_FREE_TAG);
- 
- 		/*
- 		 * We have a dilemma here. The node's slot[0] must not be
-@@ -1147,7 +1092,7 @@ static bool node_tag_get(const struct radix_tree_root *root,
- /*
-  * IDR users want to be able to store NULL in the tree, so if the slot isn't
-  * free, don't adjust the count, even if it's transitioning between NULL and
-- * non-NULL.  For the IDA, we mark slots as being IDR_FREE while they still
-+ * non-NULL.  For the IDA, we mark slots as being XA_FREE_TAG while they still
-  * have empty bits, but it only stores NULL in slots when they're being
-  * deleted.
-  */
-@@ -1157,7 +1102,7 @@ static int calculate_count(struct radix_tree_root *root,
- {
- 	if (is_idr(root)) {
- 		unsigned offset = get_slot_offset(node, slot);
--		bool free = node_tag_get(root, node, IDR_FREE, offset);
-+		bool free = node_tag_get(root, node, XA_FREE_TAG, offset);
- 		if (!free)
- 			return 0;
- 		if (!old)
-@@ -1994,7 +1939,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 	int tag;
- 
- 	if (is_idr(root))
--		node_tag_set(root, node, IDR_FREE, offset);
-+		node_tag_set(root, node, XA_FREE_TAG, offset);
- 	else
- 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
- 			node_tag_clear(root, node, tag, offset);
-@@ -2041,7 +1986,7 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
- 	void *entry;
- 
- 	entry = __radix_tree_lookup(root, index, &node, &slot);
--	if (!entry && (!is_idr(root) || node_tag_get(root, node, IDR_FREE,
-+	if (!entry && (!is_idr(root) || node_tag_get(root, node, XA_FREE_TAG,
- 						get_slot_offset(node, slot))))
- 		return NULL;
- 
-@@ -2136,98 +2081,6 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
- }
- EXPORT_SYMBOL(ida_pre_get);
- 
--void __rcu **idr_get_free(struct radix_tree_root *root,
--			struct radix_tree_iter *iter, gfp_t gfp, int end)
--{
--	struct radix_tree_node *node = NULL, *child;
--	void __rcu **slot = (void __rcu **)&root->rnode;
--	unsigned long maxindex, start = iter->next_index;
--	unsigned long max = end > 0 ? end - 1 : INT_MAX;
--	unsigned int shift, offset = 0;
--
-- grow:
--	shift = radix_tree_load_root(root, &child, &maxindex);
--	if (!radix_tree_tagged(root, IDR_FREE))
--		start = max(start, maxindex + 1);
--	if (start > max)
--		return ERR_PTR(-ENOSPC);
--
--	if (start > maxindex) {
--		int error = radix_tree_extend(root, gfp, start, shift);
--		if (error < 0)
--			return ERR_PTR(error);
--		shift = error;
--		child = rcu_dereference_raw(root->rnode);
--	}
--
--	while (shift) {
--		shift -= RADIX_TREE_MAP_SHIFT;
--		if (child == NULL) {
--			/* Have to add a child node.  */
--			child = radix_tree_node_alloc(gfp, node, root, shift,
--							offset, 0, 0);
--			if (!child)
--				return ERR_PTR(-ENOMEM);
--			all_tag_set(child, IDR_FREE);
--			rcu_assign_pointer(*slot, node_to_entry(child));
--			if (node)
--				node->count++;
--		} else if (!radix_tree_is_internal_node(child))
--			break;
--
--		node = entry_to_node(child);
--		offset = radix_tree_descend(node, &child, start);
--		if (!tag_get(node, IDR_FREE, offset)) {
--			offset = radix_tree_find_next_bit(node, IDR_FREE,
--							offset + 1);
--			start = next_index(start, node, offset);
--			if (start > max)
--				return ERR_PTR(-ENOSPC);
--			while (offset == RADIX_TREE_MAP_SIZE) {
--				offset = node->offset + 1;
--				node = node->parent;
--				if (!node)
--					goto grow;
--				shift = node->shift;
--			}
--			child = rcu_dereference_raw(node->slots[offset]);
--		}
--		slot = &node->slots[offset];
--	}
--
--	iter->index = start;
--	if (node)
--		iter->next_index = 1 + min(max, (start | node_maxindex(node)));
--	else
--		iter->next_index = 1;
--	iter->node = node;
--	__set_iter_shift(iter, shift);
--	set_iter_tags(iter, node, offset, IDR_FREE);
--
--	return slot;
--}
--
--/**
-- * idr_destroy - release all internal memory from an IDR
-- * @idr: idr handle
-- *
-- * After this function is called, the IDR is empty, and may be reused or
-- * the data structure containing it may be freed.
-- *
-- * A typical clean-up sequence for objects stored in an idr tree will use
-- * idr_for_each() to free all objects, if necessary, then idr_destroy() to
-- * free the memory used to keep track of those objects.
-- */
--void idr_destroy(struct idr *idr)
--{
--	struct radix_tree_node *node = rcu_dereference_raw(idr->idr_rt.rnode);
--	if (radix_tree_is_internal_node(node))
--		radix_tree_free_nodes(node);
--	idr->idr_rt.rnode = NULL;
--	root_tag_set(&idr->idr_rt, IDR_FREE);
--}
--EXPORT_SYMBOL(idr_destroy);
--
- static void
- radix_tree_node_ctor(void *arg)
- {
-diff --git a/tools/include/asm/bug.h b/tools/include/asm/bug.h
-index 4790f047a89c..4eabf5597682 100644
---- a/tools/include/asm/bug.h
-+++ b/tools/include/asm/bug.h
-@@ -41,4 +41,8 @@
- 	unlikely(__ret_warn_once);		\
- })
- 
-+#define VM_WARN_ON_ONCE WARN_ON_ONCE
 +
-+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
++	while (xas->xa_node) {
++		offset = xas_chunk_tag(xas, tag);
++		if (offset != xas->xa_offset) {
++			unsigned long index = set_index(xas->xa_node, offset,
++								xas->xa_index);
++			if (!index || index > max) {
++				xas->xa_index = max + 1;
++				break;
++			}
++			xas->xa_index = index;
++			xas->xa_offset = offset;
++		}
 +
- #endif /* _TOOLS_ASM_BUG_H */
-diff --git a/tools/include/linux/kernel.h b/tools/include/linux/kernel.h
-index 28607db02bd3..b2e4918f2b14 100644
---- a/tools/include/linux/kernel.h
-+++ b/tools/include/linux/kernel.h
-@@ -4,6 +4,7 @@
- #include <stdarg.h>
- #include <stddef.h>
- #include <assert.h>
-+#include <limits.h>
- 
- #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
- 
-diff --git a/tools/include/linux/spinlock.h b/tools/include/linux/spinlock.h
-index 58397dcb19d6..703859ddadb4 100644
---- a/tools/include/linux/spinlock.h
-+++ b/tools/include/linux/spinlock.h
-@@ -1,5 +1,10 @@
- #define spinlock_t		pthread_mutex_t
--#define DEFINE_SPINLOCK(x)	pthread_mutex_t x = PTHREAD_MUTEX_INITIALIZER;
-+#define DEFINE_SPINLOCK(x)	pthread_mutex_t x = PTHREAD_MUTEX_INITIALIZER
-+#define __SPIN_LOCK_UNLOCKED(x)	PTHREAD_MUTEX_INITIALIZER
- 
-+#define spin_lock(x)			pthread_mutex_lock(x)
-+#define spin_unlock(x)			pthread_mutex_unlock(x)
-+#define spin_lock_irq(x)		pthread_mutex_lock(x)
-+#define spin_unlock_irqr(x)		pthread_mutex_unlock(x)
- #define spin_lock_irqsave(x, f)		(void)f, pthread_mutex_lock(x)
- #define spin_unlock_irqrestore(x, f)	(void)f, pthread_mutex_unlock(x)
-diff --git a/tools/testing/radix-tree/.gitignore b/tools/testing/radix-tree/.gitignore
-index d4706c0ffceb..7db5861132b5 100644
---- a/tools/testing/radix-tree/.gitignore
-+++ b/tools/testing/radix-tree/.gitignore
-@@ -1,6 +1,6 @@
- generated/map-shift.h
--idr.c
--idr-test
-+idr
- main
- multiorder
- radix-tree.c
-+xarray
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index f11315bedefc..4d9ce949dc93 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -1,10 +1,10 @@
- 
--CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address
-+CFLAGS += -I. -I../../include -g -Og -Wall -D_LGPL_SOURCE -fsanitize=address
- LDFLAGS += -lpthread -lurcu
--TARGETS = main idr-test multiorder
--CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
-+TARGETS = main idr-test multiorder xarray
-+CORE_OFILES := radix-tree.o idr.o xarray.o linux.o test.o find_bit.o
- OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
--	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
-+	 tag_check.o multiorder.o iteration_check.o benchmark.o
- 
- ifndef SHIFT
- 	SHIFT=3
-@@ -15,14 +15,22 @@ targets: mapshift $(TARGETS)
- main:	$(OFILES)
- 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o main
- 
--idr-test: idr-test.o $(CORE_OFILES)
--	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o idr-test
-+idr: $(CORE_OFILES)
-+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
-+idr.o: idr.c ../../../lib/idr.c
- 
- multiorder: multiorder.o $(CORE_OFILES)
- 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o multiorder
- 
-+xarray: xarray.o linux.o test.o find_bit.o
-+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
-+xarray.o: ../../../lib/xarray.c
++		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
++			xas->xa_offset = xas->xa_node->offset + 1;
++			xas->xa_node = xa_parent(xa, xas->xa_node);
++			continue;
++		}
 +
-+xarray-idr: xarray.o idr-test.o linux.o idr-xarray.o test.o find_bit.o
-+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
++		entry = xa_entry(xa, xas->xa_node, offset);
++		if (!xa_is_node(entry))
++			break;
++		xas->xa_node = xa_node(entry);
++		xas->xa_offset = xas_offset(xas);
++		entry = XA_WALK_END;
++	}
 +
- clean:
--	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/map-shift.h
-+	$(RM) $(TARGETS) *.o radix-tree.c generated/map-shift.h
- 
- vpath %.c ../../lib
- 
-@@ -30,18 +38,18 @@ $(OFILES): *.h */*.h generated/map-shift.h \
- 	../../include/linux/*.h \
- 	../../include/asm/*.h \
- 	../../../include/linux/radix-tree.h \
--	../../../include/linux/idr.h
-+	../../../include/linux/idr.h \
-+	../../../include/linux/xarray.h
- 
- radix-tree.c: ../../../lib/radix-tree.c
- 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
- 
--idr.c: ../../../lib/idr.c
--	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
--
- .PHONY: mapshift
- 
--mapshift:
--	@if ! grep -qw $(SHIFT) generated/map-shift.h; then		\
-+mapshift: generated/map-shift.h
++	if (entry == XA_WALK_END)
++		xas->xa_node = XA_WALK_RESTART;
++	return entry;
++}
++EXPORT_SYMBOL_GPL(xas_find_tag);
 +
-+generated/map-shift.h:
-+	@if ! grep -sqw $(SHIFT) generated/map-shift.h; then		\
- 		echo "#define RADIX_TREE_MAP_SHIFT $(SHIFT)" >		\
- 				generated/map-shift.h;			\
- 	fi
-diff --git a/tools/testing/radix-tree/idr-test.c b/tools/testing/radix-tree/idr.c
-similarity index 91%
-rename from tools/testing/radix-tree/idr-test.c
-rename to tools/testing/radix-tree/idr.c
-index a26098c6123d..8965217f689c 100644
---- a/tools/testing/radix-tree/idr-test.c
-+++ b/tools/testing/radix-tree/idr.c
-@@ -11,15 +11,19 @@
-  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  * more details.
-  */
-+#include "../../../lib/idr.c"
-+
- #include <linux/bitmap.h>
- #include <linux/idr.h>
- #include <linux/slab.h>
- #include <linux/kernel.h>
- #include <linux/errno.h>
- 
-+#define _TEST_H_NO_DEFINE_PRELOAD
- #include "test.h"
- 
--#define DUMMY_PTR	((void *)0x12)
-+//#define DUMMY_PTR	((void *)0x12)
-+#define DUMMY_PTR	xa_mk_exceptional(10)
- 
- int item_idr_free(int id, void *p, void *data)
- {
-@@ -42,9 +46,10 @@ void idr_alloc_test(void)
- {
- 	unsigned long i;
- 	DEFINE_IDR(idr);
-+	int cursor = 0;
- 
--	assert(idr_alloc_cyclic(&idr, DUMMY_PTR, 0, 0x4000, GFP_KERNEL) == 0);
--	assert(idr_alloc_cyclic(&idr, DUMMY_PTR, 0x3ffd, 0x4000, GFP_KERNEL) == 0x3ffd);
-+	assert(idr_alloc_cyclic(&idr, &cursor, DUMMY_PTR, 0, 0x4000, GFP_KERNEL) == 0);
-+	assert(idr_alloc_cyclic(&idr, &cursor, DUMMY_PTR, 0x3ffd, 0x4000, GFP_KERNEL) == 0x3ffd);
- 	idr_remove(&idr, 0x3ffd);
- 	idr_remove(&idr, 0);
- 
-@@ -57,7 +62,7 @@ void idr_alloc_test(void)
- 		else
- 			item = item_create(i - 0x3fff, 0);
- 
--		id = idr_alloc_cyclic(&idr, item, 1, 0x4000, GFP_KERNEL);
-+		id = idr_alloc_cyclic(&idr, &cursor, item, 1, 0x4000, GFP_KERNEL);
- 		assert(id == item->index);
- 	}
- 
-@@ -83,8 +88,10 @@ void idr_replace_test(void)
-  */
- void idr_null_test(void)
- {
--	int i;
- 	DEFINE_IDR(idr);
++/**
++ * xa_load() - Load the entry from the array
++ * @xa: Array
++ * @index: index in array
++ *
++ * Return: The entry at @index in @xa.
++ */
++void *xa_load(const struct xarray *xa, unsigned long index)
++{
++	struct xa_state xas;
 +	void *entry;
-+	unsigned long bits = 0;
-+	int i;
- 
- 	assert(idr_is_empty(&idr));
- 
-@@ -95,6 +102,8 @@ void idr_null_test(void)
- 
- 	assert(idr_alloc(&idr, NULL, 0, 0, GFP_KERNEL) == 0);
- 	assert(!idr_is_empty(&idr));
-+	assert(idr_find(&idr, 0) == NULL);
-+	assert(idr_find(&idr, 1) == NULL);
- 	idr_destroy(&idr);
- 	assert(idr_is_empty(&idr));
- 
-@@ -110,6 +119,10 @@ void idr_null_test(void)
- 	assert(idr_alloc(&idr, NULL, 0, 0, GFP_KERNEL) == 5);
- 	idr_remove(&idr, 5);
- 
-+	idr_for_each_entry(&idr, entry, i)
-+		bits |= (1UL << i);
-+	assert(bits == 0x8);
 +
- 	for (i = 0; i < 9; i++) {
- 		idr_remove(&idr, i);
- 		assert(!idr_is_empty(&idr));
-@@ -163,7 +176,7 @@ void idr_checks(void)
- 		assert(idr_alloc(&idr, item, 0, 20000, GFP_KERNEL) == i);
- 	}
- 
--	assert(idr_alloc(&idr, DUMMY_PTR, 5, 30, GFP_KERNEL) < 0);
-+	assert(idr_alloc(&idr, DUMMY_PTR, 5, 30, GFP_KERNEL) == -ENOSPC);
- 
- 	for (i = 0; i < 5000; i++)
- 		item_idr_remove(&idr, i);
-@@ -172,7 +185,6 @@ void idr_checks(void)
- 
- 	idr_for_each(&idr, item_idr_free, &idr);
- 	idr_destroy(&idr);
--
- 	assert(idr_is_empty(&idr));
- 
- 	idr_remove(&idr, 3);
-@@ -295,16 +307,17 @@ void ida_check_conv(void)
- 	for (i = 0; i < 1000000; i++) {
- 		int err = ida_get_new(&ida, &id);
- 		if (err == -EAGAIN) {
--			assert((i % IDA_BITMAP_BITS) == (BITS_PER_LONG - 2));
-+			assert((i % IDA_BITMAP_BITS) == (BITS_PER_LONG - 1));
- 			assert(ida_pre_get(&ida, GFP_KERNEL));
- 			err = ida_get_new(&ida, &id);
- 		} else {
--			assert((i % IDA_BITMAP_BITS) != (BITS_PER_LONG - 2));
-+			assert((i % IDA_BITMAP_BITS) != (BITS_PER_LONG - 1));
- 		}
- 		assert(!err);
- 		assert(id == i);
- 	}
- 	ida_destroy(&ida);
-+	assert(ida_is_empty(&ida));
- }
- 
- /*
-@@ -432,13 +445,17 @@ void ida_checks(void)
- 	radix_tree_cpu_dead(1);
- }
- 
--int __weak main(void)
-+int main(void)
- {
-+	test_verbose = 2;
-+	rcu_init();
-+	xarray_init();
- 	radix_tree_init();
- 	idr_checks();
- 	ida_checks();
- 	rcu_barrier();
- 	if (nr_allocated)
- 		printf("nr_allocated = %d\n", nr_allocated);
-+	fflush(stdout);
- 	return 0;
- }
-diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
-index cf48c8473f48..e7ecff9cfa10 100644
---- a/tools/testing/radix-tree/linux.c
-+++ b/tools/testing/radix-tree/linux.c
-@@ -28,7 +28,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
- {
- 	struct radix_tree_node *node;
- 
--	if (flags & __GFP_NOWARN)
-+	if (!(flags & __GFP_DIRECT_RECLAIM))
- 		return NULL;
- 
- 	pthread_mutex_lock(&cachep->lock);
-diff --git a/tools/testing/radix-tree/linux/radix-tree.h b/tools/testing/radix-tree/linux/radix-tree.h
-index bf1bb231f9b5..e9f1b859f45e 100644
---- a/tools/testing/radix-tree/linux/radix-tree.h
-+++ b/tools/testing/radix-tree/linux/radix-tree.h
-@@ -5,7 +5,6 @@
- #include "../../../../include/linux/radix-tree.h"
- 
- extern int kmalloc_verbose;
--extern int test_verbose;
- 
- static inline void trace_call_rcu(struct rcu_head *head,
- 		void (*func)(struct rcu_head *head))
-@@ -16,10 +15,6 @@ static inline void trace_call_rcu(struct rcu_head *head,
- 	call_rcu(head, func);
- }
- 
--#define printv(verbosity_level, fmt, ...) \
--	if(test_verbose >= verbosity_level) \
--		printf(fmt, ##__VA_ARGS__)
--
- #undef call_rcu
- #define call_rcu(x, y) trace_call_rcu(x, y)
- 
-diff --git a/tools/testing/radix-tree/linux/rcupdate.h b/tools/testing/radix-tree/linux/rcupdate.h
-index f7129ea2a899..733952ddb01b 100644
---- a/tools/testing/radix-tree/linux/rcupdate.h
-+++ b/tools/testing/radix-tree/linux/rcupdate.h
-@@ -5,5 +5,7 @@
- 
- #define rcu_dereference_raw(p) rcu_dereference(p)
- #define rcu_dereference_protected(p, cond) rcu_dereference(p)
-+#define rcu_dereference_check(p, cond) rcu_dereference(p)
-+#define RCU_INIT_POINTER(p, v)	p = v
- 
- #endif
-diff --git a/tools/testing/radix-tree/linux/xarray.h b/tools/testing/radix-tree/linux/xarray.h
-new file mode 100644
-index 000000000000..6b4a24916434
---- /dev/null
-+++ b/tools/testing/radix-tree/linux/xarray.h
-@@ -0,0 +1 @@
-+#include "../../../include/linux/xarray.h"
-diff --git a/tools/testing/radix-tree/test.c b/tools/testing/radix-tree/test.c
-index 1a257d738a1e..293d59e130e1 100644
---- a/tools/testing/radix-tree/test.c
-+++ b/tools/testing/radix-tree/test.c
-@@ -8,25 +8,26 @@
- #include "test.h"
- 
- struct item *
--item_tag_set(struct radix_tree_root *root, unsigned long index, int tag)
-+item_tag_set(struct xarray *xa, unsigned long index, int tag)
- {
--	return radix_tree_tag_set(root, index, tag);
-+	return xa_set_tag(xa, index, tag);
- }
- 
- struct item *
--item_tag_clear(struct radix_tree_root *root, unsigned long index, int tag)
-+item_tag_clear(struct xarray *xa, unsigned long index, int tag)
- {
--	return radix_tree_tag_clear(root, index, tag);
-+	return xa_clear_tag(xa, index, tag);
- }
- 
--int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag)
-+int item_tag_get(struct xarray *xa, unsigned long index, int tag)
- {
--	return radix_tree_tag_get(root, index, tag);
-+	return xa_get_tag(xa, index, tag);
- }
- 
--int __item_insert(struct radix_tree_root *root, struct item *item)
-+int __item_insert(struct xarray *xa, struct item *item)
- {
--	return __radix_tree_insert(root, item->index, item->order, item);
-+	assert(!item->order);
-+	return xa_replace(xa, item->index, item, NULL, GFP_KERNEL) == NULL;
- }
- 
- struct item *item_create(unsigned long index, unsigned int order)
-@@ -38,33 +39,33 @@ struct item *item_create(unsigned long index, unsigned int order)
- 	return ret;
- }
- 
--int item_insert_order(struct radix_tree_root *root, unsigned long index,
-+int item_insert_order(struct xarray *xa, unsigned long index,
- 			unsigned order)
- {
- 	struct item *item = item_create(index, order);
--	int err = __item_insert(root, item);
-+	int err = __item_insert(xa, item);
- 	if (err)
- 		free(item);
- 	return err;
- }
- 
--int item_insert(struct radix_tree_root *root, unsigned long index)
-+int item_insert(struct xarray *xa, unsigned long index)
- {
--	return item_insert_order(root, index, 0);
-+	return item_insert_order(xa, index, 0);
- }
- 
- void item_sanity(struct item *item, unsigned long index)
- {
- 	unsigned long mask;
--	assert(!radix_tree_is_internal_node(item));
-+	assert(!xa_is_internal(item));
- 	assert(item->order < BITS_PER_LONG);
- 	mask = (1UL << item->order) - 1;
- 	assert((item->index | mask) == (index | mask));
- }
- 
--int item_delete(struct radix_tree_root *root, unsigned long index)
-+int item_delete(struct xarray *xa, unsigned long index)
- {
--	struct item *item = radix_tree_delete(root, index);
-+	struct item *item = xa_store(xa, index, NULL, GFP_NOWAIT);
- 
- 	if (item) {
- 		item_sanity(item, index);
-@@ -74,32 +75,33 @@ int item_delete(struct radix_tree_root *root, unsigned long index)
- 	return 0;
- }
- 
--void item_check_present(struct radix_tree_root *root, unsigned long index)
-+void item_check_present(struct xarray *xa, unsigned long index)
- {
- 	struct item *item;
- 
--	item = radix_tree_lookup(root, index);
-+	item = xa_load(xa, index);
- 	assert(item != NULL);
- 	item_sanity(item, index);
- }
- 
--struct item *item_lookup(struct radix_tree_root *root, unsigned long index)
-+struct item *item_lookup(struct xarray *xa, unsigned long index)
- {
--	return radix_tree_lookup(root, index);
-+	return xa_load(xa, index);
- }
- 
--void item_check_absent(struct radix_tree_root *root, unsigned long index)
-+void item_check_absent(struct xarray *xa, unsigned long index)
- {
- 	struct item *item;
- 
--	item = radix_tree_lookup(root, index);
-+	item = xa_load(xa, index);
- 	assert(item == NULL);
- }
- 
-+#if 0
- /*
-  * Scan only the passed (start, start+nr] for present items
-  */
--void item_gang_check_present(struct radix_tree_root *root,
-+void item_gang_check_present(struct xarray *xa,
- 			unsigned long start, unsigned long nr,
- 			int chunk, int hop)
- {
-@@ -126,7 +128,7 @@ void item_gang_check_present(struct radix_tree_root *root,
- /*
-  * Scan the entire tree, only expecting present items (start, start+nr]
-  */
--void item_full_scan(struct radix_tree_root *root, unsigned long start,
-+void item_full_scan(struct xarray *xa, unsigned long start,
- 			unsigned long nr, int chunk)
- {
- 	struct item *items[chunk];
-@@ -156,7 +158,7 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
- }
- 
- /* Use the same pattern as tag_pages_for_writeback() in mm/page-writeback.c */
--int tag_tagged_items(struct radix_tree_root *root, pthread_mutex_t *lock,
-+int tag_tagged_items(struct xarray *xa, pthread_mutex_t *lock,
- 			unsigned long start, unsigned long end, unsigned batch,
- 			unsigned iftag, unsigned thentag)
- {
-@@ -190,7 +192,7 @@ int tag_tagged_items(struct radix_tree_root *root, pthread_mutex_t *lock,
- }
- 
- /* Use the same pattern as find_swap_entry() in mm/shmem.c */
--unsigned long find_item(struct radix_tree_root *root, void *item)
-+unsigned long find_item(struct xarray *xa, void *item)
- {
- 	struct radix_tree_iter iter;
- 	void **slot;
-@@ -259,7 +261,7 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
- 	return 0;
- }
- 
--void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
-+void verify_tag_consistency(struct xarray *xa, unsigned int tag)
- {
- 	struct radix_tree_node *node = root->rnode;
- 	if (!radix_tree_is_internal_node(node))
-@@ -267,7 +269,7 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
- 	verify_node(node, tag, !!root_tag_get(root, tag));
- }
- 
--void item_kill_tree(struct radix_tree_root *root)
-+void item_kill_tree(struct xarray *xa)
- {
- 	struct radix_tree_iter iter;
- 	void **slot;
-@@ -294,7 +296,7 @@ void item_kill_tree(struct radix_tree_root *root)
- 	assert(root->rnode == NULL);
- }
- 
--void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
-+void tree_verify_min_height(struct xarray *xa, int maxindex)
- {
- 	unsigned shift;
- 	struct radix_tree_node *node = root->rnode;
-@@ -312,3 +314,4 @@ void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
- 	else
- 		assert(maxindex > 0);
- }
-+#endif
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index b30e11d9d271..fa9d95086215 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -1,3 +1,6 @@
-+#define XA_ADVANCED
++	xas_init(&xas, index);
++	rcu_read_lock();
++	entry = xas_start(xa, &xas);
++	while (xa_is_node(entry)) {
++		entry = xas_descend(xa, &xas, xa_node(entry));
++		if (xa_is_retry(entry))
++			entry = xas_start(xa, &xas);
++	}
++	rcu_read_unlock();
 +
-+#include <linux/xarray.h>
- #include <linux/gfp.h>
- #include <linux/types.h>
- #include <linux/radix-tree.h>
-@@ -9,26 +12,26 @@ struct item {
- };
- 
- struct item *item_create(unsigned long index, unsigned int order);
--int __item_insert(struct radix_tree_root *root, struct item *item);
--int item_insert(struct radix_tree_root *root, unsigned long index);
--int item_insert_order(struct radix_tree_root *root, unsigned long index,
-+int __item_insert(struct xarray *root, struct item *item);
-+int item_insert(struct xarray *root, unsigned long index);
-+int item_insert_order(struct xarray *root, unsigned long index,
- 			unsigned order);
--int item_delete(struct radix_tree_root *root, unsigned long index);
--struct item *item_lookup(struct radix_tree_root *root, unsigned long index);
-+int item_delete(struct xarray *root, unsigned long index);
-+struct item *item_lookup(struct xarray *root, unsigned long index);
- 
--void item_check_present(struct radix_tree_root *root, unsigned long index);
--void item_check_absent(struct radix_tree_root *root, unsigned long index);
--void item_gang_check_present(struct radix_tree_root *root,
-+void item_check_present(struct xarray *root, unsigned long index);
-+void item_check_absent(struct xarray *root, unsigned long index);
-+void item_gang_check_present(struct xarray *root,
- 			unsigned long start, unsigned long nr,
- 			int chunk, int hop);
--void item_full_scan(struct radix_tree_root *root, unsigned long start,
-+void item_full_scan(struct xarray *root, unsigned long start,
- 			unsigned long nr, int chunk);
--void item_kill_tree(struct radix_tree_root *root);
-+void item_kill_tree(struct xarray *root);
- 
--int tag_tagged_items(struct radix_tree_root *, pthread_mutex_t *,
-+int tag_tagged_items(struct xarray *, pthread_mutex_t *,
- 			unsigned long start, unsigned long end, unsigned batch,
- 			unsigned iftag, unsigned thentag);
--unsigned long find_item(struct radix_tree_root *, void *item);
-+unsigned long find_item(struct xarray *, void *item);
- 
- void tag_check(void);
- void multiorder_checks(void);
-@@ -38,24 +41,31 @@ void idr_checks(void);
- void ida_checks(void);
- 
- struct item *
--item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
-+item_tag_set(struct xarray *root, unsigned long index, int tag);
- struct item *
--item_tag_clear(struct radix_tree_root *root, unsigned long index, int tag);
--int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag);
--void tree_verify_min_height(struct radix_tree_root *root, int maxindex);
--void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag);
-+item_tag_clear(struct xarray *root, unsigned long index, int tag);
-+int item_tag_get(struct xarray *root, unsigned long index, int tag);
-+void tree_verify_min_height(struct xarray *root, int maxindex);
-+void verify_tag_consistency(struct xarray *root, unsigned int tag);
- 
- extern int nr_allocated;
-+extern int test_verbose;
-+
-+#define printv(verbosity_level, fmt, ...) \
-+	if (test_verbose >= verbosity_level) \
-+		printf(fmt, ##__VA_ARGS__)
- 
- /* Normally private parts of lib/radix-tree.c */
- struct radix_tree_node *entry_to_node(void *ptr);
--void radix_tree_dump(struct radix_tree_root *root);
--int root_tag_get(struct radix_tree_root *root, unsigned int tag);
-+void radix_tree_dump(struct xarray *root);
-+int root_tag_get(struct xarray *root, unsigned int tag);
- unsigned long node_maxindex(struct radix_tree_node *);
- unsigned long shift_maxindex(unsigned int shift);
- int radix_tree_cpu_dead(unsigned int cpu);
-+#ifndef _TEST_H_NO_DEFINE_PRELOAD
- struct radix_tree_preload {
- 	unsigned nr;
- 	struct radix_tree_node *nodes;
- };
- extern struct radix_tree_preload radix_tree_preloads;
-+#endif
-diff --git a/tools/testing/radix-tree/xarray.c b/tools/testing/radix-tree/xarray.c
-new file mode 100644
-index 000000000000..9a9156840d1d
---- /dev/null
-+++ b/tools/testing/radix-tree/xarray.c
-@@ -0,0 +1,241 @@
-+#include <assert.h>
-+#include <stdio.h>
-+
-+#define XA_DEBUG
-+#include "../../../lib/xarray.c"
-+
-+#include "test.h"
-+
-+void xa_dump_entry(void *entry, unsigned long index)
-+{
-+	if (!entry)
-+		return;
-+
-+	if (xa_is_exceptional(entry))
-+		printf("%lu: exceptional %#lx\n", index,
-+				xa_exceptional_value(entry));
-+	else if (!xa_is_internal(entry))
-+		printf("%lu: %p\n", index, entry);
-+	else if (xa_is_node(entry)) {
-+		unsigned long i;
-+		struct xa_node *node = xa_node(entry);
-+		printf("node %p %s %d parent %p shift %d count %d "
-+			"exceptional %d tags %lx %lx %lx indices %lu-%lu\n",
-+			node, node->parent ? "offset" : "max", node->offset,
-+			node->parent, node->shift, node->count,
-+			node->exceptional,
-+			node->tags[0][0], node->tags[1][0], node->tags[2][0],
-+			index, index |
-+			(((unsigned long)XA_CHUNK_SIZE << node->shift) - 1));
-+		for (i = 0; i < XA_CHUNK_SIZE; i++)
-+			xa_dump_entry(node->slots[i],
-+					index + (i << node->shift));
-+	} else if (xa_is_retry(entry))
-+		printf("%lu: retry (%ld)\n", index, xa_internal_value(entry));
-+	else if (xa_is_sibling(entry))
-+		printf("%lu: sibling (%ld)\n", index, xa_sibling_offset(entry));
-+	else if (xa_is_cousin(entry))
-+		printf("%lu: cousin (%ld)\n", index, xa_cousin_offset(entry));
-+	else if (xa_is_idr_null(entry))
-+		printf("%lu: IDR NULL (%ld)\n", index,
-+						xa_internal_value(entry));
-+	else
-+		printf("%lu: UNKNOWN ENTRY (%p)\n", index, entry);
++	if (entry == XA_WALK_END)
++		entry = NULL;
++	return entry;
 +}
++EXPORT_SYMBOL(xa_load);
 +
-+void xa_dump(struct xarray *xa)
-+{
-+	printf("xarray: %p %x %p\n", xa, xa->xa_flags, xa->xa_head);
-+	xa_dump_entry(xa->xa_head, 0);
-+}
-+
-+#define FOUR	(void *)4
-+#define EIGHT	(void *)8
-+
-+void xas_walk_test(struct xarray *xa)
++/**
++ * xa_store() - Store this entry in the array
++ * @xa: Array
++ * @index: index in array
++ * @entry: New entry
++ * @gfp: Allocation flags
++ *
++ * Stores almost always succeed.  The notable exceptions:
++ *  - Attempted to store a reserved pointer value (-EINVAL)
++ *  - Ran out of memory trying to allocate new nodes (-ENOMEM)
++ *
++ * Storing into an existing multientry updates the value of every index.
++ *
++ * Return: The old value at this index or ERR_PTR() if an error happened
++ */
++void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 +{
 +	struct xa_state xas;
-+
-+	xas_init(&xas, 0);
-+//	assert(xas_load(xa, &xas) == NULL);
-+}
-+
-+void xas_store_test(struct xarray *xa, unsigned long index)
-+{
-+	struct xa_state xas;
-+	int err;
++	unsigned long flags;
 +	void *curr;
 +
-+	xas_init(&xas, index);
-+	assert(!err);
-+	do {
-+		xa_lock(xa);
-+		curr = xas_create(xa, &xas);
-+		xa_unlock(xa);
-+	} while (xas_nomem(&xas, GFP_KERNEL));
-+	assert(curr == NULL);
-+	curr = xas_store(xa, &xas, FOUR);
-+	assert(curr == NULL);
-+	if (index == 0)
-+		assert(xa->xa_head == FOUR);
-+	curr = xas_store(xa, &xas, NULL);
-+	assert(curr == FOUR);
-+	xas_destroy(&xas);
-+	assert(xa_empty(xa));
-+}
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return ERR_PTR(-EINVAL);
 +
-+static void multiorder_check(struct xarray *xa, unsigned long index, int order)
++	xas_init(&xas, index);
++	do {
++		xa_lock_irqsave(xa, flags);
++		curr = xas_store(xa, &xas, entry);
++		xa_unlock_irqrestore(xa, flags);
++	} while (xas_nomem(&xas, gfp));
++	xas_destroy(&xas);
++
++	if (xas_error(&xas))
++		curr = xas.xa_node;
++	return curr;
++}
++EXPORT_SYMBOL(xa_store);
++
++/**
++ * xa_replace() - Conditionally replace this entry in the array
++ * @xa: Array
++ * @index: index in array
++ * @entry: New value to place in array
++ * @old: Old value to test against
++ * @gfp: Allocation flags
++ *
++ * If the entry at @index is the same as @old, replace it with @entry.
++ * If the return value is equal to @old, then the exchange was successful.
++ *
++ * Return: The old value at this index or ERR_PTR() if an error happened
++ */
++void *xa_replace(struct xarray *xa, unsigned long index,
++		void *entry, void *old, gfp_t gfp)
 +{
 +	struct xa_state xas;
-+	unsigned long i;
-+	unsigned long min = index & ~((1UL << order) - 1);
-+	unsigned long max = min + (1UL << order);
-+	void *curr, *entry = xa_mk_exceptional(index);
++	unsigned long flags;
++	void *curr;
 +
-+	printv(2, "Multiorder index %ld, order %d\n", index, order);
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return ERR_PTR(-EINVAL);
 +
-+	xas_init_order(&xas, index, order);
++	xas_init(&xas, index);
 +	do {
-+		xa_lock(xa);
-+		curr = xas_store(xa, &xas, entry);
-+		xa_unlock(xa);
-+	} while (xas_nomem(&xas, GFP_KERNEL));
-+
-+	assert(curr == NULL);
++		xa_lock_irqsave(xa, flags);
++		curr = xas_create(xa, &xas);
++		if (curr == old)
++			xas_store(xa, &xas, entry);
++		xa_unlock_irqrestore(xa, flags);
++	} while (xas_nomem(&xas, gfp));
 +	xas_destroy(&xas);
 +
-+	for (i = 0; i < min; i++)
-+		assert(xa_load(xa, i) == NULL);
-+	for (i = min; i < max; i++)
-+		assert(xa_load(xa, i) == entry);
-+	for (i = max; i < 2 * max; i++)
-+		assert(xa_load(xa, i) == NULL);
-+
-+	xa_lock(xa);
-+	assert(xas_store(xa, &xas, NULL) == entry);
-+	xa_unlock(xa);
-+
-+	assert(xa_empty(xa));
++	if (xas_error(&xas))
++		curr = xas.xa_node;
++	return curr;
 +}
++EXPORT_SYMBOL(xa_replace);
 +
-+void xas_tests(struct xarray *xa)
++/**
++ * xa_get_tag() - Inquire whether this tag is set on this entry
++ * @xa: Array
++ * @index: Index of entry
++ * @tag: Tag value
++ *
++ * This function is protected by the RCU read lock, so the result may be
++ * out of date by the time it returns.  If you need the result to be stable,
++ * use a lock.
++ *
++ * Return: True if the entry at @index has this tag set, false if it doesn't.
++ */
++bool __xa_get_tag(const struct xarray *xa, unsigned long index, xa_tag_t tag)
 +{
-+	int i;
++	struct xa_state xas;
++	void *entry;
 +
-+	assert(xa_empty(xa));
-+	xas_walk_test(xa);
-+	xas_store_test(xa, 0);
-+	xas_store_test(xa, 1);
-+
-+	for (i = 0; i < 20; i++) {
-+		multiorder_check(xa, 200, i);
-+		multiorder_check(xa, 0, i);
-+		multiorder_check(xa, (1UL << i) + 1, i);
++	xas_init(&xas, index);
++	rcu_read_lock();
++	entry = xas_start(xa, &xas);
++	while (xas_get_tag(xa, &xas, tag)) {
++		if (!xa_is_node(entry))
++			goto found;
++		entry = xas_descend(xa, &xas, xa_node(entry));
 +	}
++	rcu_read_unlock();
++	return false;
++found:
++	rcu_read_unlock();
++	return true;
 +}
++EXPORT_SYMBOL(__xa_get_tag);
 +
-+void xa_get_test(struct xarray *xa)
++/**
++ * xa_set_tag() - Set this tag on this entry.
++ * @xa: Array
++ * @index: Index of entry
++ * @tag: Tag value
++ *
++ * Attempting to set a tag on a NULL entry does not succeed.
++ *
++ * Return: The entry at this index or ERR_PTR() if an error occurs.
++ */
++void *__xa_set_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
 +{
-+	struct item *buf[10];
-+	int i;
++	struct xa_state xas;
++	unsigned long flags;
++	void *entry;
 +
-+	xa_store(xa, 0, item_create(0, 0), GFP_KERNEL);
-+	xa_store(xa, 1, item_create(1, 0), GFP_KERNEL);
-+	xa_store(xa, 7, item_create(7, 0), GFP_KERNEL);
-+	xa_store(xa, 1UL << 63, item_create(1UL << 63, 0), GFP_KERNEL);
++	xas_init(&xas, index);
++	xa_lock_irqsave(xa, flags);
++	entry = xas_load(xa, &xas);
++	if (entry == XA_WALK_END)
++		entry = NULL;
++	if (entry)
++		xas_set_tag(xa, &xas, tag);
++	xa_unlock_irqrestore(xa, flags);
 +
-+	assert(xa_get_entries(xa, 0, (void **)buf, 10) == 4);
-+	assert(buf[0]->index == 0);
-+	assert(buf[1]->index == 1);
-+	assert(buf[2]->index == 7);
-+	assert(buf[3]->index == 1UL << 63);
-+
-+	for (i = 0; i < 4; i++)
-+		kfree(xa_store(xa, buf[i]->index, NULL, GFP_KERNEL));
-+	assert(xa_empty(xa));
++	return entry;
 +}
++EXPORT_SYMBOL(__xa_set_tag);
 +
-+void xa_tag_test(struct xarray *xa)
++/**
++ * xa_clear_tag() - Clear this tag on this entry.
++ * @xa: Array
++ * @index: Index of entry
++ * @tag: Tag value
++ *
++ * Clearing a tag on an entry which doesn't exist always succeeds
++ *
++ * Return: The entry at this index or ERR_PTR() if an error occurs.
++ */
++void *__xa_clear_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
 +{
-+	struct item *buf[10];
-+	int i;
++	struct xa_state xas;
++	unsigned long flags;
++	void *entry;
 +
-+	assert(xa_store(xa, 0, item_create(0, 0), GFP_KERNEL) == NULL);
-+	buf[9] = xa_set_tag(xa, 0, XA_TAG_2);
-+	assert(buf[9]->index == 0);
-+	assert(xa_get_tag(xa, 0, XA_TAG_2));
-+	assert(xa_set_tag(xa, 1, XA_TAG_2) == NULL);
-+	assert(!xa_get_tag(xa, 1, XA_TAG_2));
-+	assert(!xa_get_tag(xa, 64, XA_TAG_2));
-+	assert(!xa_get_tag(xa, 0, XA_TAG_1));
++	xas_init(&xas, index);
++	xa_lock_irqsave(xa, flags);
++	entry = xas_load(xa, &xas);
++	if (entry == XA_WALK_END)
++		entry = NULL;
++	if (entry)
++		xas_clear_tag(xa, &xas, tag);
++	xa_unlock_irqrestore(xa, flags);
 +
-+	assert(xa_store(xa, 1, item_create(1, 0), GFP_KERNEL) == NULL);
-+	assert(xa_store(xa, 7, item_create(7, 0), GFP_KERNEL) == NULL);
-+	assert(xa_store(xa, 1UL << 63, item_create(1UL << 63, 0), GFP_KERNEL)
-+			== NULL);
-+	buf[9] = xa_set_tag(xa, 1, XA_TAG_1);
-+	assert(buf[9]->index == 1);
-+	buf[9] = xa_set_tag(xa, 7, XA_TAG_1);
-+	assert(buf[9]->index == 7);
-+
-+	assert(xa_get_tagged(xa, 0, (void **)buf, 10, XA_TAG_1) == 2);
-+	assert(buf[0]->index == 1);
-+	assert(buf[1]->index == 7);
-+
-+	assert(!xa_get_tag(xa, 0, XA_TAG_1));
-+	assert(xa_get_tag(xa, 7, XA_TAG_1));
-+	assert(xa_set_tag(xa, 6, XA_TAG_1) == NULL);
-+	printf("The next line should be a warning\n");
-+	assert(xa_set_tag(xa, 7, 5) == ERR_PTR(-EINVAL));
-+	assert(xa_clear_tag(xa, 7, 5) == ERR_PTR(-EINVAL));
-+	assert(!xa_get_tag(xa, 7, 5));
-+	printf("If there was no warning before this line, that is a bug\n");
-+	assert(!xa_get_tag(xa, 7, XA_TAG_0));
-+	assert(xa_clear_tag(xa, 7, XA_TAG_1) == buf[1]);
-+	assert(!xa_get_tag(xa, 7, XA_TAG_1));
-+	assert(!xa_get_tag(xa, 7, 5));
-+
-+	for (i = 0; i < 2; i++)
-+		kfree(xa_store(xa, buf[i]->index, NULL, GFP_KERNEL));
-+	assert(xa_get_entries(xa, 0, (void **)buf, 10) == 2);
-+	for (i = 0; i < 2; i++)
-+		kfree(xa_store(xa, buf[i]->index, NULL, GFP_KERNEL));
-+	assert(xa_empty(xa));
++	return entry;
 +}
++EXPORT_SYMBOL(__xa_clear_tag);
 +
-+void xa_tests(struct xarray *xa)
++/**
++ * xa_find() - Search the xarray for a present entry
++ * @xa: Array
++ * @indexp: Pointer to an index
++ * @max: Maximum value to return
++ *
++ * Finds the entry in the xarray with the lowest index that is between
++ * *@indexp and max, inclusive.  If an entry is found, updates @indexp to
++ * be the index of the pointer.  This function is protected by the RCU read
++ * lock, so it may not find all entries if called in a loop.
++ *
++ * Return: The pointer, if found, otherwise NULL.
++ */
++void *xa_find(const struct xarray *xa, unsigned long *indexp, unsigned long max)
 +{
-+	assert(xa_load(xa, 0) == NULL);
-+	assert(xa_load(xa, 1) == NULL);
-+	assert(xa_load(xa, 2) == NULL);
-+	assert(xa_load(xa, ~0) == NULL);
-+	assert(xa_store(xa, 0, FOUR, GFP_KERNEL) == NULL);
-+	assert(xa_store(xa, 0, EIGHT, GFP_KERNEL) == FOUR);
-+	assert(xa_replace(xa, 0, NULL, FOUR, GFP_KERNEL) == EIGHT);
-+	assert(xa_replace(xa, 0, NULL, FOUR, GFP_KERNEL) == EIGHT);
-+	assert(xa_replace(xa, 0, NULL, EIGHT, GFP_KERNEL) == EIGHT);
-+	assert(xa_load(xa, 0) == NULL);
-+	assert(xa_load(xa, 1) == NULL);
-+	assert(xa_store(xa, 1, FOUR, GFP_KERNEL) == NULL);
-+	assert(xa_store(xa, 1, EIGHT, GFP_KERNEL) == FOUR);
-+	assert(xa_store(xa, 1, NULL, GFP_KERNEL) == EIGHT);
-+	assert(xa_empty(xa));
++	struct xa_state xas;
++	void *entry;
 +
-+	xa_get_test(xa);
-+	xa_tag_test(xa);
++	xas_init(&xas, *indexp);
++
++	rcu_read_lock();
++	do {
++		entry = xas_next(xa, &xas, max);
++		if (xa_is_retry(entry))
++			xas_retry(&xas);
++		if (entry == XA_WALK_END)
++			entry = NULL;
++	} while (xa_is_internal(entry));
++	rcu_read_unlock();
++
++	if (entry)
++		*indexp = xas.xa_index;
++	return entry;
 +}
++EXPORT_SYMBOL(xa_find);
 +
-+int __weak main(int argc, char **argv)
++/**
++ * xa_next() - Search the xarray for the next present entry
++ * @xa: Array
++ * @indexp: Pointer to an index
++ * @max: Maximum value to return
++ *
++ * Finds the entry in the xarray with the lowest index that is above
++ * *@indexp and not greater than max.  If an entry is found, updates
++ * @indexp to be the index of the pointer.
++ *
++ * Return: The pointer, if found, otherwise NULL.
++ */
++void *xa_next(const struct xarray *xa, unsigned long *indexp, unsigned long max)
 +{
-+	DEFINE_XARRAY(array);
-+	test_verbose = 2;
++	struct xa_state xas;
++	void *entry;
 +
-+	rcu_init();
-+	xarray_init();
++	xas_init(&xas, *indexp + 1);
++	xas.xa_flags &= ~XAS_FLAG_LOOKUP;
 +
-+	xas_tests(&array);
-+	xa_tests(&array);
++	rcu_read_lock();
++	do {
++		entry = xas_next(xa, &xas, max);
++		if (xa_is_retry(entry))
++			xas_retry(&xas);
++		if (entry == XA_WALK_END)
++			entry = NULL;
++	} while (xa_is_internal(entry));
++	rcu_read_unlock();
 +
-+	rcu_barrier();
-+	return 0;
++	if (entry)
++		*indexp = xas.xa_index;
++	return entry;
++}
++EXPORT_SYMBOL(xa_next);
++
++/**
++ * xa_get_entries() - Copy entries from the xarray into a normal array
++ * @xa: The source XArray to copy from
++ * @dst: The buffer to copy pointers into
++ * @start: The first index in the XArray eligible to be copied from
++ * @n: The maximum number of entries to copy
++ *
++ * Return: The number of entries copied.
++ */
++int xa_get_entries(const struct xarray *xa, unsigned long start, void **dst,
++		unsigned int n)
++{
++	struct xa_state xas;
++	void *entry;
++	unsigned int i = 0;
++
++	if (!n)
++		return 0;
++
++	xas_init(&xas, start);
++	rcu_read_lock();
++	xas_for_each(xa, &xas, entry, ~0UL) {
++		if (xa_is_retry(entry)) {
++			xas_retry(&xas);
++			continue;
++		}
++		dst[i++] = entry;
++		if (i == n)
++			break;
++	}
++	rcu_read_unlock();
++
++	return i;
++}
++EXPORT_SYMBOL(xa_get_entries);
++
++/**
++ * xa_get_tagged() - Copy tagged entries from the xarray into a normal array
++ * @xa: The source XArray to copy from
++ * @dst: The buffer to copy pointers into
++ * @start: The first index in the XArray eligible to be copied from
++ * @n: The maximum number of entries to copy
++ *
++ * Return: The number of entries copied.
++ */
++int xa_get_tagged(const struct xarray *xa, unsigned long start, void **dst,
++		unsigned int n, xa_tag_t tag)
++{
++	struct xa_state xas;
++	void *entry;
++	unsigned int i = 0;
++
++	if (!n)
++		return 0;
++
++	xas_init(&xas, start);
++	rcu_read_lock();
++	xas_for_each_tag(xa, &xas, entry, ~0UL) {
++		if (xa_is_retry(entry)) {
++			xas_retry(&xas);
++			continue;
++		}
++		dst[i++] = entry;
++		if (i == n)
++			break;
++	}
++	rcu_read_unlock();
++
++	return i;
++}
++EXPORT_SYMBOL(xa_get_tagged);
++
++void __init xarray_init(void)
++{
++	xa_node_cache = kmem_cache_create("xarray node",
++				sizeof(struct xa_node), 0,
++				SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
++				xa_node_ctor);
 +}
 -- 
 2.11.0
