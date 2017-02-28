@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A52356B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 17:46:27 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id q127so21285848oih.1
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 14:46:27 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0058.outbound.protection.outlook.com. [104.47.38.58])
-        by mx.google.com with ESMTPS id e140si1333257oih.71.2017.02.28.14.46.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AFE46B0389
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 18:01:44 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f21so33491108pgi.4
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 15:01:44 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0072.outbound.protection.outlook.com. [104.47.34.72])
+        by mx.google.com with ESMTPS id a62si2919875pgc.371.2017.02.28.15.01.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 28 Feb 2017 14:46:24 -0800 (PST)
-Subject: Re: [RFC PATCH v4 16/28] x86: Add support for changing memory
- encryption attribute
+        Tue, 28 Feb 2017 15:01:43 -0800 (PST)
+Subject: Re: [RFC PATCH v4 05/28] x86: Add Secure Memory Encryption (SME)
+ support
 References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154535.19244.6294.stgit@tlendack-t1.amdoffice.net>
- <20170222185215.atbntnyw7252kkbk@pd.tnic>
+ <20170216154307.19244.72895.stgit@tlendack-t1.amdoffice.net>
+ <20170225152931.p4lws753myepkkb3@pd.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <409ec9f1-896d-a9f0-0e4c-4d102cbf86cf@amd.com>
-Date: Tue, 28 Feb 2017 16:46:15 -0600
+Message-ID: <9ea3d871-e4ae-2408-1bd0-9820cc5826d6@amd.com>
+Date: Tue, 28 Feb 2017 17:01:36 -0600
 MIME-Version: 1.0
-In-Reply-To: <20170222185215.atbntnyw7252kkbk@pd.tnic>
+In-Reply-To: <20170225152931.p4lws753myepkkb3@pd.tnic>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,139 +28,51 @@ Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, 
  Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
  Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On 2/22/2017 12:52 PM, Borislav Petkov wrote:
-> On Thu, Feb 16, 2017 at 09:45:35AM -0600, Tom Lendacky wrote:
->> Add support for changing the memory encryption attribute for one or more
->> memory pages.
->
-> "This will be useful when we, ...., for example."
-
-Yup, will expand on the "why".
-
->
+On 2/25/2017 9:29 AM, Borislav Petkov wrote:
+> On Thu, Feb 16, 2017 at 09:43:07AM -0600, Tom Lendacky wrote:
+>> Add support for Secure Memory Encryption (SME). This initial support
+>> provides a Kconfig entry to build the SME support into the kernel and
+>> defines the memory encryption mask that will be used in subsequent
+>> patches to mark pages as encrypted.
+>>
 >> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/include/asm/cacheflush.h |    3 ++
->>  arch/x86/mm/pageattr.c            |   66 +++++++++++++++++++++++++++++++++++++
->>  2 files changed, 69 insertions(+)
->>
->> diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
->> index 872877d..33ae60a 100644
->> --- a/arch/x86/include/asm/cacheflush.h
->> +++ b/arch/x86/include/asm/cacheflush.h
->> @@ -12,6 +12,7 @@
->>   * Executability : eXeutable, NoteXecutable
->>   * Read/Write    : ReadOnly, ReadWrite
->>   * Presence      : NotPresent
->> + * Encryption    : Encrypted, Decrypted
->>   *
->>   * Within a category, the attributes are mutually exclusive.
->>   *
->> @@ -47,6 +48,8 @@
->>  int set_memory_rw(unsigned long addr, int numpages);
->>  int set_memory_np(unsigned long addr, int numpages);
->>  int set_memory_4k(unsigned long addr, int numpages);
->> +int set_memory_encrypted(unsigned long addr, int numpages);
->> +int set_memory_decrypted(unsigned long addr, int numpages);
->>
->>  int set_memory_array_uc(unsigned long *addr, int addrinarray);
->>  int set_memory_array_wc(unsigned long *addr, int addrinarray);
->> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
->> index 91c5c63..9710f5c 100644
->> --- a/arch/x86/mm/pageattr.c
->> +++ b/arch/x86/mm/pageattr.c
->> @@ -1742,6 +1742,72 @@ int set_memory_4k(unsigned long addr, int numpages)
->>  					__pgprot(0), 1, 0, NULL);
->>  }
->>
->> +static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
+>
+> ...
+>
+>> +++ b/arch/x86/include/asm/mem_encrypt.h
+>> @@ -0,0 +1,42 @@
+>> +/*
+>> + * AMD Memory Encryption Support
+>> + *
+>> + * Copyright (C) 2016 Advanced Micro Devices, Inc.
+>> + *
+>> + * Author: Tom Lendacky <thomas.lendacky@amd.com>
+>> + *
+>> + * This program is free software; you can redistribute it and/or modify
+>> + * it under the terms of the GNU General Public License version 2 as
+>> + * published by the Free Software Foundation.
+>> + */
+>> +
+>> +#ifndef __X86_MEM_ENCRYPT_H__
+>> +#define __X86_MEM_ENCRYPT_H__
+>> +
+>> +#ifndef __ASSEMBLY__
+>> +
+>> +#ifdef CONFIG_AMD_MEM_ENCRYPT
+>> +
+>> +extern unsigned long sme_me_mask;
+>> +
+>> +static inline bool sme_active(void)
 >> +{
->> +	struct cpa_data cpa;
->> +	unsigned long start;
->> +	int ret;
->> +
->> +	/* Nothing to do if the _PAGE_ENC attribute is zero */
->> +	if (_PAGE_ENC == 0)
+>> +	return (sme_me_mask) ? true : false;
 >
-> Why not:
->
-> 	if (!sme_active())
->
-> ?
+> 	return !!sme_me_mask;
 
-Yup, it would be more clear.
+Done.
 
->
->> +		return 0;
->> +
->> +	/* Save original start address since it will be modified */
->
-> That's obvious - it is a small-enough function to fit on the screen. No
-> need for the comment.
+Thanks,
+Tom
 
-Ok.
-
->
->> +	start = addr;
->> +
->> +	memset(&cpa, 0, sizeof(cpa));
->> +	cpa.vaddr = &addr;
->> +	cpa.numpages = numpages;
->> +	cpa.mask_set = enc ? __pgprot(_PAGE_ENC) : __pgprot(0);
->> +	cpa.mask_clr = enc ? __pgprot(0) : __pgprot(_PAGE_ENC);
->> +	cpa.pgd = init_mm.pgd;
->> +
->> +	/* Should not be working on unaligned addresses */
->> +	if (WARN_ONCE(*cpa.vaddr & ~PAGE_MASK,
->> +		      "misaligned address: %#lx\n", *cpa.vaddr))
->
-> Use addr here so that you don't have to deref. gcc is probably smart
-> enough but the code should look more readable this way too.
->
-
-Ok.
-
->> +		*cpa.vaddr &= PAGE_MASK;
->
-> I know, you must use cpa.vaddr here but if you move that alignment check
-> over the cpa assignment, you can use addr solely.
-
-Ok.
-
->
->> +
->> +	/* Must avoid aliasing mappings in the highmem code */
->> +	kmap_flush_unused();
->> +	vm_unmap_aliases();
->> +
->> +	/*
->> +	 * Before changing the encryption attribute, we need to flush caches.
->> +	 */
->> +	if (static_cpu_has(X86_FEATURE_CLFLUSH))
->> +		cpa_flush_range(start, numpages, 1);
->> +	else
->> +		cpa_flush_all(1);
->
-> I guess we don't really need the distinction since a SME CPU most
-> definitely implies CLFLUSH support but ok, let's be careful.
->
->> +
->> +	ret = __change_page_attr_set_clr(&cpa, 1);
->> +
->> +	/*
->> +	 * After changing the encryption attribute, we need to flush TLBs
->> +	 * again in case any speculative TLB caching occurred (but no need
->> +	 * to flush caches again).  We could just use cpa_flush_all(), but
->> +	 * in case TLB flushing gets optimized in the cpa_flush_range()
->> +	 * path use the same logic as above.
->> +	 */
->> +	if (static_cpu_has(X86_FEATURE_CLFLUSH))
->> +		cpa_flush_range(start, numpages, 0);
->> +	else
->> +		cpa_flush_all(0);
->> +
->> +	return ret;
->> +}
 >
 
 --
