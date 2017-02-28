@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F146B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:59:18 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q126so26466593pga.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:59:18 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id e6si2478589pgi.409.2017.02.28.10.59.17
+	by kanga.kvack.org (Postfix) with ESMTP id 003ED6B0038
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 14:34:58 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d18so27473672pgh.2
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 11:34:57 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id m61si2586035plb.90.2017.02.28.11.34.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 10:59:17 -0800 (PST)
-Date: Tue, 28 Feb 2017 10:59:14 -0800
-From: Matthew Wilcox <willy@infradead.org>
+        Tue, 28 Feb 2017 11:34:57 -0800 (PST)
 Subject: Re: [PATCH v1 1/3] sparc64: NG4 memset/memcpy 32 bits overflow
-Message-ID: <20170228185914.GF16328@bombadil.infradead.org>
 References: <1488293746-965735-1-git-send-email-pasha.tatashin@oracle.com>
  <1488293746-965735-2-git-send-email-pasha.tatashin@oracle.com>
  <20170228.101218.983689349992464602.davem@davemloft.net>
  <e196c73e-937c-50fa-ed19-a10372548fb7@oracle.com>
+ <20170228185914.GF16328@bombadil.infradead.org>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <a3a3a887-c7be-eb31-b73f-e179162fde93@oracle.com>
+Date: Tue, 28 Feb 2017 14:34:17 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e196c73e-937c-50fa-ed19-a10372548fb7@oracle.com>
+In-Reply-To: <20170228185914.GF16328@bombadil.infradead.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
+To: Matthew Wilcox <willy@infradead.org>
 Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On Tue, Feb 28, 2017 at 10:56:57AM -0500, Pasha Tatashin wrote:
-> Also, for consideration, machines are getting bigger, and 2G is becoming
-> very small compared to the memory sizes, so some algorithms can become
-> inefficient when they have to artificially limit memcpy()s to 2G chunks.
+Hi Matthew,
 
-... what algorithms are deemed "inefficient" when they take a break every
-2 billion bytes to, ohidon'tknow, check to see that a higher priority
-process doesn't want the CPU?
+Thank you for your comments, my replies below:
 
-> X6-8 scales up to 6T:
-> http://www.oracle.com/technetwork/database/exadata/exadata-x6-8-ds-2968796.pdf
-> 
-> SPARC M7-16 scales up to 16T:
-> http://www.oracle.com/us/products/servers-storage/sparc-m7-16-ds-2687045.pdf
-> 
-> 2G is just 0.012% of the total memory size on M7-16.
+On 02/28/2017 01:59 PM, Matthew Wilcox wrote:
+> ... what algorithms are deemed "inefficient" when they take a break every
+> 2 billion bytes to, ohidon'tknow, check to see that a higher priority
+> process doesn't want the CPU?
 
-Right, so suppose you're copying half the memory to the other half of
-memory.  Let's suppose it takes a hundred extra instructions every 2GB to
-check that nobody else wants the CPU and dive back into the memcpy code.
-That's 800,000 additional instructions.  Which even on a SPARC CPU is
-going to execute in less than 0.001 second.  CPU memory bandwidth is
-on the order of 100GB/s, so the overall memcpy is going to take about
-160 seconds.
+I do not see that NG4memcpy() is disabling interrupts so there should 
+not be any issues with letting higher priority processes to interrupt 
+and do their work. And, as I said my point was mostly for consideration, 
+I will revert that bound check in NG4memcpy() to the 2G limit.
 
-You'd have far more joy dividing the work up into 2GB chunks and
-distributing the work to N CPU packages (... not hardware threads
-...) than you would trying to save a millisecond by allowing the CPU to
-copy more than 2GB at a time.
+> Right, so suppose you're copying half the memory to the other half of
+> memory.  Let's suppose it takes a hundred extra instructions every 2GB to
+> check that nobody else wants the CPU and dive back into the memcpy code.
+> That's 800,000 additional instructions.  Which even on a SPARC CPU is
+> going to execute in less than 0.001 second.  CPU memory bandwidth is
+> on the order of 100GB/s, so the overall memcpy is going to take about
+> 160 seconds.
+
+Sure, the computational overhead is minimal, but still adding and 
+maintaining extra code to break-up a single memcpy() has its cost. For 
+example: as far I as can tell x86 and powerpc memcpy()s do not have this 
+limit, which means that an author of a driver would have to explicitly 
+divide memcpy()s into 2G chunks only to work on SPARC (and know about 
+this limit too!). If there is a driver that has a memory proportional 
+data structure it is possible it will panic the kernel once such driver 
+is attached on a larger memory machine.
+
+Another example is memblock allocator that is currently unconditionally 
+calls memset() to zero all the allocated memory without breaking it up 
+into pieces, and when other CPUs are not yet available to split the work 
+to speed it up.
+
+So, if a large chunk of memory is allocated via memblock() allocator, 
+(as one example when booted with kernel parameter: "hashdist=0") we will 
+have memset() called for 8G and 4G pieces of memory on machine with 7T 
+of memory, and that will cause panic if we will add this bound limit to 
+memset as well.
+
+Thank you,
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
