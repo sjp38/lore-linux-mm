@@ -1,86 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A034D6B0390
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 06:32:44 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id n127so14671564qkf.3
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 03:32:44 -0800 (PST)
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com. [209.85.220.172])
-        by mx.google.com with ESMTPS id g5si1226048qkf.141.2017.02.28.03.32.43
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7346B039B
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 06:54:23 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id 2so8766408oif.7
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 03:54:23 -0800 (PST)
+Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
+        by mx.google.com with ESMTPS id k3si709914oib.42.2017.02.28.03.54.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 03:32:43 -0800 (PST)
-Received: by mail-qk0-f172.google.com with SMTP id u188so13504994qkc.2
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 03:32:43 -0800 (PST)
-Message-ID: <1488281559.2874.1.camel@redhat.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] do we really need PG_error at all?
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 28 Feb 2017 06:32:39 -0500
-In-Reply-To: <0bea2b1c-ddb1-f2bf-8ef7-b83d6a6404fc@gmail.com>
-References: <1488120164.2948.4.camel@redhat.com>
-	 <1488129033.4157.8.camel@HansenPartnership.com>
-	 <877f4cr7ew.fsf@notabene.neil.brown.name>
-	 <1488151856.4157.50.camel@HansenPartnership.com>
-	 <874lzgqy06.fsf@notabene.neil.brown.name>
-	 <1488208047.2876.6.camel@redhat.com>
-	 <DC27F5BA-BCCA-41FF-8D41-7BB99AA4DB26@dilger.ca>
-	 <87varvp5v1.fsf@notabene.neil.brown.name>
-	 <1488244308.7627.5.camel@redhat.com>
-	 <0bea2b1c-ddb1-f2bf-8ef7-b83d6a6404fc@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Feb 2017 03:54:22 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH] mm/vmstats: add thp_split_pud event for clarify
+Date: Tue, 28 Feb 2017 19:46:20 +0800
+Message-ID: <1488282380-5076-1-git-send-email-xieyisheng1@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <openosd@gmail.com>, NeilBrown <neilb@suse.com>, Andreas Dilger <adilger@dilger.ca>
-Cc: linux-block@vger.kernel.org, linux-scsi <linux-scsi@vger.kernel.org>, lsf-pc <lsf-pc@lists.linuxfoundation.org>, Neil Brown <neilb@suse.de>, LKML <linux-kernel@vger.kernel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, iamjoonsoo.kim@lge.com, bigeasy@linutronix.de, hughd@google.com, cl@linux.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, ebru.akagunduz@gmail.com, willy@linux.intel.com, rientjes@google.com, guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2017-02-28 at 12:12 +0200, Boaz Harrosh wrote:
-> On 02/28/2017 03:11 AM, Jeff Layton wrote:
-> <>
-> > 
-> > I'll probably have questions about the read side as well, but for now it
-> > looks like it's mostly used in an ad-hoc way to communicate errors
-> > across subsystems (block to fs layer, for instance).
-> 
-> If memory does not fail me it used to be checked long time ago in the
-> read-ahead case. On the buffered read case, the first page is read synchronous
-> and any error is returned to the caller, but then a read-ahead chunk is
-> read async all the while the original thread returned to the application.
-> So any errors are only recorded on the page-bit, since otherwise the uptodate
-> is off and the IO will be retransmitted. Then the move to read_iter changed
-> all that I think.
-> But again this is like 5-6 years ago, and maybe I didn't even understand
-> very well.
-> 
+We added supporting for PUD-sized transparent hugepages, however count
+the event "thp split pud" into thp_split_pmd event.
 
-Yep, that's what I meant about using it to communicate errors between
-layers. e.g. end_buffer_async_read will check PageError and only
-SetPageUptodate if it's not set. That has morphed a lot in the last few
-years though and it looks like it may rely on PG_error less than it used
-to.
+To clarify the event count of thp split pud from pmd, this patch add a
+new event named thp_split_pud.
 
-> 
-> I would like a Documentation of all this as well please. Where are the
-> tests for this?
-> 
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+ include/linux/vm_event_item.h | 3 +++
+ mm/huge_memory.c              | 2 +-
+ mm/vmstat.c                   | 3 +++
+ 3 files changed, 7 insertions(+), 1 deletion(-)
 
-Documentation is certainly doable (and I'd like to write some once we
-have this all straightened out). In particular, I think we need clear
-guidelines for fs authors on how to handle pagecache read and write
-errors. Tests are a little tougher -- this is all kernel-internal stuff
-and not easily visible to userland.
-
-The one thing I have noticed is that even if you set AS_ENOSPC in the
-mapping, you'll still get back -EIO on the first fsync if any PG_error
-bits are set. I think we ought to fix that by not doing the
-TestClearPageError call in __filemap_fdatawait_range, and just rely on
-the mapping error there.
-
-We could maybe roll a test for that, but it's rather hard to test ENOSPC
-conditions in a fs-agnostic way. I'm open to suggestions here though.
-
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 6aa1b6c..a80b7b5 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -79,6 +79,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_SPLIT_PAGE_FAILED,
+ 		THP_DEFERRED_SPLIT_PAGE,
+ 		THP_SPLIT_PMD,
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++		THP_SPLIT_PUD,
++#endif
+ 		THP_ZERO_PAGE_ALLOC,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+ #endif
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 71e3ded..0bfcd72 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1826,7 +1826,7 @@ static void __split_huge_pud_locked(struct vm_area_struct *vma, pud_t *pud,
+ 	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PUD_SIZE, vma);
+ 	VM_BUG_ON(!pud_trans_huge(*pud) && !pud_devmap(*pud));
+ 
+-	count_vm_event(THP_SPLIT_PMD);
++	count_vm_event(THP_SPLIT_PUD);
+ 
+ 	pudp_huge_clear_flush_notify(vma, haddr, pud);
+ }
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 69f9aff..b1947f0 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1065,6 +1065,9 @@ int fragmentation_index(struct zone *zone, unsigned int order)
+ 	"thp_split_page_failed",
+ 	"thp_deferred_split_page",
+ 	"thp_split_pmd",
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++	"thp_split_pud",
++#endif
+ 	"thp_zero_page_alloc",
+ 	"thp_zero_page_alloc_failed",
+ #endif
 -- 
-Jeff Layton <jlayton@redhat.com>
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
