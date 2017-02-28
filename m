@@ -1,51 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 942CB6B0387
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 22:24:18 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id h72so128146989pfd.5
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 19:24:18 -0800 (PST)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id o71si438762pfi.195.2017.02.27.19.24.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 446426B0387
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 00:02:20 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id u62so2660060pfk.1
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 21:02:20 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u28si661109pgo.265.2017.02.27.21.02.18
         for <linux-mm@kvack.org>;
-        Mon, 27 Feb 2017 19:24:17 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <cover.1487965799.git.shli@fb.com> <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
-In-Reply-To: <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
-Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
-Date: Tue, 28 Feb 2017 11:23:57 +0800
-Message-ID: <06f201d29172$196e6450$4c4b2cf0$@alibaba-inc.com>
+        Mon, 27 Feb 2017 21:02:19 -0800 (PST)
+Date: Tue, 28 Feb 2017 14:02:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH V5 4/6] mm: reclaim MADV_FREE pages
+Message-ID: <20170228050216.GB2702@bbox>
+References: <cover.1487965799.git.shli@fb.com>
+ <14b8eb1d3f6bf6cc492833f183ac8c304e560484.1487965799.git.shli@fb.com>
+ <20170227063315.GC23612@bbox>
+ <20170227161907.GC62304@shli-mbp.local>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170227161907.GC62304@shli-mbp.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Shaohua Li' <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-
-On February 25, 2017 5:32 AM Shaohua Li wrote: 
+On Mon, Feb 27, 2017 at 08:19:08AM -0800, Shaohua Li wrote:
+> On Mon, Feb 27, 2017 at 03:33:15PM +0900, Minchan Kim wrote:
+> > Hi Shaohua,
+> > 
+> > On Fri, Feb 24, 2017 at 01:31:47PM -0800, Shaohua Li wrote:
+> > > When memory pressure is high, we free MADV_FREE pages. If the pages are
+> > > not dirty in pte, the pages could be freed immediately. Otherwise we
+> > > can't reclaim them. We put the pages back to anonumous LRU list (by
+> > > setting SwapBacked flag) and the pages will be reclaimed in normal
+> > > swapout way.
+> > > 
+> > > We use normal page reclaim policy. Since MADV_FREE pages are put into
+> > > inactive file list, such pages and inactive file pages are reclaimed
+> > > according to their age. This is expected, because we don't want to
+> > > reclaim too many MADV_FREE pages before used once pages.
+> > > 
+> > > Based on Minchan's original patch
+> > > 
+> > > Cc: Michal Hocko <mhocko@suse.com>
+> > > Cc: Minchan Kim <minchan@kernel.org>
+> > > Cc: Hugh Dickins <hughd@google.com>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: Rik van Riel <riel@redhat.com>
+> > > Cc: Mel Gorman <mgorman@techsingularity.net>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > Signed-off-by: Shaohua Li <shli@fb.com>
+> > > ---
+> > >  include/linux/rmap.h |  2 +-
+> > >  mm/huge_memory.c     |  2 ++
+> > >  mm/madvise.c         |  1 +
+> > >  mm/rmap.c            | 40 +++++++++++++++++-----------------------
+> > >  mm/vmscan.c          | 34 ++++++++++++++++++++++------------
+> > >  5 files changed, 43 insertions(+), 36 deletions(-)
+> > > 
+> > > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> > > index 7a39414..fee10d7 100644
+> > > --- a/include/linux/rmap.h
+> > > +++ b/include/linux/rmap.h
+> > > @@ -298,6 +298,6 @@ static inline int page_mkclean(struct page *page)
+> > >  #define SWAP_AGAIN	1
+> > >  #define SWAP_FAIL	2
+> > >  #define SWAP_MLOCK	3
+> > > -#define SWAP_LZFREE	4
+> > > +#define SWAP_DIRTY	4
+> > 
+> > I still don't convinced why we should introduce SWAP_DIRTY in try_to_unmap.
+> > https://marc.info/?l=linux-mm&m=148797879123238&w=2
+> > 
+> > We have been SetPageMlocked in there but why cannot we SetPageSwapBacked
+> > in there? It's not a thing to change LRU type but it's just indication
+> > we found the page's status changed in late.
 > 
-> show MADV_FREE pages info of each vma in smaps. The interface is for
-> diganose or monitoring purpose, userspace could use it to understand
-> what happens in the application. Since userspace could dirty MADV_FREE
-> pages without notice from kernel, this interface is the only place we
-> can get accurate accounting info about MADV_FREE pages.
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
-> ---
+> This one I don't have strong preference. Personally I agree with Johannes,
+> handling failure in vmscan sounds better. But since the failure handling is
+> just one statement, this probably doesn't make too much difference. If Johannes
+> and you made an agreement, I'll follow.
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+I don't want to add unnecessary new return value(i.e., SWAP_DIRTY).
+If VM found lazyfree page dirty in try_to_unmap_one, it means "non-swappable page"
+so it's natural to set SetPageSwapBacked in there and return just SWAP_FAIL to
+activate it in vmscan.c. SWAP_FAIL means the page is non-swappable so it should be
+activated. I don't see any problem in there like software engineering pov.
 
+However, it seems everyone are happy with introdcuing SWAP_DIRTY so I don't
+insist on it which is not critical for this patchset.
+I looked over try_to_unmap and callers. Now, I think we could remove SWAP_MLOCK
+and maybe SWAP_AGAIN as well as SWAP_DIRTY that is to make try_to_unmap *bool*.
+So, it could be done by separate patchset. I will look into that in more.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
