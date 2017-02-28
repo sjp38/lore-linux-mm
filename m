@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 089EC6B0387
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 22:22:32 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 1so208509851pgz.5
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 19:22:32 -0800 (PST)
-Received: from out0-152.mail.aliyun.com (out0-152.mail.aliyun.com. [140.205.0.152])
-        by mx.google.com with ESMTP id w70si418295pgw.402.2017.02.27.19.22.30
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 942CB6B0387
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2017 22:24:18 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id h72so128146989pfd.5
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2017 19:24:18 -0800 (PST)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id o71si438762pfi.195.2017.02.27.19.24.16
         for <linux-mm@kvack.org>;
-        Mon, 27 Feb 2017 19:22:31 -0800 (PST)
+        Mon, 27 Feb 2017 19:24:17 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <cover.1487965799.git.shli@fb.com> <155648585589300bfae1d45078e7aebb3d988b87.1487965799.git.shli@fb.com>
-In-Reply-To: <155648585589300bfae1d45078e7aebb3d988b87.1487965799.git.shli@fb.com>
-Subject: Re: [PATCH V5 5/6] mm: enable MADV_FREE for swapless system
-Date: Tue, 28 Feb 2017 11:22:19 +0800
-Message-ID: <06f101d29171$df1716d0$9d454470$@alibaba-inc.com>
+References: <cover.1487965799.git.shli@fb.com> <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
+In-Reply-To: <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
+Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
+Date: Tue, 28 Feb 2017 11:23:57 +0800
+Message-ID: <06f201d29172$196e6450$4c4b2cf0$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -28,16 +28,19 @@ Cc: Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, h
 
 On February 25, 2017 5:32 AM Shaohua Li wrote: 
 > 
-> Now MADV_FREE pages can be easily reclaimed even for swapless system. We
-> can safely enable MADV_FREE for all systems.
+> show MADV_FREE pages info of each vma in smaps. The interface is for
+> diganose or monitoring purpose, userspace could use it to understand
+> what happens in the application. Since userspace could dirty MADV_FREE
+> pages without notice from kernel, this interface is the only place we
+> can get accurate accounting info about MADV_FREE pages.
 > 
 > Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Minchan Kim <minchan@kernel.org>
 > Cc: Hugh Dickins <hughd@google.com>
 > Cc: Rik van Riel <riel@redhat.com>
 > Cc: Mel Gorman <mgorman@techsingularity.net>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Minchan Kim <minchan@kernel.org>
 > Signed-off-by: Shaohua Li <shli@fb.com>
 > ---
 
