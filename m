@@ -1,99 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA6F6B03C2
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:11:35 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id u199so6339750wmd.4
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 07:11:35 -0800 (PST)
-Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com. [209.85.128.193])
-        by mx.google.com with ESMTPS id 31si2815159wrs.143.2017.02.28.07.11.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 07:11:34 -0800 (PST)
-Received: by mail-wr0-f193.google.com with SMTP id q39so2005450wrb.2
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 07:11:34 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH stable-4.9 2/2] mm, vmscan: consider eligible zones in get_scan_count
-Date: Tue, 28 Feb 2017 16:11:08 +0100
-Message-Id: <20170228151108.20853-3-mhocko@kernel.org>
-In-Reply-To: <20170228151108.20853-1-mhocko@kernel.org>
-References: <20170228151108.20853-1-mhocko@kernel.org>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AD996B0038
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:18:43 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id d18so19647391pgh.2
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 07:18:43 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
+        by mx.google.com with ESMTP id g23si2035472plj.198.2017.02.28.07.18.42
+        for <linux-mm@kvack.org>;
+        Tue, 28 Feb 2017 07:18:42 -0800 (PST)
+Date: Tue, 28 Feb 2017 10:12:18 -0500 (EST)
+Message-Id: <20170228.101218.983689349992464602.davem@davemloft.net>
+Subject: Re: [PATCH v1 1/3] sparc64: NG4 memset/memcpy 32 bits overflow
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1488293746-965735-2-git-send-email-pasha.tatashin@oracle.com>
+References: <1488293746-965735-1-git-send-email-pasha.tatashin@oracle.com>
+	<1488293746-965735-2-git-send-email-pasha.tatashin@oracle.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stable tree <stable@vger.kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Trevor Cordes <trevor@tecnopolis.ca>
+To: pasha.tatashin@oracle.com
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 28 Feb 2017 09:55:44 -0500
 
-commit 71ab6cfe88dcf9f6e6a65eb85cf2bda20a257682 upstream.
+> @@ -252,19 +248,16 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
+>  #ifdef MEMCPY_DEBUG
+>  	wr		%g0, 0x80, %asi
+>  #endif
+> -	srlx		%o2, 31, %g2
+> -	cmp		%g2, 0
+> -	tne		%XCC, 5
+>  	PREAMBLE
+>  	mov		%o0, %o3
+>  	brz,pn		%o2, .Lexit
 
-get_scan_count() considers the whole node LRU size when
 
- - doing SCAN_FILE due to many page cache inactive pages
- - calculating the number of pages to scan
+This limitation was placed here intentionally, because huge values
+are %99 of the time bugs and unintentional.
 
-In both cases this might lead to unexpected behavior especially on 32b
-systems where we can expect lowmem memory pressure very often.
+You will see that every assembler optimized memcpy on sparc64 has
+this bug trap, not just NG4.
 
-A large highmem zone can easily distort SCAN_FILE heuristic because
-there might be only few file pages from the eligible zones on the node
-lru and we would still enforce file lru scanning which can lead to
-trashing while we could still scan anonymous pages.
+This is a very useful way to find bugs and length {over,under}flows.
+Please do not remove it.
 
-The later use of lruvec_lru_size can be problematic as well.  Especially
-when there are not many pages from the eligible zones.  We would have to
-skip over many pages to find anything to reclaim but shrink_node_memcg
-would only reduce the remaining number to scan by SWAP_CLUSTER_MAX at
-maximum.  Therefore we can end up going over a large LRU many times
-without actually having chance to reclaim much if anything at all.  The
-closer we are out of memory on lowmem zone the worse the problem will
-be.
+If you have to do 4GB or larger copies, do it in pieces or similar.
 
-Fix this by filtering out all the ineligible zones when calculating the
-lru size for both paths and consider only sc->reclaim_idx zones.
-
-The patch would need to be tweaked a bit to apply to 4.10 and older but
-I will do that as soon as it hits the Linus tree in the next merge
-window.
-
-Link: http://lkml.kernel.org/r/20170117103702.28542-3-mhocko@kernel.org
-Fixes: b2e18757f2c9 ("mm, vmscan: begin reclaiming pages on a per-node basis")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Tested-by: Trevor Cordes <trevor@tecnopolis.ca>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: <stable@vger.kernel.org>	[4.8+]
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
----
- mm/vmscan.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index cd516c632e8f..30a88b945a44 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2205,7 +2205,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 * system is under heavy pressure.
- 	 */
- 	if (!inactive_list_is_low(lruvec, true, sc) &&
--	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES) >> sc->priority) {
-+	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
-@@ -2272,7 +2272,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			unsigned long size;
- 			unsigned long scan;
- 
--			size = lruvec_lru_size(lruvec, lru, MAX_NR_ZONES);
-+			size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
- 			scan = size >> sc->priority;
- 
- 			if (!scan && pass && force_scan)
--- 
-2.11.0
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
