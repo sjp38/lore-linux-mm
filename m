@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 704F56B038F
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:46:27 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id m70so1187493wma.2
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:46:27 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3196B0390
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:46:29 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id y51so9374877wry.6
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:46:29 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f200si4351122wme.108.2017.02.28.13.46.26
+        by mx.google.com with ESMTPS id h13si4335005wme.149.2017.02.28.13.46.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 13:46:26 -0800 (PST)
+        Tue, 28 Feb 2017 13:46:28 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 6/9] mm: don't avoid high-priority reclaim on memcg limit reclaim
-Date: Tue, 28 Feb 2017 16:40:04 -0500
-Message-Id: <20170228214007.5621-7-hannes@cmpxchg.org>
+Subject: [PATCH 7/9] mm: delete NR_PAGES_SCANNED and pgdat_reclaimable()
+Date: Tue, 28 Feb 2017 16:40:05 -0500
+Message-Id: <20170228214007.5621-8-hannes@cmpxchg.org>
 In-Reply-To: <20170228214007.5621-1-hannes@cmpxchg.org>
 References: <20170228214007.5621-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,146 +20,192 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jia He <hejianet@gmail.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-246e87a93934 ("memcg: fix get_scan_count() for small targets") sought
-to avoid high reclaim priorities for memcg by forcing it to scan a
-minimum amount of pages when lru_pages >> priority yielded nothing.
-This was done at a time when reclaim decisions like dirty throttling
-were tied to the priority level.
+NR_PAGES_SCANNED counts number of pages scanned since the last page
+free event in the allocator. This was used primarily to measure the
+reclaimability of zones and nodes, and determine when reclaim should
+give up on them. In that role, it has been replaced in the preceeding
+patches by a different mechanism.
 
-Nowadays, the only meaningful thing still tied to priority dropping
-below DEF_PRIORITY - 2 is gating whether laptop_mode=1 is generally
-allowed to write. But that is from an era where direct reclaim was
-still allowed to call ->writepage, and kswapd nowadays avoids writes
-until it's scanned every clean page in the system. Potential changes
-to how quick sc->may_writepage could trigger are of little concern.
+Being implemented as an efficient vmstat counter, it was automatically
+exported to userspace as well. It's however unlikely that anyone
+outside the kernel is using this counter in any meaningful way.
 
-Remove the force_scan stuff, as well as the ugly multi-pass target
-calculation that it necessitated.
+Remove the counter and the unused pgdat_reclaimable().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 94 ++++++++++++++++++++++++-------------------------------------
- 1 file changed, 37 insertions(+), 57 deletions(-)
+ include/linux/mmzone.h |  1 -
+ mm/internal.h          |  1 -
+ mm/page_alloc.c        | 15 +++------------
+ mm/vmscan.c            |  9 ---------
+ mm/vmstat.c            | 22 +++-------------------
+ 5 files changed, 6 insertions(+), 42 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index d2c50ab6ae40..04e0969966f6 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -149,7 +149,6 @@ enum node_stat_item {
+ 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+-	NR_PAGES_SCANNED,	/* pages scanned since last reclaim */
+ 	WORKINGSET_REFAULT,
+ 	WORKINGSET_ACTIVATE,
+ 	WORKINGSET_NODERECLAIM,
+diff --git a/mm/internal.h b/mm/internal.h
+index aae93e3fd984..c583ce1b32b9 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -91,7 +91,6 @@ extern unsigned long highest_memmap_pfn;
+  */
+ extern int isolate_lru_page(struct page *page);
+ extern void putback_lru_page(struct page *page);
+-extern bool pgdat_reclaimable(struct pglist_data *pgdat);
+ 
+ /*
+  * in mm/rmap.c:
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f50e36e7b024..9ac639864bed 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1088,15 +1088,11 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ {
+ 	int migratetype = 0;
+ 	int batch_free = 0;
+-	unsigned long nr_scanned, flags;
++	unsigned long flags;
+ 	bool isolated_pageblocks;
+ 
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	isolated_pageblocks = has_isolate_pageblock(zone);
+-	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
+-	if (nr_scanned)
+-		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
+-
+ 	while (count) {
+ 		struct page *page;
+ 		struct list_head *list;
+@@ -1148,13 +1144,10 @@ static void free_one_page(struct zone *zone,
+ 				unsigned int order,
+ 				int migratetype)
+ {
+-	unsigned long nr_scanned, flags;
++	unsigned long flags;
++
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	__count_vm_events(PGFREE, 1 << order);
+-	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
+-	if (nr_scanned)
+-		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
+-
+ 	if (unlikely(has_isolate_pageblock(zone) ||
+ 		is_migrate_isolate(migratetype))) {
+ 		migratetype = get_pfnblock_migratetype(page, pfn);
+@@ -4497,7 +4490,6 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ #endif
+ 			" writeback_tmp:%lukB"
+ 			" unstable:%lukB"
+-			" pages_scanned:%lu"
+ 			" all_unreclaimable? %s"
+ 			"\n",
+ 			pgdat->node_id,
+@@ -4520,7 +4512,6 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 			K(node_page_state(pgdat, NR_SHMEM)),
+ 			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+ 			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
+-			node_page_state(pgdat, NR_PAGES_SCANNED),
+ 			pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
+ 				"yes" : "no");
+ 	}
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 46b6223fe7f3..8cff6e2cd02c 100644
+index 8cff6e2cd02c..35b791a8922b 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2122,21 +2122,8 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	unsigned long anon_prio, file_prio;
- 	enum scan_balance scan_balance;
- 	unsigned long anon, file;
--	bool force_scan = false;
- 	unsigned long ap, fp;
- 	enum lru_list lru;
--	bool some_scanned;
--	int pass;
--
--	/*
--	 * If the zone or memcg is small, nr[l] can be 0. When
--	 * reclaiming for a memcg, a priority drop can cause high
--	 * latencies, so it's better to scan a minimum amount. When a
--	 * cgroup has already been deleted, scrape out the remaining
--	 * cache forcefully to get rid of the lingering state.
--	 */
--	if (!global_reclaim(sc) || !mem_cgroup_online(memcg))
--		force_scan = true;
- 
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
-@@ -2267,55 +2254,48 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	fraction[1] = fp;
- 	denominator = ap + fp + 1;
- out:
--	some_scanned = false;
--	/* Only use force_scan on second pass. */
--	for (pass = 0; !some_scanned && pass < 2; pass++) {
--		*lru_pages = 0;
--		for_each_evictable_lru(lru) {
--			int file = is_file_lru(lru);
--			unsigned long size;
--			unsigned long scan;
--
--			size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
--			scan = size >> sc->priority;
--
--			if (!scan && pass && force_scan)
--				scan = min(size, SWAP_CLUSTER_MAX);
--
--			switch (scan_balance) {
--			case SCAN_EQUAL:
--				/* Scan lists relative to size */
--				break;
--			case SCAN_FRACT:
--				/*
--				 * Scan types proportional to swappiness and
--				 * their relative recent reclaim efficiency.
--				 */
--				scan = div64_u64(scan * fraction[file],
--							denominator);
--				break;
--			case SCAN_FILE:
--			case SCAN_ANON:
--				/* Scan one type exclusively */
--				if ((scan_balance == SCAN_FILE) != file) {
--					size = 0;
--					scan = 0;
--				}
--				break;
--			default:
--				/* Look ma, no brain */
--				BUG();
--			}
-+	*lru_pages = 0;
-+	for_each_evictable_lru(lru) {
-+		int file = is_file_lru(lru);
-+		unsigned long size;
-+		unsigned long scan;
- 
--			*lru_pages += size;
--			nr[lru] = scan;
-+		size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-+		scan = size >> sc->priority;
-+		/*
-+		 * If the cgroup's already been deleted, make sure to
-+		 * scrape out the remaining cache.
-+		 */
-+		if (!scan && !mem_cgroup_online(memcg))
-+			scan = min(size, SWAP_CLUSTER_MAX);
- 
-+		switch (scan_balance) {
-+		case SCAN_EQUAL:
-+			/* Scan lists relative to size */
-+			break;
-+		case SCAN_FRACT:
- 			/*
--			 * Skip the second pass and don't force_scan,
--			 * if we found something to scan.
-+			 * Scan types proportional to swappiness and
-+			 * their relative recent reclaim efficiency.
- 			 */
--			some_scanned |= !!scan;
-+			scan = div64_u64(scan * fraction[file],
-+					 denominator);
-+			break;
-+		case SCAN_FILE:
-+		case SCAN_ANON:
-+			/* Scan one type exclusively */
-+			if ((scan_balance == SCAN_FILE) != file) {
-+				size = 0;
-+				scan = 0;
-+			}
-+			break;
-+		default:
-+			/* Look ma, no brain */
-+			BUG();
- 		}
-+
-+		*lru_pages += size;
-+		nr[lru] = scan;
- 	}
+@@ -229,12 +229,6 @@ unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat)
+ 	return nr;
  }
  
+-bool pgdat_reclaimable(struct pglist_data *pgdat)
+-{
+-	return node_page_state_snapshot(pgdat, NR_PAGES_SCANNED) <
+-		pgdat_reclaimable_pages(pgdat) * 6;
+-}
+-
+ /**
+  * lruvec_lru_size -  Returns the number of pages on the given LRU list.
+  * @lruvec: lru vector
+@@ -1749,7 +1743,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	reclaim_stat->recent_scanned[file] += nr_taken;
+ 
+ 	if (global_reclaim(sc)) {
+-		__mod_node_page_state(pgdat, NR_PAGES_SCANNED, nr_scanned);
+ 		if (current_is_kswapd())
+ 			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
+ 		else
+@@ -1952,8 +1945,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
+ 	reclaim_stat->recent_scanned[file] += nr_taken;
+ 
+-	if (global_reclaim(sc))
+-		__mod_node_page_state(pgdat, NR_PAGES_SCANNED, nr_scanned);
+ 	__count_vm_events(PGREFILL, nr_scanned);
+ 
+ 	spin_unlock_irq(&pgdat->lru_lock);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index ff16cdc15df2..eface7467ea5 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -954,7 +954,6 @@ const char * const vmstat_text[] = {
+ 	"nr_unevictable",
+ 	"nr_isolated_anon",
+ 	"nr_isolated_file",
+-	"nr_pages_scanned",
+ 	"workingset_refault",
+ 	"workingset_activate",
+ 	"workingset_nodereclaim",
+@@ -1375,7 +1374,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 		   "\n        min      %lu"
+ 		   "\n        low      %lu"
+ 		   "\n        high     %lu"
+-		   "\n   node_scanned  %lu"
+ 		   "\n        spanned  %lu"
+ 		   "\n        present  %lu"
+ 		   "\n        managed  %lu",
+@@ -1383,7 +1381,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 		   min_wmark_pages(zone),
+ 		   low_wmark_pages(zone),
+ 		   high_wmark_pages(zone),
+-		   node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED),
+ 		   zone->spanned_pages,
+ 		   zone->present_pages,
+ 		   zone->managed_pages);
+@@ -1584,22 +1581,9 @@ int vmstat_refresh(struct ctl_table *table, int write,
+ 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
+ 		val = atomic_long_read(&vm_zone_stat[i]);
+ 		if (val < 0) {
+-			switch (i) {
+-			case NR_PAGES_SCANNED:
+-				/*
+-				 * This is often seen to go negative in
+-				 * recent kernels, but not to go permanently
+-				 * negative.  Whilst it would be nicer not to
+-				 * have exceptions, rooting them out would be
+-				 * another task, of rather low priority.
+-				 */
+-				break;
+-			default:
+-				pr_warn("%s: %s %ld\n",
+-					__func__, vmstat_text[i], val);
+-				err = -EINVAL;
+-				break;
+-			}
++			pr_warn("%s: %s %ld\n",
++				__func__, vmstat_text[i], val);
++			err = -EINVAL;
+ 		}
+ 	}
+ 	if (err)
 -- 
 2.11.1
 
