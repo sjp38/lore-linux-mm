@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9CE6B0389
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:46:17 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id g10so9371449wrg.5
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:46:17 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id B157B6B038A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:46:19 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id u48so9385042wrc.0
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:46:19 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id d13si3972036wra.226.2017.02.28.13.46.16
+        by mx.google.com with ESMTPS id z41si4001577wrb.48.2017.02.28.13.46.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 13:46:16 -0800 (PST)
+        Tue, 28 Feb 2017 13:46:18 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 2/9] mm: fix check for reclaimable pages in PF_MEMALLOC reclaim throttling
-Date: Tue, 28 Feb 2017 16:40:00 -0500
-Message-Id: <20170228214007.5621-3-hannes@cmpxchg.org>
+Subject: [PATCH 3/9] mm: remove seemingly spurious reclaimability check from laptop_mode gating
+Date: Tue, 28 Feb 2017 16:40:01 -0500
+Message-Id: <20170228214007.5621-4-hannes@cmpxchg.org>
 In-Reply-To: <20170228214007.5621-1-hannes@cmpxchg.org>
 References: <20170228214007.5621-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,34 +20,31 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jia He <hejianet@gmail.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-PF_MEMALLOC direct reclaimers get throttled on a node when the sum of
-all free pages in each zone fall below half the min watermark. During
-the summation, we want to exclude zones that don't have reclaimables.
-Checking the same pgdat over and over again doesn't make sense.
+1d82de618ddd ("mm, vmscan: make kswapd reclaim in terms of nodes")
+allowed laptop_mode=1 to start writing not just when the priority
+drops to DEF_PRIORITY - 2 but also when the node is unreclaimable.
+That appears to be a spurious change in this patch as I doubt the
+series was tested with laptop_mode, and neither is that particular
+change mentioned in the changelog. Remove it, it's still recent.
 
-Fixes: 599d0c954f91 ("mm, vmscan: move LRU lists to node")
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 407b27831ff7..f006140f58c6 100644
+index f006140f58c6..911957b66622 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2838,8 +2838,10 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+@@ -3288,7 +3288,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		 * If we're getting trouble reclaiming, start doing writepage
+ 		 * even in laptop mode.
+ 		 */
+-		if (sc.priority < DEF_PRIORITY - 2 || !pgdat_reclaimable(pgdat))
++		if (sc.priority < DEF_PRIORITY - 2)
+ 			sc.may_writepage = 1;
  
- 	for (i = 0; i <= ZONE_NORMAL; i++) {
- 		zone = &pgdat->node_zones[i];
--		if (!managed_zone(zone) ||
--		    pgdat_reclaimable_pages(pgdat) == 0)
-+		if (!managed_zone(zone))
-+			continue;
-+
-+		if (!zone_reclaimable_pages(zone))
- 			continue;
- 
- 		pfmemalloc_reserve += min_wmark_pages(zone);
+ 		/* Call soft limit reclaim before calling shrink_node. */
 -- 
 2.11.1
 
