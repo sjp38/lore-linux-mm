@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F7AB6B0389
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:15:55 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id f84so22754842ioj.6
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:15:55 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id w197si3040134iod.1.2017.02.28.10.15.54
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EB2F6B038B
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:24:10 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id r18so7948821wmd.1
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:24:10 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id b35si3452084wrb.38.2017.02.28.10.24.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 10:15:54 -0800 (PST)
-Date: Tue, 28 Feb 2017 19:15:47 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170228181547.GM5680@worktop>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
+        Tue, 28 Feb 2017 10:24:09 -0800 (PST)
+Date: Tue, 28 Feb 2017 18:23:56 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: mm: GPF in bdi_put
+Message-ID: <20170228182356.GS29622@ZenIV.linux.org.uk>
+References: <CACT4Y+bAF0Udejr0v7YAXhs753yDdyNtoQbORQ55yEWZ+4Wu5g@mail.gmail.com>
+ <20170227182755.GR29622@ZenIV.linux.org.uk>
+ <CACT4Y+aOOc3AKsm80y4Rr7rChB=BUmfBvy+Kud2C_8EGnAZ2hg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <CACT4Y+aOOc3AKsm80y4Rr7rChB=BUmfBvy+Kud2C_8EGnAZ2hg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, syzkaller <syzkaller@googlegroups.com>
 
-On Wed, Jan 18, 2017 at 10:17:32PM +0900, Byungchul Park wrote:
-> +	/*
-> +	 * Each work of workqueue might run in a different context,
-> +	 * thanks to concurrency support of workqueue. So we have to
-> +	 * distinguish each work to avoid false positive.
-> +	 *
-> +	 * TODO: We can also add dependencies between two acquisitions
-> +	 * of different work_id, if they don't cause a sleep so make
-> +	 * the worker stalled.
-> +	 */
-> +	unsigned int		work_id;
+On Tue, Feb 28, 2017 at 06:55:55PM +0100, Dmitry Vyukov wrote:
 
-> +/*
-> + * Crossrelease needs to distinguish each work of workqueues.
-> + * Caller is supposed to be a worker.
-> + */
-> +void crossrelease_work_start(void)
-> +{
-> +	if (current->xhlocks)
-> +		current->work_id++;
-> +}
+> I am also seeing the following crashes on
+> linux-next/8d01c069486aca75b8f6018a759215b0ed0c91f0. Do you think it's
+> the same underlying issue?
 
-So what you're trying to do with that 'work_id' thing is basically wipe
-the entire history when we're at the bottom of a context.
+Yes.
+	1) Any attempt of mount -t bdev will fail, as it should
+	2) bdevfs instance created by that attempt will be immediately
+destroyed (again, as it should)
+	3) the sole inode ever created for that instance (its root directory)
+will be destroyed in process (again, as it should)
+	4) that inode has never had ->bd_bdi initialized - the value stored
+there would have been whatever garbage kmem_cache_alloc() has left behind
+	5) bdev_evict_inode() will be called for that inode and if
+aforementioned garbage happens to be not equal to &noop_backing_dev_info,
+the pointer will be passed to bdi_put().
 
-Which is a useful operation, but should arguably also be done on the
-return to userspace path. Any historical lock from before the current
-syscall is irrelevant.
+If that inode happens to reuse the memory previously occupied by a bdev
+inode of a looked up but never opened block device, it will have ->bd_bdi
+still equal to &noop_backing_dev_info, so that crap does not trigger
+every time.  That's what the junk (recvmsg/ioctl/etc.) in your reproducer
+is affecting.  Specific effects of bdi_put() will, of course, depend upon
+the actual garbage found there - silent decrement of refcount of an existing
+bdi setting the things up for later use-after-free, outright memory
+corruption, etc.
 
-(And we should not be returning to userspace with locks held anyway --
-lockdep already has a check for that).
+_Any_ stack trace of form sys_mount() -> ... -> bdev_evict_inode() ->
+bdi_put() -> <barf>  is almost certainly the same bug.
+
+I would still like to hear from Jan regarding the reasons why we do that
+bdi_put() from bdev_evict_inode() and not in __blkdev_put().  My preference
+would be to do it there (and reset ->bd_bdi to &noop_backing_dev_info) when
+->bd_openers hits 0.  And drop that code from bdev_evict_inode()...
+
+Objections?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
