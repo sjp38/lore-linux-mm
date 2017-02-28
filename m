@@ -1,44 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 825486B03A0
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 07:38:33 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u63so5065484wmu.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 04:38:33 -0800 (PST)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id w67si2697917wma.76.2017.02.28.04.38.32
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5516B03A2
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 07:45:21 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id m27so6397290iti.7
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 04:45:21 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id 19si2061208iof.183.2017.02.28.04.45.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 04:38:32 -0800 (PST)
-Received: by mail-wm0-x230.google.com with SMTP id i17so2577628wmf.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 04:38:32 -0800 (PST)
-Date: Tue, 28 Feb 2017 12:38:30 +0000
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [PATCHv3 15/33] x86/efi: handle p4d in EFI pagetables
-Message-ID: <20170228123830.GF28416@codeblueprint.co.uk>
-References: <20170217141328.164563-1-kirill.shutemov@linux.intel.com>
- <20170217141328.164563-16-kirill.shutemov@linux.intel.com>
+        Tue, 28 Feb 2017 04:45:20 -0800 (PST)
+Date: Tue, 28 Feb 2017 13:45:07 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
+Message-ID: <20170228124507.GG5680@worktop>
+References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
+ <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170217141328.164563-16-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Fri, 17 Feb, at 05:13:10PM, Kirill A. Shutemov wrote:
-> Allocate additional page table level and change efi_sync_low_kernel_mappings()
-> to make syncing logic work with additional page table level.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Matt Fleming <matt@codeblueprint.co.uk>
-> ---
->  arch/x86/platform/efi/efi_64.c | 33 +++++++++++++++++++++++----------
->  1 file changed, 23 insertions(+), 10 deletions(-)
+On Wed, Jan 18, 2017 at 10:17:32PM +0900, Byungchul Park wrote:
+> +	/*
+> +	 * struct held_lock does not have an indicator whether in nmi.
+> +	 */
+> +	int nmi;
 
-Looks fine to me, but I haven't tested it.
-
-Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
+Do we really need this? Lockdep doesn't really know about NMI context,
+so its weird to now partially introduce it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
