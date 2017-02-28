@@ -1,124 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FE836B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 12:56:17 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id j56so15744216uaa.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 09:56:17 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d143sor502836vkf.24.1969.12.31.16.00.00
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85E566B0389
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 13:13:54 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id j5so22259452pfb.3
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 10:13:54 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 3si2444239pls.17.2017.02.28.10.13.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 Feb 2017 09:56:16 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170227182755.GR29622@ZenIV.linux.org.uk>
-References: <CACT4Y+bAF0Udejr0v7YAXhs753yDdyNtoQbORQ55yEWZ+4Wu5g@mail.gmail.com>
- <20170227182755.GR29622@ZenIV.linux.org.uk>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 28 Feb 2017 18:55:55 +0100
-Message-ID: <CACT4Y+aOOc3AKsm80y4Rr7rChB=BUmfBvy+Kud2C_8EGnAZ2hg@mail.gmail.com>
-Subject: Re: mm: GPF in bdi_put
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Feb 2017 10:13:53 -0800 (PST)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH 0/2] Introducing the eXtensible Array (xarray)
+Date: Tue, 28 Feb 2017 10:13:41 -0800
+Message-Id: <20170228181343.16588-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, syzkaller <syzkaller@googlegroups.com>
+To: linux-kernel@vger.kernel.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Mon, Feb 27, 2017 at 7:27 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> On Mon, Feb 27, 2017 at 06:11:11PM +0100, Dmitry Vyukov wrote:
->> Hello,
->>
->> The following program triggers GPF in bdi_put:
->> https://gist.githubusercontent.com/dvyukov/15b3e211f937ff6abc558724369066ce/raw/cc017edf57963e30175a6a6fe2b8d917f6e92899/gistfile1.txt
->
-> What happens is
->         * attempt of, essentially, mount -t bdev ..., calls mount_pseudo()
-> and then promptly destroys the new instance it has created.
->         * the only inode created on that sucker (root directory, that
-> is) gets evicted.
->         * most of ->evict_inode() is harmless, until it gets to
->         if (bdev->bd_bdi != &noop_backing_dev_info)
->                 bdi_put(bdev->bd_bdi);
->
-> added there by "block: Make blk_get_backing_dev_info() safe without open bdev".
-> Since ->bd_bdi hadn't been initialized for that sucker (the same patch has
-> placed initialization into bdget()), we step into shit of varying nastiness,
-> depending on phase of moon, etc.
->
-> Could somebody explain WTF do we have those two lines in bdev_evict_inode(),
-> anyway?  We set ->bd_bdi to something other than noop_backing_dev_info only
-> in __blkdev_get() when ->bd_openers goes from zero to positive, so why is
-> the matching bdi_put() not in __blkdev_put()?  Jan?
+From: Matthew Wilcox <mawilcox@microsoft.com>
+
+I wrote the xarray to replace the radix tree with a better API based
+on observing how programmers are currently using the radix tree, and
+on how (and why) they aren't.  Conceptually, an xarray is an array of
+2^BITS_PER_LONG pointers which is initially full of NULL pointers.
+
+This is the result of about two weeks worth of hacking.  There is much
+more to do; I think the most important thing remaining is to start
+working on converting the page cache from the radix tree to the xarray.
+That will tell me where the API could be better.  I'm sending it out
+now for feedback; I know there are bugs and some half-finished code,
+but I'm interested in comments on the design direction.
+
+Improvements the xarray has over the radix tree:
+
+ - The radix tree provides operations like other trees do; 'insert' and
+   'delete'.  But what users really want is an automatically resizing
+   array, and so it makes more sense to give users an API that is like
+   an array -- 'load' and 'store'.
+ - Locking is part of the API.  This simplifies a lot of users who
+   formerly had to manage their own locking just for the radix tree.
+   It also improves code generation as we can now tell RCU that we're
+   holding a lock and it doesn't need to generate as much fencing code.
+   The other advantage is that tree nodes can be moved (not yet
+   implemented).
+ - GFP flags are now parameters to calls which may need to allocate
+   memory.  The radix tree forced users to decide what the allocation
+   flags would be at creation time.  It's much clearer to specify them
+   at allocation time.  I know the MM people disapprove of the radix
+   tree using the top bits of the GFP flags for its own purpose, so
+   they'll like this aspect.
+ - Memory is not preloaded; we don't tie up dozens of pages on the
+   off chance that the slab allocator fails.  Instead, we drop the lock,
+   allocate a new node and retry the operation.
+ - The xarray provides a conditional-replace operation.  The radix tree
+   forces users to roll their own (and at least four have).
+ - Iterators now take a 'max' parameter.  That simplifies many users and
+   will reduce the amount of iteration done.
+ - Iteration can proceed backwards.  We only have one user for this, but
+   since it's called as part of the pagefault readahead algorithm, that
+   seemed worth mentioning.  Not fully implemented.
+ - RCU-protected pointers are not exposed as part of the API.  There are
+   some fun bugs where the page cache forgets to use rcu_dereference()
+   in the current codebase.
+ - Any function which wants it can now call the update_node() callback.
+   There were a few places missing that I noticed as part of this rewrite.
+ - Help the page cache to keep nrexceptional and nrpages up to date.
+ - Exceptional entries may now be BITS_PER_LONG-1 in size, rather than the
+   BITS_PER_LONG-2 that they had in the radix tree.  That gives us the
+   extra bit we need to put huge page swap entries in the page cache.
+
+The API comes in two parts, normal and advanced.  The normal API takes
+care of the locking and memory allocation for you.  You can get the
+value of a pointer by calling xa_load() and set the value of a pointer by
+calling xa_store().  You can conditionally update the value of a pointer
+by calling xa_replace().  Each pointer which isn't NULL can be tagged
+with up to 3 bits of extra information, accessed through xa_get_tag(),
+xa_set_tag() and xa_clear_tag().  You can copy batches of pointers out
+of the array by calling xa_get_entries() or xa_get_tagged().  You can
+iterate over pointers in the array by calling xa_find(), xa_next()
+or xa_for_each().
+
+The advanced API allows users to build their own operations.  You have
+to take care of your own locking and handle memory allocation failures.
+Most of the advanced operations are based around the xa_state which
+keeps state between sub-operations.  Read the xarray.h header file for
+more information on the advanced API, and see the implementation of the
+normal API for examples of how to use the advanced API.
+
+Those familiar with the radix tree may notice certain similarities between
+the implementation of the xarray and the radix tree.  That's entirely
+intentional, but the implementation will certainly adapt in the future.
+For example, one of the impediments I see to using xarrays instead of
+kvmalloced arrays is memory consumption, so I have a couple of ideas to
+reduce memory usage for smaller arrays.
+
+I have already reimplementated the IDR and the IDA based on the xarray.
+They are roughly the same complexity as they were when implemented on
+top of the radix tree (although much less intertwined).
+
+When converting code from the radix tree to the xarray, the biggest thing
+to bear in mind is that 'store' overwrites anything which happens to be
+in the xarray.  Just like the assignment operator.  The equivalent to
+the insert operation is to replace NULL with the new value.
+
+A quick reference guide to help when converting radix tree code.
+Functions which start 'xas' are XA_ADVANCED functions.
+
+radix_tree_empty			xa_empty
+__radix_tree_create			xas_create
+__radix_tree_insert			xas_store
+radix_tree_insert(x)			xa_replace(NULL, x)
+__radix_tree_lookup			xas_load
+radix_tree_lookup			xa_load
+radix_tree_lookup_slot			xas_load
+__radix_tree_replace			xas_store
+radix_tree_iter_replace			xas_store
+radix_tree_replace_slot			xas_store
+__radix_tree_delete_node		xas_delete_node
+radix_tree_delete_item			xa_replace
+radix_tree_delete			xa_store(NULL)
+radix_tree_clear_tags			xas_clear_tags
+radix_tree_gang_lookup			xa_get_entries
+radix_tree_gang_lookup_slot		xas_find (*1)
+radix_tree_preload			(*3)
+radix_tree_maybe_preload		(*3)
+radix_tree_tag_set			xa_set_tag
+radix_tree_tag_clear			xa_clear_tag
+radix_tree_tag_get			xa_get_tag
+radix_tree_iter_tag_set			xas_set_tag
+radix_tree_gang_lookup_tag		xa_get_tagged
+radix_tree_gang_lookup_tag_slot		xas_load (*2)
+radix_tree_tagged			xa_tagged
+radix_tree_preload_end			xas_preload_end
+radix_tree_split_preload		(*3)
+radix_tree_split			xas_split (*4)
+radix_tree_join				xa_replace
+
+(*1) All three users of radix_tree_gang_lookup_slot() are using it to
+ensure that there are no entries in a given range.  
+(*2) The one radix_tree_gang_lookup_tag_slot user should be using a
+radix_tree_iter loop.  It can use an xas_for_each() loop, or even an
+xa_for_each() loop.
+(*3) I don't think we're going to need a preallocation API.  If we do
+end up needing one, I have a plan that doesn't involve per-cpu
+preallocation pools.
+(*4) Not yet implemented
 
 
-I am also seeing the following crashes on
-linux-next/8d01c069486aca75b8f6018a759215b0ed0c91f0. Do you think it's
-the same underlying issue?
+Matthew Wilcox (2):
+  Add XArray
+  XArray: Convert IDR and add test suite
 
-kasan: GPF could be caused by NULL-ptr deref or user memory access
-general protection fault: 0000 [#1] SMP KASAN
-Dumping ftrace buffer:
-   (ftrace buffer empty)
-Modules linked in:
-CPU: 0 PID: 19552 Comm: syz-executor2 Not tainted 4.10.0-next-20170228+ #2
-Hardware name: Google Google Compute Engine/Google Compute Engine,
-BIOS Google 01/01/2011
-task: ffff8801c16ae400 task.stack: ffff880154c98000
-RIP: 0010:__read_once_size include/linux/compiler.h:254 [inline]
-RIP: 0010:atomic_read arch/x86/include/asm/atomic.h:26 [inline]
-RIP: 0010:refcount_sub_and_test+0x82/0x1f0 lib/refcount.c:120
-RSP: 0018:ffff880154c9f078 EFLAGS: 00010202
-RAX: 0000000000000007 RBX: dffffc0000000000 RCX: ffffc90001a8f000
-RDX: 0000000000000740 RSI: ffffffff8246160f RDI: 0000000000000001
-RBP: ffff880154c9f110 R08: ffffe8ffffc29a28 R09: 0000000000000001
-R10: 1ffff1002a993dcc R11: 0000000000000001 R12: 0000000000000038
-R13: 0000000000000001 R14: ffff880154c9f0e8 R15: 1ffff1002a993e11
-FS:  00007f0335223700(0000) GS:ffff8801dbe00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000020fd3ff8 CR3: 00000001c4580000 CR4: 00000000001406f0
-DR0: 0000000020000000 DR1: 0000000020001000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-Call Trace:
- refcount_dec_and_test+0x1a/0x20 lib/refcount.c:153
- kref_put include/linux/kref.h:71 [inline]
- bdi_put+0x19/0x40 mm/backing-dev.c:914
- bdev_evict_inode+0x203/0x3a0 fs/block_dev.c:888
- evict+0x46e/0x980 fs/inode.c:553
- iput_final fs/inode.c:1515 [inline]
- iput+0x589/0xb20 fs/inode.c:1542
- dentry_unlink_inode+0x43b/0x600 fs/dcache.c:343
- __dentry_kill+0x34d/0x740 fs/dcache.c:538
- dentry_kill fs/dcache.c:579 [inline]
- dput.part.27+0x5ce/0x7c0 fs/dcache.c:791
- dput fs/dcache.c:753 [inline]
- do_one_tree+0x43/0x50 fs/dcache.c:1454
- shrink_dcache_for_umount+0xbb/0x2b0 fs/dcache.c:1468
- generic_shutdown_super+0xcd/0x4c0 fs/super.c:421
- kill_anon_super+0x3c/0x50 fs/super.c:988
- deactivate_locked_super+0x88/0xd0 fs/super.c:309
- deactivate_super+0x155/0x1b0 fs/super.c:340
- cleanup_mnt+0xb2/0x160 fs/namespace.c:1112
- __cleanup_mnt+0x16/0x20 fs/namespace.c:1119
- task_work_run+0x18a/0x260 kernel/task_work.c:116
- tracehook_notify_resume include/linux/tracehook.h:191 [inline]
- exit_to_usermode_loop+0x23b/0x2a0 arch/x86/entry/common.c:160
- prepare_exit_to_usermode arch/x86/entry/common.c:190 [inline]
- syscall_return_slowpath+0x4d3/0x570 arch/x86/entry/common.c:259
- entry_SYSCALL_64_fastpath+0xc0/0xc2
-RIP: 0033:0x44fb79
-RSP: 002b:00007f0335222b58 EFLAGS: 00000212 ORIG_RAX: 00000000000000a5
-RAX: ffffffffffffffea RBX: 0000000000708150 RCX: 000000000044fb79
-RDX: 000000002064e000 RSI: 00000000208f8ff8 RDI: 0000000020b28ff8
-RBP: 00000000000002f7 R08: 0000000000000000 R09: 0000000000000000
-R10: 8000000000000001 R11: 0000000000000212 R12: 0000000020b28ff8
-R13: 00000000208f8ff8 R14: 000000002064e000 R15: 0000000000000000
-Code: 00 f1 f1 f1 f1 c7 40 04 04 f2 f2 f2 c7 40 08 f3 f3 f3 f3 e8 71
-02 2d ff 48 8d 45 98 48 c1 e8 03 c6 04 18 04 4c 89 e0 48 c1 e8 03 <0f>
-b6 14 18 4c 89 e0 83 e0 07 83 c0 03 38 d0 7c 08 84 d2 0f 85
-RIP: __read_once_size include/linux/compiler.h:254 [inline] RSP:
-ffff880154c9f078
-RIP: atomic_read arch/x86/include/asm/atomic.h:26 [inline] RSP: ffff880154c9f078
-RIP: refcount_sub_and_test+0x82/0x1f0 lib/refcount.c:120 RSP: ffff880154c9f078
----[ end trace 3457479bd0ed5045 ]---
+ include/linux/idr.h                            |  136 +--
+ include/linux/xarray.h                         |  764 ++++++++++++++
+ lib/Makefile                                   |    3 +-
+ lib/idr.c                                      |  503 +++++----
+ lib/radix-tree.c                               |  169 +--
+ lib/xarray.c                                   | 1305 ++++++++++++++++++++++++
+ tools/include/asm/bug.h                        |    4 +
+ tools/include/linux/kernel.h                   |    1 +
+ tools/include/linux/spinlock.h                 |    7 +-
+ tools/testing/radix-tree/.gitignore            |    4 +-
+ tools/testing/radix-tree/Makefile              |   34 +-
+ tools/testing/radix-tree/{idr-test.c => idr.c} |   37 +-
+ tools/testing/radix-tree/linux.c               |    2 +-
+ tools/testing/radix-tree/linux/radix-tree.h    |    5 -
+ tools/testing/radix-tree/linux/rcupdate.h      |    2 +
+ tools/testing/radix-tree/linux/xarray.h        |    1 +
+ tools/testing/radix-tree/test.c                |   59 +-
+ tools/testing/radix-tree/test.h                |   48 +-
+ tools/testing/radix-tree/xarray.c              |  241 +++++
+ 19 files changed, 2783 insertions(+), 542 deletions(-)
+ create mode 100644 include/linux/xarray.h
+ create mode 100644 lib/xarray.c
+ rename tools/testing/radix-tree/{idr-test.c => idr.c} (91%)
+ create mode 100644 tools/testing/radix-tree/linux/xarray.h
+ create mode 100644 tools/testing/radix-tree/xarray.c
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
