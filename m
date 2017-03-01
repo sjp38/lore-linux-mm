@@ -1,73 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6131D6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 02:21:44 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id j5so39488520pfb.3
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 23:21:44 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id r15si3874788pli.158.2017.02.28.23.21.42
-        for <linux-mm@kvack.org>;
-        Tue, 28 Feb 2017 23:21:43 -0800 (PST)
-Date: Wed, 1 Mar 2017 16:21:28 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170301072128.GH11663@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228181547.GM5680@worktop>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6116B0038
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 03:43:31 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id e15so13775215wmd.6
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 00:43:31 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id g16si21036242wmg.156.2017.03.01.00.43.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Mar 2017 00:43:30 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id m70so6049025wma.1
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 00:43:30 -0800 (PST)
+Date: Wed, 1 Mar 2017 09:43:26 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH RESEND] drm/via: use get_user_pages_unlocked()
+Message-ID: <20170301084326.tdz32zvjg62znclq@phenom.ffwll.local>
+References: <20170227215008.21457-1-lstoakes@gmail.com>
+ <20170228090110.m4pxtjlbgaft7oet@phenom.ffwll.local>
+ <20170228193539.GT29622@ZenIV.linux.org.uk>
+ <CAA5enKa4Asp4qSHkeV3saLZrhOMf2DJ9vuiwTDo1t5t54z4sTQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170228181547.GM5680@worktop>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CAA5enKa4Asp4qSHkeV3saLZrhOMf2DJ9vuiwTDo1t5t54z4sTQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, dri-devel@lists.freedesktop.org, linux-mm <linux-mm@kvack.org>
 
-On Tue, Feb 28, 2017 at 07:15:47PM +0100, Peter Zijlstra wrote:
-> On Wed, Jan 18, 2017 at 10:17:32PM +0900, Byungchul Park wrote:
-> > +	/*
-> > +	 * Each work of workqueue might run in a different context,
-> > +	 * thanks to concurrency support of workqueue. So we have to
-> > +	 * distinguish each work to avoid false positive.
-> > +	 *
-> > +	 * TODO: We can also add dependencies between two acquisitions
-> > +	 * of different work_id, if they don't cause a sleep so make
-> > +	 * the worker stalled.
-> > +	 */
-> > +	unsigned int		work_id;
+On Tue, Feb 28, 2017 at 08:28:08PM +0000, Lorenzo Stoakes wrote:
+> On 28 February 2017 at 19:35, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> > On Tue, Feb 28, 2017 at 10:01:10AM +0100, Daniel Vetter wrote:
+> >
+> >> > +   ret = get_user_pages_unlocked((unsigned long)xfer->mem_addr,
+> >> > +                   vsg->num_pages, vsg->pages,
+> >> > +                   (vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0);
+> >
+> > Umm...  Why not
+> >         ret = get_user_pages_fast((unsigned long)xfer->mem_addr,
+> >                         vsg->num_pages,
+> >                         vsg->direction == DMA_FROM_DEVICE,
+> >                         vsg->pages);
+> >
+> > IOW, do you really need a warranty that ->mmap_sem will be grabbed and
+> > released?
 > 
-> > +/*
-> > + * Crossrelease needs to distinguish each work of workqueues.
-> > + * Caller is supposed to be a worker.
-> > + */
-> > +void crossrelease_work_start(void)
-> > +{
-> > +	if (current->xhlocks)
-> > +		current->work_id++;
-> > +}
-> 
-> So what you're trying to do with that 'work_id' thing is basically wipe
-> the entire history when we're at the bottom of a context.
+> Daniel will be better placed to answer in this specific case, but more
+> generally is there any reason why we can't just use
+> get_user_pages_fast() in all such cases? These patches were simply a
+> mechanical/cautious replacement for code that is more or less exactly
+> equivalent but if this would make sense perhaps it'd be worth using
+> gup_fast() where possible?
 
-Sorry, but I do not understand what you are trying to say.
+I have no idea. drm/via is unmaintained, it's a dri1 racy driver with
+problems probably everywhere, and I'm not sure we even have someone left
+who cares (there's an out-of-tree kms conversion of via, but it's stuck
+since years).
 
-What I was trying to do with the 'work_id' is to distinguish between
-different works, which will be used to check if history locks were held
-in the same context as a release one.
-
-> Which is a useful operation, but should arguably also be done on the
-> return to userspace path. Any historical lock from before the current
-> syscall is irrelevant.
-
-Sorry. Could you explain it more?
-
-> 
-> (And we should not be returning to userspace with locks held anyway --
-> lockdep already has a check for that).
-
-Yes right. We should not be returning to userspace without reporting it
-in that case.
+In short, it's the drm dungeons and the only reason I merge patches is to
+give people an easy target for test driving the patch submission process
+to dri-devel. And to avoid drm being a blocker for tree-wide refactorings.
+Otherwise 0 reasons to change anything here.
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
