@@ -1,114 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8F86B0388
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 14:14:03 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e15so19425149wmd.6
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 11:14:03 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e72si23052749wma.116.2017.03.01.11.14.01
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F4EB6B0038
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 16:20:53 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id q126so69101752pga.0
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 13:20:53 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 61si5614354plr.217.2017.03.01.13.20.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Mar 2017 11:14:01 -0800 (PST)
-Date: Wed, 1 Mar 2017 20:13:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/9] mm: don't avoid high-priority reclaim on memcg limit
- reclaim
-Message-ID: <20170301191359.GB24905@dhcp22.suse.cz>
-References: <20170228214007.5621-1-hannes@cmpxchg.org>
- <20170228214007.5621-7-hannes@cmpxchg.org>
- <20170301154027.GF11730@dhcp22.suse.cz>
- <20170301173628.GA12664@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Mar 2017 13:20:52 -0800 (PST)
+Subject: Re: [PATCH v2 1/3] sparc64: NG4 memset 32 bits overflow
+References: <1488327283-177710-1-git-send-email-pasha.tatashin@oracle.com>
+ <1488327283-177710-2-git-send-email-pasha.tatashin@oracle.com>
+ <87h93dhmir.fsf@firstfloor.org>
+ <70b638b0-8171-ffce-c0c5-bdcbae3c7c46@oracle.com>
+ <20170301151910.GH26852@two.firstfloor.org>
+ <6a26815d-0ec2-7922-7202-b1e17d58aa00@oracle.com>
+ <20170301173136.GI26852@two.firstfloor.org>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <1e7db21b-808d-1f47-e78c-7d55c543ae39@oracle.com>
+Date: Wed, 1 Mar 2017 16:20:28 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170301173628.GA12664@cmpxchg.org>
+In-Reply-To: <20170301173136.GI26852@two.firstfloor.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On Wed 01-03-17 12:36:28, Johannes Weiner wrote:
-> On Wed, Mar 01, 2017 at 04:40:27PM +0100, Michal Hocko wrote:
-> > On Tue 28-02-17 16:40:04, Johannes Weiner wrote:
-> > > 246e87a93934 ("memcg: fix get_scan_count() for small targets") sought
-> > > to avoid high reclaim priorities for memcg by forcing it to scan a
-> > > minimum amount of pages when lru_pages >> priority yielded nothing.
-> > > This was done at a time when reclaim decisions like dirty throttling
-> > > were tied to the priority level.
-> > > 
-> > > Nowadays, the only meaningful thing still tied to priority dropping
-> > > below DEF_PRIORITY - 2 is gating whether laptop_mode=1 is generally
-> > > allowed to write. But that is from an era where direct reclaim was
-> > > still allowed to call ->writepage, and kswapd nowadays avoids writes
-> > > until it's scanned every clean page in the system. Potential changes
-> > > to how quick sc->may_writepage could trigger are of little concern.
-> > > 
-> > > Remove the force_scan stuff, as well as the ugly multi-pass target
-> > > calculation that it necessitated.
-> > 
-> > I _really_ like this, I hated the multi-pass part. One thig that I am
-> > worried about and changelog doesn't mention it is what we are going to
-> > do about small (<16MB) memcgs. On one hand they were already ignored in
-> > the global reclaim so this is nothing really new but maybe we want to
-> > preserve the behavior for the memcg reclaim at least which would reduce
-> > side effect of this patch which is a great cleanup otherwise. Or at
-> > least be explicit about this in the changelog.
-> 
-> <16MB groups are a legitimate concern during global reclaim, but we
-> have done it this way for a long time and it never seemed to have
-> mattered in practice.
+Hi Andi,
 
-Yeah, this is not really easy to spot because there are usually other
-memcgs which can be reclaimed.
+After thinking some more about this issue, I figured that I would not 
+want to set default maximums.
 
-> And for limit reclaim, this should be much less of a concern. It just
-> means we no longer scan these groups at DEF_PRIORITY and will have to
-> increase the scan window. I don't see a problem with that. And that
-> consequence of higher priorities is right in the patch subject.
+Currently, the defaults are scaled with system memory size, which seems 
+like the right thing to do to me. They are set to size hash tables one 
+entry per page and, if a scale argument is provided, scale them down to 
+1/2, 1/4, 1/8 entry per page etc.
 
-well the memory pressure spills over to others in the same hierarchy.
-But I agree this shouldn't a disaster.
+So, in some cases the scale argument may be wrong, and dentry, inode, or 
+some other client of alloc_large_system_hash() should be adjusted.
 
-> > Btw. why cannot we simply force scan at least SWAP_CLUSTER_MAX
-> > unconditionally?
-> > 
-> > > +		/*
-> > > +		 * If the cgroup's already been deleted, make sure to
-> > > +		 * scrape out the remaining cache.
-> > 		   Also make sure that small memcgs will not get
-> > 		   unnoticed during the memcg reclaim
-> > 
-> > > +		 */
-> > > +		if (!scan && !mem_cgroup_online(memcg))
-> > 
-> > 		if (!scan && (!mem_cgroup_online(memcg) || !global_reclaim(sc)))
-> 
-> With this I'd be worried about regressing the setups pointed out in
-> 6f04f48dc9c0 ("mm: only force scan in reclaim when none of the LRUs
-> are big enough.").
-> 
-> Granted, that patch is a little dubious. IMO, we should be steering
-> the LRU balance through references and, in that case in particular,
-> with swappiness. Using the default 60 for zswap is too low.
-> 
-> Plus, I would expect the refault detection code that was introduced
-> around the same time as this patch to counter-act the hot file
-> thrashing that is mentioned in that patch's changelog.
-> 
-> Nevertheless, it seems a bit gratuitous to go against that change so
-> directly when global reclaim hasn't historically been a problem with
-> groups <16MB. Limit reclaim should be fine too.
+For example, I am pretty sure that scale value in most places should be 
+changed from literal value (inode scale = 14, dentry scale = 13, etc to: 
+(PAGE_SHIFT + value): inode scale would become (PAGE_SHIFT + 2), dentry 
+scale would become (PAGE_SHIFT + 1), etc. This is because we want 1/4 
+inodes and 1/2 dentries per every page in the system.
+In alloc_large_system_hash() we have basically this:
+nentries = nr_kernel_pages >> (scale - PAGE_SHIFT);
 
-As I've already mentioned, I really love this patch I just think this is
-a subtle side effect. The above reasoning should be good enough I
-believe.
+This is basically a bug, and would not change the theory, but I am sure 
+that changing scales without at least some theoretical backup is not a 
+good idea and would most likely lead to regressions, especially on some 
+smaller configurations.
 
-Anyway I forgot to add, I will leave the decision whether to have this
-in a separate patch or just added to the changelog to you.
-Acked-by: Michal Hocko <mhocko@suse.com>
--- 
-Michal Hocko
-SUSE Labs
+Therefore, in my opinion having one fast way to zero hash tables, as 
+this patch tries to do, is a good thing. In the next patch revision I 
+can go ahead and change scales to be (PAGE_SHIFT + val) from current 
+literals.
+
+Thank you,
+Pasha
+
+On 2017-03-01 12:31, Andi Kleen wrote:
+> On Wed, Mar 01, 2017 at 11:34:10AM -0500, Pasha Tatashin wrote:
+>> Hi Andi,
+>>
+>> Thank you for your comment, I am thinking to limit the default
+>> maximum hash tables sizes to 512M.
+>>
+>> If it is bigger than 512M, we would still need my patch to improve
+>
+> Even 512MB seems too large. I wouldn't go larger than a few tens
+> of MB, maybe 32MB.
+>
+> Also you would need to cover all the big hashes.
+>
+> The most critical ones are likely the network hash tables, these
+> maybe be a bit larger (but certainly also not 0.5TB)
+>
+> -Andi
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
