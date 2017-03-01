@@ -1,95 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EEDF16B0389
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 12:36:38 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id u48so19511025wrc.0
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 09:36:38 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j33si7380720wre.332.2017.03.01.09.36.37
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5A36B038B
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 12:37:27 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id f84so51461982ioj.6
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 09:37:27 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id q199si5372374iod.178.2017.03.01.09.37.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Mar 2017 09:36:37 -0800 (PST)
-Date: Wed, 1 Mar 2017 12:36:28 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/9] mm: don't avoid high-priority reclaim on memcg limit
- reclaim
-Message-ID: <20170301173628.GA12664@cmpxchg.org>
-References: <20170228214007.5621-1-hannes@cmpxchg.org>
- <20170228214007.5621-7-hannes@cmpxchg.org>
- <20170301154027.GF11730@dhcp22.suse.cz>
+        Wed, 01 Mar 2017 09:37:27 -0800 (PST)
+Date: Wed, 1 Mar 2017 09:37:10 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
+Message-ID: <20170301173710.GA12867@shli-mbp.local>
+References: <cover.1487965799.git.shli@fb.com>
+ <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
+ <20170301133624.GF1124@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170301154027.GF11730@dhcp22.suse.cz>
+In-Reply-To: <20170301133624.GF1124@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Wed, Mar 01, 2017 at 04:40:27PM +0100, Michal Hocko wrote:
-> On Tue 28-02-17 16:40:04, Johannes Weiner wrote:
-> > 246e87a93934 ("memcg: fix get_scan_count() for small targets") sought
-> > to avoid high reclaim priorities for memcg by forcing it to scan a
-> > minimum amount of pages when lru_pages >> priority yielded nothing.
-> > This was done at a time when reclaim decisions like dirty throttling
-> > were tied to the priority level.
-> > 
-> > Nowadays, the only meaningful thing still tied to priority dropping
-> > below DEF_PRIORITY - 2 is gating whether laptop_mode=1 is generally
-> > allowed to write. But that is from an era where direct reclaim was
-> > still allowed to call ->writepage, and kswapd nowadays avoids writes
-> > until it's scanned every clean page in the system. Potential changes
-> > to how quick sc->may_writepage could trigger are of little concern.
-> > 
-> > Remove the force_scan stuff, as well as the ugly multi-pass target
-> > calculation that it necessitated.
+On Wed, Mar 01, 2017 at 02:36:24PM +0100, Michal Hocko wrote:
+> On Fri 24-02-17 13:31:49, Shaohua Li wrote:
+> > show MADV_FREE pages info of each vma in smaps. The interface is for
+> > diganose or monitoring purpose, userspace could use it to understand
+> > what happens in the application. Since userspace could dirty MADV_FREE
+> > pages without notice from kernel, this interface is the only place we
+> > can get accurate accounting info about MADV_FREE pages.
 > 
-> I _really_ like this, I hated the multi-pass part. One thig that I am
-> worried about and changelog doesn't mention it is what we are going to
-> do about small (<16MB) memcgs. On one hand they were already ignored in
-> the global reclaim so this is nothing really new but maybe we want to
-> preserve the behavior for the memcg reclaim at least which would reduce
-> side effect of this patch which is a great cleanup otherwise. Or at
-> least be explicit about this in the changelog.
-
-<16MB groups are a legitimate concern during global reclaim, but we
-have done it this way for a long time and it never seemed to have
-mattered in practice.
-
-And for limit reclaim, this should be much less of a concern. It just
-means we no longer scan these groups at DEF_PRIORITY and will have to
-increase the scan window. I don't see a problem with that. And that
-consequence of higher priorities is right in the patch subject.
-
-> Btw. why cannot we simply force scan at least SWAP_CLUSTER_MAX
-> unconditionally?
+> I have just got to test this patchset and noticed something that was a
+> bit surprising
 > 
-> > +		/*
-> > +		 * If the cgroup's already been deleted, make sure to
-> > +		 * scrape out the remaining cache.
-> 		   Also make sure that small memcgs will not get
-> 		   unnoticed during the memcg reclaim
+> madvise(mmap(len), len, MADV_FREE)
+> Size:             102400 kB
+> Rss:              102400 kB
+> Pss:              102400 kB
+> Shared_Clean:          0 kB
+> Shared_Dirty:          0 kB
+> Private_Clean:    102400 kB
+> Private_Dirty:         0 kB
+> Referenced:            0 kB
+> Anonymous:        102400 kB
+> LazyFree:         102368 kB
 > 
-> > +		 */
-> > +		if (!scan && !mem_cgroup_online(memcg))
-> 
-> 		if (!scan && (!mem_cgroup_online(memcg) || !global_reclaim(sc)))
+> It took me a some time to realize that LazyFree is not accurate because
+> there are still pages on the per-cpu lru_lazyfree_pvecs. I believe this
+> is an implementation detail which shouldn't be visible to the userspace.
+> Should we simply drain the pagevec? A crude way would be to simply
+> lru_add_drain_all after we are done with the given range. We can also
+> make this lru_lazyfree_pvecs specific but I am not sure this is worth
+> the additional code.
 
-With this I'd be worried about regressing the setups pointed out in
-6f04f48dc9c0 ("mm: only force scan in reclaim when none of the LRUs
-are big enough.").
+Minchan's original patch includes a drain of pvec. I discard it because I think
+it's not worth the effort. There aren't too many memory in the per-cpu vecs.
+Like what you said, I doubt this is noticeable to userspace.
 
-Granted, that patch is a little dubious. IMO, we should be steering
-the LRU balance through references and, in that case in particular,
-with swappiness. Using the default 60 for zswap is too low.
+Thanks,
+Shaohua
 
-Plus, I would expect the refault detection code that was introduced
-around the same time as this patch to counter-act the hot file
-thrashing that is mentioned in that patch's changelog.
 
-Nevertheless, it seems a bit gratuitous to go against that change so
-directly when global reclaim hasn't historically been a problem with
-groups <16MB. Limit reclaim should be fine too.
+> ---
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index dc5927c812d3..d2c318db16c9 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -474,7 +474,7 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
+>  	madvise_free_page_range(&tlb, vma, start, end);
+>  	mmu_notifier_invalidate_range_end(mm, start, end);
+>  	tlb_finish_mmu(&tlb, start, end);
+> -
+> +	lru_add_drain_all();
+>  	return 0;
+>  }
+>  
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
