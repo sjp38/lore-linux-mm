@@ -1,43 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 255FF6B0389
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 10:19:13 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id y51so18244975wry.6
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 07:19:13 -0800 (PST)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id t3si7329598wmd.79.2017.03.01.07.19.11
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 745B46B0389
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 10:21:46 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id u48so18161907wrc.0
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 07:21:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n9si6972439wra.117.2017.03.01.07.21.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Mar 2017 07:19:11 -0800 (PST)
-Date: Wed, 1 Mar 2017 07:19:10 -0800
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH v2 1/3] sparc64: NG4 memset 32 bits overflow
-Message-ID: <20170301151910.GH26852@two.firstfloor.org>
-References: <1488327283-177710-1-git-send-email-pasha.tatashin@oracle.com>
- <1488327283-177710-2-git-send-email-pasha.tatashin@oracle.com>
- <87h93dhmir.fsf@firstfloor.org>
- <70b638b0-8171-ffce-c0c5-bdcbae3c7c46@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Mar 2017 07:21:45 -0800 (PST)
+Date: Wed, 1 Mar 2017 16:21:44 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 5/9] mm: don't avoid high-priority reclaim on
+ unreclaimable nodes
+Message-ID: <20170301152144.GE11730@dhcp22.suse.cz>
+References: <20170228214007.5621-1-hannes@cmpxchg.org>
+ <20170228214007.5621-6-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <70b638b0-8171-ffce-c0c5-bdcbae3c7c46@oracle.com>
+In-Reply-To: <20170228214007.5621-6-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, sparclinux@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-> - Even if the default maximum size is reduced the size of these
-> tables should still be tunable, as it really depends on the way
-> machine is used, and in it is possible that for some use patterns
-> large hash tables are necessary.
+On Tue 28-02-17 16:40:03, Johannes Weiner wrote:
+> 246e87a93934 ("memcg: fix get_scan_count() for small targets") sought
+> to avoid high reclaim priorities for kswapd by forcing it to scan a
+> minimum amount of pages when lru_pages >> priority yielded nothing.
+> 
+> b95a2f2d486d ("mm: vmscan: convert global reclaim to per-memcg LRU
+> lists"), due to switching global reclaim to a round-robin scheme over
+> all cgroups, had to restrict this forceful behavior to unreclaimable
+> zones in order to prevent massive overreclaim with many cgroups.
+> 
+> The latter patch effectively neutered the behavior completely for all
+> but extreme memory pressure. But in those situations we might as well
+> drop the reclaimers to lower priority levels. Remove the check.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I consider it very unlikely that a 8G dentry hash table ever makes
-sense. I cannot even imagine a workload where you would have that
-many active files. It's just a bad configuration that should be avoided.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-And when the tables are small enough you don't need these hacks.
+> ---
+>  mm/vmscan.c | 19 +++++--------------
+>  1 file changed, 5 insertions(+), 14 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 911957b66622..46b6223fe7f3 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2129,22 +2129,13 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  	int pass;
+>  
+>  	/*
+> -	 * If the zone or memcg is small, nr[l] can be 0.  This
+> -	 * results in no scanning on this priority and a potential
+> -	 * priority drop.  Global direct reclaim can go to the next
+> -	 * zone and tends to have no problems. Global kswapd is for
+> -	 * zone balancing and it needs to scan a minimum amount. When
+> +	 * If the zone or memcg is small, nr[l] can be 0. When
+>  	 * reclaiming for a memcg, a priority drop can cause high
+> -	 * latencies, so it's better to scan a minimum amount there as
+> -	 * well.
+> +	 * latencies, so it's better to scan a minimum amount. When a
+> +	 * cgroup has already been deleted, scrape out the remaining
+> +	 * cache forcefully to get rid of the lingering state.
+>  	 */
+> -	if (current_is_kswapd()) {
+> -		if (!pgdat_reclaimable(pgdat))
+> -			force_scan = true;
+> -		if (!mem_cgroup_online(memcg))
+> -			force_scan = true;
+> -	}
+> -	if (!global_reclaim(sc))
+> +	if (!global_reclaim(sc) || !mem_cgroup_online(memcg))
+>  		force_scan = true;
+>  
+>  	/* If we have no swap space, do not bother scanning anon pages. */
+> -- 
+> 2.11.1
 
--Andi
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
