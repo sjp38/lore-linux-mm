@@ -1,42 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB936B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 19:24:30 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q126so35707706pga.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:24:30 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id i5si3079544pgh.191.2017.02.28.16.24.28
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 55F716B0389
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 19:39:49 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 6so31621060pfd.6
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 16:39:49 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o1si3099573pld.248.2017.02.28.16.39.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 16:24:28 -0800 (PST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH v2 1/3] sparc64: NG4 memset 32 bits overflow
-References: <1488327283-177710-1-git-send-email-pasha.tatashin@oracle.com>
-	<1488327283-177710-2-git-send-email-pasha.tatashin@oracle.com>
-Date: Tue, 28 Feb 2017 16:24:28 -0800
-In-Reply-To: <1488327283-177710-2-git-send-email-pasha.tatashin@oracle.com>
-	(Pavel Tatashin's message of "Tue, 28 Feb 2017 19:14:41 -0500")
-Message-ID: <87h93dhmir.fsf@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Tue, 28 Feb 2017 16:39:48 -0800 (PST)
+Date: Tue, 28 Feb 2017 16:39:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] mm: support parallel free of memory
+Message-Id: <20170228163947.cbd83e48dcb149c697b316cd@linux-foundation.org>
+In-Reply-To: <20170224114036.15621-1-aaron.lu@intel.com>
+References: <20170224114036.15621-1-aaron.lu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Ying Huang <ying.huang@intel.com>
 
-Pavel Tatashin <pasha.tatashin@oracle.com> writes:
->
-> While investigating how to improve initialization time of dentry_hashtable
-> which is 8G long on M6 ldom with 7T of main memory, I noticed that memset()
+On Fri, 24 Feb 2017 19:40:31 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 
-I don't think a 8G dentry (or other kernel) hash table makes much
-sense. I would rather fix the hash table sizing algorithm to have some
-reasonable upper limit than to optimize the zeroing.
+> For regular processes, the time taken in its exit() path to free its
+> used memory is not a problem. But there are heavy ones that consume
+> several Terabytes memory and the time taken to free its memory could
+> last more than ten minutes.
+> 
+> To optimize this use case, a parallel free method is proposed here.
+> For detailed explanation, please refer to patch 2/5.
+> 
+> I'm not sure if we need patch 4/5 which can avoid page accumulation
+> being interrupted in some case(patch description has more information).
+> My test case, which only deal with anon memory doesn't get any help out
+> of this of course. It can be safely dropped if it is deemed not useful.
+> 
+> A test program that did a single malloc() of 320G memory is used to see
+> how useful the proposed parallel free solution is, the time calculated
+> is for the free() call. Test machine is a Haswell EX which has
+> 4nodes/72cores/144threads with 512G memory. All tests are done with THP
+> disabled.
+> 
+> kernel                             time
+> v4.10                              10.8s  __2.8%
+> this patch(with default setting)   5.795s __5.8%
 
-I believe there are already boot options for it, but it would be better
-if it worked out of the box.
-
--Andi
+Dumb question: why not do this in userspace, presumably as part of the
+malloc() library?  malloc knows where all the memory is and should be
+able to kick off N threads to run around munmapping everything?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
