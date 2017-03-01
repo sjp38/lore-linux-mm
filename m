@@ -1,46 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C28DD6B0038
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 20:17:23 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id d18so36996469pgh.2
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 17:17:23 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id q18si3186241pge.19.2017.02.28.17.17.22
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EC9286B0038
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2017 20:25:04 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d18so37150126pgh.2
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 17:25:04 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j17si3178444pgg.167.2017.02.28.17.25.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 17:17:23 -0800 (PST)
-Subject: Re: [PATCH 0/5] mm: support parallel free of memory
-References: <20170224114036.15621-1-aaron.lu@intel.com>
- <20170228163947.cbd83e48dcb149c697b316cd@linux-foundation.org>
- <b20b53b5-346e-3558-2260-44b3d111636b@intel.com>
-From: Aaron Lu <aaron.lu@intel.com>
-Message-ID: <31665668-9885-6045-a314-8c092800c739@intel.com>
-Date: Wed, 1 Mar 2017 09:17:26 +0800
-MIME-Version: 1.0
-In-Reply-To: <b20b53b5-346e-3558-2260-44b3d111636b@intel.com>
-Content-Type: text/plain; charset=utf-8
+        Tue, 28 Feb 2017 17:25:04 -0800 (PST)
+Date: Tue, 28 Feb 2017 17:21:56 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] mm subsystem refcounter conversions
+Message-Id: <20170228172156.de13fdc41a3ca6a4deea7750@linux-foundation.org>
+In-Reply-To: <1487671124-11188-1-git-send-email-elena.reshetova@intel.com>
+References: <1487671124-11188-1-git-send-email-elena.reshetova@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@intel.com>, Ying Huang <ying.huang@intel.com>
+To: Elena Reshetova <elena.reshetova@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, arnd@arndb.de, luto@kernel.org
 
-On 03/01/2017 08:43 AM, Dave Hansen wrote:
-> On 02/28/2017 04:39 PM, Andrew Morton wrote:
->> Dumb question: why not do this in userspace, presumably as part of the
->> malloc() library?  malloc knows where all the memory is and should be
->> able to kick off N threads to run around munmapping everything?
+On Tue, 21 Feb 2017 11:58:39 +0200 Elena Reshetova <elena.reshetova@intel.com> wrote:
+
+> Now when new refcount_t type and API are finally merged
+> (see include/linux/refcount.h), the following
+> patches convert various refcounters in the mm susystem from atomic_t
+> to refcount_t. By doing this we prevent intentional or accidental
+> underflows or overflows that can led to use-after-free vulnerabilities.
 > 
-> One of the places we saw this happen was when an app crashed and was
-> exit()'ing under duress without cleaning up nicely.  The time that it
-> takes to unmap a few TB of 4k pages is pretty excessive.
- 
-Thanks Dave for the answer, I should have put this in the changelog(will
-do that in the next revision). Sorry about this Andrew, I hope Dave's
-answer clears things up about the patch's intention.
+> The below patches are fully independent and can be cherry-picked separately.
+> Since we convert all kernel subsystems in the same fashion, resulting
+> in about 300 patches, we have to group them for sending at least in some
+> fashion to be manageable. Please excuse the long cc list.
 
-Regards,
-Aaron
+I don't think so.  Unless I'm missing something rather large...
+
+
+We're going to convert every
+
+	atomic_inc(&foo);
+
+into an uninlined function which calls an uninlined
+
+bool refcount_inc_not_zero(refcount_t *r)
+{
+	unsigned int old, new, val = atomic_read(&r->refs);
+
+	for (;;) {
+		new = val + 1;
+
+		if (!val)
+			return false;
+
+		if (unlikely(!new))
+			return true;
+
+		old = atomic_cmpxchg_relaxed(&r->refs, val, new);
+		if (old == val)
+			break;
+
+		val = old;
+	}
+
+	WARN(new == UINT_MAX, "refcount_t: saturated; leaking memory.\n");
+
+	return true;
+}
+
+The performance implications of this proposal are terrifying.
+
+I suggest adding a set of non-debug inlined refcount functions which
+just fall back to the simple atomic.h operations.
+
+And add a new CONFIG_DEBUG_REFCOUNT.  So the performance (and code
+size!) with CONFIG_DEBUG_REFCOUNT=n is unaltered from present code. 
+And make CONFIG_DEBUG_REFCOUNT suitably difficult to set.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
