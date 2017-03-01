@@ -1,77 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 59E686B038D
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 04:27:56 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id f191so10507451qka.7
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 01:27:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d84si3785195qkc.321.2017.03.01.01.27.55
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8831D6B038A
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 04:49:17 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u199so14317683wmd.4
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 01:49:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g68si6296234wme.88.2017.03.01.01.49.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Mar 2017 01:27:55 -0800 (PST)
-Date: Wed, 1 Mar 2017 17:27:44 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [RFC PATCH v4 26/28] x86: Allow kexec to be used with SME
-Message-ID: <20170301092736.GA8491@dhcp-128-65.nay.redhat.com>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154755.19244.51276.stgit@tlendack-t1.amdoffice.net>
- <20170217155756.GJ30272@char.us.ORACLE.com>
- <d2f16b24-f2ef-a22b-3c72-2d8ad585553e@amd.com>
- <20170301092536.GB8353@dhcp-128-65.nay.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Mar 2017 01:49:16 -0800 (PST)
+Date: Wed, 1 Mar 2017 10:49:13 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Ext4 stack trace with savedwrite patches
+Message-ID: <20170301094913.GB20512@quack2.suse.cz>
+References: <87innzu233.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170301092536.GB8353@dhcp-128-65.nay.redhat.com>
+In-Reply-To: <87innzu233.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, kexec@lists.infradead.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, linux-mm@kvack.org
 
-Add kexec list..
+Hi,
 
-On 03/01/17 at 05:25pm, Dave Young wrote:
-> Hi Tom,
+On Fri 24-02-17 19:23:52, Aneesh Kumar K.V wrote:
+> I am hitting this while running stress test with the saved write patch
+> series. I guess we are missing a set page dirty some where. I will
+> continue to debug this, but if you have any suggestion let me know.
+<snip>
+
+So this warning can happen when page got dirtied but ->page_mkwrite() was
+not called. I don't know details of how autonuma works but a quick look
+suggests that autonuma can also do numa hinting faults for file pages.
+So the following seems to be possible:
+
+Autonuma decides to check for accesses to a mapped shared file page that is
+dirty. pte_present gets cleared, pte_write stays set (due to logic
+introduced in commit b191f9b106 "mm: numa: preserve PTE write permissions
+across a NUMA hinting fault"). Then page writeback happens, page_mkclean()
+is called to write-protect the page. However page_check_address() returns
+NULL for the PTE (__page_check_address() returns NULL for !pte_present
+PTEs) so we don't clear pte_write bit in page_mkclean_one(). Sometime later
+a process looks at the page through mmap, takes NUMA fault and
+do_numa_page() reestablishes a writeable mapping of the page although the
+filesystem does not expect there to be one and funny things happen
+afterwards...
+
+I'll defer to more mm-savvy people to decide how this should be fixed. My
+naive understanding is that page_mkclean_one() should clear the pte_write
+bit even for pages that are undergoing NUMA probation but I'm not sure
+about a preferred way to achieve that...
+
+								Honza
+
+> [ 3177.528954] ------------[ cut here ]------------
+> [ 3177.528968] WARNING: CPU: 155 PID: 84480 at fs/ext4/inode.c:3711 ext4_set_page_dirty+0x9c/0xe0
+> [ 3177.528969] Modules linked in: powernv_op_panel
+> [ 3177.528977] CPU: 155 PID: 84480 Comm: stress-ng-mmap Not tainted 4.10.0-rc8-00038-g528b408-dirty #6
+> [ 3177.528979] task: c000000bbbda7d00 task.stack: c000001d777c0000
+> [ 3177.528981] NIP: c00000000043322c LR: c00000000027f460 CTR: c000000000433190
+> [ 3177.528983] REGS: c000001d777c3850 TRAP: 0700   Not tainted  (4.10.0-rc8-00038-g528b408-dirty)
+> [ 3177.528984] MSR: 9000000000029033 <SF,HV,EE,ME,IR,DR,RI,LE>
+> [ 3177.528994]   CR: 22082442  XER: 00000000
+> [ 3177.528995] CFAR: c0000000004331dc SOFTE: 1 
+>                GPR00: c00000000027f460 c000001d777c3ad0 c000000000fb9c00 f0000000063ac880 
+>                GPR04: 0000000000000010 00000000c0000018 0000000000000000 f0000000073dbf20 
+>                GPR08: c000000000f39c00 0000000000000001 c000000000f39c00 0000000000000018 
+>                GPR12: c000000000433190 c00000000fb9c080 c0000018eb220386 0008000000000000 
+>                GPR16: f0000000063ac880 c000001e44c76f90 c000001e180c6ca0 00007fffa20f0000 
+>                GPR20: c000001bfc672d48 0000000000000000 c000001d777c3b40 00007fffa20e0000 
+>                GPR24: 0000000000000000 c1ffffffffffe7ff ffffffffffffffff 860322eb180000c0 
+>                GPR28: c000001e180c6900 c000001d777c3cc0 00007fffa20f0000 f0000000063ac880 
+> [ 3177.529032] NIP [c00000000043322c] ext4_set_page_dirty+0x9c/0xe0
+> [ 3177.529035] LR [c00000000027f460] set_page_dirty+0xb0/0x190
+> [ 3177.529036] Call Trace:
+> [ 3177.529039] [c000001d777c3ad0] [00007fffa20f0000] 0x7fffa20f0000 (unreliable)
+> [ 3177.529043] [c000001d777c3af0] [c00000000027f460] set_page_dirty+0xb0/0x190
+> [ 3177.529047] [c000001d777c3b20] [c0000000002c0abc] unmap_page_range+0xf1c/0x1040
+> [ 3177.529050] [c000001d777c3c50] [c0000000002c10f4] unmap_vmas+0x84/0x120
+> [ 3177.529053] [c000001d777c3ca0] [c0000000002cbe80] unmap_region+0xd0/0x1a0
+> [ 3177.529057] [c000001d777c3d80] [c0000000002ce7cc] do_munmap+0x2dc/0x4a0
+> [ 3177.529061] [c000001d777c3df0] [c0000000002cea94] SyS_munmap+0x64/0xb0
+> [ 3177.529065] [c000001d777c3e30] [c00000000000b96c] system_call+0x38/0xfc
+> [ 3177.529066] Instruction dump:
+> [ 3177.529068] 7c0803a6 4e800020 60000000 60000000 60420000 3d42fff8 892a6416 2f890000 
+> [ 3177.529076] 409effc4 39200001 3d02fff8 99286416 <0fe00000> 4bffffb0 60000000 60000000 
+> [ 3177.529083] ---[ end trace 50350faad3b7b385 ]---
 > 
-> On 02/17/17 at 10:43am, Tom Lendacky wrote:
-> > On 2/17/2017 9:57 AM, Konrad Rzeszutek Wilk wrote:
-> > > On Thu, Feb 16, 2017 at 09:47:55AM -0600, Tom Lendacky wrote:
-> > > > Provide support so that kexec can be used to boot a kernel when SME is
-> > > > enabled.
-> > > 
-> > > Is the point of kexec and kdump to ehh, dump memory ? But if the
-> > > rest of the memory is encrypted you won't get much, will you?
-> > 
-> > Kexec can be used to reboot a system without going back through BIOS.
-> > So you can use kexec without using kdump.
-> > 
-> > For kdump, just taking a quick look, the option to enable memory
-> > encryption can be provided on the crash kernel command line and then
-> 
-> Is there a simple way to get the SME status? Probably add some sysfs
-> file for this purpose.
-> 
-> > crash kernel can would be able to copy the memory decrypted if the
-> > pagetable is set up properly. It looks like currently ioremap_cache()
-> > is used to map the old memory page.  That might be able to be changed
-> > to a memremap() so that the encryption bit is set in the mapping. That
-> > will mean that memory that is not marked encrypted (EFI tables, swiotlb
-> > memory, etc) would not be read correctly.
-> 
-> Manage to store info about those ranges which are not encrypted so that
-> memremap can handle them?
-> 
-> > 
-> > > 
-> > > Would it make sense to include some printk to the user if they
-> > > are setting up kdump that they won't get anything out of it?
-> > 
-> > Probably a good idea to add something like that.
-> 
-> It will break kdump functionality, it should be fixed instead of
-> just adding printk to warn user..
-> 
-> Thanks
-> Dave
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
