@@ -1,76 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9213E6B0389
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 09:51:24 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 1so57216218pgz.5
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 06:51:24 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e7si4816450pln.37.2017.03.01.06.51.23
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2456F6B0389
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 09:56:59 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id y51so17959018wry.6
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 06:56:59 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j142si7240322wmg.127.2017.03.01.06.56.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Mar 2017 06:51:23 -0800 (PST)
-Subject: Re: [PATCH v2 1/3] sparc64: NG4 memset 32 bits overflow
-References: <1488327283-177710-1-git-send-email-pasha.tatashin@oracle.com>
- <1488327283-177710-2-git-send-email-pasha.tatashin@oracle.com>
- <87h93dhmir.fsf@firstfloor.org>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <70b638b0-8171-ffce-c0c5-bdcbae3c7c46@oracle.com>
-Date: Wed, 1 Mar 2017 09:51:02 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Mar 2017 06:56:57 -0800 (PST)
+Date: Wed, 1 Mar 2017 15:56:56 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 9/9] mm: remove unnecessary back-off function when
+ retrying page reclaim
+Message-ID: <20170301145656.GA11730@dhcp22.suse.cz>
+References: <20170228214007.5621-1-hannes@cmpxchg.org>
+ <20170228214007.5621-10-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <87h93dhmir.fsf@firstfloor.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170228214007.5621-10-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 2017-02-28 19:24, Andi Kleen wrote:
-> Pavel Tatashin <pasha.tatashin@oracle.com> writes:
->>
->> While investigating how to improve initialization time of dentry_hashtable
->> which is 8G long on M6 ldom with 7T of main memory, I noticed that memset()
->
-> I don't think a 8G dentry (or other kernel) hash table makes much
-> sense. I would rather fix the hash table sizing algorithm to have some
-> reasonable upper limit than to optimize the zeroing.
->
-> I believe there are already boot options for it, but it would be better
-> if it worked out of the box.
->
-> -Andi
+On Tue 28-02-17 16:40:07, Johannes Weiner wrote:
+> The backoff mechanism is not needed. If we have MAX_RECLAIM_RETRIES
+> loops without progress, we'll OOM anyway; backing off might cut one or
+> two iterations off that in the rare OOM case. If we have intermittent
+> success reclaiming a few pages, the backoff function gets reset also,
+> and so is of little help in these scenarios.
 
+Yes, as already mentioned elsewhere the original intention was to a more
+graceful oom convergence when we are trashing over last few reclaimable
+pages but as the code evolved the result is not all that great.
+ 
+> We might want a backoff function for when there IS progress, but not
+> enough to be satisfactory. But this isn't that. Remove it.
 
-Hi Andi,
+Completely agreed.
+ 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I agree that there should be some smarter cap for maximum hash table 
-sizes, and as you said it is already possible to set the limits via 
-parameters. I still think, however, this HASH_ZERO patch makes sense for 
-the following reasons:
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-- Even if the default maximum size is reduced the size of these tables 
-should still be tunable, as it really depends on the way machine is 
-used, and in it is possible that for some use patterns large hash tables 
-are necessary.
+> ---
+>  mm/page_alloc.c | 15 ++++++---------
+>  1 file changed, 6 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9ac639864bed..223644afed28 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3511,11 +3511,10 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>  /*
+>   * Checks whether it makes sense to retry the reclaim to make a forward progress
+>   * for the given allocation request.
+> - * The reclaim feedback represented by did_some_progress (any progress during
+> - * the last reclaim round) and no_progress_loops (number of reclaim rounds without
+> - * any progress in a row) is considered as well as the reclaimable pages on the
+> - * applicable zone list (with a backoff mechanism which is a function of
+> - * no_progress_loops).
+> + *
+> + * We give up when we either have tried MAX_RECLAIM_RETRIES in a row
+> + * without success, or when we couldn't even meet the watermark if we
+> + * reclaimed all remaining pages on the LRU lists.
+>   *
+>   * Returns true if a retry is viable or false to enter the oom path.
+>   */
+> @@ -3560,13 +3559,11 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+>  		bool wmark;
+>  
+>  		available = reclaimable = zone_reclaimable_pages(zone);
+> -		available -= DIV_ROUND_UP((*no_progress_loops) * available,
+> -					  MAX_RECLAIM_RETRIES);
+>  		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+>  
+>  		/*
+> -		 * Would the allocation succeed if we reclaimed the whole
+> -		 * available?
+> +		 * Would the allocation succeed if we reclaimed all
+> +		 * reclaimable pages?
+>  		 */
+>  		wmark = __zone_watermark_ok(zone, order, min_wmark,
+>  				ac_classzone_idx(ac), alloc_flags, available);
+> -- 
+> 2.11.1
 
-- Most of them are initialized before smp_init() call. The time from 
-bootloader to smp_init() should be minimized as parallelization is not 
-available yet. For example, LDOM domain on which I tested this patch 
-with few more optimization takes 8.5 seconds to get from grub to 
-smp_init() (760CPUs and 7T of memory), out of these 8.5 seconds 3.1s 
-(vs. 11.8s before this patch) are spent initializing these hash tables. 
-So, even 3.1s is still significant, and should be improved further by 
-changing the default maximums, but that should be a different patch.
-
-Thank you,
-Pasha
-
-
-> --
-> To unsubscribe from this list: send the line "unsubscribe sparclinux" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
