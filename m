@@ -1,87 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F4EB6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 16:20:53 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q126so69101752pga.0
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 13:20:53 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 61si5614354plr.217.2017.03.01.13.20.52
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E92B66B0038
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 17:55:56 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id i1so46439598ota.0
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 14:55:56 -0800 (PST)
+Received: from mail-ot0-x22f.google.com (mail-ot0-x22f.google.com. [2607:f8b0:4003:c0f::22f])
+        by mx.google.com with ESMTPS id s111si2662987ota.79.2017.03.01.14.55.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Mar 2017 13:20:52 -0800 (PST)
-Subject: Re: [PATCH v2 1/3] sparc64: NG4 memset 32 bits overflow
-References: <1488327283-177710-1-git-send-email-pasha.tatashin@oracle.com>
- <1488327283-177710-2-git-send-email-pasha.tatashin@oracle.com>
- <87h93dhmir.fsf@firstfloor.org>
- <70b638b0-8171-ffce-c0c5-bdcbae3c7c46@oracle.com>
- <20170301151910.GH26852@two.firstfloor.org>
- <6a26815d-0ec2-7922-7202-b1e17d58aa00@oracle.com>
- <20170301173136.GI26852@two.firstfloor.org>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <1e7db21b-808d-1f47-e78c-7d55c543ae39@oracle.com>
-Date: Wed, 1 Mar 2017 16:20:28 -0500
+        Wed, 01 Mar 2017 14:55:55 -0800 (PST)
+Received: by mail-ot0-x22f.google.com with SMTP id i1so40746865ota.3
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 14:55:55 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170301173136.GI26852@two.firstfloor.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170301170429.GB5208@osiris>
+References: <alpine.LFD.2.20.1702261231580.3067@schleppi.fritz.box>
+ <20170227162031.GA27937@dhcp22.suse.cz> <20170228115729.GB13872@osiris>
+ <20170301125105.GA5208@osiris> <CAPcyv4ghK3GWUD0qBNigfQvPM6qUWLMwmfgT5THcDcjuYrjSSQ@mail.gmail.com>
+ <20170301170429.GB5208@osiris>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 1 Mar 2017 14:55:55 -0800
+Message-ID: <CAPcyv4iUzC_rN4mg5c5ShLAoFxam7Jiek4q8dDaHTi44cxB=Aw@mail.gmail.com>
+Subject: Re: [PATCH] mm, add_memory_resource: hold device_hotplug lock over
+ mem_hotplug_{begin, done}
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>
 
-Hi Andi,
-
-After thinking some more about this issue, I figured that I would not 
-want to set default maximums.
-
-Currently, the defaults are scaled with system memory size, which seems 
-like the right thing to do to me. They are set to size hash tables one 
-entry per page and, if a scale argument is provided, scale them down to 
-1/2, 1/4, 1/8 entry per page etc.
-
-So, in some cases the scale argument may be wrong, and dentry, inode, or 
-some other client of alloc_large_system_hash() should be adjusted.
-
-For example, I am pretty sure that scale value in most places should be 
-changed from literal value (inode scale = 14, dentry scale = 13, etc to: 
-(PAGE_SHIFT + value): inode scale would become (PAGE_SHIFT + 2), dentry 
-scale would become (PAGE_SHIFT + 1), etc. This is because we want 1/4 
-inodes and 1/2 dentries per every page in the system.
-In alloc_large_system_hash() we have basically this:
-nentries = nr_kernel_pages >> (scale - PAGE_SHIFT);
-
-This is basically a bug, and would not change the theory, but I am sure 
-that changing scales without at least some theoretical backup is not a 
-good idea and would most likely lead to regressions, especially on some 
-smaller configurations.
-
-Therefore, in my opinion having one fast way to zero hash tables, as 
-this patch tries to do, is a good thing. In the next patch revision I 
-can go ahead and change scales to be (PAGE_SHIFT + val) from current 
-literals.
-
-Thank you,
-Pasha
-
-On 2017-03-01 12:31, Andi Kleen wrote:
-> On Wed, Mar 01, 2017 at 11:34:10AM -0500, Pasha Tatashin wrote:
->> Hi Andi,
+On Wed, Mar 1, 2017 at 9:04 AM, Heiko Carstens
+<heiko.carstens@de.ibm.com> wrote:
+> On Wed, Mar 01, 2017 at 07:52:18AM -0800, Dan Williams wrote:
+>> On Wed, Mar 1, 2017 at 4:51 AM, Heiko Carstens
+>> <heiko.carstens@de.ibm.com> wrote:
+>> > Since it is anything but obvious why Dan wrote in changelog of b5d24fda9c3d
+>> > ("mm, devm_memremap_pages: hold device_hotplug lock over
+>> > mem_hotplug_{begin, done}") that write accesses to
+>> > mem_hotplug.active_writer are coordinated via lock_device_hotplug() I'd
+>> > rather propose a new private memory_add_remove_lock which has similar
+>> > semantics like the cpu_add_remove_lock for cpu hotplug (see patch below).
+>> >
+>> > However instead of sprinkling locking/unlocking of that new lock around all
+>> > calls of mem_hotplug_begin() and mem_hotplug_end() simply include locking
+>> > and unlocking into these two functions.
+>> >
+>> > This still allows get_online_mems() and put_online_mems() to work, while at
+>> > the same time preventing mem_hotplug.active_writer corruption.
+>> >
+>> > Any opinions?
 >>
->> Thank you for your comment, I am thinking to limit the default
->> maximum hash tables sizes to 512M.
+>> Sorry, yes, I didn't make it clear that I derived that locking
+>> requirement from store_mem_state() and its usage of
+>> lock_device_hotplug_sysfs().
 >>
->> If it is bigger than 512M, we would still need my patch to improve
+>> That routine is trying very hard not trip the soft-lockup detector. It
+>> seems like that wants to be an interruptible wait.
 >
-> Even 512MB seems too large. I wouldn't go larger than a few tens
-> of MB, maybe 32MB.
+> If you look at commit 5e33bc4165f3 ("driver core / ACPI: Avoid device hot
+> remove locking issues") then lock_device_hotplug_sysfs() was introduced to
+> avoid a different subtle deadlock, but it also sleeps uninterruptible, but
+> not for more than 5ms ;)
 >
-> Also you would need to cover all the big hashes.
->
-> The most critical ones are likely the network hash tables, these
-> maybe be a bit larger (but certainly also not 0.5TB)
->
-> -Andi
->
+> However I'm not sure if the device hotplug lock should also be used to fix
+> an unrelated bug that was introduced with the get_online_mems() /
+> put_online_mems() interface. Should it?
+
+No, I don't think it should.
+
+I like your proposed direction of creating a new lock internal to
+mem_hotplug_begin() to protect active_writer, and stop relying on
+lock_device_hotplug to serve this purpose.
+
+> If so, we need to sprinkle around a couple of lock_device_hotplug() calls
+> near mem_hotplug_begin() calls, like Sebastian already started, and give it
+> additional semantics (protecting mem_hotplug.active_writer), and hope it
+> doesn't lead to deadlocks anywhere.
+
+I'll put your proposed patch through some testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
