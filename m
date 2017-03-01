@@ -1,63 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 22EFF6B0388
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 00:17:29 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 67so37238497pfg.0
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 21:17:29 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d38si3634510pld.165.2017.02.28.21.17.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Feb 2017 21:17:28 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v215E8WB032806
-	for <linux-mm@kvack.org>; Wed, 1 Mar 2017 00:17:27 -0500
-Received: from e06smtp09.uk.ibm.com (e06smtp09.uk.ibm.com [195.75.94.105])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28wqtc8u6p-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 01 Mar 2017 00:17:26 -0500
-Received: from localhost
-	by e06smtp09.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 1 Mar 2017 05:17:24 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 1.5/3] userfaultfd: documentation fixup after removal of UFFD_EVENT_EXIT
-Date: Wed,  1 Mar 2017 07:17:17 +0200
-In-Reply-To: <20170224181957.19736-1-aarcange@redhat.com>
-References: <20170224181957.19736-1-aarcange@redhat.com>
-Message-Id: <1488345437-4364-1-git-send-email-rppt@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1DC8D6B0038
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 00:43:39 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j5so37776068pfb.3
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 21:43:39 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id w15si3659850pge.367.2017.02.28.21.43.37
+        for <linux-mm@kvack.org>;
+        Tue, 28 Feb 2017 21:43:38 -0800 (PST)
+Date: Wed, 1 Mar 2017 14:43:23 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
+Message-ID: <20170301054323.GE11663@X58A-UD3R>
+References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
+ <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
+ <20170228134018.GK5680@worktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170228134018.GK5680@worktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
-Hello Andrew,
+On Tue, Feb 28, 2017 at 02:40:18PM +0100, Peter Zijlstra wrote:
+> > +static int commit_xhlocks(struct cross_lock *xlock)
+> > +{
+> > +	struct task_struct *curr = current;
+> > +	struct hist_lock *xhlock_c = xhlock_curr(curr);
+> > +	struct hist_lock *xhlock = xhlock_c;
+> > +
+> > +	do {
+> > +		xhlock = xhlock_prev(curr, xhlock);
+> > +
+> > +		if (!xhlock_used(xhlock))
+> > +			break;
+> > +
+> > +		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
+> > +			break;
+> > +
+> > +		if (same_context_xhlock(xhlock) &&
+> > +		    before(xhlock->prev_gen_id, xlock->hlock.gen_id) &&
+> > +		    !commit_xhlock(xlock, xhlock))
+> > +			return 0;
+> > +	} while (xhlock_c != xhlock);
+> > +
+> > +	return 1;
+> > +}
+> 
+> So I'm still struggling with prev_gen_id; is it an optimization or is it
+> required for correctness?
 
-It would be great if you can fold the patch below with the patch 1/3
-(userfaultfd: non-cooperative: rollback userfaultfd_exit) 
+It's an optimization, but very essential and important optimization.
 
- Documentation/vm/userfaultfd.txt | 4 ----
- 1 file changed, 4 deletions(-)
+          in hlocks[]
+          ------------
+          A gen_id (4) --+
+                         | previous gen_id
+          B gen_id (3) <-+
+          C gen_id (3)
+          D gen_id (2)
+oldest -> E gen_id (1)
 
-diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
-index fe51a5a..d57e59c 100644
---- a/Documentation/vm/userfaultfd.txt
-+++ b/Documentation/vm/userfaultfd.txt
-@@ -172,10 +172,6 @@ the same read(2) protocol as for the page fault notifications. The
- manager has to explicitly enable these events by setting appropriate
- bits in uffdio_api.features passed to UFFDIO_API ioctl:
- 
--UFFD_FEATURE_EVENT_EXIT - enable notification about exit() of the
--non-cooperative process. When the monitored process exits, the uffd
--manager will get UFFD_EVENT_EXIT.
--
- UFFD_FEATURE_EVENT_FORK - enable userfaultfd hooks for fork(). When
- this feature is enabled, the userfaultfd context of the parent process
- is duplicated into the newly created process. The manager receives
--- 
-1.9.1
+          in xhlocks[]
+          ------------
+       ^  A gen_id (4) prev_gen_id (3: B's gen id)
+       |  B gen_id (3) prev_gen_id (3: C's gen id)
+       |  C gen_id (3) prev_gen_id (2: D's gen id)
+       |  D gen_id (2) prev_gen_id (1: E's gen id)
+       |  E gen_id (1) prev_gen_id (NA)
+
+Let's consider the case that the gen id of xlock to commit is 3.
+
+In this case, it's engough to generate 'the xlock -> C'. 'the xlock -> B'
+and 'the xlock -> A' are unnecessary since it's covered by 'C -> B' and
+'B -> A' which are already generated by original lockdep.
+
+I use the prev_gen_id to avoid adding this kind of redundant
+dependencies. In other words, xhlock->prev_gen_id >= xlock->hlock.gen_id
+means that the previous lock in hlocks[] is able to handle the
+dependency on its commit stage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
