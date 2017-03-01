@@ -1,125 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 493136B0038
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 00:17:26 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id b2so42077178pgc.6
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 21:17:26 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id b35si3644530plh.80.2017.02.28.21.17.24
-        for <linux-mm@kvack.org>;
-        Tue, 28 Feb 2017 21:17:25 -0800 (PST)
-Date: Wed, 1 Mar 2017 14:17:07 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170301051706.GD11663@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228154900.GL5680@worktop>
-MIME-Version: 1.0
-In-Reply-To: <20170228154900.GL5680@worktop>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 22EFF6B0388
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 00:17:29 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 67so37238497pfg.0
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2017 21:17:29 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d38si3634510pld.165.2017.02.28.21.17.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Feb 2017 21:17:28 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v215E8WB032806
+	for <linux-mm@kvack.org>; Wed, 1 Mar 2017 00:17:27 -0500
+Received: from e06smtp09.uk.ibm.com (e06smtp09.uk.ibm.com [195.75.94.105])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28wqtc8u6p-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 01 Mar 2017 00:17:26 -0500
+Received: from localhost
+	by e06smtp09.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 1 Mar 2017 05:17:24 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH 1.5/3] userfaultfd: documentation fixup after removal of UFFD_EVENT_EXIT
+Date: Wed,  1 Mar 2017 07:17:17 +0200
+In-Reply-To: <20170224181957.19736-1-aarcange@redhat.com>
+References: <20170224181957.19736-1-aarcange@redhat.com>
+Message-Id: <1488345437-4364-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Tue, Feb 28, 2017 at 04:49:00PM +0100, Peter Zijlstra wrote:
-> On Wed, Jan 18, 2017 at 10:17:32PM +0900, Byungchul Park wrote:
-> 
-> > +struct cross_lock {
-> > +	/*
-> > +	 * When more than one acquisition of crosslocks are overlapped,
-> > +	 * we do actual commit only when ref == 0.
-> > +	 */
-> > +	atomic_t ref;
-> 
-> That comment doesn't seem right, should that be: ref != 0 ?
-> Also; would it not be much clearer to call this: nr_blocked, or waiters
-> or something along those lines, because that is what it appears to be.
-> 
-> > +	/*
-> > +	 * Seperate hlock instance. This will be used at commit step.
-> > +	 *
-> > +	 * TODO: Use a smaller data structure containing only necessary
-> > +	 * data. However, we should make lockdep code able to handle the
-> > +	 * smaller one first.
-> > +	 */
-> > +	struct held_lock	hlock;
-> > +};
-> 
-> > +static int add_xlock(struct held_lock *hlock)
-> > +{
-> > +	struct cross_lock *xlock;
-> > +	unsigned int gen_id;
-> > +
-> > +	if (!depend_after(hlock))
-> > +		return 1;
-> > +
-> > +	if (!graph_lock())
-> > +		return 0;
-> > +
-> > +	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
-> > +
-> > +	/*
-> > +	 * When acquisitions for a xlock are overlapped, we use
-> > +	 * a reference counter to handle it.
-> 
-> Handle what!? That comment is near empty.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+Hello Andrew,
 
-I will add more comment so that it can fully descibe.
+It would be great if you can fold the patch below with the patch 1/3
+(userfaultfd: non-cooperative: rollback userfaultfd_exit) 
 
-> 
-> > +	 */
-> > +	if (atomic_inc_return(&xlock->ref) > 1)
-> > +		goto unlock;
-> 
-> So you set the xlock's generation only once, to the oldest blocking-on
-> relation, which makes sense, you want to be able to related to all
-> historical locks since.
-> 
-> > +
-> > +	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
-> > +	xlock->hlock = *hlock;
-> > +	xlock->hlock.gen_id = gen_id;
-> > +unlock:
-> > +	graph_unlock();
-> > +	return 1;
-> > +}
-> 
-> > +void lock_commit_crosslock(struct lockdep_map *lock)
-> > +{
-> > +	struct cross_lock *xlock;
-> > +	unsigned long flags;
-> > +
-> > +	if (!current->xhlocks)
-> > +		return;
-> > +
-> > +	if (unlikely(current->lockdep_recursion))
-> > +		return;
-> > +
-> > +	raw_local_irq_save(flags);
-> > +	check_flags(flags);
-> > +	current->lockdep_recursion = 1;
-> > +
-> > +	if (unlikely(!debug_locks))
-> > +		return;
-> > +
-> > +	if (!graph_lock())
-> > +		return;
-> > +
-> > +	xlock = &((struct lockdep_map_cross *)lock)->xlock;
-> > +	if (atomic_read(&xlock->ref) > 0 && !commit_xhlocks(xlock))
-> 
-> You terminate with graph_lock() held.
+ Documentation/vm/userfaultfd.txt | 4 ----
+ 1 file changed, 4 deletions(-)
 
-Oops. What did I do? I'll fix it.
-
-> 
-> Also, I think you can do the atomic_read() outside of graph lock, to
-> avoid taking graph_lock when its 0.
-
-I'll do that if possible after thinking more.
+diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
+index fe51a5a..d57e59c 100644
+--- a/Documentation/vm/userfaultfd.txt
++++ b/Documentation/vm/userfaultfd.txt
+@@ -172,10 +172,6 @@ the same read(2) protocol as for the page fault notifications. The
+ manager has to explicitly enable these events by setting appropriate
+ bits in uffdio_api.features passed to UFFDIO_API ioctl:
+ 
+-UFFD_FEATURE_EVENT_EXIT - enable notification about exit() of the
+-non-cooperative process. When the monitored process exits, the uffd
+-manager will get UFFD_EVENT_EXIT.
+-
+ UFFD_FEATURE_EVENT_FORK - enable userfaultfd hooks for fork(). When
+ this feature is enabled, the userfaultfd context of the parent process
+ is duplicated into the newly created process. The manager receives
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
