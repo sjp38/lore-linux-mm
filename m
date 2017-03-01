@@ -1,79 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 578756B038C
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 12:50:00 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u199so18755936wmd.4
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 09:50:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a79si22749591wmi.121.2017.03.01.09.49.59
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F9E6B038B
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 12:51:48 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id n76so52146538ioe.1
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 09:51:48 -0800 (PST)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0043.outbound.protection.outlook.com. [104.47.36.43])
+        by mx.google.com with ESMTPS id 62si6327883ioh.134.2017.03.01.09.51.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Mar 2017 09:49:59 -0800 (PST)
-Date: Wed, 1 Mar 2017 18:49:56 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
-Message-ID: <20170301174955.GB20360@dhcp22.suse.cz>
-References: <cover.1487965799.git.shli@fb.com>
- <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
- <20170301133624.GF1124@dhcp22.suse.cz>
- <20170301173710.GA12867@shli-mbp.local>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 01 Mar 2017 09:51:47 -0800 (PST)
+Subject: Re: [RFC PATCH v4 00/28] x86: Secure Memory Encryption (AMD)
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170301091725.GA8353@dhcp-128-65.nay.redhat.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <8d1d416c-0ae3-ee87-7c7e-eb15a515eb16@amd.com>
+Date: Wed, 1 Mar 2017 11:51:40 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170301173710.GA12867@shli-mbp.local>
+In-Reply-To: <20170301091725.GA8353@dhcp-128-65.nay.redhat.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Dave Young <dyoung@redhat.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, kexec@lists.infradead.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed 01-03-17 09:37:10, Shaohua Li wrote:
-> On Wed, Mar 01, 2017 at 02:36:24PM +0100, Michal Hocko wrote:
-> > On Fri 24-02-17 13:31:49, Shaohua Li wrote:
-> > > show MADV_FREE pages info of each vma in smaps. The interface is for
-> > > diganose or monitoring purpose, userspace could use it to understand
-> > > what happens in the application. Since userspace could dirty MADV_FREE
-> > > pages without notice from kernel, this interface is the only place we
-> > > can get accurate accounting info about MADV_FREE pages.
-> > 
-> > I have just got to test this patchset and noticed something that was a
-> > bit surprising
-> > 
-> > madvise(mmap(len), len, MADV_FREE)
-> > Size:             102400 kB
-> > Rss:              102400 kB
-> > Pss:              102400 kB
-> > Shared_Clean:          0 kB
-> > Shared_Dirty:          0 kB
-> > Private_Clean:    102400 kB
-> > Private_Dirty:         0 kB
-> > Referenced:            0 kB
-> > Anonymous:        102400 kB
-> > LazyFree:         102368 kB
-> > 
-> > It took me a some time to realize that LazyFree is not accurate because
-> > there are still pages on the per-cpu lru_lazyfree_pvecs. I believe this
-> > is an implementation detail which shouldn't be visible to the userspace.
-> > Should we simply drain the pagevec? A crude way would be to simply
-> > lru_add_drain_all after we are done with the given range. We can also
-> > make this lru_lazyfree_pvecs specific but I am not sure this is worth
-> > the additional code.
-> 
-> Minchan's original patch includes a drain of pvec. I discard it because I think
-> it's not worth the effort. There aren't too many memory in the per-cpu vecs.
+On 3/1/2017 3:17 AM, Dave Young wrote:
+> Hi Tom,
 
-but multiply that by the number of CPUs.
+Hi Dave,
 
-> Like what you said, I doubt this is noticeable to userspace.
+>
 
-maybe I wasn't clear enough. I've noticed and I expect others would as
-well. We really shouldn't leak implementation details like that. So I
-_believe_ this should be fixed. Draining all pagevecs is rather coarse
-but it is the simplest thing to do. If you do not want to fold this
-into the original patch I can send a standalone one. Or do you have any
-concerns about draining?
--- 
-Michal Hocko
-SUSE Labs
+... SNIP ...
+
+>> - Added support for (re)booting with kexec
+>
+> Could you please add kexec list in cc when you updating the patches so
+> that kexec/kdump people do not miss them?
+>
+
+Sorry about that, I'll be sure to add it to the cc list.
+
+Thanks,
+Tom
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
