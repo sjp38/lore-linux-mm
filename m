@@ -1,49 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A14D56B0038
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 06:18:22 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id h89so12501656lfi.6
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 03:18:22 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id w64si2483983lfi.390.2017.03.01.03.18.21
-        for <linux-mm@kvack.org>;
-        Wed, 01 Mar 2017 03:18:21 -0800 (PST)
-Date: Wed, 1 Mar 2017 12:17:37 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v4 19/28] swiotlb: Add warnings for use of bounce
- buffers with SME
-Message-ID: <20170301111737.z3bwfpdoj7ndzmyd@pd.tnic>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154619.19244.76653.stgit@tlendack-t1.amdoffice.net>
- <20170227175259.whl75utazbzxp7jo@pd.tnic>
- <9b5af67b-0969-5402-cc01-3ea98f41b748@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <9b5af67b-0969-5402-cc01-3ea98f41b748@amd.com>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BE9B6B0038
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 06:30:03 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id u108so3194702wrb.3
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 03:30:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r5si625112wmr.74.2017.03.01.03.30.01
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Mar 2017 03:30:02 -0800 (PST)
+From: Nikolay Borisov <nborisov@suse.com>
+Subject: [PATCH v3] lockdep: Teach lockdep about memalloc_noio_save
+Date: Wed,  1 Mar 2017 13:29:57 +0200
+Message-Id: <1488367797-27278-1-git-send-email-nborisov@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: peterz@infradead.org
+Cc: linux-kernel@vger.kernel.org, mhocko@kernel.org, vbabka.lkml@gmail.com, linux-mm@kvack.org, mingo@redhat.com, Nikolay Borisov <nborisov@suse.com>
 
-On Tue, Feb 28, 2017 at 05:19:51PM -0600, Tom Lendacky wrote:
-> Device drivers don't supply set_dma_mask() since that is part of the
-> dma_map_ops structure. The fm10k_pf.c file function is unrelated to this
-> (it's part of an internal driver structure). The dma_map_ops structure
-> is setup by the arch or an iommu.
+Commit 21caf2fc1931 ("mm: teach mm by current context info to not do I/O
+during memory allocation") added the memalloc_noio_(save|restore) functions
+to enable people to modify the MM behavior by disbaling I/O during memory
+allocation. This was further extended in Fixes: 934f3072c17c ("mm: clear 
+__GFP_FS when PF_MEMALLOC_NOIO is set"). memalloc_noio_* functions prevent 
+allocation paths recursing back into the filesystem without explicitly 
+changing the flags for every allocation site. However, lockdep hasn't been 
+keeping up with the changes and it entirely misses handling the memalloc_noio
+adjustments. Instead, it is left to the callers of __lockdep_trace_alloc to 
+call the functino after they have shaven the respective GFP flags. 
 
-That was certainly a brainfart, sorry.
+Let's fix this by making lockdep explicitly do the shaving of respective
+GFP flags. 
 
-Joerg explained to me on IRC how the whole dma_map_ops handling is
-supposed to be happening.
+Fixes: 934f3072c17c ("mm: clear __GFP_FS when PF_MEMALLOC_NOIO is set")
+Signed-off-by: Nikolay Borisov <nborisov@suse.com>
+---
+ kernel/locking/lockdep.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Thanks.
+Changes since v2: 
+	* Incorporate Michal's suggestion of using memalloc_noio_flags explicitly. 
+	* Tune the commit message to make the problem statement a bit more
+	descriptive. 
 
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 9812e5dd409e..565506c9e99c 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -2861,6 +2861,8 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
+ 	if (unlikely(!debug_locks))
+ 		return;
+ 
++	gfp_mask = memalloc_noio_flags(gfp_mask);
++
+ 	/* no reclaim without waiting on it */
+ 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
+ 		return;
+@@ -3852,7 +3854,7 @@ EXPORT_SYMBOL_GPL(lock_unpin_lock);
+ 
+ void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
+ {
+-	current->lockdep_reclaim_gfp = gfp_mask;
++	current->lockdep_reclaim_gfp = memalloc_noio_flags(gfp_mask);
+ }
+ 
+ void lockdep_clear_current_reclaim_state(void)
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
