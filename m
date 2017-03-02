@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A38B06B0387
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF6EF6B0388
 	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 01:39:31 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id d18so82157269pgh.2
+Received: by mail-pg0-f71.google.com with SMTP id 1so81805348pgz.5
         for <linux-mm@kvack.org>; Wed, 01 Mar 2017 22:39:31 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id r69si6626083pfk.242.2017.03.01.22.39.29
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id h11si6624942pln.322.2017.03.01.22.39.30
         for <linux-mm@kvack.org>;
         Wed, 01 Mar 2017 22:39:30 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 02/11] mm: remove unncessary ret in page_referenced
-Date: Thu,  2 Mar 2017 15:39:16 +0900
-Message-Id: <1488436765-32350-3-git-send-email-minchan@kernel.org>
+Subject: [RFC 04/11] mm: remove SWAP_MLOCK check for SWAP_SUCCESS in ttu
+Date: Thu,  2 Mar 2017 15:39:18 +0900
+Message-Id: <1488436765-32350-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1488436765-32350-1-git-send-email-minchan@kernel.org>
 References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,34 +19,28 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>
 
-Anyone doesn't use ret variable. Remove it.
+If the page is mapped and rescue in ttuo, page_mapcount(page) == 0 cannot
+be true so page_mapcount check in ttu is enough to return SWAP_SUCCESS.
+IOW, SWAP_MLOCK check is redundant so remove it.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/rmap.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ mm/rmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/rmap.c b/mm/rmap.c
-index bb45712..8076347 100644
+index 3a14013..0a48958 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -805,7 +805,6 @@ int page_referenced(struct page *page,
- 		    struct mem_cgroup *memcg,
- 		    unsigned long *vm_flags)
- {
--	int ret;
- 	int we_locked = 0;
- 	struct page_referenced_arg pra = {
- 		.mapcount = total_mapcount(page),
-@@ -839,7 +838,7 @@ int page_referenced(struct page *page,
- 		rwc.invalid_vma = invalid_page_referenced_vma;
- 	}
+@@ -1523,7 +1523,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+ 	else
+ 		ret = rmap_walk(page, &rwc);
  
--	ret = rmap_walk(page, &rwc);
-+	rmap_walk(page, &rwc);
- 	*vm_flags = pra.vm_flags;
- 
- 	if (we_locked)
+-	if (ret != SWAP_MLOCK && !page_mapcount(page))
++	if (!page_mapcount(page))
+ 		ret = SWAP_SUCCESS;
+ 	return ret;
+ }
 -- 
 2.7.4
 
