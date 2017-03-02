@@ -1,95 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FC3A6B0388
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:34:44 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id m70so19263047wma.2
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:34:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u127si843019wmf.21.2017.03.02.06.34.43
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 56EC96B0389
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:35:08 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id x63so16699584pfx.7
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:35:08 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id k126si3402626pgc.176.2017.03.02.06.35.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 06:34:43 -0800 (PST)
-Date: Thu, 2 Mar 2017 15:34:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm allocation failure and hang when running xfstests generic/269
- on xfs
-Message-ID: <20170302143441.GL1404@dhcp22.suse.cz>
-References: <20170302051900.ct3xbesn2ku7ezll@XZHOUW.usersys.redhat.com>
- <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
- <20170302103520.GC1404@dhcp22.suse.cz>
- <20170302122426.GA3213@bfoster.bfoster>
- <20170302124909.GE1404@dhcp22.suse.cz>
- <20170302130009.GC3213@bfoster.bfoster>
- <20170302132755.GG1404@dhcp22.suse.cz>
- <20170302134157.GD3213@bfoster.bfoster>
- <20170302135001.GI1404@dhcp22.suse.cz>
- <20170302142315.GE3213@bfoster.bfoster>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Mar 2017 06:35:07 -0800 (PST)
+Date: Thu, 2 Mar 2017 22:34:57 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 2/2] XArray: Convert IDR and add test suite
+Message-ID: <201703022203.106yZXnX%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170302142315.GE3213@bfoster.bfoster>
+In-Reply-To: <20170228181343.16588-3-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Foster <bfoster@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu 02-03-17 09:23:15, Brian Foster wrote:
-> On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
-> > On Thu 02-03-17 08:41:58, Brian Foster wrote:
-> > > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > I see your argument about being in sync with other kmem helpers but
-> > > > those are bit different because regular page/slab allocators allow never
-> > > > fail semantic (even though this is mostly ignored by those helpers which
-> > > > implement their own retries but that is a different topic).
-> > > > 
-> > > 
-> > > ... but what I'm trying to understand here is whether this failure
-> > > scenario is specific to vmalloc() or whether the other kmem_*()
-> > > functions are susceptible to the same problem. For example, suppose we
-> > > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
-> > > KM_SLEEP) call. Could we hit the same problem if the process is killed?
-> > 
-> > Well, kmem_zalloc uses kmalloc which can also fail when we are out of
-> > memory but in that case we can expect the OOM killer releasing some
-> > memory which would allow us to make a forward progress on the next
-> > retry. So essentially retrying around kmalloc is much more safe in this
-> > regard. Failing vmalloc might be permanent because there is no vmalloc
-> > space to allocate from or much more likely due to already mentioned
-> > patch. So vmalloc is different, really.
-> 
-> Right.. that's why I'm asking. So it's technically possible but highly
-> unlikely due to the different failure characteristics. That seems
-> reasonable to me, then. 
-> 
-> To be clear, do we understand what causes the vzalloc() failure to be
-> effectively permanent in this specific reproducer? I know you mention
-> above that we could be out of vmalloc space, but that doesn't clarify
-> whether there are other potential failure paths or then what this has to
-> do with the fact that the process was killed. Does the pending signal
-> cause the subsequent failures or are you saying that there is some other
-> root cause of the failure, this process would effectively be spinning
-> here anyways, and we're just noticing it because it's trying to exit?
+Hi Matthew,
 
-In this particular case it is fatal_signal_pending that causes the
-permanent failure. This check has been added to prevent from complete
-memory reserves depletion on OOM when a killed task has a free ticket to
-reserves and vmalloc requests can be really large. In this case there
-was no OOM killer going on but fsstress has SIGKILL pending for other
-reason. Most probably as a result of the group_exit when all threads
-are killed (see zap_process). I could have turn fatal_signal_pending
-into tsk_is_oom_victim which would be less likely to hit but in
-principle fatal_signal_pending should be better because we do want to
-bail out when the process is existing as soon as possible.
+[auto build test WARNING on linus/master]
+[also build test WARNING on next-20170302]
+[cannot apply to v4.10]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-What I really wanted to say is that there are other possible permanent
-failure paths in vmalloc AFAICS. They are much less probable but they
-still exist.
+url:    https://github.com/0day-ci/linux/commits/Matthew-Wilcox/Add-XArray/20170302-092723
+reproduce:
+        # apt-get install sparse
+        make ARCH=x86_64 allmodconfig
+        make C=1 CF=-D__CHECK_ENDIAN__
 
-Does that make more sense now?
--- 
-Michal Hocko
-SUSE Labs
+
+sparse warnings: (new ones prefixed by >>)
+
+   include/linux/compiler.h:264:8: sparse: attribute 'no_sanitize_address': unknown attribute
+   drivers/gpu/drm/drm_mode_config.c:369:9: sparse: Expected ; at end of statement
+   drivers/gpu/drm/drm_mode_config.c:369:9: sparse: got {
+   drivers/gpu/drm/drm_mode_config.c:370:9: sparse: Expected ; at end of statement
+   drivers/gpu/drm/drm_mode_config.c:370:9: sparse: got {
+>> drivers/gpu/drm/drm_mode_config.c:384:1: sparse: expected 'while' after 'do'
+   drivers/gpu/drm/drm_mode_config.c:384:1: sparse: Expected ( after 'do-while'
+   drivers/gpu/drm/drm_mode_config.c:384:1: sparse: got extern
+   builtin:0:0: sparse: Expected } at end of compound statement
+   builtin:0:0: sparse: got end-of-input
+   builtin:0:0: sparse: expected 'while' after 'do'
+   builtin:0:0: sparse: Expected } at end of function
+   builtin:0:0: sparse: got end-of-input
+   drivers/gpu/drm/drm_mode_config.c:371:9: sparse: undefined identifier 'ida_init'
+   In file included from include/linux/kernfs.h:14:0,
+                    from include/linux/sysfs.h:15,
+                    from include/linux/kobject.h:21,
+                    from include/linux/device.h:17,
+                    from include/linux/i2c.h:30,
+                    from include/drm/drm_crtc.h:28,
+                    from include/drm/drm_encoder.h:28,
+                    from drivers/gpu/drm/drm_mode_config.c:23:
+   drivers/gpu/drm/drm_mode_config.c: In function 'drm_mode_config_init':
+   include/linux/idr.h:25:1: error: expected expression before '{' token
+    {       \
+    ^
+   include/linux/idr.h:30:11: note: in expansion of macro 'IDR_INIT'
+     *(idr) = IDR_INIT(#idr)    \
+              ^~~~~~~~
+   drivers/gpu/drm/drm_mode_config.c:369:2: note: in expansion of macro 'idr_init'
+     idr_init(&dev->mode_config.crtc_idr);
+     ^~~~~~~~
+   include/linux/idr.h:25:1: error: expected expression before '{' token
+    {       \
+    ^
+   include/linux/idr.h:30:11: note: in expansion of macro 'IDR_INIT'
+     *(idr) = IDR_INIT(#idr)    \
+              ^~~~~~~~
+   drivers/gpu/drm/drm_mode_config.c:370:2: note: in expansion of macro 'idr_init'
+     idr_init(&dev->mode_config.tile_idr);
+     ^~~~~~~~
+   drivers/gpu/drm/drm_mode_config.c:371:2: error: implicit declaration of function 'ida_init' [-Werror=implicit-function-declaration]
+     ida_init(&dev->mode_config.connector_ida);
+     ^~~~~~~~
+   cc1: some warnings being treated as errors
+--
+   include/linux/compiler.h:264:8: sparse: attribute 'no_sanitize_address': unknown attribute
+   drivers/net/wireless/ath/ath10k/htt_tx.c:407:9: sparse: Expected ; at end of statement
+   drivers/net/wireless/ath/ath10k/htt_tx.c:407:9: sparse: got {
+>> drivers/net/wireless/ath/ath10k/htt_tx.c:426:1: sparse: expected 'while' after 'do'
+   drivers/net/wireless/ath/ath10k/htt_tx.c:426:1: sparse: Expected ( after 'do-while'
+   drivers/net/wireless/ath/ath10k/htt_tx.c:426:1: sparse: got static
+   drivers/net/wireless/ath/ath10k/htt_tx.c:432:71: sparse: undefined identifier 'msdu_id'
+   drivers/net/wireless/ath/ath10k/htt_tx.c:434:27: sparse: undefined identifier 'msdu_id'
+   drivers/net/wireless/ath/ath10k/htt_tx.c:456:40: sparse: undefined identifier 'ath10k_htt_tx_clean_up_pending'
+   In file included from include/linux/cgroup-defs.h:12:0,
+                    from include/linux/sched.h:60,
+                    from include/linux/kasan.h:4,
+                    from include/linux/slab.h:118,
+                    from include/linux/textsearch.h:8,
+                    from include/linux/skbuff.h:30,
+                    from include/linux/if_ether.h:23,
+                    from include/linux/etherdevice.h:25,
+                    from drivers/net/wireless/ath/ath10k/htt_tx.c:18:
+   drivers/net/wireless/ath/ath10k/htt_tx.c: In function 'ath10k_htt_tx_start':
+   include/linux/idr.h:25:1: error: expected expression before '{' token
+    {       \
+    ^
+   include/linux/idr.h:30:11: note: in expansion of macro 'IDR_INIT'
+     *(idr) = IDR_INIT(#idr)    \
+              ^~~~~~~~
+   drivers/net/wireless/ath/ath10k/htt_tx.c:407:2: note: in expansion of macro 'idr_init'
+     idr_init(&htt->pending_tx);
+     ^~~~~~~~
+--
+   include/linux/compiler.h:264:8: sparse: attribute 'no_sanitize_address': unknown attribute
+   drivers/net/wireless/marvell/mwifiex/init.c:495:17: sparse: Expected ; at end of statement
+   drivers/net/wireless/marvell/mwifiex/init.c:495:17: sparse: got {
+>> drivers/net/wireless/marvell/mwifiex/init.c:498:9: sparse: expected 'while' after 'do'
+   drivers/net/wireless/marvell/mwifiex/init.c:498:9: sparse: Expected ( after 'do-while'
+   drivers/net/wireless/marvell/mwifiex/init.c:498:9: sparse: got return
+   builtin:0:0: sparse: Expected } at end of function
+   builtin:0:0: sparse: got end-of-input
+   In file included from include/linux/cgroup-defs.h:12:0,
+                    from include/linux/sched.h:60,
+                    from include/linux/kasan.h:4,
+                    from include/linux/slab.h:118,
+                    from include/linux/textsearch.h:8,
+                    from include/linux/skbuff.h:30,
+                    from include/linux/if_ether.h:23,
+                    from include/linux/ieee80211.h:21,
+                    from drivers/net/wireless/marvell/mwifiex/decl.h:28,
+                    from drivers/net/wireless/marvell/mwifiex/init.c:20:
+   drivers/net/wireless/marvell/mwifiex/init.c: In function 'mwifiex_init_lock_list':
+   include/linux/idr.h:25:1: error: expected expression before '{' token
+    {       \
+    ^
+   include/linux/idr.h:30:11: note: in expansion of macro 'IDR_INIT'
+     *(idr) = IDR_INIT(#idr)    \
+              ^~~~~~~~
+   drivers/net/wireless/marvell/mwifiex/init.c:495:3: note: in expansion of macro 'idr_init'
+      idr_init(&priv->ack_status_frames);
+      ^~~~~~~~
+--
+   include/linux/compiler.h:264:8: sparse: attribute 'no_sanitize_address': unknown attribute
+   drivers/staging/unisys/visorhba/visorhba_main.c:1111:9: sparse: Expected ; at end of statement
+   drivers/staging/unisys/visorhba/visorhba_main.c:1111:9: sparse: got {
+>> drivers/staging/unisys/visorhba/visorhba_main.c:1142:1: sparse: expected 'while' after 'do'
+   drivers/staging/unisys/visorhba/visorhba_main.c:1142:1: sparse: Expected ( after 'do-while'
+   drivers/staging/unisys/visorhba/visorhba_main.c:1142:1: sparse: got static
+   drivers/staging/unisys/visorhba/visorhba_main.c:1148:17: sparse: return with no return value
+   drivers/staging/unisys/visorhba/visorhba_main.c:1171:19: sparse: undefined identifier 'visorhba_remove'
+   In file included from include/linux/cgroup-defs.h:12:0,
+                    from include/linux/sched.h:60,
+                    from include/linux/kasan.h:4,
+                    from include/linux/slab.h:118,
+                    from include/linux/textsearch.h:8,
+                    from include/linux/skbuff.h:30,
+                    from drivers/staging/unisys/visorhba/visorhba_main.c:17:
+   drivers/staging/unisys/visorhba/visorhba_main.c: In function 'visorhba_probe':
+   include/linux/idr.h:25:1: error: expected expression before '{' token
+    {       \
+    ^
+   include/linux/idr.h:30:11: note: in expansion of macro 'IDR_INIT'
+     *(idr) = IDR_INIT(#idr)    \
+              ^~~~~~~~
+   drivers/staging/unisys/visorhba/visorhba_main.c:1111:2: note: in expansion of macro 'idr_init'
+     idr_init(&devdata->idr);
+     ^~~~~~~~
+
+vim +384 drivers/gpu/drm/drm_mode_config.c
+
+28575f16 Daniel Vetter 2016-11-14  363  	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
+28575f16 Daniel Vetter 2016-11-14  364  	INIT_LIST_HEAD(&dev->mode_config.connector_list);
+28575f16 Daniel Vetter 2016-11-14  365  	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
+28575f16 Daniel Vetter 2016-11-14  366  	INIT_LIST_HEAD(&dev->mode_config.property_list);
+28575f16 Daniel Vetter 2016-11-14  367  	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
+28575f16 Daniel Vetter 2016-11-14  368  	INIT_LIST_HEAD(&dev->mode_config.plane_list);
+28575f16 Daniel Vetter 2016-11-14 @369  	idr_init(&dev->mode_config.crtc_idr);
+28575f16 Daniel Vetter 2016-11-14  370  	idr_init(&dev->mode_config.tile_idr);
+28575f16 Daniel Vetter 2016-11-14  371  	ida_init(&dev->mode_config.connector_ida);
+613051da Daniel Vetter 2016-12-14  372  	spin_lock_init(&dev->mode_config.connector_list_lock);
+28575f16 Daniel Vetter 2016-11-14  373  
+28575f16 Daniel Vetter 2016-11-14  374  	drm_mode_create_standard_properties(dev);
+28575f16 Daniel Vetter 2016-11-14  375  
+28575f16 Daniel Vetter 2016-11-14  376  	/* Just to be sure */
+28575f16 Daniel Vetter 2016-11-14  377  	dev->mode_config.num_fb = 0;
+28575f16 Daniel Vetter 2016-11-14  378  	dev->mode_config.num_connector = 0;
+28575f16 Daniel Vetter 2016-11-14  379  	dev->mode_config.num_crtc = 0;
+28575f16 Daniel Vetter 2016-11-14  380  	dev->mode_config.num_encoder = 0;
+28575f16 Daniel Vetter 2016-11-14  381  	dev->mode_config.num_overlay_plane = 0;
+28575f16 Daniel Vetter 2016-11-14  382  	dev->mode_config.num_total_plane = 0;
+28575f16 Daniel Vetter 2016-11-14  383  }
+28575f16 Daniel Vetter 2016-11-14 @384  EXPORT_SYMBOL(drm_mode_config_init);
+28575f16 Daniel Vetter 2016-11-14  385  
+28575f16 Daniel Vetter 2016-11-14  386  /**
+28575f16 Daniel Vetter 2016-11-14  387   * drm_mode_config_cleanup - free up DRM mode_config info
+
+:::::: The code at line 384 was first introduced by commit
+:::::: 28575f165d36051310d7ea2350e2011f8095b6fb drm: Extract drm_mode_config.[hc]
+
+:::::: TO: Daniel Vetter <daniel.vetter@ffwll.ch>
+:::::: CC: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
