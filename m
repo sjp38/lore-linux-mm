@@ -1,104 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FBF96B0388
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 11:16:09 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id w67so28274990wmd.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 08:16:09 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id F31C56B038F
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 11:30:56 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id t193so6071870wmt.4
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 08:30:56 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o74si11574112wmg.57.2017.03.02.08.16.07
+        by mx.google.com with ESMTPS id t25si11231292wra.239.2017.03.02.08.30.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 08:16:07 -0800 (PST)
-Date: Thu, 2 Mar 2017 17:16:06 +0100
+        Thu, 02 Mar 2017 08:30:55 -0800 (PST)
+Date: Thu, 2 Mar 2017 17:30:54 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] xfs: allow kmem_zalloc_greedy to fail
-Message-ID: <20170302161606.GQ1404@dhcp22.suse.cz>
-References: <20170302153002.GG3213@bfoster.bfoster>
- <20170302154541.16155-1-mhocko@kernel.org>
+Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
+Message-ID: <20170302163054.GR1404@dhcp22.suse.cz>
+References: <cover.1487965799.git.shli@fb.com>
+ <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
+ <20170301133624.GF1124@dhcp22.suse.cz>
+ <20170301183149.GA14277@cmpxchg.org>
+ <20170301185735.GA24905@dhcp22.suse.cz>
+ <20170302140101.GA16021@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170302154541.16155-1-mhocko@kernel.org>
+In-Reply-To: <20170302140101.GA16021@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Brian Foster <bfoster@redhat.com>, "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-I've just realized that Darrick was not on the CC list. Let's add him.
-I believe this patch should go in in the current cycle because
-5d17a73a2ebe was merged in this merge window and it can be abused...
+On Thu 02-03-17 09:01:01, Johannes Weiner wrote:
+> On Wed, Mar 01, 2017 at 07:57:35PM +0100, Michal Hocko wrote:
+> > On Wed 01-03-17 13:31:49, Johannes Weiner wrote:
+[...]
+> > > The error when reading a specific smaps should be completely ok.
+> > > 
+> > > In numbers: even if your process is madvising from 16 different CPUs,
+> > > the error in its smaps file will peak at 896K in the worst case. That
+> > > level of concurrency tends to come with much bigger memory quantities
+> > > for that amount of error to matter.
+> > 
+> > It is still an unexpected behavior IMHO and an implementation detail
+> > which leaks to the userspace.
+> 
+> We have per-cpu fuzz in every single vmstat counter. Look at
+> calculate_normal_threshold() in vmstat.c and the sample thresholds for
+> when per-cpu deltas are flushed. In the vast majority of machines, the
+> per-cpu error in these counters is much higher than what we get with
+> pagevecs holding back a few pages.
 
-The other patch [1] is not that urgent.
+Yes but vmstat counters have a different usecase AFAIK. You mostly look
+at those when debugging or watching the system. /proc/<pid>/smaps is
+quite often used to do per task metrics which are then used for some
+decision making so it should be less fuzzy if that is possible.
 
-[1] http://lkml.kernel.org/r/20170302154541.16155-2-mhocko@kernel.org
+> It's not that I think you're wrong: it *is* an implementation detail.
+> But we take a bit of incoherency from batching all over the place, so
+> it's a little odd to take a stand over this particular instance of it
+> - whether demanding that it'd be fixed, or be documented, which would
+> only suggest to users that this is special when it really isn't etc.
 
-On Thu 02-03-17 16:45:40, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Even though kmem_zalloc_greedy is documented it might fail the current
-> code doesn't really implement this properly and loops on the smallest
-> allowed size for ever. This is a problem because vzalloc might fail
-> permanently - we might run out of vmalloc space or since 5d17a73a2ebe
-> ("vmalloc: back off when the current task is killed") when the current
-> task is killed. The later one makes the failure scenario much more
-> probable than it used to be because it makes vmalloc() failures
-> permanent for tasks with fatal signals pending.. Fix this by bailing out
-> if the minimum size request failed.
-> 
-> This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
-> 
-> fsstress: vmalloc: allocation failure, allocated 12288 of 20480 bytes, mode:0x14080c2(GFP_KERNEL|__GFP_HIGHMEM|__GFP_ZERO), nodemask=(null)
-> fsstress cpuset=/ mems_allowed=0-1
-> CPU: 1 PID: 23460 Comm: fsstress Not tainted 4.10.0-master-45554b2+ #21
-> Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9, BIOS P89 10/05/2016
-> Call Trace:
->  dump_stack+0x63/0x87
->  warn_alloc+0x114/0x1c0
->  ? alloc_pages_current+0x88/0x120
->  __vmalloc_node_range+0x250/0x2a0
->  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
->  ? free_hot_cold_page+0x21f/0x280
->  vzalloc+0x54/0x60
->  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
->  kmem_zalloc_greedy+0x2b/0x40 [xfs]
->  xfs_bulkstat+0x11b/0x730 [xfs]
->  ? xfs_bulkstat_one_int+0x340/0x340 [xfs]
->  ? selinux_capable+0x20/0x30
->  ? security_capable+0x48/0x60
->  xfs_ioc_bulkstat+0xe4/0x190 [xfs]
->  xfs_file_ioctl+0x9dd/0xad0 [xfs]
->  ? do_filp_open+0xa5/0x100
->  do_vfs_ioctl+0xa7/0x5e0
->  SyS_ioctl+0x79/0x90
->  do_syscall_64+0x67/0x180
->  entry_SYSCALL64_slow_path+0x25/0x25
-> 
-> fsstress keeps looping inside kmem_zalloc_greedy without any way out
-> because vmalloc keeps failing due to fatal_signal_pending.
-> 
-> Reported-by: Xiong Zhou <xzhou@redhat.com>
-> Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  fs/xfs/kmem.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> index 339c696bbc01..ee95f5c6db45 100644
-> --- a/fs/xfs/kmem.c
-> +++ b/fs/xfs/kmem.c
-> @@ -34,6 +34,8 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
->  	size_t		kmsize = maxsize;
->  
->  	while (!(ptr = vzalloc(kmsize))) {
-> +		if (kmsize == minsize)
-> +			break;
->  		if ((kmsize >>= 1) <= minsize)
->  			kmsize = minsize;
->  	}
-> -- 
-> 2.11.0
-> 
+I am not aware of other counter printed in smaps that would suffer from
+the same problem, but I haven't checked too deeply so I might be wrong. 
+
+Anyway it seems that I am alone in my position so I will not insist.
+If we have any bug report then we can still fix it.
 
 -- 
 Michal Hocko
