@@ -1,37 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 24F4E6B0388
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 19:37:34 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 65so74209415pgi.7
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 16:37:34 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id s81si5973690pgs.29.2017.03.01.16.37.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Mar 2017 16:37:32 -0800 (PST)
-Date: Wed, 1 Mar 2017 16:37:31 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: mm allocation failure and hang when running xfstests generic/269
- on xfs
-Message-ID: <20170302003731.GB24593@infradead.org>
-References: <20170301044634.rgidgdqqiiwsmfpj@XZHOUW.usersys.redhat.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8B46B0387
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 21:52:44 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 1so77385779pgz.5
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 18:52:44 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id z17si6194721pgi.387.2017.03.01.18.52.42
+        for <linux-mm@kvack.org>;
+        Wed, 01 Mar 2017 18:52:43 -0800 (PST)
+Date: Thu, 2 Mar 2017 11:52:25 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
+Message-ID: <20170302025225.GL11663@X58A-UD3R>
+References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
+ <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
+ <20170228154900.GL5680@worktop>
+ <20170301051706.GD11663@X58A-UD3R>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170301051706.GD11663@X58A-UD3R>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170301044634.rgidgdqqiiwsmfpj@XZHOUW.usersys.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiong Zhou <xzhou@redhat.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Wed, Mar 01, 2017 at 12:46:34PM +0800, Xiong Zhou wrote:
-> Hi,
+On Wed, Mar 01, 2017 at 02:17:07PM +0900, Byungchul Park wrote:
+> > > +void lock_commit_crosslock(struct lockdep_map *lock)
+> > > +{
+> > > +	struct cross_lock *xlock;
+> > > +	unsigned long flags;
+> > > +
+> > > +	if (!current->xhlocks)
+> > > +		return;
+> > > +
+> > > +	if (unlikely(current->lockdep_recursion))
+> > > +		return;
+> > > +
+> > > +	raw_local_irq_save(flags);
+> > > +	check_flags(flags);
+> > > +	current->lockdep_recursion = 1;
+> > > +
+> > > +	if (unlikely(!debug_locks))
+> > > +		return;
+> > > +
+> > > +	if (!graph_lock())
+> > > +		return;
+> > > +
+> > > +	xlock = &((struct lockdep_map_cross *)lock)->xlock;
+> > > +	if (atomic_read(&xlock->ref) > 0 && !commit_xhlocks(xlock))
+> > 
+> > You terminate with graph_lock() held.
 > 
-> It's reproduciable, not everytime though. Ext4 works fine.
+> Oops. What did I do? I'll fix it.
 
-On ext4 fsstress won't run bulkstat because it doesn't exist.  Either
-way this smells like a MM issue to me as there were not XFS changes
-in that area recently.
+I remembered it. It's no problem because it would terminate there, only
+if _both_ 'xlock->ref > 0' and 'commit_xhlocks returns 0' are true.
+Otherwise, it will unlock the lock safely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
