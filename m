@@ -1,63 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7096B0038
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:45:16 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id 9so100664608qkk.6
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:45:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a85si661743qkc.136.2017.03.02.05.45.15
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AC5036B0038
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:49:05 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l37so29026068wrc.7
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:49:05 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h73sor37119wrh.23.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 05:45:15 -0800 (PST)
-Date: Thu, 2 Mar 2017 21:45:13 +0800
-From: Xiong Zhou <xzhou@redhat.com>
-Subject: Re: [PATCH 0/2] fix for direct-I/O to DAX mappings
-Message-ID: <20170302134513.zwkfse3j3vjhzy55@XZHOUW.usersys.redhat.com>
-References: <148804250784.36605.12832323062093584440.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <148804250784.36605.12832323062093584440.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Thu, 02 Mar 2017 05:49:04 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v2 0/9] kasan: improve error reports
+Date: Thu,  2 Mar 2017 14:48:42 +0100
+Message-Id: <20170302134851.101218-1-andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, x86@kernel.org, Xiong Zhou <xzhou@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, torvalds@linux-foundation.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrey Konovalov <andreyknvl@google.com>
 
-On Sat, Feb 25, 2017 at 09:08:28AM -0800, Dan Williams wrote:
-> Hi Andrew,
-> 
-> While Ross was doing a review of a new mmap+DAX direct-I/O test case for
-> xfstests, from Xiong, he noticed occasions where it failed to trigger a
-> page dirty event.  Dave then spotted the problem fixed by patch1. The
-> pte_devmap() check is precluding pte_allows_gup(), i.e. bypassing
-> permission checks and dirty tracking.
+This patchset improves KASAN reports by making them easier to read
+and a little more detailed.
+Also improves mm/kasan/report.c readability.
 
-This mmap-dax-dio case still fails with this patchset, while it makes
-sense. It's the test case that need to be fixed.
+Effectively changes a use-after-free report to:
 
-BTW, this patchset fixes another xfsrestore issue, which i hit now
-and then, xfs/301 w/ or wo/ DAX only on nvdimms. xfsrestore never
-return but killable.
+==================================================================
+BUG: KASAN: use-after-free in kmalloc_uaf+0xaa/0xb6 [test_kasan]
+Write of size 1 at addr ffff88006aa59da8 by task insmod/3951
 
-Thanks,
-> 
-> Patch2 is a cleanup and clarifies that pte_unmap() only needs to be done
-> once per page-worth of ptes. It unifies the exit paths similar to the
-> generic gup_pte_range() in the __HAVE_ARCH_PTE_SPECIAL case.
-> 
-> I'm sending this through the -mm tree for a double-check from memory
-> management folks. It has a build success notification from the kbuild
-> robot.
-> 
-> ---
-> 
-> Dan Williams (2):
->       x86, mm: fix gup_pte_range() vs DAX mappings
->       x86, mm: unify exit paths in gup_pte_range()
-> 
-> 
->  arch/x86/mm/gup.c |   37 +++++++++++++++++++++----------------
->  1 file changed, 21 insertions(+), 16 deletions(-)
+CPU: 1 PID: 3951 Comm: insmod Tainted: G    B           4.10.0+ #84
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+Call Trace:
+ dump_stack+0x292/0x398
+ print_address_description+0x73/0x280
+ kasan_report.part.2+0x207/0x2f0
+ __asan_report_store1_noabort+0x2c/0x30
+ kmalloc_uaf+0xaa/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+RIP: 0033:0x7f22cfd0b9da
+RSP: 002b:00007ffe69118a78 EFLAGS: 00000206 ORIG_RAX: 00000000000000af
+RAX: ffffffffffffffda RBX: 0000555671242090 RCX: 00007f22cfd0b9da
+RDX: 00007f22cffcaf88 RSI: 000000000004df7e RDI: 00007f22d0399000
+RBP: 00007f22cffcaf88 R08: 0000000000000003 R09: 0000000000000000
+R10: 00007f22cfd07d0a R11: 0000000000000206 R12: 0000555671243190
+R13: 000000000001fe81 R14: 0000000000000000 R15: 0000000000000004
+
+Allocated by task 3951:
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_kmalloc+0xad/0xe0
+ kmem_cache_alloc_trace+0x82/0x270
+ kmalloc_uaf+0x56/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+
+Freed by task 3951:
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_slab_free+0x72/0xc0
+ kfree+0xe8/0x2b0
+ kmalloc_uaf+0x85/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc
+
+The buggy address belongs to the object at ffff88006aa59da0
+ which belongs to the cache kmalloc-16 of size 16
+The buggy address is located 8 bytes inside of
+ 16-byte region [ffff88006aa59da0, ffff88006aa59db0)
+The buggy address belongs to the page:
+page:ffffea0001aa9640 count:1 mapcount:0 mapping:          (null) index:0x0
+flags: 0x100000000000100(slab)
+raw: 0100000000000100 0000000000000000 0000000000000000 0000000180800080
+raw: ffffea0001abe380 0000000700000007 ffff88006c401b40 0000000000000000
+page dumped because: kasan: bad access detected
+
+Memory state around the buggy address:
+ ffff88006aa59c80: 00 00 fc fc 00 00 fc fc 00 00 fc fc 00 00 fc fc
+ ffff88006aa59d00: 00 00 fc fc 00 00 fc fc 00 00 fc fc 00 00 fc fc
+>ffff88006aa59d80: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+                                  ^
+ ffff88006aa59e00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+ ffff88006aa59e80: fb fb fc fc 00 00 fc fc 00 00 fc fc 00 00 fc fc
+==================================================================
+
+from:
+
+==================================================================
+BUG: KASAN: use-after-free in kmalloc_uaf+0xaa/0xb6 [test_kasan] at addr ffff88006c4dcb28
+Write of size 1 by task insmod/3984
+CPU: 1 PID: 3984 Comm: insmod Tainted: G    B           4.10.0+ #83
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+Call Trace:
+ dump_stack+0x292/0x398
+ kasan_object_err+0x1c/0x70
+ kasan_report.part.1+0x20e/0x4e0
+ __asan_report_store1_noabort+0x2c/0x30
+ kmalloc_uaf+0xaa/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+RIP: 0033:0x7feca0f779da
+RSP: 002b:00007ffdfeae5218 EFLAGS: 00000206 ORIG_RAX: 00000000000000af
+RAX: ffffffffffffffda RBX: 000055a064c13090 RCX: 00007feca0f779da
+RDX: 00007feca1236f88 RSI: 000000000004df7e RDI: 00007feca1605000
+RBP: 00007feca1236f88 R08: 0000000000000003 R09: 0000000000000000
+R10: 00007feca0f73d0a R11: 0000000000000206 R12: 000055a064c14190
+R13: 000000000001fe81 R14: 0000000000000000 R15: 0000000000000004
+Object at ffff88006c4dcb20, in cache kmalloc-16 size: 16
+Allocated:
+PID = 3984
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_kmalloc+0xad/0xe0
+ kmem_cache_alloc_trace+0x82/0x270
+ kmalloc_uaf+0x56/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+Freed:
+PID = 3984
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_slab_free+0x73/0xc0
+ kfree+0xe8/0x2b0
+ kmalloc_uaf+0x85/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+Memory state around the buggy address:
+ ffff88006c4dca00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+ ffff88006c4dca80: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+>ffff88006c4dcb00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+                                  ^
+ ffff88006c4dcb80: fb fb fc fc 00 00 fc fc fb fb fc fc fb fb fc fc
+ ffff88006c4dcc00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+==================================================================
+
+Changes in v2:
+- split patch in multiple smaller ones
+- improve double-free reports
+
+Andrey Konovalov (9):
+  kasan: introduce helper functions for determining bug type
+  kasan: unify report headers
+  kasan: change allocation and freeing stack traces headers
+  kasan: simplify address description logic
+  kasan: change report header
+  kasan: improve slab object description
+  kasan: print page description after stacks
+  kasan: improve double-free report format
+  kasan: separate report parts by empty lines
+
+ mm/kasan/kasan.c  |   3 +-
+ mm/kasan/kasan.h  |   2 +-
+ mm/kasan/report.c | 187 ++++++++++++++++++++++++++++++++++++------------------
+ 3 files changed, 127 insertions(+), 65 deletions(-)
+
+-- 
+2.12.0.rc1.440.g5b76565f74-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
