@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 86DF46B0387
+	by kanga.kvack.org (Postfix) with ESMTP id 9C1D76B0388
 	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 12:37:42 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id n127so108252525qkf.3
+Received: by mail-qk0-f200.google.com with SMTP id c85so108968558qkg.0
         for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:37:42 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i20si5302693qta.138.2017.03.02.09.37.41
+        by mx.google.com with ESMTPS id m47si7432597qta.154.2017.03.02.09.37.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 02 Mar 2017 09:37:41 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/3] userfaultfd: non-cooperative: fix fork fctx->new memleak
-Date: Thu,  2 Mar 2017 18:37:36 +0100
-Message-Id: <20170302173738.18994-2-aarcange@redhat.com>
-In-Reply-To: <20170302173738.18994-1-aarcange@redhat.com>
-References: <20170302173738.18994-1-aarcange@redhat.com>
+Subject: [PATCH 0/3] userfaultfd v4.11 updates
+Date: Thu,  2 Mar 2017 18:37:35 +0100
+Message-Id: <20170302173738.18994-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Hello,
 
-We have a memleak in the ->new ctx if the uffd of the parent is closed
-before the fork event is read, nothing frees the new context.
+this is incremental against current -mm.
 
-Reported-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- fs/userfaultfd.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+The earlier patchset fixed the fctx->orig memleak but as I thought
+during review, there was a further leak in fctx->new and Mike promptly
+fixed it too. I've been running a reproducer and there's no further
+memleak when the uffd is closed by the parent while fork() blocks
+waiting for the event to be received.
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index d2f15a6..5087a69 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -548,6 +548,15 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
- 		if (ACCESS_ONCE(ctx->released) ||
- 		    fatal_signal_pending(current)) {
- 			__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
-+			if (ewq->msg.event == UFFD_EVENT_FORK) {
-+				struct userfaultfd_ctx *new;
-+
-+				new = (struct userfaultfd_ctx *)
-+					(unsigned long)
-+					ewq->msg.arg.reserved.reserved1;
-+
-+				userfaultfd_ctx_put(new);
-+			}
- 			break;
- 		}
- 
+In addition I found a potential stale pointer in MADV_DONTNEED if
+userfaultfd_remove has to block and releases the mmap_sem in the
+process. This patch revalidates the vma and fixes the
+race. Unfortunately calling userfaultfd_remove last is not ok as
+explained in the commit.
+
+A "make" run from the directory selftests/vm/ independently started to
+fail in v4.11 trying to write executables to the root directory.
+That's not very friendly because it worked before, but it's easy to
+fix and the last patch corrects this behavior in the vm/Makefile.
+
+Andrea Arcangeli (2):
+  userfaultfd: non-cooperative: userfaultfd_remove revalidate vma in
+    MADV_DONTNEED
+  userfaultfd: selftest: vm: allow to build in vm/ directory
+
+Mike Rapoport (1):
+  userfaultfd: non-cooperative: fix fork fctx->new memleak
+
+ fs/userfaultfd.c                    | 18 ++++++++++-----
+ include/linux/userfaultfd_k.h       |  7 +++---
+ mm/madvise.c                        | 44 ++++++++++++++++++++++++++++++++++---
+ tools/testing/selftests/vm/Makefile |  4 ++++
+ 4 files changed, 60 insertions(+), 13 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
