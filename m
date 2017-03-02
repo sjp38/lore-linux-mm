@@ -1,135 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E40876B0392
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:49:11 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id u108so16509347wrb.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:49:11 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c7sor37221wrc.8.1969.12.31.16.00.00
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E6626B038A
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:50:04 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id v66so29141107wrc.4
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:50:04 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o67si26133635wmo.87.2017.03.02.05.50.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 Mar 2017 05:49:10 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 6/9] kasan: improve slab object description
-Date: Thu,  2 Mar 2017 14:48:48 +0100
-Message-Id: <20170302134851.101218-7-andreyknvl@google.com>
-In-Reply-To: <20170302134851.101218-1-andreyknvl@google.com>
-References: <20170302134851.101218-1-andreyknvl@google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Mar 2017 05:50:02 -0800 (PST)
+Date: Thu, 2 Mar 2017 14:50:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm allocation failure and hang when running xfstests generic/269
+ on xfs
+Message-ID: <20170302135001.GI1404@dhcp22.suse.cz>
+References: <20170301044634.rgidgdqqiiwsmfpj@XZHOUW.usersys.redhat.com>
+ <20170302003731.GB24593@infradead.org>
+ <20170302051900.ct3xbesn2ku7ezll@XZHOUW.usersys.redhat.com>
+ <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
+ <20170302103520.GC1404@dhcp22.suse.cz>
+ <20170302122426.GA3213@bfoster.bfoster>
+ <20170302124909.GE1404@dhcp22.suse.cz>
+ <20170302130009.GC3213@bfoster.bfoster>
+ <20170302132755.GG1404@dhcp22.suse.cz>
+ <20170302134157.GD3213@bfoster.bfoster>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170302134157.GD3213@bfoster.bfoster>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrey Konovalov <andreyknvl@google.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-Changes slab object description from:
+On Thu 02-03-17 08:41:58, Brian Foster wrote:
+> On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
+[...]
+> > I see your argument about being in sync with other kmem helpers but
+> > those are bit different because regular page/slab allocators allow never
+> > fail semantic (even though this is mostly ignored by those helpers which
+> > implement their own retries but that is a different topic).
+> > 
+> 
+> ... but what I'm trying to understand here is whether this failure
+> scenario is specific to vmalloc() or whether the other kmem_*()
+> functions are susceptible to the same problem. For example, suppose we
+> replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
+> KM_SLEEP) call. Could we hit the same problem if the process is killed?
 
-Object at ffff880068388540, in cache kmalloc-128 size: 128
-
-to:
-
-The buggy address belongs to the object at ffff880068388540
- which belongs to the cache kmalloc-128 of size 128
-The buggy address is located 123 bytes inside of
- 128-byte region [ffff880068388540, ffff8800683885c0)
-
-Makes it more explanatory and adds information about relative offset
-of the accessed address to the start of the object.
-
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/report.c | 53 ++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 42 insertions(+), 11 deletions(-)
-
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 945d0e13e8a4..8dfb7a060d69 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -196,18 +196,49 @@ static struct page *addr_to_page(const void *addr)
- 	return NULL;
- }
- 
--static void describe_object(struct kmem_cache *cache, void *object)
-+static void describe_object_addr(struct kmem_cache *cache, void *object,
-+				const void *addr)
- {
--	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
-+	unsigned long access_addr = (unsigned long)addr;
-+	unsigned long object_addr = (unsigned long)object;
-+	const char *rel_type;
-+	int rel_bytes;
- 
--	pr_err("Object at %p, in cache %s size: %d\n", object, cache->name,
--		cache->object_size);
-+	pr_err("The buggy address belongs to the object at %p\n"
-+	       " which belongs to the cache %s of size %d\n",
-+		object, cache->name, cache->object_size);
- 
--	if (!(cache->flags & SLAB_KASAN))
-+	if (!addr)
- 		return;
- 
--	print_track(&alloc_info->alloc_track, "Allocated");
--	print_track(&alloc_info->free_track, "Freed");
-+	if (access_addr < object_addr) {
-+		rel_type = "to the left";
-+		rel_bytes = object_addr - access_addr;
-+	} else if (access_addr >= object_addr + cache->object_size) {
-+		rel_type = "to the right";
-+		rel_bytes = access_addr - (object_addr + cache->object_size);
-+	} else {
-+		rel_type = "inside";
-+		rel_bytes = access_addr - object_addr;
-+	}
-+
-+	pr_err("The buggy address is located %d bytes %s of\n"
-+	       " %d-byte region [%p, %p)\n",
-+		rel_bytes, rel_type, cache->object_size, (void *)object_addr,
-+		(void *)(object_addr + cache->object_size));
-+}
-+
-+static void describe_object(struct kmem_cache *cache, void *object,
-+				const void *addr)
-+{
-+	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
-+
-+	if (cache->flags & SLAB_KASAN) {
-+		print_track(&alloc_info->alloc_track, "Allocated");
-+		print_track(&alloc_info->free_track, "Freed");
-+	}
-+
-+	describe_object_addr(cache, object, addr);
- }
- 
- void kasan_report_double_free(struct kmem_cache *cache, void *object,
-@@ -219,13 +250,13 @@ void kasan_report_double_free(struct kmem_cache *cache, void *object,
- 	pr_err("BUG: Double free or freeing an invalid pointer\n");
- 	pr_err("Unexpected shadow byte: 0x%hhX\n", shadow);
- 	dump_stack();
--	describe_object(cache, object);
-+	describe_object(cache, object, NULL);
- 	kasan_end_report(&flags);
- }
- 
- static void print_address_description(struct kasan_access_info *info)
- {
--	const void *addr = info->access_addr;
-+	void *addr = (void *)info->access_addr;
- 	struct page *page = addr_to_page(addr);
- 
- 	if (page)
-@@ -235,9 +266,9 @@ static void print_address_description(struct kasan_access_info *info)
- 
- 	if (page && PageSlab(page)) {
- 		struct kmem_cache *cache = page->slab_cache;
--		void *object = nearest_obj(cache, page,	(void *)addr);
-+		void *object = nearest_obj(cache, page,	addr);
- 
--		describe_object(cache, object);
-+		describe_object(cache, object, addr);
- 	}
- 
- 	if (kernel_or_module_addr(addr)) {
+Well, kmem_zalloc uses kmalloc which can also fail when we are out of
+memory but in that case we can expect the OOM killer releasing some
+memory which would allow us to make a forward progress on the next
+retry. So essentially retrying around kmalloc is much more safe in this
+regard. Failing vmalloc might be permanent because there is no vmalloc
+space to allocate from or much more likely due to already mentioned
+patch. So vmalloc is different, really.
 -- 
-2.12.0.rc1.440.g5b76565f74-goog
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
