@@ -1,140 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E47B46B0038
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:41:59 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id a189so100292816qkc.4
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:41:59 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 2D7096B0038
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:45:16 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id 9so100664608qkk.6
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:45:16 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e49si6944063qta.160.2017.03.02.05.41.58
+        by mx.google.com with ESMTPS id a85si661743qkc.136.2017.03.02.05.45.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 05:41:59 -0800 (PST)
-Date: Thu, 2 Mar 2017 08:41:58 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: mm allocation failure and hang when running xfstests generic/269
- on xfs
-Message-ID: <20170302134157.GD3213@bfoster.bfoster>
-References: <20170301044634.rgidgdqqiiwsmfpj@XZHOUW.usersys.redhat.com>
- <20170302003731.GB24593@infradead.org>
- <20170302051900.ct3xbesn2ku7ezll@XZHOUW.usersys.redhat.com>
- <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
- <20170302103520.GC1404@dhcp22.suse.cz>
- <20170302122426.GA3213@bfoster.bfoster>
- <20170302124909.GE1404@dhcp22.suse.cz>
- <20170302130009.GC3213@bfoster.bfoster>
- <20170302132755.GG1404@dhcp22.suse.cz>
+        Thu, 02 Mar 2017 05:45:15 -0800 (PST)
+Date: Thu, 2 Mar 2017 21:45:13 +0800
+From: Xiong Zhou <xzhou@redhat.com>
+Subject: Re: [PATCH 0/2] fix for direct-I/O to DAX mappings
+Message-ID: <20170302134513.zwkfse3j3vjhzy55@XZHOUW.usersys.redhat.com>
+References: <148804250784.36605.12832323062093584440.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170302132755.GG1404@dhcp22.suse.cz>
+In-Reply-To: <148804250784.36605.12832323062093584440.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, x86@kernel.org, Xiong Zhou <xzhou@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, torvalds@linux-foundation.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
-> On Thu 02-03-17 08:00:09, Brian Foster wrote:
-> > On Thu, Mar 02, 2017 at 01:49:09PM +0100, Michal Hocko wrote:
-> > > On Thu 02-03-17 07:24:27, Brian Foster wrote:
-> > > > On Thu, Mar 02, 2017 at 11:35:20AM +0100, Michal Hocko wrote:
-> > > > > On Thu 02-03-17 19:04:48, Tetsuo Handa wrote:
-> > > > > [...]
-> > > > > > So, commit 5d17a73a2ebeb8d1("vmalloc: back off when the current task is
-> > > > > > killed") implemented __GFP_KILLABLE flag and automatically applied that
-> > > > > > flag. As a result, those who are not ready to fail upon SIGKILL are
-> > > > > > confused. ;-)
-> > > > > 
-> > > > > You are right! The function is documented it might fail but the code
-> > > > > doesn't really allow that. This seems like a bug to me. What do you
-> > > > > think about the following?
-> > > > > ---
-> > > > > From d02cb0285d8ce3344fd64dc7e2912e9a04bef80d Mon Sep 17 00:00:00 2001
-> > > > > From: Michal Hocko <mhocko@suse.com>
-> > > > > Date: Thu, 2 Mar 2017 11:31:11 +0100
-> > > > > Subject: [PATCH] xfs: allow kmem_zalloc_greedy to fail
-> > > > > 
-> > > > > Even though kmem_zalloc_greedy is documented it might fail the current
-> > > > > code doesn't really implement this properly and loops on the smallest
-> > > > > allowed size for ever. This is a problem because vzalloc might fail
-> > > > > permanently. Since 5d17a73a2ebe ("vmalloc: back off when the current
-> > > > > task is killed") such a failure is much more probable than it used to
-> > > > > be. Fix this by bailing out if the minimum size request failed.
-> > > > > 
-> > > > > This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
-> > > > > 
-> > > > > Reported-by: Xiong Zhou <xzhou@redhat.com>
-> > > > > Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > > > ---
-> > > > >  fs/xfs/kmem.c | 2 ++
-> > > > >  1 file changed, 2 insertions(+)
-> > > > > 
-> > > > > diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> > > > > index 339c696bbc01..ee95f5c6db45 100644
-> > > > > --- a/fs/xfs/kmem.c
-> > > > > +++ b/fs/xfs/kmem.c
-> > > > > @@ -34,6 +34,8 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
-> > > > >  	size_t		kmsize = maxsize;
-> > > > >  
-> > > > >  	while (!(ptr = vzalloc(kmsize))) {
-> > > > > +		if (kmsize == minsize)
-> > > > > +			break;
-> > > > >  		if ((kmsize >>= 1) <= minsize)
-> > > > >  			kmsize = minsize;
-> > > > >  	}
-> > > > 
-> > > > More consistent with the rest of the kmem code might be to accept a
-> > > > flags argument and do something like this based on KM_MAYFAIL.
-> > > 
-> > > Well, vmalloc doesn't really support GFP_NOFAIL semantic right now for
-> > > the same reason it doesn't support GFP_NOFS. So I am not sure this is a
-> > > good idea.
-> > > 
-> > 
-> > Not sure I follow..? I'm just suggesting to control the loop behavior
-> > based on the KM_ flag, not to do or change anything wrt to GFP_ flags.
+On Sat, Feb 25, 2017 at 09:08:28AM -0800, Dan Williams wrote:
+> Hi Andrew,
 > 
-> As Tetsuo already pointed out, vmalloc cannot really support never-fail
-> semantic with the current implementation so the semantic would have
-> to be implemented in kmem_zalloc_greedy and the only way to do that
-> would be to loop there and this is rather nasty as you can see from the
-> reported issue because the vmalloc failure might be permanent so there
-> won't be any way to make a forward progress. Breaking out of the loop
-> on fatal_signal_pending pending would break the non-failing sementic.
+> While Ross was doing a review of a new mmap+DAX direct-I/O test case for
+> xfstests, from Xiong, he noticed occasions where it failed to trigger a
+> page dirty event.  Dave then spotted the problem fixed by patch1. The
+> pte_devmap() check is precluding pte_allows_gup(), i.e. bypassing
+> permission checks and dirty tracking.
+
+This mmap-dax-dio case still fails with this patchset, while it makes
+sense. It's the test case that need to be fixed.
+
+BTW, this patchset fixes another xfsrestore issue, which i hit now
+and then, xfs/301 w/ or wo/ DAX only on nvdimms. xfsrestore never
+return but killable.
+
+Thanks,
 > 
-
-Sure..
-
-> Besides that, there doesn't really seem to be any demand for this
-> semantic in the first place so why to make this more complicated than
-> necessary?
+> Patch2 is a cleanup and clarifies that pte_unmap() only needs to be done
+> once per page-worth of ptes. It unifies the exit paths similar to the
+> generic gup_pte_range() in the __HAVE_ARCH_PTE_SPECIAL case.
 > 
-
-That may very well be the case. I'm not necessarily against this...
-
-> I see your argument about being in sync with other kmem helpers but
-> those are bit different because regular page/slab allocators allow never
-> fail semantic (even though this is mostly ignored by those helpers which
-> implement their own retries but that is a different topic).
+> I'm sending this through the -mm tree for a double-check from memory
+> management folks. It has a build success notification from the kbuild
+> robot.
 > 
-
-... but what I'm trying to understand here is whether this failure
-scenario is specific to vmalloc() or whether the other kmem_*()
-functions are susceptible to the same problem. For example, suppose we
-replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
-KM_SLEEP) call. Could we hit the same problem if the process is killed?
-
-Brian
-
-> -- 
-> Michal Hocko
-> SUSE Labs
+> ---
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Dan Williams (2):
+>       x86, mm: fix gup_pte_range() vs DAX mappings
+>       x86, mm: unify exit paths in gup_pte_range()
+> 
+> 
+>  arch/x86/mm/gup.c |   37 +++++++++++++++++++++----------------
+>  1 file changed, 21 insertions(+), 16 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
