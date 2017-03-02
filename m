@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B80A6B0387
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 13:52:40 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id p85so43024434lfg.5
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 10:52:40 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id h29si4693445ljb.137.2017.03.02.10.52.38
-        for <linux-mm@kvack.org>;
-        Thu, 02 Mar 2017 10:52:38 -0800 (PST)
-Date: Thu, 2 Mar 2017 19:51:51 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v4 27/28] x86: Add support to encrypt the kernel
- in-place
-Message-ID: <20170302185151.nllxa4hty3tukfkr@pd.tnic>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154808.19244.475.stgit@tlendack-t1.amdoffice.net>
- <20170301173623.zcf35xgyrhmo25a7@pd.tnic>
- <cc72330f-ab5b-229f-2962-5d27490aba7d@amd.com>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 64C8F6B0387
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 14:11:14 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 2so66339169oif.7
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 11:11:14 -0800 (PST)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0078.outbound.protection.outlook.com. [104.47.37.78])
+        by mx.google.com with ESMTPS id a124si3778514oih.67.2017.03.02.11.11.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 02 Mar 2017 11:11:13 -0800 (PST)
+Subject: Re: [RFC PATCH v2 19/32] crypto: ccp: Introduce the AMD Secure
+ Processor device
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846777589.2349.11698765767451886038.stgit@brijesh-build-machine>
+ <20170302173936.GC11970@leverpostej>
+From: Brijesh Singh <brijesh.singh@amd.com>
+Message-ID: <0db0055f-9208-524f-74aa-674894ee90d3@amd.com>
+Date: Thu, 2 Mar 2017 13:11:04 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <cc72330f-ab5b-229f-2962-5d27490aba7d@amd.com>
+In-Reply-To: <20170302173936.GC11970@leverpostej>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: brijesh.singh@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-On Thu, Mar 02, 2017 at 12:30:31PM -0600, Tom Lendacky wrote:
-> The "* 2" here and above is that a PUD and a PMD is needed for both
-> the encrypted and decrypted mappings. I'll add a comment to clarify
-> that.
+Hi Mark,
 
-Ah, makes sense. Definitely needs a comment.
-
-> Yup, I can do that here too (but need PGDIR_SIZE).
-
-Right, I did test and wanted to write PGDIR_SIZE but then ... I guess
-something distracted me :-)
-
-> So next_page is the first free page within the workarea in which a
-> pagetable entry (PGD, PUD or PMD) can be created when we are populating
-> the new mappings or adding the workarea to the current mapping.  Any
-> new pagetable structures that are created will use this value.
-
-Ok, so I guess this needs an overview comment with maybe some ascii
-showing how workarea, exec_size, full_size and all those other things
-play together.
-
-> Ok, I'll work on the comment.  Something along the line of:
+On 03/02/2017 11:39 AM, Mark Rutland wrote:
+> On Thu, Mar 02, 2017 at 10:16:15AM -0500, Brijesh Singh wrote:
+>> The CCP device is part of the AMD Secure Processor. In order to expand the
+>> usage of the AMD Secure Processor, create a framework that allows functional
+>> components of the AMD Secure Processor to be initialized and handled
+>> appropriately.
+>>
+>> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  drivers/crypto/Kconfig           |   10 +
+>>  drivers/crypto/ccp/Kconfig       |   43 +++--
+>>  drivers/crypto/ccp/Makefile      |    8 -
+>>  drivers/crypto/ccp/ccp-dev-v3.c  |   86 +++++-----
+>>  drivers/crypto/ccp/ccp-dev-v5.c  |   73 ++++-----
+>>  drivers/crypto/ccp/ccp-dev.c     |  137 +++++++++-------
+>>  drivers/crypto/ccp/ccp-dev.h     |   35 ----
+>>  drivers/crypto/ccp/sp-dev.c      |  308 ++++++++++++++++++++++++++++++++++++
+>>  drivers/crypto/ccp/sp-dev.h      |  140 ++++++++++++++++
+>>  drivers/crypto/ccp/sp-pci.c      |  324 ++++++++++++++++++++++++++++++++++++++
+>>  drivers/crypto/ccp/sp-platform.c |  268 +++++++++++++++++++++++++++++++
+>>  include/linux/ccp.h              |    3
+>>  12 files changed, 1240 insertions(+), 195 deletions(-)
+>>  create mode 100644 drivers/crypto/ccp/sp-dev.c
+>>  create mode 100644 drivers/crypto/ccp/sp-dev.h
+>>  create mode 100644 drivers/crypto/ccp/sp-pci.c
+>>  create mode 100644 drivers/crypto/ccp/sp-platform.c
 >
-> /*
->  * The encrypted mapping of the kernel will use identity mapped
->  * virtual addresses.  A different PGD index/entry must be used to
->  * get different pagetable entries for the decrypted mapping.
->  * Choose the next PGD index and convert it to a virtual address
->  * to be used as the base of the mapping.
+>> diff --git a/drivers/crypto/ccp/Makefile b/drivers/crypto/ccp/Makefile
+>> index 346ceb8..8127e18 100644
+>> --- a/drivers/crypto/ccp/Makefile
+>> +++ b/drivers/crypto/ccp/Makefile
+>> @@ -1,11 +1,11 @@
+>> -obj-$(CONFIG_CRYPTO_DEV_CCP_DD) += ccp.o
+>> -ccp-objs := ccp-dev.o \
+>> +obj-$(CONFIG_CRYPTO_DEV_SP_DD) += ccp.o
+>> +ccp-objs := sp-dev.o sp-platform.o
+>> +ccp-$(CONFIG_PCI) += sp-pci.o
+>> +ccp-$(CONFIG_CRYPTO_DEV_CCP) += ccp-dev.o \
+>>  	    ccp-ops.o \
+>>  	    ccp-dev-v3.o \
+>>  	    ccp-dev-v5.o \
+>> -	    ccp-platform.o \
+>>  	    ccp-dmaengine.o
+>
+> It looks like ccp-platform.c has morphed into sp-platform.c (judging by
+> the compatible string and general shape of the code), and the original
+> ccp-platform.c is no longer built.
+>
+> Shouldn't ccp-platform.c be deleted by this patch?
+>
 
-Better.
+Good catch. Both ccp-platform.c and ccp-pci.c should have been deleted 
+by this patch. I missed deleting it, will fix in next rev.
 
-> Except the workarea size includes both the encryption execution
-> size and the pagetable structure size.  I'll work on this to try
-> and clarify it better.
-
-That's a useful piece of info, yap, the big picture could use some more
-explanation.
-
-> Most definitely.  I appreciate the feedback since I'm very close to
-> the code and have an understanding of what I'm doing. I'd like to be
-> sure that everyone can easily understand what is happening.
-
-Nice!
-
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+~ Brijesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
