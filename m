@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 05DBE6B0387
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:12:56 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id 90so71961856ios.4
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:12:56 -0800 (PST)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0041.outbound.protection.outlook.com. [104.47.32.41])
-        by mx.google.com with ESMTPS id v189si9195453itd.48.2017.03.02.07.12.55
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CFED6B0389
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:13:07 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 1so94301097pgz.5
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:13:07 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0066.outbound.protection.outlook.com. [104.47.34.66])
+        by mx.google.com with ESMTPS id u10si7690973plu.58.2017.03.02.07.13.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 07:12:55 -0800 (PST)
-Subject: [RFC PATCH v2 04/32] KVM: SVM: Add SEV feature definitions to KVM
+        Thu, 02 Mar 2017 07:13:06 -0800 (PST)
+Subject: [RFC PATCH v2 05/32] x86: Use encrypted access of BOOT related data
+ with SEV
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Thu, 2 Mar 2017 10:12:48 -0500
-Message-ID: <148846756856.2349.18360437323368784256.stgit@brijesh-build-machine>
+Date: Thu, 2 Mar 2017 10:12:59 -0500
+Message-ID: <148846757895.2349.561582698953591240.stgit@brijesh-build-machine>
 In-Reply-To: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
 References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -24,43 +25,71 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-Define a new KVM CPU feature for Secure Encrypted Virtualization (SEV).
-The kernel will check for the presence of this feature to determine if
-it is running with SEV active.
-
-Define the SEV enable bit for the VMCB control structure. The hypervisor
-will use this bit to enable SEV in the guest.
+When Secure Encrypted Virtualization (SEV) is active, BOOT data (such as
+EFI related data, setup data) is encrypted and needs to be accessed as
+such when mapped. Update the architecture override in early_memremap to
+keep the encryption attribute when mapping this data.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/svm.h           |    1 +
- arch/x86/include/uapi/asm/kvm_para.h |    1 +
- 2 files changed, 2 insertions(+)
+ arch/x86/mm/ioremap.c |   36 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 31 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/svm.h b/arch/x86/include/asm/svm.h
-index 2aca535..fba2a7b 100644
---- a/arch/x86/include/asm/svm.h
-+++ b/arch/x86/include/asm/svm.h
-@@ -137,6 +137,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
- #define SVM_VM_CR_SVM_DIS_MASK  0x0010ULL
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index c6cb921..c400ab5 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -462,12 +462,31 @@ static bool memremap_is_setup_data(resource_size_t phys_addr,
+ }
  
- #define SVM_NESTED_CTL_NP_ENABLE	BIT(0)
-+#define SVM_NESTED_CTL_SEV_ENABLE	BIT(1)
+ /*
+- * This function determines if an address should be mapped encrypted.
+- * Boot setup data, EFI data and E820 areas are checked in making this
+- * determination.
++ * This function determines if an address should be mapped encrypted when
++ * SEV is active.  E820 areas are checked in making this determination.
+  */
+-static bool memremap_should_map_encrypted(resource_size_t phys_addr,
+-					  unsigned long size)
++static bool memremap_sev_should_map_encrypted(resource_size_t phys_addr,
++					      unsigned long size)
++{
++	/* Check if the address is in persistent memory */
++	switch (e820__get_entry_type(phys_addr, phys_addr + size - 1)) {
++	case E820_TYPE_PMEM:
++	case E820_TYPE_PRAM:
++		return false;
++	default:
++		break;
++	}
++
++	return true;
++}
++
++/*
++ * This function determines if an address should be mapped encrypted when
++ * SME is active.  Boot setup data, EFI data and E820 areas are checked in
++ * making this determination.
++ */
++static bool memremap_sme_should_map_encrypted(resource_size_t phys_addr,
++					      unsigned long size)
+ {
+ 	/*
+ 	 * SME is not active, return true:
+@@ -508,6 +527,13 @@ static bool memremap_should_map_encrypted(resource_size_t phys_addr,
+ 	return true;
+ }
  
- struct __attribute__ ((__packed__)) vmcb_seg {
- 	u16 selector;
-diff --git a/arch/x86/include/uapi/asm/kvm_para.h b/arch/x86/include/uapi/asm/kvm_para.h
-index 1421a65..bc2802f 100644
---- a/arch/x86/include/uapi/asm/kvm_para.h
-+++ b/arch/x86/include/uapi/asm/kvm_para.h
-@@ -24,6 +24,7 @@
- #define KVM_FEATURE_STEAL_TIME		5
- #define KVM_FEATURE_PV_EOI		6
- #define KVM_FEATURE_PV_UNHALT		7
-+#define KVM_FEATURE_SEV			8
- 
- /* The last 8 bits are used to indicate how to interpret the flags field
-  * in pvclock structure. If no bits are set, all flags are ignored.
++static bool memremap_should_map_encrypted(resource_size_t phys_addr,
++					  unsigned long size)
++{
++	return sev_active() ? memremap_sev_should_map_encrypted(phys_addr, size)
++			    : memremap_sme_should_map_encrypted(phys_addr, size);
++}
++
+ /*
+  * Architecure function to determine if RAM remap is allowed.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
