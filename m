@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 821F86B0389
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A718F6B038E
 	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:10:43 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 10so11024522pgb.3
+Received: by mail-pg0-f71.google.com with SMTP id b2so94022853pgc.6
         for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:10:43 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id n185si7655951pfn.268.2017.03.02.07.10.42
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id b14si7649941pge.221.2017.03.02.07.10.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 02 Mar 2017 07:10:42 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
-Date: Thu,  2 Mar 2017 18:10:32 +0300
-Message-Id: <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 1/4] thp: reduce indentation level in change_huge_pmd()
+Date: Thu,  2 Mar 2017 18:10:31 +0300
+Message-Id: <20170302151034.27829-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
 References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,75 +20,81 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-In case prot_numa, we are under down_read(mmap_sem). It's critical
-to not clear pmd intermittently to avoid race with MADV_DONTNEED
-which is also under down_read(mmap_sem):
-
-	CPU0:				CPU1:
-				change_huge_pmd(prot_numa=1)
-				 pmdp_huge_get_and_clear_notify()
-madvise_dontneed()
- zap_pmd_range()
-  pmd_trans_huge(*pmd) == 0 (without ptl)
-  // skip the pmd
-				 set_pmd_at();
-				 // pmd is re-established
-
-The race makes MADV_DONTNEED miss the huge pmd and don't clear it
-which may break userspace.
-
-Found by code analysis, never saw triggered.
+Restructure code in preparation for a fix.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 52 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 26 insertions(+), 26 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e7ce73b2b208..bb2b3646bd78 100644
+index 71e3dede95b4..e7ce73b2b208 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1744,7 +1744,39 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 	if (prot_numa && pmd_protnone(*pmd))
- 		goto unlock;
+@@ -1722,37 +1722,37 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	spinlock_t *ptl;
+-	int ret = 0;
++	pmd_t entry;
++	bool preserve_write;
++	int ret;
  
--	entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+ 	ptl = __pmd_trans_huge_lock(pmd, vma);
+-	if (ptl) {
+-		pmd_t entry;
+-		bool preserve_write = prot_numa && pmd_write(*pmd);
+-		ret = 1;
++	if (!ptl)
++		return 0;
+ 
+-		/*
+-		 * Avoid trapping faults against the zero page. The read-only
+-		 * data is likely to be read-cached on the local CPU and
+-		 * local/remote hits to the zero page are not interesting.
+-		 */
+-		if (prot_numa && is_huge_zero_pmd(*pmd)) {
+-			spin_unlock(ptl);
+-			return ret;
+-		}
++	preserve_write = prot_numa && pmd_write(*pmd);
++	ret = 1;
+ 
+-		if (!prot_numa || !pmd_protnone(*pmd)) {
+-			entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+-			entry = pmd_modify(entry, newprot);
+-			if (preserve_write)
+-				entry = pmd_mk_savedwrite(entry);
+-			ret = HPAGE_PMD_NR;
+-			set_pmd_at(mm, addr, pmd, entry);
+-			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
+-					pmd_write(entry));
+-		}
+-		spin_unlock(ptl);
+-	}
 +	/*
-+	 * In case prot_numa, we are under down_read(mmap_sem). It's critical
-+	 * to not clear pmd intermittently to avoid race with MADV_DONTNEED
-+	 * which is also under down_read(mmap_sem):
-+	 *
-+	 *	CPU0:				CPU1:
-+	 *				change_huge_pmd(prot_numa=1)
-+	 *				 pmdp_huge_get_and_clear_notify()
-+	 * madvise_dontneed()
-+	 *  zap_pmd_range()
-+	 *   pmd_trans_huge(*pmd) == 0 (without ptl)
-+	 *   // skip the pmd
-+	 *				 set_pmd_at();
-+	 *				 // pmd is re-established
-+	 *
-+	 * The race makes MADV_DONTNEED miss the huge pmd and don't clear it
-+	 * which may break userspace.
-+	 *
-+	 * pmdp_invalidate() is required to make sure we don't miss
-+	 * dirty/young flags set by hardware.
++	 * Avoid trapping faults against the zero page. The read-only
++	 * data is likely to be read-cached on the local CPU and
++	 * local/remote hits to the zero page are not interesting.
 +	 */
-+	entry = *pmd;
-+	pmdp_invalidate(vma, addr, pmd);
++	if (prot_numa && is_huge_zero_pmd(*pmd))
++		goto unlock;
+ 
++	if (prot_numa && pmd_protnone(*pmd))
++		goto unlock;
 +
-+	/*
-+	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
-+	 * corrupt them.
-+	 */
-+	if (pmd_dirty(*pmd))
-+		entry = pmd_mkdirty(entry);
-+	if (pmd_young(*pmd))
-+		entry = pmd_mkyoung(entry);
-+
- 	entry = pmd_modify(entry, newprot);
- 	if (preserve_write)
- 		entry = pmd_mk_savedwrite(entry);
++	entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
++	entry = pmd_modify(entry, newprot);
++	if (preserve_write)
++		entry = pmd_mk_savedwrite(entry);
++	ret = HPAGE_PMD_NR;
++	set_pmd_at(mm, addr, pmd, entry);
++	BUG_ON(vma_is_anonymous(vma) && !preserve_write && pmd_write(entry));
++unlock:
++	spin_unlock(ptl);
+ 	return ret;
+ }
+ 
 -- 
 2.11.0
 
