@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B651C6B0393
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 16:45:25 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id n127so116503815qkf.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 13:45:25 -0800 (PST)
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com. [209.85.220.176])
-        by mx.google.com with ESMTPS id n63si7901102qkh.263.2017.03.02.13.45.24
+	by kanga.kvack.org (Postfix) with ESMTP id 3E69F6B0394
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 16:45:29 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id 9so116895695qkk.6
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 13:45:29 -0800 (PST)
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com. [209.85.220.173])
+        by mx.google.com with ESMTPS id l61si7900683qtd.243.2017.03.02.13.45.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 13:45:24 -0800 (PST)
-Received: by mail-qk0-f176.google.com with SMTP id n127so147114376qkf.0
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 13:45:24 -0800 (PST)
+        Thu, 02 Mar 2017 13:45:28 -0800 (PST)
+Received: by mail-qk0-f173.google.com with SMTP id n127so147117007qkf.0
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 13:45:28 -0800 (PST)
 From: Laura Abbott <labbott@redhat.com>
-Subject: [RFC PATCH 10/12] staging: android: ion: Use CMA APIs directly
-Date: Thu,  2 Mar 2017 13:44:42 -0800
-Message-Id: <1488491084-17252-11-git-send-email-labbott@redhat.com>
+Subject: [RFC PATCH 11/12] staging: android: ion: Make Ion heaps selectable
+Date: Thu,  2 Mar 2017 13:44:43 -0800
+Message-Id: <1488491084-17252-12-git-send-email-labbott@redhat.com>
 In-Reply-To: <1488491084-17252-1-git-send-email-labbott@redhat.com>
 References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,176 +23,149 @@ To: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com
 Cc: Laura Abbott <labbott@redhat.com>, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
 
 
-When CMA was first introduced, its primary use was for DMA allocation
-and the only way to get CMA memory was to call dma_alloc_coherent. This
-put Ion in an awkward position since there was no device structure
-readily available and setting one up messed up the coherency model.
-These days, CMA can be allocated directly from the APIs. Switch to using
-this model to avoid needing a dummy device. This also avoids awkward
-caching questions.
+Currently, all heaps are compiled in all the time. In switching to
+a better platform model, let's allow these to be compiled out for good
+measure.
 
 Signed-off-by: Laura Abbott <labbott@redhat.com>
 ---
- drivers/staging/android/ion/ion_cma_heap.c | 97 ++++++++----------------------
- 1 file changed, 26 insertions(+), 71 deletions(-)
+ drivers/staging/android/ion/Kconfig    | 32 ++++++++++++++++++++
+ drivers/staging/android/ion/Makefile   |  8 +++--
+ drivers/staging/android/ion/ion_priv.h | 53 ++++++++++++++++++++++++++++++++--
+ 3 files changed, 87 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/staging/android/ion/ion_cma_heap.c b/drivers/staging/android/ion/ion_cma_heap.c
-index d562fd7..6838825 100644
---- a/drivers/staging/android/ion/ion_cma_heap.c
-+++ b/drivers/staging/android/ion/ion_cma_heap.c
-@@ -19,24 +19,19 @@
- #include <linux/slab.h>
- #include <linux/errno.h>
- #include <linux/err.h>
--#include <linux/dma-mapping.h>
-+#include <linux/cma.h>
-+#include <linux/scatterlist.h>
+diff --git a/drivers/staging/android/ion/Kconfig b/drivers/staging/android/ion/Kconfig
+index 0c91b2b..2e97990 100644
+--- a/drivers/staging/android/ion/Kconfig
++++ b/drivers/staging/android/ion/Kconfig
+@@ -17,3 +17,35 @@ config ION_TEST
+ 	  Choose this option to create a device that can be used to test the
+ 	  kernel and device side ION functions.
  
- #include "ion.h"
- #include "ion_priv.h"
- 
- struct ion_cma_heap {
- 	struct ion_heap heap;
--	struct device *dev;
-+	struct cma *cma;
- };
- 
- #define to_cma_heap(x) container_of(x, struct ion_cma_heap, heap)
- 
--struct ion_cma_buffer_info {
--	void *cpu_addr;
--	dma_addr_t handle;
--	struct sg_table *table;
--};
--
- 
- /* ION CMA heap operations functions */
- static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
-@@ -44,93 +39,53 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
- 			    unsigned long flags)
- {
- 	struct ion_cma_heap *cma_heap = to_cma_heap(heap);
--	struct device *dev = cma_heap->dev;
--	struct ion_cma_buffer_info *info;
--
--	dev_dbg(dev, "Request buffer allocation len %ld\n", len);
--
--	if (buffer->flags & ION_FLAG_CACHED)
--		return -EINVAL;
-+	struct sg_table *table;
-+	struct page *pages;
-+	int ret;
- 
--	info = kzalloc(sizeof(*info), GFP_KERNEL);
--	if (!info)
-+	pages = cma_alloc(cma_heap->cma, len, 0);
-+	if (!pages)
- 		return -ENOMEM;
- 
--	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
--						GFP_HIGHUSER | __GFP_ZERO);
--
--	if (!info->cpu_addr) {
--		dev_err(dev, "Fail to allocate buffer\n");
-+	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-+	if (!table)
- 		goto err;
--	}
- 
--	info->table = kmalloc(sizeof(*info->table), GFP_KERNEL);
--	if (!info->table)
-+	ret = sg_alloc_table(table, 1, GFP_KERNEL);
-+	if (ret)
- 		goto free_mem;
- 
--	if (dma_get_sgtable(dev, info->table, info->cpu_addr, info->handle,
--			    len))
--		goto free_table;
--	/* keep this for memory release */
--	buffer->priv_virt = info;
--	buffer->sg_table = info->table;
--	dev_dbg(dev, "Allocate buffer %p\n", buffer);
-+	sg_set_page(table->sgl, pages, len, 0);
++config ION_SYSTEM_HEAP
++	bool "Ion system heap"
++	depends on ION
++	help
++	  Choose this option to enable the Ion system heap. The system heap
++	  is backed by pages from the buddy allocator. If in doubt, say Y.
 +
-+	buffer->priv_virt = pages;
-+	buffer->sg_table = table;
- 	return 0;
++config ION_CARVEOUT_HEAP
++	bool "Ion carveout heap support"
++	depends on ION
++	help
++	  Choose this option to enable carveout heaps with Ion. Carveout heaps
++	  are backed by memory reserved from the system. Allocation times are
++	  typically faster at the cost of memory not being used. Unless you
++	  know your system has these regions, you should say N here.
++
++config ION_CHUNK_HEAP
++	bool "Ion chunk heap support"
++	depends on ION
++	help
++          Choose this option to enable chunk heaps with Ion. This heap is
++	  similar in function the carveout heap but memory is broken down
++	  into smaller chunk sizes, typically corresponding to a TLB size.
++	  Unless you know your system has these regions, you should say N here.
++
++config ION_CMA_HEAP
++	bool "Ion CMA heap support"
++	depends on ION && CMA
++	help
++	  Choose this option to enable CMA heaps with Ion. This heap is backed
++	  by the Contiguous Memory Allocator (CMA). If your system has these
++	  regions, you should say Y here.
+diff --git a/drivers/staging/android/ion/Makefile b/drivers/staging/android/ion/Makefile
+index 9457090..eef022b 100644
+--- a/drivers/staging/android/ion/Makefile
++++ b/drivers/staging/android/ion/Makefile
+@@ -1,6 +1,8 @@
+-obj-$(CONFIG_ION) +=	ion.o ion-ioctl.o ion_heap.o \
+-			ion_page_pool.o ion_system_heap.o \
+-			ion_carveout_heap.o ion_chunk_heap.o ion_cma_heap.o
++obj-$(CONFIG_ION) +=	ion.o ion-ioctl.o ion_heap.o
++obj-$(CONFIG_ION_SYSTEM_HEAP) += ion_system_heap.o ion_page_pool.o
++obj-$(CONFIG_ION_CARVEOUT_HEAP) += ion_carveout_heap.o
++obj-$(CONFIG_ION_CHUNK_HEAP) += ion_chunk_heap.o
++obj-$(CONFIG_ION_CMA_HEAP) += ion_cma_heap.o
+ obj-$(CONFIG_ION_TEST) += ion_test.o
+ ifdef CONFIG_COMPAT
+ obj-$(CONFIG_ION) += compat_ion.o
+diff --git a/drivers/staging/android/ion/ion_priv.h b/drivers/staging/android/ion/ion_priv.h
+index b09bc7c..6eafe0d 100644
+--- a/drivers/staging/android/ion/ion_priv.h
++++ b/drivers/staging/android/ion/ion_priv.h
+@@ -369,21 +369,68 @@ size_t ion_heap_freelist_size(struct ion_heap *heap);
+  * heaps as appropriate.
+  */
  
--free_table:
--	kfree(info->table);
- free_mem:
--	dma_free_coherent(dev, len, info->cpu_addr, info->handle);
-+	kfree(table);
- err:
--	kfree(info);
-+	cma_release(cma_heap->cma, pages, buffer->size);
- 	return -ENOMEM;
- }
- 
- static void ion_cma_free(struct ion_buffer *buffer)
- {
- 	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
--	struct device *dev = cma_heap->dev;
--	struct ion_cma_buffer_info *info = buffer->priv_virt;
-+	struct page *pages = buffer->priv_virt;
- 
--	dev_dbg(dev, "Release buffer %p\n", buffer);
- 	/* release memory */
--	dma_free_coherent(dev, buffer->size, info->cpu_addr, info->handle);
-+	cma_release(cma_heap->cma, pages, buffer->size);
- 	/* release sg table */
--	sg_free_table(info->table);
--	kfree(info->table);
--	kfree(info);
--}
++
+ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data);
+ void ion_heap_destroy(struct ion_heap *heap);
++
++#ifdef CONFIG_ION_SYSTEM_HEAP
+ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused);
+ void ion_system_heap_destroy(struct ion_heap *heap);
 -
--static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,
--			struct vm_area_struct *vma)
--{
--	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
--	struct device *dev = cma_heap->dev;
--	struct ion_cma_buffer_info *info = buffer->priv_virt;
+ struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *heap);
+ void ion_system_contig_heap_destroy(struct ion_heap *heap);
 -
--	return dma_mmap_coherent(dev, vma, info->cpu_addr, info->handle,
--				 buffer->size);
--}
++#else
++static inline struct ion_heap * ion_system_heap_create(
++	struct ion_platform_heap *unused)
++{
++	return ERR_PTR(-ENODEV);
++}
++static inline void ion_system_heap_destroy(struct ion_heap *heap) { }
++
++static inline struct ion_heap *ion_system_contig_heap_create(
++	struct ion_platform_heap *heap)
++{
++	return ERR_PTR(-ENODEV);
++}
++
++static inline void ion_system_contig_heap_destroy(struct ion_heap *heap) { }
++#endif
++
++#ifdef CONFIG_ION_CARVEOUT_HEAP
+ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data);
+ void ion_carveout_heap_destroy(struct ion_heap *heap);
 -
--static void *ion_cma_map_kernel(struct ion_heap *heap,
--				struct ion_buffer *buffer)
--{
--	struct ion_cma_buffer_info *info = buffer->priv_virt;
--	/* kernel memory mapping has been done at allocation time */
--	return info->cpu_addr;
--}
--
--static void ion_cma_unmap_kernel(struct ion_heap *heap,
--				 struct ion_buffer *buffer)
--{
-+	sg_free_table(buffer->sg_table);
-+	kfree(buffer->sg_table);
- }
++#else
++static inline struct ion_heap *ion_carveout_heap_create(
++	struct ion_platform_heap *heap_data)
++{
++	return ERR_PTR(-ENODEV);
++}
++static inline void ion_carveout_heap_destroy(struct ion_heap *heap) { }
++#endif
++
++#ifdef CONFIG_ION_CHUNK_HEAP
+ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data);
+ void ion_chunk_heap_destroy(struct ion_heap *heap);
++#else
++static inline struct ion_heap *ion_chunk_heap_create(
++	struct ion_platform_heap *heap_data)
++{
++	return ERR_PTR(-ENODEV);
++}
++static inline void ion_chunk_heap_destroy(struct ion_heap *heap) { }
++
++#endif
++
++#ifdef CONFIG_ION_CMA_HEAP
+ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data);
+ void ion_cma_heap_destroy(struct ion_heap *heap);
++#else
++static inline struct ion_heap *ion_cma_heap_create(
++	struct ion_platform_heap *data)
++{
++	return ERR_PTR(-ENODEV);
++}
++static inline void ion_cma_heap_destroy(struct ion_heap *heap) { }
++#endif
  
- static struct ion_heap_ops ion_cma_ops = {
- 	.allocate = ion_cma_allocate,
- 	.free = ion_cma_free,
--	.map_user = ion_cma_mmap,
--	.map_kernel = ion_cma_map_kernel,
--	.unmap_kernel = ion_cma_unmap_kernel,
-+	.map_user = ion_heap_map_user,
-+	.map_kernel = ion_heap_map_kernel,
-+	.unmap_kernel = ion_heap_unmap_kernel,
- };
- 
- struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
-@@ -147,7 +102,7 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
- 	 * get device from private heaps data, later it will be
- 	 * used to make the link with reserved CMA memory
- 	 */
--	cma_heap->dev = data->priv;
-+	cma_heap->cma = data->priv;
- 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
- 	return &cma_heap->heap;
- }
+ /**
+  * functions for creating and destroying a heap pool -- allows you
 -- 
 2.7.4
 
