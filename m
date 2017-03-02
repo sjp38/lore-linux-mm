@@ -1,125 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E4176B0397
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:13:50 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id f103so67577655ioi.5
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:13:50 -0800 (PST)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0076.outbound.protection.outlook.com. [104.47.32.76])
-        by mx.google.com with ESMTPS id 143si9227925ioe.128.2017.03.02.07.13.49
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 53E9C6B0398
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:14:15 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u63so27740248wmu.0
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:14:15 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u74si10986646wrc.274.2017.03.02.07.14.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 07:13:49 -0800 (PST)
-Subject: [RFC PATCH v2 08/32] x86: Use PAGE_KERNEL protection for ioremap of
- memory page
-From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Thu, 2 Mar 2017 10:13:32 -0500
-Message-ID: <148846761276.2349.4899767672892365544.stgit@brijesh-build-machine>
-In-Reply-To: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Mar 2017 07:14:13 -0800 (PST)
+Date: Thu, 2 Mar 2017 16:14:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm allocation failure and hang when running xfstests generic/269
+ on xfs
+Message-ID: <20170302151411.GM1404@dhcp22.suse.cz>
+References: <20170302103520.GC1404@dhcp22.suse.cz>
+ <20170302122426.GA3213@bfoster.bfoster>
+ <20170302124909.GE1404@dhcp22.suse.cz>
+ <20170302130009.GC3213@bfoster.bfoster>
+ <20170302132755.GG1404@dhcp22.suse.cz>
+ <20170302134157.GD3213@bfoster.bfoster>
+ <20170302135001.GI1404@dhcp22.suse.cz>
+ <20170302142315.GE3213@bfoster.bfoster>
+ <20170302143441.GL1404@dhcp22.suse.cz>
+ <20170302145131.GF3213@bfoster.bfoster>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170302145131.GF3213@bfoster.bfoster>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Brian Foster <bfoster@redhat.com>, Christoph Hellwig <hch@lst.de>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-From: Tom Lendacky <thomas.lendacky@amd.com>
+On Thu 02-03-17 09:51:31, Brian Foster wrote:
+> On Thu, Mar 02, 2017 at 03:34:41PM +0100, Michal Hocko wrote:
+> > On Thu 02-03-17 09:23:15, Brian Foster wrote:
+> > > On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
+> > > > On Thu 02-03-17 08:41:58, Brian Foster wrote:
+> > > > > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
+> > > > [...]
+> > > > > > I see your argument about being in sync with other kmem helpers but
+> > > > > > those are bit different because regular page/slab allocators allow never
+> > > > > > fail semantic (even though this is mostly ignored by those helpers which
+> > > > > > implement their own retries but that is a different topic).
+> > > > > > 
+> > > > > 
+> > > > > ... but what I'm trying to understand here is whether this failure
+> > > > > scenario is specific to vmalloc() or whether the other kmem_*()
+> > > > > functions are susceptible to the same problem. For example, suppose we
+> > > > > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
+> > > > > KM_SLEEP) call. Could we hit the same problem if the process is killed?
+> > > > 
+> > > > Well, kmem_zalloc uses kmalloc which can also fail when we are out of
+> > > > memory but in that case we can expect the OOM killer releasing some
+> > > > memory which would allow us to make a forward progress on the next
+> > > > retry. So essentially retrying around kmalloc is much more safe in this
+> > > > regard. Failing vmalloc might be permanent because there is no vmalloc
+> > > > space to allocate from or much more likely due to already mentioned
+> > > > patch. So vmalloc is different, really.
+> > > 
+> > > Right.. that's why I'm asking. So it's technically possible but highly
+> > > unlikely due to the different failure characteristics. That seems
+> > > reasonable to me, then. 
+> > > 
+> > > To be clear, do we understand what causes the vzalloc() failure to be
+> > > effectively permanent in this specific reproducer? I know you mention
+> > > above that we could be out of vmalloc space, but that doesn't clarify
+> > > whether there are other potential failure paths or then what this has to
+> > > do with the fact that the process was killed. Does the pending signal
+> > > cause the subsequent failures or are you saying that there is some other
+> > > root cause of the failure, this process would effectively be spinning
+> > > here anyways, and we're just noticing it because it's trying to exit?
+> > 
+> > In this particular case it is fatal_signal_pending that causes the
+> > permanent failure. This check has been added to prevent from complete
+> > memory reserves depletion on OOM when a killed task has a free ticket to
+> > reserves and vmalloc requests can be really large. In this case there
+> > was no OOM killer going on but fsstress has SIGKILL pending for other
+> > reason. Most probably as a result of the group_exit when all threads
+> > are killed (see zap_process). I could have turn fatal_signal_pending
+> > into tsk_is_oom_victim which would be less likely to hit but in
+> > principle fatal_signal_pending should be better because we do want to
+> > bail out when the process is existing as soon as possible.
+> > 
+> > What I really wanted to say is that there are other possible permanent
+> > failure paths in vmalloc AFAICS. They are much less probable but they
+> > still exist.
+> > 
+> > Does that make more sense now?
+> 
+> Yes, thanks. That explains why this crops up now where it hasn't in the
+> past. Please include that background in the commit log description.
 
-In order for memory pages to be properly mapped when SEV is active, we
-need to use the PAGE_KERNEL protection attribute as the base protection.
-This will insure that memory mapping of, e.g. ACPI tables, receives the
-proper mapping attributes.
+OK, does this sound better. I am open to any suggestions to improve this
+of course
 
-Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
----
- arch/x86/mm/ioremap.c |    8 ++++++++
- include/linux/mm.h    |    1 +
- kernel/resource.c     |   40 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 49 insertions(+)
+: xfs: allow kmem_zalloc_greedy to fail
+: 
+: Even though kmem_zalloc_greedy is documented it might fail the current
+: code doesn't really implement this properly and loops on the smallest
+: allowed size for ever. This is a problem because vzalloc might fail
+: permanently - we might run out of vmalloc space or since 5d17a73a2ebe
+: ("vmalloc: back off when the current task is killed") when the current
+: task is killed. The later one makes the failure scenario much more
+: probable than it used to be. Fix this by bailing out if the minimum size
+: request failed.
+: 
+: This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
+: 
+: fsstress: vmalloc: allocation failure, allocated 12288 of 20480 bytes, mode:0x14080c2(GFP_KERNEL|__GFP_HIGHMEM|__GFP_ZERO), nodemask=(null)
+: fsstress cpuset=/ mems_allowed=0-1
+: CPU: 1 PID: 23460 Comm: fsstress Not tainted 4.10.0-master-45554b2+ #21
+: Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9, BIOS P89 10/05/2016
+: Call Trace:
+:  dump_stack+0x63/0x87
+:  warn_alloc+0x114/0x1c0
+:  ? alloc_pages_current+0x88/0x120
+:  __vmalloc_node_range+0x250/0x2a0
+:  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
+:  ? free_hot_cold_page+0x21f/0x280
+:  vzalloc+0x54/0x60
+:  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
+:  kmem_zalloc_greedy+0x2b/0x40 [xfs]
+:  xfs_bulkstat+0x11b/0x730 [xfs]
+:  ? xfs_bulkstat_one_int+0x340/0x340 [xfs]
+:  ? selinux_capable+0x20/0x30
+:  ? security_capable+0x48/0x60
+:  xfs_ioc_bulkstat+0xe4/0x190 [xfs]
+:  xfs_file_ioctl+0x9dd/0xad0 [xfs]
+:  ? do_filp_open+0xa5/0x100
+:  do_vfs_ioctl+0xa7/0x5e0
+:  SyS_ioctl+0x79/0x90
+:  do_syscall_64+0x67/0x180
+:  entry_SYSCALL64_slow_path+0x25/0x25
+: 
+: fsstress keeps looping inside kmem_zalloc_greedy without any way out
+: because vmalloc keeps failing due to fatal_signal_pending.
+: 
+: Reported-by: Xiong Zhou <xzhou@redhat.com>
+: Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+: Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index c400ab5..481c999 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -151,7 +151,15 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
- 		pcm = new_pcm;
- 	}
- 
-+	/*
-+	 * If the page being mapped is in memory and SEV is active then
-+	 * make sure the memory encryption attribute is enabled in the
-+	 * resulting mapping.
-+	 */
- 	prot = PAGE_KERNEL_IO;
-+	if (sev_active() && page_is_mem(pfn))
-+		prot = __pgprot(pgprot_val(prot) | _PAGE_ENC);
-+
- 	switch (pcm) {
- 	case _PAGE_CACHE_MODE_UC:
- 	default:
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b84615b..825df27 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -445,6 +445,7 @@ static inline int get_page_unless_zero(struct page *page)
- }
- 
- extern int page_is_ram(unsigned long pfn);
-+extern int page_is_mem(unsigned long pfn);
- 
- enum {
- 	REGION_INTERSECTS,
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 9b5f044..db56ba3 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -518,6 +518,46 @@ int __weak page_is_ram(unsigned long pfn)
- }
- EXPORT_SYMBOL_GPL(page_is_ram);
- 
-+/*
-+ * This function returns true if the target memory is marked as
-+ * IORESOURCE_MEM and IORESOUCE_BUSY and described as other than
-+ * IORES_DESC_NONE (e.g. IORES_DESC_ACPI_TABLES).
-+ */
-+static int walk_mem_range(unsigned long start_pfn, unsigned long nr_pages)
-+{
-+	struct resource res;
-+	unsigned long pfn, end_pfn;
-+	u64 orig_end;
-+	int ret = -1;
-+
-+	res.start = (u64) start_pfn << PAGE_SHIFT;
-+	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
-+	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	orig_end = res.end;
-+	while ((res.start < res.end) &&
-+		(find_next_iomem_res(&res, IORES_DESC_NONE, true) >= 0)) {
-+		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+		end_pfn = (res.end + 1) >> PAGE_SHIFT;
-+		if (end_pfn > pfn)
-+			ret = (res.desc != IORES_DESC_NONE) ? 1 : 0;
-+		if (ret)
-+			break;
-+		res.start = res.end + 1;
-+		res.end = orig_end;
-+	}
-+	return ret;
-+}
-+
-+/*
-+ * This generic page_is_mem() returns true if specified address is
-+ * registered as memory in iomem_resource list.
-+ */
-+int __weak page_is_mem(unsigned long pfn)
-+{
-+	return walk_mem_range(pfn, 1) == 1;
-+}
-+EXPORT_SYMBOL_GPL(page_is_mem);
-+
- /**
-  * region_intersects() - determine intersection of region with known resources
-  * @start: region start address
+> Also, that kind of makes me think that a fatal_signal_pending() check is
+> still appropriate in the loop, even if we want to drop the infinite
+> retry loop in kmem_zalloc_greedy() as well. There's no sense in doing
+> however many retries are left before we return and that's also more
+> explicit for the next person who goes to change this code in the future.
+
+I am not objecting to adding fatal_signal_pending as well I just thought
+that from the logic POV breaking after reaching the minimum size is just
+the right thing to do. We can optimize further by checking
+fatal_signal_pending and reducing retries when we know it doesn't make
+much sense but that should be done on top as an optimization IMHO.
+
+> Otherwise, I'm fine with breaking the infinite retry loop at the same
+> time. It looks like Christoph added this function originally so this
+> should probably require his ack as well..
+
+What do you think Christoph?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
