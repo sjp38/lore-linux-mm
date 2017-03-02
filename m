@@ -1,167 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 53E9C6B0398
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:14:15 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id u63so27740248wmu.0
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:14:15 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u74si10986646wrc.274.2017.03.02.07.14.13
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B326B6B0399
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:14:22 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f21so94565210pgi.4
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:14:22 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0087.outbound.protection.outlook.com. [104.47.41.87])
+        by mx.google.com with ESMTPS id a62si7651216pgc.371.2017.03.02.07.14.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 07:14:13 -0800 (PST)
-Date: Thu, 2 Mar 2017 16:14:11 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm allocation failure and hang when running xfstests generic/269
- on xfs
-Message-ID: <20170302151411.GM1404@dhcp22.suse.cz>
-References: <20170302103520.GC1404@dhcp22.suse.cz>
- <20170302122426.GA3213@bfoster.bfoster>
- <20170302124909.GE1404@dhcp22.suse.cz>
- <20170302130009.GC3213@bfoster.bfoster>
- <20170302132755.GG1404@dhcp22.suse.cz>
- <20170302134157.GD3213@bfoster.bfoster>
- <20170302135001.GI1404@dhcp22.suse.cz>
- <20170302142315.GE3213@bfoster.bfoster>
- <20170302143441.GL1404@dhcp22.suse.cz>
- <20170302145131.GF3213@bfoster.bfoster>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 02 Mar 2017 07:14:21 -0800 (PST)
+Subject: [RFC PATCH v2 09/32] x86: Change early_ioremap to early_memremap
+ for BOOT data
+From: Brijesh Singh <brijesh.singh@amd.com>
+Date: Thu, 2 Mar 2017 10:13:53 -0500
+Message-ID: <148846763334.2349.9327692408737971533.stgit@brijesh-build-machine>
+In-Reply-To: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170302145131.GF3213@bfoster.bfoster>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Foster <bfoster@redhat.com>, Christoph Hellwig <hch@lst.de>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-On Thu 02-03-17 09:51:31, Brian Foster wrote:
-> On Thu, Mar 02, 2017 at 03:34:41PM +0100, Michal Hocko wrote:
-> > On Thu 02-03-17 09:23:15, Brian Foster wrote:
-> > > On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
-> > > > On Thu 02-03-17 08:41:58, Brian Foster wrote:
-> > > > > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
-> > > > [...]
-> > > > > > I see your argument about being in sync with other kmem helpers but
-> > > > > > those are bit different because regular page/slab allocators allow never
-> > > > > > fail semantic (even though this is mostly ignored by those helpers which
-> > > > > > implement their own retries but that is a different topic).
-> > > > > > 
-> > > > > 
-> > > > > ... but what I'm trying to understand here is whether this failure
-> > > > > scenario is specific to vmalloc() or whether the other kmem_*()
-> > > > > functions are susceptible to the same problem. For example, suppose we
-> > > > > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
-> > > > > KM_SLEEP) call. Could we hit the same problem if the process is killed?
-> > > > 
-> > > > Well, kmem_zalloc uses kmalloc which can also fail when we are out of
-> > > > memory but in that case we can expect the OOM killer releasing some
-> > > > memory which would allow us to make a forward progress on the next
-> > > > retry. So essentially retrying around kmalloc is much more safe in this
-> > > > regard. Failing vmalloc might be permanent because there is no vmalloc
-> > > > space to allocate from or much more likely due to already mentioned
-> > > > patch. So vmalloc is different, really.
-> > > 
-> > > Right.. that's why I'm asking. So it's technically possible but highly
-> > > unlikely due to the different failure characteristics. That seems
-> > > reasonable to me, then. 
-> > > 
-> > > To be clear, do we understand what causes the vzalloc() failure to be
-> > > effectively permanent in this specific reproducer? I know you mention
-> > > above that we could be out of vmalloc space, but that doesn't clarify
-> > > whether there are other potential failure paths or then what this has to
-> > > do with the fact that the process was killed. Does the pending signal
-> > > cause the subsequent failures or are you saying that there is some other
-> > > root cause of the failure, this process would effectively be spinning
-> > > here anyways, and we're just noticing it because it's trying to exit?
-> > 
-> > In this particular case it is fatal_signal_pending that causes the
-> > permanent failure. This check has been added to prevent from complete
-> > memory reserves depletion on OOM when a killed task has a free ticket to
-> > reserves and vmalloc requests can be really large. In this case there
-> > was no OOM killer going on but fsstress has SIGKILL pending for other
-> > reason. Most probably as a result of the group_exit when all threads
-> > are killed (see zap_process). I could have turn fatal_signal_pending
-> > into tsk_is_oom_victim which would be less likely to hit but in
-> > principle fatal_signal_pending should be better because we do want to
-> > bail out when the process is existing as soon as possible.
-> > 
-> > What I really wanted to say is that there are other possible permanent
-> > failure paths in vmalloc AFAICS. They are much less probable but they
-> > still exist.
-> > 
-> > Does that make more sense now?
-> 
-> Yes, thanks. That explains why this crops up now where it hasn't in the
-> past. Please include that background in the commit log description.
+From: Tom Lendacky <thomas.lendacky@amd.com>
 
-OK, does this sound better. I am open to any suggestions to improve this
-of course
+In order to map BOOT data with the proper encryption bit, the
+early_ioremap() function calls are changed to early_memremap() calls.
+This allows the proper access for both SME and SEV.
 
-: xfs: allow kmem_zalloc_greedy to fail
-: 
-: Even though kmem_zalloc_greedy is documented it might fail the current
-: code doesn't really implement this properly and loops on the smallest
-: allowed size for ever. This is a problem because vzalloc might fail
-: permanently - we might run out of vmalloc space or since 5d17a73a2ebe
-: ("vmalloc: back off when the current task is killed") when the current
-: task is killed. The later one makes the failure scenario much more
-: probable than it used to be. Fix this by bailing out if the minimum size
-: request failed.
-: 
-: This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
-: 
-: fsstress: vmalloc: allocation failure, allocated 12288 of 20480 bytes, mode:0x14080c2(GFP_KERNEL|__GFP_HIGHMEM|__GFP_ZERO), nodemask=(null)
-: fsstress cpuset=/ mems_allowed=0-1
-: CPU: 1 PID: 23460 Comm: fsstress Not tainted 4.10.0-master-45554b2+ #21
-: Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9, BIOS P89 10/05/2016
-: Call Trace:
-:  dump_stack+0x63/0x87
-:  warn_alloc+0x114/0x1c0
-:  ? alloc_pages_current+0x88/0x120
-:  __vmalloc_node_range+0x250/0x2a0
-:  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
-:  ? free_hot_cold_page+0x21f/0x280
-:  vzalloc+0x54/0x60
-:  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
-:  kmem_zalloc_greedy+0x2b/0x40 [xfs]
-:  xfs_bulkstat+0x11b/0x730 [xfs]
-:  ? xfs_bulkstat_one_int+0x340/0x340 [xfs]
-:  ? selinux_capable+0x20/0x30
-:  ? security_capable+0x48/0x60
-:  xfs_ioc_bulkstat+0xe4/0x190 [xfs]
-:  xfs_file_ioctl+0x9dd/0xad0 [xfs]
-:  ? do_filp_open+0xa5/0x100
-:  do_vfs_ioctl+0xa7/0x5e0
-:  SyS_ioctl+0x79/0x90
-:  do_syscall_64+0x67/0x180
-:  entry_SYSCALL64_slow_path+0x25/0x25
-: 
-: fsstress keeps looping inside kmem_zalloc_greedy without any way out
-: because vmalloc keeps failing due to fatal_signal_pending.
-: 
-: Reported-by: Xiong Zhou <xzhou@redhat.com>
-: Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-: Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+---
+ arch/x86/kernel/acpi/boot.c |    4 ++--
+ arch/x86/kernel/mpparse.c   |   10 +++++-----
+ drivers/sfi/sfi_core.c      |    6 +++---
+ 3 files changed, 10 insertions(+), 10 deletions(-)
 
-> Also, that kind of makes me think that a fatal_signal_pending() check is
-> still appropriate in the loop, even if we want to drop the infinite
-> retry loop in kmem_zalloc_greedy() as well. There's no sense in doing
-> however many retries are left before we return and that's also more
-> explicit for the next person who goes to change this code in the future.
-
-I am not objecting to adding fatal_signal_pending as well I just thought
-that from the logic POV breaking after reaching the minimum size is just
-the right thing to do. We can optimize further by checking
-fatal_signal_pending and reducing retries when we know it doesn't make
-much sense but that should be done on top as an optimization IMHO.
-
-> Otherwise, I'm fine with breaking the infinite retry loop at the same
-> time. It looks like Christoph added this function originally so this
-> should probably require his ack as well..
-
-What do you think Christoph?
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 35174c6..468c25a 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -124,7 +124,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
+ 	if (!phys || !size)
+ 		return NULL;
+ 
+-	return early_ioremap(phys, size);
++	return early_memremap(phys, size);
+ }
+ 
+ void __init __acpi_unmap_table(char *map, unsigned long size)
+@@ -132,7 +132,7 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
+ 	if (!map || !size)
+ 		return;
+ 
+-	early_iounmap(map, size);
++	early_memunmap(map, size);
+ }
+ 
+ #ifdef CONFIG_X86_LOCAL_APIC
+diff --git a/arch/x86/kernel/mpparse.c b/arch/x86/kernel/mpparse.c
+index 0d904d7..fd37f39 100644
+--- a/arch/x86/kernel/mpparse.c
++++ b/arch/x86/kernel/mpparse.c
+@@ -436,9 +436,9 @@ static unsigned long __init get_mpc_size(unsigned long physptr)
+ 	struct mpc_table *mpc;
+ 	unsigned long size;
+ 
+-	mpc = early_ioremap(physptr, PAGE_SIZE);
++	mpc = early_memremap(physptr, PAGE_SIZE);
+ 	size = mpc->length;
+-	early_iounmap(mpc, PAGE_SIZE);
++	early_memunmap(mpc, PAGE_SIZE);
+ 	apic_printk(APIC_VERBOSE, "  mpc: %lx-%lx\n", physptr, physptr + size);
+ 
+ 	return size;
+@@ -450,7 +450,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+ 	unsigned long size;
+ 
+ 	size = get_mpc_size(mpf->physptr);
+-	mpc = early_ioremap(mpf->physptr, size);
++	mpc = early_memremap(mpf->physptr, size);
+ 	/*
+ 	 * Read the physical hardware table.  Anything here will
+ 	 * override the defaults.
+@@ -461,10 +461,10 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+ #endif
+ 		pr_err("BIOS bug, MP table errors detected!...\n");
+ 		pr_cont("... disabling SMP support. (tell your hw vendor)\n");
+-		early_iounmap(mpc, size);
++		early_memunmap(mpc, size);
+ 		return -1;
+ 	}
+-	early_iounmap(mpc, size);
++	early_memunmap(mpc, size);
+ 
+ 	if (early)
+ 		return -1;
+diff --git a/drivers/sfi/sfi_core.c b/drivers/sfi/sfi_core.c
+index 296db7a..d00ae3f 100644
+--- a/drivers/sfi/sfi_core.c
++++ b/drivers/sfi/sfi_core.c
+@@ -92,7 +92,7 @@ static struct sfi_table_simple *syst_va __read_mostly;
+ static u32 sfi_use_ioremap __read_mostly;
+ 
+ /*
+- * sfi_un/map_memory calls early_ioremap/iounmap which is a __init function
++ * sfi_un/map_memory calls early_memremap/memunmap which is a __init function
+  * and introduces section mismatch. So use __ref to make it calm.
+  */
+ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
+@@ -103,7 +103,7 @@ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
+ 	if (sfi_use_ioremap)
+ 		return ioremap_cache(phys, size);
+ 	else
+-		return early_ioremap(phys, size);
++		return early_memremap(phys, size);
+ }
+ 
+ static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
+@@ -114,7 +114,7 @@ static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
+ 	if (sfi_use_ioremap)
+ 		iounmap(virt);
+ 	else
+-		early_iounmap(virt, size);
++		early_memunmap(virt, size);
+ }
+ 
+ static void sfi_print_table_header(unsigned long long pa,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
