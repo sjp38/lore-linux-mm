@@ -1,84 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF146B0388
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:33:23 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id d18so93385926pgh.2
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:33:23 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i9si7607107plk.73.2017.03.02.06.33.22
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FC3A6B0388
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:34:44 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id m70so19263047wma.2
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:34:44 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u127si843019wmf.21.2017.03.02.06.34.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 06:33:22 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v22ETpe1140322
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 09:33:22 -0500
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28xen2kc7c-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:33:21 -0500
-Received: from localhost
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 2 Mar 2017 20:03:18 +0530
-Received: from d28relay08.in.ibm.com (d28relay08.in.ibm.com [9.184.220.159])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 17CA4E0024
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 20:05:03 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay08.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v22EWAWs13631582
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:02:10 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v22EXGSX014417
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:03:16 +0530
-Subject: Re: [RFC 02/11] mm: remove unncessary ret in page_referenced
-References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-3-git-send-email-minchan@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 2 Mar 2017 20:03:16 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Mar 2017 06:34:43 -0800 (PST)
+Date: Thu, 2 Mar 2017 15:34:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm allocation failure and hang when running xfstests generic/269
+ on xfs
+Message-ID: <20170302143441.GL1404@dhcp22.suse.cz>
+References: <20170302051900.ct3xbesn2ku7ezll@XZHOUW.usersys.redhat.com>
+ <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
+ <20170302103520.GC1404@dhcp22.suse.cz>
+ <20170302122426.GA3213@bfoster.bfoster>
+ <20170302124909.GE1404@dhcp22.suse.cz>
+ <20170302130009.GC3213@bfoster.bfoster>
+ <20170302132755.GG1404@dhcp22.suse.cz>
+ <20170302134157.GD3213@bfoster.bfoster>
+ <20170302135001.GI1404@dhcp22.suse.cz>
+ <20170302142315.GE3213@bfoster.bfoster>
 MIME-Version: 1.0
-In-Reply-To: <1488436765-32350-3-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <2baf1168-0f84-b80d-5fb9-9d13c618c9f1@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170302142315.GE3213@bfoster.bfoster>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On 03/02/2017 12:09 PM, Minchan Kim wrote:
-> Anyone doesn't use ret variable. Remove it.
+On Thu 02-03-17 09:23:15, Brian Foster wrote:
+> On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
+> > On Thu 02-03-17 08:41:58, Brian Foster wrote:
+> > > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
+> > [...]
+> > > > I see your argument about being in sync with other kmem helpers but
+> > > > those are bit different because regular page/slab allocators allow never
+> > > > fail semantic (even though this is mostly ignored by those helpers which
+> > > > implement their own retries but that is a different topic).
+> > > > 
+> > > 
+> > > ... but what I'm trying to understand here is whether this failure
+> > > scenario is specific to vmalloc() or whether the other kmem_*()
+> > > functions are susceptible to the same problem. For example, suppose we
+> > > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
+> > > KM_SLEEP) call. Could we hit the same problem if the process is killed?
+> > 
+> > Well, kmem_zalloc uses kmalloc which can also fail when we are out of
+> > memory but in that case we can expect the OOM killer releasing some
+> > memory which would allow us to make a forward progress on the next
+> > retry. So essentially retrying around kmalloc is much more safe in this
+> > regard. Failing vmalloc might be permanent because there is no vmalloc
+> > space to allocate from or much more likely due to already mentioned
+> > patch. So vmalloc is different, really.
 > 
-
-This change is correct. But not sure how this is related to
-try_to_unmap() clean up though.
-
-
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/rmap.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
+> Right.. that's why I'm asking. So it's technically possible but highly
+> unlikely due to the different failure characteristics. That seems
+> reasonable to me, then. 
 > 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index bb45712..8076347 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -805,7 +805,6 @@ int page_referenced(struct page *page,
->  		    struct mem_cgroup *memcg,
->  		    unsigned long *vm_flags)
->  {
-> -	int ret;
->  	int we_locked = 0;
->  	struct page_referenced_arg pra = {
->  		.mapcount = total_mapcount(page),
-> @@ -839,7 +838,7 @@ int page_referenced(struct page *page,
->  		rwc.invalid_vma = invalid_page_referenced_vma;
->  	}
->  
-> -	ret = rmap_walk(page, &rwc);
-> +	rmap_walk(page, &rwc);
->  	*vm_flags = pra.vm_flags;
->  
->  	if (we_locked)
-> 
+> To be clear, do we understand what causes the vzalloc() failure to be
+> effectively permanent in this specific reproducer? I know you mention
+> above that we could be out of vmalloc space, but that doesn't clarify
+> whether there are other potential failure paths or then what this has to
+> do with the fact that the process was killed. Does the pending signal
+> cause the subsequent failures or are you saying that there is some other
+> root cause of the failure, this process would effectively be spinning
+> here anyways, and we're just noticing it because it's trying to exit?
+
+In this particular case it is fatal_signal_pending that causes the
+permanent failure. This check has been added to prevent from complete
+memory reserves depletion on OOM when a killed task has a free ticket to
+reserves and vmalloc requests can be really large. In this case there
+was no OOM killer going on but fsstress has SIGKILL pending for other
+reason. Most probably as a result of the group_exit when all threads
+are killed (see zap_process). I could have turn fatal_signal_pending
+into tsk_is_oom_victim which would be less likely to hit but in
+principle fatal_signal_pending should be better because we do want to
+bail out when the process is existing as soon as possible.
+
+What I really wanted to say is that there are other possible permanent
+failure paths in vmalloc AFAICS. They are much less probable but they
+still exist.
+
+Does that make more sense now?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
