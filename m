@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 923AB6B038A
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:49:07 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c143so13359054wmd.1
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:49:07 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 678836B038D
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 08:49:08 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id g10so29046725wrg.5
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 05:49:08 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y31sor6757wmh.16.1969.12.31.16.00.00
+        by mx.google.com with SMTPS id y31sor6758wmh.16.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 Mar 2017 05:49:06 -0800 (PST)
+        Thu, 02 Mar 2017 05:49:07 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 4/9] kasan: simplify address description logic
-Date: Thu,  2 Mar 2017 14:48:46 +0100
-Message-Id: <20170302134851.101218-5-andreyknvl@google.com>
+Subject: [PATCH v2 2/9] kasan: unify report headers
+Date: Thu,  2 Mar 2017 14:48:44 +0100
+Message-Id: <20170302134851.101218-3-andreyknvl@google.com>
 In-Reply-To: <20170302134851.101218-1-andreyknvl@google.com>
 References: <20170302134851.101218-1-andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,88 +20,66 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrey Konovalov <andreyknvl@google.com>
 
-Simplify logic for describing a memory address.
-Add addr_to_page() helper function.
-
-Makes the code easier to follow.
+Unify KASAN report header format for different kinds of bad memory
+accesses. Makes the code simpler.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/report.c | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ mm/kasan/report.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
 
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 5922330237fd..8b0b27eb37cd 100644
+index 2790b4cadfa3..34a6d1aec524 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -188,11 +188,18 @@ static void print_track(struct kasan_track *track, const char *prefix)
- 	}
+@@ -119,16 +119,22 @@ const char *get_wild_bug_type(struct kasan_access_info *info)
+ 	return bug_type;
  }
  
--static void kasan_object_err(struct kmem_cache *cache, void *object)
-+static struct page *addr_to_page(const void *addr)
++static const char *get_bug_type(struct kasan_access_info *info)
 +{
-+	if ((addr >= (void *)PAGE_OFFSET) &&
-+			(addr < high_memory))
-+		return virt_to_head_page(addr);
-+	return NULL;
++	if (addr_has_shadow(info))
++		return get_shadow_bug_type(info);
++	return get_wild_bug_type(info);
 +}
 +
-+static void describe_object(struct kmem_cache *cache, void *object)
+ static void print_error_description(struct kasan_access_info *info)
  {
- 	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
+-	const char *bug_type = get_shadow_bug_type(info);
++	const char *bug_type = get_bug_type(info);
  
--	dump_stack();
- 	pr_err("Object at %p, in cache %s size: %d\n", object, cache->name,
- 		cache->object_size);
+ 	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+-		bug_type, (void *)info->ip,
+-		info->access_addr);
++		bug_type, (void *)info->ip, info->access_addr);
+ 	pr_err("%s of size %zu by task %s/%d\n",
+-		info->is_write ? "Write" : "Read",
+-		info->access_size, current->comm, task_pid_nr(current));
++		info->is_write ? "Write" : "Read", info->access_size,
++		current->comm, task_pid_nr(current));
+ }
  
-@@ -211,34 +218,32 @@ void kasan_report_double_free(struct kmem_cache *cache, void *object,
+ static inline bool kernel_or_module_addr(const void *addr)
+@@ -295,17 +301,11 @@ static void kasan_report_error(struct kasan_access_info *info)
+ 
  	kasan_start_report(&flags);
- 	pr_err("BUG: Double free or freeing an invalid pointer\n");
- 	pr_err("Unexpected shadow byte: 0x%hhX\n", shadow);
--	kasan_object_err(cache, object);
-+	dump_stack();
-+	describe_object(cache, object);
- 	kasan_end_report(&flags);
- }
  
- static void print_address_description(struct kasan_access_info *info)
- {
- 	const void *addr = info->access_addr;
-+	struct page *page = addr_to_page(addr);
- 
--	if ((addr >= (void *)PAGE_OFFSET) &&
--		(addr < high_memory)) {
--		struct page *page = virt_to_head_page(addr);
--
--		if (PageSlab(page)) {
--			void *object;
--			struct kmem_cache *cache = page->slab_cache;
--			object = nearest_obj(cache, page,
--						(void *)info->access_addr);
--			kasan_object_err(cache, object);
--			return;
--		}
-+	if (page)
- 		dump_page(page, "kasan: bad access detected");
++	print_error_description(info);
 +
-+	dump_stack();
-+
-+	if (page && PageSlab(page)) {
-+		struct kmem_cache *cache = page->slab_cache;
-+		void *object = nearest_obj(cache, page,	(void *)addr);
-+
-+		describe_object(cache, object);
+ 	if (!addr_has_shadow(info)) {
+-		const char *bug_type = get_wild_bug_type(info);
+-		pr_err("BUG: KASAN: %s on address %p\n",
+-			bug_type, info->access_addr);
+-		pr_err("%s of size %zu by task %s/%d\n",
+-			info->is_write ? "Write" : "Read",
+-			info->access_size, current->comm,
+-			task_pid_nr(current));
+ 		dump_stack();
+ 	} else {
+-		print_error_description(info);
+ 		print_address_description(info);
+ 		print_shadow_for_address(info->first_bad_addr);
  	}
- 
- 	if (kernel_or_module_addr(addr)) {
- 		if (!init_task_stack_addr(addr))
- 			pr_err("Address belongs to variable %pS\n", addr);
- 	}
--	dump_stack();
- }
- 
- static bool row_is_guilty(const void *row, const void *guilty)
 -- 
 2.12.0.rc1.440.g5b76565f74-goog
 
