@@ -1,77 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 11AD16B0387
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:27:19 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id j5so83985748pfb.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:27:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f6si7565489plj.297.2017.03.02.06.27.18
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 273786B0387
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:28:21 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id n11so10761407wma.5
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:28:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o67si26248864wmo.87.2017.03.02.06.28.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 06:27:18 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v22EJjGK012097
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 09:27:17 -0500
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28xjam8tvd-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:27:17 -0500
-Received: from localhost
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 2 Mar 2017 19:57:14 +0530
-Received: from d28relay10.in.ibm.com (d28relay10.in.ibm.com [9.184.220.161])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id B369BE005F
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 19:58:57 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay10.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v22EQ5aL16384084
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 19:56:05 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v22ERBaJ024502
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 19:57:11 +0530
-Subject: Re: [RFC 01/11] mm: use SWAP_SUCCESS instead of 0
-References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-2-git-send-email-minchan@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 2 Mar 2017 19:57:10 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Mar 2017 06:28:18 -0800 (PST)
+Date: Thu, 2 Mar 2017 15:28:16 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
+Message-ID: <20170302142816.GK1404@dhcp22.suse.cz>
+References: <20170227154304.GK26504@dhcp22.suse.cz>
+ <1488462828-174523-1-git-send-email-imammedo@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1488436765-32350-2-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <e7a05d50-4fa8-66ce-9aa0-df54f21be0d8@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1488462828-174523-1-git-send-email-imammedo@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill@shutemov.name>
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org
 
-On 03/02/2017 12:09 PM, Minchan Kim wrote:
-> SWAP_SUCCESS defined value 0 can be changed always so don't rely on
-> it. Instead, use explict macro.
-
-Right. But should not we move the changes to the callers last in the
-patch series after doing the cleanup to the try_to_unmap() function
-as intended first.
-
-> > Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/huge_memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+On Thu 02-03-17 14:53:48, Igor Mammedov wrote:
+[...]
+> When trying to support memory unplug on guest side in RHEL7,
+> experience shows otherwise. Simplistic udev rule which onlines
+> added block doesn't work in case one wants to online it as movable.
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 092cc5c..fe2ccd4 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2114,7 +2114,7 @@ static void freeze_page(struct page *page)
->  		ttu_flags |= TTU_MIGRATION;
->  
->  	ret = try_to_unmap(page, ttu_flags);
-> -	VM_BUG_ON_PAGE(ret, page);
-> +	VM_BUG_ON_PAGE(ret != SWAP_SUCCESS, page);
->  }
->  
->  static void unfreeze_page(struct page *page)
+> Hotplugged blocks in current kernel should be onlined in reverse
+> order to online blocks as movable depending on adjacent blocks zone.
+
+Could you be more specific please? Setting online_movable from the udev
+rule should just work regardless of the ordering or the state of other
+memblocks. If that doesn't work I would call it a bug.
+
+> Which means simple udev rule isn't usable since it gets event from
+> the first to the last hotplugged block order. So now we would have
+> to write a daemon that would
+>  - watch for all blocks in hotplugged memory appear (how would it know)
+>  - online them in right order (order might also be different depending
+>    on kernel version)
+>    -- it becomes even more complicated in NUMA case when there are
+>       multiple zones and kernel would have to provide user-space
+>       with information about zone maps
 > 
+> In short current experience shows that userspace approach
+>  - doesn't solve issues that Vitaly has been fixing (i.e. onlining
+>    fast and/or under memory pressure) when udev (or something else
+>    might be killed)
+
+yeah and that is why the patch does the onlining from the kernel.
+ 
+> > Can you imagine any situation when somebody actually might want to have
+> > this knob enabled? From what I understand it doesn't seem to be the
+> > case.
+> For x86:
+>  * this config option is enabled by default in recent Fedora,
+
+How do you want to support usecases which really want to online memory
+as movable? Do you expect those users to disable the option because
+unless I am missing something the in kernel auto onlining only supporst
+regular onlining.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
