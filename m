@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 883E76B0389
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:02:26 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id d18so94272125pgh.2
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:02:26 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w12si7669977pld.49.2017.03.02.07.02.22
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BD6106B038C
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:03:02 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 1so93965720pgz.5
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:03:02 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id b35si7670176plh.80.2017.03.02.07.03.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 07:02:22 -0800 (PST)
+        Thu, 02 Mar 2017 07:03:01 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Subject: [PATCH] thp: fix another corner case of munlock() vs. THPs
-Date: Thu,  2 Mar 2017 18:02:13 +0300
-Message-Id: <20170302150213.33977-1-kirill.shutemov@linux.intel.com>
+Date: Thu,  2 Mar 2017 18:02:52 +0300
+Message-Id: <20170302150252.34120-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
