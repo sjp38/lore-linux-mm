@@ -1,93 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 462186B0038
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:01:13 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id u48so29025508wrc.0
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:01:13 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 191si11176066wmp.56.2017.03.02.06.01.11
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A6306B0387
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:23:18 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id j127so4306928qke.2
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:23:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m20si7027903qta.241.2017.03.02.06.23.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 06:01:11 -0800 (PST)
-Date: Thu, 2 Mar 2017 09:01:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
-Message-ID: <20170302140101.GA16021@cmpxchg.org>
-References: <cover.1487965799.git.shli@fb.com>
- <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
- <20170301133624.GF1124@dhcp22.suse.cz>
- <20170301183149.GA14277@cmpxchg.org>
- <20170301185735.GA24905@dhcp22.suse.cz>
+        Thu, 02 Mar 2017 06:23:17 -0800 (PST)
+Date: Thu, 2 Mar 2017 09:23:15 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: mm allocation failure and hang when running xfstests generic/269
+ on xfs
+Message-ID: <20170302142315.GE3213@bfoster.bfoster>
+References: <20170302003731.GB24593@infradead.org>
+ <20170302051900.ct3xbesn2ku7ezll@XZHOUW.usersys.redhat.com>
+ <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
+ <20170302103520.GC1404@dhcp22.suse.cz>
+ <20170302122426.GA3213@bfoster.bfoster>
+ <20170302124909.GE1404@dhcp22.suse.cz>
+ <20170302130009.GC3213@bfoster.bfoster>
+ <20170302132755.GG1404@dhcp22.suse.cz>
+ <20170302134157.GD3213@bfoster.bfoster>
+ <20170302135001.GI1404@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170301185735.GA24905@dhcp22.suse.cz>
+In-Reply-To: <20170302135001.GI1404@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed, Mar 01, 2017 at 07:57:35PM +0100, Michal Hocko wrote:
-> On Wed 01-03-17 13:31:49, Johannes Weiner wrote:
-> > On Wed, Mar 01, 2017 at 02:36:24PM +0100, Michal Hocko wrote:
-> > > @@ -474,7 +474,7 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
-> > >  	madvise_free_page_range(&tlb, vma, start, end);
-> > >  	mmu_notifier_invalidate_range_end(mm, start, end);
-> > >  	tlb_finish_mmu(&tlb, start, end);
-> > > -
-> > > +	lru_add_drain_all();
+On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
+> On Thu 02-03-17 08:41:58, Brian Foster wrote:
+> > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
+> [...]
+> > > I see your argument about being in sync with other kmem helpers but
+> > > those are bit different because regular page/slab allocators allow never
+> > > fail semantic (even though this is mostly ignored by those helpers which
+> > > implement their own retries but that is a different topic).
+> > > 
 > > 
-> > A full drain on all CPUs is very expensive and IMO not justified for
-> > some per-cpu fuzz factor in the stats. I'd take hampering the stats
-> > over hampering the syscall any day; only a subset of MADV_FREE users
-> > will look at the stats.
-> > 
-> > And while the aggregate error can be large on machines with many CPUs
-> > (notably the machines on which you absolutely don't want to send IPIs
-> > to all cores each time a thread madvises some pages!),
+> > ... but what I'm trying to understand here is whether this failure
+> > scenario is specific to vmalloc() or whether the other kmem_*()
+> > functions are susceptible to the same problem. For example, suppose we
+> > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
+> > KM_SLEEP) call. Could we hit the same problem if the process is killed?
 > 
-> I am not sure I understand. Where would we trigger IPIs?
-> lru_add_drain_all relies on workqueus.
+> Well, kmem_zalloc uses kmalloc which can also fail when we are out of
+> memory but in that case we can expect the OOM killer releasing some
+> memory which would allow us to make a forward progress on the next
+> retry. So essentially retrying around kmalloc is much more safe in this
+> regard. Failing vmalloc might be permanent because there is no vmalloc
+> space to allocate from or much more likely due to already mentioned
+> patch. So vmalloc is different, really.
 
-Brainfart on my end, s,IPIs,sync work items,.
+Right.. that's why I'm asking. So it's technically possible but highly
+unlikely due to the different failure characteristics. That seems
+reasonable to me, then. 
 
-That doesn't change my point, though. These things are expensive, and
-we had scalability issues with them in the past. See for example
-4dd72b4a47a5 ("mm: fadvise: avoid expensive remote LRU cache draining
-after FADV_DONTNEED").
+To be clear, do we understand what causes the vzalloc() failure to be
+effectively permanent in this specific reproducer? I know you mention
+above that we could be out of vmalloc space, but that doesn't clarify
+whether there are other potential failure paths or then what this has to
+do with the fact that the process was killed. Does the pending signal
+cause the subsequent failures or are you saying that there is some other
+root cause of the failure, this process would effectively be spinning
+here anyways, and we're just noticing it because it's trying to exit?
 
-> > the pages of a
-> > single process are not likely to be spread out across more than a few
-> > CPUs.
+Brian
+
+> -- 
+> Michal Hocko
+> SUSE Labs
 > 
-> Then we can simply only flushe lru_lazyfree_pvecs which should reduce
-> the unrelated noise from other pagevecs.
-
-The problem isn't flushing other pagevecs once we're already scheduled
-on a CPU, the problem is scheduling work on all cpus and then waiting
-for completion.
-
-> > The error when reading a specific smaps should be completely ok.
-> > 
-> > In numbers: even if your process is madvising from 16 different CPUs,
-> > the error in its smaps file will peak at 896K in the worst case. That
-> > level of concurrency tends to come with much bigger memory quantities
-> > for that amount of error to matter.
-> 
-> It is still an unexpected behavior IMHO and an implementation detail
-> which leaks to the userspace.
-
-We have per-cpu fuzz in every single vmstat counter. Look at
-calculate_normal_threshold() in vmstat.c and the sample thresholds for
-when per-cpu deltas are flushed. In the vast majority of machines, the
-per-cpu error in these counters is much higher than what we get with
-pagevecs holding back a few pages.
-
-It's not that I think you're wrong: it *is* an implementation detail.
-But we take a bit of incoherency from batching all over the place, so
-it's a little odd to take a stand over this particular instance of it
-- whether demanding that it'd be fixed, or be documented, which would
-only suggest to users that this is special when it really isn't etc.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
