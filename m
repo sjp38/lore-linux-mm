@@ -1,72 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 273786B0387
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:28:21 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id n11so10761407wma.5
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:28:21 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o67si26248864wmo.87.2017.03.02.06.28.18
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ABF146B0388
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:33:23 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id d18so93385926pgh.2
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:33:23 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i9si7607107plk.73.2017.03.02.06.33.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 06:28:18 -0800 (PST)
-Date: Thu, 2 Mar 2017 15:28:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-Message-ID: <20170302142816.GK1404@dhcp22.suse.cz>
-References: <20170227154304.GK26504@dhcp22.suse.cz>
- <1488462828-174523-1-git-send-email-imammedo@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Mar 2017 06:33:22 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v22ETpe1140322
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 09:33:22 -0500
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28xen2kc7c-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:33:21 -0500
+Received: from localhost
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 2 Mar 2017 20:03:18 +0530
+Received: from d28relay08.in.ibm.com (d28relay08.in.ibm.com [9.184.220.159])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 17CA4E0024
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 20:05:03 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay08.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v22EWAWs13631582
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:02:10 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v22EXGSX014417
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:03:16 +0530
+Subject: Re: [RFC 02/11] mm: remove unncessary ret in page_referenced
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-3-git-send-email-minchan@kernel.org>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 2 Mar 2017 20:03:16 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1488462828-174523-1-git-send-email-imammedo@redhat.com>
+In-Reply-To: <1488436765-32350-3-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <2baf1168-0f84-b80d-5fb9-9d13c618c9f1@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Mammedov <imammedo@redhat.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 02-03-17 14:53:48, Igor Mammedov wrote:
-[...]
-> When trying to support memory unplug on guest side in RHEL7,
-> experience shows otherwise. Simplistic udev rule which onlines
-> added block doesn't work in case one wants to online it as movable.
+On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> Anyone doesn't use ret variable. Remove it.
 > 
-> Hotplugged blocks in current kernel should be onlined in reverse
-> order to online blocks as movable depending on adjacent blocks zone.
 
-Could you be more specific please? Setting online_movable from the udev
-rule should just work regardless of the ordering or the state of other
-memblocks. If that doesn't work I would call it a bug.
+This change is correct. But not sure how this is related to
+try_to_unmap() clean up though.
 
-> Which means simple udev rule isn't usable since it gets event from
-> the first to the last hotplugged block order. So now we would have
-> to write a daemon that would
->  - watch for all blocks in hotplugged memory appear (how would it know)
->  - online them in right order (order might also be different depending
->    on kernel version)
->    -- it becomes even more complicated in NUMA case when there are
->       multiple zones and kernel would have to provide user-space
->       with information about zone maps
+
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/rmap.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
 > 
-> In short current experience shows that userspace approach
->  - doesn't solve issues that Vitaly has been fixing (i.e. onlining
->    fast and/or under memory pressure) when udev (or something else
->    might be killed)
-
-yeah and that is why the patch does the onlining from the kernel.
- 
-> > Can you imagine any situation when somebody actually might want to have
-> > this knob enabled? From what I understand it doesn't seem to be the
-> > case.
-> For x86:
->  * this config option is enabled by default in recent Fedora,
-
-How do you want to support usecases which really want to online memory
-as movable? Do you expect those users to disable the option because
-unless I am missing something the in kernel auto onlining only supporst
-regular onlining.
--- 
-Michal Hocko
-SUSE Labs
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index bb45712..8076347 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -805,7 +805,6 @@ int page_referenced(struct page *page,
+>  		    struct mem_cgroup *memcg,
+>  		    unsigned long *vm_flags)
+>  {
+> -	int ret;
+>  	int we_locked = 0;
+>  	struct page_referenced_arg pra = {
+>  		.mapcount = total_mapcount(page),
+> @@ -839,7 +838,7 @@ int page_referenced(struct page *page,
+>  		rwc.invalid_vma = invalid_page_referenced_vma;
+>  	}
+>  
+> -	ret = rmap_walk(page, &rwc);
+> +	rmap_walk(page, &rwc);
+>  	*vm_flags = pra.vm_flags;
+>  
+>  	if (we_locked)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
