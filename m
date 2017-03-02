@@ -1,81 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 391EE6B038A
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:52:01 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 10so10340478pgb.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:52:01 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a21si7621407pgi.248.2017.03.02.06.52.00
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 883E76B0389
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:02:26 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d18so94272125pgh.2
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:02:26 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id w12si7669977pld.49.2017.03.02.07.02.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 06:52:00 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v22Eo8Gl098776
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 09:52:00 -0500
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28xjama05c-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:51:59 -0500
-Received: from localhost
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 2 Mar 2017 20:21:56 +0530
-Received: from d28relay10.in.ibm.com (d28relay10.in.ibm.com [9.184.220.161])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 156D9125804F
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 20:22:07 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay10.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v22EomZL17956888
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:20:48 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v22Eprl4000922
-	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:21:54 +0530
-Subject: Re: [RFC 04/11] mm: remove SWAP_MLOCK check for SWAP_SUCCESS in ttu
-References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-5-git-send-email-minchan@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 2 Mar 2017 20:21:46 +0530
-MIME-Version: 1.0
-In-Reply-To: <1488436765-32350-5-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <65fd1dd1-7ca4-6610-285c-09436879d8ed@linux.vnet.ibm.com>
+        Thu, 02 Mar 2017 07:02:22 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: fix another corner case of munlock() vs. THPs
+Date: Thu,  2 Mar 2017 18:02:13 +0300
+Message-Id: <20170302150213.33977-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "[4.5+]" <stable@vger.kernel.org>
 
-On 03/02/2017 12:09 PM, Minchan Kim wrote:
-> If the page is mapped and rescue in ttuo, page_mapcount(page) == 0 cannot
+The following test case triggers BUG() in munlock_vma_pages_range():
 
-Nit: "ttuo" is very cryptic. Please expand it.
+	int main(int argc, char *argv[])
+	{
+		int fd;
 
-> be true so page_mapcount check in ttu is enough to return SWAP_SUCCESS.
-> IOW, SWAP_MLOCK check is redundant so remove it.
+		system("mount -t tmpfs -o huge=always none /mnt");
+		fd = open("/mnt/test", O_CREAT | O_RDWR);
+		ftruncate(fd, 4UL << 20);
+		mmap(NULL, 4UL << 20, PROT_READ | PROT_WRITE,
+				MAP_SHARED | MAP_FIXED | MAP_LOCKED, fd, 0);
+		mmap(NULL, 4096, PROT_READ | PROT_WRITE,
+				MAP_SHARED | MAP_LOCKED, fd, 0);
+		munlockall();
+		return 0;
+	}
 
-Right, page_mapcount(page) should be enough to tell whether swapping
-out happened successfully or the page is still mapped in some page
-table.
+The second mmap() create PTE-mapping of the first huge page in file. It
+makes kernel munlock the page as we never keep PTE-mapped page mlocked.
 
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/rmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 3a14013..0a48958 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1523,7 +1523,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
->  	else
->  		ret = rmap_walk(page, &rwc);
->  
-> -	if (ret != SWAP_MLOCK && !page_mapcount(page))
-> +	if (!page_mapcount(page))
->  		ret = SWAP_SUCCESS;
->  	return ret;
->  }
-> 
+On munlockall() when we handle vma created by the first mmap(),
+munlock_vma_page() returns page_mask == 0, as the page is not mlocked
+anymore. On next iteration follow_page_mask() return tail page, but
+page_mask is HPAGE_NR_PAGES - 1. It makes us skip to the first tail page
+of the next huge page and step on VM_BUG_ON_PAGE(PageMlocked(page)).
+
+The fix is not use the page_mask from follow_page_mask() at all. It has
+no use for us.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: <stable@vger.kernel.org>    [4.5+]
+---
+ mm/mlock.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/mm/mlock.c b/mm/mlock.c
+index cdbed8aaa426..665ab75b5533 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -441,7 +441,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 
+ 	while (start < end) {
+ 		struct page *page;
+-		unsigned int page_mask;
++		unsigned int page_mask = 0;
+ 		unsigned long page_increm;
+ 		struct pagevec pvec;
+ 		struct zone *zone;
+@@ -455,8 +455,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 		 * suits munlock very well (and if somehow an abnormal page
+ 		 * has sneaked into the range, we won't oops here: great).
+ 		 */
+-		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
+-				&page_mask);
++		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
+ 
+ 		if (page && !IS_ERR(page)) {
+ 			if (PageTransTail(page)) {
+@@ -467,8 +466,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 				/*
+ 				 * Any THP page found by follow_page_mask() may
+ 				 * have gotten split before reaching
+-				 * munlock_vma_page(), so we need to recompute
+-				 * the page_mask here.
++				 * munlock_vma_page(), so we need to compute
++				 * the page_mask here instead.
+ 				 */
+ 				page_mask = munlock_vma_page(page);
+ 				unlock_page(page);
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
