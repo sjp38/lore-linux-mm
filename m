@@ -1,230 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D8A876B03C0
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:19:06 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id j5so85507639pfb.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:19:06 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0058.outbound.protection.outlook.com. [104.47.34.58])
-        by mx.google.com with ESMTPS id j77si7684600pfj.127.2017.03.02.07.19.05
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 53C2A6B03C2
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:30:05 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id n127so103777348qkf.3
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:30:05 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b23si7177592qtc.42.2017.03.02.07.30.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 07:19:05 -0800 (PST)
-Subject: [RFC PATCH v2 32/32] x86: kvm: Pin the guest memory when SEV is
- active
-From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Thu, 2 Mar 2017 10:18:57 -0500
-Message-ID: <148846793743.2349.8478208161427437950.stgit@brijesh-build-machine>
-In-Reply-To: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Mar 2017 07:30:04 -0800 (PST)
+Date: Thu, 2 Mar 2017 10:30:02 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: mm allocation failure and hang when running xfstests generic/269
+ on xfs
+Message-ID: <20170302153002.GG3213@bfoster.bfoster>
+References: <20170302122426.GA3213@bfoster.bfoster>
+ <20170302124909.GE1404@dhcp22.suse.cz>
+ <20170302130009.GC3213@bfoster.bfoster>
+ <20170302132755.GG1404@dhcp22.suse.cz>
+ <20170302134157.GD3213@bfoster.bfoster>
+ <20170302135001.GI1404@dhcp22.suse.cz>
+ <20170302142315.GE3213@bfoster.bfoster>
+ <20170302143441.GL1404@dhcp22.suse.cz>
+ <20170302145131.GF3213@bfoster.bfoster>
+ <20170302151411.GM1404@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170302151411.GM1404@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-The SEV memory encryption engine uses a tweak such that two identical
-plaintexts at different location will have a different ciphertexts.
-So swapping or moving ciphertexts of two pages will not result in
-plaintexts being swapped. Relocating (or migrating) a physical backing pages
-for SEV guest will require some additional steps. The current SEV key
-management spec [1] does not provide commands to swap or migrate (move)
-ciphertexts. For now we pin the memory allocated for the SEV guest. In
-future when SEV key management spec provides the commands to support the
-page migration we can update the KVM code to remove the pinning logical
-without making any changes into userspace (qemu).
+On Thu, Mar 02, 2017 at 04:14:11PM +0100, Michal Hocko wrote:
+> On Thu 02-03-17 09:51:31, Brian Foster wrote:
+> > On Thu, Mar 02, 2017 at 03:34:41PM +0100, Michal Hocko wrote:
+> > > On Thu 02-03-17 09:23:15, Brian Foster wrote:
+> > > > On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
+> > > > > On Thu 02-03-17 08:41:58, Brian Foster wrote:
+> > > > > > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
+> > > > > [...]
+> > > > > > > I see your argument about being in sync with other kmem helpers but
+> > > > > > > those are bit different because regular page/slab allocators allow never
+> > > > > > > fail semantic (even though this is mostly ignored by those helpers which
+> > > > > > > implement their own retries but that is a different topic).
+> > > > > > > 
+> > > > > > 
+> > > > > > ... but what I'm trying to understand here is whether this failure
+> > > > > > scenario is specific to vmalloc() or whether the other kmem_*()
+> > > > > > functions are susceptible to the same problem. For example, suppose we
+> > > > > > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
+> > > > > > KM_SLEEP) call. Could we hit the same problem if the process is killed?
+> > > > > 
+> > > > > Well, kmem_zalloc uses kmalloc which can also fail when we are out of
+> > > > > memory but in that case we can expect the OOM killer releasing some
+> > > > > memory which would allow us to make a forward progress on the next
+> > > > > retry. So essentially retrying around kmalloc is much more safe in this
+> > > > > regard. Failing vmalloc might be permanent because there is no vmalloc
+> > > > > space to allocate from or much more likely due to already mentioned
+> > > > > patch. So vmalloc is different, really.
+> > > > 
+> > > > Right.. that's why I'm asking. So it's technically possible but highly
+> > > > unlikely due to the different failure characteristics. That seems
+> > > > reasonable to me, then. 
+> > > > 
+> > > > To be clear, do we understand what causes the vzalloc() failure to be
+> > > > effectively permanent in this specific reproducer? I know you mention
+> > > > above that we could be out of vmalloc space, but that doesn't clarify
+> > > > whether there are other potential failure paths or then what this has to
+> > > > do with the fact that the process was killed. Does the pending signal
+> > > > cause the subsequent failures or are you saying that there is some other
+> > > > root cause of the failure, this process would effectively be spinning
+> > > > here anyways, and we're just noticing it because it's trying to exit?
+> > > 
+> > > In this particular case it is fatal_signal_pending that causes the
+> > > permanent failure. This check has been added to prevent from complete
+> > > memory reserves depletion on OOM when a killed task has a free ticket to
+> > > reserves and vmalloc requests can be really large. In this case there
+> > > was no OOM killer going on but fsstress has SIGKILL pending for other
+> > > reason. Most probably as a result of the group_exit when all threads
+> > > are killed (see zap_process). I could have turn fatal_signal_pending
+> > > into tsk_is_oom_victim which would be less likely to hit but in
+> > > principle fatal_signal_pending should be better because we do want to
+> > > bail out when the process is existing as soon as possible.
+> > > 
+> > > What I really wanted to say is that there are other possible permanent
+> > > failure paths in vmalloc AFAICS. They are much less probable but they
+> > > still exist.
+> > > 
+> > > Does that make more sense now?
+> > 
+> > Yes, thanks. That explains why this crops up now where it hasn't in the
+> > past. Please include that background in the commit log description.
+> 
+> OK, does this sound better. I am open to any suggestions to improve this
+> of course
+> 
 
-The patch pins userspace memory when a new slot is created and unpin the
-memory when slot is removed.
+Yeah..
 
-[1] http://support.amd.com/TechDocs/55766_SEV-KM%20API_Spec.pdf
+> : xfs: allow kmem_zalloc_greedy to fail
+> : 
+> : Even though kmem_zalloc_greedy is documented it might fail the current
+> : code doesn't really implement this properly and loops on the smallest
+> : allowed size for ever. This is a problem because vzalloc might fail
+> : permanently - we might run out of vmalloc space or since 5d17a73a2ebe
+> : ("vmalloc: back off when the current task is killed") when the current
+> : task is killed. The later one makes the failure scenario much more
+> : probable than it used to be. Fix this by bailing out if the minimum size
+                               ^
+	" because it makes vmalloc() failures permanent for tasks with fatal
+	  signals pending."
 
-Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
----
- arch/x86/include/asm/kvm_host.h |    6 +++
- arch/x86/kvm/svm.c              |   93 +++++++++++++++++++++++++++++++++++++++
- arch/x86/kvm/x86.c              |    3 +
- 3 files changed, 102 insertions(+)
+> : request failed.
+> : 
+> : This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
+> : 
+> : fsstress: vmalloc: allocation failure, allocated 12288 of 20480 bytes, mode:0x14080c2(GFP_KERNEL|__GFP_HIGHMEM|__GFP_ZERO), nodemask=(null)
+> : fsstress cpuset=/ mems_allowed=0-1
+> : CPU: 1 PID: 23460 Comm: fsstress Not tainted 4.10.0-master-45554b2+ #21
+> : Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9, BIOS P89 10/05/2016
+> : Call Trace:
+> :  dump_stack+0x63/0x87
+> :  warn_alloc+0x114/0x1c0
+> :  ? alloc_pages_current+0x88/0x120
+> :  __vmalloc_node_range+0x250/0x2a0
+> :  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
+> :  ? free_hot_cold_page+0x21f/0x280
+> :  vzalloc+0x54/0x60
+> :  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
+> :  kmem_zalloc_greedy+0x2b/0x40 [xfs]
+> :  xfs_bulkstat+0x11b/0x730 [xfs]
+> :  ? xfs_bulkstat_one_int+0x340/0x340 [xfs]
+> :  ? selinux_capable+0x20/0x30
+> :  ? security_capable+0x48/0x60
+> :  xfs_ioc_bulkstat+0xe4/0x190 [xfs]
+> :  xfs_file_ioctl+0x9dd/0xad0 [xfs]
+> :  ? do_filp_open+0xa5/0x100
+> :  do_vfs_ioctl+0xa7/0x5e0
+> :  SyS_ioctl+0x79/0x90
+> :  do_syscall_64+0x67/0x180
+> :  entry_SYSCALL64_slow_path+0x25/0x25
+> : 
+> : fsstress keeps looping inside kmem_zalloc_greedy without any way out
+> : because vmalloc keeps failing due to fatal_signal_pending.
+> : 
+> : Reported-by: Xiong Zhou <xzhou@redhat.com>
+> : Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> : Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> > Also, that kind of makes me think that a fatal_signal_pending() check is
+> > still appropriate in the loop, even if we want to drop the infinite
+> > retry loop in kmem_zalloc_greedy() as well. There's no sense in doing
+> > however many retries are left before we return and that's also more
+> > explicit for the next person who goes to change this code in the future.
+> 
+> I am not objecting to adding fatal_signal_pending as well I just thought
+> that from the logic POV breaking after reaching the minimum size is just
+> the right thing to do. We can optimize further by checking
+> fatal_signal_pending and reducing retries when we know it doesn't make
+> much sense but that should be done on top as an optimization IMHO.
+> 
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index fcc4710..9dc59f0 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -723,6 +723,7 @@ struct kvm_sev_info {
- 	unsigned int handle;	/* firmware handle */
- 	unsigned int asid;	/* asid for this guest */
- 	int sev_fd;		/* SEV device fd */
-+	struct list_head pinned_memory_slot;
- };
- 
- struct kvm_arch {
-@@ -1043,6 +1044,11 @@ struct kvm_x86_ops {
- 	void (*setup_mce)(struct kvm_vcpu *vcpu);
- 
- 	int (*memory_encryption_op)(struct kvm *kvm, void __user *argp);
-+
-+	void (*prepare_memory_region)(struct kvm *kvm,
-+			struct kvm_memory_slot *memslot,
-+			const struct kvm_userspace_memory_region *mem,
-+			enum kvm_mr_change change);
- };
- 
- struct kvm_arch_async_pf {
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index 13996d6..ab973f9 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -498,12 +498,21 @@ static inline bool gif_set(struct vcpu_svm *svm)
- }
- 
- /* Secure Encrypted Virtualization */
-+struct kvm_sev_pinned_memory_slot {
-+	struct list_head list;
-+	unsigned long npages;
-+	struct page **pages;
-+	unsigned long userspace_addr;
-+	short id;
-+};
-+
- static unsigned int max_sev_asid;
- static unsigned long *sev_asid_bitmap;
- static void sev_deactivate_handle(struct kvm *kvm);
- static void sev_decommission_handle(struct kvm *kvm);
- static int sev_asid_new(void);
- static void sev_asid_free(int asid);
-+static void sev_unpin_memory(struct page **pages, unsigned long npages);
- #define __sev_page_pa(x) ((page_to_pfn(x) << PAGE_SHIFT) | sme_me_mask)
- 
- static bool kvm_sev_enabled(void)
-@@ -1544,9 +1553,25 @@ static inline int avic_free_vm_id(int id)
- 
- static void sev_vm_destroy(struct kvm *kvm)
- {
-+	struct list_head *pos, *q;
-+	struct kvm_sev_pinned_memory_slot *pinned_slot;
-+	struct list_head *head = &kvm->arch.sev_info.pinned_memory_slot;
-+
- 	if (!sev_guest(kvm))
- 		return;
- 
-+	/* if guest memory is pinned then unpin it now */
-+	if (!list_empty(head)) {
-+		list_for_each_safe(pos, q, head) {
-+			pinned_slot = list_entry(pos,
-+				struct kvm_sev_pinned_memory_slot, list);
-+			sev_unpin_memory(pinned_slot->pages,
-+					pinned_slot->npages);
-+			list_del(pos);
-+			kfree(pinned_slot);
-+		}
-+	}
-+
- 	/* release the firmware resources */
- 	sev_deactivate_handle(kvm);
- 	sev_decommission_handle(kvm);
-@@ -5663,6 +5688,8 @@ static int sev_pre_start(struct kvm *kvm, int *asid)
- 		}
- 		*asid = ret;
- 		ret = 0;
-+
-+		INIT_LIST_HEAD(&kvm->arch.sev_info.pinned_memory_slot);
- 	}
- 
- 	return ret;
-@@ -6189,6 +6216,71 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
- 	return ret;
- }
- 
-+static struct kvm_sev_pinned_memory_slot *sev_find_pinned_memory_slot(
-+		struct kvm *kvm, struct kvm_memory_slot *slot)
-+{
-+	struct kvm_sev_pinned_memory_slot *i;
-+	struct list_head *head = &kvm->arch.sev_info.pinned_memory_slot;
-+
-+	list_for_each_entry(i, head, list) {
-+		if (i->userspace_addr == slot->userspace_addr &&
-+			i->id == slot->id)
-+			return i;
-+	}
-+
-+	return NULL;
-+}
-+
-+static void amd_prepare_memory_region(struct kvm *kvm,
-+				struct kvm_memory_slot *memslot,
-+				const struct kvm_userspace_memory_region *mem,
-+				enum kvm_mr_change change)
-+{
-+	struct kvm_sev_pinned_memory_slot *pinned_slot;
-+	struct list_head *head = &kvm->arch.sev_info.pinned_memory_slot;
-+
-+	mutex_lock(&kvm->lock);
-+
-+	if (!sev_guest(kvm))
-+		goto unlock;
-+
-+	if (change == KVM_MR_CREATE) {
-+
-+		if (!mem->memory_size)
-+			goto unlock;
-+
-+		pinned_slot = kmalloc(sizeof(*pinned_slot), GFP_KERNEL);
-+		if (pinned_slot == NULL)
-+			goto unlock;
-+
-+		pinned_slot->pages = sev_pin_memory(mem->userspace_addr,
-+				mem->memory_size, &pinned_slot->npages);
-+		if (pinned_slot->pages == NULL) {
-+			kfree(pinned_slot);
-+			goto unlock;
-+		}
-+
-+		sev_clflush_pages(pinned_slot->pages, pinned_slot->npages);
-+
-+		pinned_slot->id = memslot->id;
-+		pinned_slot->userspace_addr = mem->userspace_addr;
-+		list_add_tail(&pinned_slot->list, head);
-+
-+	} else if  (change == KVM_MR_DELETE) {
-+
-+		pinned_slot = sev_find_pinned_memory_slot(kvm, memslot);
-+		if (!pinned_slot)
-+			goto unlock;
-+
-+		sev_unpin_memory(pinned_slot->pages, pinned_slot->npages);
-+		list_del(&pinned_slot->list);
-+		kfree(pinned_slot);
-+	}
-+
-+unlock:
-+	mutex_unlock(&kvm->lock);
-+}
-+
- static int amd_memory_encryption_cmd(struct kvm *kvm, void __user *argp)
- {
- 	int r = -ENOTTY;
-@@ -6355,6 +6447,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
- 	.update_pi_irte = svm_update_pi_irte,
- 
- 	.memory_encryption_op = amd_memory_encryption_cmd,
-+	.prepare_memory_region = amd_prepare_memory_region,
- };
- 
- static int __init svm_init(void)
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 6a737e9..e05069d 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -8195,6 +8195,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
- 				const struct kvm_userspace_memory_region *mem,
- 				enum kvm_mr_change change)
- {
-+	if (kvm_x86_ops->prepare_memory_region)
-+		kvm_x86_ops->prepare_memory_region(kvm, memslot, mem, change);
-+
- 	return 0;
- }
- 
+I don't think of it as an optimization to not invoke calls (a
+non-deterministic number of times) that we know are going to fail, but
+ultimately I don't care too much how it's framed or if it's done in
+separate patches or whatnot. As long as they are posted at the same
+time. ;)
+
+Brian
+
+> > Otherwise, I'm fine with breaking the infinite retry loop at the same
+> > time. It looks like Christoph added this function originally so this
+> > should probably require his ack as well..
+> 
+> What do you think Christoph?
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
