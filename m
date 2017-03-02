@@ -1,118 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AF126B0389
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:51:34 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id m67so8163827qkf.1
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:51:34 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s186si7083299qkh.188.2017.03.02.06.51.33
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 391EE6B038A
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:52:01 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 10so10340478pgb.3
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:52:01 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a21si7621407pgi.248.2017.03.02.06.52.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 06:51:33 -0800 (PST)
-Date: Thu, 2 Mar 2017 09:51:31 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: mm allocation failure and hang when running xfstests generic/269
- on xfs
-Message-ID: <20170302145131.GF3213@bfoster.bfoster>
-References: <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
- <20170302103520.GC1404@dhcp22.suse.cz>
- <20170302122426.GA3213@bfoster.bfoster>
- <20170302124909.GE1404@dhcp22.suse.cz>
- <20170302130009.GC3213@bfoster.bfoster>
- <20170302132755.GG1404@dhcp22.suse.cz>
- <20170302134157.GD3213@bfoster.bfoster>
- <20170302135001.GI1404@dhcp22.suse.cz>
- <20170302142315.GE3213@bfoster.bfoster>
- <20170302143441.GL1404@dhcp22.suse.cz>
+        Thu, 02 Mar 2017 06:52:00 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v22Eo8Gl098776
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 09:52:00 -0500
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28xjama05c-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:51:59 -0500
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 2 Mar 2017 20:21:56 +0530
+Received: from d28relay10.in.ibm.com (d28relay10.in.ibm.com [9.184.220.161])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 156D9125804F
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 20:22:07 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay10.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v22EomZL17956888
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:20:48 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v22Eprl4000922
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:21:54 +0530
+Subject: Re: [RFC 04/11] mm: remove SWAP_MLOCK check for SWAP_SUCCESS in ttu
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-5-git-send-email-minchan@kernel.org>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 2 Mar 2017 20:21:46 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170302143441.GL1404@dhcp22.suse.cz>
+In-Reply-To: <1488436765-32350-5-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <65fd1dd1-7ca4-6610-285c-09436879d8ed@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Mar 02, 2017 at 03:34:41PM +0100, Michal Hocko wrote:
-> On Thu 02-03-17 09:23:15, Brian Foster wrote:
-> > On Thu, Mar 02, 2017 at 02:50:01PM +0100, Michal Hocko wrote:
-> > > On Thu 02-03-17 08:41:58, Brian Foster wrote:
-> > > > On Thu, Mar 02, 2017 at 02:27:55PM +0100, Michal Hocko wrote:
-> > > [...]
-> > > > > I see your argument about being in sync with other kmem helpers but
-> > > > > those are bit different because regular page/slab allocators allow never
-> > > > > fail semantic (even though this is mostly ignored by those helpers which
-> > > > > implement their own retries but that is a different topic).
-> > > > > 
-> > > > 
-> > > > ... but what I'm trying to understand here is whether this failure
-> > > > scenario is specific to vmalloc() or whether the other kmem_*()
-> > > > functions are susceptible to the same problem. For example, suppose we
-> > > > replaced this kmem_zalloc_greedy() call with a kmem_zalloc(PAGE_SIZE,
-> > > > KM_SLEEP) call. Could we hit the same problem if the process is killed?
-> > > 
-> > > Well, kmem_zalloc uses kmalloc which can also fail when we are out of
-> > > memory but in that case we can expect the OOM killer releasing some
-> > > memory which would allow us to make a forward progress on the next
-> > > retry. So essentially retrying around kmalloc is much more safe in this
-> > > regard. Failing vmalloc might be permanent because there is no vmalloc
-> > > space to allocate from or much more likely due to already mentioned
-> > > patch. So vmalloc is different, really.
-> > 
-> > Right.. that's why I'm asking. So it's technically possible but highly
-> > unlikely due to the different failure characteristics. That seems
-> > reasonable to me, then. 
-> > 
-> > To be clear, do we understand what causes the vzalloc() failure to be
-> > effectively permanent in this specific reproducer? I know you mention
-> > above that we could be out of vmalloc space, but that doesn't clarify
-> > whether there are other potential failure paths or then what this has to
-> > do with the fact that the process was killed. Does the pending signal
-> > cause the subsequent failures or are you saying that there is some other
-> > root cause of the failure, this process would effectively be spinning
-> > here anyways, and we're just noticing it because it's trying to exit?
+On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> If the page is mapped and rescue in ttuo, page_mapcount(page) == 0 cannot
+
+Nit: "ttuo" is very cryptic. Please expand it.
+
+> be true so page_mapcount check in ttu is enough to return SWAP_SUCCESS.
+> IOW, SWAP_MLOCK check is redundant so remove it.
+
+Right, page_mapcount(page) should be enough to tell whether swapping
+out happened successfully or the page is still mapped in some page
+table.
+
 > 
-> In this particular case it is fatal_signal_pending that causes the
-> permanent failure. This check has been added to prevent from complete
-> memory reserves depletion on OOM when a killed task has a free ticket to
-> reserves and vmalloc requests can be really large. In this case there
-> was no OOM killer going on but fsstress has SIGKILL pending for other
-> reason. Most probably as a result of the group_exit when all threads
-> are killed (see zap_process). I could have turn fatal_signal_pending
-> into tsk_is_oom_victim which would be less likely to hit but in
-> principle fatal_signal_pending should be better because we do want to
-> bail out when the process is existing as soon as possible.
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/rmap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> What I really wanted to say is that there are other possible permanent
-> failure paths in vmalloc AFAICS. They are much less probable but they
-> still exist.
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 3a14013..0a48958 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1523,7 +1523,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+>  	else
+>  		ret = rmap_walk(page, &rwc);
+>  
+> -	if (ret != SWAP_MLOCK && !page_mapcount(page))
+> +	if (!page_mapcount(page))
+>  		ret = SWAP_SUCCESS;
+>  	return ret;
+>  }
 > 
-> Does that make more sense now?
-
-Yes, thanks. That explains why this crops up now where it hasn't in the
-past. Please include that background in the commit log description.
-
-Also, that kind of makes me think that a fatal_signal_pending() check is
-still appropriate in the loop, even if we want to drop the infinite
-retry loop in kmem_zalloc_greedy() as well. There's no sense in doing
-however many retries are left before we return and that's also more
-explicit for the next person who goes to change this code in the future.
-
-Otherwise, I'm fine with breaking the infinite retry loop at the same
-time. It looks like Christoph added this function originally so this
-should probably require his ack as well..
-
-Brian
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
