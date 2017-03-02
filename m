@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 916246B0387
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:39:57 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b2so93006277pgc.6
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:39:57 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id m7si7587456pgd.112.2017.03.02.06.39.56
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F1266B0389
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 09:43:13 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id t184so93508124pgt.1
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 06:43:13 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t7si7603072pfi.147.2017.03.02.06.43.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 06:39:56 -0800 (PST)
-Date: Thu, 2 Mar 2017 06:39:49 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170302143949.GP16328@bombadil.infradead.org>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228181547.GM5680@worktop>
- <20170302042021.GN16328@bombadil.infradead.org>
- <004101d2930f$d51a9f90$7f4fdeb0$@lge.com>
+        Thu, 02 Mar 2017 06:43:12 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v22EclF0022780
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 09:43:11 -0500
+Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com [125.16.236.7])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28xen2ktha-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:43:11 -0500
+Received: from localhost
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 2 Mar 2017 20:13:08 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id B43FC394004E
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 20:13:06 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v22Eh6mO18088170
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:13:06 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v22Eh5LM024985
+	for <linux-mm@kvack.org>; Thu, 2 Mar 2017 20:13:05 +0530
+Subject: Re: [RFC 03/11] mm: remove SWAP_DIRTY in ttu
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-4-git-send-email-minchan@kernel.org>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 2 Mar 2017 20:12:59 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <004101d2930f$d51a9f90$7f4fdeb0$@lge.com>
+In-Reply-To: <1488436765-32350-4-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <339d97b2-aeda-29ff-514c-d883e87c7a14@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "byungchul.park" <byungchul.park@lge.com>
-Cc: 'Peter Zijlstra' <peterz@infradead.org>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Shaohua Li <shli@kernel.org>
 
-On Thu, Mar 02, 2017 at 01:45:35PM +0900, byungchul.park wrote:
-> From: Matthew Wilcox [mailto:willy@infradead.org]
-> > On Tue, Feb 28, 2017 at 07:15:47PM +0100, Peter Zijlstra wrote:
-> > > (And we should not be returning to userspace with locks held anyway --
-> > > lockdep already has a check for that).
-> > 
-> > Don't we return to userspace with page locks held, eg during async
-> > directio?
-> 
-> Hello,
-> 
-> I think that the check when returning to user with crosslocks held
-> should be an exception. Don't you think so?
+On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> If we found lazyfree page is dirty, ttuo can just SetPageSwapBakced
+> in there like PG_mlocked page and just return with SWAP_FAIL which
+> is very natural because the page is not swappable right now so that
+> vmscan can activate it. There is no point to introduce new return
+> value SWAP_DIRTY in ttu at the moment.
 
-Oh yes.  We have to keep the pages locked during reads, and we have to
-return to userspace before I/O is complete, therefore we have to return
-to userspace with pages locked.  They'll be unlocked by the interrupt
-handler in page_endio().
-
-Speaking of which ... this feature is far too heavy for use in production
-on pages.  You're almost trebling the size of struct page.  Can we
-do something like make all struct pages share the same lockdep_map?
-We'd have to not complain about holding one crossdep lock and acquiring
-another one of the same type, but with millions of pages in the system,
-it must surely be creating a gargantuan graph right now?
+Yeah makes sense. In the process, SetPageSwapBacked marking of the page
+is moved from the shrink_page_list() to try_to_unmap_one().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
