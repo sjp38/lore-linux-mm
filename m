@@ -1,67 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DAFC6B0038
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 07:20:54 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id u48so28174845wrc.0
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 04:20:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 35si10490899wre.175.2017.03.02.04.20.52
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B53E6B0038
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 07:24:29 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id f191so55365795qka.7
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 04:24:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g5si6807760qkf.141.2017.03.02.04.24.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Mar 2017 04:20:53 -0800 (PST)
-Date: Thu, 2 Mar 2017 13:20:49 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: mm: GPF in bdi_put
-Message-ID: <20170302122049.GA23354@quack2.suse.cz>
-References: <CACT4Y+bAF0Udejr0v7YAXhs753yDdyNtoQbORQ55yEWZ+4Wu5g@mail.gmail.com>
- <20170227182755.GR29622@ZenIV.linux.org.uk>
- <20170301142909.GG20512@quack2.suse.cz>
- <20170302114453.GX29622@ZenIV.linux.org.uk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Mar 2017 04:24:28 -0800 (PST)
+Date: Thu, 2 Mar 2017 07:24:27 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: mm allocation failure and hang when running xfstests generic/269
+ on xfs
+Message-ID: <20170302122426.GA3213@bfoster.bfoster>
+References: <20170301044634.rgidgdqqiiwsmfpj@XZHOUW.usersys.redhat.com>
+ <20170302003731.GB24593@infradead.org>
+ <20170302051900.ct3xbesn2ku7ezll@XZHOUW.usersys.redhat.com>
+ <42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp>
+ <20170302103520.GC1404@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170302114453.GX29622@ZenIV.linux.org.uk>
+In-Reply-To: <20170302103520.GC1404@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Jan Kara <jack@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, syzkaller <syzkaller@googlegroups.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Thu 02-03-17 11:44:53, Al Viro wrote:
-> On Wed, Mar 01, 2017 at 03:29:09PM +0100, Jan Kara wrote:
+On Thu, Mar 02, 2017 at 11:35:20AM +0100, Michal Hocko wrote:
+> On Thu 02-03-17 19:04:48, Tetsuo Handa wrote:
+> [...]
+> > So, commit 5d17a73a2ebeb8d1("vmalloc: back off when the current task is
+> > killed") implemented __GFP_KILLABLE flag and automatically applied that
+> > flag. As a result, those who are not ready to fail upon SIGKILL are
+> > confused. ;-)
 > 
-> > The problem is writeback code (from flusher work or through sync(2) -
-> > generally inode_to_bdi() users) can be looking at bdev inode independently
-> > from it being open. So if they start looking while the bdev is open but the
-> > dereference happens after it is closed and device removed, we oops. We have
-> > seen oopses due to this for quite a while. And all the stuff that is done
-> > in __blkdev_put() is not enough to prevent writeback code from having a
-> > look whether there is not something to write.
+> You are right! The function is documented it might fail but the code
+> doesn't really allow that. This seems like a bug to me. What do you
+> think about the following?
+> ---
+> From d02cb0285d8ce3344fd64dc7e2912e9a04bef80d Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Thu, 2 Mar 2017 11:31:11 +0100
+> Subject: [PATCH] xfs: allow kmem_zalloc_greedy to fail
 > 
-> Um.  What's to prevent the queue/device/module itself from disappearing
-> from under you?  IOW, what are you doing that is safe to do in face of
-> driver going rmmoded?
+> Even though kmem_zalloc_greedy is documented it might fail the current
+> code doesn't really implement this properly and loops on the smallest
+> allowed size for ever. This is a problem because vzalloc might fail
+> permanently. Since 5d17a73a2ebe ("vmalloc: back off when the current
+> task is killed") such a failure is much more probable than it used to
+> be. Fix this by bailing out if the minimum size request failed.
+> 
+> This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
+> 
+> Reported-by: Xiong Zhou <xzhou@redhat.com>
+> Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  fs/xfs/kmem.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+> index 339c696bbc01..ee95f5c6db45 100644
+> --- a/fs/xfs/kmem.c
+> +++ b/fs/xfs/kmem.c
+> @@ -34,6 +34,8 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
+>  	size_t		kmsize = maxsize;
+>  
+>  	while (!(ptr = vzalloc(kmsize))) {
+> +		if (kmsize == minsize)
+> +			break;
+>  		if ((kmsize >>= 1) <= minsize)
+>  			kmsize = minsize;
+>  	}
 
-So BDI does not have direct relation to the device itself. It is an
-abstraction for some of the device properties / functionality and thus it
-can live even after the device itself went away and the module got removed.
-The only thing users of bdi want is to tell them whether the device is
-congested or various statistics and dirty inode tracking for writeback
-purposes and that is all independent of the particular device or whether it
-still exists.
+More consistent with the rest of the kmem code might be to accept a
+flags argument and do something like this based on KM_MAYFAIL. The one
+current caller looks like it would pass it, but I suppose we'd still
+need a mechanism to break out should a new caller not pass that flag.
+Would a fatal_signal_pending() check in the loop as well allow us to
+break out in the scenario that is reproduced here?
 
-Technically there may be pointers bdi->dev, bdi->owner to the device which
-are properly refcounted (so the device structure or module cannot be
-removed under us). These references get dropped & cleared in
-bdi_unregister() generally called from blk_cleanup_queue() (will be moved
-to del_gendisk() soon) when the device is going away. This can happen while
-e.g. bdev still references the bdi so users of bdi->dev or bdi->owner have
-to be careful to sychronize against device removal and bdi_unregister() but
-there are only very few such users.
+Brian
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> -- 
+> 2.11.0
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
