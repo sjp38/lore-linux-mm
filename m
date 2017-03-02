@@ -1,146 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 81DAB6B0396
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 16:45:32 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id j127so19068042qke.2
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 13:45:32 -0800 (PST)
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com. [209.85.220.170])
-        by mx.google.com with ESMTPS id d10si7912456qtb.186.2017.03.02.13.45.31
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 68C556B0038
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 18:26:31 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 10so25372932pgb.3
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 15:26:31 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x83sor5426440pfk.19.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 13:45:31 -0800 (PST)
-Received: by mail-qk0-f170.google.com with SMTP id 1so27802267qkl.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 13:45:31 -0800 (PST)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [RFC PATCH 12/12] staging; android: ion: Enumerate all available heaps
-Date: Thu,  2 Mar 2017 13:44:44 -0800
-Message-Id: <1488491084-17252-13-git-send-email-labbott@redhat.com>
-In-Reply-To: <1488491084-17252-1-git-send-email-labbott@redhat.com>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+        (Google Transport Security);
+        Thu, 02 Mar 2017 15:26:30 -0800 (PST)
+Date: Thu, 2 Mar 2017 15:26:28 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, zoneinfo: print non-populated zones
+Message-ID: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com
-Cc: Laura Abbott <labbott@redhat.com>, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+Initscripts can use the information (protection levels) from
+/proc/zoneinfo to configure vm.lowmem_reserve_ratio at boot.
 
-Practiaclly speaking, most Ion heaps are either going to be available
-all the time (system heaps) or found based off of the reserved-memory
-node. Parse the CMA and reserved-memory nodes to assign the heaps.
+vm.lowmem_reserve_ratio is an array of ratios for each configured zone on
+the system.  If a zone is not populated on an arch, /proc/zoneinfo
+suppresses its output.
 
-Signed-off-by: Laura Abbott <labbott@redhat.com>
+This results in there not being a 1:1 mapping between the set of zones
+emitted by /proc/zoneinfo and the zones configured by
+vm.lowmem_reserve_ratio.
+
+This patch shows statistics for non-populated zones in /proc/zoneinfo.
+The zones exist and hold a spot in the vm.lowmem_reserve_ratio array.
+Without this patch, it is not possible to determine which index in the
+array controls which zone if one or more zones on the system are not
+populated.
+
+Remaining users of walk_zones_in_node() are unchanged.  Files such as
+/proc/pagetypeinfo require certain zone data to be initialized properly
+for display, which is not done for unpopulated zones.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- drivers/staging/android/ion/Makefile        |  2 +-
- drivers/staging/android/ion/ion_enumerate.c | 89 +++++++++++++++++++++++++++++
- 2 files changed, 90 insertions(+), 1 deletion(-)
- create mode 100644 drivers/staging/android/ion/ion_enumerate.c
+ mm/vmstat.c | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
 
-diff --git a/drivers/staging/android/ion/Makefile b/drivers/staging/android/ion/Makefile
-index eef022b..4ebf655 100644
---- a/drivers/staging/android/ion/Makefile
-+++ b/drivers/staging/android/ion/Makefile
-@@ -1,4 +1,4 @@
--obj-$(CONFIG_ION) +=	ion.o ion-ioctl.o ion_heap.o
-+obj-$(CONFIG_ION) +=	ion.o ion-ioctl.o ion_heap.o ion_enumerate.o
- obj-$(CONFIG_ION_SYSTEM_HEAP) += ion_system_heap.o ion_page_pool.o
- obj-$(CONFIG_ION_CARVEOUT_HEAP) += ion_carveout_heap.o
- obj-$(CONFIG_ION_CHUNK_HEAP) += ion_chunk_heap.o
-diff --git a/drivers/staging/android/ion/ion_enumerate.c b/drivers/staging/android/ion/ion_enumerate.c
-new file mode 100644
-index 0000000..21344c7
---- /dev/null
-+++ b/drivers/staging/android/ion/ion_enumerate.c
-@@ -0,0 +1,89 @@
-+#include <linux/kernel.h>
-+#include <linux/cma.h>
-+
-+#include "ion.h"
-+#include "ion_priv.h"
-+
-+static struct ion_device *internal_dev;
-+static int heap_id = 2;
-+
-+static int ion_add_system_heap(void)
-+{
-+#ifdef CONFIG_ION_SYSTEM_HEAP
-+	struct ion_platform_heap pheap;
-+	struct ion_heap *heap;
-+
-+	pheap.type = ION_HEAP_TYPE_SYSTEM;
-+	pheap.id = heap_id++;
-+	pheap.name = "ion_system_heap";
-+
-+	heap = ion_heap_create(&pheap);
-+	if (!heap)
-+		return -ENODEV;
-+
-+	ion_device_add_heap(internal_dev, heap);
-+#endif
-+	return 0;
-+}
-+
-+static int ion_add_system_contig_heap(void)
-+{
-+#ifdef CONFIG_ION_SYSTEM_HEAP
-+	struct ion_platform_heap pheap;
-+	struct ion_heap *heap;
-+
-+	pheap.type = ION_HEAP_TYPE_SYSTEM_CONTIG;
-+	pheap.id = heap_id++;
-+	pheap.name = "ion_system_contig_heap";
-+
-+	heap = ion_heap_create(&pheap);
-+	if (!heap)
-+		return -ENODEV;
-+
-+	ion_device_add_heap(internal_dev, heap);
-+#endif
-+	return 0;
-+}
-+
-+#ifdef CONFIG_ION_CMA_HEAP
-+int __ion_add_cma_heaps(struct cma *cma, void *data)
-+{
-+	struct ion_heap *heap;
-+	struct ion_platform_heap pheap;
-+
-+	pheap.type = ION_HEAP_TYPE_DMA;
-+	pheap.id = heap_id++;
-+	pheap.name = cma_get_name(cma);
-+	pheap.priv = cma;
-+
-+	heap = ion_heap_create(&pheap);
-+	if (!heap)
-+		return -ENODEV;
-+
-+	ion_device_add_heap(internal_dev, heap);
-+	return 0;
-+}
-+#endif
-+
-+
-+static int ion_add_cma_heaps(void)
-+{
-+#ifdef CONFIG_ION_CMA_HEAP
-+	cma_for_each_area(__ion_add_cma_heaps, NULL);
-+#endif
-+	return 0;
-+}
-+
-+int ion_enumerate(void)
-+{
-+	internal_dev = ion_device_create(NULL);
-+	if (IS_ERR(internal_dev))
-+		return PTR_ERR(internal_dev);
-+
-+	ion_add_system_heap();
-+	ion_add_system_contig_heap();
-+
-+	ion_add_cma_heaps();
-+	return 0;
-+}
-+subsys_initcall(ion_enumerate);
--- 
-2.7.4
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1121,8 +1121,12 @@ static void frag_stop(struct seq_file *m, void *arg)
+ {
+ }
+ 
+-/* Walk all the zones in a node and print using a callback */
++/*
++ * Walk zones in a node and print using a callback.
++ * If @populated is true, only use callback for zones that are populated.
++ */
+ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
++		bool populated,
+ 		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
+ {
+ 	struct zone *zone;
+@@ -1130,7 +1134,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ 	unsigned long flags;
+ 
+ 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+-		if (!populated_zone(zone))
++		if (populated && !populated_zone(zone))
+ 			continue;
+ 
+ 		spin_lock_irqsave(&zone->lock, flags);
+@@ -1158,7 +1162,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ static int frag_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+-	walk_zones_in_node(m, pgdat, frag_show_print);
++	walk_zones_in_node(m, pgdat, true, frag_show_print);
+ 	return 0;
+ }
+ 
+@@ -1199,7 +1203,7 @@ static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
+ 		seq_printf(m, "%6d ", order);
+ 	seq_putc(m, '\n');
+ 
+-	walk_zones_in_node(m, pgdat, pagetypeinfo_showfree_print);
++	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showfree_print);
+ 
+ 	return 0;
+ }
+@@ -1251,7 +1255,7 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
+ 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
+ 		seq_printf(m, "%12s ", migratetype_names[mtype]);
+ 	seq_putc(m, '\n');
+-	walk_zones_in_node(m, pgdat, pagetypeinfo_showblockcount_print);
++	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showblockcount_print);
+ 
+ 	return 0;
+ }
+@@ -1277,7 +1281,7 @@ static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
+ 		seq_printf(m, "%12s ", migratetype_names[mtype]);
+ 	seq_putc(m, '\n');
+ 
+-	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
++	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showmixedcount_print);
+ #endif /* CONFIG_PAGE_OWNER */
+ }
+ 
+@@ -1434,7 +1438,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ static int zoneinfo_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+-	walk_zones_in_node(m, pgdat, zoneinfo_show_print);
++	walk_zones_in_node(m, pgdat, false, zoneinfo_show_print);
+ 	return 0;
+ }
+ 
+@@ -1853,7 +1857,7 @@ static int unusable_show(struct seq_file *m, void *arg)
+ 	if (!node_state(pgdat->node_id, N_MEMORY))
+ 		return 0;
+ 
+-	walk_zones_in_node(m, pgdat, unusable_show_print);
++	walk_zones_in_node(m, pgdat, true, unusable_show_print);
+ 
+ 	return 0;
+ }
+@@ -1905,7 +1909,7 @@ static int extfrag_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+ 
+-	walk_zones_in_node(m, pgdat, extfrag_show_print);
++	walk_zones_in_node(m, pgdat, true, extfrag_show_print);
+ 
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
