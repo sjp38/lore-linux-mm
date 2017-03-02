@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E8B46B0387
-	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 21:52:44 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 1so77385779pgz.5
-        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 18:52:44 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id z17si6194721pgi.387.2017.03.01.18.52.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5186B0387
+	for <linux-mm@kvack.org>; Wed,  1 Mar 2017 22:24:15 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id j5so70021925pfb.3
+        for <linux-mm@kvack.org>; Wed, 01 Mar 2017 19:24:15 -0800 (PST)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id g200si6271956pfb.262.2017.03.01.19.24.12
         for <linux-mm@kvack.org>;
-        Wed, 01 Mar 2017 18:52:43 -0800 (PST)
-Date: Thu, 2 Mar 2017 11:52:25 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170302025225.GL11663@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228154900.GL5680@worktop>
- <20170301051706.GD11663@X58A-UD3R>
+        Wed, 01 Mar 2017 19:24:14 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170228214007.5621-1-hannes@cmpxchg.org> <20170228214007.5621-2-hannes@cmpxchg.org>
+In-Reply-To: <20170228214007.5621-2-hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/9] mm: fix 100% CPU kswapd busyloop on unreclaimable nodes
+Date: Thu, 02 Mar 2017 11:23:55 +0800
+Message-ID: <077c01d29304$6caf5d70$460e1850$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20170301051706.GD11663@X58A-UD3R>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Jia He' <hejianet@gmail.com>, 'Michal Hocko' <mhocko@suse.cz>, 'Mel Gorman' <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Wed, Mar 01, 2017 at 02:17:07PM +0900, Byungchul Park wrote:
-> > > +void lock_commit_crosslock(struct lockdep_map *lock)
-> > > +{
-> > > +	struct cross_lock *xlock;
-> > > +	unsigned long flags;
-> > > +
-> > > +	if (!current->xhlocks)
-> > > +		return;
-> > > +
-> > > +	if (unlikely(current->lockdep_recursion))
-> > > +		return;
-> > > +
-> > > +	raw_local_irq_save(flags);
-> > > +	check_flags(flags);
-> > > +	current->lockdep_recursion = 1;
-> > > +
-> > > +	if (unlikely(!debug_locks))
-> > > +		return;
-> > > +
-> > > +	if (!graph_lock())
-> > > +		return;
-> > > +
-> > > +	xlock = &((struct lockdep_map_cross *)lock)->xlock;
-> > > +	if (atomic_read(&xlock->ref) > 0 && !commit_xhlocks(xlock))
-> > 
-> > You terminate with graph_lock() held.
+
+On March 01, 2017 5:40 AM Johannes Weiner wrote:
 > 
-> Oops. What did I do? I'll fix it.
+> Jia He reports a problem with kswapd spinning at 100% CPU when
+> requesting more hugepages than memory available in the system:
+> 
+> $ echo 4000 >/proc/sys/vm/nr_hugepages
+> 
+> top - 13:42:59 up  3:37,  1 user,  load average: 1.09, 1.03, 1.01
+> Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+> %Cpu(s):  0.0 us, 12.5 sy,  0.0 ni, 85.5 id,  2.0 wa,  0.0 hi,  0.0 si,  0.0 st
+> KiB Mem:  31371520 total, 30915136 used,   456384 free,      320 buffers
+> KiB Swap:  6284224 total,   115712 used,  6168512 free.    48192 cached Mem
+> 
+>   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+>    76 root      20   0       0      0      0 R 100.0 0.000 217:17.29 kswapd3
+> 
+> At that time, there are no reclaimable pages left in the node, but as
+> kswapd fails to restore the high watermarks it refuses to go to sleep.
+> 
+> Kswapd needs to back away from nodes that fail to balance. Up until
+> 1d82de618ddd ("mm, vmscan: make kswapd reclaim in terms of nodes")
+> kswapd had such a mechanism. It considered zones whose theoretically
+> reclaimable pages it had reclaimed six times over as unreclaimable and
+> backed away from them. This guard was erroneously removed as the patch
+> changed the definition of a balanced node.
+> 
+> However, simply restoring this code wouldn't help in the case reported
+> here: there *are* no reclaimable pages that could be scanned until the
+> threshold is met. Kswapd would stay awake anyway.
+> 
+> Introduce a new and much simpler way of backing off. If kswapd runs
+> through MAX_RECLAIM_RETRIES (16) cycles without reclaiming a single
+> page, make it back off from the node. This is the same number of shots
+> direct reclaim takes before declaring OOM. Kswapd will go to sleep on
+> that node until a direct reclaimer manages to reclaim some pages, thus
+> proving the node reclaimable again.
+> 
+> v2: move MAX_RECLAIM_RETRIES to mm/internal.h (Michal)
+> 
+> Reported-by: Jia He <hejianet@gmail.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Tested-by: Jia He <hejianet@gmail.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
 
-I remembered it. It's no problem because it would terminate there, only
-if _both_ 'xlock->ref > 0' and 'commit_xhlocks returns 0' are true.
-Otherwise, it will unlock the lock safely.
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
