@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE9346B03A4
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:49:06 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id w67so28044117wmd.3
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:49:06 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7286B03A5
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 10:49:24 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id u48so30030390wrc.0
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 07:49:24 -0800 (PST)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id c132si19482196wmh.29.2017.03.02.07.49.05
+        by mx.google.com with ESMTPS id q96si7375830wrb.280.2017.03.02.07.49.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 07:49:05 -0800 (PST)
-Date: Thu, 2 Mar 2017 16:49:05 +0100
+        Thu, 02 Mar 2017 07:49:23 -0800 (PST)
+Date: Thu, 2 Mar 2017 16:49:23 +0100
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 1/2] xfs: allow kmem_zalloc_greedy to fail
-Message-ID: <20170302154905.GA4029@lst.de>
-References: <20170302153002.GG3213@bfoster.bfoster> <20170302154541.16155-1-mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] xfs: back off from kmem_zalloc_greedy if the task
+	is killed
+Message-ID: <20170302154923.GB4029@lst.de>
+References: <20170302153002.GG3213@bfoster.bfoster> <20170302154541.16155-1-mhocko@kernel.org> <20170302154541.16155-2-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170302154541.16155-1-mhocko@kernel.org>
+In-Reply-To: <20170302154541.16155-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
