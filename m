@@ -1,114 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DE18F6B0387
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 12:03:39 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id f191so64072883qka.7
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:03:39 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z64si7349757qkg.169.2017.03.02.09.03.24
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B4AC06B0387
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 12:19:36 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id j127so10386284qke.2
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 09:19:36 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d27sor416054qtg.12.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Mar 2017 09:03:24 -0800 (PST)
-Date: Thu, 2 Mar 2017 18:03:15 +0100
-From: Igor Mammedov <imammedo@redhat.com>
-Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-Message-ID: <20170302180315.78975d4b@nial.brq.redhat.com>
-In-Reply-To: <20170302142816.GK1404@dhcp22.suse.cz>
-References: <20170227154304.GK26504@dhcp22.suse.cz>
-	<1488462828-174523-1-git-send-email-imammedo@redhat.com>
-	<20170302142816.GK1404@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 02 Mar 2017 09:19:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170302134851.101218-2-andreyknvl@google.com>
+References: <20170302134851.101218-1-andreyknvl@google.com> <20170302134851.101218-2-andreyknvl@google.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Thu, 2 Mar 2017 18:19:35 +0100
+Message-ID: <CAG_fn=XKq3tTEf_kg6uoTX2MXfP6AYhe3_QiE9oe1VRnTLk1tA@mail.gmail.com>
+Subject: Re: [PATCH v2 1/9] kasan: introduce helper functions for determining
+ bug type
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y.
- Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2 Mar 2017 15:28:16 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
+On Thu, Mar 2, 2017 at 2:48 PM, Andrey Konovalov <andreyknvl@google.com> wr=
+ote:
+> Introduce get_shadow_bug_type() function, which determines bug type
+> based on the shadow value for a particular kernel address.
+> Introduce get_wild_bug_type() function, which determines bug type
+> for addresses which don't have a corresponding shadow value.
+>
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  mm/kasan/report.c | 40 ++++++++++++++++++++++++++++++----------
+>  1 file changed, 30 insertions(+), 10 deletions(-)
+>
+> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+> index f479365530b6..2790b4cadfa3 100644
+> --- a/mm/kasan/report.c
+> +++ b/mm/kasan/report.c
+> @@ -49,7 +49,13 @@ static const void *find_first_bad_addr(const void *add=
+r, size_t size)
+>         return first_bad_addr;
+>  }
+>
+> -static void print_error_description(struct kasan_access_info *info)
+> +static bool addr_has_shadow(struct kasan_access_info *info)
+> +{
+> +       return (info->access_addr >=3D
+> +               kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
+> +}
+> +
+> +static const char *get_shadow_bug_type(struct kasan_access_info *info)
+>  {
+>         const char *bug_type =3D "unknown-crash";
+>         u8 *shadow_addr;
+> @@ -96,6 +102,27 @@ static void print_error_description(struct kasan_acce=
+ss_info *info)
+>                 break;
+>         }
+>
+> +       return bug_type;
+> +}
+> +
+> +const char *get_wild_bug_type(struct kasan_access_info *info)
+> +{
+> +       const char *bug_type =3D "unknown-crash";
+You don't seem to need "unknown-crash" here.
+> +       if ((unsigned long)info->access_addr < PAGE_SIZE)
+> +               bug_type =3D "null-ptr-deref";
+> +       else if ((unsigned long)info->access_addr < TASK_SIZE)
+> +               bug_type =3D "user-memory-access";
+> +       else
+> +               bug_type =3D "wild-memory-access";
+> +
+> +       return bug_type;
+> +}
+> +
+> +static void print_error_description(struct kasan_access_info *info)
+> +{
+> +       const char *bug_type =3D get_shadow_bug_type(info);
+> +
+>         pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+>                 bug_type, (void *)info->ip,
+>                 info->access_addr);
+> @@ -265,18 +292,11 @@ static void print_shadow_for_address(const void *ad=
+dr)
+>  static void kasan_report_error(struct kasan_access_info *info)
+>  {
+>         unsigned long flags;
+> -       const char *bug_type;
+>
+>         kasan_start_report(&flags);
+>
+> -       if (info->access_addr <
+> -                       kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) =
+{
+> -               if ((unsigned long)info->access_addr < PAGE_SIZE)
+> -                       bug_type =3D "null-ptr-deref";
+> -               else if ((unsigned long)info->access_addr < TASK_SIZE)
+> -                       bug_type =3D "user-memory-access";
+> -               else
+> -                       bug_type =3D "wild-memory-access";
+> +       if (!addr_has_shadow(info)) {
+> +               const char *bug_type =3D get_wild_bug_type(info);
+>                 pr_err("BUG: KASAN: %s on address %p\n",
+>                         bug_type, info->access_addr);
+>                 pr_err("%s of size %zu by task %s/%d\n",
+> --
+> 2.12.0.rc1.440.g5b76565f74-goog
+>
 
-> On Thu 02-03-17 14:53:48, Igor Mammedov wrote:
-> [...]
-> > When trying to support memory unplug on guest side in RHEL7,
-> > experience shows otherwise. Simplistic udev rule which onlines
-> > added block doesn't work in case one wants to online it as movable.
-> > 
-> > Hotplugged blocks in current kernel should be onlined in reverse
-> > order to online blocks as movable depending on adjacent blocks zone.  
-> 
-> Could you be more specific please? Setting online_movable from the udev
-> rule should just work regardless of the ordering or the state of other
-> memblocks. If that doesn't work I would call it a bug.
-It's rather an implementation constrain than a bug
-for details and workaround patch see
- [1] https://bugzilla.redhat.com/show_bug.cgi?id=1314306#c7
-patch attached there is limited by another memory hotplug
-issue, which is NORMAL/MOVABLE zone balance, if kernel runs
-on configuration where the most of memory is hot-removable
-kernel might experience lack of memory in zone NORMAL.
 
-> 
-> > Which means simple udev rule isn't usable since it gets event from
-> > the first to the last hotplugged block order. So now we would have
-> > to write a daemon that would
-> >  - watch for all blocks in hotplugged memory appear (how would it know)
-> >  - online them in right order (order might also be different depending
-> >    on kernel version)
-> >    -- it becomes even more complicated in NUMA case when there are
-> >       multiple zones and kernel would have to provide user-space
-> >       with information about zone maps
-> > 
-> > In short current experience shows that userspace approach
-> >  - doesn't solve issues that Vitaly has been fixing (i.e. onlining
-> >    fast and/or under memory pressure) when udev (or something else
-> >    might be killed)  
-> 
-> yeah and that is why the patch does the onlining from the kernel.
-onlining in this patch is limited to hyperv and patch breaks
-auto-online on x86 kvm/vmware/baremetal as they reuse the same
-hotplug path.
 
-> > > Can you imagine any situation when somebody actually might want to have
-> > > this knob enabled? From what I understand it doesn't seem to be the
-> > > case.  
-> > For x86:
-> >  * this config option is enabled by default in recent Fedora,  
-> 
-> How do you want to support usecases which really want to online memory
-> as movable? Do you expect those users to disable the option because
-> unless I am missing something the in kernel auto onlining only supporst
-> regular onlining.
-current auto onlining config option does what it's been designed for,
-i.e. it onlines hotplugged memory.
-It's possible for non average Fedora user to override default
-(commit 86dd995d6) if she/he needs non default behavior
-(i.e. user knows how to online manually and/or can write
-a daemon that would handle all of nuances of kernel in use).
+--=20
+Alexander Potapenko
+Software Engineer
 
-For the rest when Fedora is used in cloud and user increases memory
-via management interface of whatever cloud she/he uses, it just works.
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-So it's choice of distribution to pick its own default that makes
-majority of user-base happy and this patch removes it without taking
-that in consideration.
-
-How to online memory is different issue not related to this patch,
-current default onlining as ZONE_NORMAL works well for scaling
-up VMs.
-
-Memory unplug is rather new and it doesn't work reliably so far,
-moving onlining to user-space won't really help. Further work
-is need to be done so that it would work reliably.
-
-Now about the question of onlining removable memory as movable,
-x86 kernel is able to get info, if hotadded memory is removable,
-from ACPI subsystem and online it as movable one without any
-intervention from user-space where it's hard to do so,
-as patch[1] shows.
-Problem is still researched and when we figure out how to fix
-hot-remove issues we might enable auto-onlining by default for x86.
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
