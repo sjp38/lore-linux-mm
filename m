@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B53446B03A8
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 09:00:03 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id x66so116558098pfb.2
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 06:00:03 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id q75si10698243pgq.363.2017.03.03.06.00.02
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E43A76B038D
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 09:18:20 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id u48so39636008wrc.0
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 06:18:20 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x81sor5383wmx.25.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 06:00:02 -0800 (PST)
-Message-ID: <1488549318.20145.76.camel@linux.intel.com>
-Subject: Re: [RFC PATCH v2 19/32] crypto: ccp: Introduce the AMD Secure
- Processor device
-From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Date: Fri, 03 Mar 2017 15:55:18 +0200
-In-Reply-To: <0db0055f-9208-524f-74aa-674894ee90d3@amd.com>
-References: 
-	<148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
-	 <148846777589.2349.11698765767451886038.stgit@brijesh-build-machine>
-	 <20170302173936.GC11970@leverpostej>
-	 <0db0055f-9208-524f-74aa-674894ee90d3@amd.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Fri, 03 Mar 2017 06:18:19 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <028eee50-f14f-034d-6e8a-9d07276543b5@virtuozzo.com>
+References: <20170302134851.101218-1-andreyknvl@google.com>
+ <20170302134851.101218-6-andreyknvl@google.com> <028eee50-f14f-034d-6e8a-9d07276543b5@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Fri, 3 Mar 2017 15:18:18 +0100
+Message-ID: <CAAeHK+xOnrF9yeN-ph4Otv=SueZqndk+=XiVu-FRPs8RV5poaw@mail.gmail.com>
+Subject: Re: [PATCH v2 5/9] kasan: change report header
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brijesh Singh <brijesh.singh@amd.com>, Mark Rutland <mark.rutland@arm.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2017-03-02 at 13:11 -0600, Brijesh Singh wrote:
-> Hi Mark,
-> 
-> On 03/02/2017 11:39 AM, Mark Rutland wrote:
-> > On Thu, Mar 02, 2017 at 10:16:15AM -0500, Brijesh Singh wrote:
+On Fri, Mar 3, 2017 at 2:21 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
+>
+>> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+>> index 8b0b27eb37cd..945d0e13e8a4 100644
+>> --- a/mm/kasan/report.c
+>> +++ b/mm/kasan/report.c
+>> @@ -130,11 +130,11 @@ static void print_error_description(struct kasan_access_info *info)
+>>  {
+>>       const char *bug_type = get_bug_type(info);
+>>
+>> -     pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+>> -             bug_type, (void *)info->ip, info->access_addr);
+>> -     pr_err("%s of size %zu by task %s/%d\n",
+>> +     pr_err("BUG: KASAN: %s in %pS\n",
+>> +             bug_type, (void *)info->ip);
+>
+> This should fit in one line without exceeding 80-char limit.
 
-> > > 
-> > > +ccp-$(CONFIG_CRYPTO_DEV_CCP) += ccp-dev.o \
-> > > A 	A A A A ccp-ops.o \
-> > > A 	A A A A ccp-dev-v3.o \
-> > > A 	A A A A ccp-dev-v5.o \
-> > > -	A A A A ccp-platform.o \
-> > > A 	A A A A ccp-dmaengine.o
-> > 
-> > It looks like ccp-platform.c has morphed into sp-platform.c (judging
-> > by
-> > the compatible string and general shape of the code), and the
-> > original
-> > ccp-platform.c is no longer built.
-> > 
-> > Shouldn't ccp-platform.c be deleted by this patch?
-> > 
-> 
-> Good catch. Both ccp-platform.c and ccp-pci.c should have been
-> deletedA 
-> by this patch. I missed deleting it, will fix in next rev.
+You mean the code or the header?
+The code fits, the header has much higher chances to fit after the change.
 
-Don't forget to use -M -C when preparing / sending patches.
-
--- 
-Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Intel Finland Oy
+>
+> --
+> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/028eee50-f14f-034d-6e8a-9d07276543b5%40virtuozzo.com.
+> For more options, visit https://groups.google.com/d/optout.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
