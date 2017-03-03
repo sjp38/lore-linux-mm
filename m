@@ -1,160 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 284B06B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 10:24:38 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id n141so20211860qke.1
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 07:24:38 -0800 (PST)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id w135si9547695qkw.88.2017.03.03.07.24.36
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8696B0388
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 10:37:56 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id y51so40695973wry.6
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 07:37:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t20si15313317wra.75.2017.03.03.07.37.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 07:24:36 -0800 (PST)
-Date: Fri, 3 Mar 2017 09:24:23 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [LSF/MM TOPIC] Movable memory and reliable higher order
- allocations
-In-Reply-To: <20170302205540.GQ16328@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1703030915170.16721@east.gentwo.org>
-References: <alpine.DEB.2.20.1702281526170.31946@east.gentwo.org> <20170228231733.GI16328@bombadil.infradead.org> <20170302041238.GM16328@bombadil.infradead.org> <alpine.DEB.2.20.1703021111350.31249@east.gentwo.org>
- <20170302205540.GQ16328@bombadil.infradead.org>
-Content-Type: text/plain; charset=US-ASCII
+        Fri, 03 Mar 2017 07:37:55 -0800 (PST)
+Date: Fri, 3 Mar 2017 10:37:21 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
+Message-ID: <20170303153720.GC21245@bfoster.bfoster>
+References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
+ <20170303133950.GD31582@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170303133950.GD31582@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, riel@redhat.com, Mel Gorman <mel@csn.ul.ie>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
+On Fri, Mar 03, 2017 at 02:39:51PM +0100, Michal Hocko wrote:
+> On Fri 03-03-17 19:48:30, Tetsuo Handa wrote:
+> > Continued from http://lkml.kernel.org/r/201702261530.JDD56292.OFOLFHQtVMJSOF@I-love.SAKURA.ne.jp :
+> > 
+> > While I was testing a patch which avoids infinite too_many_isolated() loop in
+> > shrink_inactive_list(), I hit a lockup where WQ_MEM_RECLAIM threads got stuck
+> > waiting for memory allocation. I guess that we overlooked a basic thing about
+> > WQ_MEM_RECLAIM.
+> > 
+> >   WQ_MEM_RECLAIM helps only when the cause of failing to complete
+> >   a work item is lack of "struct task_struct" to run that work item, for
+> >   WQ_MEM_RECLAIM preallocates one "struct task_struct" so that the workqueue
+> >   will not be blocked waiting for memory allocation for "struct task_struct".
+> > 
+> >   WQ_MEM_RECLAIM does not help when "struct task_struct" running that work
+> >   item is blocked waiting for memory allocation (or is indirectly blocked
+> >   on a lock where the owner of that lock is blocked waiting for memory
+> >   allocation). That is, WQ_MEM_RECLAIM users must guarantee forward progress
+> >   if memory allocation (including indirect memory allocation via
+> >   locks/completions) is needed.
+> > 
+> > In XFS, "xfs_mru_cache", "xfs-buf/%s", "xfs-data/%s", "xfs-conv/%s", "xfs-cil/%s",
+> > "xfs-reclaim/%s", "xfs-log/%s", "xfs-eofblocks/%s", "xfsalloc" and "xfsdiscard"
+> > workqueues are used, and all but "xfsdiscard" are WQ_MEM_RECLAIM workqueues.
+> > 
+> > What I observed is at http://I-love.SAKURA.ne.jp/tmp/serial-20170226.txt.xz .
+> > I guess that the key of this lockup is that xfs-data/sda1 and xfs-eofblocks/s
+> > workqueues (which are RESCUER) got stuck waiting for memory allocation.
+> 
+> If those workers are really required for a further progress of the
+> memory reclaim then they shouldn't block on allocation at all and either
+> use pre allocated memory or use PF_MEMALLOC in case there is a guarantee
+> that only very limited amount of memory is allocated from that context
+> and there will be at least the same amount of memory freed as a result
+> in a reasonable time.
+> 
+> This is something for xfs people to answer though. Please note that I
+> didn't really have time to look through the below traces so the above
+> note is rather generic. It would be really helpful if you could provide
+> a high level dependency chains to see why those rescuers are necessary
+> for the forward progress because it is really easy to get lost in so
+> many traces.
 
+Hmm, I can't claim to fully grok the wq internals, but my understanding
+of the WQ_MEM_RECLAIM setting used on the XFS side was to create rescuer
+threads for workqueues to deal with the case where the kthread
+allocation required memory reclaim, and memory reclaim progress is made
+via a workqueue item. IIRC, this was originally targeted for the
+xfs-reclaim wq based on the report in commit 7a29ac474a ("xfs: give all
+workqueues rescuer threads"), but it looks like that patch was modified
+before it was committed to give all workqueues such a thread as well. I
+don't know that we explicitly need this flag for all XFS wq's, but I
+also don't recall particular meaning behind WQ_MEM_RECLAIM that
+suggested the associated wq should guarantee progress, so perhaps that's
+why it was added as such.
 
-> We may need to negotiate the API a little ;-)
+That aside, looking through some of the traces in this case...
 
-Well lets continue the fun then.
+- kswapd0 is waiting on an inode flush lock. This means somebody else
+  flushed the inode and it won't be unlocked until the underlying buffer
+  I/O is completed. This context is also holding pag_ici_reclaim_lock
+  which is what probably blocks other contexts from getting into inode
+  reclaim.
+- xfsaild is in xfs_iflush(), which means it has the inode flush lock.
+  It's waiting on reading the underlying inode buffer. The buffer read
+  sets b_ioend_wq to the xfs-buf wq, which is ultimately going to be
+  queued in xfs_buf_bio_end_io()->xfs_buf_ioend_async(). The associated
+  work item is what eventually triggers the I/O completion in
+  xfs_buf_ioend().
 
->
-> > 1. Callback
-> >
-> > void *defrag_get_func(struct kmem_cache *s, int nr, void **objects)
->
-> OK, so you're passing me an array of pointers of length 'nr'?
-> It's conventional to put 'objects' before 'nr' -- see release_pages()
-> and vm_map_ram()
+So at this point reclaim is waiting on a read I/O completion. It's not
+clear to me whether the read had completed and the work item was queued
+or not. I do see the following in the workqueue lockup BUG output:
 
-Ok.
+[  273.412600] workqueue xfs-buf/sda1: flags=0xc
+[  273.414486]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/1
+[  273.416415]     pending: xfs_buf_ioend_work [xfs]
 
-> > Locks are held. Interrupts are disabled. No slab operations may be
-> > performed and any operations on the slab page will cause that the
-> > concurrent access to block.
-> >
-> > The callback must establish a stable reference to the slab objects.
-> > Meaning generally a additional refcount is added so that any free
-> > operations will not remove the object. This is required in order to ensure
-> > that free operations will not interfere with reclaim processing.
->
-> I don't currently have a way to do that.  There is a refcount on the node,
-> but if somebody does an operation which causes the node to be removed
-> from the tree (something like splatting a huge page over the top of it),
-> we ignore the refcount and free the node.  However, since it's been in
-> the tree, we pass it to RCU to free, so if you hold the RCU read lock in
-> addition to your other locks, the xarray can satisfy your requirements
-> that the object not be handed back to slab.
+... which suggests that it was queued..? I suppose this could be one of
+the workqueues waiting on a kthread, but xfs-buf also has a rescuer that
+appears to be idle:
 
-We need a general solution here. Objects having a refcount is the common
-way to provide an existence guarantee. Holding rcu_locks in a
-function that performs slab operations or lenghty object inspection
-calling a variety of VM operations is not advisable.
+[ 1041.555227] xfs-buf/sda1    S14904   450      2 0x00000000
+[ 1041.556813] Call Trace:
+[ 1041.557796]  __schedule+0x336/0xe00
+[ 1041.558983]  schedule+0x3d/0x90
+[ 1041.560085]  rescuer_thread+0x322/0x3d0
+[ 1041.561333]  kthread+0x10f/0x150
+[ 1041.562464]  ? worker_thread+0x4b0/0x4b0
+[ 1041.563732]  ? kthread_create_on_node+0x70/0x70
+[ 1041.565123]  ret_from_fork+0x31/0x40
 
-> That takes care of nodes currently in the tree and nodes handed to RCU.
-> It doesn't take care of nodes which have been recently allocated and
-> not yet inserted into the tree.  I've got no way of freeing them, nor
-> of preventing them from being freed.
+So shouldn't that thread pick up the work item if that is the case?
 
-The function can fail if you encounter such objects. You do not have to
-free any objects that are currently busy.
+Brian
 
-> > The get() will return a pointer to a private data structure that is passed
-> > on to the second function. Before that callback the slab allocator will
-> > drop all the locks. If the function returns NULL then that is an
-> > indication that the objects are in use and that a reclaim operation cannot
-> > be performed. No refcount has been taken.
->
-> I don't think I have a useful private data structure that I can create.
-> I assume returning (void *)1 will be acceptable.
-
-Yep.
-
-> > This is required to have a stable array of objects to work on. If the
-> > objects could be freed at any time then the objects could not be inspected
-> > for state nor could an array of pointers to the objects be passed on for
-> > future processing.
->
-> If I can free some, but not all of the objects, is that worth doing,
-> or should I return NULL here?
-
-The objects are all objects from the same slab page. If you cannot free
-one then the whole slab page must remain. It it advantageous to not free
-objects. The slab can then be used for more allocations and filled up
-again.
-
-> > 2. Callback
-> >
-> > defrag_reclaim_func(struct kmem_cache *s, int nr, void **objects, void *private)
->
-> You missed the return type here ... assuming it's void.
-
-Yes.
-
-> > Here anything may be done. Free the objects or reallocate them (calling
-> > kmalloc or so to allocate another object to move it to). On return the
-> > slab allocator will inspect the slab page and if there are no objects
-> > remaining then the slab page will be freed.
->
-> I have to reallocate; I have no way of knowing what my user is using
-> the xarray for, so I can't throw away nodes.
-
-That is fine.
-
-> > During proccesing the slab page is exempt from allocation and thus objects
-> > can only be removed from the slab page until processing is complete.
->
-> That's great for me.
-
-Allright.
-
-> > > +/*
-> > > + * We rely on the following assumptions:
-> > > + *  - The slab allocator calls us in process context with IRQs enabled and
-> > > + *    no locks held (not even the RCU lock)
-> >
-> > This is true for the second callback.
-> >
-> > > + *  - We can allocate a replacement using GFP_KERNEL
-> > > + *  - If the victim is freed while reclaim is running,
-> > > + *    - The slab allocator will not overwrite any fields in the victim
-> > > + *    - The page will not be returned to the page allocator until we return
-> > > + *    - The victim will not be reallocated until we return
-> >
-> > The viction cannot be freed during processing since the first callback
-> > established a reference. The callback must free the object if possible and
-> > drop the reference count.
->
-> Most of the frees are going to be coming via call_rcu().  I think that
-> actually satisfies your requirements.
-
-I doubt that we can hold the rcu locks for the entirety of the processing.
-There are other slab caches that also need to use this (dentry and inodes)
-and all of those are refcount based.
-
-> The objects may well be in different xarrays, so I can't hold the lock
-> across the entire collection of objects you're asking to free.
->
-> I understand your desire to batch up all the objects on a page and ask
-> the reclaimer to free them all, but is the additional complexity worth
-> the performance gains you're expecting to see?
-
-Depends on the number of objects in a slab page. I think for starters we
-can avoid the complexity and just process one by one. However, a slab page
-has a number of allocated objects and the slab functions are geared to
-process them together since the slab page containing them needs to be
-exempted from allocations, locked etc etc.
+> -- 
+> Michal Hocko
+> SUSE Labs
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
