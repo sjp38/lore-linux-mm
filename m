@@ -1,72 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BA1C6B03A1
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:39:53 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y51so39662207wry.6
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:39:53 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s83si2978774wms.147.2017.03.03.05.39.52
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A70F46B03A5
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:52:13 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id a189so140030248qkc.4
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:52:13 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 202sor939172qkj.6.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Mar 2017 05:39:52 -0800 (PST)
-Date: Fri, 3 Mar 2017 14:39:51 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
-Message-ID: <20170303133950.GD31582@dhcp22.suse.cz>
-References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Fri, 03 Mar 2017 05:52:12 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
+In-Reply-To: <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
+References: <20170302134851.101218-1-andreyknvl@google.com>
+ <20170302134851.101218-7-andreyknvl@google.com> <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 3 Mar 2017 14:52:11 +0100
+Message-ID: <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
+Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 03-03-17 19:48:30, Tetsuo Handa wrote:
-> Continued from http://lkml.kernel.org/r/201702261530.JDD56292.OFOLFHQtVMJSOF@I-love.SAKURA.ne.jp :
-> 
-> While I was testing a patch which avoids infinite too_many_isolated() loop in
-> shrink_inactive_list(), I hit a lockup where WQ_MEM_RECLAIM threads got stuck
-> waiting for memory allocation. I guess that we overlooked a basic thing about
-> WQ_MEM_RECLAIM.
-> 
->   WQ_MEM_RECLAIM helps only when the cause of failing to complete
->   a work item is lack of "struct task_struct" to run that work item, for
->   WQ_MEM_RECLAIM preallocates one "struct task_struct" so that the workqueue
->   will not be blocked waiting for memory allocation for "struct task_struct".
-> 
->   WQ_MEM_RECLAIM does not help when "struct task_struct" running that work
->   item is blocked waiting for memory allocation (or is indirectly blocked
->   on a lock where the owner of that lock is blocked waiting for memory
->   allocation). That is, WQ_MEM_RECLAIM users must guarantee forward progress
->   if memory allocation (including indirect memory allocation via
->   locks/completions) is needed.
-> 
-> In XFS, "xfs_mru_cache", "xfs-buf/%s", "xfs-data/%s", "xfs-conv/%s", "xfs-cil/%s",
-> "xfs-reclaim/%s", "xfs-log/%s", "xfs-eofblocks/%s", "xfsalloc" and "xfsdiscard"
-> workqueues are used, and all but "xfsdiscard" are WQ_MEM_RECLAIM workqueues.
-> 
-> What I observed is at http://I-love.SAKURA.ne.jp/tmp/serial-20170226.txt.xz .
-> I guess that the key of this lockup is that xfs-data/sda1 and xfs-eofblocks/s
-> workqueues (which are RESCUER) got stuck waiting for memory allocation.
+On Fri, Mar 3, 2017 at 2:31 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
+rote:
+> On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
+>> Changes slab object description from:
+>>
+>> Object at ffff880068388540, in cache kmalloc-128 size: 128
+>>
+>> to:
+>>
+>> The buggy address belongs to the object at ffff880068388540
+>>  which belongs to the cache kmalloc-128 of size 128
+>> The buggy address is located 123 bytes inside of
+>>  128-byte region [ffff880068388540, ffff8800683885c0)
+>>
+>> Makes it more explanatory and adds information about relative offset
+>> of the accessed address to the start of the object.
+>>
+>
+> I don't think that this is an improvement. You replaced one simple line w=
+ith a huge
+> and hard to parse text without giving any new/useful information.
+> Except maybe offset, it useful sometimes, so wouldn't mind adding it to d=
+escription.
+Agreed.
+How about:
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+Access 123 bytes inside of 128-byte region [ffff880068388540, ffff880068388=
+5c0)
+Object at ffff880068388540 belongs to the cache kmalloc-128
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+?
 
-If those workers are really required for a further progress of the
-memory reclaim then they shouldn't block on allocation at all and either
-use pre allocated memory or use PF_MEMALLOC in case there is a guarantee
-that only very limited amount of memory is allocated from that context
-and there will be at least the same amount of memory freed as a result
-in a reasonable time.
+> --
+> You received this message because you are subscribed to the Google Groups=
+ "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an=
+ email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgi=
+d/kasan-dev/db0b6605-32bc-4c7a-0c99-2e60e4bdb11f%40virtuozzo.com.
+> For more options, visit https://groups.google.com/d/optout.
 
-This is something for xfs people to answer though. Please note that I
-didn't really have time to look through the below traces so the above
-note is rather generic. It would be really helpful if you could provide
-a high level dependency chains to see why those rescuers are necessary
-for the forward progress because it is really easy to get lost in so
-many traces.
--- 
-Michal Hocko
-SUSE Labs
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
