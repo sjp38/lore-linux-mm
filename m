@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 13D7C6B0387
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 11:25:08 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id n11so7626528wma.5
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 08:25:08 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A8186B0038
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 11:37:15 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id u108so28432756wrb.3
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 08:37:15 -0800 (PST)
 Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [2001:4b98:dc2:45:216:3eff:febb:480d])
-        by mx.google.com with ESMTPS id 69si3515202wmx.141.2017.03.03.08.25.06
+        by mx.google.com with ESMTPS id 6si13947wmj.135.2017.03.03.08.37.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 08:25:06 -0800 (PST)
+        Fri, 03 Mar 2017 08:37:13 -0800 (PST)
 From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of staging
-Date: Fri, 03 Mar 2017 18:25:40 +0200
-Message-ID: <1836110.VXJcCJDUAn@avalon>
-In-Reply-To: <1488491084-17252-1-git-send-email-labbott@redhat.com>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+Subject: Re: [RFC PATCH 04/12] staging: android: ion: Call dma_map_sg for syncing and mapping
+Date: Fri, 03 Mar 2017 18:37:47 +0200
+Message-ID: <1842876.9VofhAIJSQ@avalon>
+In-Reply-To: <1488491084-17252-5-git-send-email-labbott@redhat.com>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com> <1488491084-17252-5-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
@@ -25,102 +25,195 @@ Cc: Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, R
 
 Hi Laura,
 
-Thank you for the patches.
+Thank you for the patch.
 
-On Thursday 02 Mar 2017 13:44:32 Laura Abbott wrote:
-> Hi,
+On Thursday 02 Mar 2017 13:44:36 Laura Abbott wrote:
+> Technically, calling dma_buf_map_attachment should return a buffer
+> properly dma_mapped. Add calls to dma_map_sg to begin_cpu_access to
+> ensure this happens. As a side effect, this lets Ion buffers take
+> advantage of the dma_buf sync ioctls.
 > 
-> There's been some recent discussions[1] about Ion-like frameworks. There's
-> apparently interest in just keeping Ion since it works reasonablly well.
-> This series does what should be the final clean ups for it to possibly be
-> moved out of staging.
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> ---
+>  drivers/staging/android/ion/ion.c | 101 +++++++++++++++++------------------
+>  1 file changed, 50 insertions(+), 51 deletions(-)
 > 
-> This includes the following:
-> - Some general clean up and removal of features that never got a lot of use
->   as far as I can tell.
-> - Fixing up the caching. This is the series I proposed back in December[2]
->   but never heard any feedback on. It will certainly break existing
->   applications that rely on the implicit caching. I'd rather make an effort
->   to move to a model that isn't going directly against the establishement
->   though.
-> - Fixing up the platform support. The devicetree approach was never well
->   recieved by DT maintainers. The proposal here is to think of Ion less as
->   specifying requirements and more of a framework for exposing memory to
->   userspace.
+> diff --git a/drivers/staging/android/ion/ion.c
+> b/drivers/staging/android/ion/ion.c index ce4adac..a931b30 100644
+> --- a/drivers/staging/android/ion/ion.c
+> +++ b/drivers/staging/android/ion/ion.c
+> @@ -795,10 +795,6 @@ void ion_client_destroy(struct ion_client *client)
+>  }
+>  EXPORT_SYMBOL(ion_client_destroy);
+> 
+> -static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
+> -				       struct device *dev,
+> -				       enum dma_data_direction direction);
+> -
+>  static struct sg_table *dup_sg_table(struct sg_table *table)
+>  {
+>  	struct sg_table *new_table;
+> @@ -825,22 +821,43 @@ static struct sg_table *dup_sg_table(struct sg_table
+> *table) return new_table;
+>  }
+> 
+> +static void free_duped_table(struct sg_table *table)
+> +{
+> +	sg_free_table(table);
+> +	kfree(table);
+> +}
+> +
+>  static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment
+> *attachment, enum dma_data_direction direction)
+>  {
+>  	struct dma_buf *dmabuf = attachment->dmabuf;
+>  	struct ion_buffer *buffer = dmabuf->priv;
+> +	struct sg_table *table;
+> +	int ret;
+> +
+> +	/*
+> +	 * TODO: Need to sync wrt CPU or device completely owning?
+> +	 */
+> +
+> +	table = dup_sg_table(buffer->sg_table);
+> 
+> -	ion_buffer_sync_for_device(buffer, attachment->dev, direction);
+> -	return dup_sg_table(buffer->sg_table);
+> +	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
+> +			direction)){
+> +		ret = -ENOMEM;
+> +		goto err;
+> +	}
+> +
+> +err:
+> +	free_duped_table(table);
+> +	return ERR_PTR(ret);
+>  }
+> 
+>  static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
+>  			      struct sg_table *table,
+>  			      enum dma_data_direction direction)
+>  {
+> -	sg_free_table(table);
+> -	kfree(table);
+> +	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
+> +	free_duped_table(table);
+>  }
+> 
+>  void ion_pages_sync_for_device(struct device *dev, struct page *page,
+> @@ -864,38 +881,6 @@ struct ion_vma_list {
+>  	struct vm_area_struct *vma;
+>  };
+> 
+> -static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
+> -				       struct device *dev,
+> -				       enum dma_data_direction dir)
+> -{
+> -	struct ion_vma_list *vma_list;
+> -	int pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+> -	int i;
+> -
+> -	pr_debug("%s: syncing for device %s\n", __func__,
+> -		 dev ? dev_name(dev) : "null");
+> -
+> -	if (!ion_buffer_fault_user_mappings(buffer))
+> -		return;
+> -
+> -	mutex_lock(&buffer->lock);
+> -	for (i = 0; i < pages; i++) {
+> -		struct page *page = buffer->pages[i];
+> -
+> -		if (ion_buffer_page_is_dirty(page))
+> -			ion_pages_sync_for_device(dev, ion_buffer_page(page),
+> -						  PAGE_SIZE, dir);
+> -
+> -		ion_buffer_page_clean(buffer->pages + i);
+> -	}
+> -	list_for_each_entry(vma_list, &buffer->vmas, list) {
+> -		struct vm_area_struct *vma = vma_list->vma;
+> -
+> -		zap_page_range(vma, vma->vm_start, vma->vm_end - vma-
+>vm_start);
+> -	}
+> -	mutex_unlock(&buffer->lock);
+> -}
+> -
+>  static int ion_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  {
+>  	struct ion_buffer *buffer = vma->vm_private_data;
+> @@ -1014,16 +999,24 @@ static int ion_dma_buf_begin_cpu_access(struct
+> dma_buf *dmabuf, struct ion_buffer *buffer = dmabuf->priv;
+>  	void *vaddr;
+> 
+> -	if (!buffer->heap->ops->map_kernel) {
+> -		pr_err("%s: map kernel is not implemented by this heap.\n",
+> -		       __func__);
+> -		return -ENODEV;
+> +	/*
+> +	 * TODO: Move this elsewhere because we don't always need a vaddr
+> +	 */
+> +	if (buffer->heap->ops->map_kernel) {
+> +		mutex_lock(&buffer->lock);
+> +		vaddr = ion_buffer_kmap_get(buffer);
+> +		mutex_unlock(&buffer->lock);
+>  	}
+> 
+> -	mutex_lock(&buffer->lock);
+> -	vaddr = ion_buffer_kmap_get(buffer);
+> -	mutex_unlock(&buffer->lock);
+> -	return PTR_ERR_OR_ZERO(vaddr);
+> +	/*
+> +	 * Close enough right now? Flag to skip sync?
+> +	 */
+> +	if (!dma_map_sg(buffer->dev->dev.this_device, buffer->sg_table->sgl,
+> +			buffer->sg_table->nents,
+> +                        DMA_BIDIRECTIONAL))
 
-That's where most of my concerns with ion are. I still strongly believe that 
-the heap-based approach is inherently flawed, as it would need to be 
-configured for each device according to product-specific use cases. That's not 
-something that could be easily shipped with a generic distribution. We should 
-replace that with a constraint-based system.
+Aren't the dma_(un)map_* calls supposed to take a real, physical device as 
+their first argument ? Beside, this doesn't seem to be the right place to 
+create the mapping, as you mentioned in the commit message the buffer should 
+be mapped in the dma_buf map handler. This is something that needs to be 
+fixed, especially in the light of the comment in ion_buffer_create():
 
-> - CMA allocations now happen without the need of a dummy device structure.
->   This fixes a bunch of the reasons why I attempted to add devicetree
->   support before.
+        /*
+         * this will set up dma addresses for the sglist -- it is not
+         * technically correct as per the dma api -- a specific
+         * device isn't really taking ownership here.  However, in practice on
+         * our systems the only dma_address space is physical addresses.
+         * Additionally, we can't afford the overhead of invalidating every
+         * allocation via dma_map_sg. The implicit contract here is that
+         * memory coming from the heaps is ready for dma, ie if it has a
+         * cached mapping that mapping has been invalidated
+         */
+
+That's a showstopper in my opinion, the DMA address space can't be restricted 
+to physical addresses, IOMMU have to be supported.
+
+> +		return -ENOMEM;
+> +
+> +	return 0;
+>  }
 > 
-> I've had problems getting feedback in the past so if I don't hear any major
-> objections I'm going to send out with the RFC dropped to be picked up.
-> The only reason there isn't a patch to come out of staging is to discuss any
-> other changes to the ABI people might want. Once this comes out of staging,
-> I really don't want to mess with the ABI.
+>  static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+> @@ -1031,9 +1024,15 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf
+> *dmabuf, {
+>  	struct ion_buffer *buffer = dmabuf->priv;
 > 
-> Feedback appreciated.
+> -	mutex_lock(&buffer->lock);
+> -	ion_buffer_kmap_put(buffer);
+> -	mutex_unlock(&buffer->lock);
+> +	if (buffer->heap->ops->map_kernel) {
+> +		mutex_lock(&buffer->lock);
+> +		ion_buffer_kmap_put(buffer);
+> +		mutex_unlock(&buffer->lock);
+> +	}
+> +
+> +	dma_unmap_sg(buffer->dev->dev.this_device, buffer->sg_table->sgl,
+> +			buffer->sg_table->nents,
+> +			DMA_BIDIRECTIONAL);
 > 
-> Thanks,
-> Laura
-> 
-> [1] https://marc.info/?l=linux-kernel&m=148699712602105&w=2
-> [2] https://marc.info/?l=linaro-mm-sig&m=148176050802908&w=2
-> 
-> Laura Abbott (12):
->   staging: android: ion: Remove dmap_cnt
->   staging: android: ion: Remove alignment from allocation field
->   staging: android: ion: Duplicate sg_table
->   staging: android: ion: Call dma_map_sg for syncing and mapping
->   staging: android: ion: Remove page faulting support
->   staging: android: ion: Remove crufty cache support
->   staging: android: ion: Remove old platform support
->   cma: Store a name in the cma structure
->   cma: Introduce cma_for_each_area
->   staging: android: ion: Use CMA APIs directly
->   staging: android: ion: Make Ion heaps selectable
->   staging; android: ion: Enumerate all available heaps
-> 
->  drivers/base/dma-contiguous.c                      |   5 +-
->  drivers/staging/android/ion/Kconfig                |  51 ++--
->  drivers/staging/android/ion/Makefile               |  14 +-
->  drivers/staging/android/ion/hisilicon/Kconfig      |   5 -
->  drivers/staging/android/ion/hisilicon/Makefile     |   1 -
->  drivers/staging/android/ion/hisilicon/hi6220_ion.c | 113 ---------
->  drivers/staging/android/ion/ion-ioctl.c            |   6 -
->  drivers/staging/android/ion/ion.c                  | 282 +++++-------------
->  drivers/staging/android/ion/ion.h                  |   5 +-
->  drivers/staging/android/ion/ion_carveout_heap.c    |  16 +-
->  drivers/staging/android/ion/ion_chunk_heap.c       |  15 +-
->  drivers/staging/android/ion/ion_cma_heap.c         | 102 ++------
->  drivers/staging/android/ion/ion_dummy_driver.c     | 156 ------------
->  drivers/staging/android/ion/ion_enumerate.c        |  89 +++++++
->  drivers/staging/android/ion/ion_of.c               | 184 --------------
->  drivers/staging/android/ion/ion_of.h               |  37 ---
->  drivers/staging/android/ion/ion_page_pool.c        |   3 -
->  drivers/staging/android/ion/ion_priv.h             |  57 ++++-
->  drivers/staging/android/ion/ion_system_heap.c      |  14 +-
->  drivers/staging/android/ion/tegra/Makefile         |   1 -
->  drivers/staging/android/ion/tegra/tegra_ion.c      |  80 ------
->  include/linux/cma.h                                |   6 +-
->  mm/cma.c                                           |  25 +-
->  mm/cma.h                                           |   1 +
->  mm/cma_debug.c                                     |   2 +-
->  25 files changed, 312 insertions(+), 958 deletions(-)
->  delete mode 100644 drivers/staging/android/ion/hisilicon/Kconfig
->  delete mode 100644 drivers/staging/android/ion/hisilicon/Makefile
->  delete mode 100644 drivers/staging/android/ion/hisilicon/hi6220_ion.c
->  delete mode 100644 drivers/staging/android/ion/ion_dummy_driver.c
->  create mode 100644 drivers/staging/android/ion/ion_enumerate.c
->  delete mode 100644 drivers/staging/android/ion/ion_of.c
->  delete mode 100644 drivers/staging/android/ion/ion_of.h
->  delete mode 100644 drivers/staging/android/ion/tegra/Makefile
->  delete mode 100644 drivers/staging/android/ion/tegra/tegra_ion.c
+>  	return 0;
+>  }
 
 -- 
 Regards,
