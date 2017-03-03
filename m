@@ -1,172 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D1BE26B038C
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 07:54:09 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id c85so139168911qkg.0
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 04:54:09 -0800 (PST)
-Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
-        by mx.google.com with ESMTPS id d6si5021911qkc.321.2017.03.03.04.54.08
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6739C6B0390
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 07:54:20 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 10so41893666pgb.3
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 04:54:20 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f17si3743080plj.72.2017.03.03.04.54.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 04:54:09 -0800 (PST)
-Received: by mail-qk0-x229.google.com with SMTP id n127so173595788qkf.0
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 04:54:08 -0800 (PST)
+        Fri, 03 Mar 2017 04:54:19 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v23CsBwr015722
+	for <linux-mm@kvack.org>; Fri, 3 Mar 2017 07:54:19 -0500
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28y34pfe37-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 03 Mar 2017 07:54:18 -0500
+Received: from localhost
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 3 Mar 2017 18:24:15 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 76AB23940060
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 18:24:13 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v23Cs9Qs14024914
+	for <linux-mm@kvack.org>; Fri, 3 Mar 2017 18:24:09 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v23CsCJx019313
+	for <linux-mm@kvack.org>; Fri, 3 Mar 2017 18:24:12 +0530
+Subject: Re: [RFC 07/11] mm: remove SWAP_AGAIN in ttu
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-8-git-send-email-minchan@kernel.org>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 3 Mar 2017 18:24:06 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170303102724.kun2gr6w2hq7hknq@phenom.ffwll.local>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <20170303100433.lm5t4hqxj6friyp6@phenom.ffwll.local> <20170303102724.kun2gr6w2hq7hknq@phenom.ffwll.local>
-From: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Date: Fri, 3 Mar 2017 13:54:07 +0100
-Message-ID: <CA+M3ks4Ym0-pfeN+U_-dN363OBJ3_vRb3eLmBoRW=pepzU5n+A@mail.gmail.com>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of staging
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1488436765-32350-8-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <fce4a36a-8b4b-333d-d846-9f6edd86c2e1@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, romlem@google.com, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-2017-03-03 11:27 GMT+01:00 Daniel Vetter <daniel@ffwll.ch>:
-> On Fri, Mar 03, 2017 at 11:04:33AM +0100, Daniel Vetter wrote:
->> On Thu, Mar 02, 2017 at 01:44:32PM -0800, Laura Abbott wrote:
->> > Hi,
->> >
->> > There's been some recent discussions[1] about Ion-like frameworks. There's
->> > apparently interest in just keeping Ion since it works reasonablly well.
->> > This series does what should be the final clean ups for it to possibly be
->> > moved out of staging.
->> >
->> > This includes the following:
->> > - Some general clean up and removal of features that never got a lot of use
->> >   as far as I can tell.
->> > - Fixing up the caching. This is the series I proposed back in December[2]
->> >   but never heard any feedback on. It will certainly break existing
->> >   applications that rely on the implicit caching. I'd rather make an effort
->> >   to move to a model that isn't going directly against the establishement
->> >   though.
->> > - Fixing up the platform support. The devicetree approach was never well
->> >   recieved by DT maintainers. The proposal here is to think of Ion less as
->> >   specifying requirements and more of a framework for exposing memory to
->> >   userspace.
->> > - CMA allocations now happen without the need of a dummy device structure.
->> >   This fixes a bunch of the reasons why I attempted to add devicetree
->> >   support before.
->> >
->> > I've had problems getting feedback in the past so if I don't hear any major
->> > objections I'm going to send out with the RFC dropped to be picked up.
->> > The only reason there isn't a patch to come out of staging is to discuss any
->> > other changes to the ABI people might want. Once this comes out of staging,
->> > I really don't want to mess with the ABI.
->> >
->> > Feedback appreciated.
->>
->> Imo looks all good. And I just realized that cross-checking with the TODO,
->> the 2 items about _CUSTOM and _IMPORT ioctls I noted are already there.
->
-> One more for the todo: Add rst/sphinx documentation for ION. That's also
-> always a good excuse to review the internal interfaces and exported
-> symbols. But we can do that after destaging ...
-> -Daniel
+On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> In 2002, [1] introduced SWAP_AGAIN.
+> At that time, ttuo used spin_trylock(&mm->page_table_lock) so it's
 
-Removing alignment looks good for me but why not also remove it from
-struct ion_allocation_data since the field become useless ?
+Small nit: Please expand "ttuo" here. TTU in the first place is also
+not very clear but we have that in many places.
 
-Also does someone use ion_user_handle_t handle ? Can we directly export
-a dma-buf file descriptor ?
+> really easy to contend and fail to hold a lock so SWAP_AGAIN to keep
+> LRU status makes sense.
 
-Benjamin
+Okay.
 
->
->>
->> Otherwise I looked through the patches, looks all really reasonable.
->>
->> Wrt merging, my experience from destaging the android syncpt stuff was
->> that merging the patches through the staging tree lead to lots of
->> cross-tree issues with the gpu folks wanting to use that. Ion will
->> probably run into similar things, so I'd propose we pull these cleanup
->> patches and the eventual de-staging in throught drm. Yes that defacto
->> means I'm also volunteering myself a bit :-)
->>
->> In the end we could put it all into drivers/gpu/ion or something like
->> that.
->>
->> Thoughts? Greg?
->> -Daniel
->>
->>
->> >
->> > Thanks,
->> > Laura
->> >
->> > [1] https://marc.info/?l=linux-kernel&m=148699712602105&w=2
->> > [2] https://marc.info/?l=linaro-mm-sig&m=148176050802908&w=2
->> >
->> > Laura Abbott (12):
->> >   staging: android: ion: Remove dmap_cnt
->> >   staging: android: ion: Remove alignment from allocation field
->> >   staging: android: ion: Duplicate sg_table
->> >   staging: android: ion: Call dma_map_sg for syncing and mapping
->> >   staging: android: ion: Remove page faulting support
->> >   staging: android: ion: Remove crufty cache support
->> >   staging: android: ion: Remove old platform support
->> >   cma: Store a name in the cma structure
->> >   cma: Introduce cma_for_each_area
->> >   staging: android: ion: Use CMA APIs directly
->> >   staging: android: ion: Make Ion heaps selectable
->> >   staging; android: ion: Enumerate all available heaps
->> >
->> >  drivers/base/dma-contiguous.c                      |   5 +-
->> >  drivers/staging/android/ion/Kconfig                |  51 ++--
->> >  drivers/staging/android/ion/Makefile               |  14 +-
->> >  drivers/staging/android/ion/hisilicon/Kconfig      |   5 -
->> >  drivers/staging/android/ion/hisilicon/Makefile     |   1 -
->> >  drivers/staging/android/ion/hisilicon/hi6220_ion.c | 113 ---------
->> >  drivers/staging/android/ion/ion-ioctl.c            |   6 -
->> >  drivers/staging/android/ion/ion.c                  | 282 ++++++---------------
->> >  drivers/staging/android/ion/ion.h                  |   5 +-
->> >  drivers/staging/android/ion/ion_carveout_heap.c    |  16 +-
->> >  drivers/staging/android/ion/ion_chunk_heap.c       |  15 +-
->> >  drivers/staging/android/ion/ion_cma_heap.c         | 102 ++------
->> >  drivers/staging/android/ion/ion_dummy_driver.c     | 156 ------------
->> >  drivers/staging/android/ion/ion_enumerate.c        |  89 +++++++
->> >  drivers/staging/android/ion/ion_of.c               | 184 --------------
->> >  drivers/staging/android/ion/ion_of.h               |  37 ---
->> >  drivers/staging/android/ion/ion_page_pool.c        |   3 -
->> >  drivers/staging/android/ion/ion_priv.h             |  57 ++++-
->> >  drivers/staging/android/ion/ion_system_heap.c      |  14 +-
->> >  drivers/staging/android/ion/tegra/Makefile         |   1 -
->> >  drivers/staging/android/ion/tegra/tegra_ion.c      |  80 ------
->> >  include/linux/cma.h                                |   6 +-
->> >  mm/cma.c                                           |  25 +-
->> >  mm/cma.h                                           |   1 +
->> >  mm/cma_debug.c                                     |   2 +-
->> >  25 files changed, 312 insertions(+), 958 deletions(-)
->> >  delete mode 100644 drivers/staging/android/ion/hisilicon/Kconfig
->> >  delete mode 100644 drivers/staging/android/ion/hisilicon/Makefile
->> >  delete mode 100644 drivers/staging/android/ion/hisilicon/hi6220_ion.c
->> >  delete mode 100644 drivers/staging/android/ion/ion_dummy_driver.c
->> >  create mode 100644 drivers/staging/android/ion/ion_enumerate.c
->> >  delete mode 100644 drivers/staging/android/ion/ion_of.c
->> >  delete mode 100644 drivers/staging/android/ion/ion_of.h
->> >  delete mode 100644 drivers/staging/android/ion/tegra/Makefile
->> >  delete mode 100644 drivers/staging/android/ion/tegra/tegra_ion.c
->> >
->> > --
->> > 2.7.4
->> >
->> > --
->> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> > the body to majordomo@kvack.org.  For more info on Linux MM,
->> > see: http://www.linux-mm.org/ .
->> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
->> --
->> Daniel Vetter
->> Software Engineer, Intel Corporation
->> http://blog.ffwll.ch
->
-> --
-> Daniel Vetter
-> Software Engineer, Intel Corporation
-> http://blog.ffwll.ch
+> 
+> However, now we changed it to mutex-based lock and be able to block
+> without skip pte so there is a few of small window to return
+> SWAP_AGAIN so remove SWAP_AGAIN and just return SWAP_FAIL.
+
+Makes sense.
+
+> 
+> [1] c48c43e, minimal rmap
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/rmap.c   | 11 +++--------
+>  mm/vmscan.c |  2 --
+>  2 files changed, 3 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 47898a1..da18f21 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1492,13 +1492,10 @@ static int page_mapcount_is_zero(struct page *page)
+>   * Return values are:
+>   *
+>   * SWAP_SUCCESS	- we succeeded in removing all mappings
+> - * SWAP_AGAIN	- we missed a mapping, try again later
+>   * SWAP_FAIL	- the page is unswappable
+>   */
+>  int try_to_unmap(struct page *page, enum ttu_flags flags)
+>  {
+> -	int ret;
+> -
+>  	struct rmap_walk_control rwc = {
+>  		.rmap_one = try_to_unmap_one,
+>  		.arg = (void *)flags,
+> @@ -1518,13 +1515,11 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+>  		rwc.invalid_vma = invalid_migration_vma;
+>  
+>  	if (flags & TTU_RMAP_LOCKED)
+> -		ret = rmap_walk_locked(page, &rwc);
+> +		rmap_walk_locked(page, &rwc);
+>  	else
+> -		ret = rmap_walk(page, &rwc);
+> +		rmap_walk(page, &rwc);
+>  
+> -	if (!page_mapcount(page))
+> -		ret = SWAP_SUCCESS;
+> -	return ret;
+> +	return !page_mapcount(page) ? SWAP_SUCCESS: SWAP_FAIL;
+
+Its very simple now. So after the rmap_walk() if page is not mapped any
+more return SWAP_SUCCESS otherwise SWAP_FAIL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
