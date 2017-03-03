@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C5BC96B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 06:06:47 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id e12so94155211ioj.0
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 03:06:47 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id q9si2007248ite.39.2017.03.03.03.06.46
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 83CCA6B0038
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 06:09:36 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id u62so111972606pfk.1
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 03:09:36 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l3si10302058pln.137.2017.03.03.03.09.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 03:06:47 -0800 (PST)
-Date: Fri, 3 Mar 2017 14:04:26 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: [RFC PATCH 04/12] staging: android: ion: Call dma_map_sg for
- syncing and mapping
-Message-ID: <20170303110329.GA4132@mwanda>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <1488491084-17252-5-git-send-email-labbott@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1488491084-17252-5-git-send-email-labbott@redhat.com>
+        Fri, 03 Mar 2017 03:09:35 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v23B4Zed029051
+	for <linux-mm@kvack.org>; Fri, 3 Mar 2017 06:09:35 -0500
+Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com [195.75.94.102])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28xs8da713-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 03 Mar 2017 06:09:34 -0500
+Received: from localhost
+	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 3 Mar 2017 11:09:32 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/3] userfaultfd: non-cooperative: fix fork fctx->new memleak
+Date: Fri,  3 Mar 2017 13:09:26 +0200
+In-Reply-To: <20170302173738.18994-2-aarcange@redhat.com>
+References: <20170302173738.18994-2-aarcange@redhat.com>
+Message-Id: <1488539366-22846-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Daniel Vetter <daniel.vetter@intel.com>, Brian Starkey <brian.starkey@arm.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-On Thu, Mar 02, 2017 at 01:44:36PM -0800, Laura Abbott wrote:
->  static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
->  					enum dma_data_direction direction)
->  {
->  	struct dma_buf *dmabuf = attachment->dmabuf;
->  	struct ion_buffer *buffer = dmabuf->priv;
-> +	struct sg_table *table;
-> +	int ret;
+> From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> 
+> We have a memleak in the ->new ctx if the uffd of the parent is closed
+> before the fork event is read, nothing frees the new context.
+> 
+> Reported-by: Andrea Arcangeli <aarcange@redhat.com>
+
+I think
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+would be appropriate here.
+
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  fs/userfaultfd.c | 9 +++++++++
+>  1 file changed, 9 insertions(+)
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index d2f15a6..5087a69 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -548,6 +548,15 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
+>  		if (ACCESS_ONCE(ctx->released) ||
+>  		    fatal_signal_pending(current)) {
+>  			__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
+> +			if (ewq->msg.event == UFFD_EVENT_FORK) {
+> +				struct userfaultfd_ctx *new;
 > +
-> +	/*
-> +	 * TODO: Need to sync wrt CPU or device completely owning?
-> +	 */
+> +				new = (struct userfaultfd_ctx *)
+> +					(unsigned long)
+> +					ewq->msg.arg.reserved.reserved1;
 > +
-> +	table = dup_sg_table(buffer->sg_table);
->  
-> -	ion_buffer_sync_for_device(buffer, attachment->dev, direction);
-> -	return dup_sg_table(buffer->sg_table);
-> +	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
-> +			direction)){
-> +		ret = -ENOMEM;
-> +		goto err;
-> +	}
-> +
-> +err:
-> +	free_duped_table(table);
-> +	return ERR_PTR(ret);
-
-ret isn't initialized on success.
-
->  }
->  
-
-regards,
-dan carpenter
+> +				userfaultfd_ctx_put(new);
+> +			}
+>  			break;
+>  		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
