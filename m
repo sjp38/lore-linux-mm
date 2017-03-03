@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C021A6B038C
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 13:50:25 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id v125so4749362qkh.5
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 10:50:25 -0800 (PST)
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com. [209.85.220.173])
-        by mx.google.com with ESMTPS id 94si9973518qte.172.2017.03.03.10.50.25
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C51E66B0038
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 14:11:00 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id a189so150778490qkc.4
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 11:11:00 -0800 (PST)
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
+        by mx.google.com with ESMTPS id h68si9982740qkh.329.2017.03.03.11.11.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 10:50:25 -0800 (PST)
-Received: by mail-qk0-f173.google.com with SMTP id 1so71600092qkl.3
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 10:50:25 -0800 (PST)
-Subject: Re: [RFC PATCH 10/12] staging: android: ion: Use CMA APIs directly
+        Fri, 03 Mar 2017 11:11:00 -0800 (PST)
+Received: by mail-qk0-f181.google.com with SMTP id v125so12126620qkh.2
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 11:11:00 -0800 (PST)
+Subject: Re: [RFC PATCH 11/12] staging: android: ion: Make Ion heaps
+ selectable
 References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <1488491084-17252-11-git-send-email-labbott@redhat.com>
- <2140021.hmlAgxcLbU@avalon>
+ <1488491084-17252-12-git-send-email-labbott@redhat.com>
+ <20170303103304.nxfn7zlccx24b3xq@phenom.ffwll.local>
 From: Laura Abbott <labbott@redhat.com>
-Message-ID: <0541f57b-4060-ea10-7173-26ae77777518@redhat.com>
-Date: Fri, 3 Mar 2017 10:50:20 -0800
+Message-ID: <2b0c35ce-be88-526c-e0ab-1707c191260d@redhat.com>
+Date: Fri, 3 Mar 2017 11:10:55 -0800
 MIME-Version: 1.0
-In-Reply-To: <2140021.hmlAgxcLbU@avalon>
+In-Reply-To: <20170303103304.nxfn7zlccx24b3xq@phenom.ffwll.local>
 Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>, dri-devel@lists.freedesktop.org
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
 
-On 03/03/2017 08:41 AM, Laurent Pinchart wrote:
-> Hi Laura,
+On 03/03/2017 02:33 AM, Daniel Vetter wrote:
+> On Thu, Mar 02, 2017 at 01:44:43PM -0800, Laura Abbott wrote:
+>>
+>> Currently, all heaps are compiled in all the time. In switching to
+>> a better platform model, let's allow these to be compiled out for good
+>> measure.
+>>
+>> Signed-off-by: Laura Abbott <labbott@redhat.com>
 > 
-> Thank you for the patch.
+> I'm not the biggest fan of making everything Kconfig-selectable. And the
+> #ifdef stuff doesn't look all that pretty. If we'd also use this
+> opportunity to split each heap into their own file I think this patch here
+> would be a lot more useful.
 > 
-> On Thursday 02 Mar 2017 13:44:42 Laura Abbott wrote:
->> When CMA was first introduced, its primary use was for DMA allocation
->> and the only way to get CMA memory was to call dma_alloc_coherent. This
->> put Ion in an awkward position since there was no device structure
->> readily available and setting one up messed up the coherency model.
->> These days, CMA can be allocated directly from the APIs. Switch to using
->> this model to avoid needing a dummy device. This also avoids awkward
->> caching questions.
-> 
-> If the DMA mapping API isn't suitable for today's requirements anymore, I 
-> believe that's what needs to be fixed, instead of working around the problem 
-> by introducing another use-case-specific API.
+> Anyway, no real opinion from me on this, just an idea.
+> -Daniel
 > 
 
-I don't think this is a usecase specific API. CMA has been decoupled from
-DMA already because it's used in other places. The trying to go through
-DMA was just another layer of abstraction, especially since there isn't
-a device available for allocation.
+My idea with the Kconfigs was that if platforms didn't want certain
+heap types (e.g. chunk heap) they could just be turned off.
+I do want to fully fix up the initialization better as well.
 
 Thanks,
 Laura
