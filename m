@@ -1,65 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B166F6B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 03:18:38 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id l66so1339187pfl.6
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 00:18:38 -0800 (PST)
-Received: from out0-152.mail.aliyun.com (out0-152.mail.aliyun.com. [140.205.0.152])
-        by mx.google.com with ESMTP id c2si9890628plb.50.2017.03.03.00.18.37
-        for <linux-mm@kvack.org>;
-        Fri, 03 Mar 2017 00:18:37 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com> <1488491084-17252-4-git-send-email-labbott@redhat.com>
-In-Reply-To: <1488491084-17252-4-git-send-email-labbott@redhat.com>
-Subject: Re: [RFC PATCH 03/12] staging: android: ion: Duplicate sg_table
-Date: Fri, 03 Mar 2017 16:18:27 +0800
-Message-ID: <07df01d293f6$bcfb4f30$36f1ed90$@alibaba-inc.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 452FE6B0038
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 03:22:50 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id 203so10694914ith.3
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 00:22:50 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id v2si1695ite.91.2017.03.03.00.22.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Mar 2017 00:22:49 -0800 (PST)
+Date: Fri, 3 Mar 2017 09:22:50 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v3] lockdep: Teach lockdep about memalloc_noio_save
+Message-ID: <20170303082250.GU6515@twins.programming.kicks-ass.net>
+References: <1488367797-27278-1-git-send-email-nborisov@suse.com>
+ <20170301154659.GL6515@twins.programming.kicks-ass.net>
+ <20170301160529.GI11730@dhcp22.suse.cz>
+ <20170301161220.GP6515@twins.programming.kicks-ass.net>
+ <20170301161854.GJ11730@dhcp22.suse.cz>
+ <20170303080419.GA31582@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170303080419.GA31582@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Laura Abbott' <labbott@redhat.com>, 'Sumit Semwal' <sumit.semwal@linaro.org>, 'Riley Andrews' <riandrews@android.com>, arve@android.com
-Cc: romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, 'Greg Kroah-Hartman' <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, 'Brian Starkey' <brian.starkey@arm.com>, 'Daniel Vetter' <daniel.vetter@intel.com>, 'Mark Brown' <broonie@kernel.org>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Nikolay Borisov <nborisov@suse.com>, linux-kernel@vger.kernel.org, vbabka.lkml@gmail.com, linux-mm@kvack.org, mingo@redhat.com
 
+On Fri, Mar 03, 2017 at 09:04:20AM +0100, Michal Hocko wrote:
+> On Wed 01-03-17 17:18:54, Michal Hocko wrote:
 
-On March 03, 2017 5:45 AM Laura Abbott wrote: 
+> > Yes I think it would be better to send it sonner rahter than later.
+> > People also might want to backport it to older kernels...
 > 
-> +static struct sg_table *dup_sg_table(struct sg_table *table)
-> +{
-> +	struct sg_table *new_table;
-> +	int ret, i;
-> +	struct scatterlist *sg, *new_sg;
-> +
-> +	new_table = kzalloc(sizeof(*new_table), GFP_KERNEL);
-> +	if (!new_table)
-> +		return ERR_PTR(-ENOMEM);
-> +
-> +	ret = sg_alloc_table(new_table, table->nents, GFP_KERNEL);
-> +	if (ret) {
-> +		kfree(table);
+> Would you mind if I took this patch and route it via Andrew? I plan to
+> resubmit my scope NOFS patchset [1] and [2] will need to be refreshed on
+> top of it so it would be easier for me that way.
+> 
+> [1] http://lkml.kernel.org/r/20170206140718.16222-1-mhocko@kernel.org
+> [2] http://lkml.kernel.org/r/20170206140718.16222-4-mhocko@kernel.org
 
-Free new table?
-
-> +		return ERR_PTR(-ENOMEM);
-> +	}
-> +
-> +	new_sg = new_table->sgl;
-> +	for_each_sg(table->sgl, sg, table->nents, i) {
-> +		memcpy(new_sg, sg, sizeof(*sg));
-> +		sg->dma_address = 0;
-> +		new_sg = sg_next(new_sg);
-> +	}
-> +
-
-Do we need a helper, sg_copy_table(dst_table, src_table)?
-
-> +	return new_table;
-> +}
-> +
+No real objection, but note that Ingo send out a pull request on the
+sched.h split earlier today so double check that it compiles etc..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
