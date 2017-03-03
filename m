@@ -1,64 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DABF76B0394
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 09:18:55 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id g10so39813072wrg.5
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 06:18:55 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z88sor49277wrb.27.1969.12.31.16.00.00
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A12776B0387
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 09:38:11 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id 19so11465806oti.5
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 06:38:11 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40103.outbound.protection.outlook.com. [40.107.4.103])
+        by mx.google.com with ESMTPS id s197si4811229oih.166.2017.03.03.06.38.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 03 Mar 2017 06:18:54 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAAeHK+xOnrF9yeN-ph4Otv=SueZqndk+=XiVu-FRPs8RV5poaw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 03 Mar 2017 06:38:10 -0800 (PST)
+Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
 References: <20170302134851.101218-1-andreyknvl@google.com>
- <20170302134851.101218-6-andreyknvl@google.com> <028eee50-f14f-034d-6e8a-9d07276543b5@virtuozzo.com>
- <CAAeHK+xOnrF9yeN-ph4Otv=SueZqndk+=XiVu-FRPs8RV5poaw@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 3 Mar 2017 15:18:53 +0100
-Message-ID: <CAAeHK+wCr3=fxAN_gjH6nGo-r8bJMZyEu3fCmQq06CWpvtVLJw@mail.gmail.com>
-Subject: Re: [PATCH v2 5/9] kasan: change report header
-Content-Type: text/plain; charset=UTF-8
+ <20170302134851.101218-7-andreyknvl@google.com>
+ <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
+ <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
+Date: Fri, 3 Mar 2017 17:39:03 +0300
+MIME-Version: 1.0
+In-Reply-To: <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Mar 3, 2017 at 3:18 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> On Fri, Mar 3, 2017 at 2:21 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>
->>
+
+
+On 03/03/2017 04:52 PM, Alexander Potapenko wrote:
+> On Fri, Mar 3, 2017 at 2:31 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 >> On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
->>
->>> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
->>> index 8b0b27eb37cd..945d0e13e8a4 100644
->>> --- a/mm/kasan/report.c
->>> +++ b/mm/kasan/report.c
->>> @@ -130,11 +130,11 @@ static void print_error_description(struct kasan_access_info *info)
->>>  {
->>>       const char *bug_type = get_bug_type(info);
+>>> Changes slab object description from:
 >>>
->>> -     pr_err("BUG: KASAN: %s in %pS at addr %p\n",
->>> -             bug_type, (void *)info->ip, info->access_addr);
->>> -     pr_err("%s of size %zu by task %s/%d\n",
->>> +     pr_err("BUG: KASAN: %s in %pS\n",
->>> +             bug_type, (void *)info->ip);
+>>> Object at ffff880068388540, in cache kmalloc-128 size: 128
+>>>
+>>> to:
+>>>
+>>> The buggy address belongs to the object at ffff880068388540
+>>>  which belongs to the cache kmalloc-128 of size 128
+>>> The buggy address is located 123 bytes inside of
+>>>  128-byte region [ffff880068388540, ffff8800683885c0)
+>>>
+>>> Makes it more explanatory and adds information about relative offset
+>>> of the accessed address to the start of the object.
+>>>
 >>
->> This should fit in one line without exceeding 80-char limit.
->
-> You mean the code or the header?
-> The code fits, the header has much higher chances to fit after the change.
+>> I don't think that this is an improvement. You replaced one simple line with a huge
+>> and hard to parse text without giving any new/useful information.
+>> Except maybe offset, it useful sometimes, so wouldn't mind adding it to description.
+> Agreed.
+> How about:
+> ===========
+> Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
+> Object at ffff880068388540 belongs to the cache kmalloc-128
+> ===========
+> ?
+> 
 
-Ah, got you, will fix.
-
->
->>
->> --
->> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
->> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
->> To post to this group, send email to kasan-dev@googlegroups.com.
->> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/028eee50-f14f-034d-6e8a-9d07276543b5%40virtuozzo.com.
->> For more options, visit https://groups.google.com/d/optout.
+I would just add the offset in the end:
+	Object at ffff880068388540, in cache kmalloc-128 size: 128 accessed at offset y
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
