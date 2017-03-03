@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B48216B0396
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:20:02 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id y136so34434612iof.3
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:20:02 -0800 (PST)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20109.outbound.protection.outlook.com. [40.107.2.109])
-        by mx.google.com with ESMTPS id p69si2312168ita.56.2017.03.03.05.20.01
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 436F36B0387
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:29:53 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id m70so6324334wma.2
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:29:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b39si10912185wra.74.2017.03.03.05.29.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 03 Mar 2017 05:20:01 -0800 (PST)
-Subject: Re: [PATCH v2 5/9] kasan: change report header
-References: <20170302134851.101218-1-andreyknvl@google.com>
- <20170302134851.101218-6-andreyknvl@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <028eee50-f14f-034d-6e8a-9d07276543b5@virtuozzo.com>
-Date: Fri, 3 Mar 2017 16:21:07 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Mar 2017 05:29:51 -0800 (PST)
+Date: Fri, 3 Mar 2017 14:29:49 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+Message-ID: <20170303132949.GC31582@dhcp22.suse.cz>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170302134851.101218-6-andreyknvl@google.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1488491084-17252-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
 
+On Thu 02-03-17 13:44:32, Laura Abbott wrote:
+> Hi,
+> 
+> There's been some recent discussions[1] about Ion-like frameworks. There's
+> apparently interest in just keeping Ion since it works reasonablly well.
+> This series does what should be the final clean ups for it to possibly be
+> moved out of staging.
+> 
+> This includes the following:
+> - Some general clean up and removal of features that never got a lot of use
+>   as far as I can tell.
+> - Fixing up the caching. This is the series I proposed back in December[2]
+>   but never heard any feedback on. It will certainly break existing
+>   applications that rely on the implicit caching. I'd rather make an effort
+>   to move to a model that isn't going directly against the establishement
+>   though.
+> - Fixing up the platform support. The devicetree approach was never well
+>   recieved by DT maintainers. The proposal here is to think of Ion less as
+>   specifying requirements and more of a framework for exposing memory to
+>   userspace.
+> - CMA allocations now happen without the need of a dummy device structure.
+>   This fixes a bunch of the reasons why I attempted to add devicetree
+>   support before.
+> 
+> I've had problems getting feedback in the past so if I don't hear any major
+> objections I'm going to send out with the RFC dropped to be picked up.
+> The only reason there isn't a patch to come out of staging is to discuss any
+> other changes to the ABI people might want. Once this comes out of staging,
+> I really don't want to mess with the ABI.
 
-
-On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
-
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index 8b0b27eb37cd..945d0e13e8a4 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -130,11 +130,11 @@ static void print_error_description(struct kasan_access_info *info)
->  {
->  	const char *bug_type = get_bug_type(info);
->  
-> -	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
-> -		bug_type, (void *)info->ip, info->access_addr);
-> -	pr_err("%s of size %zu by task %s/%d\n",
-> +	pr_err("BUG: KASAN: %s in %pS\n",
-> +		bug_type, (void *)info->ip);
-
-This should fit in one line without exceeding 80-char limit.
+Could you recapitulate concerns preventing the code being merged
+normally rather than through the staging tree and how they were
+addressed?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
