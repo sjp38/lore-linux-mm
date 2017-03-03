@@ -1,492 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 823046B0038
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 19:40:10 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id w189so63339713pfb.4
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 16:40:10 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F6126B0038
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 20:26:13 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id x63so34100805pfx.7
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 17:26:13 -0800 (PST)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id m7si8832151pgd.112.2017.03.02.16.40.08
+        by mx.google.com with ESMTP id y9si8967493pli.39.2017.03.02.17.26.11
         for <linux-mm@kvack.org>;
-        Thu, 02 Mar 2017 16:40:09 -0800 (PST)
-Date: Fri, 3 Mar 2017 09:39:50 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170303003950.GA9078@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228134018.GK5680@worktop>
- <20170301054323.GE11663@X58A-UD3R>
- <20170301122843.GF6515@twins.programming.kicks-ass.net>
- <20170302134031.GG6536@twins.programming.kicks-ass.net>
+        Thu, 02 Mar 2017 17:26:12 -0800 (PST)
+Date: Fri, 3 Mar 2017 10:26:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/9] mm: fix 100% CPU kswapd busyloop on unreclaimable
+ nodes
+Message-ID: <20170303012609.GA3394@bbox>
+References: <20170228214007.5621-1-hannes@cmpxchg.org>
+ <20170228214007.5621-2-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170302134031.GG6536@twins.programming.kicks-ass.net>
+In-Reply-To: <20170228214007.5621-2-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com, Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <nborisov@suse.com>, Mel Gorman <mgorman@suse.de>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu, Mar 02, 2017 at 02:40:31PM +0100, Peter Zijlstra wrote:
-> [*] A while ago someone, and I cannot find the email just now, asked if
-> we could not implement the RECLAIM_FS inversion stuff with a 'fake' lock
+Hi Johannes,
 
-It looks interesting to me.
-
-> like we use for other things like workqueues etc. I think this should be
-> possible which allows reducing the 'irq' states and will reduce the
-> amount of __bfs() lookups we do.
+On Tue, Feb 28, 2017 at 04:39:59PM -0500, Johannes Weiner wrote:
+> Jia He reports a problem with kswapd spinning at 100% CPU when
+> requesting more hugepages than memory available in the system:
 > 
-> Removing the 1 IRQ state, would result in 4 less __bfs() walks if I'm
-> not mistaken, more than making up for the 1 we'd have to add to detect
-> redundant links.
-
-OK.
-
-Thanks,
-Byungchul
-
+> $ echo 4000 >/proc/sys/vm/nr_hugepages
 > 
+> top - 13:42:59 up  3:37,  1 user,  load average: 1.09, 1.03, 1.01
+> Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+> %Cpu(s):  0.0 us, 12.5 sy,  0.0 ni, 85.5 id,  2.0 wa,  0.0 hi,  0.0 si,  0.0 st
+> KiB Mem:  31371520 total, 30915136 used,   456384 free,      320 buffers
+> KiB Swap:  6284224 total,   115712 used,  6168512 free.    48192 cached Mem
 > 
->  include/linux/lockdep.h         | 11 +-----
->  include/linux/sched.h           |  1 -
->  kernel/locking/lockdep.c        | 87 +----------------------------------------
->  kernel/locking/lockdep_states.h |  1 -
->  mm/internal.h                   | 40 +++++++++++++++++++
->  mm/page_alloc.c                 | 13 ++++--
->  mm/slab.h                       |  7 +++-
->  mm/slob.c                       |  8 +++-
->  mm/vmscan.c                     | 13 +++---
->  9 files changed, 71 insertions(+), 110 deletions(-)
+>   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+>    76 root      20   0       0      0      0 R 100.0 0.000 217:17.29 kswapd3
 > 
-> diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-> index 1e327bb..6ba1a65 100644
-> --- a/include/linux/lockdep.h
-> +++ b/include/linux/lockdep.h
-> @@ -29,7 +29,7 @@ extern int lock_stat;
->   * We'd rather not expose kernel/lockdep_states.h this wide, but we do need
->   * the total number of states... :-(
->   */
-> -#define XXX_LOCK_USAGE_STATES		(1+3*4)
-> +#define XXX_LOCK_USAGE_STATES		(1+2*4)
+> At that time, there are no reclaimable pages left in the node, but as
+> kswapd fails to restore the high watermarks it refuses to go to sleep.
+> 
+> Kswapd needs to back away from nodes that fail to balance. Up until
+> 1d82de618ddd ("mm, vmscan: make kswapd reclaim in terms of nodes")
+> kswapd had such a mechanism. It considered zones whose theoretically
+> reclaimable pages it had reclaimed six times over as unreclaimable and
+> backed away from them. This guard was erroneously removed as the patch
+> changed the definition of a balanced node.
+> 
+> However, simply restoring this code wouldn't help in the case reported
+> here: there *are* no reclaimable pages that could be scanned until the
+> threshold is met. Kswapd would stay awake anyway.
+> 
+> Introduce a new and much simpler way of backing off. If kswapd runs
+> through MAX_RECLAIM_RETRIES (16) cycles without reclaiming a single
+> page, make it back off from the node. This is the same number of shots
+> direct reclaim takes before declaring OOM. Kswapd will go to sleep on
+> that node until a direct reclaimer manages to reclaim some pages, thus
+> proving the node reclaimable again.
+> 
+> v2: move MAX_RECLAIM_RETRIES to mm/internal.h (Michal)
+> 
+> Reported-by: Jia He <hejianet@gmail.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Tested-by: Jia He <hejianet@gmail.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/linux/mmzone.h |  2 ++
+>  mm/internal.h          |  6 ++++++
+>  mm/page_alloc.c        |  9 ++-------
+>  mm/vmscan.c            | 27 ++++++++++++++++++++-------
+>  mm/vmstat.c            |  2 +-
+>  5 files changed, 31 insertions(+), 15 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 8e02b3750fe0..d2c50ab6ae40 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -630,6 +630,8 @@ typedef struct pglist_data {
+>  	int kswapd_order;
+>  	enum zone_type kswapd_classzone_idx;
 >  
->  /*
->   * NR_LOCKDEP_CACHING_CLASSES ... Number of classes
-> @@ -361,10 +361,6 @@ static inline void lock_set_subclass(struct lockdep_map *lock,
->  	lock_set_class(lock, lock->name, lock->key, subclass, ip);
->  }
->  
-> -extern void lockdep_set_current_reclaim_state(gfp_t gfp_mask);
-> -extern void lockdep_clear_current_reclaim_state(void);
-> -extern void lockdep_trace_alloc(gfp_t mask);
-> -
->  struct pin_cookie { unsigned int val; };
->  
->  #define NIL_COOKIE (struct pin_cookie){ .val = 0U, }
-> @@ -373,7 +369,7 @@ extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
->  extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
->  extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
->  
-> -# define INIT_LOCKDEP				.lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
-> +# define INIT_LOCKDEP				.lockdep_recursion = 0,
->  
->  #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
->  
-> @@ -413,9 +409,6 @@ static inline void lockdep_on(void)
->  # define lock_release(l, n, i)			do { } while (0)
->  # define lock_set_class(l, n, k, s, i)		do { } while (0)
->  # define lock_set_subclass(l, s, i)		do { } while (0)
-> -# define lockdep_set_current_reclaim_state(g)	do { } while (0)
-> -# define lockdep_clear_current_reclaim_state()	do { } while (0)
-> -# define lockdep_trace_alloc(g)			do { } while (0)
->  # define lockdep_info()				do { } while (0)
->  # define lockdep_init_map(lock, name, key, sub) \
->  		do { (void)(name); (void)(key); } while (0)
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index d67eee8..0fa8a8f 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -806,7 +806,6 @@ struct task_struct {
->  	int				lockdep_depth;
->  	unsigned int			lockdep_recursion;
->  	struct held_lock		held_locks[MAX_LOCK_DEPTH];
-> -	gfp_t				lockdep_reclaim_gfp;
->  #endif
->  
->  #ifdef CONFIG_UBSAN
-> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> index a95e5d1..1051600 100644
-> --- a/kernel/locking/lockdep.c
-> +++ b/kernel/locking/lockdep.c
-> @@ -343,14 +343,12 @@ EXPORT_SYMBOL(lockdep_on);
->  #if VERBOSE
->  # define HARDIRQ_VERBOSE	1
->  # define SOFTIRQ_VERBOSE	1
-> -# define RECLAIM_VERBOSE	1
->  #else
->  # define HARDIRQ_VERBOSE	0
->  # define SOFTIRQ_VERBOSE	0
-> -# define RECLAIM_VERBOSE	0
->  #endif
->  
-> -#if VERBOSE || HARDIRQ_VERBOSE || SOFTIRQ_VERBOSE || RECLAIM_VERBOSE
-> +#if VERBOSE || HARDIRQ_VERBOSE || SOFTIRQ_VERBOSE
->  /*
->   * Quick filtering for interesting events:
->   */
-> @@ -2553,14 +2551,6 @@ static int SOFTIRQ_verbose(struct lock_class *class)
->  	return 0;
->  }
->  
-> -static int RECLAIM_FS_verbose(struct lock_class *class)
-> -{
-> -#if RECLAIM_VERBOSE
-> -	return class_filter(class);
-> -#endif
-> -	return 0;
-> -}
-> -
->  #define STRICT_READ_CHECKS	1
->  
->  static int (*state_verbose_f[])(struct lock_class *class) = {
-> @@ -2856,51 +2846,6 @@ void trace_softirqs_off(unsigned long ip)
->  		debug_atomic_inc(redundant_softirqs_off);
->  }
->  
-> -static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
-> -{
-> -	struct task_struct *curr = current;
-> -
-> -	if (unlikely(!debug_locks))
-> -		return;
-> -
-> -	/* no reclaim without waiting on it */
-> -	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
-> -		return;
-> -
-> -	/* this guy won't enter reclaim */
-> -	if ((curr->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
-> -		return;
-> -
-> -	/* We're only interested __GFP_FS allocations for now */
-> -	if (!(gfp_mask & __GFP_FS))
-> -		return;
-> -
-> -	/*
-> -	 * Oi! Can't be having __GFP_FS allocations with IRQs disabled.
-> -	 */
-> -	if (DEBUG_LOCKS_WARN_ON(irqs_disabled_flags(flags)))
-> -		return;
-> -
-> -	mark_held_locks(curr, RECLAIM_FS);
-> -}
-> -
-> -static void check_flags(unsigned long flags);
-> -
-> -void lockdep_trace_alloc(gfp_t gfp_mask)
-> -{
-> -	unsigned long flags;
-> -
-> -	if (unlikely(current->lockdep_recursion))
-> -		return;
-> -
-> -	raw_local_irq_save(flags);
-> -	check_flags(flags);
-> -	current->lockdep_recursion = 1;
-> -	__lockdep_trace_alloc(gfp_mask, flags);
-> -	current->lockdep_recursion = 0;
-> -	raw_local_irq_restore(flags);
-> -}
-> -
->  static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
->  {
->  	/*
-> @@ -2946,22 +2891,6 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
->  		}
->  	}
->  
-> -	/*
-> -	 * We reuse the irq context infrastructure more broadly as a general
-> -	 * context checking code. This tests GFP_FS recursion (a lock taken
-> -	 * during reclaim for a GFP_FS allocation is held over a GFP_FS
-> -	 * allocation).
-> -	 */
-> -	if (!hlock->trylock && (curr->lockdep_reclaim_gfp & __GFP_FS)) {
-> -		if (hlock->read) {
-> -			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS_READ))
-> -					return 0;
-> -		} else {
-> -			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS))
-> -					return 0;
-> -		}
-> -	}
-> -
->  	return 1;
->  }
->  
-> @@ -3020,10 +2949,6 @@ static inline int separate_irq_context(struct task_struct *curr,
->  	return 0;
->  }
->  
-> -void lockdep_trace_alloc(gfp_t gfp_mask)
-> -{
-> -}
-> -
->  #endif /* defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING) */
->  
->  /*
-> @@ -3859,16 +3784,6 @@ void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
->  }
->  EXPORT_SYMBOL_GPL(lock_unpin_lock);
->  
-> -void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
-> -{
-> -	current->lockdep_reclaim_gfp = gfp_mask;
-> -}
-> -
-> -void lockdep_clear_current_reclaim_state(void)
-> -{
-> -	current->lockdep_reclaim_gfp = 0;
-> -}
-> -
->  #ifdef CONFIG_LOCK_STAT
->  static int
->  print_lock_contention_bug(struct task_struct *curr, struct lockdep_map *lock,
-> diff --git a/kernel/locking/lockdep_states.h b/kernel/locking/lockdep_states.h
-> index 995b0cc..35ca09f 100644
-> --- a/kernel/locking/lockdep_states.h
-> +++ b/kernel/locking/lockdep_states.h
-> @@ -6,4 +6,3 @@
->   */
->  LOCKDEP_STATE(HARDIRQ)
->  LOCKDEP_STATE(SOFTIRQ)
-> -LOCKDEP_STATE(RECLAIM_FS)
+> +	int kswapd_failures;		/* Number of 'reclaimed == 0' runs */
+> +
+>  #ifdef CONFIG_COMPACTION
+>  	int kcompactd_max_order;
+>  	enum zone_type kcompactd_classzone_idx;
 > diff --git a/mm/internal.h b/mm/internal.h
-> index ccfc2a2..88b9107 100644
+> index ccfc2a2969f4..aae93e3fd984 100644
 > --- a/mm/internal.h
 > +++ b/mm/internal.h
-> @@ -15,6 +15,8 @@
->  #include <linux/mm.h>
->  #include <linux/pagemap.h>
->  #include <linux/tracepoint-defs.h>
-> +#include <linux/lockdep.h>
-> +#include <linux/sched/mm.h>
+> @@ -81,6 +81,12 @@ static inline void set_page_refcounted(struct page *page)
+>  extern unsigned long highest_memmap_pfn;
 >  
 >  /*
->   * The set of flags that only affect watermark checking and reclaim
-> @@ -498,4 +500,42 @@ extern const struct trace_print_flags pageflag_names[];
->  extern const struct trace_print_flags vmaflag_names[];
->  extern const struct trace_print_flags gfpflag_names[];
->  
+> + * Maximum number of reclaim retries without progress before the OOM
+> + * killer is consider the only way forward.
+> + */
+> +#define MAX_RECLAIM_RETRIES 16
 > +
-> +#ifdef CONFIG_LOCKDEP
-> +extern struct lockdep_map __fs_reclaim_map;
-> +
-> +static inline bool __need_fs_reclaim(gfp_t gfp_mask)
-> +{
-> +	gfp_mask = memalloc_noio_flags(gfp_mask);
-> +
-> +	/* no reclaim without waiting on it */
-> +	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
-> +		return false;
-> +
-> +	/* this guy won't enter reclaim */
-> +	if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
-> +		return false;
-> +
-> +	/* We're only interested __GFP_FS allocations for now */
-> +	if (!(gfp_mask & __GFP_FS))
-> +		return false;
-> +
-> +	return true;
-> +}
-> +
-> +static inline void fs_reclaim_acquire(gfp_t gfp_mask)
-> +{
-> +	if (__need_fs_reclaim(gfp_mask))
-> +		lock_map_acquire(&__fs_reclaim_map);
-> +}
-> +static inline void fs_reclaim_release(gfp_t gfp_mask)
-> +{
-> +	if (__need_fs_reclaim(gfp_mask))
-> +		lock_map_release(&__fs_reclaim_map);
-> +}
-> +#else
-> +static inline void fs_reclaim_acquire(gfp_t gfp_mask) { }
-> +static inline void fs_reclaim_release(gfp_t gfp_mask) { }
-> +#endif
-> +
->  #endif	/* __MM_INTERNAL_H */
+> +/*
+>   * in mm/vmscan.c:
+>   */
+>  extern int isolate_lru_page(struct page *page);
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index eaa64d2..85ea8bf 100644
+> index 614cd0397ce3..f50e36e7b024 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -3387,6 +3387,12 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
+> @@ -3516,12 +3516,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
 >  }
->  #endif /* CONFIG_COMPACTION */
 >  
-> +
-> +#ifdef CONFIG_LOCKDEP
-> +struct lockdep_map __fs_reclaim_map =
-> +	STATIC_LOCKDEP_MAP_INIT("fs_reclaim", &__fs_reclaim_map);
-> +#endif
-> +
->  /* Perform direct synchronous page reclaim */
->  static int
->  __perform_reclaim(gfp_t gfp_mask, unsigned int order,
-> @@ -3400,7 +3406,7 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
->  	/* We now go into synchronous reclaim */
->  	cpuset_memory_pressure_bump();
->  	current->flags |= PF_MEMALLOC;
-> -	lockdep_set_current_reclaim_state(gfp_mask);
-> +	fs_reclaim_acquire(gfp_mask);
->  	reclaim_state.reclaimed_slab = 0;
->  	current->reclaim_state = &reclaim_state;
->  
-> @@ -3408,7 +3414,7 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
->  								ac->nodemask);
->  
->  	current->reclaim_state = NULL;
-> -	lockdep_clear_current_reclaim_state();
-> +	fs_reclaim_release(gfp_mask);
->  	current->flags &= ~PF_MEMALLOC;
->  
->  	cond_resched();
-> @@ -3913,7 +3919,8 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
->  			*alloc_flags |= ALLOC_CPUSET;
+>  /*
+> - * Maximum number of reclaim retries without any progress before OOM killer
+> - * is consider as the only way to move forward.
+> - */
+> -#define MAX_RECLAIM_RETRIES 16
+> -
+> -/*
+>   * Checks whether it makes sense to retry the reclaim to make a forward progress
+>   * for the given allocation request.
+>   * The reclaim feedback represented by did_some_progress (any progress during
+> @@ -4527,7 +4521,8 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+>  			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
+>  			node_page_state(pgdat, NR_PAGES_SCANNED),
+> -			!pgdat_reclaimable(pgdat) ? "yes" : "no");
+> +			pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
+> +				"yes" : "no");
 >  	}
 >  
-> -	lockdep_trace_alloc(gfp_mask);
-> +	fs_reclaim_acquire(gfp_mask);
-> +	fs_reclaim_release(gfp_mask);
->  
->  	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
->  
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 65e7c3f..753f552 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -44,6 +44,8 @@ struct kmem_cache {
->  #include <linux/kmemleak.h>
->  #include <linux/random.h>
->  
-> +#include "internal.h"
-> +
->  /*
->   * State of the slab allocator.
->   *
-> @@ -428,7 +430,10 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
->  						     gfp_t flags)
->  {
->  	flags &= gfp_allowed_mask;
-> -	lockdep_trace_alloc(flags);
-> +
-> +	fs_reclaim_acquire(flags);
-> +	fs_reclaim_release(flags);
-> +
->  	might_sleep_if(gfpflags_allow_blocking(flags));
->  
->  	if (should_failslab(s, flags))
-> diff --git a/mm/slob.c b/mm/slob.c
-> index eac04d43..3e32280 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -73,6 +73,8 @@
->  #include <linux/atomic.h>
->  
->  #include "slab.h"
-> +#include "internal.h"
-> +
->  /*
->   * slob_block has a field 'units', which indicates size of block if +ve,
->   * or offset of next block if -ve (in SLOB_UNITs).
-> @@ -432,7 +434,8 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
->  
->  	gfp &= gfp_allowed_mask;
->  
-> -	lockdep_trace_alloc(gfp);
-> +	fs_reclaim_acquire(gfp);
-> +	fs_reclaim_release(gfp);
->  
->  	if (size < PAGE_SIZE - align) {
->  		if (!size)
-> @@ -538,7 +541,8 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
->  
->  	flags &= gfp_allowed_mask;
->  
-> -	lockdep_trace_alloc(flags);
-> +	fs_reclaim_acquire(flags);
-> +	fs_reclaim_release(flags);
->  
->  	if (c->size < PAGE_SIZE) {
->  		b = slob_alloc(c->size, flags, c->align, node);
+>  	for_each_populated_zone(zone) {
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bc8031e..2f57e36 100644
+> index 26c3b405ef34..407b27831ff7 100644
 > --- a/mm/vmscan.c
 > +++ b/mm/vmscan.c
-> @@ -3418,8 +3418,6 @@ static int kswapd(void *p)
->  	};
->  	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+> @@ -2626,6 +2626,15 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
+>  					 sc->nr_scanned - nr_scanned, sc));
 >  
-> -	lockdep_set_current_reclaim_state(GFP_KERNEL);
+> +	/*
+> +	 * Kswapd gives up on balancing particular nodes after too
+> +	 * many failures to reclaim anything from them and goes to
+> +	 * sleep. On reclaim progress, reset the failure counter. A
+> +	 * successful direct reclaim run will revive a dormant kswapd.
+> +	 */
+> +	if (reclaimable)
+> +		pgdat->kswapd_failures = 0;
+> +
+>  	return reclaimable;
+>  }
+>  
+> @@ -2700,10 +2709,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  						 GFP_KERNEL | __GFP_HARDWALL))
+>  				continue;
+>  
+> -			if (sc->priority != DEF_PRIORITY &&
+> -			    !pgdat_reclaimable(zone->zone_pgdat))
+> -				continue;	/* Let kswapd poll it */
 > -
->  	if (!cpumask_empty(cpumask))
->  		set_cpus_allowed_ptr(tsk, cpumask);
->  	current->reclaim_state = &reclaim_state;
-> @@ -3475,7 +3473,9 @@ static int kswapd(void *p)
->  		 */
->  		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
->  						alloc_order);
-> +		fs_reclaim_acquire(GFP_KERNEL);
->  		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-> +		fs_reclaim_release(GFP_KERNEL);
->  		if (reclaim_order < alloc_order)
->  			goto kswapd_try_sleep;
+>  			/*
+>  			 * If we already have plenty of memory free for
+>  			 * compaction in this zone, don't free any more.
+> @@ -3134,6 +3139,10 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+>  	if (waitqueue_active(&pgdat->pfmemalloc_wait))
+>  		wake_up_all(&pgdat->pfmemalloc_wait);
 >  
-> @@ -3485,7 +3485,6 @@ static int kswapd(void *p)
+> +	/* Hopeless node, leave it to direct reclaim */
+
+I hope to clear what we want by deferring the job to direct reclaim.
+Direct reclaim is much limited reclaim worker by serveral things(e.g.,
+avoid writeback for stack overflow, NOIO|NOFS context) so what do we
+want for direct reclaimer to do even if kswapd can make forward
+progress? OOM?
+
+> +	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
+> +		return true;
+> +
+>  	for (i = 0; i <= classzone_idx; i++) {
+>  		struct zone *zone = pgdat->node_zones + i;
 >  
->  	tsk->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD);
->  	current->reclaim_state = NULL;
-> -	lockdep_clear_current_reclaim_state();
+> @@ -3316,6 +3325,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  			sc.priority--;
+>  	} while (sc.priority >= 1);
 >  
->  	return 0;
->  }
-> @@ -3550,14 +3549,14 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
->  	unsigned long nr_reclaimed;
+> +	if (!sc.nr_reclaimed)
+> +		pgdat->kswapd_failures++;
+
+sc.nr_reclaimed is reset to zero in above big loop's beginning so most of time,
+it pgdat->kswapd_failures is increased.
+
+> +
+>  out:
+>  	/*
+>  	 * Return the order kswapd stopped reclaiming at as
+> @@ -3515,6 +3527,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+>  	if (!waitqueue_active(&pgdat->kswapd_wait))
+>  		return;
 >  
->  	p->flags |= PF_MEMALLOC;
-> -	lockdep_set_current_reclaim_state(sc.gfp_mask);
-> +	fs_reclaim_acquire(sc.gfp_mask);
->  	reclaim_state.reclaimed_slab = 0;
->  	p->reclaim_state = &reclaim_state;
+> +	/* Hopeless node, leave it to direct reclaim */
+> +	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
+> +		return;
+> +
+>  	/* Only wake kswapd if all zones are unbalanced */
+>  	for (z = 0; z <= classzone_idx; z++) {
+>  		zone = pgdat->node_zones + z;
+> @@ -3785,9 +3801,6 @@ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
+>  	    sum_zone_node_page_state(pgdat->node_id, NR_SLAB_RECLAIMABLE) <= pgdat->min_slab_pages)
+>  		return NODE_RECLAIM_FULL;
 >  
->  	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
->  
->  	p->reclaim_state = NULL;
-> -	lockdep_clear_current_reclaim_state();
-> +	fs_reclaim_release(sc.gfp_mask);
->  	p->flags &= ~PF_MEMALLOC;
->  
->  	return nr_reclaimed;
-> @@ -3741,7 +3740,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->  	 * and RECLAIM_UNMAP.
+> -	if (!pgdat_reclaimable(pgdat))
+> -		return NODE_RECLAIM_FULL;
+> -
+>  	/*
+>  	 * Do not scan if the allocation should not be delayed.
 >  	 */
->  	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
-> -	lockdep_set_current_reclaim_state(gfp_mask);
-> +	fs_reclaim_acquire(gfp_mask);
->  	reclaim_state.reclaimed_slab = 0;
->  	p->reclaim_state = &reclaim_state;
->  
-> @@ -3756,8 +3755,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->  	}
->  
->  	p->reclaim_state = NULL;
-> +	fs_reclaim_release(gfp_mask);
->  	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-> -	lockdep_clear_current_reclaim_state();
->  	return sc.nr_reclaimed >= nr_pages;
->  }
->  
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 69f9aff39a2e..ff16cdc15df2 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1422,7 +1422,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+>  		   "\n  node_unreclaimable:  %u"
+>  		   "\n  start_pfn:           %lu"
+>  		   "\n  node_inactive_ratio: %u",
+> -		   !pgdat_reclaimable(zone->zone_pgdat),
+> +		   pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES,
+>  		   zone->zone_start_pfn,
+>  		   zone->zone_pgdat->inactive_ratio);
+>  	seq_putc(m, '\n');
+> -- 
+> 2.11.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
