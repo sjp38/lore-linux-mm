@@ -1,65 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DB696B0038
-	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 18:50:21 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id t184so109471505pgt.1
-        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 15:50:21 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id v35si8735518pgn.161.2017.03.02.15.50.19
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 042796B0038
+	for <linux-mm@kvack.org>; Thu,  2 Mar 2017 19:17:56 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id t184so110166586pgt.1
+        for <linux-mm@kvack.org>; Thu, 02 Mar 2017 16:17:55 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id o21si8780013pgj.320.2017.03.02.16.17.54
         for <linux-mm@kvack.org>;
-        Thu, 02 Mar 2017 15:50:20 -0800 (PST)
-Date: Fri, 3 Mar 2017 08:50:03 +0900
+        Thu, 02 Mar 2017 16:17:54 -0800 (PST)
+Date: Fri, 3 Mar 2017 09:17:37 +0900
 From: Byungchul Park <byungchul.park@lge.com>
 Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170302235003.GE28562@X58A-UD3R>
+Message-ID: <20170303001737.GF28562@X58A-UD3R>
 References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
  <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228181547.GM5680@worktop>
- <20170302042021.GN16328@bombadil.infradead.org>
- <004101d2930f$d51a9f90$7f4fdeb0$@lge.com>
- <20170302143949.GP16328@bombadil.infradead.org>
+ <20170228134018.GK5680@worktop>
+ <20170301054323.GE11663@X58A-UD3R>
+ <20170301122843.GF6515@twins.programming.kicks-ass.net>
+ <20170302134031.GG6536@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20170302143949.GP16328@bombadil.infradead.org>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170302134031.GG6536@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: 'Peter Zijlstra' <peterz@infradead.org>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com, Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <nborisov@suse.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Mar 02, 2017 at 06:39:49AM -0800, Matthew Wilcox wrote:
-> On Thu, Mar 02, 2017 at 01:45:35PM +0900, byungchul.park wrote:
-> > From: Matthew Wilcox [mailto:willy@infradead.org]
-> > > On Tue, Feb 28, 2017 at 07:15:47PM +0100, Peter Zijlstra wrote:
-> > > > (And we should not be returning to userspace with locks held anyway --
-> > > > lockdep already has a check for that).
-> > > 
-> > > Don't we return to userspace with page locks held, eg during async
-> > > directio?
-> > 
-> > Hello,
-> > 
-> > I think that the check when returning to user with crosslocks held
-> > should be an exception. Don't you think so?
+On Thu, Mar 02, 2017 at 02:40:31PM +0100, Peter Zijlstra wrote:
+> On Wed, Mar 01, 2017 at 01:28:43PM +0100, Peter Zijlstra wrote:
+> > On Wed, Mar 01, 2017 at 02:43:23PM +0900, Byungchul Park wrote:
 > 
-> Oh yes.  We have to keep the pages locked during reads, and we have to
-> return to userspace before I/O is complete, therefore we have to return
-> to userspace with pages locked.  They'll be unlocked by the interrupt
-> handler in page_endio().
+> > > It's an optimization, but very essential and important optimization.
+> 
+> Since its not for correctness, please put it in a separate patch with a
+> good Changelog, the below would make a good beginning of that.
 
-Agree.
+OK. I will do it.
 
-> Speaking of which ... this feature is far too heavy for use in production
-> on pages.  You're almost trebling the size of struct page.  Can we
-> do something like make all struct pages share the same lockdep_map?
-> We'd have to not complain about holding one crossdep lock and acquiring
-> another one of the same type, but with millions of pages in the system,
-> it must surely be creating a gargantuan graph right now?
+> Also, I feel, the source comments can be improved.
+> 
+> > >           in hlocks[]
+> > >           ------------
+> > >           A gen_id (4) --+
+> > >                          | previous gen_id
+> > >           B gen_id (3) <-+
+> > >           C gen_id (3)
+> > >           D gen_id (2)
+> > > oldest -> E gen_id (1)
+> > > 
+> > >           in xhlocks[]
+> > >           ------------
+> > >        ^  A gen_id (4) prev_gen_id (3: B's gen id)
+> > >        |  B gen_id (3) prev_gen_id (3: C's gen id)
+> > >        |  C gen_id (3) prev_gen_id (2: D's gen id)
+> > >        |  D gen_id (2) prev_gen_id (1: E's gen id)
+> > >        |  E gen_id (1) prev_gen_id (NA)
+> > > 
+> > > Let's consider the case that the gen id of xlock to commit is 3.
+> > > 
+> > > In this case, it's engough to generate 'the xlock -> C'. 'the xlock -> B'
+> > > and 'the xlock -> A' are unnecessary since it's covered by 'C -> B' and
+> > > 'B -> A' which are already generated by original lockdep.
+> > > 
+> > > I use the prev_gen_id to avoid adding this kind of redundant
+> > > dependencies. In other words, xhlock->prev_gen_id >= xlock->hlock.gen_id
+> > > means that the previous lock in hlocks[] is able to handle the
+> > > dependency on its commit stage.
 
-Um.. I will try it for page locks to work with one lockmap. That is also
-what Peterz pointed out and what I worried about when implementing..
+> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> index a95e5d1..7baea89 100644
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -1860,6 +1860,17 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
+>  		}
+>  	}
+>  
+> +	/*
+> +	 * Is the <prev> -> <next> redundant?
+> +	 */
+> +	this.class = hlock_class(prev);
+> +	this.parent = NULL;
+> +	ret = check_noncircular(&this, hlock_class(next), &target_entry);
+> +	if (!ret) /* exists, redundant */
+> +		return 2;
+> +	if (ret < 0)
+> +		return print_bfs_bug(ret);
+> +
+>  	if (!*stack_saved) {
+>  		if (!save_trace(&trace))
+>  			return 0;
 
-Thanks for your opinion.
+This whoud be very nice if you allow to add this code. However, prev_gen_id
+thingy is still useful, the code above can achieve it though. Agree?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
