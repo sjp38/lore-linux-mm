@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 436F36B0387
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:29:53 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id m70so6324334wma.2
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:29:53 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b39si10912185wra.74.2017.03.03.05.29.51
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D6CE6B039E
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:30:56 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id f84so96292072ioj.6
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:30:56 -0800 (PST)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0097.outbound.protection.outlook.com. [104.47.1.97])
+        by mx.google.com with ESMTPS id 130si2348175ith.47.2017.03.03.05.30.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Mar 2017 05:29:51 -0800 (PST)
-Date: Fri, 3 Mar 2017 14:29:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-Message-ID: <20170303132949.GC31582@dhcp22.suse.cz>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 03 Mar 2017 05:30:55 -0800 (PST)
+Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
+References: <20170302134851.101218-1-andreyknvl@google.com>
+ <20170302134851.101218-7-andreyknvl@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
+Date: Fri, 3 Mar 2017 16:31:59 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+In-Reply-To: <20170302134851.101218-7-andreyknvl@google.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
+To: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 02-03-17 13:44:32, Laura Abbott wrote:
-> Hi,
+On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
+> Changes slab object description from:
 > 
-> There's been some recent discussions[1] about Ion-like frameworks. There's
-> apparently interest in just keeping Ion since it works reasonablly well.
-> This series does what should be the final clean ups for it to possibly be
-> moved out of staging.
+> Object at ffff880068388540, in cache kmalloc-128 size: 128
 > 
-> This includes the following:
-> - Some general clean up and removal of features that never got a lot of use
->   as far as I can tell.
-> - Fixing up the caching. This is the series I proposed back in December[2]
->   but never heard any feedback on. It will certainly break existing
->   applications that rely on the implicit caching. I'd rather make an effort
->   to move to a model that isn't going directly against the establishement
->   though.
-> - Fixing up the platform support. The devicetree approach was never well
->   recieved by DT maintainers. The proposal here is to think of Ion less as
->   specifying requirements and more of a framework for exposing memory to
->   userspace.
-> - CMA allocations now happen without the need of a dummy device structure.
->   This fixes a bunch of the reasons why I attempted to add devicetree
->   support before.
+> to:
 > 
-> I've had problems getting feedback in the past so if I don't hear any major
-> objections I'm going to send out with the RFC dropped to be picked up.
-> The only reason there isn't a patch to come out of staging is to discuss any
-> other changes to the ABI people might want. Once this comes out of staging,
-> I really don't want to mess with the ABI.
+> The buggy address belongs to the object at ffff880068388540
+>  which belongs to the cache kmalloc-128 of size 128
+> The buggy address is located 123 bytes inside of
+>  128-byte region [ffff880068388540, ffff8800683885c0)
+> 
+> Makes it more explanatory and adds information about relative offset
+> of the accessed address to the start of the object.
+> 
 
-Could you recapitulate concerns preventing the code being merged
-normally rather than through the staging tree and how they were
-addressed?
--- 
-Michal Hocko
-SUSE Labs
+I don't think that this is an improvement. You replaced one simple line with a huge
+and hard to parse text without giving any new/useful information.
+Except maybe offset, it useful sometimes, so wouldn't mind adding it to description.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
