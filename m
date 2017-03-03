@@ -1,108 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DF916B03A2
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:37:14 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 1so126559105pgz.5
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:37:14 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f5si10627857pgk.236.2017.03.03.05.37.13
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BA1C6B03A1
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 08:39:53 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y51so39662207wry.6
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 05:39:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s83si2978774wms.147.2017.03.03.05.39.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 05:37:13 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v23DXZi6100974
-	for <linux-mm@kvack.org>; Fri, 3 Mar 2017 08:37:13 -0500
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28xs8egpd5-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 03 Mar 2017 08:37:12 -0500
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 3 Mar 2017 23:37:10 +1000
-Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 06E2D3578056
-	for <linux-mm@kvack.org>; Sat,  4 Mar 2017 00:37:07 +1100 (EST)
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v23DaxxN43843704
-	for <linux-mm@kvack.org>; Sat, 4 Mar 2017 00:37:07 +1100
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v23DaYLs004812
-	for <linux-mm@kvack.org>; Sat, 4 Mar 2017 00:36:34 +1100
-Subject: Re: [patch] mm, zoneinfo: print non-populated zones
-References: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 3 Mar 2017 19:05:53 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Mar 2017 05:39:52 -0800 (PST)
+Date: Fri, 3 Mar 2017 14:39:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
+Message-ID: <20170303133950.GD31582@dhcp22.suse.cz>
+References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <4acf16c5-c64b-b4f8-9a41-1926eed23fe1@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On 03/03/2017 04:56 AM, David Rientjes wrote:
-> Initscripts can use the information (protection levels) from
-> /proc/zoneinfo to configure vm.lowmem_reserve_ratio at boot.
+On Fri 03-03-17 19:48:30, Tetsuo Handa wrote:
+> Continued from http://lkml.kernel.org/r/201702261530.JDD56292.OFOLFHQtVMJSOF@I-love.SAKURA.ne.jp :
 > 
-> vm.lowmem_reserve_ratio is an array of ratios for each configured zone on
-> the system.  If a zone is not populated on an arch, /proc/zoneinfo
-> suppresses its output.
+> While I was testing a patch which avoids infinite too_many_isolated() loop in
+> shrink_inactive_list(), I hit a lockup where WQ_MEM_RECLAIM threads got stuck
+> waiting for memory allocation. I guess that we overlooked a basic thing about
+> WQ_MEM_RECLAIM.
 > 
-> This results in there not being a 1:1 mapping between the set of zones
-> emitted by /proc/zoneinfo and the zones configured by
-> vm.lowmem_reserve_ratio.
+>   WQ_MEM_RECLAIM helps only when the cause of failing to complete
+>   a work item is lack of "struct task_struct" to run that work item, for
+>   WQ_MEM_RECLAIM preallocates one "struct task_struct" so that the workqueue
+>   will not be blocked waiting for memory allocation for "struct task_struct".
 > 
-> This patch shows statistics for non-populated zones in /proc/zoneinfo.
-> The zones exist and hold a spot in the vm.lowmem_reserve_ratio array.
-> Without this patch, it is not possible to determine which index in the
-> array controls which zone if one or more zones on the system are not
-> populated.
+>   WQ_MEM_RECLAIM does not help when "struct task_struct" running that work
+>   item is blocked waiting for memory allocation (or is indirectly blocked
+>   on a lock where the owner of that lock is blocked waiting for memory
+>   allocation). That is, WQ_MEM_RECLAIM users must guarantee forward progress
+>   if memory allocation (including indirect memory allocation via
+>   locks/completions) is needed.
+> 
+> In XFS, "xfs_mru_cache", "xfs-buf/%s", "xfs-data/%s", "xfs-conv/%s", "xfs-cil/%s",
+> "xfs-reclaim/%s", "xfs-log/%s", "xfs-eofblocks/%s", "xfsalloc" and "xfsdiscard"
+> workqueues are used, and all but "xfsdiscard" are WQ_MEM_RECLAIM workqueues.
+> 
+> What I observed is at http://I-love.SAKURA.ne.jp/tmp/serial-20170226.txt.xz .
+> I guess that the key of this lockup is that xfs-data/sda1 and xfs-eofblocks/s
+> workqueues (which are RESCUER) got stuck waiting for memory allocation.
 
-Right, its a problem when it does not even display array elements with
-an index value associated with it. But changing the array display will
-break the interface where as displaying non populated zones in the
-/proc/zoneinfo does not break anything.
+If those workers are really required for a further progress of the
+memory reclaim then they shouldn't block on allocation at all and either
+use pre allocated memory or use PF_MEMALLOC in case there is a guarantee
+that only very limited amount of memory is allocated from that context
+and there will be at least the same amount of memory freed as a result
+in a reasonable time.
 
-> 
-> Remaining users of walk_zones_in_node() are unchanged.  Files such as
-> /proc/pagetypeinfo require certain zone data to be initialized properly
-> for display, which is not done for unpopulated zones.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/vmstat.c | 22 +++++++++++++---------
->  1 file changed, 13 insertions(+), 9 deletions(-)
-> 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1121,8 +1121,12 @@ static void frag_stop(struct seq_file *m, void *arg)
->  {
->  }
->  
-> -/* Walk all the zones in a node and print using a callback */
-> +/*
-> + * Walk zones in a node and print using a callback.
-> + * If @populated is true, only use callback for zones that are populated.
-> + */
->  static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
-> +		bool populated,
->  		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
->  {
->  	struct zone *zone;
-> @@ -1130,7 +1134,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
->  	unsigned long flags;
->  
->  	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-> -		if (!populated_zone(zone))
-> +		if (populated && !populated_zone(zone))
-
-The name of the Boolean "populated" is bit misleading IMHO. What I think you
-want here is to invoke the callback if the zone is populated as well as this
-variable is true. The variable can be named something like 'assert_populated'.
+This is something for xfs people to answer though. Please note that I
+didn't really have time to look through the below traces so the above
+note is rather generic. It would be really helpful if you could provide
+a high level dependency chains to see why those rescuers are necessary
+for the forward progress because it is really easy to get lost in so
+many traces.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
