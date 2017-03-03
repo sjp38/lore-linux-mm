@@ -1,113 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 475206B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 18:25:17 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 77so3642948pgc.5
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 15:25:17 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id f17si11846010pgh.74.2017.03.03.15.25.15
-        for <linux-mm@kvack.org>;
-        Fri, 03 Mar 2017 15:25:16 -0800 (PST)
-Date: Sat, 4 Mar 2017 10:25:12 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
-Message-ID: <20170303232512.GI17542@dastard>
-References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
- <20170303133950.GD31582@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170303133950.GD31582@dhcp22.suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D236B0388
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 18:32:49 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 67so132130508pfg.0
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 15:32:49 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 61si11860952plr.217.2017.03.03.15.32.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Mar 2017 15:32:48 -0800 (PST)
+Date: Fri, 3 Mar 2017 15:32:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
+Message-Id: <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
+In-Reply-To: <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
+References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
+	<1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On Fri, Mar 03, 2017 at 02:39:51PM +0100, Michal Hocko wrote:
-> On Fri 03-03-17 19:48:30, Tetsuo Handa wrote:
-> > Continued from http://lkml.kernel.org/r/201702261530.JDD56292.OFOLFHQtVMJSOF@I-love.SAKURA.ne.jp :
-> > 
-> > While I was testing a patch which avoids infinite too_many_isolated() loop in
-> > shrink_inactive_list(), I hit a lockup where WQ_MEM_RECLAIM threads got stuck
-> > waiting for memory allocation. I guess that we overlooked a basic thing about
-> > WQ_MEM_RECLAIM.
-> > 
-> >   WQ_MEM_RECLAIM helps only when the cause of failing to complete
-> >   a work item is lack of "struct task_struct" to run that work item, for
-> >   WQ_MEM_RECLAIM preallocates one "struct task_struct" so that the workqueue
-> >   will not be blocked waiting for memory allocation for "struct task_struct".
-> > 
-> >   WQ_MEM_RECLAIM does not help when "struct task_struct" running that work
-> >   item is blocked waiting for memory allocation (or is indirectly blocked
-> >   on a lock where the owner of that lock is blocked waiting for memory
-> >   allocation). That is, WQ_MEM_RECLAIM users must guarantee forward progress
-> >   if memory allocation (including indirect memory allocation via
-> >   locks/completions) is needed.
-> > 
-> > In XFS, "xfs_mru_cache", "xfs-buf/%s", "xfs-data/%s", "xfs-conv/%s", "xfs-cil/%s",
-> > "xfs-reclaim/%s", "xfs-log/%s", "xfs-eofblocks/%s", "xfsalloc" and "xfsdiscard"
-> > workqueues are used, and all but "xfsdiscard" are WQ_MEM_RECLAIM workqueues.
-> > 
-> > What I observed is at http://I-love.SAKURA.ne.jp/tmp/serial-20170226.txt.xz .
-> > I guess that the key of this lockup is that xfs-data/sda1 and xfs-eofblocks/s
-> > workqueues (which are RESCUER) got stuck waiting for memory allocation.
+On Thu,  2 Mar 2017 00:33:45 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+
+> Allow hash tables to scale with memory but at slower pace, when HASH_ADAPT
+> is provided every time memory quadruples the sizes of hash tables will only
+> double instead of quadrupling as well. This algorithm starts working only
+> when memory size reaches a certain point, currently set to 64G.
 > 
-> If those workers are really required for a further progress of the
-> memory reclaim then they shouldn't block on allocation at all and either
-> use pre allocated memory or use PF_MEMALLOC in case there is a guarantee
-> that only very limited amount of memory is allocated from that context
-> and there will be at least the same amount of memory freed as a result
-> in a reasonable time.
+> This is example of dentry hash table size, before and after four various
+> memory configurations:
 > 
-> This is something for xfs people to answer though. Please note that I
-> didn't really have time to look through the below traces so the above
-> note is rather generic. It would be really helpful if you could provide
-> a high level dependency chains to see why those rescuers are necessary
-> for the forward progress because it is really easy to get lost in so
-> many traces.
+> MEMORY	   SCALE	 HASH_SIZE
+> 	old	new	old	new
+>     8G	 13	 13      8M      8M
+>    16G	 13	 13     16M     16M
+>    32G	 13	 13     32M     32M
+>    64G	 13	 13     64M     64M
+>   128G	 13	 14    128M     64M
+>   256G	 13	 14    256M    128M
+>   512G	 13	 15    512M    128M
+>  1024G	 13	 15   1024M    256M
+>  2048G	 13	 16   2048M    256M
+>  4096G	 13	 16   4096M    512M
+>  8192G	 13	 17   8192M    512M
+> 16384G	 13	 17  16384M   1024M
+> 32768G	 13	 18  32768M   1024M
+> 65536G	 13	 18  65536M   2048M
 
-Data IO completion is required to make progress to free memory. IO
-completion is done via work queues, so they need rescuer threads to
-ensure work can be run.
+OK, but what are the runtime effects?  Presumably some workloads will
+slow down a bit.  How much? How do we know that this is a worthwhile
+tradeoff?
 
-IO completion can require transactions to run. Transactions require
-memory allocation. Freeing memory therefore requires IO completion
-to have access to memory reserves if it's occurring from rescuer
-threads to allow progress to be made.
-
-That means metadata IO completion require rescuer threads, because
-data IO completion can be dependent on metadata buffers being
-available. e.g. reserving space in the log for the transaction can
-require waiting on metadata IO dispatch and completion. Hence the
-buffer IO completion workqueues need rescuer threads.
-
-Transactions can also require log forces and flushes to occur, which
-means they require the log workqueues (both the CIL flush and IO
-completion workqueues) to make progress.  Log flushes also require
-both IO and memory allocation to make progress to complete. Again,
-this means the log workqueues need rescuer threads. It also needs
-the log workqueues to be high priority so that they can make
-progress before IO completion work that is dependent on
-transactions making progress are processed.
-
-IOWs, pretty much all the XFS workqueues are involved in memory
-reclaim in one way or another.
-
-The real problem here is that the XFS code has /no idea/ of what
-workqueue context it is operating in - the fact it is in a rescuer
-thread is completely hidden from the executing context. It seems to
-me that the workqueue infrastructure's responsibility to tell memory
-reclaim that the rescuer thread needs special access to the memory
-reserves to allow the work it is running to allow forwards progress
-to be made. i.e.  setting PF_MEMALLOC on the rescuer thread or
-something similar...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+If the effect of this change is "undetectable" then those hash tables
+are simply too large, and additional tuning is needed, yes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
