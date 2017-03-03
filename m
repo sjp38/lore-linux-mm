@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B7A976B0388
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 17:43:31 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id u62so130227153pfk.1
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 14:43:31 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b61si8369292plc.304.2017.03.03.14.43.30
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0576B038A
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 17:46:06 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 10so58455327pgb.3
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 14:46:06 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s6sor7566643pgc.40.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 14:43:30 -0800 (PST)
-Date: Fri, 3 Mar 2017 14:43:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, swap: Fix a race in free_swap_and_cache()
-Message-Id: <20170303144329.94d47b1015ba2f18f64c5893@linux-foundation.org>
-In-Reply-To: <20170301143905.12846-1-ying.huang@intel.com>
-References: <20170301143905.12846-1-ying.huang@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 03 Mar 2017 14:46:04 -0800 (PST)
+Date: Fri, 3 Mar 2017 14:46:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, zoneinfo: print non-populated zones
+In-Reply-To: <4acf16c5-c64b-b4f8-9a41-1926eed23fe1@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1703031445340.92298@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com> <4acf16c5-c64b-b4f8-9a41-1926eed23fe1@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed,  1 Mar 2017 22:38:09 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+On Fri, 3 Mar 2017, Anshuman Khandual wrote:
 
-> Before using cluster lock in free_swap_and_cache(), the
-> swap_info_struct->lock will be held during freeing the swap entry and
-> acquiring page lock, so the page swap count will not change when
-> testing page information later.  But after using cluster lock, the
-> cluster lock (or swap_info_struct->lock) will be held only during
-> freeing the swap entry.  So before acquiring the page lock, the page
-> swap count may be changed in another thread.  If the page swap count
-> is not 0, we should not delete the page from the swap cache.  This is
-> fixed via checking page swap count again after acquiring the page
-> lock.
+> > This patch shows statistics for non-populated zones in /proc/zoneinfo.
+> > The zones exist and hold a spot in the vm.lowmem_reserve_ratio array.
+> > Without this patch, it is not possible to determine which index in the
+> > array controls which zone if one or more zones on the system are not
+> > populated.
+> 
+> Right, its a problem when it does not even display array elements with
+> an index value associated with it. But changing the array display will
+> break the interface where as displaying non populated zones in the
+> /proc/zoneinfo does not break anything.
+> 
 
-What are the user-visible runtime effects of this bug?  Please always
-include this info when fixing things, thanks.
+Precisely.
+
+> The name of the Boolean "populated" is bit misleading IMHO. What I think you
+> want here is to invoke the callback if the zone is populated as well as this
+> variable is true. The variable can be named something like 'assert_populated'.
+> 
+
+I like it, I'll send a v2.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
