@@ -1,154 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 785C26B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 11:45:08 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u9so4754331wme.6
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 08:45:08 -0800 (PST)
-Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [185.26.127.97])
-        by mx.google.com with ESMTPS id y190si3610769wmy.7.2017.03.03.08.45.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E626B0038
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 11:59:35 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id v66so41258251wrc.4
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 08:59:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x2si15562733wrc.9.2017.03.03.08.59.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 08:45:07 -0800 (PST)
-From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of staging
-Date: Fri, 03 Mar 2017 18:45:40 +0200
-Message-ID: <10344634.XsotFaGzfj@avalon>
-In-Reply-To: <20170303100433.lm5t4hqxj6friyp6@phenom.ffwll.local>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com> <20170303100433.lm5t4hqxj6friyp6@phenom.ffwll.local>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Mar 2017 08:59:34 -0800 (PST)
+Date: Fri, 3 Mar 2017 17:59:15 +0100
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v2 01/32] x86: Add the Secure Encrypted
+ Virtualization CPU feature
+Message-ID: <20170303165915.3233fx7wo74vsslx@pd.tnic>
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846752953.2349.17505492128445909591.stgit@brijesh-build-machine>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <148846752953.2349.17505492128445909591.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dri-devel@lists.freedesktop.org
-Cc: Daniel Vetter <daniel@ffwll.ch>, Laura Abbott <labbott@redhat.com>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-Hi Daniel,
-
-On Friday 03 Mar 2017 11:04:33 Daniel Vetter wrote:
-> On Thu, Mar 02, 2017 at 01:44:32PM -0800, Laura Abbott wrote:
-> > Hi,
-> > 
-> > There's been some recent discussions[1] about Ion-like frameworks. There's
-> > apparently interest in just keeping Ion since it works reasonablly well.
-> > This series does what should be the final clean ups for it to possibly be
-> > moved out of staging.
-> > 
-> > This includes the following:
-> > - Some general clean up and removal of features that never got a lot of
-> >   use as far as I can tell.
-> > 
-> > - Fixing up the caching. This is the series I proposed back in December[2]
-> >   but never heard any feedback on. It will certainly break existing
-> >   applications that rely on the implicit caching. I'd rather make an
-> >   effort to move to a model that isn't going directly against the
-> >   establishement though.
-> > 
-> > - Fixing up the platform support. The devicetree approach was never well
-> >   recieved by DT maintainers. The proposal here is to think of Ion less as
-> >   specifying requirements and more of a framework for exposing memory to
-> >   userspace.
-> > 
-> > - CMA allocations now happen without the need of a dummy device structure.
-> >   This fixes a bunch of the reasons why I attempted to add devicetree
-> >   support before.
-> > 
-> > I've had problems getting feedback in the past so if I don't hear any
-> > major objections I'm going to send out with the RFC dropped to be picked
-> > up. The only reason there isn't a patch to come out of staging is to
-> > discuss any other changes to the ABI people might want. Once this comes
-> > out of staging, I really don't want to mess with the ABI.
-> > 
-> > Feedback appreciated.
+On Thu, Mar 02, 2017 at 10:12:09AM -0500, Brijesh Singh wrote:
+> From: Tom Lendacky <thomas.lendacky@amd.com>
 > 
-> Imo looks all good. And I just realized that cross-checking with the TODO,
-> the 2 items about _CUSTOM and _IMPORT ioctls I noted are already there.
+> Update the CPU features to include identifying and reporting on the
+> Secure Encrypted Virtualization (SEV) feature.  SME is identified by
+> CPUID 0x8000001f, but requires BIOS support to enable it (set bit 23 of
+> MSR_K8_SYSCFG and set bit 0 of MSR_K7_HWCR).  Only show the SEV feature
+> as available if reported by CPUID and enabled by BIOS.
 > 
-> Otherwise I looked through the patches, looks all really reasonable.
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/cpufeatures.h |    1 +
+>  arch/x86/include/asm/msr-index.h   |    2 ++
+>  arch/x86/kernel/cpu/amd.c          |   22 ++++++++++++++++++----
+>  arch/x86/kernel/cpu/scattered.c    |    1 +
+>  4 files changed, 22 insertions(+), 4 deletions(-)
 
-Two more items that need to be addressed in my opinion :
+So this patchset is not really ontop of Tom's patchset because this
+patch doesn't apply. The reason is, Tom did the SME bit this way:
 
-- Let's not export the ion_client API, we don't want drivers to be ion-
-specific. Only the dma-buf interface should be visible to drivers.
+https://lkml.kernel.org/r/20170216154236.19244.7580.stgit@tlendack-t1.amdoffice.net
 
-- I haven't seen any proposal how a heap-based solution could be used in a 
-generic distribution. This needs to be figured out before committing to any 
-API/ABI.
+but it should've been in scattered.c.
 
-> Wrt merging, my experience from destaging the android syncpt stuff was
-> that merging the patches through the staging tree lead to lots of
-> cross-tree issues with the gpu folks wanting to use that. Ion will
-> probably run into similar things, so I'd propose we pull these cleanup
-> patches and the eventual de-staging in throught drm. Yes that defacto
-> means I'm also volunteering myself a bit :-)
-> 
-> In the end we could put it all into drivers/gpu/ion or something like
-> that.
-> 
-> Thoughts? Greg?
-> -Daniel
-> 
-> > Thanks,
-> > Laura
-> > 
-> > [1] https://marc.info/?l=linux-kernel&m=148699712602105&w=2
-> > [2] https://marc.info/?l=linaro-mm-sig&m=148176050802908&w=2
-> > 
-> > Laura Abbott (12):
-> >   staging: android: ion: Remove dmap_cnt
-> >   staging: android: ion: Remove alignment from allocation field
-> >   staging: android: ion: Duplicate sg_table
-> >   staging: android: ion: Call dma_map_sg for syncing and mapping
-> >   staging: android: ion: Remove page faulting support
-> >   staging: android: ion: Remove crufty cache support
-> >   staging: android: ion: Remove old platform support
-> >   cma: Store a name in the cma structure
-> >   cma: Introduce cma_for_each_area
-> >   staging: android: ion: Use CMA APIs directly
-> >   staging: android: ion: Make Ion heaps selectable
-> >   staging; android: ion: Enumerate all available heaps
-> >  
-> >  drivers/base/dma-contiguous.c                      |   5 +-
-> >  drivers/staging/android/ion/Kconfig                |  51 ++--
-> >  drivers/staging/android/ion/Makefile               |  14 +-
-> >  drivers/staging/android/ion/hisilicon/Kconfig      |   5 -
-> >  drivers/staging/android/ion/hisilicon/Makefile     |   1 -
-> >  drivers/staging/android/ion/hisilicon/hi6220_ion.c | 113 ---------
-> >  drivers/staging/android/ion/ion-ioctl.c            |   6 -
-> >  drivers/staging/android/ion/ion.c                  | 282
-> >  ++++++--------------- drivers/staging/android/ion/ion.h                 
-> >  |   5 +-
-> >  drivers/staging/android/ion/ion_carveout_heap.c    |  16 +-
-> >  drivers/staging/android/ion/ion_chunk_heap.c       |  15 +-
-> >  drivers/staging/android/ion/ion_cma_heap.c         | 102 ++------
-> >  drivers/staging/android/ion/ion_dummy_driver.c     | 156 ------------
-> >  drivers/staging/android/ion/ion_enumerate.c        |  89 +++++++
-> >  drivers/staging/android/ion/ion_of.c               | 184 --------------
-> >  drivers/staging/android/ion/ion_of.h               |  37 ---
-> >  drivers/staging/android/ion/ion_page_pool.c        |   3 -
-> >  drivers/staging/android/ion/ion_priv.h             |  57 ++++-
-> >  drivers/staging/android/ion/ion_system_heap.c      |  14 +-
-> >  drivers/staging/android/ion/tegra/Makefile         |   1 -
-> >  drivers/staging/android/ion/tegra/tegra_ion.c      |  80 ------
-> >  include/linux/cma.h                                |   6 +-
-> >  mm/cma.c                                           |  25 +-
-> >  mm/cma.h                                           |   1 +
-> >  mm/cma_debug.c                                     |   2 +-
-> >  25 files changed, 312 insertions(+), 958 deletions(-)
-> >  delete mode 100644 drivers/staging/android/ion/hisilicon/Kconfig
-> >  delete mode 100644 drivers/staging/android/ion/hisilicon/Makefile
-> >  delete mode 100644 drivers/staging/android/ion/hisilicon/hi6220_ion.c
-> >  delete mode 100644 drivers/staging/android/ion/ion_dummy_driver.c
-> >  create mode 100644 drivers/staging/android/ion/ion_enumerate.c
-> >  delete mode 100644 drivers/staging/android/ion/ion_of.c
-> >  delete mode 100644 drivers/staging/android/ion/ion_of.h
-> >  delete mode 100644 drivers/staging/android/ion/tegra/Makefile
-> >  delete mode 100644 drivers/staging/android/ion/tegra/tegra_ion.c
+> diff --git a/arch/x86/kernel/cpu/scattered.c b/arch/x86/kernel/cpu/scattered.c
+> index cabda87..c3f58d9 100644
+> --- a/arch/x86/kernel/cpu/scattered.c
+> +++ b/arch/x86/kernel/cpu/scattered.c
+> @@ -31,6 +31,7 @@ static const struct cpuid_bit cpuid_bits[] = {
+>  	{ X86_FEATURE_CPB,		CPUID_EDX,  9, 0x80000007, 0 },
+>  	{ X86_FEATURE_PROC_FEEDBACK,    CPUID_EDX, 11, 0x80000007, 0 },
+>  	{ X86_FEATURE_SME,		CPUID_EAX,  0, 0x8000001f, 0 },
+> +	{ X86_FEATURE_SEV,		CPUID_EAX,  1, 0x8000001f, 0 },
+>  	{ 0, 0, 0, 0, 0 }
+
+... and here it is in scattered.c, as it should be. So you've used an
+older version of the patch, it seems.
+
+Please sync with Tom to see whether he's reworked the v4 version of that
+patch already. If yes, then you could send only the SME and SEV adding
+patches as a reply to this message so that I can continue reviewing in
+the meantime.
+
+Thanks.
 
 -- 
-Regards,
+Regards/Gruss,
+    Boris.
 
-Laurent Pinchart
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
