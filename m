@@ -1,61 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 952366B038A
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 18:34:05 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id l66so24913683pfl.6
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 15:34:05 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CA066B0388
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 19:10:29 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id v190so3861423pfb.5
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 16:10:29 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i13si11832749pgp.196.2017.03.03.15.34.04
+        by mx.google.com with ESMTPS id r6si11881259pgf.338.2017.03.03.16.10.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Mar 2017 15:34:04 -0800 (PST)
-Date: Fri, 3 Mar 2017 15:34:03 -0800
+        Fri, 03 Mar 2017 16:10:28 -0800 (PST)
+Date: Fri, 3 Mar 2017 16:10:27 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 1/4] sparc64: NG4 memset 32 bits overflow
-Message-Id: <20170303153403.182c7088b14fa8401b9cf8b3@linux-foundation.org>
-In-Reply-To: <1488432825-92126-2-git-send-email-pasha.tatashin@oracle.com>
-References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
-	<1488432825-92126-2-git-send-email-pasha.tatashin@oracle.com>
+Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
+Message-Id: <20170303161027.6fe4ceb0bcd27e1dbed44a5d@linux-foundation.org>
+In-Reply-To: <20170302163054.GR1404@dhcp22.suse.cz>
+References: <cover.1487965799.git.shli@fb.com>
+	<89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
+	<20170301133624.GF1124@dhcp22.suse.cz>
+	<20170301183149.GA14277@cmpxchg.org>
+	<20170301185735.GA24905@dhcp22.suse.cz>
+	<20170302140101.GA16021@cmpxchg.org>
+	<20170302163054.GR1404@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, David Miller <davem@davemloft.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
 
-On Thu,  2 Mar 2017 00:33:42 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+On Thu, 2 Mar 2017 17:30:54 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-> Early in boot Linux patches memset and memcpy to branch to platform
-> optimized versions of these routines. The NG4 (Niagra 4) versions are
-> currently used on  all platforms starting from T4. Recently, there were M7
-> optimized routines added into UEK4 but not into mainline yet. So, even with
-> M7 optimized routines NG4 are still going to be used on T4, T5, M5, and M6
-> processors.
+> > It's not that I think you're wrong: it *is* an implementation detail.
+> > But we take a bit of incoherency from batching all over the place, so
+> > it's a little odd to take a stand over this particular instance of it
+> > - whether demanding that it'd be fixed, or be documented, which would
+> > only suggest to users that this is special when it really isn't etc.
 > 
-> While investigating how to improve initialization time of dentry_hashtable
-> which is 8G long on M6 ldom with 7T of main memory, I noticed that memset()
-> does not reset all the memory in this array, after studying the code, I
-> realized that NG4memset() branches use %icc register instead of %xcc to
-> check compare, so if value of length is over 32-bit long, which is true for
-> 8G array, these routines fail to work properly.
+> I am not aware of other counter printed in smaps that would suffer from
+> the same problem, but I haven't checked too deeply so I might be wrong. 
 > 
-> The fix is to replace all %icc with %xcc in these routines. (Alternative is
-> to use %ncc, but this is misleading, as the code already has sparcv9 only
-> instructions, and cannot be compiled on 32-bit).
-> 
-> This is important to fix this bug, because even older T4-4 can have 2T of
-> memory, and there are large memory proportional data structures in kernel
-> which can be larger than 4G in size. The failing of memset() is silent and
-> corruption is hard to detect.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Reviewed-by: Babu Moger <babu.moger@oracle.com>
+> Anyway it seems that I am alone in my position so I will not insist.
+> If we have any bug report then we can still fix it.
 
-It sounds like this fix should be backported into -stable kernels?  If
-so, which version(s)?
+A single lru_add_drain_all() right at the top level (in smaps_show()?)
+won't kill us and should significantly improve this issue.  And it
+might accidentally make some of the other smaps statistics more
+accurate as well.
 
-Also, what are the user-visible runtime effects of this change?
+If not, can we please have a nice comment somewhere appropriate which
+explains why LazyFree is inaccurate and why we chose to leave it that
+way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
