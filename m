@@ -1,132 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ED9F36B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 23:48:17 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id x66so138286943pfb.2
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 20:48:17 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id g27si7451491pfk.98.2017.03.03.20.48.15
-        for <linux-mm@kvack.org>;
-        Fri, 03 Mar 2017 20:48:16 -0800 (PST)
-Date: Sat, 4 Mar 2017 15:48:12 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] xfs: allow kmem_zalloc_greedy to fail
-Message-ID: <20170304044812.GK17542@dastard>
-References: <20170302153002.GG3213@bfoster.bfoster>
- <20170302154541.16155-1-mhocko@kernel.org>
- <20170303225444.GH17542@dastard>
- <20170303231912.GA5073@birch.djwong.org>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FDAD6B0038
+	for <linux-mm@kvack.org>; Sat,  4 Mar 2017 03:21:51 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 10so67462004pgb.3
+        for <linux-mm@kvack.org>; Sat, 04 Mar 2017 00:21:51 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m8si12850889pln.122.2017.03.04.00.21.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 04 Mar 2017 00:21:50 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v248Iakd038055
+	for <linux-mm@kvack.org>; Sat, 4 Mar 2017 03:21:50 -0500
+Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com [125.16.236.7])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28yjp8v0eg-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 04 Mar 2017 03:21:49 -0500
+Received: from localhost
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Sat, 4 Mar 2017 13:51:47 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 2E7B73940061
+	for <linux-mm@kvack.org>; Sat,  4 Mar 2017 13:51:45 +0530 (IST)
+Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v248LftY11337764
+	for <linux-mm@kvack.org>; Sat, 4 Mar 2017 13:51:41 +0530
+Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
+	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v248LiBt013950
+	for <linux-mm@kvack.org>; Sat, 4 Mar 2017 13:51:44 +0530
+Subject: Re: [patch v2] mm, vmstat: print non-populated zones in zoneinfo
+References: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com>
+ <4acf16c5-c64b-b4f8-9a41-1926eed23fe1@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1703031445340.92298@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1703031451310.98023@chino.kir.corp.google.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Sat, 4 Mar 2017 13:51:41 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170303231912.GA5073@birch.djwong.org>
+In-Reply-To: <alpine.DEB.2.10.1703031451310.98023@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <d20659a0-dac6-5cbd-9a25-a09d80c6afd4@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Brian Foster <bfoster@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Mar 03, 2017 at 03:19:12PM -0800, Darrick J. Wong wrote:
-> On Sat, Mar 04, 2017 at 09:54:44AM +1100, Dave Chinner wrote:
-> > On Thu, Mar 02, 2017 at 04:45:40PM +0100, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > Even though kmem_zalloc_greedy is documented it might fail the current
-> > > code doesn't really implement this properly and loops on the smallest
-> > > allowed size for ever. This is a problem because vzalloc might fail
-> > > permanently - we might run out of vmalloc space or since 5d17a73a2ebe
-> > > ("vmalloc: back off when the current task is killed") when the current
-> > > task is killed. The later one makes the failure scenario much more
-> > > probable than it used to be because it makes vmalloc() failures
-> > > permanent for tasks with fatal signals pending.. Fix this by bailing out
-> > > if the minimum size request failed.
-> > > 
-> > > This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
-> > > 
-> > > fsstress: vmalloc: allocation failure, allocated 12288 of 20480 bytes, mode:0x14080c2(GFP_KERNEL|__GFP_HIGHMEM|__GFP_ZERO), nodemask=(null)
-> > > fsstress cpuset=/ mems_allowed=0-1
-> > > CPU: 1 PID: 23460 Comm: fsstress Not tainted 4.10.0-master-45554b2+ #21
-> > > Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9, BIOS P89 10/05/2016
-> > > Call Trace:
-> > >  dump_stack+0x63/0x87
-> > >  warn_alloc+0x114/0x1c0
-> > >  ? alloc_pages_current+0x88/0x120
-> > >  __vmalloc_node_range+0x250/0x2a0
-> > >  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
-> > >  ? free_hot_cold_page+0x21f/0x280
-> > >  vzalloc+0x54/0x60
-> > >  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
-> > >  kmem_zalloc_greedy+0x2b/0x40 [xfs]
-> > >  xfs_bulkstat+0x11b/0x730 [xfs]
-> > >  ? xfs_bulkstat_one_int+0x340/0x340 [xfs]
-> > >  ? selinux_capable+0x20/0x30
-> > >  ? security_capable+0x48/0x60
-> > >  xfs_ioc_bulkstat+0xe4/0x190 [xfs]
-> > >  xfs_file_ioctl+0x9dd/0xad0 [xfs]
-> > >  ? do_filp_open+0xa5/0x100
-> > >  do_vfs_ioctl+0xa7/0x5e0
-> > >  SyS_ioctl+0x79/0x90
-> > >  do_syscall_64+0x67/0x180
-> > >  entry_SYSCALL64_slow_path+0x25/0x25
-> > > 
-> > > fsstress keeps looping inside kmem_zalloc_greedy without any way out
-> > > because vmalloc keeps failing due to fatal_signal_pending.
-> > > 
-> > > Reported-by: Xiong Zhou <xzhou@redhat.com>
-> > > Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > ---
-> > >  fs/xfs/kmem.c | 2 ++
-> > >  1 file changed, 2 insertions(+)
-> > > 
-> > > diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> > > index 339c696bbc01..ee95f5c6db45 100644
-> > > --- a/fs/xfs/kmem.c
-> > > +++ b/fs/xfs/kmem.c
-> > > @@ -34,6 +34,8 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
-> > >  	size_t		kmsize = maxsize;
-> > >  
-> > >  	while (!(ptr = vzalloc(kmsize))) {
-> > > +		if (kmsize == minsize)
-> > > +			break;
-> > >  		if ((kmsize >>= 1) <= minsize)
-> > >  			kmsize = minsize;
-> > >  	}
-> > 
-> > Seems wrong to me - this function used to have lots of callers and
-> > over time we've slowly removed them or replaced them with something
-> > else. I'd suggest removing it completely, replacing the call sites
-> > with kmem_zalloc_large().
+On 03/04/2017 04:23 AM, David Rientjes wrote:
+> Initscripts can use the information (protection levels) from
+> /proc/zoneinfo to configure vm.lowmem_reserve_ratio at boot.
 > 
-> Heh.  I thought the reason why _greedy still exists (for its sole user
-> bulkstat) is that bulkstat had the flexibility to deal with receiving
-> 0, 1, or 4 pages.  So yeah, we could just kill it.
+> vm.lowmem_reserve_ratio is an array of ratios for each configured zone on
+> the system.  If a zone is not populated on an arch, /proc/zoneinfo
+> suppresses its output.
+> 
+> This results in there not being a 1:1 mapping between the set of zones
+> emitted by /proc/zoneinfo and the zones configured by
+> vm.lowmem_reserve_ratio.
+> 
+> This patch shows statistics for non-populated zones in /proc/zoneinfo.
+> The zones exist and hold a spot in the vm.lowmem_reserve_ratio array.
+> Without this patch, it is not possible to determine which index in the
+> array controls which zone if one or more zones on the system are not
+> populated.
+> 
+> Remaining users of walk_zones_in_node() are unchanged.  Files such as
+> /proc/pagetypeinfo require certain zone data to be initialized properly
+> for display, which is not done for unpopulated zones.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-irbuf is sized to minimise AGI locking, but if memory is low
-it just uses what it can get. Keep in mind the number of inodes we
-need to process is determined by the userspace buffer size, which
-can easily be sized to hold tens of thousands of struct
-xfs_bulkstat.
-
-> But thinking even more stingily about memory, are there applications
-> that care about being able to bulkstat 16384 inodes at once?
-
-IIRC, xfsdump can bulkstat up to 64k inodes per call....
-
-> How badly
-> does bulkstat need to be able to bulk-process more than a page's worth
-> of inobt records, anyway?
-
-Benchmark it on a busy system doing lots of other AGI work (e.g. a
-busy NFS server workload with a working set of tens of millions of
-inodes so it doesn't fit in cache) and find out. That's generally
-how I answer those sorts of questions...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
