@@ -1,85 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D652E6B0038
-	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 21:54:47 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q126so146879274pga.0
-        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 18:54:47 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 72sor996087pla.0.1969.12.31.16.00.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 03 Mar 2017 18:54:47 -0800 (PST)
-From: Tahsin Erdogan <tahsin@google.com>
-Subject: [PATCH] mm: do not call mem_cgroup_free() from within mem_cgroup_alloc()
-Date: Fri,  3 Mar 2017 18:53:56 -0800
-Message-Id: <20170304025356.12265-1-tahsin@google.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ED9F36B0038
+	for <linux-mm@kvack.org>; Fri,  3 Mar 2017 23:48:17 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id x66so138286943pfb.2
+        for <linux-mm@kvack.org>; Fri, 03 Mar 2017 20:48:17 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id g27si7451491pfk.98.2017.03.03.20.48.15
+        for <linux-mm@kvack.org>;
+        Fri, 03 Mar 2017 20:48:16 -0800 (PST)
+Date: Sat, 4 Mar 2017 15:48:12 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] xfs: allow kmem_zalloc_greedy to fail
+Message-ID: <20170304044812.GK17542@dastard>
+References: <20170302153002.GG3213@bfoster.bfoster>
+ <20170302154541.16155-1-mhocko@kernel.org>
+ <20170303225444.GH17542@dastard>
+ <20170303231912.GA5073@birch.djwong.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170303231912.GA5073@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tahsin Erdogan <tahsin@google.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Brian Foster <bfoster@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-mem_cgroup_free() indirectly calls wb_domain_exit() which is not
-prepared to deal with a struct wb_domain object that hasn't executed
-wb_domain_init(). For instance, the following warning message is
-printed by lockdep if alloc_percpu() fails in mem_cgroup_alloc():
+On Fri, Mar 03, 2017 at 03:19:12PM -0800, Darrick J. Wong wrote:
+> On Sat, Mar 04, 2017 at 09:54:44AM +1100, Dave Chinner wrote:
+> > On Thu, Mar 02, 2017 at 04:45:40PM +0100, Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > Even though kmem_zalloc_greedy is documented it might fail the current
+> > > code doesn't really implement this properly and loops on the smallest
+> > > allowed size for ever. This is a problem because vzalloc might fail
+> > > permanently - we might run out of vmalloc space or since 5d17a73a2ebe
+> > > ("vmalloc: back off when the current task is killed") when the current
+> > > task is killed. The later one makes the failure scenario much more
+> > > probable than it used to be because it makes vmalloc() failures
+> > > permanent for tasks with fatal signals pending.. Fix this by bailing out
+> > > if the minimum size request failed.
+> > > 
+> > > This has been noticed by a hung generic/269 xfstest by Xiong Zhou.
+> > > 
+> > > fsstress: vmalloc: allocation failure, allocated 12288 of 20480 bytes, mode:0x14080c2(GFP_KERNEL|__GFP_HIGHMEM|__GFP_ZERO), nodemask=(null)
+> > > fsstress cpuset=/ mems_allowed=0-1
+> > > CPU: 1 PID: 23460 Comm: fsstress Not tainted 4.10.0-master-45554b2+ #21
+> > > Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9, BIOS P89 10/05/2016
+> > > Call Trace:
+> > >  dump_stack+0x63/0x87
+> > >  warn_alloc+0x114/0x1c0
+> > >  ? alloc_pages_current+0x88/0x120
+> > >  __vmalloc_node_range+0x250/0x2a0
+> > >  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
+> > >  ? free_hot_cold_page+0x21f/0x280
+> > >  vzalloc+0x54/0x60
+> > >  ? kmem_zalloc_greedy+0x2b/0x40 [xfs]
+> > >  kmem_zalloc_greedy+0x2b/0x40 [xfs]
+> > >  xfs_bulkstat+0x11b/0x730 [xfs]
+> > >  ? xfs_bulkstat_one_int+0x340/0x340 [xfs]
+> > >  ? selinux_capable+0x20/0x30
+> > >  ? security_capable+0x48/0x60
+> > >  xfs_ioc_bulkstat+0xe4/0x190 [xfs]
+> > >  xfs_file_ioctl+0x9dd/0xad0 [xfs]
+> > >  ? do_filp_open+0xa5/0x100
+> > >  do_vfs_ioctl+0xa7/0x5e0
+> > >  SyS_ioctl+0x79/0x90
+> > >  do_syscall_64+0x67/0x180
+> > >  entry_SYSCALL64_slow_path+0x25/0x25
+> > > 
+> > > fsstress keeps looping inside kmem_zalloc_greedy without any way out
+> > > because vmalloc keeps failing due to fatal_signal_pending.
+> > > 
+> > > Reported-by: Xiong Zhou <xzhou@redhat.com>
+> > > Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > ---
+> > >  fs/xfs/kmem.c | 2 ++
+> > >  1 file changed, 2 insertions(+)
+> > > 
+> > > diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+> > > index 339c696bbc01..ee95f5c6db45 100644
+> > > --- a/fs/xfs/kmem.c
+> > > +++ b/fs/xfs/kmem.c
+> > > @@ -34,6 +34,8 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
+> > >  	size_t		kmsize = maxsize;
+> > >  
+> > >  	while (!(ptr = vzalloc(kmsize))) {
+> > > +		if (kmsize == minsize)
+> > > +			break;
+> > >  		if ((kmsize >>= 1) <= minsize)
+> > >  			kmsize = minsize;
+> > >  	}
+> > 
+> > Seems wrong to me - this function used to have lots of callers and
+> > over time we've slowly removed them or replaced them with something
+> > else. I'd suggest removing it completely, replacing the call sites
+> > with kmem_zalloc_large().
+> 
+> Heh.  I thought the reason why _greedy still exists (for its sole user
+> bulkstat) is that bulkstat had the flexibility to deal with receiving
+> 0, 1, or 4 pages.  So yeah, we could just kill it.
 
-  INFO: trying to register non-static key.
-  the code is fine but needs lockdep annotation.
-  turning off the locking correctness validator.
-  CPU: 1 PID: 1950 Comm: mkdir Not tainted 4.10.0+ #151
-  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-  Call Trace:
-   dump_stack+0x67/0x99
-   register_lock_class+0x36d/0x540
-   __lock_acquire+0x7f/0x1a30
-   ? irq_work_queue+0x73/0x90
-   ? wake_up_klogd+0x36/0x40
-   ? console_unlock+0x45d/0x540
-   ? vprintk_emit+0x211/0x2e0
-   lock_acquire+0xcc/0x200
-   ? try_to_del_timer_sync+0x60/0x60
-   del_timer_sync+0x3c/0xc0
-   ? try_to_del_timer_sync+0x60/0x60
-   wb_domain_exit+0x14/0x20
-   mem_cgroup_free+0x14/0x40
-   mem_cgroup_css_alloc+0x3f9/0x620
-   cgroup_apply_control_enable+0x190/0x390
-   cgroup_mkdir+0x290/0x3d0
-   kernfs_iop_mkdir+0x58/0x80
-   vfs_mkdir+0x10e/0x1a0
-   SyS_mkdirat+0xa8/0xd0
-   SyS_mkdir+0x14/0x20
-   entry_SYSCALL_64_fastpath+0x18/0xad
+irbuf is sized to minimise AGI locking, but if memory is low
+it just uses what it can get. Keep in mind the number of inodes we
+need to process is determined by the userspace buffer size, which
+can easily be sized to hold tens of thousands of struct
+xfs_bulkstat.
 
-Fix mem_cgroup_alloc() by doing more granular clean up in case of
-failures.
+> But thinking even more stingily about memory, are there applications
+> that care about being able to bulkstat 16384 inodes at once?
 
-Fixes: 0b8f73e104285 ("mm: memcontrol: clean up alloc, online, offline, free functions")
-Signed-off-by: Tahsin Erdogan <tahsin@google.com>
----
- mm/memcontrol.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+IIRC, xfsdump can bulkstat up to 64k inodes per call....
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c52ec893e241..9a9d5630df91 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4194,9 +4194,12 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
- 	return memcg;
- fail:
-+	for_each_node(node)
-+		free_mem_cgroup_per_node_info(memcg, node);
-+	free_percpu(memcg->stat);
- 	if (memcg->id.id > 0)
- 		idr_remove(&mem_cgroup_idr, memcg->id.id);
--	mem_cgroup_free(memcg);
-+	kfree(memcg);
- 	return NULL;
- }
- 
+> How badly
+> does bulkstat need to be able to bulk-process more than a page's worth
+> of inobt records, anyway?
+
+Benchmark it on a busy system doing lots of other AGI work (e.g. a
+busy NFS server workload with a working set of tens of millions of
+inodes so it doesn't fit in cache) and find out. That's generally
+how I answer those sorts of questions...
+
+Cheers,
+
+Dave.
 -- 
-2.12.0.rc1.440.g5b76565f74-goog
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
