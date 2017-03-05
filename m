@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C1576B0038
-	for <linux-mm@kvack.org>; Sat,  4 Mar 2017 22:09:07 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b2so171489504pgc.6
-        for <linux-mm@kvack.org>; Sat, 04 Mar 2017 19:09:07 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id a3si15011455pgd.21.2017.03.04.19.09.03
+	by kanga.kvack.org (Postfix) with ESMTP id 59A2C6B0038
+	for <linux-mm@kvack.org>; Sat,  4 Mar 2017 22:34:13 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 187so14046133pgb.3
+        for <linux-mm@kvack.org>; Sat, 04 Mar 2017 19:34:13 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id x26si8347217pge.30.2017.03.04.19.34.11
         for <linux-mm@kvack.org>;
-        Sat, 04 Mar 2017 19:09:05 -0800 (PST)
-Date: Sun, 5 Mar 2017 12:08:45 +0900
+        Sat, 04 Mar 2017 19:34:12 -0800 (PST)
+Date: Sun, 5 Mar 2017 12:33:50 +0900
 From: Byungchul Park <byungchul.park@lge.com>
 Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170305030845.GA11100@X58A-UD3R>
+Message-ID: <20170305033350.GB11100@X58A-UD3R>
 References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
  <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
  <20170228134018.GK5680@worktop>
@@ -20,91 +20,68 @@ References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
  <20170302134031.GG6536@twins.programming.kicks-ass.net>
  <20170303001737.GF28562@X58A-UD3R>
  <20170303081416.GT6515@twins.programming.kicks-ass.net>
+ <20170303091338.GH6536@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170303081416.GT6515@twins.programming.kicks-ass.net>
+In-Reply-To: <20170303091338.GH6536@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com, Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <nborisov@suse.com>, Mel Gorman <mgorman@suse.de>
 
-On Fri, Mar 03, 2017 at 09:14:16AM +0100, Peter Zijlstra wrote:
-> On Fri, Mar 03, 2017 at 09:17:37AM +0900, Byungchul Park wrote:
-> > On Thu, Mar 02, 2017 at 02:40:31PM +0100, Peter Zijlstra wrote:
+On Fri, Mar 03, 2017 at 10:13:38AM +0100, Peter Zijlstra wrote:
+> On Fri, Mar 03, 2017 at 09:14:16AM +0100, Peter Zijlstra wrote:
 > 
-> > > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> > > index a95e5d1..7baea89 100644
-> > > --- a/kernel/locking/lockdep.c
-> > > +++ b/kernel/locking/lockdep.c
-> > > @@ -1860,6 +1860,17 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
-> > >  		}
-> > >  	}
-> > >  
-> > > +	/*
-> > > +	 * Is the <prev> -> <next> redundant?
-> > > +	 */
-> > > +	this.class = hlock_class(prev);
-> > > +	this.parent = NULL;
-> > > +	ret = check_noncircular(&this, hlock_class(next), &target_entry);
-> > > +	if (!ret) /* exists, redundant */
-> > > +		return 2;
-> > > +	if (ret < 0)
-> > > +		return print_bfs_bug(ret);
-> > > +
-> > >  	if (!*stack_saved) {
-> > >  		if (!save_trace(&trace))
-> > >  			return 0;
-> > 
-> > This whoud be very nice if you allow to add this code. However, prev_gen_id
-> > thingy is still useful, the code above can achieve it though. Agree?
+> Two boots + a make defconfig, the first didn't have the redundant bit
+> in, the second did (full diff below still includes the reclaim rework,
+> because that was still in that kernel and I forgot to reset the tree).
 > 
-> So my goal was to avoid prev_gen_id, and yes I think the above does
-> that.
 > 
-> Now the problem with the above condition is that it makes reports
-> harder to decipher, because by avoiding adding redundant links to our
-> graph we loose a possible shorter path.
+>  lock-classes:                         1168       1169 [max: 8191]
+>  direct dependencies:                  7688       5812 [max: 32768]
+>  indirect dependencies:               25492      25937
+>  all direct dependencies:            220113     217512
+>  dependency chains:                    9005       9008 [max: 65536]
+>  dependency chain hlocks:             34450      34366 [max: 327680]
+>  in-hardirq chains:                      55         51
+>  in-softirq chains:                     371        378
+>  in-process chains:                    8579       8579
+>  stack-trace entries:                108073      88474 [max: 524288]
+>  combined max dependencies:       178738560  169094640
+> 
+>  max locking depth:                      15         15
+>  max bfs queue depth:                   320        329
+> 
+>  cyclic checks:                        9123       9190
+> 
+>  redundant checks:                                5046
+>  redundant links:                                 1828
+> 
+>  find-mask forwards checks:            2564       2599
+>  find-mask backwards checks:          39521      39789
+> 
+> 
+> So it saves nearly 2k links and a fair chunk of stack-trace entries, but
 
-Let's see the following example:
+It's as we expect.
 
-   A -> B -> C
+> as expected, makes no real difference on the indirect dependencies.
 
-   where A, B and C are typical lock class.
+It looks that the indirect dependencies increased to me. This result is
+also somewhat anticipated.
 
-Assume the graph above was built and operations happena in the
-following order:
+> At the same time, you see the max BFS depth increase, which is also
 
-   CONTEXT X		CONTEXT Y
-   ---------		---------
-   acquire DX
-			acquire A
-			acquire B
-			acquire C
+Yes. The depth should increase.
 
-			release and commit DX
+> expected, although it could easily be boot variance -- these numbers are
+> not entirely stable between boots.
+> 
+> Could you run something similar? Or I'll take a look on your next spin
+> of the patches.
 
-   where A, B and C are typical lock class, DX is a crosslock class.
-
-The graph will grow as following _without_ prev_gen_id.
-
-        -> A -> B -> C
-       /    /    /
-   DX -----------
-
-   where A, B and C are typical lock class, DX is a crosslock class.
-
-The graph will grow as following _with_ prev_gen_id.
-
-   DX -> A -> B -> C
-
-   where A, B and C are typical lock class, DX is a crosslock class.
-
-You said the former is better because it has smaller cost in bfs. But it
-has to use _much_ more memory to keep additional nodes in graph. Without
-exaggeration, every crosslock would get linked with all locks in history
-locks, on commit, unless redundant. It might be pretty more than we
-expect - I will check and let you know how many it is. Is it still good?
+I will check same thing you did and let you know the result at next spin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
