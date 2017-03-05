@@ -1,48 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 516B06B0388
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4B86B038A
 	for <linux-mm@kvack.org>; Sun,  5 Mar 2017 08:35:39 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id n127so206766575qkf.3
+Received: by mail-qk0-f198.google.com with SMTP id n127so206767274qkf.3
         for <linux-mm@kvack.org>; Sun, 05 Mar 2017 05:35:39 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q68si4667789qkl.182.2017.03.05.05.35.37
+        by mx.google.com with ESMTPS id i58si13464498qti.175.2017.03.05.05.35.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Mar 2017 05:35:37 -0800 (PST)
+        Sun, 05 Mar 2017 05:35:39 -0800 (PST)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting business
-Date: Sun,  5 Mar 2017 08:35:32 -0500
-Message-Id: <20170305133535.6516-1-jlayton@redhat.com>
+Subject: [PATCH 1/3] nilfs2: set the mapping error when calling SetPageError on writeback
+Date: Sun,  5 Mar 2017 08:35:33 -0500
+Message-Id: <20170305133535.6516-2-jlayton@redhat.com>
+In-Reply-To: <20170305133535.6516-1-jlayton@redhat.com>
+References: <20170305133535.6516-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org
 
-I recently did some work to wire up -ENOSPC handling in ceph, and found
-I could get back -EIO errors in some cases when I should have instead
-gotten -ENOSPC. The problem was that the ceph writeback code would set
-PG_error on a writeback error, and that error would clobber the mapping
-error.
+In a later patch, we're going to want to make the fsync codepath not do
+a TestClearPageError call as that can override the error set in the
+address space. To do that though, we need to ensure that filesystems
+that are relying on the PG_error bit for reporting writeback errors
+also set an error in the address space.
 
-While I fixed that problem by simply not setting that bit on errors,
-that led me down a rabbit hole of looking at how PG_error is being
-handled in the kernel.
+The only place I've found that looks potentially problematic is this
+spot in nilfs2. Ensure that it sets an error in the mapping in addition
+to setting PageError.
 
-This patch series is a few fixes for things that I 100% noticed by
-inspection. I don't have a great way to test these since they involve
-error handling. I can certainly doctor up a kernel to inject errors
-in this code and test by hand however if these look plausible up front.
+Signed-off-by: Jeff Layton <jlayton@redhat.com>
+---
+ fs/nilfs2/segment.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-Jeff Layton (3):
-  nilfs2: set the mapping error when calling SetPageError on writeback
-  mm: don't TestClearPageError in __filemap_fdatawait_range
-  mm: set mapping error when launder_pages fails
-
- fs/nilfs2/segment.c |  1 +
- mm/filemap.c        | 19 ++++---------------
- mm/truncate.c       |  6 +++++-
- 3 files changed, 10 insertions(+), 16 deletions(-)
-
+diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+index bedcae2c28e6..c1041b07060e 100644
+--- a/fs/nilfs2/segment.c
++++ b/fs/nilfs2/segment.c
+@@ -1743,6 +1743,7 @@ static void nilfs_end_page_io(struct page *page, int err)
+ 	} else {
+ 		__set_page_dirty_nobuffers(page);
+ 		SetPageError(page);
++		mapping_set_error(page_mapping(page), err);
+ 	}
+ 
+ 	end_page_writeback(page);
 -- 
 2.9.3
 
