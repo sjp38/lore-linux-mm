@@ -1,71 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 213686B0038
-	for <linux-mm@kvack.org>; Sun,  5 Mar 2017 03:01:30 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id l66so58575470pfl.6
-        for <linux-mm@kvack.org>; Sun, 05 Mar 2017 00:01:30 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id y5si15536877pgb.77.2017.03.05.00.01.27
-        for <linux-mm@kvack.org>;
-        Sun, 05 Mar 2017 00:01:28 -0800 (PST)
-Date: Sun, 5 Mar 2017 17:01:09 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170305080109.GC11100@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228181547.GM5680@worktop>
- <20170302042021.GN16328@bombadil.infradead.org>
- <004101d2930f$d51a9f90$7f4fdeb0$@lge.com>
- <20170302143949.GP16328@bombadil.infradead.org>
- <20170302235003.GE28562@X58A-UD3R>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BDF416B0038
+	for <linux-mm@kvack.org>; Sun,  5 Mar 2017 07:40:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id x63so102939190pfx.7
+        for <linux-mm@kvack.org>; Sun, 05 Mar 2017 04:40:45 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j21si16047866pgg.373.2017.03.05.04.40.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Mar 2017 04:40:44 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v25Cd83j075297
+	for <linux-mm@kvack.org>; Sun, 5 Mar 2017 07:40:42 -0500
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28ytn20d5b-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 05 Mar 2017 07:40:42 -0500
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Sun, 5 Mar 2017 22:40:39 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 1E2CF3578053
+	for <linux-mm@kvack.org>; Sun,  5 Mar 2017 23:40:38 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v25CeURf32047124
+	for <linux-mm@kvack.org>; Sun, 5 Mar 2017 23:40:38 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v25Ce5u6022987
+	for <linux-mm@kvack.org>; Sun, 5 Mar 2017 23:40:05 +1100
+Subject: Re: [PATCH V3 0/4] Define coherent device memory node
+References: <20170215120726.9011-1-khandual@linux.vnet.ibm.com>
+ <20170215182010.reoahjuei5eaxr5s@suse.de>
+ <dfd5fd02-aa93-8a7b-b01f-52570f4c87ac@linux.vnet.ibm.com>
+ <20170221111107.GJ15595@dhcp22.suse.cz>
+ <890fb824-d1f0-3711-4fe6-d6ddf29a0d80@linux.vnet.ibm.com>
+ <20170222095043.GG5753@dhcp22.suse.cz>
+ <a69556b2-7273-108b-3ec1-ccbce468cf1c@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Sun, 5 Mar 2017 18:09:43 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170302235003.GE28562@X58A-UD3R>
+In-Reply-To: <a69556b2-7273-108b-3ec1-ccbce468cf1c@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <3a44ec22-bdce-62f8-39f6-474a83dc5b25@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: 'Peter Zijlstra' <peterz@infradead.org>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Fri, Mar 03, 2017 at 08:50:03AM +0900, Byungchul Park wrote:
-> On Thu, Mar 02, 2017 at 06:39:49AM -0800, Matthew Wilcox wrote:
-> > On Thu, Mar 02, 2017 at 01:45:35PM +0900, byungchul.park wrote:
-> > > From: Matthew Wilcox [mailto:willy@infradead.org]
-> > > > On Tue, Feb 28, 2017 at 07:15:47PM +0100, Peter Zijlstra wrote:
-> > > > > (And we should not be returning to userspace with locks held anyway --
-> > > > > lockdep already has a check for that).
-> > > > 
-> > > > Don't we return to userspace with page locks held, eg during async
-> > > > directio?
-> > > 
-> > > Hello,
-> > > 
-> > > I think that the check when returning to user with crosslocks held
-> > > should be an exception. Don't you think so?
-> > 
-> > Oh yes.  We have to keep the pages locked during reads, and we have to
-> > return to userspace before I/O is complete, therefore we have to return
-> > to userspace with pages locked.  They'll be unlocked by the interrupt
-> > handler in page_endio().
+On 02/23/2017 12:22 PM, Anshuman Khandual wrote:
+> On 02/22/2017 03:20 PM, Michal Hocko wrote:
+>> On Tue 21-02-17 19:09:18, Anshuman Khandual wrote:
+>>> On 02/21/2017 04:41 PM, Michal Hocko wrote:
+>>>> On Fri 17-02-17 17:11:57, Anshuman Khandual wrote:
+>>>> [...]
+>>>>> * User space using mbind() to get CDM memory is an additional benefit
+>>>>>   we get by making the CDM plug in as a node and be part of the buddy
+>>>>>   allocator. But the over all idea from the user space point of view
+>>>>>   is that the application can allocate any generic buffer and try to
+>>>>>   use the buffer either from the CPU side or from the device without
+>>>>>   knowing about where the buffer is really mapped physically. That
+>>>>>   gives a seamless and transparent view to the user space where CPU
+>>>>>   compute and possible device based compute can work together. This
+>>>>>   is not possible through a driver allocated buffer.
+>>>>
+>>>> But how are you going to define any policy around that. Who is allowed
+>>>
+>>> The user space VMA can define the policy with a mbind(MPOL_BIND) call
+>>> with CDM/CDMs in the nodemask.
+>>>
+>>>> to allocate and how much of this "special memory". Is it possible that
+>>>
+>>> Any user space application with mbind(MPOL_BIND) call with CDM/CDMs in
+>>> the nodemask can allocate from the CDM memory. "How much" gets controlled
+>>> by how we fault from CPU and the default behavior of the buddy allocator.
+>>
+>> In other words the policy is implemented by the kernel. Why is this a
+>> good thing?
 > 
-> Agree.
+> Its controlled by the kernel only during page fault paths of either CPU
+> or device. But the device driver will actually do the placements after
+> wards after taking into consideration access patterns and relative
+> performance. We dont want the driver to be involved during page fault
+> path memory allocations which should naturally go through the buddy
+> allocator.
 > 
-> > Speaking of which ... this feature is far too heavy for use in production
-> > on pages.  You're almost trebling the size of struct page.  Can we
-> > do something like make all struct pages share the same lockdep_map?
-> > We'd have to not complain about holding one crossdep lock and acquiring
-> > another one of the same type, but with millions of pages in the system,
-> > it must surely be creating a gargantuan graph right now?
+>>
+>>>> we will eventually need some access control mechanism? If yes then mbind
+>>>
+>>> No access control mechanism is needed. If an application wants to use
+>>> CDM memory by specifying in the mbind() it can. Nothing prevents it
+>>> from using the CDM memory.
+>>
+>> What if we find out that an access control _is_ really needed? I can
+>> easily imagine that some devices will come up with really fast and expensive
+>> memory. You do not want some random user to steal it from you when you
+>> want to use it for your workload.
 > 
-> Um.. I will try it for page locks to work with one lockmap. That is also
-> what Peterz pointed out and what I worried about when implementing..
+> Hmm, it makes sense but I think its not something we have to deal with
+> right away. Later we may have to think about some generic access control
+> mechanism for mbind() and then accommodate CDM with it.
+> 
+>>
+>>>> is really not suitable interface to (ab)use. Also what should happen if
+>>>> the mbind mentions only CDM memory and that is depleted?
+>>>
+>>> IIUC *only CDM* cannot be requested from user space as there are no user
+>>> visible interface which can translate to __GFP_THISNODE.
+>>
+>> I do not understand what __GFP_THISNODE has to do with this. This is an
+>> internal flag.
+> 
+> Right. My bad. I was just referring to the fact that there is nothing in
+> user space which can make buddy allocator pick NOFALLBACK list instead of
+> FALLBACK list.
+> 
+>>
+>>> MPOL_BIND with
+>>> CDM in the nodemask will eventually pick a FALLBACK zonelist which will
+>>> have zones of the system including CDM ones. If the resultant CDM zones
+>>> run out of memory, we fail the allocation request as usual.
+>>
+>> OK, so let's say you mbind to a single node which is CDM. You seem to be
+>> saying that we will simply break the NUMA affinity in this special case?
+> 
+> Why ? It should simply follow what happens when we pick a single NUMA node
+> in previous situations.
+> 
+>> Currently we invoke the OOM killer if nodes which the application binds
+>> to are depleted and cannot be reclaimed.
+> 
+> Right, the same should happen here for CDM as well.
+> 
+>>  
+>>>> Could you also explain why the transparent view is really better than
+>>>> using a device specific mmap (aka CDM awareness)?
+>>>
+>>> Okay with a transparent view, we can achieve a control flow of application
+>>> like the following.
+>>>
+>>> (1) Allocate a buffer:		alloc_buffer(buf, size)
+>>> (2) CPU compute on buffer:	cpu_compute(buf, size)
+>>> (3) Device compute on buffer:	device_compute(buf, size)
+>>> (4) CPU compute on buffer:	cpu_compute(buf, size)
+>>> (5) Release the buffer:		release_buffer(buf, size)
+>>>
+>>> With assistance from a device specific driver, the actual page mapping of
+>>> the buffer can change between system RAM and device memory depending on
+>>> which side is accessing at a given point. This will be achieved through
+>>> driver initiated migrations.
+>>
+>> But then you do not need any NUMA affinity, right? The driver can do
+>> all this automagically. How does the numa policy comes into the game in
+>> your above example. Sorry for being dense, I might be really missing
+>> something important here, but I really fail to see why the NUMA is the
+>> proper interface here.
+> 
+> You are right. Driver can migrate any mapping in the userspace to any
+> where on the system as long as cpuset does not prohibit it. But we still
+> want the driver to conform to the applicable VMA memory policy set from
+> the userspace. Hence a VMA policy needs to be set from the user space.
+> NUMA VMA memory policy also restricts the allocations inside the
+> applicable nodemask during page fault paths (CPU and device) as well.
 
-I've thought it more and it seems not to be good. We could not use
-subclass feature if we make page locks work with only one lockmap
-instance. And there are several things we have to give up, that are,
-things using each field in struct lockdep_map. So now, I'm not sure I
-should change the current implementation. What do you think about it?
+Hello Michal,
+
+Does that answer your question ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
