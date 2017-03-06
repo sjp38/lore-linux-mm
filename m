@@ -1,163 +1,340 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9AD6B03A0
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:25 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q126so208875818pga.0
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:25 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id h69si19080713pgc.108.2017.03.06.05.54.24
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E2AC6B03A2
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:32 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b2so208242604pgc.6
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:32 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 1si19116793plp.203.2017.03.06.05.54.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 05:54:24 -0800 (PST)
+        Mon, 06 Mar 2017 05:54:20 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 31/33] x86/mm: add support for 5-level paging for KASLR
-Date: Mon,  6 Mar 2017 16:53:55 +0300
-Message-Id: <20170306135357.3124-32-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 18/33] x86/xen: convert __xen_pgd_walk() and xen_cleanmfnmap() to support p4d
+Date: Mon,  6 Mar 2017 16:53:42 +0300
+Message-Id: <20170306135357.3124-19-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Xiong Zhang <xiong.y.zhang@intel.com>
 
-With 5-level paging randomization happens on P4D level instead of PUD.
+Split these helpers few per-level functions and add p4d support.
 
-Maximum amount of physical memory also bumped to 52-bits for 5-level
-paging.
-
+Signed-off-by: Xiong Zhang <xiong.y.zhang@intel.com>
+[kirill.shutemov@linux.intel.com: split off into separate patch]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/kaslr.c | 82 ++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 63 insertions(+), 19 deletions(-)
+ arch/x86/xen/mmu.c | 243 ++++++++++++++++++++++++++++++++---------------------
+ arch/x86/xen/mmu.h |   1 +
+ 2 files changed, 148 insertions(+), 96 deletions(-)
 
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index 887e57182716..662e5c4b21c8 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -6,12 +6,12 @@
-  *
-  * Entropy is generated using the KASLR early boot functions now shared in
-  * the lib directory (originally written by Kees Cook). Randomization is
-- * done on PGD & PUD page table levels to increase possible addresses. The
-- * physical memory mapping code was adapted to support PUD level virtual
-- * addresses. This implementation on the best configuration provides 30,000
-- * possible virtual addresses in average for each memory region. An additional
-- * low memory page is used to ensure each CPU can start with a PGD aligned
-- * virtual address (for realmode).
-+ * done on PGD & P4D/PUD page table levels to increase possible addresses.
-+ * The physical memory mapping code was adapted to support P4D/PUD level
-+ * virtual addresses. This implementation on the best configuration provides
-+ * 30,000 possible virtual addresses in average for each memory region.
-+ * An additional low memory page is used to ensure each CPU can start with
-+ * a PGD aligned virtual address (for realmode).
-  *
-  * The order of each memory region is not changed. The feature looks at
-  * the available space for the regions based on different configuration
-@@ -70,7 +70,8 @@ static __initdata struct kaslr_memory_region {
- 	unsigned long *base;
- 	unsigned long size_tb;
- } kaslr_regions[] = {
--	{ &page_offset_base, 64/* Maximum */ },
-+	{ &page_offset_base,
-+		1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT) /* Maximum */ },
- 	{ &vmalloc_base, VMALLOC_SIZE_TB },
- 	{ &vmemmap_base, 1 },
- };
-@@ -142,7 +143,10 @@ void __init kernel_randomize_memory(void)
- 		 */
- 		entropy = remain_entropy / (ARRAY_SIZE(kaslr_regions) - i);
- 		prandom_bytes_state(&rand_state, &rand, sizeof(rand));
--		entropy = (rand % (entropy + 1)) & PUD_MASK;
-+		if (IS_ENABLED(CONFIG_X86_5LEVEL))
-+			entropy = (rand % (entropy + 1)) & P4D_MASK;
-+		else
-+			entropy = (rand % (entropy + 1)) & PUD_MASK;
- 		vaddr += entropy;
- 		*kaslr_regions[i].base = vaddr;
- 
-@@ -151,27 +155,21 @@ void __init kernel_randomize_memory(void)
- 		 * randomization alignment.
- 		 */
- 		vaddr += get_padding(&kaslr_regions[i]);
--		vaddr = round_up(vaddr + 1, PUD_SIZE);
-+		if (IS_ENABLED(CONFIG_X86_5LEVEL))
-+			vaddr = round_up(vaddr + 1, P4D_SIZE);
-+		else
-+			vaddr = round_up(vaddr + 1, PUD_SIZE);
- 		remain_entropy -= entropy;
- 	}
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index 37cb5aad71de..75af8da7b54f 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -593,6 +593,62 @@ static void xen_set_pgd(pgd_t *ptr, pgd_t val)
  }
+ #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
  
--/*
-- * Create PGD aligned trampoline table to allow real mode initialization
-- * of additional CPUs. Consume only 1 low memory page.
-- */
--void __meminit init_trampoline(void)
-+static void __meminit init_trampoline_pud(void)
- {
- 	unsigned long paddr, paddr_next;
- 	pgd_t *pgd;
- 	pud_t *pud_page, *pud_page_tramp;
- 	int i;
- 
--	if (!kaslr_memory_enabled()) {
--		init_trampoline_default();
--		return;
--	}
--
- 	pud_page_tramp = alloc_low_page();
- 
- 	paddr = 0;
-@@ -192,3 +190,49 @@ void __meminit init_trampoline(void)
- 	set_pgd(&trampoline_pgd_entry,
- 		__pgd(_KERNPG_TABLE | __pa(pud_page_tramp)));
- }
-+
-+static void __meminit init_trampoline_p4d(void)
++static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
++		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
++		bool last, unsigned long limit)
 +{
-+	unsigned long paddr, paddr_next;
-+	pgd_t *pgd;
-+	p4d_t *p4d_page, *p4d_page_tramp;
-+	int i;
++	int i, nr, flush = 0;
 +
-+	p4d_page_tramp = alloc_low_page();
-+
-+	paddr = 0;
-+	pgd = pgd_offset_k((unsigned long)__va(paddr));
-+	p4d_page = (p4d_t *) pgd_page_vaddr(*pgd);
-+
-+	for (i = p4d_index(paddr); i < PTRS_PER_P4D; i++, paddr = paddr_next) {
-+		p4d_t *p4d, *p4d_tramp;
-+		unsigned long vaddr = (unsigned long)__va(paddr);
-+
-+		p4d_tramp = p4d_page_tramp + p4d_index(paddr);
-+		p4d = p4d_page + p4d_index(vaddr);
-+		paddr_next = (paddr & P4D_MASK) + P4D_SIZE;
-+
-+		*p4d_tramp = *p4d;
++	nr = last ? pmd_index(limit) + 1 : PTRS_PER_PMD;
++	for (i = 0; i < nr; i++) {
++		if (!pmd_none(pmd[i]))
++			flush |= (*func)(mm, pmd_page(pmd[i]), PT_PTE);
 +	}
-+
-+	set_pgd(&trampoline_pgd_entry,
-+		__pgd(_KERNPG_TABLE | __pa(p4d_page_tramp)));
++	return flush;
 +}
 +
-+/*
-+ * Create PGD aligned trampoline table to allow real mode initialization
-+ * of additional CPUs. Consume only 1 low memory page.
-+ */
-+void __meminit init_trampoline(void)
++static int xen_pud_walk(struct mm_struct *mm, pud_t *pud,
++		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
++		bool last, unsigned long limit)
 +{
++	int i, nr, flush = 0;
 +
-+	if (!kaslr_memory_enabled()) {
-+		init_trampoline_default();
++	nr = last ? pud_index(limit) + 1 : PTRS_PER_PUD;
++	for (i = 0; i < nr; i++) {
++		pmd_t *pmd;
++
++		if (pud_none(pud[i]))
++			continue;
++
++		pmd = pmd_offset(&pud[i], 0);
++		if (PTRS_PER_PMD > 1)
++			flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
++		xen_pmd_walk(mm, pmd, func, last && i == nr - 1, limit);
++	}
++	return flush;
++}
++
++static int xen_p4d_walk(struct mm_struct *mm, p4d_t *p4d,
++		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
++		bool last, unsigned long limit)
++{
++	int i, nr, flush = 0;
++
++	nr = last ? p4d_index(limit) + 1 : PTRS_PER_P4D;
++	for (i = 0; i < nr; i++) {
++		pud_t *pud;
++
++		if (p4d_none(p4d[i]))
++			continue;
++
++		pud = pud_offset(&p4d[i], 0);
++		if (PTRS_PER_PUD > 1)
++			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
++		xen_pud_walk(mm, pud, func, last && i == nr - 1, limit);
++	}
++	return flush;
++}
++
+ /*
+  * (Yet another) pagetable walker.  This one is intended for pinning a
+  * pagetable.  This means that it walks a pagetable and calls the
+@@ -613,10 +669,8 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+ 				      enum pt_level),
+ 			  unsigned long limit)
+ {
+-	int flush = 0;
++	int i, nr, flush = 0;
+ 	unsigned hole_low, hole_high;
+-	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
+-	unsigned pgdidx, pudidx, pmdidx;
+ 
+ 	/* The limit is the last byte to be touched */
+ 	limit--;
+@@ -633,65 +687,22 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+ 	hole_low = pgd_index(USER_LIMIT);
+ 	hole_high = pgd_index(PAGE_OFFSET);
+ 
+-	pgdidx_limit = pgd_index(limit);
+-#if PTRS_PER_PUD > 1
+-	pudidx_limit = pud_index(limit);
+-#else
+-	pudidx_limit = 0;
+-#endif
+-#if PTRS_PER_PMD > 1
+-	pmdidx_limit = pmd_index(limit);
+-#else
+-	pmdidx_limit = 0;
+-#endif
+-
+-	for (pgdidx = 0; pgdidx <= pgdidx_limit; pgdidx++) {
+-		pud_t *pud;
++	nr = pgd_index(limit) + 1;
++	for (i = 0; i < nr; i++) {
++		p4d_t *p4d;
+ 
+-		if (pgdidx >= hole_low && pgdidx < hole_high)
++		if (i >= hole_low && i < hole_high)
+ 			continue;
+ 
+-		if (!pgd_val(pgd[pgdidx]))
++		if (pgd_none(pgd[i]))
+ 			continue;
+ 
+-		pud = pud_offset(&pgd[pgdidx], 0);
+-
+-		if (PTRS_PER_PUD > 1) /* not folded */
+-			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
+-
+-		for (pudidx = 0; pudidx < PTRS_PER_PUD; pudidx++) {
+-			pmd_t *pmd;
+-
+-			if (pgdidx == pgdidx_limit &&
+-			    pudidx > pudidx_limit)
+-				goto out;
+-
+-			if (pud_none(pud[pudidx]))
+-				continue;
+-
+-			pmd = pmd_offset(&pud[pudidx], 0);
+-
+-			if (PTRS_PER_PMD > 1) /* not folded */
+-				flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
+-
+-			for (pmdidx = 0; pmdidx < PTRS_PER_PMD; pmdidx++) {
+-				struct page *pte;
+-
+-				if (pgdidx == pgdidx_limit &&
+-				    pudidx == pudidx_limit &&
+-				    pmdidx > pmdidx_limit)
+-					goto out;
+-
+-				if (pmd_none(pmd[pmdidx]))
+-					continue;
+-
+-				pte = pmd_page(pmd[pmdidx]);
+-				flush |= (*func)(mm, pte, PT_PTE);
+-			}
+-		}
++		p4d = p4d_offset(&pgd[i], 0);
++		if (PTRS_PER_P4D > 1)
++			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
++		xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
+ 	}
+ 
+-out:
+ 	/* Do the top level last, so that the callbacks can use it as
+ 	   a cue to do final things like tlb flushes. */
+ 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
+@@ -1150,57 +1161,97 @@ static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl, bool unpin)
+ 	xen_free_ro_pages(pa, PAGE_SIZE);
+ }
+ 
++static void __init xen_cleanmfnmap_pmd(pmd_t *pmd, bool unpin)
++{
++	unsigned long pa;
++	pte_t *pte_tbl;
++	int i;
++
++	if (pmd_large(*pmd)) {
++		pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
++		xen_free_ro_pages(pa, PMD_SIZE);
 +		return;
 +	}
 +
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL))
-+		init_trampoline_p4d();
-+	else
-+		init_trampoline_pud();
++	pte_tbl = pte_offset_kernel(pmd, 0);
++	for (i = 0; i < PTRS_PER_PTE; i++) {
++		if (pte_none(pte_tbl[i]))
++			continue;
++		pa = pte_pfn(pte_tbl[i]) << PAGE_SHIFT;
++		xen_free_ro_pages(pa, PAGE_SIZE);
++	}
++	set_pmd(pmd, __pmd(0));
++	xen_cleanmfnmap_free_pgtbl(pte_tbl, unpin);
 +}
++
++static void __init xen_cleanmfnmap_pud(pud_t *pud, bool unpin)
++{
++	unsigned long pa;
++	pmd_t *pmd_tbl;
++	int i;
++
++	if (pud_large(*pud)) {
++		pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
++		xen_free_ro_pages(pa, PUD_SIZE);
++		return;
++	}
++
++	pmd_tbl = pmd_offset(pud, 0);
++	for (i = 0; i < PTRS_PER_PMD; i++) {
++		if (pmd_none(pmd_tbl[i]))
++			continue;
++		xen_cleanmfnmap_pmd(pmd_tbl + i, unpin);
++	}
++	set_pud(pud, __pud(0));
++	xen_cleanmfnmap_free_pgtbl(pmd_tbl, unpin);
++}
++
++static void __init xen_cleanmfnmap_p4d(p4d_t *p4d, bool unpin)
++{
++	unsigned long pa;
++	pud_t *pud_tbl;
++	int i;
++
++	if (p4d_large(*p4d)) {
++		pa = p4d_val(*p4d) & PHYSICAL_PAGE_MASK;
++		xen_free_ro_pages(pa, P4D_SIZE);
++		return;
++	}
++
++	pud_tbl = pud_offset(p4d, 0);
++	for (i = 0; i < PTRS_PER_PUD; i++) {
++		if (pud_none(pud_tbl[i]))
++			continue;
++		xen_cleanmfnmap_pud(pud_tbl + i, unpin);
++	}
++	set_p4d(p4d, __p4d(0));
++	xen_cleanmfnmap_free_pgtbl(pud_tbl, unpin);
++}
++
+ /*
+  * Since it is well isolated we can (and since it is perhaps large we should)
+  * also free the page tables mapping the initial P->M table.
+  */
+ static void __init xen_cleanmfnmap(unsigned long vaddr)
+ {
+-	unsigned long va = vaddr & PMD_MASK;
+-	unsigned long pa;
+-	pgd_t *pgd = pgd_offset_k(va);
+-	pud_t *pud_page = pud_offset(pgd, 0);
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	pte_t *pte;
++	pgd_t *pgd;
++	p4d_t *p4d;
+ 	unsigned int i;
+ 	bool unpin;
+ 
+ 	unpin = (vaddr == 2 * PGDIR_SIZE);
+-	set_pgd(pgd, __pgd(0));
+-	do {
+-		pud = pud_page + pud_index(va);
+-		if (pud_none(*pud)) {
+-			va += PUD_SIZE;
+-		} else if (pud_large(*pud)) {
+-			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
+-			xen_free_ro_pages(pa, PUD_SIZE);
+-			va += PUD_SIZE;
+-		} else {
+-			pmd = pmd_offset(pud, va);
+-			if (pmd_large(*pmd)) {
+-				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
+-				xen_free_ro_pages(pa, PMD_SIZE);
+-			} else if (!pmd_none(*pmd)) {
+-				pte = pte_offset_kernel(pmd, va);
+-				set_pmd(pmd, __pmd(0));
+-				for (i = 0; i < PTRS_PER_PTE; ++i) {
+-					if (pte_none(pte[i]))
+-						break;
+-					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
+-					xen_free_ro_pages(pa, PAGE_SIZE);
+-				}
+-				xen_cleanmfnmap_free_pgtbl(pte, unpin);
+-			}
+-			va += PMD_SIZE;
+-			if (pmd_index(va))
+-				continue;
+-			set_pud(pud, __pud(0));
+-			xen_cleanmfnmap_free_pgtbl(pmd, unpin);
+-		}
+-
+-	} while (pud_index(va) || pmd_index(va));
+-	xen_cleanmfnmap_free_pgtbl(pud_page, unpin);
++	vaddr &= PMD_MASK;
++	pgd = pgd_offset_k(vaddr);
++	p4d = p4d_offset(pgd, 0);
++	for (i = 0; i < PTRS_PER_P4D; i++) {
++		if (p4d_none(p4d[i]))
++			continue;
++		xen_cleanmfnmap_p4d(p4d + i, unpin);
++	}
++	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++		set_pgd(pgd, __pgd(0));
++		xen_cleanmfnmap_free_pgtbl(p4d, unpin);
++	}
+ }
+ 
+ static void __init xen_pagetable_p2m_free(void)
+diff --git a/arch/x86/xen/mmu.h b/arch/x86/xen/mmu.h
+index 73809bb951b4..3fe2b3292915 100644
+--- a/arch/x86/xen/mmu.h
++++ b/arch/x86/xen/mmu.h
+@@ -5,6 +5,7 @@
+ 
+ enum pt_level {
+ 	PT_PGD,
++	PT_P4D,
+ 	PT_PUD,
+ 	PT_PMD,
+ 	PT_PTE
 -- 
 2.11.0
 
