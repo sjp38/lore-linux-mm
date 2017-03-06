@@ -1,121 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 080DB6B0388
-	for <linux-mm@kvack.org>; Sun,  5 Mar 2017 20:44:53 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 187so36678214pgb.3
-        for <linux-mm@kvack.org>; Sun, 05 Mar 2017 17:44:52 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 41FB26B0038
+	for <linux-mm@kvack.org>; Sun,  5 Mar 2017 21:09:08 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id v190so56477612pfb.5
+        for <linux-mm@kvack.org>; Sun, 05 Mar 2017 18:09:08 -0800 (PST)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id p6si17508978pfp.204.2017.03.05.17.44.51
+        by mx.google.com with ESMTP id t1si17543413pge.83.2017.03.05.18.09.06
         for <linux-mm@kvack.org>;
-        Sun, 05 Mar 2017 17:44:52 -0800 (PST)
-Date: Mon, 6 Mar 2017 10:44:46 +0900
+        Sun, 05 Mar 2017 18:09:07 -0800 (PST)
+Date: Mon, 6 Mar 2017 11:09:01 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 3/4] thp: fix MADV_DONTNEED vs. MADV_FREE race
-Message-ID: <20170306014446.GB8779@bbox>
-References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
- <20170302151034.27829-4-kirill.shutemov@linux.intel.com>
- <07b101d293df$ed8c9850$c8a5c8f0$@alibaba-inc.com>
- <20170303102636.bhd2zhtpds4mt62a@black.fi.intel.com>
+Subject: Re: [RFC 05/11] mm: make the try_to_munlock void function
+Message-ID: <20170306020901.GC8779@bbox>
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-6-git-send-email-minchan@kernel.org>
+ <98488e1a-0202-b88b-ca9c-1dc0d6c27ae5@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170303102636.bhd2zhtpds4mt62a@black.fi.intel.com>
+In-Reply-To: <98488e1a-0202-b88b-ca9c-1dc0d6c27ae5@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello, Kirill,
-
-On Fri, Mar 03, 2017 at 01:26:36PM +0300, Kirill A. Shutemov wrote:
-> On Fri, Mar 03, 2017 at 01:35:11PM +0800, Hillf Danton wrote:
+On Fri, Mar 03, 2017 at 05:13:54PM +0530, Anshuman Khandual wrote:
+> On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> > try_to_munlock returns SWAP_MLOCK if the one of VMAs mapped
+> > the page has VM_LOCKED flag. In that time, VM set PG_mlocked to
+> > the page if the page is not pte-mapped THP which cannot be
+> > mlocked, either.
+> 
+> Right.
+> 
 > > 
-> > On March 02, 2017 11:11 PM Kirill A. Shutemov wrote: 
-> > > 
-> > > Basically the same race as with numa balancing in change_huge_pmd(), but
-> > > a bit simpler to mitigate: we don't need to preserve dirty/young flags
-> > > here due to MADV_FREE functionality.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > Cc: Minchan Kim <minchan@kernel.org>
-> > > ---
-> > >  mm/huge_memory.c | 2 --
-> > >  1 file changed, 2 deletions(-)
-> > > 
-> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > > index bb2b3646bd78..324217c31ec9 100644
-> > > --- a/mm/huge_memory.c
-> > > +++ b/mm/huge_memory.c
-> > > @@ -1566,8 +1566,6 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> > >  		deactivate_page(page);
-> > > 
-> > >  	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
-> > > -		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
-> > > -			tlb->fullmm);
-> > >  		orig_pmd = pmd_mkold(orig_pmd);
-> > >  		orig_pmd = pmd_mkclean(orig_pmd);
-> > > 
-> > $ grep -n set_pmd_at  linux-4.10/arch/powerpc/mm/pgtable-book3s64.c
+> > With that, __munlock_isolated_page can use PageMlocked to check
+> > whether try_to_munlock is successful or not without relying on
+> > try_to_munlock's retval. It helps to make ttu/ttuo simple with
+> > upcoming patches.
+> 
+> Right.
+> 
 > > 
-> > /*
-> >  * set a new huge pmd. We should not be called for updating
-> >  * an existing pmd entry. That should go via pmd_hugepage_update.
-> >  */
-> > void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  include/linux/rmap.h |  2 +-
+> >  mm/mlock.c           |  6 ++----
+> >  mm/rmap.c            | 16 ++++------------
+> >  3 files changed, 7 insertions(+), 17 deletions(-)
+> > 
+> > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> > index b556eef..1b0cd4c 100644
+> > --- a/include/linux/rmap.h
+> > +++ b/include/linux/rmap.h
+> > @@ -235,7 +235,7 @@ int page_mkclean(struct page *);
+> >   * called in munlock()/munmap() path to check for other vmas holding
+> >   * the page mlocked.
+> >   */
+> > -int try_to_munlock(struct page *);
+> > +void try_to_munlock(struct page *);
+> >  
+> >  void remove_migration_ptes(struct page *old, struct page *new, bool locked);
+> >  
+> > diff --git a/mm/mlock.c b/mm/mlock.c
+> > index cdbed8a..d34a540 100644
+> > --- a/mm/mlock.c
+> > +++ b/mm/mlock.c
+> > @@ -122,17 +122,15 @@ static bool __munlock_isolate_lru_page(struct page *page, bool getpage)
+> >   */
+> >  static void __munlock_isolated_page(struct page *page)
+> >  {
+> > -	int ret = SWAP_AGAIN;
+> > -
+> >  	/*
+> >  	 * Optimization: if the page was mapped just once, that's our mapping
+> >  	 * and we don't need to check all the other vmas.
+> >  	 */
+> >  	if (page_mapcount(page) > 1)
+> > -		ret = try_to_munlock(page);
+> > +		try_to_munlock(page);
+> >  
+> >  	/* Did try_to_unlock() succeed or punt? */
+> > -	if (ret != SWAP_MLOCK)
+> > +	if (!PageMlocked(page))
 > 
-> +Aneesh.
+> Checks if the page is still mlocked or not.
 > 
-> Urgh... Power is special again.
+> >  		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+> >  
+> >  	putback_lru_page(page);
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index 0a48958..61ae694 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1540,18 +1540,10 @@ static int page_not_mapped(struct page *page)
+> >   * Called from munlock code.  Checks all of the VMAs mapping the page
+> >   * to make sure nobody else has this page mlocked. The page will be
+> >   * returned with PG_mlocked cleared if no other vmas have it mlocked.
+> > - *
+> > - * Return values are:
+> > - *
+> > - * SWAP_AGAIN	- no vma is holding page mlocked, or,
+> > - * SWAP_AGAIN	- page mapped in mlocked vma -- couldn't acquire mmap sem
+> > - * SWAP_FAIL	- page cannot be located at present
+> > - * SWAP_MLOCK	- page is now mlocked.
+> >   */
+> > -int try_to_munlock(struct page *page)
+> > -{
+> > -	int ret;
+> >  
+> > +void try_to_munlock(struct page *page)
+> > +{
+> >  	struct rmap_walk_control rwc = {
+> >  		.rmap_one = try_to_unmap_one,
+> >  		.arg = (void *)TTU_MUNLOCK,
+> > @@ -1561,9 +1553,9 @@ int try_to_munlock(struct page *page)
+> >  	};
+> >  
+> >  	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
+> > +	VM_BUG_ON_PAGE(PageMlocked(page), page);
 > 
-> I think this should work fine.
-> 
-> From 056914fa025992c0a2212aee057c26307ce60238 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Thu, 2 Mar 2017 16:47:45 +0300
-> Subject: [PATCH] thp: fix MADV_DONTNEED vs. MADV_FREE race
-> 
-> Basically the same race as with numa balancing in change_huge_pmd(), but
-> a bit simpler to mitigate: we don't need to preserve dirty/young flags
-> here due to MADV_FREE functionality.
+> We are calling on the page to see if its mlocked from any of it's
+> mapping VMAs. Then it is a possibility that the page is mlocked
+> and the above condition is true and we print VM BUG report there.
+> The point is if its a valid possibility why we have added the
+> above check ?
 
-Could you elaborate a bit more here rather than relying on other
-patch's description?
-
-And could you say what happens to the userspace if that race
-happens? When I guess from title "MADV_DONTNEED vs MADV_FREE",
-a page cannot be zapped but marked lazyfree or vise versa? Right?
-
-Thanks.
-
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/huge_memory.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index bb2b3646bd78..23c1b3d58cf4 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1566,8 +1566,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  		deactivate_page(page);
->  
->  	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
-> -		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
-> -			tlb->fullmm);
-> +		pmdp_invalidate(vma, addr, pmd);
->  		orig_pmd = pmd_mkold(orig_pmd);
->  		orig_pmd = pmd_mkclean(orig_pmd);
->  
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+If I read code properly,  __munlock_isolated_page calls try_to_munlock
+always pass the TestClearPageMlocked page to try_to_munlock.
+(e.g., munlock_vma_page and __munlock_pagevec) so I thought
+try_to_munlock should be called non-PG_mlocked page and try_to_unmap_one
+returns PG_mlocked page once it found a VM_LOCKED VMA for a page.
+IOW, non-PG_mlocked page is precondition for try_to_munlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
