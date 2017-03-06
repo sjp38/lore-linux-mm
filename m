@@ -1,95 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0B56B0388
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 12:58:50 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 2so144854813oif.7
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 09:58:50 -0800 (PST)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0051.outbound.protection.outlook.com. [104.47.37.51])
-        by mx.google.com with ESMTPS id t44si8345637otc.306.2017.03.06.09.58.49
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AFCC6B0389
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 13:00:02 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id g43so34009830uah.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 10:00:02 -0800 (PST)
+Received: from mail-ua0-x241.google.com (mail-ua0-x241.google.com. [2607:f8b0:400c:c08::241])
+        by mx.google.com with ESMTPS id h4si5330686vkb.104.2017.03.06.10.00.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 06 Mar 2017 09:58:49 -0800 (PST)
-Subject: Re: [RFC PATCH v4 26/28] x86: Allow kexec to be used with SME
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154755.19244.51276.stgit@tlendack-t1.amdoffice.net>
- <20170217155756.GJ30272@char.us.ORACLE.com>
- <d2f16b24-f2ef-a22b-3c72-2d8ad585553e@amd.com>
- <20170301092536.GB8353@dhcp-128-65.nay.redhat.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <998eb58b-eefd-3093-093f-9ae25ddda472@amd.com>
-Date: Mon, 6 Mar 2017 11:58:40 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 10:00:01 -0800 (PST)
+Received: by mail-ua0-x241.google.com with SMTP id 72so22816143uaf.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 10:00:01 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170301092536.GB8353@dhcp-128-65.nay.redhat.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170228151108.20853-3-mhocko@kernel.org>
+References: <20170228151108.20853-1-mhocko@kernel.org> <20170228151108.20853-3-mhocko@kernel.org>
+From: MegaBrutal <megabrutal@gmail.com>
+Date: Mon, 6 Mar 2017 19:00:00 +0100
+Message-ID: <CAE8gLhkH4W6ZvMMCe7s-nTdGQBHg1HOj_jsfZWHimH6ZXzGWQA@mail.gmail.com>
+Subject: Re: [PATCH stable-4.9 2/2] mm, vmscan: consider eligible zones in get_scan_count
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
- Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Stable tree <stable@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Trevor Cordes <trevor@tecnopolis.ca>
 
-On 3/1/2017 3:25 AM, Dave Young wrote:
-> Hi Tom,
+Hi Michal,
 
-Hi Dave,
+I'm over a very long kernel bisection, and if I made no mistake in
+testing commits, this patch fixes a kernel bug which affects my HP
+Compaq dc5800 machine with 32 bit Ubuntu OS.
 
+The bug manifests itself with "NMI watchdog: BUG: soft lockup - CPU#0
+stuck for 23s! [kswapd0:38]" messages in 4.8 kernels, and "page
+allocation stalls for 47608ms, order:1,
+mode:0x17000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK)" in 4.10 kernels up
+to this commit.
+
+Michal, can you confirm that this patch may fix issues like the ones I
+encountered? If so, I'll try to get the Ubuntu kernel staff to
+backport this commit to Yakkety's 4.8 kernel. On the other hand, I
+can't seem to be able to backport this commit to 4.8 with "git
+cherry-pick", so maybe I need to wait for your tweaks you mentioned.
+
+Anyway, thank you very much for the fix!
+
+
+Regards,
+MegaBrutal
+
+
+
+2017-02-28 16:11 GMT+01:00 Michal Hocko <mhocko@kernel.org>:
 >
-> On 02/17/17 at 10:43am, Tom Lendacky wrote:
->> On 2/17/2017 9:57 AM, Konrad Rzeszutek Wilk wrote:
->>> On Thu, Feb 16, 2017 at 09:47:55AM -0600, Tom Lendacky wrote:
->>>> Provide support so that kexec can be used to boot a kernel when SME is
->>>> enabled.
->>>
->>> Is the point of kexec and kdump to ehh, dump memory ? But if the
->>> rest of the memory is encrypted you won't get much, will you?
->>
->> Kexec can be used to reboot a system without going back through BIOS.
->> So you can use kexec without using kdump.
->>
->> For kdump, just taking a quick look, the option to enable memory
->> encryption can be provided on the crash kernel command line and then
+> From: Michal Hocko <mhocko@suse.com>
 >
-> Is there a simple way to get the SME status? Probably add some sysfs
-> file for this purpose.
-
-Currently there is not.  I can look at adding something, maybe just the
-sme_me_mask value, which if non-zero, would indicate SME is active.
-
+> commit 71ab6cfe88dcf9f6e6a65eb85cf2bda20a257682 upstream.
 >
->> crash kernel can would be able to copy the memory decrypted if the
->> pagetable is set up properly. It looks like currently ioremap_cache()
->> is used to map the old memory page.  That might be able to be changed
->> to a memremap() so that the encryption bit is set in the mapping. That
->> will mean that memory that is not marked encrypted (EFI tables, swiotlb
->> memory, etc) would not be read correctly.
+> get_scan_count() considers the whole node LRU size when
 >
-> Manage to store info about those ranges which are not encrypted so that
-> memremap can handle them?
-
-I can look into whether something can be done in this area. Any input
-you can provide as to what would be the best way/place to store the
-range info so kdump can make use of it, would be greatly appreciated.
-
+>  - doing SCAN_FILE due to many page cache inactive pages
+>  - calculating the number of pages to scan
 >
->>
->>>
->>> Would it make sense to include some printk to the user if they
->>> are setting up kdump that they won't get anything out of it?
->>
->> Probably a good idea to add something like that.
+> In both cases this might lead to unexpected behavior especially on 32b
+> systems where we can expect lowmem memory pressure very often.
 >
-> It will break kdump functionality, it should be fixed instead of
-> just adding printk to warn user..
-
-I do want kdump to work. I'll investigate further what can be done in
-this area.
-
-Thanks,
-Tom
-
+> A large highmem zone can easily distort SCAN_FILE heuristic because
+> there might be only few file pages from the eligible zones on the node
+> lru and we would still enforce file lru scanning which can lead to
+> trashing while we could still scan anonymous pages.
 >
-> Thanks
-> Dave
+> The later use of lruvec_lru_size can be problematic as well.  Especially
+> when there are not many pages from the eligible zones.  We would have to
+> skip over many pages to find anything to reclaim but shrink_node_memcg
+> would only reduce the remaining number to scan by SWAP_CLUSTER_MAX at
+> maximum.  Therefore we can end up going over a large LRU many times
+> without actually having chance to reclaim much if anything at all.  The
+> closer we are out of memory on lowmem zone the worse the problem will
+> be.
+>
+> Fix this by filtering out all the ineligible zones when calculating the
+> lru size for both paths and consider only sc->reclaim_idx zones.
+>
+> The patch would need to be tweaked a bit to apply to 4.10 and older but
+> I will do that as soon as it hits the Linus tree in the next merge
+> window.
+>
+> Link: http://lkml.kernel.org/r/20170117103702.28542-3-mhocko@kernel.org
+> Fixes: b2e18757f2c9 ("mm, vmscan: begin reclaiming pages on a per-node basis")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Tested-by: Trevor Cordes <trevor@tecnopolis.ca>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: <stable@vger.kernel.org>    [4.8+]
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> ---
+>  mm/vmscan.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index cd516c632e8f..30a88b945a44 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2205,7 +2205,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>          * system is under heavy pressure.
+>          */
+>         if (!inactive_list_is_low(lruvec, true, sc) &&
+> -           lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES) >> sc->priority) {
+> +           lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+>                 scan_balance = SCAN_FILE;
+>                 goto out;
+>         }
+> @@ -2272,7 +2272,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>                         unsigned long size;
+>                         unsigned long scan;
+>
+> -                       size = lruvec_lru_size(lruvec, lru, MAX_NR_ZONES);
+> +                       size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+>                         scan = size >> sc->priority;
+>
+>                         if (!scan && pass && force_scan)
+> --
+> 2.11.0
 >
 
 --
