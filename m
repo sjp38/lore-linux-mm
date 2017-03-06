@@ -1,129 +1,503 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 160A76B038A
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 17:04:05 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 77so81921631pgc.5
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 14:04:05 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E5F666B038D
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 17:04:06 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id o126so48731931pfb.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 14:04:06 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n81sor13507903pfg.8.1969.12.31.16.00.00
+        by mx.google.com with SMTPS id w66sor6551468pfw.2.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Mar 2017 14:04:04 -0800 (PST)
+        Mon, 06 Mar 2017 14:04:05 -0800 (PST)
 From: Thomas Garnier <thgarnie@google.com>
-Subject: [PATCH v5 1/3] x86/mm: Adapt MODULES_END based on Fixmap section size
-Date: Mon,  6 Mar 2017 14:03:46 -0800
-Message-Id: <20170306220348.79702-1-thgarnie@google.com>
+Subject: [PATCH v5 2/3] x86: Remap GDT tables in the Fixmap section
+Date: Mon,  6 Mar 2017 14:03:47 -0800
+Message-Id: <20170306220348.79702-2-thgarnie@google.com>
+In-Reply-To: <20170306220348.79702-1-thgarnie@google.com>
+References: <20170306220348.79702-1-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Jonathan Corbet <corbet@lwn.net>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Thomas Garnier <thgarnie@google.com>, Kees Cook <keescook@chromium.org>, Juergen Gross <jgross@suse.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andy Lutomirski <luto@amacapital.net>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Jiri Kosina <jikos@kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Rusty Russell <rusty@rustcorp.com.au>, Paolo Bonzini <pbonzini@redhat.com>, Borislav Petkov <bp@suse.de>, Christian Borntraeger <borntraeger@de.ibm.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, He Chen <he.chen@linux.intel.com>, Brian Gerst <brgerst@gmail.com>, Frederic Weisbecker <fweisbec@gmail.com>, Stanislaw Gruszka <sgruszka@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Joerg Roedel <joro@8bytes.org>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-efi@vger.kernel.org, xen-devel@lists.xenproject.org, lguest@lists.ozlabs.org, kvm@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-This patch aligns MODULES_END to the beginning of the Fixmap section.
-It optimizes the space available for both sections. The address is
-pre-computed based on the number of pages required by the Fixmap
-section.
+Each processor holds a GDT in its per-cpu structure. The sgdt
+instruction gives the base address of the current GDT. This address can
+be used to bypass KASLR memory randomization. With another bug, an
+attacker could target other per-cpu structures or deduce the base of
+the main memory section (PAGE_OFFSET).
 
-It will allow GDT remapping in the Fixmap section. The current
-MODULES_END static address does not provide enough space for the kernel
-to support a large number of processors.
+This patch relocates the GDT table for each processor inside the
+Fixmap section. The space is reserved based on number of supported
+processors.
+
+For consistency, the remapping is done by default on 32 and 64-bit.
+
+Each processor switches to its remapped GDT at the end of
+initialization. For hibernation, the main processor returns with the
+original GDT and switches back to the remapping at completion.
+
+This patch was tested on both architectures. Hibernation and KVM were
+both tested specially for their usage of the GDT.
 
 Signed-off-by: Thomas Garnier <thgarnie@google.com>
 ---
 Based on next-20170306
 ---
- Documentation/x86/x86_64/mm.txt         | 5 ++++-
- arch/x86/include/asm/pgtable_64_types.h | 3 ++-
- arch/x86/kernel/module.c                | 1 +
- arch/x86/mm/dump_pagetables.c           | 1 +
- arch/x86/mm/kasan_init_64.c             | 1 +
- mm/vmalloc.c                            | 1 +
- 6 files changed, 10 insertions(+), 2 deletions(-)
+ arch/x86/entry/vdso/vma.c             |  2 +-
+ arch/x86/include/asm/desc.h           | 57 ++++++++++++++++++++++++++++++++---
+ arch/x86/include/asm/fixmap.h         |  4 +++
+ arch/x86/include/asm/processor.h      |  1 +
+ arch/x86/include/asm/stackprotector.h |  2 +-
+ arch/x86/kernel/acpi/sleep.c          |  2 +-
+ arch/x86/kernel/apm_32.c              |  6 ++--
+ arch/x86/kernel/cpu/common.c          | 26 ++++++++++++++--
+ arch/x86/kernel/setup_percpu.c        |  2 +-
+ arch/x86/kernel/smpboot.c             |  2 +-
+ arch/x86/platform/efi/efi_32.c        |  4 +--
+ arch/x86/power/cpu.c                  |  7 +++--
+ arch/x86/xen/enlighten.c              |  2 +-
+ arch/x86/xen/smp.c                    |  2 +-
+ drivers/lguest/x86/core.c             |  6 ++--
+ drivers/pnp/pnpbios/bioscalls.c       | 10 +++---
+ 16 files changed, 106 insertions(+), 29 deletions(-)
 
-diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
-index 5724092db811..ee3f9c30957c 100644
---- a/Documentation/x86/x86_64/mm.txt
-+++ b/Documentation/x86/x86_64/mm.txt
-@@ -19,7 +19,7 @@ ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
- ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
- ... unused hole ...
- ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
--ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
-+ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space (variable)
- ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
- ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+index 226ca70dc6bd..5c5d4d7618e6 100644
+--- a/arch/x86/entry/vdso/vma.c
++++ b/arch/x86/entry/vdso/vma.c
+@@ -354,7 +354,7 @@ static void vgetcpu_cpu_init(void *arg)
+ 	d.p = 1;		/* Present */
+ 	d.d = 1;		/* 32-bit */
  
-@@ -39,6 +39,9 @@ memory window (this size is arbitrary, it can be raised later if needed).
- The mappings are not part of any other kernel PGD and are only available
- during EFI runtime calls.
+-	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
++	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
+ }
  
-+The module mapping space size changes based on the CONFIG requirements for the
-+following fixmap section.
+ static int vgetcpu_online(unsigned int cpu)
+diff --git a/arch/x86/include/asm/desc.h b/arch/x86/include/asm/desc.h
+index 1548ca92ad3f..549393ae93a0 100644
+--- a/arch/x86/include/asm/desc.h
++++ b/arch/x86/include/asm/desc.h
+@@ -4,6 +4,7 @@
+ #include <asm/desc_defs.h>
+ #include <asm/ldt.h>
+ #include <asm/mmu.h>
++#include <asm/fixmap.h>
+ 
+ #include <linux/smp.h>
+ #include <linux/percpu.h>
+@@ -45,11 +46,57 @@ struct gdt_page {
+ 
+ DECLARE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page);
+ 
+-static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
++/* Provide the original GDT */
++static inline struct desc_struct *get_cpu_gdt_rw(unsigned int cpu)
+ {
+ 	return per_cpu(gdt_page, cpu).gdt;
+ }
+ 
++static inline unsigned long get_cpu_gdt_rw_vaddr(unsigned int cpu)
++{
++	return (unsigned long)get_cpu_gdt_rw(cpu);
++}
 +
- Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
- physical memory, vmalloc/ioremap space and virtual memory map are randomized.
- Their order is preserved but their base will be offset early at boot time.
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 3a264200c62f..bb05e21cf3c7 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -67,7 +67,8 @@ typedef struct { pteval_t pte; } pte_t;
- #endif /* CONFIG_RANDOMIZE_MEMORY */
- #define VMALLOC_END	(VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
- #define MODULES_VADDR    (__START_KERNEL_map + KERNEL_IMAGE_SIZE)
--#define MODULES_END      _AC(0xffffffffff000000, UL)
-+/* The module sections ends with the start of the fixmap */
-+#define MODULES_END   __fix_to_virt(__end_of_fixed_addresses + 1)
- #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
- #define ESPFIX_PGD_ENTRY _AC(-2, UL)
- #define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << PGDIR_SHIFT)
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index 477ae806c2fa..fad61caac75e 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -35,6 +35,7 @@
- #include <asm/page.h>
- #include <asm/pgtable.h>
- #include <asm/setup.h>
-+#include <asm/fixmap.h>
++/* Provide the current original GDT */
++static inline struct desc_struct *get_current_gdt_rw(void)
++{
++	return this_cpu_ptr(&gdt_page)->gdt;
++}
++
++static inline unsigned long get_current_gdt_rw_vaddr(void)
++{
++	return (unsigned long)get_current_gdt_rw();
++}
++
++/* Get the fixmap index for a specific processor */
++static inline unsigned int get_cpu_gdt_ro_index(int cpu)
++{
++	return FIX_GDT_REMAP_BEGIN + cpu;
++}
++
++/* Provide the fixmap address of the remapped GDT */
++static inline struct desc_struct *get_cpu_gdt_ro(int cpu)
++{
++	unsigned int idx = get_cpu_gdt_ro_index(cpu);
++	return (struct desc_struct *)__fix_to_virt(idx);
++}
++
++static inline unsigned long get_cpu_gdt_ro_vaddr(int cpu)
++{
++	return (unsigned long)get_cpu_gdt_ro(cpu);
++}
++
++/* Provide the current read-only GDT */
++static inline struct desc_struct *get_current_gdt_ro(void)
++{
++	return get_cpu_gdt_ro(smp_processor_id());
++}
++
++static inline unsigned long get_current_gdt_ro_vaddr(void)
++{
++	return (unsigned long)get_current_gdt_ro();
++}
++
+ #ifdef CONFIG_X86_64
  
- #if 0
- #define DEBUGP(fmt, ...)				\
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 58b5bee7ea27..75efeecc85eb 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -20,6 +20,7 @@
+ static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
+@@ -174,7 +221,7 @@ static inline void set_tssldt_descriptor(void *d, unsigned long addr, unsigned t
  
- #include <asm/kasan.h>
- #include <asm/pgtable.h>
-+#include <asm/fixmap.h>
+ static inline void __set_tss_desc(unsigned cpu, unsigned int entry, void *addr)
+ {
+-	struct desc_struct *d = get_cpu_gdt_table(cpu);
++	struct desc_struct *d = get_cpu_gdt_rw(cpu);
+ 	tss_desc tss;
  
+ 	set_tssldt_descriptor(&tss, (unsigned long)addr, DESC_TSS,
+@@ -194,7 +241,7 @@ static inline void native_set_ldt(const void *addr, unsigned int entries)
+ 
+ 		set_tssldt_descriptor(&ldt, (unsigned long)addr, DESC_LDT,
+ 				      entries * LDT_ENTRY_SIZE - 1);
+-		write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT,
++		write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_LDT,
+ 				&ldt, DESC_LDT);
+ 		asm volatile("lldt %w0"::"q" (GDT_ENTRY_LDT*8));
+ 	}
+@@ -209,7 +256,7 @@ DECLARE_PER_CPU(bool, __tss_limit_invalid);
+ 
+ static inline void force_reload_TR(void)
+ {
+-	struct desc_struct *d = get_cpu_gdt_table(smp_processor_id());
++	struct desc_struct *d = get_current_gdt_rw();
+ 	tss_desc tss;
+ 
+ 	memcpy(&tss, &d[GDT_ENTRY_TSS], sizeof(tss_desc));
+@@ -288,7 +335,7 @@ static inline unsigned long native_store_tr(void)
+ 
+ static inline void native_load_tls(struct thread_struct *t, unsigned int cpu)
+ {
+-	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
++	struct desc_struct *gdt = get_cpu_gdt_rw(cpu);
+ 	unsigned int i;
+ 
+ 	for (i = 0; i < GDT_ENTRY_TLS_ENTRIES; i++)
+diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
+index 8554f960e21b..b65155cc3760 100644
+--- a/arch/x86/include/asm/fixmap.h
++++ b/arch/x86/include/asm/fixmap.h
+@@ -100,6 +100,10 @@ enum fixed_addresses {
+ #ifdef	CONFIG_X86_INTEL_MID
+ 	FIX_LNW_VRTC,
+ #endif
++	/* Fixmap entries to remap the GDTs, one per processor. */
++	FIX_GDT_REMAP_BEGIN,
++	FIX_GDT_REMAP_END = FIX_GDT_REMAP_BEGIN + NR_CPUS - 1,
++
+ 	__end_of_permanent_fixed_addresses,
+ 
+ 	/*
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index f385eca5407a..2ec4d2dc559b 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -716,6 +716,7 @@ extern struct desc_ptr		early_gdt_descr;
+ 
+ extern void cpu_set_gdt(int);
+ extern void switch_to_new_gdt(int);
++extern void load_fixmap_gdt(int);
+ extern void load_percpu_segment(int);
+ extern void cpu_init(void);
+ 
+diff --git a/arch/x86/include/asm/stackprotector.h b/arch/x86/include/asm/stackprotector.h
+index 58505f01962f..dcbd9bcce714 100644
+--- a/arch/x86/include/asm/stackprotector.h
++++ b/arch/x86/include/asm/stackprotector.h
+@@ -87,7 +87,7 @@ static inline void setup_stack_canary_segment(int cpu)
+ {
+ #ifdef CONFIG_X86_32
+ 	unsigned long canary = (unsigned long)&per_cpu(stack_canary, cpu);
+-	struct desc_struct *gdt_table = get_cpu_gdt_table(cpu);
++	struct desc_struct *gdt_table = get_cpu_gdt_rw(cpu);
+ 	struct desc_struct desc;
+ 
+ 	desc = gdt_table[GDT_ENTRY_STACK_CANARY];
+diff --git a/arch/x86/kernel/acpi/sleep.c b/arch/x86/kernel/acpi/sleep.c
+index 48587335ede8..ed014814ea35 100644
+--- a/arch/x86/kernel/acpi/sleep.c
++++ b/arch/x86/kernel/acpi/sleep.c
+@@ -101,7 +101,7 @@ int x86_acpi_suspend_lowlevel(void)
+ #ifdef CONFIG_SMP
+ 	initial_stack = (unsigned long)temp_stack + sizeof(temp_stack);
+ 	early_gdt_descr.address =
+-			(unsigned long)get_cpu_gdt_table(smp_processor_id());
++			(unsigned long)get_cpu_gdt_rw(smp_processor_id());
+ 	initial_gs = per_cpu_offset(smp_processor_id());
+ #endif
+ 	initial_code = (unsigned long)wakeup_long64;
+diff --git a/arch/x86/kernel/apm_32.c b/arch/x86/kernel/apm_32.c
+index 5a414545e8a3..446b0d3d4932 100644
+--- a/arch/x86/kernel/apm_32.c
++++ b/arch/x86/kernel/apm_32.c
+@@ -609,7 +609,7 @@ static long __apm_bios_call(void *_call)
+ 
+ 	cpu = get_cpu();
+ 	BUG_ON(cpu != 0);
+-	gdt = get_cpu_gdt_table(cpu);
++	gdt = get_cpu_gdt_rw(cpu);
+ 	save_desc_40 = gdt[0x40 / 8];
+ 	gdt[0x40 / 8] = bad_bios_desc;
+ 
+@@ -685,7 +685,7 @@ static long __apm_bios_call_simple(void *_call)
+ 
+ 	cpu = get_cpu();
+ 	BUG_ON(cpu != 0);
+-	gdt = get_cpu_gdt_table(cpu);
++	gdt = get_cpu_gdt_rw(cpu);
+ 	save_desc_40 = gdt[0x40 / 8];
+ 	gdt[0x40 / 8] = bad_bios_desc;
+ 
+@@ -2352,7 +2352,7 @@ static int __init apm_init(void)
+ 	 * Note we only set APM segments on CPU zero, since we pin the APM
+ 	 * code to that CPU.
+ 	 */
+-	gdt = get_cpu_gdt_table(0);
++	gdt = get_cpu_gdt_rw(0);
+ 	set_desc_base(&gdt[APM_CS >> 3],
+ 		 (unsigned long)__va((unsigned long)apm_info.bios.cseg << 4));
+ 	set_desc_base(&gdt[APM_CS_16 >> 3],
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index 58094a1f9e9d..a9e847da014a 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -448,6 +448,23 @@ void load_percpu_segment(int cpu)
+ 	load_stack_canary_segment();
+ }
+ 
++/* Setup the fixmap mapping only once per-processor */
++static inline void setup_fixmap_gdt(int cpu)
++{
++	__set_fixmap(get_cpu_gdt_ro_index(cpu),
++		     __pa(get_cpu_gdt_rw(cpu)), PAGE_KERNEL);
++}
++
++/* Load a fixmap remapping of the per-cpu GDT */
++void load_fixmap_gdt(int cpu)
++{
++	struct desc_ptr gdt_descr;
++
++	gdt_descr.address = (long)get_cpu_gdt_ro(cpu);
++	gdt_descr.size = GDT_SIZE - 1;
++	load_gdt(&gdt_descr);
++}
++
  /*
-  * The dumper groups pagetable entries of the same type into one, and for
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 8d63d7a104c3..1bde19ef86bd 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -9,6 +9,7 @@
+  * Current gdt points %fs at the "master" per-cpu area: after this,
+  * it's on the real one.
+@@ -456,11 +473,10 @@ void switch_to_new_gdt(int cpu)
+ {
+ 	struct desc_ptr gdt_descr;
  
- #include <asm/tlbflush.h>
- #include <asm/sections.h>
-+#include <asm/fixmap.h>
+-	gdt_descr.address = (long)get_cpu_gdt_table(cpu);
++	gdt_descr.address = (long)get_cpu_gdt_rw(cpu);
+ 	gdt_descr.size = GDT_SIZE - 1;
+ 	load_gdt(&gdt_descr);
+ 	/* Reload the per-cpu base */
+-
+ 	load_percpu_segment(cpu);
+ }
  
- extern pgd_t early_level4_pgt[PTRS_PER_PGD];
- extern struct range pfn_mapped[E820_X_MAX];
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index b4024d688f38..91b0d5e19af6 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -35,6 +35,7 @@
- #include <linux/uaccess.h>
- #include <asm/tlbflush.h>
- #include <asm/shmparam.h>
-+#include <asm/fixmap.h>
+@@ -1526,6 +1542,9 @@ void cpu_init(void)
  
- #include "internal.h"
+ 	if (is_uv_system())
+ 		uv_cpu_init();
++
++	setup_fixmap_gdt(cpu);
++	load_fixmap_gdt(cpu);
+ }
  
+ #else
+@@ -1581,6 +1600,9 @@ void cpu_init(void)
+ 	dbg_restore_debug_regs();
+ 
+ 	fpu__init_cpu();
++
++	setup_fixmap_gdt(cpu);
++	load_fixmap_gdt(cpu);
+ }
+ #endif
+ 
+diff --git a/arch/x86/kernel/setup_percpu.c b/arch/x86/kernel/setup_percpu.c
+index 9820d6d977c6..11338b0b3ad2 100644
+--- a/arch/x86/kernel/setup_percpu.c
++++ b/arch/x86/kernel/setup_percpu.c
+@@ -160,7 +160,7 @@ static inline void setup_percpu_segment(int cpu)
+ 	pack_descriptor(&gdt, per_cpu_offset(cpu), 0xFFFFF,
+ 			0x2 | DESCTYPE_S, 0x8);
+ 	gdt.s = 1;
+-	write_gdt_entry(get_cpu_gdt_table(cpu),
++	write_gdt_entry(get_cpu_gdt_rw(cpu),
+ 			GDT_ENTRY_PERCPU, &gdt, DESCTYPE_S);
+ #endif
+ }
+diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
+index bd1f1ad35284..f04479a8f74f 100644
+--- a/arch/x86/kernel/smpboot.c
++++ b/arch/x86/kernel/smpboot.c
+@@ -983,7 +983,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
+ 	unsigned long timeout;
+ 
+ 	idle->thread.sp = (unsigned long)task_pt_regs(idle);
+-	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
++	early_gdt_descr.address = (unsigned long)get_cpu_gdt_rw(cpu);
+ 	initial_code = (unsigned long)start_secondary;
+ 	initial_stack  = idle->thread.sp;
+ 
+diff --git a/arch/x86/platform/efi/efi_32.c b/arch/x86/platform/efi/efi_32.c
+index cef39b097649..950071171436 100644
+--- a/arch/x86/platform/efi/efi_32.c
++++ b/arch/x86/platform/efi/efi_32.c
+@@ -68,7 +68,7 @@ pgd_t * __init efi_call_phys_prolog(void)
+ 	load_cr3(initial_page_table);
+ 	__flush_tlb_all();
+ 
+-	gdt_descr.address = __pa(get_cpu_gdt_table(0));
++	gdt_descr.address = __pa(get_cpu_gdt_rw(0));
+ 	gdt_descr.size = GDT_SIZE - 1;
+ 	load_gdt(&gdt_descr);
+ 
+@@ -79,7 +79,7 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
+ {
+ 	struct desc_ptr gdt_descr;
+ 
+-	gdt_descr.address = (unsigned long)get_cpu_gdt_table(0);
++	gdt_descr.address = (unsigned long)get_cpu_gdt_rw(0);
+ 	gdt_descr.size = GDT_SIZE - 1;
+ 	load_gdt(&gdt_descr);
+ 
+diff --git a/arch/x86/power/cpu.c b/arch/x86/power/cpu.c
+index 66ade16c7693..6b05a9219ea2 100644
+--- a/arch/x86/power/cpu.c
++++ b/arch/x86/power/cpu.c
+@@ -95,7 +95,7 @@ static void __save_processor_state(struct saved_context *ctxt)
+ 	 * 'pmode_gdt' in wakeup_start.
+ 	 */
+ 	ctxt->gdt_desc.size = GDT_SIZE - 1;
+-	ctxt->gdt_desc.address = (unsigned long)get_cpu_gdt_table(smp_processor_id());
++	ctxt->gdt_desc.address = (unsigned long)get_cpu_gdt_rw(smp_processor_id());
+ 
+ 	store_tr(ctxt->tr);
+ 
+@@ -162,7 +162,7 @@ static void fix_processor_context(void)
+ 	int cpu = smp_processor_id();
+ 	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
+ #ifdef CONFIG_X86_64
+-	struct desc_struct *desc = get_cpu_gdt_table(cpu);
++	struct desc_struct *desc = get_cpu_gdt_rw(cpu);
+ 	tss_desc tss;
+ #endif
+ 	set_tss_desc(cpu, t);	/*
+@@ -183,6 +183,9 @@ static void fix_processor_context(void)
+ 	load_mm_ldt(current->active_mm);	/* This does lldt */
+ 
+ 	fpu__resume_cpu();
++
++	/* The processor is back on the direct GDT, load back the fixmap */
++	load_fixmap_gdt(cpu);
+ }
+ 
+ /**
+diff --git a/arch/x86/xen/enlighten.c b/arch/x86/xen/enlighten.c
+index ec1d5c46e58f..4951fcf95143 100644
+--- a/arch/x86/xen/enlighten.c
++++ b/arch/x86/xen/enlighten.c
+@@ -710,7 +710,7 @@ static void load_TLS_descriptor(struct thread_struct *t,
+ 
+ 	*shadow = t->tls_array[i];
+ 
+-	gdt = get_cpu_gdt_table(cpu);
++	gdt = get_cpu_gdt_rw(cpu);
+ 	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
+ 	mc = __xen_mc_entry(0);
+ 
+diff --git a/arch/x86/xen/smp.c b/arch/x86/xen/smp.c
+index 7ff2f1bfb7ec..eaa36162ed4a 100644
+--- a/arch/x86/xen/smp.c
++++ b/arch/x86/xen/smp.c
+@@ -392,7 +392,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
+ 	if (ctxt == NULL)
+ 		return -ENOMEM;
+ 
+-	gdt = get_cpu_gdt_table(cpu);
++	gdt = get_cpu_gdt_rw(cpu);
+ 
+ #ifdef CONFIG_X86_32
+ 	ctxt->user_regs.fs = __KERNEL_PERCPU;
+diff --git a/drivers/lguest/x86/core.c b/drivers/lguest/x86/core.c
+index d71f6323ac00..b4f79b923aea 100644
+--- a/drivers/lguest/x86/core.c
++++ b/drivers/lguest/x86/core.c
+@@ -504,7 +504,7 @@ void __init lguest_arch_host_init(void)
+ 		 * byte, not the size, hence the "-1").
+ 		 */
+ 		state->host_gdt_desc.size = GDT_SIZE-1;
+-		state->host_gdt_desc.address = (long)get_cpu_gdt_table(i);
++		state->host_gdt_desc.address = (long)get_cpu_gdt_rw(i);
+ 
+ 		/*
+ 		 * All CPUs on the Host use the same Interrupt Descriptor
+@@ -554,8 +554,8 @@ void __init lguest_arch_host_init(void)
+ 		 * The Host needs to be able to use the LGUEST segments on this
+ 		 * CPU, too, so put them in the Host GDT.
+ 		 */
+-		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
+-		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
++		get_cpu_gdt_rw(i)[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
++		get_cpu_gdt_rw(i)[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
+ 	}
+ 
+ 	/*
+diff --git a/drivers/pnp/pnpbios/bioscalls.c b/drivers/pnp/pnpbios/bioscalls.c
+index 438d4c72c7b3..ff563db025b3 100644
+--- a/drivers/pnp/pnpbios/bioscalls.c
++++ b/drivers/pnp/pnpbios/bioscalls.c
+@@ -54,7 +54,7 @@ __asm__(".text			\n"
+ 
+ #define Q2_SET_SEL(cpu, selname, address, size) \
+ do { \
+-	struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
++	struct desc_struct *gdt = get_cpu_gdt_rw((cpu)); \
+ 	set_desc_base(&gdt[(selname) >> 3], (u32)(address)); \
+ 	set_desc_limit(&gdt[(selname) >> 3], (size) - 1); \
+ } while(0)
+@@ -95,8 +95,8 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
+ 		return PNP_FUNCTION_NOT_SUPPORTED;
+ 
+ 	cpu = get_cpu();
+-	save_desc_40 = get_cpu_gdt_table(cpu)[0x40 / 8];
+-	get_cpu_gdt_table(cpu)[0x40 / 8] = bad_bios_desc;
++	save_desc_40 = get_cpu_gdt_rw(cpu)[0x40 / 8];
++	get_cpu_gdt_rw(cpu)[0x40 / 8] = bad_bios_desc;
+ 
+ 	/* On some boxes IRQ's during PnP BIOS calls are deadly.  */
+ 	spin_lock_irqsave(&pnp_bios_lock, flags);
+@@ -134,7 +134,7 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
+ 			     :"memory");
+ 	spin_unlock_irqrestore(&pnp_bios_lock, flags);
+ 
+-	get_cpu_gdt_table(cpu)[0x40 / 8] = save_desc_40;
++	get_cpu_gdt_rw(cpu)[0x40 / 8] = save_desc_40;
+ 	put_cpu();
+ 
+ 	/* If we get here and this is set then the PnP BIOS faulted on us. */
+@@ -477,7 +477,7 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
+ 	pnp_bios_callpoint.segment = PNP_CS16;
+ 
+ 	for_each_possible_cpu(i) {
+-		struct desc_struct *gdt = get_cpu_gdt_table(i);
++		struct desc_struct *gdt = get_cpu_gdt_rw(i);
+ 		if (!gdt)
+ 			continue;
+ 		set_desc_base(&gdt[GDT_ENTRY_PNPBIOS_CS32],
 -- 
 2.12.0.rc1.440.g5b76565f74-goog
 
