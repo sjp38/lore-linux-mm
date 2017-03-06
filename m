@@ -1,221 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 615EF6B039B
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:00:27 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id v66so67167233wrc.4
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:00:27 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f48sor85044wrf.2.1969.12.31.16.00.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CB536B03AE
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:01:35 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id n11so30346677wma.5
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:01:35 -0800 (PST)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id 18si15147406wms.61.2017.03.06.08.01.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Mar 2017 08:00:25 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 8/9] kasan: improve double-free report format
-Date: Mon,  6 Mar 2017 17:00:08 +0100
-Message-Id: <671275d2e9e3ff238e0623fc63ee5043759841bc.1488815789.git.andreyknvl@google.com>
-In-Reply-To: <cover.1488815789.git.andreyknvl@google.com>
-References: <cover.1488815789.git.andreyknvl@google.com>
-In-Reply-To: <cover.1488815789.git.andreyknvl@google.com>
-References: <cover.1488815789.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 08:01:33 -0800 (PST)
+Received: by mail-wr0-x244.google.com with SMTP id u108so18341327wrb.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:01:33 -0800 (PST)
+Date: Mon, 6 Mar 2017 17:01:30 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+Message-ID: <20170306160130.bwp73tkkkxafbizg@phenom.ffwll.local>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+ <10344634.XsotFaGzfj@avalon>
+ <20170306103820.ixuvs7fd6s4tvfzy@phenom.ffwll.local>
+ <9366352.DJUlrUijoL@avalon>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9366352.DJUlrUijoL@avalon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrey Konovalov <andreyknvl@google.com>
+To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Cc: Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org, Laura Abbott <labbott@redhat.com>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-Changes double-free report header from:
+On Mon, Mar 06, 2017 at 05:02:05PM +0200, Laurent Pinchart wrote:
+> Hi Daniel,
+> 
+> On Monday 06 Mar 2017 11:38:20 Daniel Vetter wrote:
+> > On Fri, Mar 03, 2017 at 06:45:40PM +0200, Laurent Pinchart wrote:
+> > > - I haven't seen any proposal how a heap-based solution could be used in a
+> > > generic distribution. This needs to be figured out before committing to
+> > > any API/ABI.
+> > 
+> > Two replies from my side:
+> > 
+> > - Just because a patch doesn't solve world hunger isn't really a good
+> >   reason to reject it.
+> 
+> As long as it goes in the right direction, sure :-) The points I mentioned 
+> were to be interpreted that way, I want to make sure we're not going in a 
+> dead-end (or worse, driving full speed into a wall).
+> 
+> > - Heap doesn't mean its not resizeable (but I'm not sure that's really
+> >   your concern).
+> 
+> Not really, no. Heap is another word to mean pool here. It might not be the 
+> best term in this context as it has a precise meaning in the context of memory 
+> allocation, but that's a detail.
+> 
+> > - Imo ION is very much part of the picture here to solve this for real. We
+> >   need to bits:
+> > 
+> >   * Be able to allocate memory from specific pools, not going through a
+> >     specific driver. ION gives us that interface. This is e.g. also needed
+> >     for "special" memory, like SMA tries to expose.
+> > 
+> >   * Some way to figure out how&where to allocate the buffer object. This
+> >     is purely a userspace problem, and this is the part the unix memory
+> >     allocator tries to solve. There's no plans in there for big kernel
+> >     changes, instead userspace does a dance to reconcile all the
+> >     constraints, and one of the constraints might be "you have to allocate
+> >     this from this special ION heap". The only thing the kernel needs to
+> >     expose is which devices use which ION heaps (we kinda do that
+> >     already), and maybe some hints of how they can be generalized (but I
+> >     guess stuff like "minimal pagesize of x KB" is also fulfilled by any
+> >     CMA heap is knowledge userspace needs).
+> 
+> The constraint solver could live in userspace, I'm open to a solution that 
+> would go in that direction, but it will require help from the kernel to fetch 
+> the constraints from the devices that need to be involved in buffer sharing.
+> 
+> Given a userspace constraint resolver, the interface with the kernel allocator 
+> will likely be based on pools. I'm not opposed to that, as long as pool are 
+> identified by opaque handles. I don't want userspace to know about the meaning 
+> of any particular ION heap. Application must not attempt to "allocate from 
+> CMA" for instance, that would lock us to a crazy API that will grow completely 
+> out of hands as vendors will start adding all kind of custom heaps, and 
+> applications will have to follow (or will be patched out-of-tree by vendors).
+> 
+> > Again I think waiting for this to be fully implemented before we merge any
+> > part is going to just kill any upstreaming efforts. ION in itself, without
+> > the full buffer negotiation dance seems clearly useful (also for stuff
+> > like SMA), and having it merged will help with moving the buffer
+> > allocation dance forward.
+> 
+> Again I'm not opposed to a kernel allocator based on pools/heaps, as long as
+> 
+> - pools/heaps stay internal to the kernel and are not directly exposed to 
+> userspace
 
-BUG: Double free or freeing an invalid pointer
-Unexpected shadow byte: 0xFB
+Agreed (and I think ION doesn't have fixed pools afaik, just kinda
+conventions, at least after Laura's patches). But on a fixed board with a
+fixed DT (for the cma regions) and fixed .config (for the generic heaps)
+you can hardcode your heaps. You'll make your code non-portable, but hey
+that's not our problem imo. E.g. board-specific code can also hard-code
+how to wire connectors and which one is which in kms (and I've seen this).
+I don't think the possibility of abusing the uabi should be a good reason
+to prevent it from merging. Anything that provides something with indirect
+connections can be abused by hardcoding the names or the indizes.
 
-to:
+We do have a TODO entry that talks about exposing the device -> cma heap
+link in sysfs or somewhere. I'm not versed enough to know whether Laura's
+patches fixed that, this here mostly seems to tackle the fundamentals of
+the dma api abuse first.
 
-BUG: KASAN: double-free or invalid-free in kmalloc_oob_left+0xe5/0xef
+> - a reasonable way to size the different kinds of pools in a generic 
+> distribution kernel can be found
 
-This makes a bug uniquely identifiable by the first report line.
-To account for removing of the unexpected shadow value, print shadow
-bytes at the end of the report as in reports for other kinds of bugs.
+So for the CMA heaps, you can't resize them at runtime, for obvious
+reasons. For boot-time you can adjust them through DT, and I thought
+everyone agreed that for different use-cases you might need to adjust your
+reserved regions.
 
-To print caller funtion name in the report header, the caller address
-is passed from SLUB/SLAB free handlers.
+For all other heaps, they just use the normal allocator functions
+(e.g. alloc_pages). There's not limit on those except OOM, so nothing to
+adjust really.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- include/linux/kasan.h |  2 +-
- mm/kasan/kasan.c      |  5 +++--
- mm/kasan/kasan.h      |  2 +-
- mm/kasan/report.c     | 30 ++++++++++++++----------------
- mm/slab.c             |  2 +-
- mm/slub.c             | 12 +++++++-----
- 6 files changed, 27 insertions(+), 26 deletions(-)
+I guess I'm still not entirely clear on your "memory pool" concern ... If
+it's just the word, we have lots of auto-resizing heaps/pools all around.
+And if it's just sizing, I think that's already solved as good as possible
+(assuming there's not a silly limit on the system heap that we should
+remove ...).
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index ceb3fe78a0d3..55604168f48f 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -60,7 +60,7 @@ void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size,
- void kasan_krealloc(const void *object, size_t new_size, gfp_t flags);
- 
- void kasan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
--bool kasan_slab_free(struct kmem_cache *s, void *object);
-+bool kasan_slab_free(struct kmem_cache *s, void *object, unsigned long pc);
- 
- struct kasan_cache {
- 	int alloc_meta_offset;
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 98b27195e38b..83cc011bb9bc 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -567,7 +567,8 @@ static void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
- 	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
- }
- 
--bool kasan_slab_free(struct kmem_cache *cache, void *object)
-+bool kasan_slab_free(struct kmem_cache *cache, void *object,
-+		     unsigned long pc)
- {
- 	s8 shadow_byte;
- 
-@@ -577,7 +578,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
- 
- 	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
- 	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
--		kasan_report_double_free(cache, object, shadow_byte);
-+		kasan_report_double_free(cache, object, pc);
- 		return true;
- 	}
- 
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 1c260e6b3b3c..75729173ade9 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -104,7 +104,7 @@ static inline bool kasan_report_enabled(void)
- void kasan_report(unsigned long addr, size_t size,
- 		bool is_write, unsigned long ip);
- void kasan_report_double_free(struct kmem_cache *cache, void *object,
--			s8 shadow);
-+					void *ip);
- 
- #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
- void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 09a5f5b4bc79..e5b762f4a6a4 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -237,22 +237,8 @@ static void describe_object(struct kmem_cache *cache, void *object,
- 	describe_object_addr(cache, object, addr);
- }
- 
--void kasan_report_double_free(struct kmem_cache *cache, void *object,
--			s8 shadow)
--{
--	unsigned long flags;
--
--	kasan_start_report(&flags);
--	pr_err("BUG: Double free or freeing an invalid pointer\n");
--	pr_err("Unexpected shadow byte: 0x%hhX\n", shadow);
--	dump_stack();
--	describe_object(cache, object, NULL);
--	kasan_end_report(&flags);
--}
--
--static void print_address_description(struct kasan_access_info *info)
-+static void print_address_description(void *addr)
- {
--	void *addr = (void *)info->access_addr;
- 	struct page *page = addr_to_page(addr);
- 
- 	dump_stack();
-@@ -327,6 +313,18 @@ static void print_shadow_for_address(const void *addr)
- 	}
- }
- 
-+void kasan_report_double_free(struct kmem_cache *cache, void *object,
-+				void *ip)
-+{
-+	unsigned long flags;
-+
-+	kasan_start_report(&flags);
-+	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", ip);
-+	print_address_description(object);
-+	print_shadow_for_address(object);
-+	kasan_end_report(&flags);
-+}
-+
- static void kasan_report_error(struct kasan_access_info *info)
- {
- 	unsigned long flags;
-@@ -338,7 +336,7 @@ static void kasan_report_error(struct kasan_access_info *info)
- 	if (!addr_has_shadow(info)) {
- 		dump_stack();
- 	} else {
--		print_address_description(info);
-+		print_address_description((void *)info->access_addr);
- 		print_shadow_for_address(info->first_bad_addr);
- 	}
- 
-diff --git a/mm/slab.c b/mm/slab.c
-index 807d86c76908..aba5f30ea63e 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3508,7 +3508,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
- 				unsigned long caller)
- {
- 	/* Put the object into the quarantine, don't touch it for now. */
--	if (kasan_slab_free(cachep, objp))
-+	if (kasan_slab_free(cachep, objp, caller))
- 		return;
- 
- 	___cache_free(cachep, objp, caller);
-diff --git a/mm/slub.c b/mm/slub.c
-index 7f4bc7027ed5..763570a0b15e 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1325,7 +1325,8 @@ static inline void kfree_hook(const void *x)
- 	kasan_kfree_large(x);
- }
- 
--static inline void *slab_free_hook(struct kmem_cache *s, void *x)
-+static inline void *slab_free_hook(struct kmem_cache *s, void *x,
-+				   unsigned long addr)
- {
- 	void *freeptr;
- 
-@@ -1354,12 +1355,13 @@ static inline void *slab_free_hook(struct kmem_cache *s, void *x)
- 	 * kasan_slab_free() may put x into memory quarantine, delaying its
- 	 * reuse. In this case the object's freelist pointer is changed.
- 	 */
--	kasan_slab_free(s, x);
-+	kasan_slab_free(s, x, addr);
- 	return freeptr;
- }
- 
- static inline void slab_free_freelist_hook(struct kmem_cache *s,
--					   void *head, void *tail)
-+					   void *head, void *tail,
-+					   unsigned long addr)
- {
- /*
-  * Compiler cannot detect this function can be removed if slab_free_hook()
-@@ -1376,7 +1378,7 @@ static inline void slab_free_freelist_hook(struct kmem_cache *s,
- 	void *freeptr;
- 
- 	do {
--		freeptr = slab_free_hook(s, object);
-+		freeptr = slab_free_hook(s, object, addr);
- 	} while ((object != tail_obj) && (object = freeptr));
- #endif
- }
-@@ -2958,7 +2960,7 @@ static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
- 				      void *head, void *tail, int cnt,
- 				      unsigned long addr)
- {
--	slab_free_freelist_hook(s, head, tail);
-+	slab_free_freelist_hook(s, head, tail, addr);
- 	/*
- 	 * slab_free_freelist_hook() could have put the items into quarantine.
- 	 * If so, no need to free them.
+Cheers, Daniel
 -- 
-2.12.0.rc1.440.g5b76565f74-goog
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
