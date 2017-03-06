@@ -1,77 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C04746B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 02:43:04 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id t193so26699275wmt.4
-        for <linux-mm@kvack.org>; Sun, 05 Mar 2017 23:43:04 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p8si13837014wrd.131.2017.03.05.23.43.02
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FA716B0038
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 03:22:34 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f21so201985674pgi.4
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 00:22:34 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q17si18317837pgh.300.2017.03.06.00.22.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 05 Mar 2017 23:43:03 -0800 (PST)
-Date: Mon, 6 Mar 2017 08:42:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-Message-ID: <20170306074258.GA27953@dhcp22.suse.cz>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <20170303132949.GC31582@dhcp22.suse.cz>
- <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 00:22:33 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v26844a0012725
+	for <linux-mm@kvack.org>; Mon, 6 Mar 2017 03:22:32 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28yu2jj060-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 06 Mar 2017 03:22:31 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Mon, 6 Mar 2017 08:22:28 -0000
+Date: Mon, 6 Mar 2017 09:22:21 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH] mm, add_memory_resource: hold device_hotplug lock over
+ mem_hotplug_{begin, done}
+References: <alpine.LFD.2.20.1702261231580.3067@schleppi.fritz.box>
+ <20170227162031.GA27937@dhcp22.suse.cz>
+ <20170228115729.GB13872@osiris>
+ <20170301125105.GA5208@osiris>
+ <CAPcyv4ghK3GWUD0qBNigfQvPM6qUWLMwmfgT5THcDcjuYrjSSQ@mail.gmail.com>
+ <20170301170429.GB5208@osiris>
+ <CAPcyv4iUzC_rN4mg5c5ShLAoFxam7Jiek4q8dDaHTi44cxB=Aw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+In-Reply-To: <CAPcyv4iUzC_rN4mg5c5ShLAoFxam7Jiek4q8dDaHTi44cxB=Aw@mail.gmail.com>
+Message-Id: <20170306082221.GA4572@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>
 
-On Fri 03-03-17 09:37:55, Laura Abbott wrote:
-> On 03/03/2017 05:29 AM, Michal Hocko wrote:
-> > On Thu 02-03-17 13:44:32, Laura Abbott wrote:
-> >> Hi,
-> >>
-> >> There's been some recent discussions[1] about Ion-like frameworks. There's
-> >> apparently interest in just keeping Ion since it works reasonablly well.
-> >> This series does what should be the final clean ups for it to possibly be
-> >> moved out of staging.
-> >>
-> >> This includes the following:
-> >> - Some general clean up and removal of features that never got a lot of use
-> >>   as far as I can tell.
-> >> - Fixing up the caching. This is the series I proposed back in December[2]
-> >>   but never heard any feedback on. It will certainly break existing
-> >>   applications that rely on the implicit caching. I'd rather make an effort
-> >>   to move to a model that isn't going directly against the establishement
-> >>   though.
-> >> - Fixing up the platform support. The devicetree approach was never well
-> >>   recieved by DT maintainers. The proposal here is to think of Ion less as
-> >>   specifying requirements and more of a framework for exposing memory to
-> >>   userspace.
-> >> - CMA allocations now happen without the need of a dummy device structure.
-> >>   This fixes a bunch of the reasons why I attempted to add devicetree
-> >>   support before.
-> >>
-> >> I've had problems getting feedback in the past so if I don't hear any major
-> >> objections I'm going to send out with the RFC dropped to be picked up.
-> >> The only reason there isn't a patch to come out of staging is to discuss any
-> >> other changes to the ABI people might want. Once this comes out of staging,
-> >> I really don't want to mess with the ABI.
-> > 
-> > Could you recapitulate concerns preventing the code being merged
-> > normally rather than through the staging tree and how they were
-> > addressed?
-> > 
+Hello Dan,
+
+> > If you look at commit 5e33bc4165f3 ("driver core / ACPI: Avoid device hot
+> > remove locking issues") then lock_device_hotplug_sysfs() was introduced to
+> > avoid a different subtle deadlock, but it also sleeps uninterruptible, but
+> > not for more than 5ms ;)
+> >
+> > However I'm not sure if the device hotplug lock should also be used to fix
+> > an unrelated bug that was introduced with the get_online_mems() /
+> > put_online_mems() interface. Should it?
 > 
-> Sorry, I'm really not understanding your question here, can you
-> clarify?
+> No, I don't think it should.
+> 
+> I like your proposed direction of creating a new lock internal to
+> mem_hotplug_begin() to protect active_writer, and stop relying on
+> lock_device_hotplug to serve this purpose.
+> 
+> > If so, we need to sprinkle around a couple of lock_device_hotplug() calls
+> > near mem_hotplug_begin() calls, like Sebastian already started, and give it
+> > additional semantics (protecting mem_hotplug.active_writer), and hope it
+> > doesn't lead to deadlocks anywhere.
+> 
+> I'll put your proposed patch through some testing.
 
-There must have been a reason why this code ended up in the staging
-tree, right? So my question is what those reasons were and how they were
-handled in order to move the code from the staging subtree.
--- 
-Michal Hocko
-SUSE Labs
+On s390 it _seems_ to work. Did it pass your testing too?
+If so I would send a patch with proper patch description for inclusion.
+
+Thanks,
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
