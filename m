@@ -1,43 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F3486B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 15:55:14 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id y187so32093853wmy.7
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:55:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q4si27893934wrc.328.2017.03.06.12.55.12
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A7D316B0388
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 15:56:14 -0500 (EST)
+Received: by mail-yw0-f200.google.com with SMTP id 2so318345698ywn.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:56:14 -0800 (PST)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id h13si4309913ywa.354.2017.03.06.12.56.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Mar 2017 12:55:13 -0800 (PST)
-Date: Mon, 6 Mar 2017 21:54:50 +0100
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC PATCH v2 01/32] x86: Add the Secure Encrypted
- Virtualization CPU feature
-Message-ID: <20170306205450.3lukpeknj2grrych@pd.tnic>
-References: <20170304101113.k6ontjjbljanm6tv@pd.tnic>
- <148882363019.12034.4647462304803229954.stgit@brijesh-build-machine>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 12:56:13 -0800 (PST)
+Received: by mail-yw0-x241.google.com with SMTP id p77so4708262ywg.0
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:56:13 -0800 (PST)
+Date: Mon, 6 Mar 2017 15:56:12 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/3] percpu: acquire pcpu_lock when updating
+ pcpu_nr_empty_pop_pages
+Message-ID: <20170306205612.GF26127@htj.duckdns.org>
+References: <20170225210019.23610-1-tahsin@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <148882363019.12034.4647462304803229954.stgit@brijesh-build-machine>
+In-Reply-To: <20170225210019.23610-1-tahsin@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Tahsin Erdogan <tahsin@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Roman Pen <r.peniaev@gmail.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 06, 2017 at 01:11:03PM -0500, Brijesh Singh wrote:
-> Sending it through stg mail to avoid line wrapping. Please let me know if something
-> is still messed up. I have tried applying it and it seems to apply okay.
+On Sat, Feb 25, 2017 at 01:00:19PM -0800, Tahsin Erdogan wrote:
+> Update to pcpu_nr_empty_pop_pages in pcpu_alloc() is currently done
+> without holding pcpu_lock. This can lead to bad updates to the variable.
+> Add missing lock calls.
+> 
+> Fixes: b539b87fed37 ("percpu: implmeent pcpu_nr_empty_pop_pages and chunk->nr_populated")
+> Signed-off-by: Tahsin Erdogan <tahsin@google.com>
 
-Yep, thanks.
+Applied to percpu/for-4.11-fixes w/ stable cc'd.
+
+Thanks.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
