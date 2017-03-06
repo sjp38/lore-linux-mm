@@ -1,63 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3F96B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:01:07 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id 126so136853526oig.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:01:07 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id g1si7945982oic.294.2017.03.06.05.01.06
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B991F6B0038
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:14:19 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id b140so15149271wme.3
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:14:19 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id h13si14550467wme.149.2017.03.06.05.14.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 05:01:06 -0800 (PST)
-Date: Mon, 6 Mar 2017 14:01:07 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
-Message-ID: <20170306130107.GK6536@twins.programming.kicks-ass.net>
-References: <20170306124254.77615-1-dvyukov@google.com>
- <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
- <20170306125851.GL6500@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170306125851.GL6500@twins.programming.kicks-ass.net>
+        Mon, 06 Mar 2017 05:14:18 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id n11so13687329wma.0
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:14:18 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/7 v5] scope GFP_NOFS api
+Date: Mon,  6 Mar 2017 14:14:01 +0100
+Message-Id: <20170306131408.9828-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Brian Foster <bfoster@redhat.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Michal Hocko <mhocko@suse.com>, Michal Hocko <mhocko@suse.cz>, Nikolay Borisov <nborisov@suse.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Mar 06, 2017 at 01:58:51PM +0100, Peter Zijlstra wrote:
-> On Mon, Mar 06, 2017 at 01:50:47PM +0100, Dmitry Vyukov wrote:
-> > On Mon, Mar 6, 2017 at 1:42 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> > > KASAN uses compiler instrumentation to intercept all memory accesses.
-> > > But it does not see memory accesses done in assembly code.
-> > > One notable user of assembly code is atomic operations. Frequently,
-> > > for example, an atomic reference decrement is the last access to an
-> > > object and a good candidate for a racy use-after-free.
-> > >
-> > > Add manual KASAN checks to atomic operations.
-> > > Note: we need checks only before asm blocks and don't need them
-> > > in atomic functions composed of other atomic functions
-> > > (e.g. load-cmpxchg loops).
-> > 
-> > Peter, also pointed me at arch/x86/include/asm/bitops.h. Will add them in v2.
-> > 
-> 
-> > >  static __always_inline void atomic_add(int i, atomic_t *v)
-> > >  {
-> > > +       kasan_check_write(v, sizeof(*v));
-> > >         asm volatile(LOCK_PREFIX "addl %1,%0"
-> > >                      : "+m" (v->counter)
-> > >                      : "ir" (i));
-> 
-> 
-> So the problem is doing load/stores from asm bits, and GCC
-> (traditionally) doesn't try and interpret APP asm bits.
-> 
-> However, could we not write a GCC plugin that does exactly that?
-> Something that interprets the APP asm bits and generates these KASAN
-> bits that go with it?
+Hi,
+I have posted the previous version here [1]. There are no real changes
+in the implementation since then. I've just added "lockdep: teach
+lockdep about memalloc_noio_save" from Nikolay which is a lockdep bugfix
+developed independently but "mm: introduce memalloc_nofs_{save,restore}
+API" depends on it so I added it here. Then I've rebased the series on
+top of 4.11-rc1 which contains sched.h split up which required to add
+sched/mm.h include.
 
-Another suspect is the per-cpu stuff, that's all asm foo as well.
+There didn't seem to be any real objections and so I think we should go
+and finally merge this - ideally in this release cycle as it doesn't
+really introduce any functional changes. Those were separated out and
+will be posted later. The risk of regressions should really be small
+because we do not remove any real GFP_NOFS users yet.
+
+Diffstat says
+ fs/jbd2/journal.c         |  8 ++++++++
+ fs/jbd2/transaction.c     | 12 ++++++++++++
+ fs/xfs/kmem.c             | 12 ++++++------
+ fs/xfs/kmem.h             |  2 +-
+ fs/xfs/libxfs/xfs_btree.c |  2 +-
+ fs/xfs/xfs_aops.c         |  6 +++---
+ fs/xfs/xfs_buf.c          |  8 ++++----
+ fs/xfs/xfs_trans.c        | 12 ++++++------
+ include/linux/gfp.h       | 18 +++++++++++++++++-
+ include/linux/jbd2.h      |  2 ++
+ include/linux/sched.h     |  6 +++---
+ include/linux/sched/mm.h  | 26 +++++++++++++++++++++++---
+ kernel/locking/lockdep.c  | 11 +++++++++--
+ lib/radix-tree.c          |  2 ++
+ mm/page_alloc.c           | 10 ++++++----
+ mm/vmscan.c               |  6 +++---
+ 16 files changed, 106 insertions(+), 37 deletions(-)
+
+Shortlog:
+Michal Hocko (6):
+      lockdep: allow to disable reclaim lockup detection
+      xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+      mm: introduce memalloc_nofs_{save,restore} API
+      xfs: use memalloc_nofs_{save,restore} instead of memalloc_noio*
+      jbd2: mark the transaction context with the scope GFP_NOFS context
+      jbd2: make the whole kjournald2 kthread NOFS safe
+
+Nikolay Borisov (1):
+      lockdep: teach lockdep about memalloc_noio_save
+
+
+[1] http://lkml.kernel.org/r/20170206140718.16222-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20170117030118.727jqyamjhojzajb@thunk.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
