@@ -1,152 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E096B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 18:08:22 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v190so85455331pfb.5
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 15:08:22 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id n67si20390069pfk.77.2017.03.06.15.08.21
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6276B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 18:17:21 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id j127so161843065qke.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 15:17:21 -0800 (PST)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com. [209.85.220.182])
+        by mx.google.com with ESMTPS id b190si16564543qkd.248.2017.03.06.15.17.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 15:08:21 -0800 (PST)
-Date: Mon, 6 Mar 2017 16:08:01 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting
- business
-Message-ID: <20170306230801.GA28111@linux.intel.com>
-References: <20170305133535.6516-1-jlayton@redhat.com>
- <1488724854.2925.6.camel@redhat.com>
+        Mon, 06 Mar 2017 15:17:21 -0800 (PST)
+Received: by mail-qk0-f182.google.com with SMTP id 1so180901086qkl.3
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 15:17:20 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: enable page poisoning early at boot
+References: <1488809775-18347-1-git-send-email-vinmenon@codeaurora.org>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <83fef5a7-11e8-a46e-e624-82362f651fe8@redhat.com>
+Date: Mon, 6 Mar 2017 15:17:16 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1488724854.2925.6.camel@redhat.com>
+In-Reply-To: <1488809775-18347-1-git-send-email-vinmenon@codeaurora.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, NeilBrown <neilb@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
+To: Vinayak Menon <vinmenon@codeaurora.org>, iamjoonsoo.kim@lge.com, mhocko@suse.com, akpm@linux-foundation.org
+Cc: shashim@codeaurora.org, linux-mm@kvack.org
 
-On Sun, Mar 05, 2017 at 09:40:54AM -0500, Jeff Layton wrote:
-> On Sun, 2017-03-05 at 08:35 -0500, Jeff Layton wrote:
-> > I recently did some work to wire up -ENOSPC handling in ceph, and found
-> > I could get back -EIO errors in some cases when I should have instead
-> > gotten -ENOSPC. The problem was that the ceph writeback code would set
-> > PG_error on a writeback error, and that error would clobber the mapping
-> > error.
-> > 
+On 03/06/2017 06:16 AM, Vinayak Menon wrote:
+> On SPARSEMEM systems page poisoning is enabled after buddy is up, because
+> of the dependency on page extension init. This causes the pages released
+> by free_all_bootmem not to be poisoned. This either delays or misses
+> the identification of some issues because the pages have to undergo another
+> cycle of alloc-free-alloc for any corruption to be detected.
+> Enable page poisoning early by getting rid of the PAGE_EXT_DEBUG_POISON
+> flag. Since all the free pages will now be poisoned, the flag need not be
+> verified before checking the poison during an alloc.
 > 
-> I should also note that relying on PG_error to report writeback errors
-> is inherently unreliable as well. If someone calls sync() before your
-> fsync gets in there, then you'll likely lose it anyway.
-> 
-> filemap_fdatawait_keep_errors will preserve the error in the mapping,
-> but not the individual PG_error flags, so I think we do want to ensure
-> that the mapping error is set when there is a writeback error and not
-> rely on PG_error bit for that.
-> 
-> > While I fixed that problem by simply not setting that bit on errors,
-> > that led me down a rabbit hole of looking at how PG_error is being
-> > handled in the kernel.
-> > 
-> > This patch series is a few fixes for things that I 100% noticed by
-> > inspection. I don't have a great way to test these since they involve
-> > error handling. I can certainly doctor up a kernel to inject errors
-> > in this code and test by hand however if these look plausible up front.
-> > 
-> > Jeff Layton (3):
-> >   nilfs2: set the mapping error when calling SetPageError on writeback
-> >   mm: don't TestClearPageError in __filemap_fdatawait_range
-> >   mm: set mapping error when launder_pages fails
-> > 
-> >  fs/nilfs2/segment.c |  1 +
-> >  mm/filemap.c        | 19 ++++---------------
-> >  mm/truncate.c       |  6 +++++-
-> >  3 files changed, 10 insertions(+), 16 deletions(-)
-> > 
-> 
-> (cc'ing Ross...)
-> 
-> Just when I thought that only NILFS2 needed a little work here, I see
-> another spot...
-> 
-> I think that we should also need to fix dax_writeback_mapping_range to
-> set a mapping error on writeback as well. It looks like that's not
-> happening today. Something like the patch below (obviously untested).
-> 
-> I'll also plan to follow up with a patch to vfs.txt to outline how
-> writeback errors should be handled by filesystems, assuming that this
-> patchset isn't completely off base.
-> 
-> -------------------8<-----------------------
-> 
-> [PATCH] dax: set error in mapping when writeback fails
-> 
-> In order to get proper error codes from fsync, we must set an error in
-> the mapping range when writeback fails.
-> 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
 > ---
->  fs/dax.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
 > 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index c45598b912e1..9005d90deeda 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -888,8 +888,10 @@ int dax_writeback_mapping_range(struct address_space *mapping,
+> Sending it as an RFC because I am not sure if I have missed a code path
+> that can free pages to buddy skipping kernel_poison_pages, making
+> the flag PAGE_EXT_DEBUG_POISON a necessity.
+> 
+
+Have you tested this with hibernation? That's one place which tends
+to cause problems with poisoning.
+
+I'm curious what issues you've caught with this patch.
+
+Thanks,
+Laura
+
+>  include/linux/mm.h |  1 -
+>  mm/page_alloc.c    | 13 +++------
+>  mm/page_ext.c      |  3 ---
+>  mm/page_poison.c   | 77 +++++++++---------------------------------------------
+>  4 files changed, 15 insertions(+), 79 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0d65dd7..b881966 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2473,7 +2473,6 @@ extern long copy_huge_page_from_user(struct page *dst_page,
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 >  
->  			ret = dax_writeback_one(bdev, mapping, indices[i],
->  					pvec.pages[i]);
-> -			if (ret < 0)
-> +			if (ret < 0) {
-> +				mapping_set_error(mapping, ret);
->  				return ret;
-> +			}
-
-(Adding Jan)
-
-I tested this a bit, and for the DAX case at least I don't think this does
-what you want.  The current code already returns -EIO if dax_writeback_one()
-hits an error, which bubbles up through the call stack and makes the fsync()
-call in userspace fail with EIO, as we want.  With both ext4 and xfs this
-patch (applied to v4.10) makes it so that we fail the current fsync() due to
-the return value of -EIO, then we fail the next fsync() as well because only
-then do we actually process the AS_EIO flag inside of filemap_check_errors().
-
-I think maybe the missing piece is that our normal DAX fsync call stack
-doesn't include a call to filemap_check_errors() if we return -EIO.  Here's
-our stack in xfs:
-
-    dax_writeback_mapping_range+0x32/0x70
-    xfs_vm_writepages+0x8c/0xf0
-    do_writepages+0x21/0x30
-    __filemap_fdatawrite_range+0xc6/0x100
-    filemap_write_and_wait_range+0x44/0x90
-    xfs_file_fsync+0x7a/0x2c0
-    vfs_fsync_range+0x4b/0xb0
-    ? trace_hardirqs_on_caller+0xf5/0x1b0
-    do_fsync+0x3d/0x70
-    SyS_fsync+0x10/0x20
-    entry_SYSCALL_64_fastpath+0x1f/0xc2
-
-On the subsequent fsync() call we *do* end up calling filemap_check_errors()
-via filemap_fdatawrite_range(), which tests & clears the AS_EIO flag in the
-mapping:
-
-    filemap_fdatawait_range+0x3b/0x80
-    filemap_write_and_wait_range+0x5a/0x90
-    xfs_file_fsync+0x7a/0x2c0
-    vfs_fsync_range+0x4b/0xb0
-    ? trace_hardirqs_on_caller+0xf5/0x1b0
-    do_fsync+0x3d/0x70
-    SyS_fsync+0x10/0x20
-    entry_SYSCALL_64_fastpath+0x1f/0xc2
-
-Was your concern just that you didn't think that fsync() was properly
-returning an error when dax_writeback_one() hit an error?  Or is there another
-path by which we need to report the error, where it is actually important that
-we set AS_EIO?  If it's the latter, then I think we need to rework the fsync
-call path so that we both generate and consume AS_EIO on the same call,
-probably in filemap_write_and_wait_range().
+>  extern struct page_ext_operations debug_guardpage_ops;
+> -extern struct page_ext_operations page_poisoning_ops;
+>  
+>  #ifdef CONFIG_DEBUG_PAGEALLOC
+>  extern unsigned int _debug_guardpage_minorder;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index fc5db1b..860b36f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1694,10 +1694,10 @@ static inline int check_new_page(struct page *page)
+>  	return 1;
+>  }
+>  
+> -static inline bool free_pages_prezeroed(bool poisoned)
+> +static inline bool free_pages_prezeroed(void)
+>  {
+>  	return IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) &&
+> -		page_poisoning_enabled() && poisoned;
+> +		page_poisoning_enabled();
+>  }
+>  
+>  #ifdef CONFIG_DEBUG_VM
+> @@ -1751,17 +1751,10 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
+>  							unsigned int alloc_flags)
+>  {
+>  	int i;
+> -	bool poisoned = true;
+> -
+> -	for (i = 0; i < (1 << order); i++) {
+> -		struct page *p = page + i;
+> -		if (poisoned)
+> -			poisoned &= page_is_poisoned(p);
+> -	}
+>  
+>  	post_alloc_hook(page, order, gfp_flags);
+>  
+> -	if (!free_pages_prezeroed(poisoned) && (gfp_flags & __GFP_ZERO))
+> +	if (!free_pages_prezeroed() && (gfp_flags & __GFP_ZERO))
+>  		for (i = 0; i < (1 << order); i++)
+>  			clear_highpage(page + i);
+>  
+> diff --git a/mm/page_ext.c b/mm/page_ext.c
+> index 121dcff..fc3e7ff 100644
+> --- a/mm/page_ext.c
+> +++ b/mm/page_ext.c
+> @@ -59,9 +59,6 @@
+>  
+>  static struct page_ext_operations *page_ext_ops[] = {
+>  	&debug_guardpage_ops,
+> -#ifdef CONFIG_PAGE_POISONING
+> -	&page_poisoning_ops,
+> -#endif
+>  #ifdef CONFIG_PAGE_OWNER
+>  	&page_owner_ops,
+>  #endif
+> diff --git a/mm/page_poison.c b/mm/page_poison.c
+> index 2e647c6..be19e98 100644
+> --- a/mm/page_poison.c
+> +++ b/mm/page_poison.c
+> @@ -6,7 +6,6 @@
+>  #include <linux/poison.h>
+>  #include <linux/ratelimit.h>
+>  
+> -static bool __page_poisoning_enabled __read_mostly;
+>  static bool want_page_poisoning __read_mostly;
+>  
+>  static int early_page_poison_param(char *buf)
+> @@ -19,74 +18,21 @@ static int early_page_poison_param(char *buf)
+>  
+>  bool page_poisoning_enabled(void)
+>  {
+> -	return __page_poisoning_enabled;
+> -}
+> -
+> -static bool need_page_poisoning(void)
+> -{
+> -	return want_page_poisoning;
+> -}
+> -
+> -static void init_page_poisoning(void)
+> -{
+>  	/*
+> -	 * page poisoning is debug page alloc for some arches. If either
+> -	 * of those options are enabled, enable poisoning
+> +	 * Assumes that debug_pagealloc_enabled is set before
+> +	 * free_all_bootmem.
+> +	 * Page poisoning is debug page alloc for some arches. If
+> +	 * either of those options are enabled, enable poisoning.
+>  	 */
+> -	if (!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC)) {
+> -		if (!want_page_poisoning && !debug_pagealloc_enabled())
+> -			return;
+> -	} else {
+> -		if (!want_page_poisoning)
+> -			return;
+> -	}
+> -
+> -	__page_poisoning_enabled = true;
+> -}
+> -
+> -struct page_ext_operations page_poisoning_ops = {
+> -	.need = need_page_poisoning,
+> -	.init = init_page_poisoning,
+> -};
+> -
+> -static inline void set_page_poison(struct page *page)
+> -{
+> -	struct page_ext *page_ext;
+> -
+> -	page_ext = lookup_page_ext(page);
+> -	if (unlikely(!page_ext))
+> -		return;
+> -
+> -	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+> -}
+> -
+> -static inline void clear_page_poison(struct page *page)
+> -{
+> -	struct page_ext *page_ext;
+> -
+> -	page_ext = lookup_page_ext(page);
+> -	if (unlikely(!page_ext))
+> -		return;
+> -
+> -	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+> -}
+> -
+> -bool page_is_poisoned(struct page *page)
+> -{
+> -	struct page_ext *page_ext;
+> -
+> -	page_ext = lookup_page_ext(page);
+> -	if (unlikely(!page_ext))
+> -		return false;
+> -
+> -	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+> +	return (want_page_poisoning ||
+> +		(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
+> +		debug_pagealloc_enabled()));
+>  }
+>  
+>  static void poison_page(struct page *page)
+>  {
+>  	void *addr = kmap_atomic(page);
+>  
+> -	set_page_poison(page);
+>  	memset(addr, PAGE_POISON, PAGE_SIZE);
+>  	kunmap_atomic(addr);
+>  }
+> @@ -140,12 +86,13 @@ static void unpoison_page(struct page *page)
+>  {
+>  	void *addr;
+>  
+> -	if (!page_is_poisoned(page))
+> -		return;
+> -
+>  	addr = kmap_atomic(page);
+> +	/*
+> +	 * Page poisoning when enabled poisons each and every page
+> +	 * that is freed to buddy. Thus no extra check is done to
+> +	 * see if a page was posioned.
+> +	 */
+>  	check_poison_mem(addr, PAGE_SIZE);
+> -	clear_page_poison(page);
+>  	kunmap_atomic(addr);
+>  }
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
