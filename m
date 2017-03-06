@@ -1,69 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BF1EA6B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:59:01 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id v190so65991511pfb.5
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:59:01 -0800 (PST)
-Received: from mezzanine.sirena.org.uk (mezzanine.sirena.org.uk. [2400:8900::f03c:91ff:fedb:4f4])
-        by mx.google.com with ESMTPS id a14si13248536pll.152.2017.03.06.02.59.00
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 04CF16B0038
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 06:20:57 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id b2so204901056pgc.6
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 03:20:56 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id z31si18785715plb.153.2017.03.06.03.20.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 02:59:01 -0800 (PST)
-Date: Mon, 6 Mar 2017 11:58:05 +0100
-From: Mark Brown <broonie@kernel.org>
-Message-ID: <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <20170303132949.GC31582@dhcp22.suse.cz>
- <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
- <20170306074258.GA27953@dhcp22.suse.cz>
- <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="7gbhuigre4oq4px2"
-Content-Disposition: inline
-In-Reply-To: <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
+        Mon, 06 Mar 2017 03:20:55 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: drop unused pmdp_huge_get_and_clear_notify()
+Date: Mon,  6 Mar 2017 14:20:47 +0300
+Message-Id: <20170306112047.24809-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>
 
+Dave noticed that after fixing MADV_DONTNEED vs. numa balancing race the
+last pmdp_huge_get_and_clear_notify() user is gone.
 
---7gbhuigre4oq4px2
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Let's drop the helper.
 
-On Mon, Mar 06, 2017 at 11:40:41AM +0100, Daniel Vetter wrote:
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+---
+ include/linux/mmu_notifier.h | 13 -------------
+ 1 file changed, 13 deletions(-)
 
-> No one gave a thing about android in upstream, so Greg KH just dumped it
-> all into staging/android/. We've discussed ION a bunch of times, recorded
-> anything we'd like to fix in staging/android/TODO, and Laura's patch
-> series here addresses a big chunk of that.
-
-> This is pretty much the same approach we (gpu folks) used to de-stage the
-> syncpt stuff.
-
-Well, there's also the fact that quite a few people have issues with the
-design (like Laurent).  It seems like a lot of them have either got more
-comfortable with it over time, or at least not managed to come up with
-any better ideas in the meantime.
-
---7gbhuigre4oq4px2
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEreZoqmdXGLWf4p/qJNaLcl1Uh9AFAli9QLwACgkQJNaLcl1U
-h9AjFQf/SPP5WD/SamvFwR56oEgJCbFqFDKWSfrPtpOHcfR7yTxxJ4T07+f18Wgf
-6ZGZlQd0SBUxP65VsmWrvg34rd9FNb/2YCqLRtjr0RmvUcHFNnbmP8nrbU8AQekQ
-TRuF/QybJD2UiwSDgGnQsSmGCMc3HXpqIxurTBIkw9ylIN93inK4dYnuuc3DBMVt
-jPWYJ84BS73hEecBqF8snoW+IRVPt7YNBDj0ADqQ8B1o2hZzD2UEuBKUDITFClnl
-kkVw8Px8cq4yLMLkG8TgB19SGvI/XungEyp8lJ//p++h9UplUAGJq5csJJFFdpWn
-RpzvwRx9VQZBi03EaziJ80ZgCzmF6A==
-=SMXH
------END PGP SIGNATURE-----
-
---7gbhuigre4oq4px2--
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 51891fb0d3ce..c91b3bcd158f 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -394,18 +394,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ 	___pud;								\
+ })
+ 
+-#define pmdp_huge_get_and_clear_notify(__mm, __haddr, __pmd)		\
+-({									\
+-	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
+-	pmd_t ___pmd;							\
+-									\
+-	___pmd = pmdp_huge_get_and_clear(__mm, __haddr, __pmd);		\
+-	mmu_notifier_invalidate_range(__mm, ___haddr,			\
+-				      ___haddr + HPAGE_PMD_SIZE);	\
+-									\
+-	___pmd;								\
+-})
+-
+ /*
+  * set_pte_at_notify() sets the pte _after_ running the notifier.
+  * This is safe to start by updating the secondary MMUs, because the primary MMU
+@@ -489,7 +477,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ #define	ptep_clear_flush_notify ptep_clear_flush
+ #define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
+ #define pudp_huge_clear_flush_notify pudp_huge_clear_flush
+-#define pmdp_huge_get_and_clear_notify pmdp_huge_get_and_clear
+ #define set_pte_at_notify set_pte_at
+ 
+ #endif /* CONFIG_MMU_NOTIFIER */
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
