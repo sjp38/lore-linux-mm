@@ -1,86 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC576B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 15:23:44 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id d66so15073260wmi.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:23:44 -0800 (PST)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id u188si15894672wmd.128.2017.03.06.12.23.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F8F56B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 15:35:01 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e129so35787282pfh.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:35:01 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m1si20102074plb.1.2017.03.06.12.35.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 12:23:42 -0800 (PST)
-Received: by mail-wr0-x244.google.com with SMTP id l37so23122885wrc.3
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:23:42 -0800 (PST)
-Date: Mon, 6 Mar 2017 23:23:39 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv4 28/33] x86/mm: add support of additional page table
- level during early boot
-Message-ID: <20170306202339.GC27719@node.shutemov.name>
-References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
- <20170306135357.3124-29-kirill.shutemov@linux.intel.com>
- <7e78a76a-f5e8-bb60-e5be-a91a84faa1f9@oracle.com>
+        Mon, 06 Mar 2017 12:35:00 -0800 (PST)
+Date: Mon, 6 Mar 2017 21:35:00 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
+Message-ID: <20170306203500.GR6500@twins.programming.kicks-ass.net>
+References: <20170306124254.77615-1-dvyukov@google.com>
+ <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
+ <20170306125851.GL6500@twins.programming.kicks-ass.net>
+ <20170306130107.GK6536@twins.programming.kicks-ass.net>
+ <CACT4Y+ZDxk2CkaGaqVJfrzoBf4ZXDZ2L8vaAnLOjuY0yx85jgA@mail.gmail.com>
+ <20170306162018.GC18519@leverpostej>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7e78a76a-f5e8-bb60-e5be-a91a84faa1f9@oracle.com>
+In-Reply-To: <20170306162018.GC18519@leverpostej>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xen-devel <xen-devel@lists.xen.org>, Juergen Gross <jgross@suse.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, will.deacon@arm.com
 
-On Mon, Mar 06, 2017 at 03:05:49PM -0500, Boris Ostrovsky wrote:
-> 
-> > diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> > index 9991224f6238..c9e41f1599dd 100644
-> > --- a/arch/x86/include/asm/pgtable_64.h
-> > +++ b/arch/x86/include/asm/pgtable_64.h
-> > @@ -14,15 +14,17 @@
-> >  #include <linux/bitops.h>
-> >  #include <linux/threads.h>
-> >  
-> > +extern p4d_t level4_kernel_pgt[512];
-> > +extern p4d_t level4_ident_pgt[512];
-> >  extern pud_t level3_kernel_pgt[512];
-> >  extern pud_t level3_ident_pgt[512];
-> >  extern pmd_t level2_kernel_pgt[512];
-> >  extern pmd_t level2_fixmap_pgt[512];
-> >  extern pmd_t level2_ident_pgt[512];
-> >  extern pte_t level1_fixmap_pgt[512];
-> > -extern pgd_t init_level4_pgt[];
-> > +extern pgd_t init_top_pgt[];
-> >  
-> > -#define swapper_pg_dir init_level4_pgt
-> > +#define swapper_pg_dir init_top_pgt
-> >  
-> >  extern void paging_init(void);
-> >  
-> 
-> 
-> This means you also need
-> 
-> 
-> diff --git a/arch/x86/xen/xen-pvh.S b/arch/x86/xen/xen-pvh.S
-> index 5e24671..e1a5fbe 100644
-> --- a/arch/x86/xen/xen-pvh.S
-> +++ b/arch/x86/xen/xen-pvh.S
-> @@ -87,7 +87,7 @@ ENTRY(pvh_start_xen)
->         wrmsr
->  
->         /* Enable pre-constructed page tables. */
-> -       mov $_pa(init_level4_pgt), %eax
-> +       mov $_pa(init_top_pgt), %eax
->         mov %eax, %cr3
->         mov $(X86_CR0_PG | X86_CR0_PE), %eax
->         mov %eax, %cr0
-> 
-> 
+On Mon, Mar 06, 2017 at 04:20:18PM +0000, Mark Rutland wrote:
+> > >> So the problem is doing load/stores from asm bits, and GCC
+> > >> (traditionally) doesn't try and interpret APP asm bits.
+> > >>
+> > >> However, could we not write a GCC plugin that does exactly that?
+> > >> Something that interprets the APP asm bits and generates these KASAN
+> > >> bits that go with it?
 
-Ah. Thanks. I've missed that.
+> I don't think there's much you'll be able to do within the compiler,
+> assuming you mean to derive this from the asm block inputs and outputs.
 
-The fix is folded.
+Nah, I was thinking about a full asm interpreter.
 
--- 
- Kirill A. Shutemov
+> Those can hide address-generation (e.g. with per-cpu stuff), which the
+> compiler may erroneously be detected as racing.
+> 
+> Those may also take fake inputs (e.g. the sp input to arm64's
+> __my_cpu_offset()) which may confuse matters.
+> 
+> Parsing the assembly itself will be *extremely* painful due to the way
+> that's set up for run-time patching.
+
+Argh, yah, completely forgot about all that alternative and similar
+nonsense :/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
