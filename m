@@ -1,102 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A9D06B0388
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 16:22:16 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q126so221544080pga.0
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 13:22:16 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 4si20179060ple.182.2017.03.06.13.22.15
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C508C6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 17:03:34 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 67so212540008pfg.0
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 14:03:34 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 27sor13146664pgy.4.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 13:22:15 -0800 (PST)
-Date: Mon, 6 Mar 2017 13:22:14 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/7] mm: introduce memalloc_nofs_{save,restore} API
-Message-Id: <20170306132214.1769368301d9e671e1bc68be@linux-foundation.org>
-In-Reply-To: <20170306131408.9828-5-mhocko@kernel.org>
-References: <20170306131408.9828-1-mhocko@kernel.org>
-	<20170306131408.9828-5-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 06 Mar 2017 14:03:33 -0800 (PST)
+Date: Mon, 6 Mar 2017 14:03:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm] mm, vmstat: suppress pcp stats for unpopulated zones in
+ zoneinfo
+In-Reply-To: <alpine.DEB.2.10.1703031451310.98023@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1703061400500.46428@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com> <4acf16c5-c64b-b4f8-9a41-1926eed23fe1@linux.vnet.ibm.com> <alpine.DEB.2.10.1703031445340.92298@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1703031451310.98023@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon,  6 Mar 2017 14:14:05 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+After "mm, vmstat: print non-populated zones in zoneinfo", /proc/zoneinfo 
+will show unpopulated zones.
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> GFP_NOFS context is used for the following 5 reasons currently
-> 	- to prevent from deadlocks when the lock held by the allocation
-> 	  context would be needed during the memory reclaim
-> 	- to prevent from stack overflows during the reclaim because
-> 	  the allocation is performed from a deep context already
-> 	- to prevent lockups when the allocation context depends on
-> 	  other reclaimers to make a forward progress indirectly
-> 	- just in case because this would be safe from the fs POV
-> 	- silence lockdep false positives
-> 
-> Unfortunately overuse of this allocation context brings some problems
-> to the MM. Memory reclaim is much weaker (especially during heavy FS
-> metadata workloads), OOM killer cannot be invoked because the MM layer
-> doesn't have enough information about how much memory is freeable by the
-> FS layer.
-> 
-> In many cases it is far from clear why the weaker context is even used
-> and so it might be used unnecessarily. We would like to get rid of
-> those as much as possible. One way to do that is to use the flag in
-> scopes rather than isolated cases. Such a scope is declared when really
-> necessary, tracked per task and all the allocation requests from within
-> the context will simply inherit the GFP_NOFS semantic.
-> 
-> Not only this is easier to understand and maintain because there are
-> much less problematic contexts than specific allocation requests, this
-> also helps code paths where FS layer interacts with other layers (e.g.
-> crypto, security modules, MM etc...) and there is no easy way to convey
-> the allocation context between the layers.
-> 
-> Introduce memalloc_nofs_{save,restore} API to control the scope
-> of GFP_NOFS allocation context. This is basically copying
-> memalloc_noio_{save,restore} API we have for other restricted allocation
-> context GFP_NOIO. The PF_MEMALLOC_NOFS flag already exists and it is
-> just an alias for PF_FSTRANS which has been xfs specific until recently.
-> There are no more PF_FSTRANS users anymore so let's just drop it.
-> 
-> PF_MEMALLOC_NOFS is now checked in the MM layer and drops __GFP_FS
-> implicitly same as PF_MEMALLOC_NOIO drops __GFP_IO. memalloc_noio_flags
-> is renamed to current_gfp_context because it now cares about both
-> PF_MEMALLOC_NOFS and PF_MEMALLOC_NOIO contexts. Xfs code paths preserve
-> their semantic. kmem_flags_convert() doesn't need to evaluate the flag
-> anymore.
-> 
-> This patch shouldn't introduce any functional changes.
-> 
-> Let's hope that filesystems will drop direct GFP_NOFS (resp. ~__GFP_FS)
-> usage as much as possible and only use a properly documented
-> memalloc_nofs_{save,restore} checkpoints where they are appropriate.
-> 
-> ....
->
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -210,8 +210,16 @@ struct vm_area_struct;
->   *
->   * GFP_NOIO will use direct reclaim to discard clean pages or slab pages
->   *   that do not require the starting of any physical IO.
-> + *   Please try to avoid using this flag directly and instead use
-> + *   memalloc_noio_{save,restore} to mark the whole scope which cannot
-> + *   perform any IO with a short explanation why. All allocation requests
-> + *   will inherit GFP_NOIO implicitly.
->   *
->   * GFP_NOFS will use direct reclaim but will not use any filesystem interfaces.
-> + *   Please try to avoid using this flag directly and instead use
-> + *   memalloc_nofs_{save,restore} to mark the whole scope which cannot/shouldn't
-> + *   recurse into the FS layer with a short explanation why. All allocation
-> + *   requests will inherit GFP_NOFS implicitly.
+The per-cpu pageset statistics are not relevant for unpopulated zones and 
+can be potentially lengthy, so supress them when they are not interesting.
 
-I wonder if these are worth a checkpatch rule.
+Also moves lowmem reserve protection information above pcp stats since it 
+is relevant for all zones per vm.lowmem_reserve_ratio.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/vmstat.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1392,18 +1392,24 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 		   zone->present_pages,
+ 		   zone->managed_pages);
+ 
+-	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+-		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
+-				zone_page_state(zone, i));
+-
+ 	seq_printf(m,
+ 		   "\n        protection: (%ld",
+ 		   zone->lowmem_reserve[0]);
+ 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
+ 		seq_printf(m, ", %ld", zone->lowmem_reserve[i]);
+-	seq_printf(m,
+-		   ")"
+-		   "\n  pagesets");
++	seq_putc(m, ')');
++
++	/* If unpopulated, no other information is useful */
++	if (!populated_zone(zone)) {
++		seq_putc(m, '\n');
++		return;
++	}
++
++	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
++		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
++				zone_page_state(zone, i));
++
++	seq_printf(m, "\n  pagesets");
+ 	for_each_online_cpu(i) {
+ 		struct per_cpu_pageset *pageset;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
