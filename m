@@ -1,138 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB536B03AE
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:01:35 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id n11so30346677wma.5
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:01:35 -0800 (PST)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id 18si15147406wms.61.2017.03.06.08.01.33
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 76B6F6B038E
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:04:00 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id u81so76817943uau.6
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:04:00 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l12sor5972515uaf.15.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 08:01:33 -0800 (PST)
-Received: by mail-wr0-x244.google.com with SMTP id u108so18341327wrb.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:01:33 -0800 (PST)
-Date: Mon, 6 Mar 2017 17:01:30 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-Message-ID: <20170306160130.bwp73tkkkxafbizg@phenom.ffwll.local>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <10344634.XsotFaGzfj@avalon>
- <20170306103820.ixuvs7fd6s4tvfzy@phenom.ffwll.local>
- <9366352.DJUlrUijoL@avalon>
+        (Google Transport Security);
+        Mon, 06 Mar 2017 08:03:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9366352.DJUlrUijoL@avalon>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 6 Mar 2017 17:03:38 +0100
+Message-ID: <CACT4Y+a_wPN==+cCdi8cF+1Sft-M++cpEdL0eFoNMVwOTczQRw@mail.gmail.com>
+Subject: kasan: bug in quarantine_remove_cache
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Cc: Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org, Laura Abbott <labbott@redhat.com>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Greg Thelen <gthelen@google.com>
 
-On Mon, Mar 06, 2017 at 05:02:05PM +0200, Laurent Pinchart wrote:
-> Hi Daniel,
-> 
-> On Monday 06 Mar 2017 11:38:20 Daniel Vetter wrote:
-> > On Fri, Mar 03, 2017 at 06:45:40PM +0200, Laurent Pinchart wrote:
-> > > - I haven't seen any proposal how a heap-based solution could be used in a
-> > > generic distribution. This needs to be figured out before committing to
-> > > any API/ABI.
-> > 
-> > Two replies from my side:
-> > 
-> > - Just because a patch doesn't solve world hunger isn't really a good
-> >   reason to reject it.
-> 
-> As long as it goes in the right direction, sure :-) The points I mentioned 
-> were to be interpreted that way, I want to make sure we're not going in a 
-> dead-end (or worse, driving full speed into a wall).
-> 
-> > - Heap doesn't mean its not resizeable (but I'm not sure that's really
-> >   your concern).
-> 
-> Not really, no. Heap is another word to mean pool here. It might not be the 
-> best term in this context as it has a precise meaning in the context of memory 
-> allocation, but that's a detail.
-> 
-> > - Imo ION is very much part of the picture here to solve this for real. We
-> >   need to bits:
-> > 
-> >   * Be able to allocate memory from specific pools, not going through a
-> >     specific driver. ION gives us that interface. This is e.g. also needed
-> >     for "special" memory, like SMA tries to expose.
-> > 
-> >   * Some way to figure out how&where to allocate the buffer object. This
-> >     is purely a userspace problem, and this is the part the unix memory
-> >     allocator tries to solve. There's no plans in there for big kernel
-> >     changes, instead userspace does a dance to reconcile all the
-> >     constraints, and one of the constraints might be "you have to allocate
-> >     this from this special ION heap". The only thing the kernel needs to
-> >     expose is which devices use which ION heaps (we kinda do that
-> >     already), and maybe some hints of how they can be generalized (but I
-> >     guess stuff like "minimal pagesize of x KB" is also fulfilled by any
-> >     CMA heap is knowledge userspace needs).
-> 
-> The constraint solver could live in userspace, I'm open to a solution that 
-> would go in that direction, but it will require help from the kernel to fetch 
-> the constraints from the devices that need to be involved in buffer sharing.
-> 
-> Given a userspace constraint resolver, the interface with the kernel allocator 
-> will likely be based on pools. I'm not opposed to that, as long as pool are 
-> identified by opaque handles. I don't want userspace to know about the meaning 
-> of any particular ION heap. Application must not attempt to "allocate from 
-> CMA" for instance, that would lock us to a crazy API that will grow completely 
-> out of hands as vendors will start adding all kind of custom heaps, and 
-> applications will have to follow (or will be patched out-of-tree by vendors).
-> 
-> > Again I think waiting for this to be fully implemented before we merge any
-> > part is going to just kill any upstreaming efforts. ION in itself, without
-> > the full buffer negotiation dance seems clearly useful (also for stuff
-> > like SMA), and having it merged will help with moving the buffer
-> > allocation dance forward.
-> 
-> Again I'm not opposed to a kernel allocator based on pools/heaps, as long as
-> 
-> - pools/heaps stay internal to the kernel and are not directly exposed to 
-> userspace
+Hi,
 
-Agreed (and I think ION doesn't have fixed pools afaik, just kinda
-conventions, at least after Laura's patches). But on a fixed board with a
-fixed DT (for the cma regions) and fixed .config (for the generic heaps)
-you can hardcode your heaps. You'll make your code non-portable, but hey
-that's not our problem imo. E.g. board-specific code can also hard-code
-how to wire connectors and which one is which in kms (and I've seen this).
-I don't think the possibility of abusing the uabi should be a good reason
-to prevent it from merging. Anything that provides something with indirect
-connections can be abused by hardcoding the names or the indizes.
+I think I see a nasty race condition in quarantine_remove_cache. It
+seems to manifest as the following crash, I've seen several of them
+but did not have any explanation.
 
-We do have a TODO entry that talks about exposing the device -> cma heap
-link in sysfs or somewhere. I'm not versed enough to know whether Laura's
-patches fixed that, this here mostly seems to tackle the fundamentals of
-the dma api abuse first.
 
-> - a reasonable way to size the different kinds of pools in a generic 
-> distribution kernel can be found
+BUG: unable to handle kernel NULL pointer dereference at 00000000000000c8
+IP: qlist_free_all+0x2e/0xc0 mm/kasan/quarantine.c:155
+PGD 6aeea067
+PUD 60ed7067
+PMD 0
+Oops: 0000 [#1] SMP KASAN
+Dumping ftrace buffer:
+   (ftrace buffer empty)
+Modules linked in:
+CPU: 0 PID: 13667 Comm: syz-executor2 Not tainted 4.10.0+ #60
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+task: ffff88005f948040 task.stack: ffff880069818000
+RIP: 0010:qlist_free_all+0x2e/0xc0 mm/kasan/quarantine.c:155
+RSP: 0018:ffff88006981f298 EFLAGS: 00010246
+RAX: ffffea0000ffff00 RBX: 0000000000000000 RCX: ffffea0000ffff1f
+RDX: 0000000000000000 RSI: ffff88003fffc3e0 RDI: 0000000000000000
+RBP: ffff88006981f2c0 R08: ffff88002fed7bd8 R09: 00000001001f000d
+R10: 00000000001f000d R11: ffff88006981f000 R12: ffff88003fffc3e0
+R13: ffff88006981f2d0 R14: ffffffff81877fae R15: 0000000080000000
+FS:  00007fb911a2d700(0000) GS:ffff88003ec00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00000000000000c8 CR3: 0000000060ed6000 CR4: 00000000000006f0
+Call Trace:
+ quarantine_reduce+0x10e/0x120 mm/kasan/quarantine.c:239
+ kasan_kmalloc+0xca/0xe0 mm/kasan/kasan.c:590
+ kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:544
+ slab_post_alloc_hook mm/slab.h:456 [inline]
+ slab_alloc_node mm/slub.c:2718 [inline]
+ kmem_cache_alloc_node+0x1d3/0x280 mm/slub.c:2754
+ __alloc_skb+0x10f/0x770 net/core/skbuff.c:219
+ alloc_skb include/linux/skbuff.h:932 [inline]
+ _sctp_make_chunk+0x3b/0x260 net/sctp/sm_make_chunk.c:1388
+ sctp_make_data net/sctp/sm_make_chunk.c:1420 [inline]
+ sctp_make_datafrag_empty+0x208/0x360 net/sctp/sm_make_chunk.c:746
+ sctp_datamsg_from_user+0x7e8/0x11d0 net/sctp/chunk.c:266
+ sctp_sendmsg+0x2611/0x3970 net/sctp/socket.c:1962
+ inet_sendmsg+0x164/0x5b0 net/ipv4/af_inet.c:761
+ sock_sendmsg_nosec net/socket.c:633 [inline]
+ sock_sendmsg+0xca/0x110 net/socket.c:643
+ SYSC_sendto+0x660/0x810 net/socket.c:1685
+ SyS_sendto+0x40/0x50 net/socket.c:1653
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+RIP: 0033:0x4458b9
+RSP: 002b:00007fb911a2cb58 EFLAGS: 00000282 ORIG_RAX: 000000000000002c
+RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 00000000004458b9
+RDX: 00000000000000ae RSI: 0000000020477000 RDI: 0000000000000005
+RBP: 00000000006e1ba0 R08: 0000000020477000 R09: 0000000000000010
+R10: 0000000000000040 R11: 0000000000000282 R12: 0000000000708000
+R13: 0000000000000000 R14: 00007fb911a2d9c0 R15: 00007fb911a2d700
+Code: e5 41 57 41 56 41 55 41 54 53 48 89 f3 48 8b 37 48 85 f6 0f 84
+8e 00 00 00 49 89 fd 49 c7 c6 ae 7f 87 81 41 bf 00 00 00 80 eb 1d <48>
+63 87 c8 00 00 00 4c 8b 26 4c 89 f2 48 29 c6 e8 4d ce ff ff
+RIP: qlist_free_all+0x2e/0xc0 mm/kasan/quarantine.c:155 RSP: ffff88006981f298
+CR2: 00000000000000c8
+---[ end trace a5485c8c9b67efdd ]---
 
-So for the CMA heaps, you can't resize them at runtime, for obvious
-reasons. For boot-time you can adjust them through DT, and I thought
-everyone agreed that for different use-cases you might need to adjust your
-reserved regions.
+quarantine_remove_cache frees all pending objects that belong to the
+cache, before we destroy the cache itself. However there are 2
+possibilities how it can fail to do so.
 
-For all other heaps, they just use the normal allocator functions
-(e.g. alloc_pages). There's not limit on those except OOM, so nothing to
-adjust really.
+First, another thread can hold some of the objects from the cache in
+temp list in quarantine_put. quarantine_put has a windows of enabled
+interrupts, and on_each_cpu in quarantine_remove_cache can finish
+right in that window. These objects will be later freed into the
+destroyed cache.
 
-I guess I'm still not entirely clear on your "memory pool" concern ... If
-it's just the word, we have lots of auto-resizing heaps/pools all around.
-And if it's just sizing, I think that's already solved as good as possible
-(assuming there's not a silly limit on the system heap that we should
-remove ...).
+Then, quarantine_reduce has the same problem. It grabs a batch of
+objects from the global quarantine, then unlocks quarantine_lock and
+then frees the batch. quarantine_remove_cache can finish while some
+objects from the cache are still in the local to_free list in
+quarantine_reduce.
 
-Cheers, Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+I am trying to find a reasonably simple, elegant and performant
+solution for this.
+What I have now is this:
+
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index 6f1ed1630873..58c280bd5a4d 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -180,10 +180,7 @@ void quarantine_put(struct kasan_free_meta *info,
+struct kmem_cache *cache)
+         if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE))
+                 qlist_move_all(q, &temp);
+
+-        local_irq_restore(flags);
+-
+-        if (unlikely(!qlist_empty(&temp))) {
+-                spin_lock_irqsave(&quarantine_lock, flags);
++                spin_lock(&quarantine_lock);
+                 WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
+                 qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
+                 if (global_quarantine[quarantine_tail].bytes >=
+@@ -196,8 +193,10 @@ void quarantine_put(struct kasan_free_meta *info,
+struct kmem_cache *cache)
+                         if (new_tail != quarantine_head)
+                                 quarantine_tail = new_tail;
+                 }
+-                spin_unlock_irqrestore(&quarantine_lock, flags);
++                spin_unlock(&quarantine_lock);
+         }
++
++        local_irq_restore(flags);
+ }
+
+ void quarantine_reduce(void)
+@@ -210,7 +209,8 @@ void quarantine_reduce(void)
+                    READ_ONCE(quarantine_max_size)))
+                 return;
+
+-        spin_lock_irqsave(&quarantine_lock, flags);
++        local_irq_save(flags);
++        spin_lock(&quarantine_lock);
+
+         /*
+          * Update quarantine size in case of hotplug. Allocate a fraction of
+@@ -234,9 +234,11 @@ void quarantine_reduce(void)
+                         quarantine_head = 0;
+         }
+
+-        spin_unlock_irqrestore(&quarantine_lock, flags);
++        spin_unlock(&quarantine_lock);
+
+         qlist_free_all(&to_free, NULL);
++
++        local_irq_restore(flags);
+ }
+
+ static void qlist_move_cache(struct qlist_head *from,
+@@ -288,4 +290,6 @@ void quarantine_remove_cache(struct kmem_cache *cache)
+         spin_unlock_irqrestore(&quarantine_lock, flags);
+
+         qlist_free_all(&to_free, cache);
++
++        synchronize_sched();
+ }
+
+
+If we disable interrupts for the most part of quarantine_put and
+quarantine_reduce, and do 2 synchronize_sched's in
+quarantine_remove_cache (one being on_each_cpu), then it should
+resolve the race.
+However, I am not sure if it is OK to disable interrupts when we are
+freeing a large batch in quarantine_reduce. And probably
+synchronize_sched in quarantine_remove_cache will have negative
+performance impact for container workloads. What do you think?
+Is using rcu_read_lock/unlock and synchronize_rcu better?
+Or maybe we could do own simplified version of rcu with 2 epochs
+(effectively counters of pending quarantine_put/reduce). But I really
+don't like going that way complexity-wise.
+
+Any other suggestions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
