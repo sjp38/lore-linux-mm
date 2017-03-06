@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F736B0396
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:20 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id o126so34879218pfb.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:20 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 263FD6B0398
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:21 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 65so208574360pgi.7
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:21 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 88si19119992pla.240.2017.03.06.05.54.19
+        by mx.google.com with ESMTPS id 88si19119992pla.240.2017.03.06.05.54.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 05:54:19 -0800 (PST)
+        Mon, 06 Mar 2017 05:54:20 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 16/33] x86/mm/pat: handle additional page table
-Date: Mon,  6 Mar 2017 16:53:40 +0300
-Message-Id: <20170306135357.3124-17-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 22/33] x86/mm: define virtual memory map for 5-level paging
+Date: Mon,  6 Mar 2017 16:53:46 +0300
+Message-Id: <20170306135357.3124-23-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,177 +20,180 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Straight-forward extension of existing code to support additional page
-table level.
+The first part of memory map (up to %esp fixup) simply scales existing
+map for 4-level paging by factor of 9 -- number of bits addressed by
+additional page table level.
+
+The rest of the map is uncahnged.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/pageattr.c | 56 ++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 41 insertions(+), 15 deletions(-)
+ Documentation/x86/x86_64/mm.txt         | 33 ++++++++++++++++++++++++++++++---
+ arch/x86/Kconfig                        |  1 +
+ arch/x86/include/asm/kasan.h            |  9 ++++++---
+ arch/x86/include/asm/page_64_types.h    | 10 ++++++++++
+ arch/x86/include/asm/pgtable_64_types.h |  6 ++++++
+ arch/x86/include/asm/sparsemem.h        |  9 +++++++--
+ 6 files changed, 60 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 28d42130243c..eb0ad12cdfde 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -346,6 +346,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
- pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
- 			     unsigned int *level)
- {
-+	p4d_t *p4d;
- 	pud_t *pud;
- 	pmd_t *pmd;
+diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
+index 5724092db811..0303a47b82f8 100644
+--- a/Documentation/x86/x86_64/mm.txt
++++ b/Documentation/x86/x86_64/mm.txt
+@@ -4,7 +4,7 @@
+ Virtual memory map with 4 level page tables:
  
-@@ -354,7 +355,15 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
- 	if (pgd_none(*pgd))
- 		return NULL;
+ 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
+-hole caused by [48:63] sign extension
++hole caused by [47:63] sign extension
+ ffff800000000000 - ffff87ffffffffff (=43 bits) guard hole, reserved for hypervisor
+ ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
+ ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
+@@ -23,12 +23,39 @@ ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
+ ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
+ ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
  
--	pud = pud_offset(pgd, address);
-+	p4d = p4d_offset(pgd, address);
-+	if (p4d_none(*p4d))
-+		return NULL;
++Virtual memory map with 5 level page tables:
 +
-+	*level = PG_LEVEL_512G;
-+	if (p4d_large(*p4d) || !p4d_present(*p4d))
-+		return (pte_t *)p4d;
++0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
++hole caused by [56:63] sign extension
++ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
++ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
++ff90000000000000 - ff91ffffffffffff (=49 bits) hole
++ff92000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space
++ffd2000000000000 - ffd3ffffffffffff (=49 bits) hole
++ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
++... unused hole ...
++ffd8000000000000 - fff7ffffffffffff (=53 bits) kasan shadow memory (8PB)
++... unused hole ...
++fffe000000000000 - fffe007fffffffff (=39 bits) %esp fixup stacks
++... unused hole ...
++ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
++... unused hole ...
++ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
++ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
++ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
++ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
 +
-+	pud = pud_offset(p4d, address);
- 	if (pud_none(*pud))
- 		return NULL;
- 
-@@ -406,13 +415,18 @@ static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
- pmd_t *lookup_pmd_address(unsigned long address)
- {
- 	pgd_t *pgd;
-+	p4d_t *p4d;
- 	pud_t *pud;
- 
- 	pgd = pgd_offset_k(address);
- 	if (pgd_none(*pgd))
- 		return NULL;
- 
--	pud = pud_offset(pgd, address);
-+	p4d = p4d_offset(pgd, address);
-+	if (p4d_none(*p4d) || p4d_large(*p4d) || !p4d_present(*p4d))
-+		return NULL;
++Architecture defines a 64-bit virtual address. Implementations can support
++less. Currently supported are 48- and 57-bit virtual addresses. Bits 63
++through to the most-significant implemented bit are set to either all ones
++or all zero. This causes hole between user space and kernel addresses.
 +
-+	pud = pud_offset(p4d, address);
- 	if (pud_none(*pud) || pud_large(*pud) || !pud_present(*pud))
- 		return NULL;
+ The direct mapping covers all memory in the system up to the highest
+ memory address (this means in some cases it can also include PCI memory
+ holes).
  
-@@ -477,11 +491,13 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
+-vmalloc space is lazily synchronized into the different PML4 pages of
+-the processes using the page fault handler, with init_level4_pgt as
++vmalloc space is lazily synchronized into the different PML4/PML5 pages of
++the processes using the page fault handler, with init_top_pgt as
+ reference.
  
- 		list_for_each_entry(page, &pgd_list, lru) {
- 			pgd_t *pgd;
-+			p4d_t *p4d;
- 			pud_t *pud;
- 			pmd_t *pmd;
+ Current X86-64 implementations support up to 46 bits of address space (64 TB),
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index cc98d5a294ee..747f06f00a22 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -290,6 +290,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ config KASAN_SHADOW_OFFSET
+ 	hex
+ 	depends on KASAN
++	default 0xdff8000000000000 if X86_5LEVEL
+ 	default 0xdffffc0000000000
  
- 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
--			pud = pud_offset(pgd, address);
-+			p4d = p4d_offset(pgd, address);
-+			pud = pud_offset(p4d, address);
- 			pmd = pmd_offset(pud, address);
- 			set_pte_atomic((pte_t *)pmd, pte);
- 		}
-@@ -836,9 +852,9 @@ static void unmap_pmd_range(pud_t *pud, unsigned long start, unsigned long end)
- 			pud_clear(pud);
- }
+ config HAVE_INTEL_TXT
+diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+index 1410b567ecde..f527b02a0ee3 100644
+--- a/arch/x86/include/asm/kasan.h
++++ b/arch/x86/include/asm/kasan.h
+@@ -11,9 +11,12 @@
+  * 'kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT
+  */
+ #define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET + \
+-					(0xffff800000000000ULL >> 3))
+-/* 47 bits for kernel address -> (47 - 3) bits for shadow */
+-#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (47 - 3)))
++					((-1UL << __VIRTUAL_MASK_SHIFT) >> 3))
++/*
++ * 47 bits for kernel address -> (47 - 3) bits for shadow
++ * 56 bits for kernel address -> (56 - 3) bits for shadow
++ */
++#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (__VIRTUAL_MASK_SHIFT - 3)))
  
--static void unmap_pud_range(pgd_t *pgd, unsigned long start, unsigned long end)
-+static void unmap_pud_range(p4d_t *p4d, unsigned long start, unsigned long end)
- {
--	pud_t *pud = pud_offset(pgd, start);
-+	pud_t *pud = pud_offset(p4d, start);
+ #ifndef __ASSEMBLY__
  
- 	/*
- 	 * Not on a GB page boundary?
-@@ -1004,8 +1020,8 @@ static long populate_pmd(struct cpa_data *cpa,
- 	return num_pages;
- }
- 
--static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
--			 pgprot_t pgprot)
-+static int populate_pud(struct cpa_data *cpa, unsigned long start, p4d_t *p4d,
-+			pgprot_t pgprot)
- {
- 	pud_t *pud;
- 	unsigned long end;
-@@ -1026,7 +1042,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
- 		cur_pages = (pre_end - start) >> PAGE_SHIFT;
- 		cur_pages = min_t(int, (int)cpa->numpages, cur_pages);
- 
--		pud = pud_offset(pgd, start);
-+		pud = pud_offset(p4d, start);
- 
- 		/*
- 		 * Need a PMD page?
-@@ -1047,7 +1063,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
- 	if (cpa->numpages == cur_pages)
- 		return cur_pages;
- 
--	pud = pud_offset(pgd, start);
-+	pud = pud_offset(p4d, start);
- 	pud_pgprot = pgprot_4k_2_large(pgprot);
- 
- 	/*
-@@ -1067,7 +1083,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
- 	if (start < end) {
- 		long tmp;
- 
--		pud = pud_offset(pgd, start);
-+		pud = pud_offset(p4d, start);
- 		if (pud_none(*pud))
- 			if (alloc_pmd_page(pud))
- 				return -1;
-@@ -1090,33 +1106,43 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
- {
- 	pgprot_t pgprot = __pgprot(_KERNPG_TABLE);
- 	pud_t *pud = NULL;	/* shut up gcc */
-+	p4d_t *p4d;
- 	pgd_t *pgd_entry;
- 	long ret;
- 
- 	pgd_entry = cpa->pgd + pgd_index(addr);
- 
-+	if (pgd_none(*pgd_entry)) {
-+		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
-+		if (!p4d)
-+			return -1;
+diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
+index 9215e0527647..3f5f08b010d0 100644
+--- a/arch/x86/include/asm/page_64_types.h
++++ b/arch/x86/include/asm/page_64_types.h
+@@ -36,7 +36,12 @@
+  * hypervisor to fit.  Choosing 16 slots here is arbitrary, but it's
+  * what Xen requires.
+  */
++#ifdef CONFIG_X86_5LEVEL
++#define __PAGE_OFFSET_BASE      _AC(0xff10000000000000, UL)
++#else
+ #define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
++#endif
 +
-+		set_pgd(pgd_entry, __pgd(__pa(p4d) | _KERNPG_TABLE));
-+	}
-+
- 	/*
--	 * Allocate a PUD page and hand it down for mapping.
-+	 * Allocate a P4D page and hand it down for mapping.
- 	 */
--	if (pgd_none(*pgd_entry)) {
-+	p4d = p4d_offset(pgd_entry, addr);
-+	if (p4d_none(*p4d)) {
- 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
- 		if (!pud)
- 			return -1;
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ #define __PAGE_OFFSET           page_offset_base
+ #else
+@@ -46,8 +51,13 @@
+ #define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
  
--		set_pgd(pgd_entry, __pgd(__pa(pud) | _KERNPG_TABLE));
-+		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
- 	}
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
++#ifdef CONFIG_X86_5LEVEL
++#define __PHYSICAL_MASK_SHIFT	52
++#define __VIRTUAL_MASK_SHIFT	56
++#else
+ #define __PHYSICAL_MASK_SHIFT	46
+ #define __VIRTUAL_MASK_SHIFT	47
++#endif
  
- 	pgprot_val(pgprot) &= ~pgprot_val(cpa->mask_clr);
- 	pgprot_val(pgprot) |=  pgprot_val(cpa->mask_set);
+ /*
+  * Kernel image size is limited to 1GiB due to the fixmap living in the
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 0b2797e5083c..00dc0c2b456e 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -56,9 +56,15 @@ typedef struct { pteval_t pte; } pte_t;
  
--	ret = populate_pud(cpa, addr, pgd_entry, pgprot);
-+	ret = populate_pud(cpa, addr, p4d, pgprot);
- 	if (ret < 0) {
- 		/*
- 		 * Leave the PUD page in place in case some other CPU or thread
- 		 * already found it, but remove any useless entries we just
- 		 * added to it.
- 		 */
--		unmap_pud_range(pgd_entry, addr,
-+		unmap_pud_range(p4d, addr,
- 				addr + (cpa->numpages << PAGE_SHIFT));
- 		return ret;
- 	}
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+ #define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
++#ifdef CONFIG_X86_5LEVEL
++#define VMALLOC_SIZE_TB _AC(16384, UL)
++#define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
++#define __VMEMMAP_BASE	_AC(0xffd4000000000000, UL)
++#else
+ #define VMALLOC_SIZE_TB	_AC(32, UL)
+ #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
+ #define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
++#endif
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ #define VMALLOC_START	vmalloc_base
+ #define VMEMMAP_START	vmemmap_base
+diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
+index 4517d6b93188..1f5bee2c202f 100644
+--- a/arch/x86/include/asm/sparsemem.h
++++ b/arch/x86/include/asm/sparsemem.h
+@@ -26,8 +26,13 @@
+ # endif
+ #else /* CONFIG_X86_32 */
+ # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+-# define MAX_PHYSADDR_BITS	44
+-# define MAX_PHYSMEM_BITS	46
++# ifdef CONFIG_X86_5LEVEL
++#  define MAX_PHYSADDR_BITS	52
++#  define MAX_PHYSMEM_BITS	52
++# else
++#  define MAX_PHYSADDR_BITS	44
++#  define MAX_PHYSMEM_BITS	46
++# endif
+ #endif
+ 
+ #endif /* CONFIG_SPARSEMEM */
 -- 
 2.11.0
 
