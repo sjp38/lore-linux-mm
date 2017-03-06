@@ -1,120 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 97B106B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:14:54 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id k13so39274062ywk.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:14:54 -0800 (PST)
-Received: from mail-yw0-f179.google.com (mail-yw0-f179.google.com. [209.85.161.179])
-        by mx.google.com with ESMTPS id i130si4259363ybg.32.2017.03.06.11.14.53
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BDBF6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:20:26 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id n141so129111767qke.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:20:26 -0800 (PST)
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com. [209.85.220.179])
+        by mx.google.com with ESMTPS id u46si12345517qtu.318.2017.03.06.11.20.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 11:14:53 -0800 (PST)
-Received: by mail-yw0-f179.google.com with SMTP id o4so67335874ywd.3
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:14:53 -0800 (PST)
-Subject: Re: [RFC PATCH 10/12] staging: android: ion: Use CMA APIs directly
+        Mon, 06 Mar 2017 11:20:25 -0800 (PST)
+Received: by mail-qk0-f179.google.com with SMTP id p64so51926324qke.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:20:25 -0800 (PST)
+Subject: Re: [RFC PATCH 06/12] staging: android: ion: Remove crufty cache
+ support
 References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <0541f57b-4060-ea10-7173-26ae77777518@redhat.com>
- <20170306103204.d3yf6woxpsqvdakp@phenom.ffwll.local>
- <6709093.jyTQHIiK7d@avalon>
- <20170306155257.y5tnlq4orv2xkjbd@phenom.ffwll.local>
+ <1488491084-17252-7-git-send-email-labbott@redhat.com>
+ <20170303095654.zbcqkcojo3vf6y4y@phenom.ffwll.local>
+ <2273106.Hjr80nPvcZ@avalon> <87fe5d0a-19d2-b6c7-391f-687aa5ff8571@redhat.com>
+ <20170306102959.5iixtstrl7ktwxdp@phenom.ffwll.local>
+ <CACvgo52Q-HvChU7_q65GFqOaVY7Z7EaDoRfELup0D_N_ge9poQ@mail.gmail.com>
 From: Laura Abbott <labbott@redhat.com>
-Message-ID: <77170715-30fd-32ff-f738-cea630fd702f@redhat.com>
-Date: Mon, 6 Mar 2017 11:14:48 -0800
+Message-ID: <aa4a0307-62d0-7aed-80bc-bc569d49ffcd@redhat.com>
+Date: Mon, 6 Mar 2017 11:20:20 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170306155257.y5tnlq4orv2xkjbd@phenom.ffwll.local>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CACvgo52Q-HvChU7_q65GFqOaVY7Z7EaDoRfELup0D_N_ge9poQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>, dri-devel@lists.freedesktop.org, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Emil Velikov <emil.l.velikov@gmail.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, ML dri-devel <dri-devel@lists.freedesktop.org>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, "Linux-Kernel@Vger. Kernel. Org" <linux-kernel@vger.kernel.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, LAKML <linux-arm-kernel@lists.infradead.org>, linux-media@vger.kernel.org
 
-On 03/06/2017 07:52 AM, Daniel Vetter wrote:
-> On Mon, Mar 06, 2017 at 03:43:53PM +0200, Laurent Pinchart wrote:
->> Hi Daniel,
->>
->> On Monday 06 Mar 2017 11:32:04 Daniel Vetter wrote:
->>> On Fri, Mar 03, 2017 at 10:50:20AM -0800, Laura Abbott wrote:
->>>> On 03/03/2017 08:41 AM, Laurent Pinchart wrote:
->>>>> On Thursday 02 Mar 2017 13:44:42 Laura Abbott wrote:
->>>>>> When CMA was first introduced, its primary use was for DMA allocation
->>>>>> and the only way to get CMA memory was to call dma_alloc_coherent. This
->>>>>> put Ion in an awkward position since there was no device structure
->>>>>> readily available and setting one up messed up the coherency model.
->>>>>> These days, CMA can be allocated directly from the APIs. Switch to
->>>>>> using this model to avoid needing a dummy device. This also avoids
->>>>>> awkward caching questions.
->>>>>
->>>>> If the DMA mapping API isn't suitable for today's requirements anymore,
->>>>> I believe that's what needs to be fixed, instead of working around the
->>>>> problem by introducing another use-case-specific API.
+On 03/06/2017 09:00 AM, Emil Velikov wrote:
+> On 6 March 2017 at 10:29, Daniel Vetter <daniel@ffwll.ch> wrote:
+>> On Fri, Mar 03, 2017 at 10:46:03AM -0800, Laura Abbott wrote:
+>>> On 03/03/2017 08:39 AM, Laurent Pinchart wrote:
+>>>> Hi Daniel,
 >>>>
->>>> I don't think this is a usecase specific API. CMA has been decoupled from
->>>> DMA already because it's used in other places. The trying to go through
->>>> DMA was just another layer of abstraction, especially since there isn't
->>>> a device available for allocation.
+>>>> On Friday 03 Mar 2017 10:56:54 Daniel Vetter wrote:
+>>>>> On Thu, Mar 02, 2017 at 01:44:38PM -0800, Laura Abbott wrote:
+>>>>>> Now that we call dma_map in the dma_buf API callbacks there is no need
+>>>>>> to use the existing cache APIs. Remove the sync ioctl and the existing
+>>>>>> bad dma_sync calls. Explicit caching can be handled with the dma_buf
+>>>>>> sync API.
+>>>>>>
+>>>>>> Signed-off-by: Laura Abbott <labbott@redhat.com>
+>>>>>> ---
+>>>>>>
+>>>>>>  drivers/staging/android/ion/ion-ioctl.c         |  5 ----
+>>>>>>  drivers/staging/android/ion/ion.c               | 40 --------------------
+>>>>>>  drivers/staging/android/ion/ion_carveout_heap.c |  6 ----
+>>>>>>  drivers/staging/android/ion/ion_chunk_heap.c    |  6 ----
+>>>>>>  drivers/staging/android/ion/ion_page_pool.c     |  3 --
+>>>>>>  drivers/staging/android/ion/ion_system_heap.c   |  5 ----
+>>>>>>  6 files changed, 65 deletions(-)
+>>>>>>
+>>>>>> diff --git a/drivers/staging/android/ion/ion-ioctl.c
+>>>>>> b/drivers/staging/android/ion/ion-ioctl.c index 5b2e93f..f820d77 100644
+>>>>>> --- a/drivers/staging/android/ion/ion-ioctl.c
+>>>>>> +++ b/drivers/staging/android/ion/ion-ioctl.c
+>>>>>> @@ -146,11 +146,6 @@ long ion_ioctl(struct file *filp, unsigned int cmd,
+>>>>>> unsigned long arg)>
+>>>>>>                   data.handle.handle = handle->id;
+>>>>>>
+>>>>>>           break;
+>>>>>>
+>>>>>>   }
+>>>>>>
+>>>>>> - case ION_IOC_SYNC:
+>>>>>> - {
+>>>>>> -         ret = ion_sync_for_device(client, data.fd.fd);
+>>>>>> -         break;
+>>>>>> - }
+>>>>>
+>>>>> You missed the case ION_IOC_SYNC: in compat_ion.c.
+>>>>>
+>>>>> While at it: Should we also remove the entire custom_ioctl infrastructure?
+>>>>> It's entirely unused afaict, and for a pure buffer allocator I don't see
+>>>>> any need to have custom ioctl.
+>>>>
+>>>> I second that, if you want to make ion a standard API, then we certainly don't
+>>>> want any custom ioctl.
+>>>>
+>>>>> More code to remove potentially:
+>>>>> - The entire compat ioctl stuff - would be an abi break, but I guess if we
+>>>>>   pick the 32bit abi and clean up the uapi headers we'll be mostly fine.
+>>>>>   would allow us to remove compat_ion.c entirely.
+>>>>>
+>>>>> - ION_IOC_IMPORT: With this ion is purely an allocator, so not sure we
+>>>>>   still need to be able to import anything. All the cache flushing/mapping
+>>>>>   is done through dma-buf ops/ioctls.
+>>>>>
+>>>>>
 >>>
->>> Also, we've had separation of allocation and dma-mapping since forever,
->>> that's how it works almost everywhere. Not exactly sure why/how arm-soc
->>> ecosystem ended up focused so much on dma_alloc_coherent.
+>>> Good point to all of the above. I was considering keeping the import around
+>>> for backwards compatibility reasons but given how much other stuff is being
+>>> potentially broken, everything should just get ripped out.
 >>
->> I believe because that was the easy way to specify memory constraints. The API 
->> receives a device pointer and will allocate memory suitable for DMA for that 
->> device. The fact that it maps it to the device is a side-effect in my opinion.
->>
+>> If you're ok with breaking the world, then I strongly suggest we go
+>> through the uapi header and replace all types with the standard
+>> fixed-width ones (__s32, __s64 and __u32, __u64). Allows us to remove all
+>> the compat ioctl code :-)
+> 
+> I think the other comments from your "botching-up ioctls" [1] also apply ;-)
+> Namely - align structs to multiple of 64bit, add "flags" and properly
+> verity user input returning -EINVAL.
+> 
+> -Emil
+> 
+> [1] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/ioctl/botching-up-ioctls.txt
 
-Agreed. The device Ion wanted to use was never a real device though
-so any constraints it satisfied were making assumptions about what
-memory would be allocated.
-
-
->>> I think separating allocation from dma mapping/coherency is perfectly
->>> fine, and the way to go.
->>
->> Especially given that in many cases we'll want to share buffers between 
->> multiple devices, so we'll need to map them multiple times.
->>
->> My point still stands though, if we want to move towards a model where 
->> allocation and mapping are decoupled, we need an allocation function that 
->> takes constraints (possibly implemented with two layers, a constraint 
->> resolution layer on top of a pool/heap/type/foo-based allocator), and a 
->> mapping API. IOMMU handling being integrated in the DMA mapping API we're 
->> currently stuck with it, which might call for brushing up that API.
-> 
-> Hm, maybe I wasn't clear, but that's exactly what I assume will happen:
-> 
-> The constraint resolver is the unix device memory allocation thing, which
-> happens entirely in userspace. There's a lot more than just "where to
-> allocate" to negotiate, e.g. pixel format, stride/size
-> limits/requirements, tiling formats. A lot of it the kernel doesn't even
-> know.
-> 
-> Allocation then needs to happen through the kernel ofc, but that doesn't
-> mean we need to have all the constraint resolving in the kernel. As long
-> as the kernel exposes the device /dev node -> ion heap stuff, userspace
-> can figure this out. Or an alternative way would be to have a cascade of
-> ion heaps to keep things a notch more opaque. Either way, no actaul
-> constraint resolving in the kernel itself, and except for a bunch more
-> stuff in sysfs maybe, also no other uapi changes. Once we have a place to
-> allocate stuff which isn't the device driver at least, aka ION.
-> 
-> And then once allocated you use the dma apis to instantiate the iommus
-> mappings.
-> 
-> Anyway, at least from my understanding I think there's 0 risk with merging
-> ION wrt the constraint resolving side (at least as discussed around XDC
-> last year), and for setups that need cma, it might finally enable to get
-> things moving forward.
-> 
-> Or do I miss something big here?
-> -Daniel
-> 
-
-This all sounds like what I was thinking. I think some of the concerns
-may be that the details of constraint solving are mostly handwaving
-right now.
+I'm more torn on this. There's a difference between dropping an old
+ioctl/implicit caching vs. changing an actual ioctl ABI.
+Maybe having obvious breakage is better than subtle though,
+plus nobody has come begging me not to break the ABI yet.
+I might leave this for right before we do the actual move
+out of staging.
 
 Thanks,
 Laura
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
