@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 84C9D6B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:45:48 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id t193so29114332wmt.4
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:45:48 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p11sor31298wmf.24.1969.12.31.16.00.00
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 272716B0389
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:06 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id j5so199686681pfb.3
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:06 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 1si18402521pgk.92.2017.03.06.05.54.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Mar 2017 05:45:47 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
-References: <20170302134851.101218-1-andreyknvl@google.com>
- <20170302134851.101218-7-andreyknvl@google.com> <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
- <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com> <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 6 Mar 2017 14:45:46 +0100
-Message-ID: <CAAeHK+xnHx5fvhq158+oxMxieG7a+gG7i0MQS92DqxYGe0O=Ww@mail.gmail.com>
-Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 05:54:05 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 01/33] x86/cpufeature: Add 5-level paging detection
+Date: Mon,  6 Mar 2017 16:53:25 +0300
+Message-Id: <20170306135357.3124-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
+References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Mar 3, 2017 at 3:39 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->
->
-> On 03/03/2017 04:52 PM, Alexander Potapenko wrote:
->> On Fri, Mar 3, 2017 at 2:31 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>> On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
->>>> Changes slab object description from:
->>>>
->>>> Object at ffff880068388540, in cache kmalloc-128 size: 128
->>>>
->>>> to:
->>>>
->>>> The buggy address belongs to the object at ffff880068388540
->>>>  which belongs to the cache kmalloc-128 of size 128
->>>> The buggy address is located 123 bytes inside of
->>>>  128-byte region [ffff880068388540, ffff8800683885c0)
->>>>
->>>> Makes it more explanatory and adds information about relative offset
->>>> of the accessed address to the start of the object.
->>>>
->>>
->>> I don't think that this is an improvement. You replaced one simple line with a huge
->>> and hard to parse text without giving any new/useful information.
->>> Except maybe offset, it useful sometimes, so wouldn't mind adding it to description.
->> Agreed.
->> How about:
->> ===========
->> Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
->> Object at ffff880068388540 belongs to the cache kmalloc-128
->> ===========
->> ?
->>
->
-> I would just add the offset in the end:
->         Object at ffff880068388540, in cache kmalloc-128 size: 128 accessed at offset y
+Look for 'la57' in /proc/cpuinfo to see if your machine supports 5-level
+paging.
 
-Access can be inside or outside the object, so it's better to
-specifically say that.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/include/asm/cpufeatures.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-I think we can do (basically what Alexander suggested):
-
-Object at ffff880068388540 belongs to the cache kmalloc-128 of size 128
-Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
-
-What do you think?
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index 4e7772387c6e..b04bb6dfed7f 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -289,7 +289,8 @@
+ #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
+ #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
+ #define X86_FEATURE_AVX512_VPOPCNTDQ (16*32+14) /* POPCNT for vectors of DW/QW */
+-#define X86_FEATURE_RDPID	(16*32+ 22) /* RDPID instruction */
++#define X86_FEATURE_LA57	(16*32+16) /* 5-level page tables */
++#define X86_FEATURE_RDPID	(16*32+22) /* RDPID instruction */
+ 
+ /* AMD-defined CPU features, CPUID level 0x80000007 (ebx), word 17 */
+ #define X86_FEATURE_OVERFLOW_RECOV (17*32+0) /* MCA overflow recovery support */
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
