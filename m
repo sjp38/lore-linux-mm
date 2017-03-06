@@ -1,145 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A70266B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:30:42 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id g10so64247476wrg.5
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:30:42 -0800 (PST)
-Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com. [209.85.128.193])
-        by mx.google.com with ESMTPS id h9si16557031wrc.243.2017.03.06.02.30.40
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5670F6B0388
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:30:44 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c143so27928365wmd.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:30:44 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id 7si25955774wrs.18.2017.03.06.02.30.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 02:30:41 -0800 (PST)
-Received: by mail-wr0-f193.google.com with SMTP id l37so21086473wrc.3
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:30:40 -0800 (PST)
+        Mon, 06 Mar 2017 02:30:43 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id u132so4912787wmg.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:30:42 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/6 v5] kvmalloc
-Date: Mon,  6 Mar 2017 11:30:23 +0100
-Message-Id: <20170306103032.2540-1-mhocko@kernel.org>
+Subject: [PATCH 2/9] mm: support __GFP_REPEAT in kvmalloc_node for >32kB
+Date: Mon,  6 Mar 2017 11:30:25 +0100
+Message-Id: <20170306103032.2540-3-mhocko@kernel.org>
+In-Reply-To: <20170306103032.2540-1-mhocko@kernel.org>
+References: <20170306103032.2540-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Alexei Starovoitov <ast@kernel.org>, Andreas Dilger <adilger@dilger.ca>, Andreas Dilger <andreas.dilger@intel.com>, Anton Vorontsov <anton@enomsg.org>, Ben Skeggs <bskeggs@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Colin Cross <ccross@android.com>, Dan Williams <dan.j.williams@intel.com>, David Sterba <dsterba@suse.com>, Eric Dumazet <edumazet@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, Hariprasad S <hariprasad@chelsio.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Ilya Dryomov <idryomov@gmail.com>, John Hubbard <jhubbard@nvidia.com>, Kees Cook <keescook@chromium.org>, Kent Overstreet <kent.overstreet@gmail.com>, Leon Romanovsky <leonro@mellanox.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Mike Snitzer <snitzer@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Oleg Drokin <oleg.drokin@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Santosh Raspatur <santosh@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Tom Herbert <tom@herbertland.com>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Yan, Zheng" <zyan@redhat.com>, Yishai Hadas <yishaih@mellanox.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Hi,
-this has been previously posted here [1]. Based on the discussion I have
-dropped "[PATCH 9/9] net, bpf: use kvzalloc helper" and added "[PATCH]
-xattr: zero out memory copied to userspace in getxattr". I have rebased
-the series on top of 4.11-rc1.  I hope there are no further obstacles to
-have this merged during this release cycle.
+From: Michal Hocko <mhocko@suse.com>
 
-Original cover:
+vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
+vhost_vsock because it would really like to prefer kmalloc to the
+vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
+allocation to vmalloc") for more context. Michael Tsirkin has also
+noted:
+"
+__GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
+accesses are slowed down.  Allocation is not on data path, accesses are.
+"
 
-There are many open coded kmalloc with vmalloc fallback instances in
-the tree.  Most of them are not careful enough or simply do not care
-about the underlying semantic of the kmalloc/page allocator which means
-that a) some vmalloc fallbacks are basically unreachable because the
-kmalloc part will keep retrying until it succeeds b) the page allocator
-can invoke a really disruptive steps like the OOM killer to move forward
-which doesn't sound appropriate when we consider that the vmalloc
-fallback is available.
+The similar applies to other vhost_kvzalloc users.
 
-As it can be seen implementing kvmalloc requires quite an intimate
-knowledge if the page allocator and the memory reclaim internals which
-strongly suggests that a helper should be implemented in the memory
-subsystem proper.
+Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
+things to be careful about. First we should prevent from the OOM killer
+and so have to involve __GFP_NORETRY by default and secondly override
+__GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
+for !costly orders.
 
-Most callers, I could find, have been converted to use the helper
-instead.  This is patch 6. There are some more relying on __GFP_REPEAT
-in the networking stack which I have converted as well and Eric Dumazet
-was not opposed [2] to convert them as well.
+Supporting __GFP_REPEAT like semantic for !costly request is possible
+it would require changes in the page allocator. This is out of scope of
+this patch.
 
-[1] http://lkml.kernel.org/r/20170130094940.13546-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/1485273626.16328.301.camel@edumazet-glaptop3.roam.corp.google.com
+This patch shouldn't introduce any functional change.
 
-Michal Hocko (9):
-      mm: introduce kv[mz]alloc helpers
-      mm: support __GFP_REPEAT in kvmalloc_node for >32kB
-      rhashtable: simplify a strange allocation pattern
-      ila: simplify a strange allocation pattern
-      xattr: zero out memory copied to userspace in getxattr
-      treewide: use kv[mz]alloc* rather than opencoded variants
-      net: use kvmalloc with __GFP_REPEAT rather than open coded variant
-      md: use kvmalloc rather than opencoded variant
-      bcache: use kvmalloc
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ drivers/vhost/net.c   |  9 +++------
+ drivers/vhost/vhost.c | 15 +++------------
+ drivers/vhost/vsock.c |  9 +++------
+ mm/util.c             | 20 ++++++++++++++++----
+ 4 files changed, 25 insertions(+), 28 deletions(-)
 
-Diffstat says:
- arch/s390/kvm/kvm-s390.c                           | 10 +---
- arch/x86/kvm/lapic.c                               |  4 +-
- arch/x86/kvm/page_track.c                          |  4 +-
- arch/x86/kvm/x86.c                                 |  4 +-
- crypto/lzo.c                                       |  4 +-
- drivers/acpi/apei/erst.c                           |  8 +--
- drivers/char/agp/generic.c                         |  8 +--
- drivers/gpu/drm/nouveau/nouveau_gem.c              |  4 +-
- drivers/md/bcache/super.c                          |  8 +--
- drivers/md/bcache/util.h                           | 12 +----
- drivers/md/dm-ioctl.c                              | 13 ++---
- drivers/md/dm-stats.c                              |  7 +--
- drivers/net/ethernet/chelsio/cxgb3/cxgb3_defs.h    |  3 --
- drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c | 29 ++---------
- drivers/net/ethernet/chelsio/cxgb3/l2t.c           |  8 +--
- drivers/net/ethernet/chelsio/cxgb3/l2t.h           |  1 -
- drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c      | 12 ++---
- drivers/net/ethernet/chelsio/cxgb4/cxgb4.h         |  3 --
- drivers/net/ethernet/chelsio/cxgb4/cxgb4_debugfs.c | 10 ++--
- drivers/net/ethernet/chelsio/cxgb4/cxgb4_ethtool.c |  8 +--
- drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c    | 31 ++----------
- drivers/net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c  | 14 +++---
- drivers/net/ethernet/chelsio/cxgb4/l2t.c           |  2 +-
- drivers/net/ethernet/chelsio/cxgb4/sched.c         | 12 ++---
- drivers/net/ethernet/mellanox/mlx4/en_tx.c         |  9 ++--
- drivers/net/ethernet/mellanox/mlx4/mr.c            |  9 ++--
- drivers/nvdimm/dimm_devs.c                         |  5 +-
- .../staging/lustre/lnet/libcfs/linux/linux-mem.c   | 11 +----
- drivers/vhost/net.c                                |  9 ++--
- drivers/vhost/vhost.c                              | 15 ++----
- drivers/vhost/vsock.c                              |  9 ++--
- drivers/xen/evtchn.c                               | 14 +-----
- fs/btrfs/ctree.c                                   |  9 ++--
- fs/btrfs/ioctl.c                                   |  9 ++--
- fs/btrfs/send.c                                    | 27 ++++------
- fs/ceph/file.c                                     |  9 ++--
- fs/ext4/mballoc.c                                  |  2 +-
- fs/ext4/super.c                                    |  4 +-
- fs/f2fs/f2fs.h                                     | 20 --------
- fs/f2fs/file.c                                     |  4 +-
- fs/f2fs/node.c                                     |  4 +-
- fs/f2fs/segment.c                                  | 14 +++---
- fs/select.c                                        |  5 +-
- fs/seq_file.c                                      | 16 +-----
- fs/xattr.c                                         | 27 ++++------
- include/linux/kvm_host.h                           |  2 -
- include/linux/mlx5/driver.h                        |  7 +--
- include/linux/mm.h                                 | 22 +++++++++
- include/linux/vmalloc.h                            |  1 +
- ipc/util.c                                         |  7 +--
- lib/iov_iter.c                                     |  5 +-
- lib/rhashtable.c                                   | 13 ++---
- mm/frame_vector.c                                  |  5 +-
- mm/nommu.c                                         |  5 ++
- mm/util.c                                          | 57 ++++++++++++++++++++++
- mm/vmalloc.c                                       |  9 +++-
- net/core/dev.c                                     | 24 ++++-----
- net/ipv4/inet_hashtables.c                         |  6 +--
- net/ipv4/tcp_metrics.c                             |  5 +-
- net/ipv6/ila/ila_xlat.c                            |  8 +--
- net/mpls/af_mpls.c                                 |  5 +-
- net/netfilter/x_tables.c                           | 21 ++------
- net/netfilter/xt_recent.c                          |  5 +-
- net/sched/sch_choke.c                              |  5 +-
- net/sched/sch_fq.c                                 | 12 +----
- net/sched/sch_fq_codel.c                           | 26 +++-------
- net/sched/sch_hhf.c                                | 33 ++++---------
- net/sched/sch_netem.c                              |  6 +--
- net/sched/sch_sfq.c                                |  6 +--
- security/apparmor/apparmorfs.c                     |  2 +-
- security/apparmor/include/lib.h                    | 11 -----
- security/apparmor/lib.c                            | 30 ------------
- security/apparmor/match.c                          |  2 +-
- security/apparmor/policy_unpack.c                  |  2 +-
- security/keys/keyctl.c                             | 22 +++------
- virt/kvm/kvm_main.c                                | 18 ++-----
- 76 files changed, 271 insertions(+), 561 deletions(-)
+diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
+index 9b519897cc17..f61f852d6cfd 100644
+--- a/drivers/vhost/net.c
++++ b/drivers/vhost/net.c
+@@ -817,12 +817,9 @@ static int vhost_net_open(struct inode *inode, struct file *f)
+ 	struct vhost_virtqueue **vqs;
+ 	int i;
+ 
+-	n = kmalloc(sizeof *n, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+-	if (!n) {
+-		n = vmalloc(sizeof *n);
+-		if (!n)
+-			return -ENOMEM;
+-	}
++	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_REPEAT);
++	if (!n)
++		return -ENOMEM;
+ 	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
+ 	if (!vqs) {
+ 		kvfree(n);
+diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+index f0ba362d4c10..042030e5a035 100644
+--- a/drivers/vhost/vhost.c
++++ b/drivers/vhost/vhost.c
+@@ -534,18 +534,9 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
+ }
+ EXPORT_SYMBOL_GPL(vhost_dev_set_owner);
+ 
+-static void *vhost_kvzalloc(unsigned long size)
+-{
+-	void *n = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+-
+-	if (!n)
+-		n = vzalloc(size);
+-	return n;
+-}
+-
+ struct vhost_umem *vhost_dev_reset_owner_prepare(void)
+ {
+-	return vhost_kvzalloc(sizeof(struct vhost_umem));
++	return kvzalloc(sizeof(struct vhost_umem), GFP_KERNEL);
+ }
+ EXPORT_SYMBOL_GPL(vhost_dev_reset_owner_prepare);
+ 
+@@ -1276,7 +1267,7 @@ EXPORT_SYMBOL_GPL(vhost_vq_access_ok);
+ 
+ static struct vhost_umem *vhost_umem_alloc(void)
+ {
+-	struct vhost_umem *umem = vhost_kvzalloc(sizeof(*umem));
++	struct vhost_umem *umem = kvzalloc(sizeof(*umem), GFP_KERNEL);
+ 
+ 	if (!umem)
+ 		return NULL;
+@@ -1302,7 +1293,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
+ 		return -EOPNOTSUPP;
+ 	if (mem.nregions > max_mem_regions)
+ 		return -E2BIG;
+-	newmem = vhost_kvzalloc(size + mem.nregions * sizeof(*m->regions));
++	newmem = kvzalloc(size + mem.nregions * sizeof(*m->regions), GFP_KERNEL);
+ 	if (!newmem)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/vhost/vsock.c b/drivers/vhost/vsock.c
+index ce5e63d2c66a..d403c647ba56 100644
+--- a/drivers/vhost/vsock.c
++++ b/drivers/vhost/vsock.c
+@@ -460,12 +460,9 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
+ 	/* This struct is large and allocation could fail, fall back to vmalloc
+ 	 * if there is no other way.
+ 	 */
+-	vsock = kzalloc(sizeof(*vsock), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+-	if (!vsock) {
+-		vsock = vmalloc(sizeof(*vsock));
+-		if (!vsock)
+-			return -ENOMEM;
+-	}
++	vsock = kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_REPEAT);
++	if (!vsock)
++		return -ENOMEM;
+ 
+ 	vqs = kmalloc_array(ARRAY_SIZE(vsock->vqs), sizeof(*vqs), GFP_KERNEL);
+ 	if (!vqs) {
+diff --git a/mm/util.c b/mm/util.c
+index 10a14a0ac3c2..7c71407e5078 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -338,8 +338,10 @@ EXPORT_SYMBOL(vm_mmap);
+  *
+  * Uses kmalloc to get the memory but if the allocation fails then falls back
+  * to the vmalloc allocator. Use kvfree for freeing the memory.
+- *
+- * Reclaim modifiers - __GFP_NORETRY, __GFP_REPEAT and __GFP_NOFAIL are not supported
++ * 
++ * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
++ * is supported only for large (>32kB) allocations, and it should be used only if
++ * kmalloc is preferable to the vmalloc fallback, due to visible performance drawbacks.
+  *
+  * Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
+  */
+@@ -358,8 +360,18 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+ 	 * Make sure that larger requests are not too disruptive - no OOM
+ 	 * killer and no allocation failure warnings as we have a fallback
+ 	 */
+-	if (size > PAGE_SIZE)
+-		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
++	if (size > PAGE_SIZE) {
++		kmalloc_flags |= __GFP_NOWARN;
++
++		/*
++		 * We have to override __GFP_REPEAT by __GFP_NORETRY for !costly
++		 * requests because there is no other way to tell the allocator
++		 * that we want to fail rather than retry endlessly.
++		 */
++		if (!(kmalloc_flags & __GFP_REPEAT) ||
++				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
++			kmalloc_flags |= __GFP_NORETRY;
++	}
+ 
+ 	ret = kmalloc_node(size, kmalloc_flags, node);
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
