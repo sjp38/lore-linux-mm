@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 401816B038A
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 15:45:42 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b2so219770923pgc.6
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:45:42 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id u65si10014219pgc.340.2017.03.06.12.45.41
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E3CD6B038B
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 15:46:06 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y17so44596762pgh.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 12:46:06 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d125si20133846pfg.72.2017.03.06.12.46.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 12:45:41 -0800 (PST)
+        Mon, 06 Mar 2017 12:46:05 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 7/7] mm: introduce __p4d_alloc()
-Date: Mon,  6 Mar 2017 23:45:14 +0300
-Message-Id: <20170306204514.1852-8-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/7] asm-generic: introduce 5level-fixup.h
+Date: Mon,  6 Mar 2017 23:45:09 +0300
+Message-Id: <20170306204514.1852-3-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170306204514.1852-1-kirill.shutemov@linux.intel.com>
 References: <20170306204514.1852-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,109 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For full 5-level paging we need a helper to allocate p4d page table.
+We are going to switch core MM to 5-level paging abstraction.
+
+This is preparation step which adds <asm-generic/5level-fixup.h>
+As with 4level-fixup.h, the new header allows quickly make all
+architectures compatible with 5-level paging in core MM.
+
+In long run we would like to switch architectures to properly folded p4d
+level by using <asm-generic/pgtable-nop4d.h>, but it requires more
+changes to arch-specific code.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/memory.c | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ include/asm-generic/4level-fixup.h |  3 ++-
+ include/asm-generic/5level-fixup.h | 41 ++++++++++++++++++++++++++++++++++++++
+ include/linux/mm.h                 |  3 +++
+ 3 files changed, 46 insertions(+), 1 deletion(-)
+ create mode 100644 include/asm-generic/5level-fixup.h
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 7f1c2163b3ce..235ba51b2fbf 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3906,6 +3906,29 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- }
- EXPORT_SYMBOL_GPL(handle_mm_fault);
+diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
+index 5bdab6bffd23..928fd66b1271 100644
+--- a/include/asm-generic/4level-fixup.h
++++ b/include/asm-generic/4level-fixup.h
+@@ -15,7 +15,6 @@
+ 	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
+  		NULL: pmd_offset(pud, address))
  
-+#ifndef __PAGETABLE_P4D_FOLDED
-+/*
-+ * Allocate p4d page table.
-+ * We've already handled the fast-path in-line.
-+ */
-+int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
-+{
-+	p4d_t *new = p4d_alloc_one(mm, address);
-+	if (!new)
-+		return -ENOMEM;
+-#define pud_alloc(mm, pgd, address)	(pgd)
+ #define pud_offset(pgd, start)		(pgd)
+ #define pud_none(pud)			0
+ #define pud_bad(pud)			0
+@@ -35,4 +34,6 @@
+ #undef  pud_addr_end
+ #define pud_addr_end(addr, end)		(end)
+ 
++#include <asm-generic/5level-fixup.h>
 +
-+	smp_wmb(); /* See comment in __pte_alloc */
+ #endif
+diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+new file mode 100644
+index 000000000000..b5ca82dc4175
+--- /dev/null
++++ b/include/asm-generic/5level-fixup.h
+@@ -0,0 +1,41 @@
++#ifndef _5LEVEL_FIXUP_H
++#define _5LEVEL_FIXUP_H
 +
-+	spin_lock(&mm->page_table_lock);
-+	if (pgd_present(*pgd))		/* Another has populated it */
-+		p4d_free(mm, new);
-+	else
-+		pgd_populate(mm, pgd, new);
-+	spin_unlock(&mm->page_table_lock);
-+	return 0;
-+}
-+#endif /* __PAGETABLE_P4D_FOLDED */
++#define __ARCH_HAS_5LEVEL_HACK
++#define __PAGETABLE_P4D_FOLDED
 +
- #ifndef __PAGETABLE_PUD_FOLDED
- /*
-  * Allocate page upper directory.
++#define P4D_SHIFT			PGDIR_SHIFT
++#define P4D_SIZE			PGDIR_SIZE
++#define P4D_MASK			PGDIR_MASK
++#define PTRS_PER_P4D			1
++
++#define p4d_t				pgd_t
++
++#define pud_alloc(mm, p4d, address) \
++	((unlikely(pgd_none(*(p4d))) && __pud_alloc(mm, p4d, address)) ? \
++		NULL : pud_offset(p4d, address))
++
++#define p4d_alloc(mm, pgd, address)	(pgd)
++#define p4d_offset(pgd, start)		(pgd)
++#define p4d_none(p4d)			0
++#define p4d_bad(p4d)			0
++#define p4d_present(p4d)		1
++#define p4d_ERROR(p4d)			do { } while (0)
++#define p4d_clear(p4d)			pgd_clear(p4d)
++#define p4d_val(p4d)			pgd_val(p4d)
++#define p4d_populate(mm, p4d, pud)	pgd_populate(mm, p4d, pud)
++#define p4d_page(p4d)			pgd_page(p4d)
++#define p4d_page_vaddr(p4d)		pgd_page_vaddr(p4d)
++
++#define __p4d(x)			__pgd(x)
++#define set_p4d(p4dp, p4d)		set_pgd(p4dp, p4d)
++
++#undef p4d_free_tlb
++#define p4d_free_tlb(tlb, x, addr)	do { } while (0)
++#define p4d_free(mm, x)			do { } while (0)
++#define __p4d_free_tlb(tlb, x, addr)	do { } while (0)
++
++#undef  p4d_addr_end
++#define p4d_addr_end(addr, end)		(end)
++
++#endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0d65dd72c0f4..be1fe264eb37 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1619,11 +1619,14 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
+  * Remove it when 4level-fixup.h has been removed.
+  */
+ #if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
++
++#ifndef __ARCH_HAS_5LEVEL_HACK
+ static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+ {
+ 	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
+ 		NULL: pud_offset(pgd, address);
+ }
++#endif /* !__ARCH_HAS_5LEVEL_HACK */
+ 
+ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
+ {
 -- 
 2.11.0
 
