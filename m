@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A298D6B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:35:11 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g138so73964072itb.4
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:35:11 -0800 (PST)
-Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
-        by mx.google.com with ESMTPS id 130si11829788itj.52.2017.03.06.11.35.10
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 305FE6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:42:28 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id c85so254060617qkg.0
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:42:28 -0800 (PST)
+Received: from mail-yw0-x22c.google.com (mail-yw0-x22c.google.com. [2607:f8b0:4002:c05::22c])
+        by mx.google.com with ESMTPS id z2si2653179ywj.149.2017.03.06.11.42.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 11:35:10 -0800 (PST)
-Received: by mail-it0-x235.google.com with SMTP id h10so56300868ith.1
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:35:10 -0800 (PST)
+        Mon, 06 Mar 2017 11:42:27 -0800 (PST)
+Received: by mail-yw0-x22c.google.com with SMTP id v76so30030946ywg.0
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:42:27 -0800 (PST)
+Date: Mon, 6 Mar 2017 14:42:25 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH 2/2] mm/sparse: add last_section_nr in sparse_init()
+ to reduce some iteration cycle
+Message-ID: <20170306194225.GB19696@htj.duckdns.org>
+References: <20170211021829.9646-1-richard.weiyang@gmail.com>
+ <20170211021829.9646-2-richard.weiyang@gmail.com>
+ <20170211022400.GA19050@mtj.duckdns.org>
+ <CADZGycbxtoXXxCeg-nHjzGmHA72VnA=-td+hNaNqN67Vq2JuKg@mail.gmail.com>
+ <CADZGycapTYxdxwHacFYiECZQ23uPDARQcahw_9zuKrNu-wG63g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170306190911.GB27719@node.shutemov.name>
-References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
- <CA+55aFypZza_L5jyDEFwBrFZPR72R18RwTMz4TuV5sg0H4aaqA@mail.gmail.com>
- <alpine.DEB.2.20.1703061935220.3771@nanos> <CA+55aFyL7UDP4AyscTOO=pxYuFG2GkG_rbEPgqBMBwkEi7t3vw@mail.gmail.com>
- <20170306190911.GB27719@node.shutemov.name>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 6 Mar 2017 11:35:09 -0800
-Message-ID: <CA+55aFyykmVyUmT+oQ-1-uUrLGht7qrAAWHxP7aFPgsoeV1uhA@mail.gmail.com>
-Subject: Re: [PATCHv4 00/33] 5-level paging
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADZGycapTYxdxwHacFYiECZQ23uPDARQcahw_9zuKrNu-wG63g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 6, 2017 at 11:09 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
->
-> The first 7 patches are relatively low-risk. It would be nice to have them
-> in earlier.
+Hello, Wei.
 
-Ok, I gave those another look since you mentioned them in particular,
-and they still look fine and non-controversial to me. I'd be willing
-to take them directly, and into 4.11, to make future integration
-eastier and avoid conflicts with other mm code during the 4.12 merge
-window.
+On Fri, Feb 17, 2017 at 10:12:31PM +0800, Wei Yang wrote:
+> > And compare the ruling with the iteration for the loop to be (1UL <<
+> > 5) and (1UL << 19).
+> > The runtime is 0.00s and 0.04s respectively. The absolute value is not much.
 
-Just looking at my own inbox, I would suggest that maybe you should
-send that small early series as a separate patch series, because those
-patches actually got mixed up in my inbox with all the other patches
-in the series. Email sending in quick succession does not tend to keep
-things ordered. I suspect that happened to others too.
+systemd-analyze usually does a pretty good job of breaking down which
+phase took how long.  It might be worthwhile to test whether the
+improvement is actually visible during the boot.
 
-We might have people who are *not* willing to look at the whole
-33-patch series that has a lot of x86 code in it, but are willing to
-look through the first 7 emails when they are clearly separated out..
+> >> * Do we really need to add full reverse iterator to just get the
+> >>   highest section number?
+> >>
+> >
+> > You are right. After I sent out the mail, I realized just highest pfn
+> > is necessary.
 
-                  Linus
+That said, getting efficient is always great as long as the added
+complexity is justifiably small enough.  If you can make the change
+simple enough, it'd be a lot easier to merge.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
