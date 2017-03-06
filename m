@@ -1,340 +1,621 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2AC6B03A2
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C3DAC6B03A3
 	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:32 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b2so208242604pgc.6
+Received: by mail-pg0-f69.google.com with SMTP id f21so208927785pgi.4
         for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:32 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 1si19116793plp.203.2017.03.06.05.54.20
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id z190si5742303pfb.188.2017.03.06.05.54.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 05:54:20 -0800 (PST)
+        Mon, 06 Mar 2017 05:54:23 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 18/33] x86/xen: convert __xen_pgd_walk() and xen_cleanmfnmap() to support p4d
-Date: Mon,  6 Mar 2017 16:53:42 +0300
-Message-Id: <20170306135357.3124-19-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 28/33] x86/mm: add support of additional page table level during early boot
+Date: Mon,  6 Mar 2017 16:53:52 +0300
+Message-Id: <20170306135357.3124-29-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Xiong Zhang <xiong.y.zhang@intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Split these helpers few per-level functions and add p4d support.
+This patch adds support for 5-level paging during early boot.
+It generalizes boot for 4- and 5-level paging on 64-bit systems with
+compile-time switch between them.
 
-Signed-off-by: Xiong Zhang <xiong.y.zhang@intel.com>
-[kirill.shutemov@linux.intel.com: split off into separate patch]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/xen/mmu.c | 243 ++++++++++++++++++++++++++++++++---------------------
- arch/x86/xen/mmu.h |   1 +
- 2 files changed, 148 insertions(+), 96 deletions(-)
+ arch/x86/boot/compressed/head_64.S          | 23 +++++++++--
+ arch/x86/include/asm/pgtable.h              |  2 +-
+ arch/x86/include/asm/pgtable_64.h           |  6 ++-
+ arch/x86/include/uapi/asm/processor-flags.h |  2 +
+ arch/x86/kernel/espfix_64.c                 |  2 +-
+ arch/x86/kernel/head64.c                    | 40 +++++++++++++-----
+ arch/x86/kernel/head_64.S                   | 63 +++++++++++++++++++++--------
+ arch/x86/kernel/machine_kexec_64.c          |  2 +-
+ arch/x86/mm/dump_pagetables.c               |  2 +-
+ arch/x86/mm/kasan_init_64.c                 | 12 +++---
+ arch/x86/realmode/init.c                    |  2 +-
+ arch/x86/xen/mmu.c                          | 38 ++++++++++-------
+ 12 files changed, 135 insertions(+), 59 deletions(-)
 
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index d2ae1f821e0c..3ed26769810b 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -122,9 +122,12 @@ ENTRY(startup_32)
+ 	addl	%ebp, gdt+2(%ebp)
+ 	lgdt	gdt(%ebp)
+ 
+-	/* Enable PAE mode */
++	/* Enable PAE and LA57 mode */
+ 	movl	%cr4, %eax
+ 	orl	$X86_CR4_PAE, %eax
++#ifdef CONFIG_X86_5LEVEL
++	orl	$X86_CR4_LA57, %eax
++#endif
+ 	movl	%eax, %cr4
+ 
+  /*
+@@ -136,13 +139,24 @@ ENTRY(startup_32)
+ 	movl	$(BOOT_INIT_PGT_SIZE/4), %ecx
+ 	rep	stosl
+ 
++	xorl	%edx, %edx
++
++	/* Build Top Level */
++	leal	pgtable(%ebx,%edx,1), %edi
++	leal	0x1007 (%edi), %eax
++	movl	%eax, 0(%edi)
++
++#ifdef CONFIG_X86_5LEVEL
+ 	/* Build Level 4 */
+-	leal	pgtable + 0(%ebx), %edi
++	addl	$0x1000, %edx
++	leal	pgtable(%ebx,%edx), %edi
+ 	leal	0x1007 (%edi), %eax
+ 	movl	%eax, 0(%edi)
++#endif
+ 
+ 	/* Build Level 3 */
+-	leal	pgtable + 0x1000(%ebx), %edi
++	addl	$0x1000, %edx
++	leal	pgtable(%ebx,%edx), %edi
+ 	leal	0x1007(%edi), %eax
+ 	movl	$4, %ecx
+ 1:	movl	%eax, 0x00(%edi)
+@@ -152,7 +166,8 @@ ENTRY(startup_32)
+ 	jnz	1b
+ 
+ 	/* Build Level 2 */
+-	leal	pgtable + 0x2000(%ebx), %edi
++	addl	$0x1000, %edx
++	leal	pgtable(%ebx,%edx), %edi
+ 	movl	$0x00000183, %eax
+ 	movl	$2048, %ecx
+ 1:	movl	%eax, 0(%edi)
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 90f32116acd8..6cefd861ac65 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -917,7 +917,7 @@ extern pgd_t trampoline_pgd_entry;
+ static inline void __meminit init_trampoline_default(void)
+ {
+ 	/* Default trampoline pgd value */
+-	trampoline_pgd_entry = init_level4_pgt[pgd_index(__PAGE_OFFSET)];
++	trampoline_pgd_entry = init_top_pgt[pgd_index(__PAGE_OFFSET)];
+ }
+ # ifdef CONFIG_RANDOMIZE_MEMORY
+ void __meminit init_trampoline(void);
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 9991224f6238..c9e41f1599dd 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -14,15 +14,17 @@
+ #include <linux/bitops.h>
+ #include <linux/threads.h>
+ 
++extern p4d_t level4_kernel_pgt[512];
++extern p4d_t level4_ident_pgt[512];
+ extern pud_t level3_kernel_pgt[512];
+ extern pud_t level3_ident_pgt[512];
+ extern pmd_t level2_kernel_pgt[512];
+ extern pmd_t level2_fixmap_pgt[512];
+ extern pmd_t level2_ident_pgt[512];
+ extern pte_t level1_fixmap_pgt[512];
+-extern pgd_t init_level4_pgt[];
++extern pgd_t init_top_pgt[];
+ 
+-#define swapper_pg_dir init_level4_pgt
++#define swapper_pg_dir init_top_pgt
+ 
+ extern void paging_init(void);
+ 
+diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
+index 567de50a4c2a..185f3d10c194 100644
+--- a/arch/x86/include/uapi/asm/processor-flags.h
++++ b/arch/x86/include/uapi/asm/processor-flags.h
+@@ -104,6 +104,8 @@
+ #define X86_CR4_OSFXSR		_BITUL(X86_CR4_OSFXSR_BIT)
+ #define X86_CR4_OSXMMEXCPT_BIT	10 /* enable unmasked SSE exceptions */
+ #define X86_CR4_OSXMMEXCPT	_BITUL(X86_CR4_OSXMMEXCPT_BIT)
++#define X86_CR4_LA57_BIT	12 /* enable 5-level page tables */
++#define X86_CR4_LA57		_BITUL(X86_CR4_LA57_BIT)
+ #define X86_CR4_VMXE_BIT	13 /* enable VMX virtualization */
+ #define X86_CR4_VMXE		_BITUL(X86_CR4_VMXE_BIT)
+ #define X86_CR4_SMXE_BIT	14 /* enable safer mode (TXT) */
+diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
+index 8e598a1ad986..6b91e2eb8d3f 100644
+--- a/arch/x86/kernel/espfix_64.c
++++ b/arch/x86/kernel/espfix_64.c
+@@ -125,7 +125,7 @@ void __init init_espfix_bsp(void)
+ 	p4d_t *p4d;
+ 
+ 	/* Install the espfix pud into the kernel page directory */
+-	pgd = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
++	pgd = &init_top_pgt[pgd_index(ESPFIX_BASE_ADDR)];
+ 	p4d = p4d_alloc(&init_mm, pgd, ESPFIX_BASE_ADDR);
+ 	p4d_populate(&init_mm, p4d, espfix_pud_page);
+ 
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 54a2372f5dbb..f32d22986f47 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -32,7 +32,7 @@
+ /*
+  * Manage page tables very early on.
+  */
+-extern pgd_t early_level4_pgt[PTRS_PER_PGD];
++extern pgd_t early_top_pgt[PTRS_PER_PGD];
+ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
+ static unsigned int __initdata next_early_pgt = 2;
+ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+@@ -40,9 +40,9 @@ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+ /* Wipe all early page tables except for the kernel symbol map */
+ static void __init reset_early_page_tables(void)
+ {
+-	memset(early_level4_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
++	memset(early_top_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
+ 	next_early_pgt = 0;
+-	write_cr3(__pa_nodebug(early_level4_pgt));
++	write_cr3(__pa_nodebug(early_top_pgt));
+ }
+ 
+ /* Create a new PMD entry */
+@@ -50,15 +50,16 @@ int __init early_make_pgtable(unsigned long address)
+ {
+ 	unsigned long physaddr = address - __PAGE_OFFSET;
+ 	pgdval_t pgd, *pgd_p;
++	p4dval_t p4d, *p4d_p;
+ 	pudval_t pud, *pud_p;
+ 	pmdval_t pmd, *pmd_p;
+ 
+ 	/* Invalid address or early pgt is done ?  */
+-	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
++	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_top_pgt))
+ 		return -1;
+ 
+ again:
+-	pgd_p = &early_level4_pgt[pgd_index(address)].pgd;
++	pgd_p = &early_top_pgt[pgd_index(address)].pgd;
+ 	pgd = *pgd_p;
+ 
+ 	/*
+@@ -66,8 +67,25 @@ int __init early_make_pgtable(unsigned long address)
+ 	 * critical -- __PAGE_OFFSET would point us back into the dynamic
+ 	 * range and we might end up looping forever...
+ 	 */
+-	if (pgd)
+-		pud_p = (pudval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
++	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
++		p4d_p = pgd_p;
++	else if (pgd)
++		p4d_p = (p4dval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
++	else {
++		if (next_early_pgt >= EARLY_DYNAMIC_PAGE_TABLES) {
++			reset_early_page_tables();
++			goto again;
++		}
++
++		p4d_p = (p4dval_t *)early_dynamic_pgts[next_early_pgt++];
++		memset(p4d_p, 0, sizeof(*p4d_p) * PTRS_PER_P4D);
++		*pgd_p = (pgdval_t)p4d_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
++	}
++	p4d_p += p4d_index(address);
++	p4d = *p4d_p;
++
++	if (p4d)
++		pud_p = (pudval_t *)((p4d & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+ 	else {
+ 		if (next_early_pgt >= EARLY_DYNAMIC_PAGE_TABLES) {
+ 			reset_early_page_tables();
+@@ -76,7 +94,7 @@ int __init early_make_pgtable(unsigned long address)
+ 
+ 		pud_p = (pudval_t *)early_dynamic_pgts[next_early_pgt++];
+ 		memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+-		*pgd_p = (pgdval_t)pud_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
++		*p4d_p = (p4dval_t)pud_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
+ 	}
+ 	pud_p += pud_index(address);
+ 	pud = *pud_p;
+@@ -155,7 +173,7 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+ 
+ 	clear_bss();
+ 
+-	clear_page(init_level4_pgt);
++	clear_page(init_top_pgt);
+ 
+ 	kasan_early_init();
+ 
+@@ -170,8 +188,8 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+ 	 */
+ 	load_ucode_bsp();
+ 
+-	/* set init_level4_pgt kernel high mapping*/
+-	init_level4_pgt[511] = early_level4_pgt[511];
++	/* set init_top_pgt kernel high mapping*/
++	init_top_pgt[511] = early_top_pgt[511];
+ 
+ 	x86_64_start_reservations(real_mode_data);
+ }
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index b467b14b03eb..fd1f88d94d6b 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -37,10 +37,14 @@
+  *
+  */
+ 
++#define p4d_index(x)	(((x) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
+ #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+ 
+-L4_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)
+-L4_START_KERNEL = pgd_index(__START_KERNEL_map)
++PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)
++PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
++#ifdef CONFIG_X86_5LEVEL
++L4_START_KERNEL = p4d_index(__START_KERNEL_map)
++#endif
+ L3_START_KERNEL = pud_index(__START_KERNEL_map)
+ 
+ 	.text
+@@ -93,7 +97,11 @@ startup_64:
+ 	/*
+ 	 * Fixup the physical addresses in the page table
+ 	 */
+-	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
++	addq	%rbp, early_top_pgt + (PGD_START_KERNEL*8)(%rip)
++
++#ifdef CONFIG_X86_5LEVEL
++	addq	%rbp, level4_kernel_pgt + (511*8)(%rip)
++#endif
+ 
+ 	addq	%rbp, level3_kernel_pgt + (510*8)(%rip)
+ 	addq	%rbp, level3_kernel_pgt + (511*8)(%rip)
+@@ -107,7 +115,7 @@ startup_64:
+ 	 * it avoids problems around wraparound.
+ 	 */
+ 	leaq	_text(%rip), %rdi
+-	leaq	early_level4_pgt(%rip), %rbx
++	leaq	early_top_pgt(%rip), %rbx
+ 
+ 	movq	%rdi, %rax
+ 	shrq	$PGDIR_SHIFT, %rax
+@@ -116,16 +124,26 @@ startup_64:
+ 	movq	%rdx, 0(%rbx,%rax,8)
+ 	movq	%rdx, 8(%rbx,%rax,8)
+ 
++#ifdef CONFIG_X86_5LEVEL
++	addq	$PAGE_SIZE, %rbx
++	addq	$PAGE_SIZE, %rdx
++	movq	%rdi, %rax
++	shrq	$P4D_SHIFT, %rax
++	andl	$(PTRS_PER_P4D-1), %eax
++	movq	%rdx, 0(%rbx,%rax,8)
++#endif
++
++	addq	$PAGE_SIZE, %rbx
+ 	addq	$PAGE_SIZE, %rdx
+ 	movq	%rdi, %rax
+ 	shrq	$PUD_SHIFT, %rax
+ 	andl	$(PTRS_PER_PUD-1), %eax
+-	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
++	movq	%rdx, 0(%rbx,%rax,8)
+ 	incl	%eax
+ 	andl	$(PTRS_PER_PUD-1), %eax
+-	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
++	movq	%rdx, 0(%rbx,%rax,8)
+ 
+-	addq	$PAGE_SIZE * 2, %rbx
++	addq	$PAGE_SIZE, %rbx
+ 	movq	%rdi, %rax
+ 	shrq	$PMD_SHIFT, %rdi
+ 	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
+@@ -166,7 +184,7 @@ startup_64:
+ 	addq	%rbp, phys_base(%rip)
+ 
+ .Lskip_fixup:
+-	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
++	movq	$(early_top_pgt - __START_KERNEL_map), %rax
+ 	jmp 1f
+ ENTRY(secondary_startup_64)
+ 	/*
+@@ -186,14 +204,17 @@ ENTRY(secondary_startup_64)
+ 	/* Sanitize CPU configuration */
+ 	call verify_cpu
+ 
+-	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
++	movq	$(init_top_pgt - __START_KERNEL_map), %rax
+ 1:
+ 
+-	/* Enable PAE mode and PGE */
++	/* Enable PAE mode, PGE and LA57 */
+ 	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
++#ifdef CONFIG_X86_5LEVEL
++	orl	$X86_CR4_LA57, %ecx
++#endif
+ 	movq	%rcx, %cr4
+ 
+-	/* Setup early boot stage 4 level pagetables. */
++	/* Setup early boot stage 4-/5-level pagetables. */
+ 	addq	phys_base(%rip), %rax
+ 	movq	%rax, %cr3
+ 
+@@ -419,9 +440,13 @@ GLOBAL(name)
+ 	.endr
+ 
+ 	__INITDATA
+-NEXT_PAGE(early_level4_pgt)
++NEXT_PAGE(early_top_pgt)
+ 	.fill	511,8,0
++#ifdef CONFIG_X86_5LEVEL
++	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
++#else
+ 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
++#endif
+ 
+ NEXT_PAGE(early_dynamic_pgts)
+ 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
+@@ -429,14 +454,14 @@ NEXT_PAGE(early_dynamic_pgts)
+ 	.data
+ 
+ #ifndef CONFIG_XEN
+-NEXT_PAGE(init_level4_pgt)
++NEXT_PAGE(init_top_pgt)
+ 	.fill	512,8,0
+ #else
+-NEXT_PAGE(init_level4_pgt)
++NEXT_PAGE(init_top_pgt)
+ 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+-	.org    init_level4_pgt + L4_PAGE_OFFSET*8, 0
++	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
+ 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+-	.org    init_level4_pgt + L4_START_KERNEL*8, 0
++	.org    init_top_pgt + PGD_START_KERNEL*8, 0
+ 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+ 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+ 
+@@ -450,6 +475,12 @@ NEXT_PAGE(level2_ident_pgt)
+ 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
+ #endif
+ 
++#ifdef CONFIG_X86_5LEVEL
++NEXT_PAGE(level4_kernel_pgt)
++	.fill	511,8,0
++	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
++#endif
++
+ NEXT_PAGE(level3_kernel_pgt)
+ 	.fill	L3_START_KERNEL,8,0
+ 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
+diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+index 42eae96c8450..4b520d072056 100644
+--- a/arch/x86/kernel/machine_kexec_64.c
++++ b/arch/x86/kernel/machine_kexec_64.c
+@@ -339,7 +339,7 @@ void machine_kexec(struct kimage *image)
+ void arch_crash_save_vmcoreinfo(void)
+ {
+ 	VMCOREINFO_NUMBER(phys_base);
+-	VMCOREINFO_SYMBOL(init_level4_pgt);
++	VMCOREINFO_SYMBOL(init_top_pgt);
+ 
+ #ifdef CONFIG_NUMA
+ 	VMCOREINFO_SYMBOL(node_data);
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 0effac6989cd..0431bfd5e09f 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -435,7 +435,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx)
+ {
+ #ifdef CONFIG_X86_64
+-	pgd_t *start = (pgd_t *) &init_level4_pgt;
++	pgd_t *start = (pgd_t *) &init_top_pgt;
+ #else
+ 	pgd_t *start = swapper_pg_dir;
+ #endif
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index bcabc56e0dc4..a25dd40a0683 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -10,7 +10,7 @@
+ #include <asm/tlbflush.h>
+ #include <asm/sections.h>
+ 
+-extern pgd_t early_level4_pgt[PTRS_PER_PGD];
++extern pgd_t early_top_pgt[PTRS_PER_PGD];
+ extern struct range pfn_mapped[E820_X_MAX];
+ 
+ static int __init map_range(struct range *range)
+@@ -103,8 +103,8 @@ void __init kasan_early_init(void)
+ 	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
+ 		kasan_zero_p4d[i] = __p4d(p4d_val);
+ 
+-	kasan_map_early_shadow(early_level4_pgt);
+-	kasan_map_early_shadow(init_level4_pgt);
++	kasan_map_early_shadow(early_top_pgt);
++	kasan_map_early_shadow(init_top_pgt);
+ }
+ 
+ void __init kasan_init(void)
+@@ -115,8 +115,8 @@ void __init kasan_init(void)
+ 	register_die_notifier(&kasan_die_notifier);
+ #endif
+ 
+-	memcpy(early_level4_pgt, init_level4_pgt, sizeof(early_level4_pgt));
+-	load_cr3(early_level4_pgt);
++	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
++	load_cr3(early_top_pgt);
+ 	__flush_tlb_all();
+ 
+ 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
+@@ -142,7 +142,7 @@ void __init kasan_init(void)
+ 	kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_END),
+ 			(void *)KASAN_SHADOW_END);
+ 
+-	load_cr3(init_level4_pgt);
++	load_cr3(init_top_pgt);
+ 	__flush_tlb_all();
+ 
+ 	/*
+diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
+index 5db706f14111..dc0836d5c5eb 100644
+--- a/arch/x86/realmode/init.c
++++ b/arch/x86/realmode/init.c
+@@ -102,7 +102,7 @@ static void __init setup_real_mode(void)
+ 
+ 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+ 	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
+-	trampoline_pgd[511] = init_level4_pgt[511].pgd;
++	trampoline_pgd[511] = init_top_pgt[511].pgd;
+ #endif
+ }
+ 
 diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
-index 37cb5aad71de..75af8da7b54f 100644
+index c36c8178847d..a4079cfab007 100644
 --- a/arch/x86/xen/mmu.c
 +++ b/arch/x86/xen/mmu.c
-@@ -593,6 +593,62 @@ static void xen_set_pgd(pgd_t *ptr, pgd_t val)
- }
- #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
+@@ -97,7 +97,11 @@ static RESERVE_BRK_ARRAY(pte_t, level1_ident_pgt, LEVEL1_IDENT_ENTRIES);
+ #endif
+ #ifdef CONFIG_X86_64
+ /* l3 pud for userspace vsyscall mapping */
+-static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
++#if CONFIG_PGTABLE_LEVELS == 5
++static p4d_t user_vsyscall[PTRS_PER_P4D] __page_aligned_bss;
++#else
++static pud_t user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
++#endif
+ #endif /* CONFIG_X86_64 */
  
-+static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
-+		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
-+		bool last, unsigned long limit)
-+{
-+	int i, nr, flush = 0;
-+
-+	nr = last ? pmd_index(limit) + 1 : PTRS_PER_PMD;
-+	for (i = 0; i < nr; i++) {
-+		if (!pmd_none(pmd[i]))
-+			flush |= (*func)(mm, pmd_page(pmd[i]), PT_PTE);
-+	}
-+	return flush;
-+}
-+
-+static int xen_pud_walk(struct mm_struct *mm, pud_t *pud,
-+		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
-+		bool last, unsigned long limit)
-+{
-+	int i, nr, flush = 0;
-+
-+	nr = last ? pud_index(limit) + 1 : PTRS_PER_PUD;
-+	for (i = 0; i < nr; i++) {
-+		pmd_t *pmd;
-+
-+		if (pud_none(pud[i]))
-+			continue;
-+
-+		pmd = pmd_offset(&pud[i], 0);
-+		if (PTRS_PER_PMD > 1)
-+			flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
-+		xen_pmd_walk(mm, pmd, func, last && i == nr - 1, limit);
-+	}
-+	return flush;
-+}
-+
-+static int xen_p4d_walk(struct mm_struct *mm, p4d_t *p4d,
-+		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
-+		bool last, unsigned long limit)
-+{
-+	int i, nr, flush = 0;
-+
-+	nr = last ? p4d_index(limit) + 1 : PTRS_PER_P4D;
-+	for (i = 0; i < nr; i++) {
-+		pud_t *pud;
-+
-+		if (p4d_none(p4d[i]))
-+			continue;
-+
-+		pud = pud_offset(&p4d[i], 0);
-+		if (PTRS_PER_PUD > 1)
-+			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
-+		xen_pud_walk(mm, pud, func, last && i == nr - 1, limit);
-+	}
-+	return flush;
-+}
-+
  /*
-  * (Yet another) pagetable walker.  This one is intended for pinning a
-  * pagetable.  This means that it walks a pagetable and calls the
-@@ -613,10 +669,8 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
- 				      enum pt_level),
- 			  unsigned long limit)
+@@ -504,7 +508,7 @@ __visible pmd_t xen_make_pmd(pmdval_t pmd)
+ }
+ PV_CALLEE_SAVE_REGS_THUNK(xen_make_pmd);
+ 
+-#if CONFIG_PGTABLE_LEVELS == 4
++#if CONFIG_PGTABLE_LEVELS >= 4
+ __visible pudval_t xen_pud_val(pud_t pud)
  {
--	int flush = 0;
-+	int i, nr, flush = 0;
- 	unsigned hole_low, hole_high;
--	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
--	unsigned pgdidx, pudidx, pmdidx;
+ 	return pte_mfn_to_pfn(pud.pud);
+@@ -1529,8 +1533,8 @@ static void xen_write_cr3(unsigned long cr3)
+  * At the start of the day - when Xen launches a guest, it has already
+  * built pagetables for the guest. We diligently look over them
+  * in xen_setup_kernel_pagetable and graft as appropriate them in the
+- * init_level4_pgt and its friends. Then when we are happy we load
+- * the new init_level4_pgt - and continue on.
++ * init_top_pgt and its friends. Then when we are happy we load
++ * the new init_top_pgt - and continue on.
+  *
+  * The generic code starts (start_kernel) and 'init_mem_mapping' sets
+  * up the rest of the pagetables. When it has completed it loads the cr3.
+@@ -1583,7 +1587,7 @@ static int xen_pgd_alloc(struct mm_struct *mm)
+ 		if (user_pgd != NULL) {
+ #ifdef CONFIG_X86_VSYSCALL_EMULATION
+ 			user_pgd[pgd_index(VSYSCALL_ADDR)] =
+-				__pgd(__pa(level3_user_vsyscall) | _PAGE_TABLE);
++				__pgd(__pa(user_vsyscall) | _PAGE_TABLE);
+ #endif
+ 			ret = 0;
+ 		}
+@@ -1973,13 +1977,13 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+ 	pt_end = pt_base + xen_start_info->nr_pt_frames;
  
- 	/* The limit is the last byte to be touched */
- 	limit--;
-@@ -633,65 +687,22 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
- 	hole_low = pgd_index(USER_LIMIT);
- 	hole_high = pgd_index(PAGE_OFFSET);
+ 	/* Zap identity mapping */
+-	init_level4_pgt[0] = __pgd(0);
++	init_top_pgt[0] = __pgd(0);
  
--	pgdidx_limit = pgd_index(limit);
--#if PTRS_PER_PUD > 1
--	pudidx_limit = pud_index(limit);
--#else
--	pudidx_limit = 0;
--#endif
--#if PTRS_PER_PMD > 1
--	pmdidx_limit = pmd_index(limit);
--#else
--	pmdidx_limit = 0;
--#endif
--
--	for (pgdidx = 0; pgdidx <= pgdidx_limit; pgdidx++) {
--		pud_t *pud;
-+	nr = pgd_index(limit) + 1;
-+	for (i = 0; i < nr; i++) {
-+		p4d_t *p4d;
+ 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+ 		/* Pre-constructed entries are in pfn, so convert to mfn */
+ 		/* L4[272] -> level3_ident_pgt
+ 		 * L4[511] -> level3_kernel_pgt */
+-		convert_pfn_mfn(init_level4_pgt);
++		convert_pfn_mfn(init_top_pgt);
  
--		if (pgdidx >= hole_low && pgdidx < hole_high)
-+		if (i >= hole_low && i < hole_high)
- 			continue;
+ 		/* L3_i[0] -> level2_ident_pgt */
+ 		convert_pfn_mfn(level3_ident_pgt);
+@@ -2010,14 +2014,14 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+ 	/* Copy the initial P->M table mappings if necessary. */
+ 	i = pgd_index(xen_start_info->mfn_list);
+ 	if (i && i < pgd_index(__START_KERNEL_map))
+-		init_level4_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
++		init_top_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
  
--		if (!pgd_val(pgd[pgdidx]))
-+		if (pgd_none(pgd[i]))
- 			continue;
+ 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+ 		/* Make pagetable pieces RO */
+-		set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
++		set_page_prot(init_top_pgt, PAGE_KERNEL_RO);
+ 		set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
+ 		set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
+-		set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
++		set_page_prot(user_vsyscall, PAGE_KERNEL_RO);
+ 		set_page_prot(level2_ident_pgt, PAGE_KERNEL_RO);
+ 		set_page_prot(level2_kernel_pgt, PAGE_KERNEL_RO);
+ 		set_page_prot(level2_fixmap_pgt, PAGE_KERNEL_RO);
+@@ -2025,7 +2029,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
  
--		pud = pud_offset(&pgd[pgdidx], 0);
--
--		if (PTRS_PER_PUD > 1) /* not folded */
--			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
--
--		for (pudidx = 0; pudidx < PTRS_PER_PUD; pudidx++) {
--			pmd_t *pmd;
--
--			if (pgdidx == pgdidx_limit &&
--			    pudidx > pudidx_limit)
--				goto out;
--
--			if (pud_none(pud[pudidx]))
--				continue;
--
--			pmd = pmd_offset(&pud[pudidx], 0);
--
--			if (PTRS_PER_PMD > 1) /* not folded */
--				flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
--
--			for (pmdidx = 0; pmdidx < PTRS_PER_PMD; pmdidx++) {
--				struct page *pte;
--
--				if (pgdidx == pgdidx_limit &&
--				    pudidx == pudidx_limit &&
--				    pmdidx > pmdidx_limit)
--					goto out;
--
--				if (pmd_none(pmd[pmdidx]))
--					continue;
--
--				pte = pmd_page(pmd[pmdidx]);
--				flush |= (*func)(mm, pte, PT_PTE);
--			}
--		}
-+		p4d = p4d_offset(&pgd[i], 0);
-+		if (PTRS_PER_P4D > 1)
-+			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
-+		xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
+ 		/* Pin down new L4 */
+ 		pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE,
+-				  PFN_DOWN(__pa_symbol(init_level4_pgt)));
++				  PFN_DOWN(__pa_symbol(init_top_pgt)));
+ 
+ 		/* Unpin Xen-provided one */
+ 		pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
+@@ -2036,10 +2040,10 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+ 		 * pgd.
+ 		 */
+ 		xen_mc_batch();
+-		__xen_write_cr3(true, __pa(init_level4_pgt));
++		__xen_write_cr3(true, __pa(init_top_pgt));
+ 		xen_mc_issue(PARAVIRT_LAZY_CPU);
+ 	} else
+-		native_write_cr3(__pa(init_level4_pgt));
++		native_write_cr3(__pa(init_top_pgt));
+ 
+ 	/* We can't that easily rip out L3 and L2, as the Xen pagetables are
+ 	 * set out this way: [L4], [L1], [L2], [L3], [L1], [L1] ...  for
+@@ -2444,7 +2448,11 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
+ 	   pagetable vsyscall mapping. */
+ 	if (idx == VSYSCALL_PAGE) {
+ 		unsigned long vaddr = __fix_to_virt(idx);
+-		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
++#if CONFIG_PGTABLE_LEVELS == 5
++		set_pte_vaddr_p4d(user_vsyscall, vaddr, pte);
++#else
++		set_pte_vaddr_pud(user_vsyscall, vaddr, pte);
++#endif
  	}
- 
--out:
- 	/* Do the top level last, so that the callbacks can use it as
- 	   a cue to do final things like tlb flushes. */
- 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
-@@ -1150,57 +1161,97 @@ static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl, bool unpin)
- 	xen_free_ro_pages(pa, PAGE_SIZE);
+ #endif
  }
+@@ -2475,7 +2483,7 @@ static void __init xen_post_allocator_init(void)
  
-+static void __init xen_cleanmfnmap_pmd(pmd_t *pmd, bool unpin)
-+{
-+	unsigned long pa;
-+	pte_t *pte_tbl;
-+	int i;
-+
-+	if (pmd_large(*pmd)) {
-+		pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
-+		xen_free_ro_pages(pa, PMD_SIZE);
-+		return;
-+	}
-+
-+	pte_tbl = pte_offset_kernel(pmd, 0);
-+	for (i = 0; i < PTRS_PER_PTE; i++) {
-+		if (pte_none(pte_tbl[i]))
-+			continue;
-+		pa = pte_pfn(pte_tbl[i]) << PAGE_SHIFT;
-+		xen_free_ro_pages(pa, PAGE_SIZE);
-+	}
-+	set_pmd(pmd, __pmd(0));
-+	xen_cleanmfnmap_free_pgtbl(pte_tbl, unpin);
-+}
-+
-+static void __init xen_cleanmfnmap_pud(pud_t *pud, bool unpin)
-+{
-+	unsigned long pa;
-+	pmd_t *pmd_tbl;
-+	int i;
-+
-+	if (pud_large(*pud)) {
-+		pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
-+		xen_free_ro_pages(pa, PUD_SIZE);
-+		return;
-+	}
-+
-+	pmd_tbl = pmd_offset(pud, 0);
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (pmd_none(pmd_tbl[i]))
-+			continue;
-+		xen_cleanmfnmap_pmd(pmd_tbl + i, unpin);
-+	}
-+	set_pud(pud, __pud(0));
-+	xen_cleanmfnmap_free_pgtbl(pmd_tbl, unpin);
-+}
-+
-+static void __init xen_cleanmfnmap_p4d(p4d_t *p4d, bool unpin)
-+{
-+	unsigned long pa;
-+	pud_t *pud_tbl;
-+	int i;
-+
-+	if (p4d_large(*p4d)) {
-+		pa = p4d_val(*p4d) & PHYSICAL_PAGE_MASK;
-+		xen_free_ro_pages(pa, P4D_SIZE);
-+		return;
-+	}
-+
-+	pud_tbl = pud_offset(p4d, 0);
-+	for (i = 0; i < PTRS_PER_PUD; i++) {
-+		if (pud_none(pud_tbl[i]))
-+			continue;
-+		xen_cleanmfnmap_pud(pud_tbl + i, unpin);
-+	}
-+	set_p4d(p4d, __p4d(0));
-+	xen_cleanmfnmap_free_pgtbl(pud_tbl, unpin);
-+}
-+
- /*
-  * Since it is well isolated we can (and since it is perhaps large we should)
-  * also free the page tables mapping the initial P->M table.
-  */
- static void __init xen_cleanmfnmap(unsigned long vaddr)
- {
--	unsigned long va = vaddr & PMD_MASK;
--	unsigned long pa;
--	pgd_t *pgd = pgd_offset_k(va);
--	pud_t *pud_page = pud_offset(pgd, 0);
--	pud_t *pud;
--	pmd_t *pmd;
--	pte_t *pte;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
- 	unsigned int i;
- 	bool unpin;
- 
- 	unpin = (vaddr == 2 * PGDIR_SIZE);
--	set_pgd(pgd, __pgd(0));
--	do {
--		pud = pud_page + pud_index(va);
--		if (pud_none(*pud)) {
--			va += PUD_SIZE;
--		} else if (pud_large(*pud)) {
--			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
--			xen_free_ro_pages(pa, PUD_SIZE);
--			va += PUD_SIZE;
--		} else {
--			pmd = pmd_offset(pud, va);
--			if (pmd_large(*pmd)) {
--				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
--				xen_free_ro_pages(pa, PMD_SIZE);
--			} else if (!pmd_none(*pmd)) {
--				pte = pte_offset_kernel(pmd, va);
--				set_pmd(pmd, __pmd(0));
--				for (i = 0; i < PTRS_PER_PTE; ++i) {
--					if (pte_none(pte[i]))
--						break;
--					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
--					xen_free_ro_pages(pa, PAGE_SIZE);
--				}
--				xen_cleanmfnmap_free_pgtbl(pte, unpin);
--			}
--			va += PMD_SIZE;
--			if (pmd_index(va))
--				continue;
--			set_pud(pud, __pud(0));
--			xen_cleanmfnmap_free_pgtbl(pmd, unpin);
--		}
--
--	} while (pud_index(va) || pmd_index(va));
--	xen_cleanmfnmap_free_pgtbl(pud_page, unpin);
-+	vaddr &= PMD_MASK;
-+	pgd = pgd_offset_k(vaddr);
-+	p4d = p4d_offset(pgd, 0);
-+	for (i = 0; i < PTRS_PER_P4D; i++) {
-+		if (p4d_none(p4d[i]))
-+			continue;
-+		xen_cleanmfnmap_p4d(p4d + i, unpin);
-+	}
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-+		set_pgd(pgd, __pgd(0));
-+		xen_cleanmfnmap_free_pgtbl(p4d, unpin);
-+	}
+ #ifdef CONFIG_X86_64
+ 	pv_mmu_ops.write_cr3 = &xen_write_cr3;
+-	SetPagePinned(virt_to_page(level3_user_vsyscall));
++	SetPagePinned(virt_to_page(user_vsyscall));
+ #endif
+ 	xen_mark_init_mm_pinned();
  }
- 
- static void __init xen_pagetable_p2m_free(void)
-diff --git a/arch/x86/xen/mmu.h b/arch/x86/xen/mmu.h
-index 73809bb951b4..3fe2b3292915 100644
---- a/arch/x86/xen/mmu.h
-+++ b/arch/x86/xen/mmu.h
-@@ -5,6 +5,7 @@
- 
- enum pt_level {
- 	PT_PGD,
-+	PT_P4D,
- 	PT_PUD,
- 	PT_PMD,
- 	PT_PTE
 -- 
 2.11.0
 
