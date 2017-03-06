@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 68EBF6B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:32:09 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id u9so24820858wme.6
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:32:09 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id u48si25934527wrb.323.2017.03.06.02.32.08
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FD966B0038
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:33:39 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b140so14055648wme.3
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:33:39 -0800 (PST)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com. [209.85.128.195])
+        by mx.google.com with ESMTPS id 94si24127702wrr.147.2017.03.06.02.33.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 02:32:08 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id z63so10749653wmg.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:32:08 -0800 (PST)
-Date: Mon, 6 Mar 2017 11:32:04 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [RFC PATCH 10/12] staging: android: ion: Use CMA APIs directly
-Message-ID: <20170306103204.d3yf6woxpsqvdakp@phenom.ffwll.local>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <1488491084-17252-11-git-send-email-labbott@redhat.com>
- <2140021.hmlAgxcLbU@avalon>
- <0541f57b-4060-ea10-7173-26ae77777518@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0541f57b-4060-ea10-7173-26ae77777518@redhat.com>
+        Mon, 06 Mar 2017 02:33:37 -0800 (PST)
+Received: by mail-wr0-f195.google.com with SMTP id l37so21096430wrc.3
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:33:37 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 5/9] xattr: zero out memory copied to userspace in getxattr
+Date: Mon,  6 Mar 2017 11:33:23 +0100
+Message-Id: <20170306103327.2766-1-mhocko@kernel.org>
+In-Reply-To: <20170306103032.2540-1-mhocko@kernel.org>
+References: <20170306103032.2540-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Laurent Pinchart <laurent.pinchart@ideasonboard.com>, dri-devel@lists.freedesktop.org, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Mar 03, 2017 at 10:50:20AM -0800, Laura Abbott wrote:
-> On 03/03/2017 08:41 AM, Laurent Pinchart wrote:
-> > Hi Laura,
-> > 
-> > Thank you for the patch.
-> > 
-> > On Thursday 02 Mar 2017 13:44:42 Laura Abbott wrote:
-> >> When CMA was first introduced, its primary use was for DMA allocation
-> >> and the only way to get CMA memory was to call dma_alloc_coherent. This
-> >> put Ion in an awkward position since there was no device structure
-> >> readily available and setting one up messed up the coherency model.
-> >> These days, CMA can be allocated directly from the APIs. Switch to using
-> >> this model to avoid needing a dummy device. This also avoids awkward
-> >> caching questions.
-> > 
-> > If the DMA mapping API isn't suitable for today's requirements anymore, I 
-> > believe that's what needs to be fixed, instead of working around the problem 
-> > by introducing another use-case-specific API.
-> > 
-> 
-> I don't think this is a usecase specific API. CMA has been decoupled from
-> DMA already because it's used in other places. The trying to go through
-> DMA was just another layer of abstraction, especially since there isn't
-> a device available for allocation.
+From: Michal Hocko <mhocko@suse.com>
 
-Also, we've had separation of allocation and dma-mapping since forever,
-that's how it works almost everywhere. Not exactly sure why/how arm-soc
-ecosystem ended up focused so much on dma_alloc_coherent.
+getxattr uses vmalloc to allocate memory if kzalloc fails. This is
+filled by vfs_getxattr and then copied to the userspace. vmalloc,
+however, doesn't zero out the memory so if the specific implementation
+of the xattr handler is sloppy we can theoretically expose a kernel
+memory. There is no real sign this is really the case but let's make
+sure this will not happen and use vzalloc instead.
 
-I think separating allocation from dma mapping/coherency is perfectly
-fine, and the way to go.
--Daniel
+Fixes: 779302e67835 ("fs/xattr.c:getxattr(): improve handling of allocation failures")
+Cc: stable # 3.6+
+Acked-by: Kees Cook <keescook@chromium.org>
+Spotted-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ fs/xattr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fs/xattr.c b/fs/xattr.c
+index 7e3317cf4045..94f49a082dd2 100644
+--- a/fs/xattr.c
++++ b/fs/xattr.c
+@@ -530,7 +530,7 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
+ 			size = XATTR_SIZE_MAX;
+ 		kvalue = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+ 		if (!kvalue) {
+-			kvalue = vmalloc(size);
++			kvalue = vzalloc(size);
+ 			if (!kvalue)
+ 				return -ENOMEM;
+ 		}
 -- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
