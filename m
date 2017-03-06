@@ -1,110 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 095306B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:21:55 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g138so73752315itb.4
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:21:55 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q93sor8114762ioi.40.1969.12.31.16.00.00
+	by kanga.kvack.org (Postfix) with ESMTP id A298D6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:35:11 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id g138so73964072itb.4
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:35:11 -0800 (PST)
+Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
+        by mx.google.com with ESMTPS id 130si11829788itj.52.2017.03.06.11.35.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Mar 2017 11:21:54 -0800 (PST)
-From: Tahsin Erdogan <tahsin@google.com>
-Subject: [PATCH v2] mm: do not call mem_cgroup_free() from within mem_cgroup_alloc()
-Date: Mon,  6 Mar 2017 11:21:22 -0800
-Message-Id: <20170306192122.24262-1-tahsin@google.com>
-In-Reply-To: <20170306135947.GF27953@dhcp22.suse.cz>
-References: <20170306135947.GF27953@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 11:35:10 -0800 (PST)
+Received: by mail-it0-x235.google.com with SMTP id h10so56300868ith.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:35:10 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20170306190911.GB27719@node.shutemov.name>
+References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
+ <CA+55aFypZza_L5jyDEFwBrFZPR72R18RwTMz4TuV5sg0H4aaqA@mail.gmail.com>
+ <alpine.DEB.2.20.1703061935220.3771@nanos> <CA+55aFyL7UDP4AyscTOO=pxYuFG2GkG_rbEPgqBMBwkEi7t3vw@mail.gmail.com>
+ <20170306190911.GB27719@node.shutemov.name>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 6 Mar 2017 11:35:09 -0800
+Message-ID: <CA+55aFyykmVyUmT+oQ-1-uUrLGht7qrAAWHxP7aFPgsoeV1uhA@mail.gmail.com>
+Subject: Re: [PATCHv4 00/33] 5-level paging
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tahsin Erdogan <tahsin@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-mem_cgroup_free() indirectly calls wb_domain_exit() which is not
-prepared to deal with a struct wb_domain object that hasn't executed
-wb_domain_init(). For instance, the following warning message is
-printed by lockdep if alloc_percpu() fails in mem_cgroup_alloc():
+On Mon, Mar 6, 2017 at 11:09 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+>
+> The first 7 patches are relatively low-risk. It would be nice to have them
+> in earlier.
 
-  INFO: trying to register non-static key.
-  the code is fine but needs lockdep annotation.
-  turning off the locking correctness validator.
-  CPU: 1 PID: 1950 Comm: mkdir Not tainted 4.10.0+ #151
-  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-  Call Trace:
-   dump_stack+0x67/0x99
-   register_lock_class+0x36d/0x540
-   __lock_acquire+0x7f/0x1a30
-   ? irq_work_queue+0x73/0x90
-   ? wake_up_klogd+0x36/0x40
-   ? console_unlock+0x45d/0x540
-   ? vprintk_emit+0x211/0x2e0
-   lock_acquire+0xcc/0x200
-   ? try_to_del_timer_sync+0x60/0x60
-   del_timer_sync+0x3c/0xc0
-   ? try_to_del_timer_sync+0x60/0x60
-   wb_domain_exit+0x14/0x20
-   mem_cgroup_free+0x14/0x40
-   mem_cgroup_css_alloc+0x3f9/0x620
-   cgroup_apply_control_enable+0x190/0x390
-   cgroup_mkdir+0x290/0x3d0
-   kernfs_iop_mkdir+0x58/0x80
-   vfs_mkdir+0x10e/0x1a0
-   SyS_mkdirat+0xa8/0xd0
-   SyS_mkdir+0x14/0x20
-   entry_SYSCALL_64_fastpath+0x18/0xad
+Ok, I gave those another look since you mentioned them in particular,
+and they still look fine and non-controversial to me. I'd be willing
+to take them directly, and into 4.11, to make future integration
+eastier and avoid conflicts with other mm code during the 4.12 merge
+window.
 
-Add __mem_cgroup_free() which skips wb_domain_exit(). This is
-used by both mem_cgroup_free() and mem_cgroup_alloc() clean up.
+Just looking at my own inbox, I would suggest that maybe you should
+send that small early series as a separate patch series, because those
+patches actually got mixed up in my inbox with all the other patches
+in the series. Email sending in quick succession does not tend to keep
+things ordered. I suspect that happened to others too.
 
-Fixes: 0b8f73e104285 ("mm: memcontrol: clean up alloc, online, offline, free functions")
-Signed-off-by: Tahsin Erdogan <tahsin@google.com>
----
-v2:
-  Added __mem_cgroup_free()
+We might have people who are *not* willing to look at the whole
+33-patch series that has a lot of x86 code in it, but are willing to
+look through the first 7 emails when they are clearly separated out..
 
- mm/memcontrol.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c52ec893e241..e7d900c5f2d0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4135,17 +4135,22 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
- 	kfree(memcg->nodeinfo[node]);
- }
- 
--static void mem_cgroup_free(struct mem_cgroup *memcg)
-+static void __mem_cgroup_free(struct mem_cgroup *memcg)
- {
- 	int node;
- 
--	memcg_wb_domain_exit(memcg);
- 	for_each_node(node)
- 		free_mem_cgroup_per_node_info(memcg, node);
- 	free_percpu(memcg->stat);
- 	kfree(memcg);
- }
- 
-+static void mem_cgroup_free(struct mem_cgroup *memcg)
-+{
-+	memcg_wb_domain_exit(memcg);
-+	__mem_cgroup_free(memcg);
-+}
-+
- static struct mem_cgroup *mem_cgroup_alloc(void)
- {
- 	struct mem_cgroup *memcg;
-@@ -4196,7 +4201,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- fail:
- 	if (memcg->id.id > 0)
- 		idr_remove(&mem_cgroup_idr, memcg->id.id);
--	mem_cgroup_free(memcg);
-+	__mem_cgroup_free(memcg);
- 	return NULL;
- }
- 
--- 
-2.12.0.rc1.440.g5b76565f74-goog
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
