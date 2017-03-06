@@ -1,104 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C8D8B6B0388
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 12:16:49 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id n11so31017775wma.5
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 09:16:49 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y196sor36467wmd.22.1969.12.31.16.00.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Mar 2017 09:16:48 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0E906B0388
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 12:25:25 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id w189so167783989pfb.4
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 09:25:25 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 1si19608766pgw.325.2017.03.06.09.25.24
+        for <linux-mm@kvack.org>;
+        Mon, 06 Mar 2017 09:25:24 -0800 (PST)
+Date: Mon, 6 Mar 2017 17:25:12 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
+Message-ID: <20170306172508.GG18519@leverpostej>
+References: <20170306124254.77615-1-dvyukov@google.com>
+ <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
+ <20170306125851.GL6500@twins.programming.kicks-ass.net>
+ <20170306130107.GK6536@twins.programming.kicks-ass.net>
+ <CACT4Y+ZDxk2CkaGaqVJfrzoBf4ZXDZ2L8vaAnLOjuY0yx85jgA@mail.gmail.com>
+ <20170306162018.GC18519@leverpostej>
+ <CACT4Y+ZFzhSrdevqRXWx-q5fgr0a7J6fX0fdwJ-uqU0zCgdjjg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+w087z_pEWN=ZBDZN=XqqQMFZ9eevX44LERFV-d=G3F8g@mail.gmail.com>
-References: <20170302134851.101218-1-andreyknvl@google.com>
- <20170302134851.101218-7-andreyknvl@google.com> <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
- <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
- <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com> <CAAeHK+xnHx5fvhq158+oxMxieG7a+gG7i0MQS92DqxYGe0O=Ww@mail.gmail.com>
- <576aeb81-9408-13fa-041d-a6bd1e2cf895@virtuozzo.com> <CAAeHK+w087z_pEWN=ZBDZN=XqqQMFZ9eevX44LERFV-d=G3F8g@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 6 Mar 2017 18:16:47 +0100
-Message-ID: <CAAeHK+xCo+JcFstGz+xhgX2qvkP1zpwOg9VD0N-oD4Q=YcSi7A@mail.gmail.com>
-Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+ZFzhSrdevqRXWx-q5fgr0a7J6fX0fdwJ-uqU0zCgdjjg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Will Deacon <will.deacon@arm.com>
 
-On Mon, Mar 6, 2017 at 6:05 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> On Mon, Mar 6, 2017 at 5:12 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->> On 03/06/2017 04:45 PM, Andrey Konovalov wrote:
->>> On Fri, Mar 3, 2017 at 3:39 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>>>
->>>>
->>>> On 03/03/2017 04:52 PM, Alexander Potapenko wrote:
->>>>> On Fri, Mar 3, 2017 at 2:31 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>>>>> On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
->>>>>>> Changes slab object description from:
->>>>>>>
->>>>>>> Object at ffff880068388540, in cache kmalloc-128 size: 128
->>>>>>>
->>>>>>> to:
->>>>>>>
->>>>>>> The buggy address belongs to the object at ffff880068388540
->>>>>>>  which belongs to the cache kmalloc-128 of size 128
->>>>>>> The buggy address is located 123 bytes inside of
->>>>>>>  128-byte region [ffff880068388540, ffff8800683885c0)
->>>>>>>
->>>>>>> Makes it more explanatory and adds information about relative offset
->>>>>>> of the accessed address to the start of the object.
->>>>>>>
->>>>>>
->>>>>> I don't think that this is an improvement. You replaced one simple line with a huge
->>>>>> and hard to parse text without giving any new/useful information.
->>>>>> Except maybe offset, it useful sometimes, so wouldn't mind adding it to description.
->>>>> Agreed.
->>>>> How about:
->>>>> ===========
->>>>> Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
->>>>> Object at ffff880068388540 belongs to the cache kmalloc-128
->>>>> ===========
->>>>> ?
->>>>>
->>>>
->>>> I would just add the offset in the end:
->>>>         Object at ffff880068388540, in cache kmalloc-128 size: 128 accessed at offset y
->>>
->>> Access can be inside or outside the object, so it's better to
->>> specifically say that.
->>>
->>
->> That what access offset and object's size tells us.
->>
->>
->>> I think we can do (basically what Alexander suggested):
->>>
->>> Object at ffff880068388540 belongs to the cache kmalloc-128 of size 128
->>> Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
->>
->> This is just wrong and therefore very confusing. The message says that we access 123 bytes,
->> while in fact we access x-bytes at offset 123. IOW 123 sounds like access size here not the offset.
->
-> What about
->
-> Object at ffff880068388540 belongs to cache kmalloc-128 of size 128
-> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
->
-> ?
+On Mon, Mar 06, 2017 at 05:27:44PM +0100, Dmitry Vyukov wrote:
+> On Mon, Mar 6, 2017 at 5:20 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> > On Mon, Mar 06, 2017 at 03:24:23PM +0100, Dmitry Vyukov wrote:
+> >> On Mon, Mar 6, 2017 at 2:01 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> >> > On Mon, Mar 06, 2017 at 01:58:51PM +0100, Peter Zijlstra wrote:
+> >> >> On Mon, Mar 06, 2017 at 01:50:47PM +0100, Dmitry Vyukov wrote:
+> >> >> > On Mon, Mar 6, 2017 at 1:42 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> >> >> > > KASAN uses compiler instrumentation to intercept all memory accesses.
+> >> >> > > But it does not see memory accesses done in assembly code.
+> >> >> > > One notable user of assembly code is atomic operations. Frequently,
+> >> >> > > for example, an atomic reference decrement is the last access to an
+> >> >> > > object and a good candidate for a racy use-after-free.
+> >> >> > >
+> >> >> > > Add manual KASAN checks to atomic operations.
+> >> >> > > Note: we need checks only before asm blocks and don't need them
+> >> >> > > in atomic functions composed of other atomic functions
+> >> >> > > (e.g. load-cmpxchg loops).
+> >> >> >
+> >> >> > Peter, also pointed me at arch/x86/include/asm/bitops.h. Will add them in v2.
+> >> >> >
+> >> >>
+> >> >> > >  static __always_inline void atomic_add(int i, atomic_t *v)
+> >> >> > >  {
+> >> >> > > +       kasan_check_write(v, sizeof(*v));
+> >> >> > >         asm volatile(LOCK_PREFIX "addl %1,%0"
+> >> >> > >                      : "+m" (v->counter)
+> >> >> > >                      : "ir" (i));
 
-Another alternative:
+> >> Bottom line:
+> >> 1. Involving compiler looks quite complex, hard to deploy, and it's
+> >> unclear if it will actually make things easier.
+> >> 2. This patch is the simplest short-term option (I am leaning towards
+> >> adding bitops to this patch and leaving percpu out for now).
+> >> 3. Providing an implementation of atomic ops based on compiler
+> >> builtins looks like a nice option for other archs and tools, but is
+> >> more work. If you consider this as a good solution, we can move
+> >> straight to this option.
+> >
+> > Having *only* seen the assembly snippet at the top of this mail, I can't
+> > say whether this is the simplest implementation.
+> >
+> > However, I do think that annotation of this sort is the only reasonable
+> > way to handle this.
+> 
+> Here is the whole patch:
+> https://groups.google.com/d/msg/kasan-dev/3sNHjjb4GCI/X76pwg_tAwAJ
 
-Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
-Object belongs to cache kmalloc-128 of size 128
+I see.
 
->
->>
->>
->>> What do you think?
->>>
->>
->> Not better.
+Given we'd have to instrument each architecture's atomics in an
+identical fashion, maybe we should follow the example of spinlocks, and
+add an arch_ prefix to the arch-specific implementation, and place the
+instrumentation in a common wrapper.
+
+i.e. have something like:
+
+static __always_inline void atomic_inc(atomic_t *v)
+{
+	kasan_check_write(v, sizeof(*v)); 
+	arch_atomic_inc(v);
+}
+
+... in asm-generic somewhere.
+
+It's more churn initially, but it should bea saving overall, and I
+imagine for KMSAN or other things we may want more instrumentation
+anyway...
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
