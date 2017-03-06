@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 646D86B0395
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 98F736B0396
 	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:20 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id x63so132227937pfx.7
+Received: by mail-pf0-f199.google.com with SMTP id o126so34879218pfb.2
         for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:20 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 1si19116793plp.203.2017.03.06.05.54.19
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 88si19119992pla.240.2017.03.06.05.54.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 06 Mar 2017 05:54:19 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 20/33] x86: detect 5-level paging support
-Date: Mon,  6 Mar 2017 16:53:44 +0300
-Message-Id: <20170306135357.3124-21-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 16/33] x86/mm/pat: handle additional page table
+Date: Mon,  6 Mar 2017 16:53:40 +0300
+Message-Id: <20170306135357.3124-17-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,127 +20,177 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-5-level paging support is required from hardware when compiled with
-CONFIG_X86_5LEVEL=y. We may implement runtime switch support later.
+Straight-forward extension of existing code to support additional page
+table level.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/cpucheck.c                 |  9 +++++++++
- arch/x86/boot/cpuflags.c                 | 12 ++++++++++--
- arch/x86/include/asm/disabled-features.h |  8 +++++++-
- arch/x86/include/asm/required-features.h |  8 +++++++-
- 4 files changed, 33 insertions(+), 4 deletions(-)
+ arch/x86/mm/pageattr.c | 56 ++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 41 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/boot/cpucheck.c b/arch/x86/boot/cpucheck.c
-index 4ad7d70e8739..8f0c4c9fc904 100644
---- a/arch/x86/boot/cpucheck.c
-+++ b/arch/x86/boot/cpucheck.c
-@@ -44,6 +44,15 @@ static const u32 req_flags[NCAPINTS] =
- 	0, /* REQUIRED_MASK5 not implemented in this file */
- 	REQUIRED_MASK6,
- 	0, /* REQUIRED_MASK7 not implemented in this file */
-+	0, /* REQUIRED_MASK8 not implemented in this file */
-+	0, /* REQUIRED_MASK9 not implemented in this file */
-+	0, /* REQUIRED_MASK10 not implemented in this file */
-+	0, /* REQUIRED_MASK11 not implemented in this file */
-+	0, /* REQUIRED_MASK12 not implemented in this file */
-+	0, /* REQUIRED_MASK13 not implemented in this file */
-+	0, /* REQUIRED_MASK14 not implemented in this file */
-+	0, /* REQUIRED_MASK15 not implemented in this file */
-+	REQUIRED_MASK16,
- };
- 
- #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
-diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
-index 6687ab953257..9e77c23c2422 100644
---- a/arch/x86/boot/cpuflags.c
-+++ b/arch/x86/boot/cpuflags.c
-@@ -70,16 +70,19 @@ int has_eflag(unsigned long mask)
- # define EBX_REG "=b"
- #endif
- 
--static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
-+static inline void cpuid_count(u32 id, u32 count,
-+		u32 *a, u32 *b, u32 *c, u32 *d)
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 28d42130243c..eb0ad12cdfde 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -346,6 +346,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
+ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
+ 			     unsigned int *level)
  {
- 	asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif	\n\t"
- 		     "cpuid					\n\t"
- 		     ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif	\n\t"
- 		    : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
--		    : "a" (id)
-+		    : "a" (id), "c" (count)
- 	);
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 
+@@ -354,7 +355,15 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
+ 	if (pgd_none(*pgd))
+ 		return NULL;
+ 
+-	pud = pud_offset(pgd, address);
++	p4d = p4d_offset(pgd, address);
++	if (p4d_none(*p4d))
++		return NULL;
++
++	*level = PG_LEVEL_512G;
++	if (p4d_large(*p4d) || !p4d_present(*p4d))
++		return (pte_t *)p4d;
++
++	pud = pud_offset(p4d, address);
+ 	if (pud_none(*pud))
+ 		return NULL;
+ 
+@@ -406,13 +415,18 @@ static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
+ pmd_t *lookup_pmd_address(unsigned long address)
+ {
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 
+ 	pgd = pgd_offset_k(address);
+ 	if (pgd_none(*pgd))
+ 		return NULL;
+ 
+-	pud = pud_offset(pgd, address);
++	p4d = p4d_offset(pgd, address);
++	if (p4d_none(*p4d) || p4d_large(*p4d) || !p4d_present(*p4d))
++		return NULL;
++
++	pud = pud_offset(p4d, address);
+ 	if (pud_none(*pud) || pud_large(*pud) || !pud_present(*pud))
+ 		return NULL;
+ 
+@@ -477,11 +491,13 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
+ 
+ 		list_for_each_entry(page, &pgd_list, lru) {
+ 			pgd_t *pgd;
++			p4d_t *p4d;
+ 			pud_t *pud;
+ 			pmd_t *pmd;
+ 
+ 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+-			pud = pud_offset(pgd, address);
++			p4d = p4d_offset(pgd, address);
++			pud = pud_offset(p4d, address);
+ 			pmd = pmd_offset(pud, address);
+ 			set_pte_atomic((pte_t *)pmd, pte);
+ 		}
+@@ -836,9 +852,9 @@ static void unmap_pmd_range(pud_t *pud, unsigned long start, unsigned long end)
+ 			pud_clear(pud);
  }
  
-+#define cpuid(id, a, b, c, d) cpuid_count(id, 0, a, b, c, d)
-+
- void get_cpuflags(void)
+-static void unmap_pud_range(pgd_t *pgd, unsigned long start, unsigned long end)
++static void unmap_pud_range(p4d_t *p4d, unsigned long start, unsigned long end)
  {
- 	u32 max_intel_level, max_amd_level;
-@@ -108,6 +111,11 @@ void get_cpuflags(void)
- 				cpu.model += ((tfms >> 16) & 0xf) << 4;
- 		}
+-	pud_t *pud = pud_offset(pgd, start);
++	pud_t *pud = pud_offset(p4d, start);
  
-+		if (max_intel_level >= 0x00000007) {
-+			cpuid_count(0x00000007, 0, &ignored, &ignored,
-+					&cpu.flags[16], &ignored);
-+		}
+ 	/*
+ 	 * Not on a GB page boundary?
+@@ -1004,8 +1020,8 @@ static long populate_pmd(struct cpa_data *cpa,
+ 	return num_pages;
+ }
+ 
+-static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+-			 pgprot_t pgprot)
++static int populate_pud(struct cpa_data *cpa, unsigned long start, p4d_t *p4d,
++			pgprot_t pgprot)
+ {
+ 	pud_t *pud;
+ 	unsigned long end;
+@@ -1026,7 +1042,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+ 		cur_pages = (pre_end - start) >> PAGE_SHIFT;
+ 		cur_pages = min_t(int, (int)cpa->numpages, cur_pages);
+ 
+-		pud = pud_offset(pgd, start);
++		pud = pud_offset(p4d, start);
+ 
+ 		/*
+ 		 * Need a PMD page?
+@@ -1047,7 +1063,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+ 	if (cpa->numpages == cur_pages)
+ 		return cur_pages;
+ 
+-	pud = pud_offset(pgd, start);
++	pud = pud_offset(p4d, start);
+ 	pud_pgprot = pgprot_4k_2_large(pgprot);
+ 
+ 	/*
+@@ -1067,7 +1083,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+ 	if (start < end) {
+ 		long tmp;
+ 
+-		pud = pud_offset(pgd, start);
++		pud = pud_offset(p4d, start);
+ 		if (pud_none(*pud))
+ 			if (alloc_pmd_page(pud))
+ 				return -1;
+@@ -1090,33 +1106,43 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
+ {
+ 	pgprot_t pgprot = __pgprot(_KERNPG_TABLE);
+ 	pud_t *pud = NULL;	/* shut up gcc */
++	p4d_t *p4d;
+ 	pgd_t *pgd_entry;
+ 	long ret;
+ 
+ 	pgd_entry = cpa->pgd + pgd_index(addr);
+ 
++	if (pgd_none(*pgd_entry)) {
++		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
++		if (!p4d)
++			return -1;
 +
- 		cpuid(0x80000000, &max_amd_level, &ignored, &ignored,
- 		      &ignored);
- 
-diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
-index 85599ad4d024..fc0960236fc3 100644
---- a/arch/x86/include/asm/disabled-features.h
-+++ b/arch/x86/include/asm/disabled-features.h
-@@ -36,6 +36,12 @@
- # define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE & 31))
- #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
- 
-+#ifdef CONFIG_X86_5LEVEL
-+#define DISABLE_LA57	0
-+#else
-+#define DISABLE_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#endif
++		set_pgd(pgd_entry, __pgd(__pa(p4d) | _KERNPG_TABLE));
++	}
 +
- /*
-  * Make sure to add features to the correct mask
-  */
-@@ -55,7 +61,7 @@
- #define DISABLED_MASK13	0
- #define DISABLED_MASK14	0
- #define DISABLED_MASK15	0
--#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
-+#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57)
- #define DISABLED_MASK17	0
- #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
+ 	/*
+-	 * Allocate a PUD page and hand it down for mapping.
++	 * Allocate a P4D page and hand it down for mapping.
+ 	 */
+-	if (pgd_none(*pgd_entry)) {
++	p4d = p4d_offset(pgd_entry, addr);
++	if (p4d_none(*p4d)) {
+ 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
+ 		if (!pud)
+ 			return -1;
  
-diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
-index fac9a5c0abe9..d91ba04dd007 100644
---- a/arch/x86/include/asm/required-features.h
-+++ b/arch/x86/include/asm/required-features.h
-@@ -53,6 +53,12 @@
- # define NEED_MOVBE	0
- #endif
+-		set_pgd(pgd_entry, __pgd(__pa(pud) | _KERNPG_TABLE));
++		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
+ 	}
  
-+#ifdef CONFIG_X86_5LEVEL
-+# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#else
-+# define NEED_LA57	0
-+#endif
-+
- #ifdef CONFIG_X86_64
- #ifdef CONFIG_PARAVIRT
- /* Paravirtualized systems may not have PSE or PGE available */
-@@ -98,7 +104,7 @@
- #define REQUIRED_MASK13	0
- #define REQUIRED_MASK14	0
- #define REQUIRED_MASK15	0
--#define REQUIRED_MASK16	0
-+#define REQUIRED_MASK16	(NEED_LA57)
- #define REQUIRED_MASK17	0
- #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
+ 	pgprot_val(pgprot) &= ~pgprot_val(cpa->mask_clr);
+ 	pgprot_val(pgprot) |=  pgprot_val(cpa->mask_set);
  
+-	ret = populate_pud(cpa, addr, pgd_entry, pgprot);
++	ret = populate_pud(cpa, addr, p4d, pgprot);
+ 	if (ret < 0) {
+ 		/*
+ 		 * Leave the PUD page in place in case some other CPU or thread
+ 		 * already found it, but remove any useless entries we just
+ 		 * added to it.
+ 		 */
+-		unmap_pud_range(pgd_entry, addr,
++		unmap_pud_range(p4d, addr,
+ 				addr + (cpa->numpages << PAGE_SHIFT));
+ 		return ret;
+ 	}
 -- 
 2.11.0
 
