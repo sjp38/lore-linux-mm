@@ -1,117 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8316B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 09:24:45 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id q7so78799391uaf.0
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 06:24:45 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o5sor4257424vkd.1.1969.12.31.16.00.00
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCC4A6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 09:54:04 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id 90so161968716ios.4
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 06:54:04 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id 103si8612731ioq.109.2017.03.06.06.54.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Mar 2017 06:24:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170306130107.GK6536@twins.programming.kicks-ass.net>
-References: <20170306124254.77615-1-dvyukov@google.com> <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
- <20170306125851.GL6500@twins.programming.kicks-ass.net> <20170306130107.GK6536@twins.programming.kicks-ass.net>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 6 Mar 2017 15:24:23 +0100
-Message-ID: <CACT4Y+ZDxk2CkaGaqVJfrzoBf4ZXDZ2L8vaAnLOjuY0yx85jgA@mail.gmail.com>
-Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Mar 2017 06:54:03 -0800 (PST)
+Date: Mon, 6 Mar 2017 08:53:57 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [LSF/MM TOPIC] Movable memory and reliable higher order
+ allocations
+In-Reply-To: <20170303203920.GR16328@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1703060850470.22803@east.gentwo.org>
+References: <alpine.DEB.2.20.1702281526170.31946@east.gentwo.org> <20170228231733.GI16328@bombadil.infradead.org> <20170302041238.GM16328@bombadil.infradead.org> <alpine.DEB.2.20.1703021111350.31249@east.gentwo.org> <20170302205540.GQ16328@bombadil.infradead.org>
+ <alpine.DEB.2.20.1703030915170.16721@east.gentwo.org> <20170303203920.GR16328@bombadil.infradead.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Mark Rutland <mark.rutland@arm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, riel@redhat.com, Mel Gorman <mel@csn.ul.ie>
 
-On Mon, Mar 6, 2017 at 2:01 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Mon, Mar 06, 2017 at 01:58:51PM +0100, Peter Zijlstra wrote:
->> On Mon, Mar 06, 2017 at 01:50:47PM +0100, Dmitry Vyukov wrote:
->> > On Mon, Mar 6, 2017 at 1:42 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> > > KASAN uses compiler instrumentation to intercept all memory accesses.
->> > > But it does not see memory accesses done in assembly code.
->> > > One notable user of assembly code is atomic operations. Frequently,
->> > > for example, an atomic reference decrement is the last access to an
->> > > object and a good candidate for a racy use-after-free.
->> > >
->> > > Add manual KASAN checks to atomic operations.
->> > > Note: we need checks only before asm blocks and don't need them
->> > > in atomic functions composed of other atomic functions
->> > > (e.g. load-cmpxchg loops).
->> >
->> > Peter, also pointed me at arch/x86/include/asm/bitops.h. Will add them in v2.
->> >
->>
->> > >  static __always_inline void atomic_add(int i, atomic_t *v)
->> > >  {
->> > > +       kasan_check_write(v, sizeof(*v));
->> > >         asm volatile(LOCK_PREFIX "addl %1,%0"
->> > >                      : "+m" (v->counter)
->> > >                      : "ir" (i));
->>
->>
->> So the problem is doing load/stores from asm bits, and GCC
->> (traditionally) doesn't try and interpret APP asm bits.
->>
->> However, could we not write a GCC plugin that does exactly that?
->> Something that interprets the APP asm bits and generates these KASAN
->> bits that go with it?
+On Fri, 3 Mar 2017, Matthew Wilcox wrote:
+
+> OK.  So how about we have the following functions:
 >
-> Another suspect is the per-cpu stuff, that's all asm foo as well.
+> bool can_free(void **objects, unsigned int nr);
+> void reclaim(void **objects, unsigned int nr);
+>
+> The callee can take references or whetever else is useful to mark
+> objects as being targetted for reclaim in 'can_free', but may not sleep,
+> and should not take a long time to execute (because we're potentially
+> delaying somebody in irq context).
+>
+> In reclaim, anything goes, no locks are held by slab, kmem_cache_alloc
+> can be called.  When reclaim() returns, slab will evaluate the state
+> of the page and free it back to the page allocator if everything is
+> freed.
 
+Ok. That is pretty much how it works (aside from the naming, the
+refcounting is just what is commonly done to provide existence
+guarantees, you can do something else).
 
-+x86, Mark
-
-Let me provide more context and design alternatives.
-
-There are also other archs, at least arm64 for now.
-There are also other tools. For KTSAN (race detector) we will
-absolutely need to hook into atomic ops. For KMSAN (uses of unit
-values) we also need to understand atomic ops at least to some degree.
-Both of them will require different instrumentation.
-For KASAN we are also more interested in cases where it's more likely
-that an object is touched only by an asm, but not by normal memory
-accesses (otherwise we would report the bug on the normal access,
-which is fine, this makes atomic ops stand out in my opinion).
-
-We could involve compiler (and by compiler I mean clang, because we
-are not going to touch gcc, any volunteers?).
-However, it's unclear if it will be simpler or not. There will
-definitely will be a problem with uaccess asm blocks. Currently KASAN
-relies of the fact that it does not see uaccess accesses and the user
-addresses are considered bad by KASAN. There can also be a problem
-with offsets/sizes, it's not possible to figure out what exactly an
-asm block touches, we can only assume that it directly dereferences
-the passed pointer. However, for example, bitops touch the pointer
-with offset. Looking at the current x86 impl, we should be able to
-handle it because the offset is computed outside of asm blocks. But
-it's unclear if we hit this problem in other places.
-I also see that arm64 bitops are implemented in .S files. And we won't
-be able to instrument them in compiler.
-There can also be other problems. Is it possible that some asm blocks
-accept e.g. physical addresses? KASAN would consider them as bad.
-
-We could also provide a parallel implementation of atomic ops based on
-the new compiler builtins (__atomic_load_n and friends):
-https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
-and enable it under KSAN. The nice thing about it is that it will
-automatically support arm64 and KMSAN and KTSAN.
-But it's more work.
-
-Re per-cpu asm. I would say that it's less critical than atomic ops.
-Static per-cpu slots are not subject to use-after-free. Dynamic slots
-can be subject to use-after-free and it would be nice to catch bugs
-there. However, I think we will need to add manual
-poisoning/unpoisoning of dynamic slots as well.
-
-Bottom line:
-1. Involving compiler looks quite complex, hard to deploy, and it's
-unclear if it will actually make things easier.
-2. This patch is the simplest short-term option (I am leaning towards
-adding bitops to this patch and leaving percpu out for now).
-3. Providing an implementation of atomic ops based on compiler
-builtins looks like a nice option for other archs and tools, but is
-more work. If you consider this as a good solution, we can move
-straight to this option.
+The old patchset is available at https://lwn.net/Articles/371892/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
