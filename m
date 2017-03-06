@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B26AC6B038E
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 09:21:23 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 20so25712310iod.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 06:21:23 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 46DBD6B03C9
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 09:21:24 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id m27so79250385iti.7
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 06:21:24 -0800 (PST)
 Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0131.outbound.protection.outlook.com. [104.47.2.131])
-        by mx.google.com with ESMTPS id 70si8500204ioo.245.2017.03.06.06.21.22
+        by mx.google.com with ESMTPS id 70si8500204ioo.245.2017.03.06.06.21.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 06 Mar 2017 06:21:22 -0800 (PST)
+        Mon, 06 Mar 2017 06:21:23 -0800 (PST)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv6 1/5] x86/mm: introduce arch_rnd() to compute 32/64 mmap rnd
-Date: Mon, 6 Mar 2017 17:17:17 +0300
-Message-ID: <20170306141721.9188-2-dsafonov@virtuozzo.com>
+Subject: [PATCHv6 2/5] x86/mm: add task_size parameter to mmap_base()
+Date: Mon, 6 Mar 2017 17:17:18 +0300
+Message-ID: <20170306141721.9188-3-dsafonov@virtuozzo.com>
 In-Reply-To: <20170306141721.9188-1-dsafonov@virtuozzo.com>
 References: <20170306141721.9188-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
@@ -23,64 +23,193 @@ To: linux-kernel@vger.kernel.org
 Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
  Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-To fix 32-bit mmap() syscall returning pointer higher than 4Gb in
-64-bit binaries, two mmap bases will be used: one for mapping with
-32-bit syscalls and another for 64-bit syscall.
-To correctly place those two bases, introduce arch_rnd() function,
-which will return the random factor independently of mmap_is_ia32().
+To correctly handle 32-bit and 64-bit mmap() syscalls, we need different
+mmap bases to start allocation from. So, introduce mmap_legacy_base()
+helper and change mmap_base() to return base address according to
+specified task size.
+It'll prepare the mmap base computing code for splitting mmap_base
+on two bases: for 64-bit syscall and for 32-bit syscalls.
 
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
- arch/x86/mm/mmap.c | 26 ++++++++++++++------------
- 1 file changed, 14 insertions(+), 12 deletions(-)
+ arch/x86/include/asm/elf.h       | 24 ++++++++++---------
+ arch/x86/include/asm/processor.h |  4 +++-
+ arch/x86/mm/mmap.c               | 50 +++++++++++++++++++++++++---------------
+ 3 files changed, 48 insertions(+), 30 deletions(-)
 
+diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+index 9d49c18b5ea9..b908141cf0c4 100644
+--- a/arch/x86/include/asm/elf.h
++++ b/arch/x86/include/asm/elf.h
+@@ -293,8 +293,19 @@ do {									\
+ 	}								\
+ } while (0)
+ 
++/*
++ * True on X86_32 or when emulating IA32 on X86_64
++ */
++static inline int mmap_is_ia32(void)
++{
++	return IS_ENABLED(CONFIG_X86_32) ||
++	       (IS_ENABLED(CONFIG_COMPAT) &&
++		test_thread_flag(TIF_ADDR32));
++}
++
+ #ifdef CONFIG_X86_32
+ 
++#define __STACK_RND_MASK(is32bit) (0x7ff)
+ #define STACK_RND_MASK (0x7ff)
+ 
+ #define ARCH_DLINFO		ARCH_DLINFO_IA32
+@@ -304,7 +315,8 @@ do {									\
+ #else /* CONFIG_X86_32 */
+ 
+ /* 1GB for 64bit, 8MB for 32bit */
+-#define STACK_RND_MASK (test_thread_flag(TIF_ADDR32) ? 0x7ff : 0x3fffff)
++#define __STACK_RND_MASK(is32bit) ((is32bit) ? 0x7ff : 0x3fffff)
++#define STACK_RND_MASK __STACK_RND_MASK(mmap_is_ia32())
+ 
+ #define ARCH_DLINFO							\
+ do {									\
+@@ -348,16 +360,6 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
+ 					      int uses_interp);
+ #define compat_arch_setup_additional_pages compat_arch_setup_additional_pages
+ 
+-/*
+- * True on X86_32 or when emulating IA32 on X86_64
+- */
+-static inline int mmap_is_ia32(void)
+-{
+-	return IS_ENABLED(CONFIG_X86_32) ||
+-	       (IS_ENABLED(CONFIG_COMPAT) &&
+-		test_thread_flag(TIF_ADDR32));
+-}
+-
+ /* Do not change the values. See get_align_mask() */
+ enum align_flags {
+ 	ALIGN_VA_32	= BIT(0),
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index f385eca5407a..7caa2ac50ea2 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -797,6 +797,7 @@ static inline void spin_lock_prefetch(const void *x)
+ /*
+  * User space process size: 3GB (default).
+  */
++#define IA32_PAGE_OFFSET	PAGE_OFFSET
+ #define TASK_SIZE		PAGE_OFFSET
+ #define TASK_SIZE_MAX		TASK_SIZE
+ #define STACK_TOP		TASK_SIZE
+@@ -873,7 +874,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
+  * This decides where the kernel will search for a free chunk of vm
+  * space during mmap's.
+  */
+-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
++#define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
++#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
+ 
+ #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
+ 
 diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 7940166c799b..f31ed7097d0b 100644
+index f31ed7097d0b..1e9cb945dca1 100644
 --- a/arch/x86/mm/mmap.c
 +++ b/arch/x86/mm/mmap.c
-@@ -55,6 +55,14 @@ static unsigned long stack_maxrandom_size(void)
- #define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
- #define MAX_GAP (TASK_SIZE/6*5)
+@@ -36,25 +36,23 @@ struct va_alignment __read_mostly va_align = {
+ 	.flags = -1,
+ };
  
-+#ifdef CONFIG_COMPAT
-+# define mmap32_rnd_bits  mmap_rnd_compat_bits
-+# define mmap64_rnd_bits  mmap_rnd_bits
-+#else
-+# define mmap32_rnd_bits  mmap_rnd_bits
-+# define mmap64_rnd_bits  mmap_rnd_bits
-+#endif
+-static unsigned long stack_maxrandom_size(void)
++static inline unsigned long tasksize_32bit(void)
++{
++	return IA32_PAGE_OFFSET;
++}
++
++static unsigned long stack_maxrandom_size(unsigned long task_size)
+ {
+ 	unsigned long max = 0;
+ 	if ((current->flags & PF_RANDOMIZE) &&
+ 		!(current->personality & ADDR_NO_RANDOMIZE)) {
+-		max = ((-1UL) & STACK_RND_MASK) << PAGE_SHIFT;
++		max = (-1UL) & __STACK_RND_MASK(task_size == tasksize_32bit());
++		max <<= PAGE_SHIFT;
+ 	}
+ 
+ 	return max;
+ }
+ 
+-/*
+- * Top of mmap area (just below the process stack).
+- *
+- * Leave an at least ~128 MB hole with possible stack randomization.
+- */
+-#define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
+-#define MAX_GAP (TASK_SIZE/6*5)
+-
+ #ifdef CONFIG_COMPAT
+ # define mmap32_rnd_bits  mmap_rnd_compat_bits
+ # define mmap64_rnd_bits  mmap_rnd_bits
+@@ -63,6 +61,8 @@ static unsigned long stack_maxrandom_size(void)
+ # define mmap64_rnd_bits  mmap_rnd_bits
+ #endif
+ 
++#define SIZE_128M    (128 * 1024 * 1024UL)
 +
  static int mmap_is_legacy(void)
  {
  	if (current->personality & ADDR_COMPAT_LAYOUT)
-@@ -66,20 +74,14 @@ static int mmap_is_legacy(void)
- 	return sysctl_legacy_va_layout;
+@@ -84,16 +84,30 @@ unsigned long arch_mmap_rnd(void)
+ 	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
  }
  
--unsigned long arch_mmap_rnd(void)
-+static unsigned long arch_rnd(unsigned int rndbits)
+-static unsigned long mmap_base(unsigned long rnd)
++static unsigned long mmap_base(unsigned long rnd, unsigned long task_size)
  {
--	unsigned long rnd;
--
--	if (mmap_is_ia32())
--#ifdef CONFIG_COMPAT
--		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
--#else
--		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
--#endif
--	else
--		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-+	return (get_random_long() & ((1UL << rndbits) - 1)) << PAGE_SHIFT;
-+}
+ 	unsigned long gap = rlimit(RLIMIT_STACK);
++	unsigned long gap_min, gap_max;
++
++	/*
++	 * Top of mmap area (just below the process stack).
++	 * Leave an at least ~128 MB hole with possible stack randomization.
++	 */
++	gap_min = SIZE_128M + stack_maxrandom_size(task_size);
++	gap_max = (task_size / 6) * 5;
  
--	return rnd << PAGE_SHIFT;
-+unsigned long arch_mmap_rnd(void)
+-	if (gap < MIN_GAP)
+-		gap = MIN_GAP;
+-	else if (gap > MAX_GAP)
+-		gap = MAX_GAP;
++	if (gap < gap_min)
++		gap = gap_min;
++	else if (gap > gap_max)
++		gap = gap_max;
+ 
+-	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
++	return PAGE_ALIGN(task_size - gap - rnd);
++}
++
++static unsigned long mmap_legacy_base(unsigned long rnd,
++				      unsigned long task_size)
 +{
-+	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
++	return __TASK_UNMAPPED_BASE(task_size) + rnd;
  }
  
- static unsigned long mmap_base(unsigned long rnd)
+ /*
+@@ -107,13 +121,13 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
+ 	if (current->flags & PF_RANDOMIZE)
+ 		random_factor = arch_mmap_rnd();
+ 
+-	mm->mmap_legacy_base = TASK_UNMAPPED_BASE + random_factor;
++	mm->mmap_legacy_base = mmap_legacy_base(random_factor, TASK_SIZE);
+ 
+ 	if (mmap_is_legacy()) {
+ 		mm->mmap_base = mm->mmap_legacy_base;
+ 		mm->get_unmapped_area = arch_get_unmapped_area;
+ 	} else {
+-		mm->mmap_base = mmap_base(random_factor);
++		mm->mmap_base = mmap_base(random_factor, TASK_SIZE);
+ 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+ 	}
+ }
 -- 
 2.11.1
 
