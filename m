@@ -1,56 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C83336B0394
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:19 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q126so208874139pga.0
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:19 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 88si19119992pla.240.2017.03.06.05.54.19
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 646D86B0395
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:54:20 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id x63so132227937pfx.7
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:54:20 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 1si19116793plp.203.2017.03.06.05.54.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 06 Mar 2017 05:54:19 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 17/33] x86/kasan: prepare clear_pgds() to switch to <asm-generic/pgtable-nop4d.h>
-Date: Mon,  6 Mar 2017 16:53:41 +0300
-Message-Id: <20170306135357.3124-18-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 20/33] x86: detect 5-level paging support
+Date: Mon,  6 Mar 2017 16:53:44 +0300
+Message-Id: <20170306135357.3124-21-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With folded p4d, pgd_clear() is nop. Change clear_pgds() to use
-p4d_clear() instead.
+5-level paging support is required from hardware when compiled with
+CONFIG_X86_5LEVEL=y. We may implement runtime switch support later.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
 ---
- arch/x86/mm/kasan_init_64.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ arch/x86/boot/cpucheck.c                 |  9 +++++++++
+ arch/x86/boot/cpuflags.c                 | 12 ++++++++++--
+ arch/x86/include/asm/disabled-features.h |  8 +++++++-
+ arch/x86/include/asm/required-features.h |  8 +++++++-
+ 4 files changed, 33 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 8d63d7a104c3..733f8ba6a01f 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -32,8 +32,15 @@ static int __init map_range(struct range *range)
- static void __init clear_pgds(unsigned long start,
- 			unsigned long end)
+diff --git a/arch/x86/boot/cpucheck.c b/arch/x86/boot/cpucheck.c
+index 4ad7d70e8739..8f0c4c9fc904 100644
+--- a/arch/x86/boot/cpucheck.c
++++ b/arch/x86/boot/cpucheck.c
+@@ -44,6 +44,15 @@ static const u32 req_flags[NCAPINTS] =
+ 	0, /* REQUIRED_MASK5 not implemented in this file */
+ 	REQUIRED_MASK6,
+ 	0, /* REQUIRED_MASK7 not implemented in this file */
++	0, /* REQUIRED_MASK8 not implemented in this file */
++	0, /* REQUIRED_MASK9 not implemented in this file */
++	0, /* REQUIRED_MASK10 not implemented in this file */
++	0, /* REQUIRED_MASK11 not implemented in this file */
++	0, /* REQUIRED_MASK12 not implemented in this file */
++	0, /* REQUIRED_MASK13 not implemented in this file */
++	0, /* REQUIRED_MASK14 not implemented in this file */
++	0, /* REQUIRED_MASK15 not implemented in this file */
++	REQUIRED_MASK16,
+ };
+ 
+ #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
+diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
+index 6687ab953257..9e77c23c2422 100644
+--- a/arch/x86/boot/cpuflags.c
++++ b/arch/x86/boot/cpuflags.c
+@@ -70,16 +70,19 @@ int has_eflag(unsigned long mask)
+ # define EBX_REG "=b"
+ #endif
+ 
+-static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
++static inline void cpuid_count(u32 id, u32 count,
++		u32 *a, u32 *b, u32 *c, u32 *d)
  {
--	for (; start < end; start += PGDIR_SIZE)
--		pgd_clear(pgd_offset_k(start));
-+	pgd_t *pgd;
-+
-+	for (; start < end; start += PGDIR_SIZE) {
-+		pgd = pgd_offset_k(start);
-+		if (CONFIG_PGTABLE_LEVELS < 5)
-+			p4d_clear(p4d_offset(pgd, start));
-+		else
-+			pgd_clear(pgd);
-+	}
+ 	asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif	\n\t"
+ 		     "cpuid					\n\t"
+ 		     ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif	\n\t"
+ 		    : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
+-		    : "a" (id)
++		    : "a" (id), "c" (count)
+ 	);
  }
  
- static void __init kasan_map_early_shadow(pgd_t *pgd)
++#define cpuid(id, a, b, c, d) cpuid_count(id, 0, a, b, c, d)
++
+ void get_cpuflags(void)
+ {
+ 	u32 max_intel_level, max_amd_level;
+@@ -108,6 +111,11 @@ void get_cpuflags(void)
+ 				cpu.model += ((tfms >> 16) & 0xf) << 4;
+ 		}
+ 
++		if (max_intel_level >= 0x00000007) {
++			cpuid_count(0x00000007, 0, &ignored, &ignored,
++					&cpu.flags[16], &ignored);
++		}
++
+ 		cpuid(0x80000000, &max_amd_level, &ignored, &ignored,
+ 		      &ignored);
+ 
+diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
+index 85599ad4d024..fc0960236fc3 100644
+--- a/arch/x86/include/asm/disabled-features.h
++++ b/arch/x86/include/asm/disabled-features.h
+@@ -36,6 +36,12 @@
+ # define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE & 31))
+ #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
+ 
++#ifdef CONFIG_X86_5LEVEL
++#define DISABLE_LA57	0
++#else
++#define DISABLE_LA57	(1<<(X86_FEATURE_LA57 & 31))
++#endif
++
+ /*
+  * Make sure to add features to the correct mask
+  */
+@@ -55,7 +61,7 @@
+ #define DISABLED_MASK13	0
+ #define DISABLED_MASK14	0
+ #define DISABLED_MASK15	0
+-#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
++#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57)
+ #define DISABLED_MASK17	0
+ #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
+ 
+diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
+index fac9a5c0abe9..d91ba04dd007 100644
+--- a/arch/x86/include/asm/required-features.h
++++ b/arch/x86/include/asm/required-features.h
+@@ -53,6 +53,12 @@
+ # define NEED_MOVBE	0
+ #endif
+ 
++#ifdef CONFIG_X86_5LEVEL
++# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
++#else
++# define NEED_LA57	0
++#endif
++
+ #ifdef CONFIG_X86_64
+ #ifdef CONFIG_PARAVIRT
+ /* Paravirtualized systems may not have PSE or PGE available */
+@@ -98,7 +104,7 @@
+ #define REQUIRED_MASK13	0
+ #define REQUIRED_MASK14	0
+ #define REQUIRED_MASK15	0
+-#define REQUIRED_MASK16	0
++#define REQUIRED_MASK16	(NEED_LA57)
+ #define REQUIRED_MASK17	0
+ #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
+ 
 -- 
 2.11.0
 
