@@ -1,67 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 364376B038B
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:33:43 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y51so64496529wry.6
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:33:43 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id t23si9716223wrc.41.2017.03.06.02.33.41
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB32F6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 05:38:25 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id y187so27848267wmy.7
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:38:25 -0800 (PST)
+Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
+        by mx.google.com with ESMTPS id r38si25980384wrb.121.2017.03.06.02.38.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 02:33:42 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id n11so12957721wma.0
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:33:41 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 9/9] bcache: use kvmalloc
-Date: Mon,  6 Mar 2017 11:33:27 +0100
-Message-Id: <20170306103327.2766-5-mhocko@kernel.org>
-In-Reply-To: <20170306103327.2766-1-mhocko@kernel.org>
-References: <20170306103032.2540-1-mhocko@kernel.org>
- <20170306103327.2766-1-mhocko@kernel.org>
+        Mon, 06 Mar 2017 02:38:24 -0800 (PST)
+Received: by mail-wr0-x242.google.com with SMTP id u108so17182481wrb.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 02:38:24 -0800 (PST)
+Date: Mon, 6 Mar 2017 11:38:20 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+Message-ID: <20170306103820.ixuvs7fd6s4tvfzy@phenom.ffwll.local>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+ <20170303100433.lm5t4hqxj6friyp6@phenom.ffwll.local>
+ <10344634.XsotFaGzfj@avalon>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <10344634.XsotFaGzfj@avalon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Kent Overstreet <kent.overstreet@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Cc: dri-devel@lists.freedesktop.org, Daniel Vetter <daniel@ffwll.ch>, Laura Abbott <labbott@redhat.com>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Fri, Mar 03, 2017 at 06:45:40PM +0200, Laurent Pinchart wrote:
+> - I haven't seen any proposal how a heap-based solution could be used in a 
+> generic distribution. This needs to be figured out before committing to any 
+> API/ABI.
 
-bcache_device_init uses kmalloc for small requests and vmalloc for those
-which are larger than 64 pages. This alone is a strange criterion.
-Moreover kmalloc can fallback to vmalloc on the failure. Let's simply
-use kvmalloc instead as it knows how to handle the fallback properly
+Two replies from my side:
 
-Cc: Kent Overstreet <kent.overstreet@gmail.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/md/bcache/super.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+- Just because a patch doesn't solve world hunger isn't really a good
+  reason to reject it.
 
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index 85e3f21c2514..e57353e39168 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -767,16 +767,12 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
- 	}
- 
- 	n = d->nr_stripes * sizeof(atomic_t);
--	d->stripe_sectors_dirty = n < PAGE_SIZE << 6
--		? kzalloc(n, GFP_KERNEL)
--		: vzalloc(n);
-+	d->stripe_sectors_dirty = kvzalloc(n, GFP_KERNEL);
- 	if (!d->stripe_sectors_dirty)
- 		return -ENOMEM;
- 
- 	n = BITS_TO_LONGS(d->nr_stripes) * sizeof(unsigned long);
--	d->full_dirty_stripes = n < PAGE_SIZE << 6
--		? kzalloc(n, GFP_KERNEL)
--		: vzalloc(n);
-+	d->full_dirty_stripes = kvzalloc(n, GFP_KERNEL);
- 	if (!d->full_dirty_stripes)
- 		return -ENOMEM;
- 
+- Heap doesn't mean its not resizeable (but I'm not sure that's really
+  your concern).
+
+- Imo ION is very much part of the picture here to solve this for real. We
+  need to bits:
+
+  * Be able to allocate memory from specific pools, not going through a
+    specific driver. ION gives us that interface. This is e.g. also needed
+    for "special" memory, like SMA tries to expose.
+
+  * Some way to figure out how&where to allocate the buffer object. This
+    is purely a userspace problem, and this is the part the unix memory
+    allocator tries to solve. There's no plans in there for big kernel
+    changes, instead userspace does a dance to reconcile all the
+    constraints, and one of the constraints might be "you have to allocate
+    this from this special ION heap". The only thing the kernel needs to
+    expose is which devices use which ION heaps (we kinda do that
+    already), and maybe some hints of how they can be generalized (but I
+    guess stuff like "minimal pagesize of x KB" is also fulfilled by any
+    CMA heap is knowledge userspace needs).
+
+Again I think waiting for this to be fully implemented before we merge any
+part is going to just kill any upstreaming efforts. ION in itself, without
+the full buffer negotiation dance seems clearly useful (also for stuff
+like SMA), and having it merged will help with moving the buffer
+allocation dance forward.
+-Daniel
 -- 
-2.11.0
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
