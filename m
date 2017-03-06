@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A7FA6B0393
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:00:22 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u9so27254072wme.6
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:00:22 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 461506B0395
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:00:23 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id y187so30246411wmy.7
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:00:23 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e27sor81892wra.15.1969.12.31.16.00.00
+        by mx.google.com with SMTPS id x81sor32934wmx.25.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Mar 2017 08:00:21 -0800 (PST)
+        Mon, 06 Mar 2017 08:00:22 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 7/9] kasan: print page description after stacks
-Date: Mon,  6 Mar 2017 17:00:07 +0100
-Message-Id: <421a0075dee347435a0ed1457126bc3bd0f1b3af.1488815789.git.andreyknvl@google.com>
+Subject: [PATCH v3 1/9] kasan: introduce helper functions for determining bug type
+Date: Mon,  6 Mar 2017 17:00:01 +0100
+Message-Id: <1f1fa8b358f8bb24bc80d585c654a7b2b33b318b.1488815789.git.andreyknvl@google.com>
 In-Reply-To: <cover.1488815789.git.andreyknvl@google.com>
 References: <cover.1488815789.git.andreyknvl@google.com>
 In-Reply-To: <cover.1488815789.git.andreyknvl@google.com>
@@ -22,45 +22,84 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrey Konovalov <andreyknvl@google.com>
 
-Moves page description after the stacks since it's less important.
+Introduce get_shadow_bug_type() function, which determines bug type
+based on the shadow value for a particular kernel address.
+Introduce get_wild_bug_type() function, which determines bug type
+for addresses which don't have a corresponding shadow value.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/report.c | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ mm/kasan/report.c | 40 ++++++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 10 deletions(-)
 
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 87f8293d7b79..09a5f5b4bc79 100644
+index f479365530b6..e3af37b7a74c 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -255,9 +255,6 @@ static void print_address_description(struct kasan_access_info *info)
- 	void *addr = (void *)info->access_addr;
- 	struct page *page = addr_to_page(addr);
- 
--	if (page)
--		dump_page(page, "kasan: bad access detected");
--
- 	dump_stack();
- 
- 	if (page && PageSlab(page)) {
-@@ -267,9 +264,14 @@ static void print_address_description(struct kasan_access_info *info)
- 		describe_object(cache, object, addr);
- 	}
- 
--	if (kernel_or_module_addr(addr)) {
--		if (!init_task_stack_addr(addr))
--			pr_err("Address belongs to variable %pS\n", addr);
-+	if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
-+		pr_err("The buggy address belongs to the variable:\n");
-+		pr_err(" %pS\n", addr);
-+	}
-+
-+	if (page) {
-+		pr_err("The buggy address belongs to the page:\n");
-+		dump_page(page, "kasan: bad access detected");
- 	}
+@@ -49,7 +49,13 @@ static const void *find_first_bad_addr(const void *addr, size_t size)
+ 	return first_bad_addr;
  }
  
+-static void print_error_description(struct kasan_access_info *info)
++static bool addr_has_shadow(struct kasan_access_info *info)
++{
++	return (info->access_addr >=
++		kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
++}
++
++static const char *get_shadow_bug_type(struct kasan_access_info *info)
+ {
+ 	const char *bug_type = "unknown-crash";
+ 	u8 *shadow_addr;
+@@ -96,6 +102,27 @@ static void print_error_description(struct kasan_access_info *info)
+ 		break;
+ 	}
+ 
++	return bug_type;
++}
++
++static const char *get_wild_bug_type(struct kasan_access_info *info)
++{
++	const char *bug_type;
++
++	if ((unsigned long)info->access_addr < PAGE_SIZE)
++		bug_type = "null-ptr-deref";
++	else if ((unsigned long)info->access_addr < TASK_SIZE)
++		bug_type = "user-memory-access";
++	else
++		bug_type = "wild-memory-access";
++
++	return bug_type;
++}
++
++static void print_error_description(struct kasan_access_info *info)
++{
++	const char *bug_type = get_shadow_bug_type(info);
++
+ 	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+ 		bug_type, (void *)info->ip,
+ 		info->access_addr);
+@@ -265,18 +292,11 @@ static void print_shadow_for_address(const void *addr)
+ static void kasan_report_error(struct kasan_access_info *info)
+ {
+ 	unsigned long flags;
+-	const char *bug_type;
+ 
+ 	kasan_start_report(&flags);
+ 
+-	if (info->access_addr <
+-			kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) {
+-		if ((unsigned long)info->access_addr < PAGE_SIZE)
+-			bug_type = "null-ptr-deref";
+-		else if ((unsigned long)info->access_addr < TASK_SIZE)
+-			bug_type = "user-memory-access";
+-		else
+-			bug_type = "wild-memory-access";
++	if (!addr_has_shadow(info)) {
++		const char *bug_type = get_wild_bug_type(info);
+ 		pr_err("BUG: KASAN: %s on address %p\n",
+ 			bug_type, info->access_addr);
+ 		pr_err("%s of size %zu by task %s/%d\n",
 -- 
 2.12.0.rc1.440.g5b76565f74-goog
 
