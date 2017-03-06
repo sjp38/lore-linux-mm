@@ -1,76 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1466B0038
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:43:18 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id u108so53121426wrb.3
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:43:18 -0800 (PST)
-Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [185.26.127.97])
-        by mx.google.com with ESMTPS id i79si14686822wme.61.2017.03.06.05.43.17
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 84C9D6B0038
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 08:45:48 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id t193so29114332wmt.4
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 05:45:48 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p11sor31298wmf.24.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 05:43:17 -0800 (PST)
-From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: [RFC PATCH 10/12] staging: android: ion: Use CMA APIs directly
-Date: Mon, 06 Mar 2017 15:43:53 +0200
-Message-ID: <6709093.jyTQHIiK7d@avalon>
-In-Reply-To: <20170306103204.d3yf6woxpsqvdakp@phenom.ffwll.local>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com> <0541f57b-4060-ea10-7173-26ae77777518@redhat.com> <20170306103204.d3yf6woxpsqvdakp@phenom.ffwll.local>
+        (Google Transport Security);
+        Mon, 06 Mar 2017 05:45:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
+References: <20170302134851.101218-1-andreyknvl@google.com>
+ <20170302134851.101218-7-andreyknvl@google.com> <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
+ <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com> <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 6 Mar 2017 14:45:46 +0100
+Message-ID: <CAAeHK+xnHx5fvhq158+oxMxieG7a+gG7i0MQS92DqxYGe0O=Ww@mail.gmail.com>
+Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: Laura Abbott <labbott@redhat.com>, dri-devel@lists.freedesktop.org, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Daniel,
+On Fri, Mar 3, 2017 at 3:39 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 03/03/2017 04:52 PM, Alexander Potapenko wrote:
+>> On Fri, Mar 3, 2017 at 2:31 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>> On 03/02/2017 04:48 PM, Andrey Konovalov wrote:
+>>>> Changes slab object description from:
+>>>>
+>>>> Object at ffff880068388540, in cache kmalloc-128 size: 128
+>>>>
+>>>> to:
+>>>>
+>>>> The buggy address belongs to the object at ffff880068388540
+>>>>  which belongs to the cache kmalloc-128 of size 128
+>>>> The buggy address is located 123 bytes inside of
+>>>>  128-byte region [ffff880068388540, ffff8800683885c0)
+>>>>
+>>>> Makes it more explanatory and adds information about relative offset
+>>>> of the accessed address to the start of the object.
+>>>>
+>>>
+>>> I don't think that this is an improvement. You replaced one simple line with a huge
+>>> and hard to parse text without giving any new/useful information.
+>>> Except maybe offset, it useful sometimes, so wouldn't mind adding it to description.
+>> Agreed.
+>> How about:
+>> ===========
+>> Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
+>> Object at ffff880068388540 belongs to the cache kmalloc-128
+>> ===========
+>> ?
+>>
+>
+> I would just add the offset in the end:
+>         Object at ffff880068388540, in cache kmalloc-128 size: 128 accessed at offset y
 
-On Monday 06 Mar 2017 11:32:04 Daniel Vetter wrote:
-> On Fri, Mar 03, 2017 at 10:50:20AM -0800, Laura Abbott wrote:
-> > On 03/03/2017 08:41 AM, Laurent Pinchart wrote:
-> >> On Thursday 02 Mar 2017 13:44:42 Laura Abbott wrote:
-> >>> When CMA was first introduced, its primary use was for DMA allocation
-> >>> and the only way to get CMA memory was to call dma_alloc_coherent. This
-> >>> put Ion in an awkward position since there was no device structure
-> >>> readily available and setting one up messed up the coherency model.
-> >>> These days, CMA can be allocated directly from the APIs. Switch to
-> >>> using this model to avoid needing a dummy device. This also avoids
-> >>> awkward caching questions.
-> >> 
-> >> If the DMA mapping API isn't suitable for today's requirements anymore,
-> >> I believe that's what needs to be fixed, instead of working around the
-> >> problem by introducing another use-case-specific API.
-> > 
-> > I don't think this is a usecase specific API. CMA has been decoupled from
-> > DMA already because it's used in other places. The trying to go through
-> > DMA was just another layer of abstraction, especially since there isn't
-> > a device available for allocation.
-> 
-> Also, we've had separation of allocation and dma-mapping since forever,
-> that's how it works almost everywhere. Not exactly sure why/how arm-soc
-> ecosystem ended up focused so much on dma_alloc_coherent.
+Access can be inside or outside the object, so it's better to
+specifically say that.
 
-I believe because that was the easy way to specify memory constraints. The API 
-receives a device pointer and will allocate memory suitable for DMA for that 
-device. The fact that it maps it to the device is a side-effect in my opinion.
+I think we can do (basically what Alexander suggested):
 
-> I think separating allocation from dma mapping/coherency is perfectly
-> fine, and the way to go.
+Object at ffff880068388540 belongs to the cache kmalloc-128 of size 128
+Access 123 bytes inside of 128-byte region [ffff880068388540, ffff8800683885c0)
 
-Especially given that in many cases we'll want to share buffers between 
-multiple devices, so we'll need to map them multiple times.
-
-My point still stands though, if we want to move towards a model where 
-allocation and mapping are decoupled, we need an allocation function that 
-takes constraints (possibly implemented with two layers, a constraint 
-resolution layer on top of a pool/heap/type/foo-based allocator), and a 
-mapping API. IOMMU handling being integrated in the DMA mapping API we're 
-currently stuck with it, which might call for brushing up that API.
-
--- 
-Regards,
-
-Laurent Pinchart
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
