@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BCB56B0396
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8D96B0398
 	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 11:00:24 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id u48so66630132wrc.0
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:00:23 -0800 (PST)
+Received: by mail-wm0-f69.google.com with SMTP id b140so16483844wme.3
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 08:00:24 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m203sor34804wma.15.1969.12.31.16.00.00
+        by mx.google.com with SMTPS id 62sor85060wrm.22.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Mar 2017 08:00:22 -0800 (PST)
+        Mon, 06 Mar 2017 08:00:23 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 3/9] kasan: change allocation and freeing stack traces headers
-Date: Mon,  6 Mar 2017 17:00:03 +0100
-Message-Id: <3d146fe40a08bbfad9b44306163bede9bc8531b9.1488815789.git.andreyknvl@google.com>
+Subject: [PATCH v3 2/9] kasan: unify report headers
+Date: Mon,  6 Mar 2017 17:00:02 +0100
+Message-Id: <37dfb2aed479ead0fba6b8795b4da89269d2c251.1488815789.git.andreyknvl@google.com>
 In-Reply-To: <cover.1488815789.git.andreyknvl@google.com>
 References: <cover.1488815789.git.andreyknvl@google.com>
 In-Reply-To: <cover.1488815789.git.andreyknvl@google.com>
@@ -22,51 +22,66 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrey Konovalov <andreyknvl@google.com>
 
-Change stack traces headers from:
-
-Allocated:
-PID = 42
-
-to:
-
-Allocated by task 42:
-
-Makes the report one line shorter and look better.
+Unify KASAN report header format for different kinds of bad memory
+accesses. Makes the code simpler.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/report.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ mm/kasan/report.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
 
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index fc0577d15671..382d4d2b9052 100644
+index e3af37b7a74c..fc0577d15671 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -175,9 +175,9 @@ static void kasan_end_report(unsigned long *flags)
- 	kasan_enable_current();
+@@ -119,16 +119,22 @@ static const char *get_wild_bug_type(struct kasan_access_info *info)
+ 	return bug_type;
  }
  
--static void print_track(struct kasan_track *track)
-+static void print_track(struct kasan_track *track, const char *prefix)
++static const char *get_bug_type(struct kasan_access_info *info)
++{
++	if (addr_has_shadow(info))
++		return get_shadow_bug_type(info);
++	return get_wild_bug_type(info);
++}
++
+ static void print_error_description(struct kasan_access_info *info)
  {
--	pr_err("PID = %u\n", track->pid);
-+	pr_err("%s by task %u:\n", prefix, track->pid);
- 	if (track->stack) {
- 		struct stack_trace trace;
+-	const char *bug_type = get_shadow_bug_type(info);
++	const char *bug_type = get_bug_type(info);
  
-@@ -199,10 +199,8 @@ static void kasan_object_err(struct kmem_cache *cache, void *object)
- 	if (!(cache->flags & SLAB_KASAN))
- 		return;
- 
--	pr_err("Allocated:\n");
--	print_track(&alloc_info->alloc_track);
--	pr_err("Freed:\n");
--	print_track(&alloc_info->free_track);
-+	print_track(&alloc_info->alloc_track, "Allocated");
-+	print_track(&alloc_info->free_track, "Freed");
+ 	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+-		bug_type, (void *)info->ip,
+-		info->access_addr);
++		bug_type, (void *)info->ip, info->access_addr);
+ 	pr_err("%s of size %zu by task %s/%d\n",
+-		info->is_write ? "Write" : "Read",
+-		info->access_size, current->comm, task_pid_nr(current));
++		info->is_write ? "Write" : "Read", info->access_size,
++		current->comm, task_pid_nr(current));
  }
  
- void kasan_report_double_free(struct kmem_cache *cache, void *object,
+ static inline bool kernel_or_module_addr(const void *addr)
+@@ -295,17 +301,11 @@ static void kasan_report_error(struct kasan_access_info *info)
+ 
+ 	kasan_start_report(&flags);
+ 
++	print_error_description(info);
++
+ 	if (!addr_has_shadow(info)) {
+-		const char *bug_type = get_wild_bug_type(info);
+-		pr_err("BUG: KASAN: %s on address %p\n",
+-			bug_type, info->access_addr);
+-		pr_err("%s of size %zu by task %s/%d\n",
+-			info->is_write ? "Write" : "Read",
+-			info->access_size, current->comm,
+-			task_pid_nr(current));
+ 		dump_stack();
+ 	} else {
+-		print_error_description(info);
+ 		print_address_description(info);
+ 		print_shadow_for_address(info->first_bad_addr);
+ 	}
 -- 
 2.12.0.rc1.440.g5b76565f74-goog
 
