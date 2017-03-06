@@ -1,125 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BDBF6B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:20:26 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id n141so129111767qke.1
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:20:26 -0800 (PST)
-Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com. [209.85.220.179])
-        by mx.google.com with ESMTPS id u46si12345517qtu.318.2017.03.06.11.20.25
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 095306B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 14:21:55 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id g138so73752315itb.4
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:21:55 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q93sor8114762ioi.40.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 11:20:25 -0800 (PST)
-Received: by mail-qk0-f179.google.com with SMTP id p64so51926324qke.1
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 11:20:25 -0800 (PST)
-Subject: Re: [RFC PATCH 06/12] staging: android: ion: Remove crufty cache
- support
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <1488491084-17252-7-git-send-email-labbott@redhat.com>
- <20170303095654.zbcqkcojo3vf6y4y@phenom.ffwll.local>
- <2273106.Hjr80nPvcZ@avalon> <87fe5d0a-19d2-b6c7-391f-687aa5ff8571@redhat.com>
- <20170306102959.5iixtstrl7ktwxdp@phenom.ffwll.local>
- <CACvgo52Q-HvChU7_q65GFqOaVY7Z7EaDoRfELup0D_N_ge9poQ@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <aa4a0307-62d0-7aed-80bc-bc569d49ffcd@redhat.com>
-Date: Mon, 6 Mar 2017 11:20:20 -0800
-MIME-Version: 1.0
-In-Reply-To: <CACvgo52Q-HvChU7_q65GFqOaVY7Z7EaDoRfELup0D_N_ge9poQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 06 Mar 2017 11:21:54 -0800 (PST)
+From: Tahsin Erdogan <tahsin@google.com>
+Subject: [PATCH v2] mm: do not call mem_cgroup_free() from within mem_cgroup_alloc()
+Date: Mon,  6 Mar 2017 11:21:22 -0800
+Message-Id: <20170306192122.24262-1-tahsin@google.com>
+In-Reply-To: <20170306135947.GF27953@dhcp22.suse.cz>
+References: <20170306135947.GF27953@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Emil Velikov <emil.l.velikov@gmail.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, ML dri-devel <dri-devel@lists.freedesktop.org>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, "Linux-Kernel@Vger. Kernel. Org" <linux-kernel@vger.kernel.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Mark Brown <broonie@kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, LAKML <linux-arm-kernel@lists.infradead.org>, linux-media@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tahsin Erdogan <tahsin@google.com>
 
-On 03/06/2017 09:00 AM, Emil Velikov wrote:
-> On 6 March 2017 at 10:29, Daniel Vetter <daniel@ffwll.ch> wrote:
->> On Fri, Mar 03, 2017 at 10:46:03AM -0800, Laura Abbott wrote:
->>> On 03/03/2017 08:39 AM, Laurent Pinchart wrote:
->>>> Hi Daniel,
->>>>
->>>> On Friday 03 Mar 2017 10:56:54 Daniel Vetter wrote:
->>>>> On Thu, Mar 02, 2017 at 01:44:38PM -0800, Laura Abbott wrote:
->>>>>> Now that we call dma_map in the dma_buf API callbacks there is no need
->>>>>> to use the existing cache APIs. Remove the sync ioctl and the existing
->>>>>> bad dma_sync calls. Explicit caching can be handled with the dma_buf
->>>>>> sync API.
->>>>>>
->>>>>> Signed-off-by: Laura Abbott <labbott@redhat.com>
->>>>>> ---
->>>>>>
->>>>>>  drivers/staging/android/ion/ion-ioctl.c         |  5 ----
->>>>>>  drivers/staging/android/ion/ion.c               | 40 --------------------
->>>>>>  drivers/staging/android/ion/ion_carveout_heap.c |  6 ----
->>>>>>  drivers/staging/android/ion/ion_chunk_heap.c    |  6 ----
->>>>>>  drivers/staging/android/ion/ion_page_pool.c     |  3 --
->>>>>>  drivers/staging/android/ion/ion_system_heap.c   |  5 ----
->>>>>>  6 files changed, 65 deletions(-)
->>>>>>
->>>>>> diff --git a/drivers/staging/android/ion/ion-ioctl.c
->>>>>> b/drivers/staging/android/ion/ion-ioctl.c index 5b2e93f..f820d77 100644
->>>>>> --- a/drivers/staging/android/ion/ion-ioctl.c
->>>>>> +++ b/drivers/staging/android/ion/ion-ioctl.c
->>>>>> @@ -146,11 +146,6 @@ long ion_ioctl(struct file *filp, unsigned int cmd,
->>>>>> unsigned long arg)>
->>>>>>                   data.handle.handle = handle->id;
->>>>>>
->>>>>>           break;
->>>>>>
->>>>>>   }
->>>>>>
->>>>>> - case ION_IOC_SYNC:
->>>>>> - {
->>>>>> -         ret = ion_sync_for_device(client, data.fd.fd);
->>>>>> -         break;
->>>>>> - }
->>>>>
->>>>> You missed the case ION_IOC_SYNC: in compat_ion.c.
->>>>>
->>>>> While at it: Should we also remove the entire custom_ioctl infrastructure?
->>>>> It's entirely unused afaict, and for a pure buffer allocator I don't see
->>>>> any need to have custom ioctl.
->>>>
->>>> I second that, if you want to make ion a standard API, then we certainly don't
->>>> want any custom ioctl.
->>>>
->>>>> More code to remove potentially:
->>>>> - The entire compat ioctl stuff - would be an abi break, but I guess if we
->>>>>   pick the 32bit abi and clean up the uapi headers we'll be mostly fine.
->>>>>   would allow us to remove compat_ion.c entirely.
->>>>>
->>>>> - ION_IOC_IMPORT: With this ion is purely an allocator, so not sure we
->>>>>   still need to be able to import anything. All the cache flushing/mapping
->>>>>   is done through dma-buf ops/ioctls.
->>>>>
->>>>>
->>>
->>> Good point to all of the above. I was considering keeping the import around
->>> for backwards compatibility reasons but given how much other stuff is being
->>> potentially broken, everything should just get ripped out.
->>
->> If you're ok with breaking the world, then I strongly suggest we go
->> through the uapi header and replace all types with the standard
->> fixed-width ones (__s32, __s64 and __u32, __u64). Allows us to remove all
->> the compat ioctl code :-)
-> 
-> I think the other comments from your "botching-up ioctls" [1] also apply ;-)
-> Namely - align structs to multiple of 64bit, add "flags" and properly
-> verity user input returning -EINVAL.
-> 
-> -Emil
-> 
-> [1] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/ioctl/botching-up-ioctls.txt
+mem_cgroup_free() indirectly calls wb_domain_exit() which is not
+prepared to deal with a struct wb_domain object that hasn't executed
+wb_domain_init(). For instance, the following warning message is
+printed by lockdep if alloc_percpu() fails in mem_cgroup_alloc():
 
-I'm more torn on this. There's a difference between dropping an old
-ioctl/implicit caching vs. changing an actual ioctl ABI.
-Maybe having obvious breakage is better than subtle though,
-plus nobody has come begging me not to break the ABI yet.
-I might leave this for right before we do the actual move
-out of staging.
+  INFO: trying to register non-static key.
+  the code is fine but needs lockdep annotation.
+  turning off the locking correctness validator.
+  CPU: 1 PID: 1950 Comm: mkdir Not tainted 4.10.0+ #151
+  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+  Call Trace:
+   dump_stack+0x67/0x99
+   register_lock_class+0x36d/0x540
+   __lock_acquire+0x7f/0x1a30
+   ? irq_work_queue+0x73/0x90
+   ? wake_up_klogd+0x36/0x40
+   ? console_unlock+0x45d/0x540
+   ? vprintk_emit+0x211/0x2e0
+   lock_acquire+0xcc/0x200
+   ? try_to_del_timer_sync+0x60/0x60
+   del_timer_sync+0x3c/0xc0
+   ? try_to_del_timer_sync+0x60/0x60
+   wb_domain_exit+0x14/0x20
+   mem_cgroup_free+0x14/0x40
+   mem_cgroup_css_alloc+0x3f9/0x620
+   cgroup_apply_control_enable+0x190/0x390
+   cgroup_mkdir+0x290/0x3d0
+   kernfs_iop_mkdir+0x58/0x80
+   vfs_mkdir+0x10e/0x1a0
+   SyS_mkdirat+0xa8/0xd0
+   SyS_mkdir+0x14/0x20
+   entry_SYSCALL_64_fastpath+0x18/0xad
 
-Thanks,
-Laura
+Add __mem_cgroup_free() which skips wb_domain_exit(). This is
+used by both mem_cgroup_free() and mem_cgroup_alloc() clean up.
 
+Fixes: 0b8f73e104285 ("mm: memcontrol: clean up alloc, online, offline, free functions")
+Signed-off-by: Tahsin Erdogan <tahsin@google.com>
+---
+v2:
+  Added __mem_cgroup_free()
+
+ mm/memcontrol.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c52ec893e241..e7d900c5f2d0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4135,17 +4135,22 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+ 	kfree(memcg->nodeinfo[node]);
+ }
  
+-static void mem_cgroup_free(struct mem_cgroup *memcg)
++static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ {
+ 	int node;
+ 
+-	memcg_wb_domain_exit(memcg);
+ 	for_each_node(node)
+ 		free_mem_cgroup_per_node_info(memcg, node);
+ 	free_percpu(memcg->stat);
+ 	kfree(memcg);
+ }
+ 
++static void mem_cgroup_free(struct mem_cgroup *memcg)
++{
++	memcg_wb_domain_exit(memcg);
++	__mem_cgroup_free(memcg);
++}
++
+ static struct mem_cgroup *mem_cgroup_alloc(void)
+ {
+ 	struct mem_cgroup *memcg;
+@@ -4196,7 +4201,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+ fail:
+ 	if (memcg->id.id > 0)
+ 		idr_remove(&mem_cgroup_idr, memcg->id.id);
+-	mem_cgroup_free(memcg);
++	__mem_cgroup_free(memcg);
+ 	return NULL;
+ }
+ 
+-- 
+2.12.0.rc1.440.g5b76565f74-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
