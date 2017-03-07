@@ -1,95 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A6D8C6B0388
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 14:52:45 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id f191so19533093qka.7
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 11:52:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 30si916878qth.198.2017.03.07.11.52.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 11:52:40 -0800 (PST)
-Message-ID: <1488916356.6405.4.camel@redhat.com>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-From: Rik van Riel <riel@redhat.com>
-Date: Tue, 07 Mar 2017 14:52:36 -0500
-In-Reply-To: <20170307133057.26182-1-mhocko@kernel.org>
-References: <20170307133057.26182-1-mhocko@kernel.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-VK4R86LtK6PJs5B0tUAu"
-Mime-Version: 1.0
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B349F6B0388
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 16:21:37 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y17so23929496pgh.2
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 13:21:37 -0800 (PST)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id q10si1106145plk.101.2017.03.07.13.21.35
+        for <linux-mm@kvack.org>;
+        Tue, 07 Mar 2017 13:21:36 -0800 (PST)
+Date: Wed, 8 Mar 2017 08:21:32 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
+Message-ID: <20170307212132.GQ17542@dastard>
+References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
+ <20170303133950.GD31582@dhcp22.suse.cz>
+ <20170303232512.GI17542@dastard>
+ <20170307121503.GJ28642@dhcp22.suse.cz>
+ <20170307193659.GD31179@htj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307193659.GD31179@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
+On Tue, Mar 07, 2017 at 02:36:59PM -0500, Tejun Heo wrote:
+> Hello,
+> 
+> On Tue, Mar 07, 2017 at 01:15:04PM +0100, Michal Hocko wrote:
+> > > The real problem here is that the XFS code has /no idea/ of what
+> > > workqueue context it is operating in - the fact it is in a rescuer
+> 
+> I don't see how whether something is running off of a rescuer or not
+> matters here.  The only thing workqueue guarantees is that there's
+> gonna be at least one kworker thread executing work items from the
+> workqueue.  Running on a rescuer doesn't necessarily indicate memory
+> pressure condition.
 
---=-VK4R86LtK6PJs5B0tUAu
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+That's news to me. In what situations do we run the rescuer thread
+other than memory allocation failure when queuing work?
 
-On Tue, 2017-03-07 at 14:30 +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->=20
-> Tetsuo Handa has reported [1][2] that direct reclaimers might get
-> stuck
-> in too_many_isolated loop basically for ever because the last few
-> pages
-> on the LRU lists are isolated by the kswapd which is stuck on fs
-> locks
-> when doing the pageout or slab reclaim. This in turn means that there
-> is
-> nobody to actually trigger the oom killer and the system is basically
-> unusable.
->=20
-> too_many_isolated has been introduced by 35cd78156c49 ("vmscan:
-> throttle
-> direct reclaim when too many pages are isolated already") to prevent
-> from pre-mature oom killer invocations because back then no reclaim
-> progress could indeed trigger the OOM killer too early. But since the
-> oom detection rework 0a0337e0d1d1 ("mm, oom: rework oom detection")
-> the allocation/reclaim retry loop considers all the reclaimable pages
-> and throttles the allocation at that layer so we can loosen the
-> direct
-> reclaim throttling.
+> > > thread is completely hidden from the executing context. It seems to
+> > > me that the workqueue infrastructure's responsibility to tell memory
+> > > reclaim that the rescuer thread needs special access to the memory
+> > > reserves to allow the work it is running to allow forwards progress
+> > > to be made. i.e.  setting PF_MEMALLOC on the rescuer thread or
+> > > something similar...
+> >
+> > I am not sure an automatic access to memory reserves from the rescuer
+> > context is safe. This sounds too easy to break (read consume all the
+> > reserves) - note that we have almost 200 users of WQ_MEM_RECLAIM and
+> > chances are some of them will not be careful with the memory
+> > allocations. I agree it would be helpful to know that the current item
+> > runs from the rescuer context, though. In such a case the implementation
+> > can do what ever it takes to make a forward progress. If that is using
+> > __GFP_MEMALLOC then be it but it would be at least explicit and well
+> > thought through (I hope).
+> 
+> I don't think doing this automatically is a good idea.  xfs work items
+> are free to mark itself PF_MEMALLOC while running tho.
 
-It only does this to some extent. =C2=A0If reclaim made
-no progress, for example due to immediately bailing
-out because the number of already isolated pages is
-too high (due to many parallel reclaimers), the code
-could hit the "no_progress_loops > MAX_RECLAIM_RETRIES"
-test without ever looking at the number of reclaimable
-pages.
+I don't think that's a good idea to do unconditionally.It's quite
+common to have IO intensive XFS workloads queue so much work that we
+see several /thousand/ kworker threads running at once, even
+on realtively small 16p systems.
 
-Could that create problems if we have many concurrent
-reclaimers?
+> It makes sense
+> to mark these cases explicitly anyway. 
 
-It may be OK, I just do not understand all the implications.
+Doing it on every work we queue will lead to immediate depletion of
+memory reserves under heavy IO loads.
 
-I like the general direction your patch takes the code in,
-but I would like to understand it better...
+> W  can update workqueue code
+> so that it automatically clears the flag after each work item
+> completion to help.
+> 
+> > Tejun, would it be possible/reasonable to add current_is_wq_rescuer() API?
+> 
+> It's implementable for sure.  I'm just not sure how it'd help
+> anything.  It's not a relevant information on anything.
 
---=20
-All rights reversed
+Except to enable us to get closer to the "rescuer must make forwards
+progress" guarantee. In this context, the rescuer is the only
+context we should allow to dip into memory reserves. I'm happy if we
+have to explicitly check for that and set PF_MEMALLOC ourselves 
+(we do that for XFS kernel threads involved in memory reclaim),
+but it's not something we should set automatically on every
+IO completion work item we run....
 
---=-VK4R86LtK6PJs5B0tUAu
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
+Cheers,
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJYvw+FAAoJEM553pKExN6DgGcH+gKB8lybd0g8awJexA3cBeaZ
-WLFj/xAIyBVvZwKiSkSPj0wOLOUZkWHI7vw4rO8Uu2AjEhgXB1yAz0No5dSYzECm
-zgTxzdA1ONzxhGK1iA0g7uefvGBDRESOxU6z50VwkKfkBgWcHk0h0nVj9/FhyBfK
-be0/hSAXDDh4GxdV7uR/+hc0Qj6U9ORyHUxgf9Evxh7UozQ0K7jDRaclgTB8Ilu7
-t5FPRKBTz3k1zQEqLUQWp58V+kIuHRu2mnq64qD6r58AXeVZ14cnli/B0qRRLHSo
-evY1kmUr8S1LwvqvJGmD8Mr0KoaQoN1wGCyWAt+SvDjpAgx0ZB2Pnp/oyr2fCBE=
-=/ugz
------END PGP SIGNATURE-----
-
---=-VK4R86LtK6PJs5B0tUAu--
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
