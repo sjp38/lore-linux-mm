@@ -1,81 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6C26B038E
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 12:05:33 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id 14so9039505itw.3
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 09:05:33 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id p5si1006565iod.111.2017.03.07.09.05.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 09:05:32 -0800 (PST)
-Date: Tue, 7 Mar 2017 09:05:19 -0800
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [RFC PATCH 3/4] xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
-Message-ID: <20170307170519.GE5281@birch.djwong.org>
-References: <20170307154843.32516-1-mhocko@kernel.org>
- <20170307154843.32516-4-mhocko@kernel.org>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D2496B0389
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 12:43:01 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id h89so5817187lfi.6
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 09:43:01 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id n36si267325lfi.293.2017.03.07.09.42.59
+        for <linux-mm@kvack.org>;
+        Tue, 07 Mar 2017 09:42:59 -0800 (PST)
+Date: Tue, 7 Mar 2017 18:42:51 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v4 28/28] x86: Add support to make use of Secure
+ Memory Encryption
+Message-ID: <20170307174251.qrg4kgi34anuxd33@pd.tnic>
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154825.19244.32545.stgit@tlendack-t1.amdoffice.net>
+ <20170301184055.gl3iic3gir6zzb23@pd.tnic>
+ <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170307154843.32516-4-mhocko@kernel.org>
+In-Reply-To: <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue, Mar 07, 2017 at 04:48:42PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
-> so it relied on the default page allocator behavior for the given set
-> of flags. This means that small allocations actually never failed.
-> 
-> Now that we have __GFP_RETRY_MAYFAIL flag which works independently on the
-> allocation request size we can map KM_MAYFAIL to it. The allocator will
-> try as hard as it can to fulfill the request but fails eventually if
-> the progress cannot be made.
-> 
-> Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  fs/xfs/kmem.h | 10 ++++++++++
->  1 file changed, 10 insertions(+)
-> 
-> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-> index ae08cfd9552a..ac80a4855c83 100644
-> --- a/fs/xfs/kmem.h
-> +++ b/fs/xfs/kmem.h
-> @@ -54,6 +54,16 @@ kmem_flags_convert(xfs_km_flags_t flags)
->  			lflags &= ~__GFP_FS;
->  	}
->  
-> +	/*
-> +	 * Default page/slab allocator behavior is to retry for ever
-> +	 * for small allocations. We can override this behavior by using
-> +	 * __GFP_RETRY_MAYFAIL which will tell the allocator to retry as long
-> +	 * as it is feasible but rather fail than retry for ever for all
+On Tue, Mar 07, 2017 at 10:05:00AM -0600, Tom Lendacky wrote:
+> I can do that.  Because phys_base hasn't been updated yet, I'll have to
+> create "on" and "off" constants and get their address in a similar way
+> to the command line option so that I can do the strncmp properly.
 
-s/for ever/forever/
+Actually, wouldn't it be simpler to inspect the passed in buffer for
+containing the chars 'o', 'n' - in that order, or 'o', 'f', 'f' - in
+that order too? Because __cmdline_find_option() does copy the option
+characters into the buffer.
 
-> +	 * request sizes.
-> +	 */
-> +	if (flags & KM_MAYFAIL)
-> +		lflags |= __GFP_RETRY_MAYFAIL;
+Then you wouldn't need those "on" and "off" constants...
 
-But otherwise seems ok from a quick grep -B5 MAYFAIL through the XFS code.
+-- 
+Regards/Gruss,
+    Boris.
 
-(Has this been tested anywhere?)
-
---D
-
-> +
->  	if (flags & KM_ZERO)
->  		lflags |= __GFP_ZERO;
->  
-> -- 
-> 2.11.0
-> 
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
