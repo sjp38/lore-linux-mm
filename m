@@ -1,177 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B05E36B0391
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:16:30 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id u9so1223114wme.6
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:16:30 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v110si25435761wrb.289.2017.03.07.05.16.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ABDAA6B0398
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:18:02 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id h188so1242195wma.4
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:18:02 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id i124si18834870wma.144.2017.03.07.05.18.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 05:16:23 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 3/8] mm, page_alloc: split smallest stolen page in fallback
-Date: Tue,  7 Mar 2017 14:15:40 +0100
-Message-Id: <20170307131545.28577-4-vbabka@suse.cz>
-In-Reply-To: <20170307131545.28577-1-vbabka@suse.cz>
-References: <20170307131545.28577-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Mar 2017 05:18:01 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id n11so949765wma.0
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:18:00 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm: move pcp and lru-pcp drainging into single wq
+Date: Tue,  7 Mar 2017 14:17:51 +0100
+Message-Id: <20170307131751.24936-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-The __rmqueue_fallback() function is called when there's no free page of
-requested migratetype, and we need to steal from a different one. There are
-various heuristics to make this event infrequent and reduce permanent
-fragmentation. The main one is to try stealing from a pageblock that has the
-most free pages, and possibly steal them all at once and convert the whole
-pageblock. Precise searching for such pageblock would be expensive, so instead
-the heuristics walks the free lists from MAX_ORDER down to requested order and
-assumes that the block with highest-order free page is likely to also have the
-most free pages in total.
+From: Michal Hocko <mhocko@suse.com>
 
-Chances are that together with the highest-order page, we steal also pages of
-lower orders from the same block. But then we still split the highest order
-page. This is wasteful and can contribute to fragmentation instead of avoiding
-it.
+We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
+vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
+per cpu lru caches. This seems more than necessary because both can run
+on a single WQ. Both do not block on locks requiring a memory allocation
+nor perform any allocations themselves. We will save one rescuer thread
+this way.
 
-This patch thus changes __rmqueue_fallback() to just steal the page(s) and put
-them on the freelist of the requested migratetype, and only report whether it
-was successful. Then we pick (and eventually split) the smallest page with
-__rmqueue_smallest().  This all happens under zone lock, so nobody can steal it
-from us in the process. This should reduce fragmentation due to fallbacks. At
-worst we are only stealing a single highest-order page and waste some cycles by
-moving it between lists and then removing it, but fallback is not exactly hot
-path so that should not be a concern. As a side benefit the patch removes some
-duplicate code by reusing __rmqueue_smallest().
+On the other hand drain_all_pages() queues work on the system wq which
+doesn't have rescuer and so this depend on memory allocation (when all
+workers are stuck allocating and new ones cannot be created). This is
+not critical as there should be somebody invoking the OOM killer (e.g.
+the forking worker) and get the situation unstuck and eventually
+performs the draining. Quite annoying though. This worker should be
+using WQ_RECLAIM as well. We can reuse the same one as for lru draining
+and vmstat.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Changes since v1
+- rename vmstat_wq to mm_percpu_wq - per Mel
+- make sure we are not trying to enqueue anything while the WQ hasn't
+  been intialized yet. This shouldn't happen because the initialization
+  is done from an init code but some init section might be triggering
+  those paths indirectly so just warn and skip the draining in that case
+  per Vlastimil
+- do not propagate error from setup_vmstat to keep the previous behavior
+  per Mel
+
+Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 59 +++++++++++++++++++++++++++++++++------------------------
- 1 file changed, 34 insertions(+), 25 deletions(-)
 
+Hi,
+this has been previous posted [1] as an RFC. There was no fundamental
+opposition and some minor comments are addressed in this patch I
+believe.
+
+To remind the original motivation, Tetsuo has noted that drain_all_pages
+doesn't use WQ_RECLAIM [1] and asked whether we can move the worker to
+the vmstat_wq which is WQ_RECLAIM. I think the deadlock he has described
+shouldn't happen but it would be really better to have the rescuer. I
+also think that we do not really need 2 or more workqueues and also pull
+lru draining in.
+
+[1] http://lkml.kernel.org/r/20170207210908.530-1-mhocko@kernel.org
+
+ mm/internal.h   |  7 +++++++
+ mm/page_alloc.c |  9 ++++++++-
+ mm/swap.c       | 27 ++++++++-------------------
+ mm/vmstat.c     | 14 ++++++++------
+ 4 files changed, 31 insertions(+), 26 deletions(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 823a7a89099b..04d08ef91224 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -486,6 +486,13 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ enum ttu_flags;
+ struct tlbflush_unmap_batch;
+ 
++
++/*
++ * only for MM internal work items which do not depend on
++ * any allocations or locks which might depend on allocations
++ */
++extern struct workqueue_struct *mm_percpu_wq;
++
+ #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+ void try_to_unmap_flush(void);
+ void try_to_unmap_flush_dirty(void);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5238b87aec91..eda7fedf6378 100644
+index 1c72dd91c82e..1aa5729c8f98 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1952,23 +1952,41 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
-  * use it's pages as requested migratetype in the future.
-  */
- static void steal_suitable_fallback(struct zone *zone, struct page *page,
--							  int start_type)
-+					int start_type, bool whole_block)
- {
- 	unsigned int current_order = page_order(page);
-+	struct free_area *area;
- 	int pages;
+@@ -2362,6 +2362,13 @@ void drain_all_pages(struct zone *zone)
+ 	 */
+ 	static cpumask_t cpus_with_pcps;
  
 +	/*
-+	 * This can happen due to races and we want to prevent broken
-+	 * highatomic accounting.
++	 * Make sure nobody triggers this path before mm_percpu_wq is fully
++	 * initialized.
 +	 */
-+	if (is_migrate_highatomic_page(page))
-+		goto single_page;
++	if (WARN_ON_ONCE(!mm_percpu_wq))
++		return;
 +
- 	/* Take ownership for orders >= pageblock_order */
- 	if (current_order >= pageblock_order) {
- 		change_pageblock_range(page, current_order, start_type);
--		return;
-+		goto single_page;
+ 	/* Workqueues cannot recurse */
+ 	if (current->flags & PF_WQ_WORKER)
+ 		return;
+@@ -2411,7 +2418,7 @@ void drain_all_pages(struct zone *zone)
+ 	for_each_cpu(cpu, &cpus_with_pcps) {
+ 		struct work_struct *work = per_cpu_ptr(&pcpu_drain, cpu);
+ 		INIT_WORK(work, drain_local_pages_wq);
+-		schedule_work_on(cpu, work);
++		queue_work_on(cpu, mm_percpu_wq, work);
  	}
+ 	for_each_cpu(cpu, &cpus_with_pcps)
+ 		flush_work(per_cpu_ptr(&pcpu_drain, cpu));
+diff --git a/mm/swap.c b/mm/swap.c
+index ac98eb443a03..361bdb1575ab 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -677,30 +677,19 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
  
-+	/* We are not allowed to try stealing from the whole block */
-+	if (!whole_block)
-+		goto single_page;
-+
- 	pages = move_freepages_block(zone, page, start_type);
+ static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
  
- 	/* Claim the whole block if over half of it is free */
- 	if (pages >= (1 << (pageblock_order-1)) ||
- 			page_group_by_mobility_disabled)
- 		set_pageblock_migratetype(page, start_type);
-+
-+	return;
-+
-+single_page:
-+	area = &zone->free_area[current_order];
-+	list_move(&page->lru, &area->free_list[start_type]);
- }
- 
- /*
-@@ -2127,8 +2145,13 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
- 	return false;
- }
- 
--/* Remove an element from the buddy allocator from the fallback list */
--static inline struct page *
-+/*
-+ * Try finding a free buddy page on the fallback list and put it on the free
-+ * list of requested migratetype, possibly along with other pages from the same
-+ * block, depending on fragmentation avoidance heuristics. Returns true if
-+ * fallback was found so that __rmqueue_smallest() can grab it.
-+ */
-+static inline bool
- __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- {
- 	struct free_area *area;
-@@ -2149,32 +2172,17 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 
- 		page = list_first_entry(&area->free_list[fallback_mt],
- 						struct page, lru);
--		if (can_steal && !is_migrate_highatomic_page(page))
--			steal_suitable_fallback(zone, page, start_migratetype);
- 
--		/* Remove the page from the freelists */
--		area->nr_free--;
--		list_del(&page->lru);
--		rmv_page_order(page);
+-/*
+- * lru_add_drain_wq is used to do lru_add_drain_all() from a WQ_MEM_RECLAIM
+- * workqueue, aiding in getting memory freed.
+- */
+-static struct workqueue_struct *lru_add_drain_wq;
 -
--		expand(zone, page, order, current_order, area,
--					start_migratetype);
--		/*
--		 * The pcppage_migratetype may differ from pageblock's
--		 * migratetype depending on the decisions in
--		 * find_suitable_fallback(). This is OK as long as it does not
--		 * differ for MIGRATE_CMA pageblocks. Those can be used as
--		 * fallback only via special __rmqueue_cma_fallback() function
--		 */
--		set_pcppage_migratetype(page, start_migratetype);
-+		steal_suitable_fallback(zone, page, start_migratetype,
-+								can_steal);
- 
- 		trace_mm_page_alloc_extfrag(page, order, current_order,
- 			start_migratetype, fallback_mt);
- 
--		return page;
-+		return true;
- 	}
- 
--	return NULL;
-+	return false;
- }
- 
- /*
-@@ -2186,13 +2194,14 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+-static int __init lru_init(void)
+-{
+-	lru_add_drain_wq = alloc_workqueue("lru-add-drain", WQ_MEM_RECLAIM, 0);
+-
+-	if (WARN(!lru_add_drain_wq,
+-		"Failed to create workqueue lru_add_drain_wq"))
+-		return -ENOMEM;
+-
+-	return 0;
+-}
+-early_initcall(lru_init);
+-
+ void lru_add_drain_all(void)
  {
- 	struct page *page;
+ 	static DEFINE_MUTEX(lock);
+ 	static struct cpumask has_work;
+ 	int cpu;
  
-+retry:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 	if (unlikely(!page)) {
- 		if (migratetype == MIGRATE_MOVABLE)
- 			page = __rmqueue_cma_fallback(zone, order);
- 
--		if (!page)
--			page = __rmqueue_fallback(zone, order, migratetype);
-+		if (!page && __rmqueue_fallback(zone, order, migratetype))
-+			goto retry;
++	/*
++	 * Make sure nobody triggers this path before mm_percpu_wq is fully
++	 * initialized.
++	 */
++	if (WARN_ON(!mm_percpu_wq))
++		return;
++
+ 	mutex_lock(&lock);
+ 	get_online_cpus();
+ 	cpumask_clear(&has_work);
+@@ -714,7 +703,7 @@ void lru_add_drain_all(void)
+ 		    pagevec_count(&per_cpu(lru_lazyfree_pvecs, cpu)) ||
+ 		    need_activate_page_drain(cpu)) {
+ 			INIT_WORK(work, lru_add_drain_per_cpu);
+-			queue_work_on(cpu, lru_add_drain_wq, work);
++			queue_work_on(cpu, mm_percpu_wq, work);
+ 			cpumask_set_cpu(cpu, &has_work);
+ 		}
  	}
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9557fc0f36a4..ff9c49c47f32 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1563,7 +1563,6 @@ static const struct file_operations proc_vmstat_file_operations = {
+ #endif /* CONFIG_PROC_FS */
  
- 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
+ #ifdef CONFIG_SMP
+-static struct workqueue_struct *vmstat_wq;
+ static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+ int sysctl_stat_interval __read_mostly = HZ;
+ 
+@@ -1621,7 +1620,7 @@ static void vmstat_update(struct work_struct *w)
+ 		 * to occur in the future. Keep on running the
+ 		 * update worker thread.
+ 		 */
+-		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
++		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
+ 				this_cpu_ptr(&vmstat_work),
+ 				round_jiffies_relative(sysctl_stat_interval));
+ 	}
+@@ -1700,7 +1699,7 @@ static void vmstat_shepherd(struct work_struct *w)
+ 		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
+ 
+ 		if (!delayed_work_pending(dw) && need_update(cpu))
+-			queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
++			queue_delayed_work_on(cpu, mm_percpu_wq, dw, 0);
+ 	}
+ 	put_online_cpus();
+ 
+@@ -1716,7 +1715,6 @@ static void __init start_shepherd_timer(void)
+ 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
+ 			vmstat_update);
+ 
+-	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+ 	schedule_delayed_work(&shepherd,
+ 		round_jiffies_relative(sysctl_stat_interval));
+ }
+@@ -1762,11 +1760,15 @@ static int vmstat_cpu_dead(unsigned int cpu)
+ 
+ #endif
+ 
++struct workqueue_struct *mm_percpu_wq;
++
+ static int __init setup_vmstat(void)
+ {
+-#ifdef CONFIG_SMP
+-	int ret;
++	int ret __maybe_unused;
+ 
++	mm_percpu_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
++
++#ifdef CONFIG_SMP
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
+ 					NULL, vmstat_cpu_dead);
+ 	if (ret < 0)
 -- 
-2.12.0
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
