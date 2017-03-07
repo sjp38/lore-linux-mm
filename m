@@ -1,200 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A90AC6B0397
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 11:05:06 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id a12so8527605ota.1
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 08:05:06 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0043.outbound.protection.outlook.com. [104.47.38.43])
-        by mx.google.com with ESMTPS id x31si246419otd.238.2017.03.07.08.05.05
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D7CA56B0397
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 11:17:20 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id n11so2946818wma.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 08:17:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o191si1087016wme.129.2017.03.07.08.17.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 08:05:05 -0800 (PST)
-Subject: Re: [RFC PATCH v4 28/28] x86: Add support to make use of Secure
- Memory Encryption
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154825.19244.32545.stgit@tlendack-t1.amdoffice.net>
- <20170301184055.gl3iic3gir6zzb23@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
-Date: Tue, 7 Mar 2017 10:05:00 -0600
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Mar 2017 08:17:19 -0800 (PST)
+Date: Tue, 7 Mar 2017 17:17:16 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting
+ business
+Message-ID: <20170307161716.GA11837@quack2.suse.cz>
+References: <20170305133535.6516-1-jlayton@redhat.com>
+ <1488724854.2925.6.camel@redhat.com>
+ <20170306230801.GA28111@linux.intel.com>
+ <20170307102622.GB2578@quack2.suse.cz>
+ <20170307155916.GA31882@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170301184055.gl3iic3gir6zzb23@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307155916.GA31882@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
- Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, NeilBrown <neilb@suse.com>
 
-On 3/1/2017 12:40 PM, Borislav Petkov wrote:
-> On Thu, Feb 16, 2017 at 09:48:25AM -0600, Tom Lendacky wrote:
->> This patch adds the support to check if SME has been enabled and if
->> memory encryption should be activated (checking of command line option
->> based on the configuration of the default state).  If memory encryption
->> is to be activated, then the encryption mask is set and the kernel is
->> encrypted "in place."
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/kernel/head_64.S          |    1 +
->>  arch/x86/kernel/mem_encrypt_init.c |   71 +++++++++++++++++++++++++++++++++++-
->>  arch/x86/mm/mem_encrypt.c          |    2 +
->>  3 files changed, 73 insertions(+), 1 deletion(-)
->>
->> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
->> index edd2f14..e6820e7 100644
->> --- a/arch/x86/kernel/head_64.S
->> +++ b/arch/x86/kernel/head_64.S
->> @@ -97,6 +97,7 @@ startup_64:
->>  	 * Save the returned mask in %r12 for later use.
->>  	 */
->>  	push	%rsi
->> +	movq	%rsi, %rdi
->>  	call	sme_enable
->>  	pop	%rsi
->>  	movq	%rax, %r12
->> diff --git a/arch/x86/kernel/mem_encrypt_init.c b/arch/x86/kernel/mem_encrypt_init.c
->> index 07cbb90..35c5e3d 100644
->> --- a/arch/x86/kernel/mem_encrypt_init.c
->> +++ b/arch/x86/kernel/mem_encrypt_init.c
->> @@ -19,6 +19,12 @@
->>  #include <linux/mm.h>
->>
->>  #include <asm/sections.h>
->> +#include <asm/processor-flags.h>
->> +#include <asm/msr.h>
->> +#include <asm/cmdline.h>
->> +
->> +static char sme_cmdline_arg_on[] __initdata = "mem_encrypt=on";
->> +static char sme_cmdline_arg_off[] __initdata = "mem_encrypt=off";
->>
->>  extern void sme_encrypt_execute(unsigned long, unsigned long, unsigned long,
->>  				void *, pgd_t *);
->> @@ -217,8 +223,71 @@ unsigned long __init sme_get_me_mask(void)
->>  	return sme_me_mask;
->>  }
->>
->> -unsigned long __init sme_enable(void)
->> +unsigned long __init sme_enable(void *boot_data)
->
-> unsigned long __init sme_enable(struct boot_params *bp)
->
-> works too.
+On Tue 07-03-17 08:59:16, Ross Zwisler wrote:
+> On Tue, Mar 07, 2017 at 11:26:22AM +0100, Jan Kara wrote:
+> > On Mon 06-03-17 16:08:01, Ross Zwisler wrote:
+> > > On Sun, Mar 05, 2017 at 09:40:54AM -0500, Jeff Layton wrote:
+> > > > On Sun, 2017-03-05 at 08:35 -0500, Jeff Layton wrote:
+> > > > > I recently did some work to wire up -ENOSPC handling in ceph, and found
+> > > > > I could get back -EIO errors in some cases when I should have instead
+> > > > > gotten -ENOSPC. The problem was that the ceph writeback code would set
+> > > > > PG_error on a writeback error, and that error would clobber the mapping
+> > > > > error.
+> > > > > 
+> > > > 
+> > > > I should also note that relying on PG_error to report writeback errors
+> > > > is inherently unreliable as well. If someone calls sync() before your
+> > > > fsync gets in there, then you'll likely lose it anyway.
+> > > > 
+> > > > filemap_fdatawait_keep_errors will preserve the error in the mapping,
+> > > > but not the individual PG_error flags, so I think we do want to ensure
+> > > > that the mapping error is set when there is a writeback error and not
+> > > > rely on PG_error bit for that.
+> > > > 
+> > > > > While I fixed that problem by simply not setting that bit on errors,
+> > > > > that led me down a rabbit hole of looking at how PG_error is being
+> > > > > handled in the kernel.
+> > > > > 
+> > > > > This patch series is a few fixes for things that I 100% noticed by
+> > > > > inspection. I don't have a great way to test these since they involve
+> > > > > error handling. I can certainly doctor up a kernel to inject errors
+> > > > > in this code and test by hand however if these look plausible up front.
+> > > > > 
+> > > > > Jeff Layton (3):
+> > > > >   nilfs2: set the mapping error when calling SetPageError on writeback
+> > > > >   mm: don't TestClearPageError in __filemap_fdatawait_range
+> > > > >   mm: set mapping error when launder_pages fails
+> > > > > 
+> > > > >  fs/nilfs2/segment.c |  1 +
+> > > > >  mm/filemap.c        | 19 ++++---------------
+> > > > >  mm/truncate.c       |  6 +++++-
+> > > > >  3 files changed, 10 insertions(+), 16 deletions(-)
+> > > > > 
+> > > > 
+> > > > (cc'ing Ross...)
+> > > > 
+> > > > Just when I thought that only NILFS2 needed a little work here, I see
+> > > > another spot...
+> > > > 
+> > > > I think that we should also need to fix dax_writeback_mapping_range to
+> > > > set a mapping error on writeback as well. It looks like that's not
+> > > > happening today. Something like the patch below (obviously untested).
+> > > > 
+> > > > I'll also plan to follow up with a patch to vfs.txt to outline how
+> > > > writeback errors should be handled by filesystems, assuming that this
+> > > > patchset isn't completely off base.
+> > > > 
+> > > > -------------------8<-----------------------
+> > > > 
+> > > > [PATCH] dax: set error in mapping when writeback fails
+> > > > 
+> > > > In order to get proper error codes from fsync, we must set an error in
+> > > > the mapping range when writeback fails.
+> > > > 
+> > > > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > > > ---
+> > > >  fs/dax.c | 4 +++-
+> > > >  1 file changed, 3 insertions(+), 1 deletion(-)
+> > > > 
+> > > > diff --git a/fs/dax.c b/fs/dax.c
+> > > > index c45598b912e1..9005d90deeda 100644
+> > > > --- a/fs/dax.c
+> > > > +++ b/fs/dax.c
+> > > > @@ -888,8 +888,10 @@ int dax_writeback_mapping_range(struct address_space *mapping,
+> > > >  
+> > > >  			ret = dax_writeback_one(bdev, mapping, indices[i],
+> > > >  					pvec.pages[i]);
+> > > > -			if (ret < 0)
+> > > > +			if (ret < 0) {
+> > > > +				mapping_set_error(mapping, ret);
+> > > >  				return ret;
+> > > > +			}
+> > > 
+> > > (Adding Jan)
+> > > 
+> > > I tested this a bit, and for the DAX case at least I don't think this does
+> > > what you want.  The current code already returns -EIO if dax_writeback_one()
+> > > hits an error, which bubbles up through the call stack and makes the fsync()
+> > > call in userspace fail with EIO, as we want.  With both ext4 and xfs this
+> > > patch (applied to v4.10) makes it so that we fail the current fsync() due to
+> > > the return value of -EIO, then we fail the next fsync() as well because only
+> > > then do we actually process the AS_EIO flag inside of filemap_check_errors().
+> > > 
+> > > I think maybe the missing piece is that our normal DAX fsync call stack
+> > > doesn't include a call to filemap_check_errors() if we return -EIO.  Here's
+> > > our stack in xfs:
+> > > 
+> > >     dax_writeback_mapping_range+0x32/0x70
+> > >     xfs_vm_writepages+0x8c/0xf0
+> > >     do_writepages+0x21/0x30
+> > >     __filemap_fdatawrite_range+0xc6/0x100
+> > >     filemap_write_and_wait_range+0x44/0x90
+> > >     xfs_file_fsync+0x7a/0x2c0
+> > >     vfs_fsync_range+0x4b/0xb0
+> > >     ? trace_hardirqs_on_caller+0xf5/0x1b0
+> > >     do_fsync+0x3d/0x70
+> > >     SyS_fsync+0x10/0x20
+> > >     entry_SYSCALL_64_fastpath+0x1f/0xc2
+> > > 
+> > > On the subsequent fsync() call we *do* end up calling filemap_check_errors()
+> > > via filemap_fdatawrite_range(), which tests & clears the AS_EIO flag in the
+> > > mapping:
+> > > 
+> > >     filemap_fdatawait_range+0x3b/0x80
+> > >     filemap_write_and_wait_range+0x5a/0x90
+> > >     xfs_file_fsync+0x7a/0x2c0
+> > >     vfs_fsync_range+0x4b/0xb0
+> > >     ? trace_hardirqs_on_caller+0xf5/0x1b0
+> > >     do_fsync+0x3d/0x70
+> > >     SyS_fsync+0x10/0x20
+> > >     entry_SYSCALL_64_fastpath+0x1f/0xc2
+> > > 
+> > > Was your concern just that you didn't think that fsync() was properly
+> > > returning an error when dax_writeback_one() hit an error?  Or is there another
+> > > path by which we need to report the error, where it is actually important that
+> > > we set AS_EIO?  If it's the latter, then I think we need to rework the fsync
+> > > call path so that we both generate and consume AS_EIO on the same call,
+> > > probably in filemap_write_and_wait_range().
+> > 
+> > So I believe this is due to the special handling of EIO inside
+> > filemap_write_and_wait(). Normally, filemap_check_errors() happens inside
+> 
+> s/filemap_write_and_wait/filemap_write_and_wait_range/ for this particular
+> case, but we definitely want to make changes that keep them consistent.
+> 
+> > filemap_fdatawait() there however not for EIO returned from
+> > filemap_fdatawrite(). In that case we bail out immediately. So I think
+> > Jeff's patch is correct but we need to change filemap_write_and_wait() to
+> > call also filemap_check_errors() directly on EIO from filemap_fdatawrite().
+> 
+> So I guess my question was: why is it important that we set AS_EIO, if the EIO
+> is already being reported correctly?  Is it just for consistency with the
+> buffered fsync case, or is there currently a path where the -EIO from DAX will
+> be missed, and we actually need AS_EIO to be set in mapping->flags so that we
+> correctly report an error?
 
-Ok, will do.
+It is just for consistency and future-proofing. E.g. if we ever decided to do
+some background flushing of CPU caches, current DAX behavior would
+suddently result in missed reports of EIO errors.
 
->
-> And then you need to correct the function signature in the
-> !CONFIG_AMD_MEM_ENCRYPT case, at the end of this file, too:
->
-> unsigned long __init sme_enable(struct boot_params *bp)		{ return 0; }
-
-Yup, missed that.  I'll make it match.
-
->
->>  {
->> +	struct boot_params *bp = boot_data;
->> +	unsigned int eax, ebx, ecx, edx;
->> +	unsigned long cmdline_ptr;
->> +	bool enable_if_found;
->> +	void *cmdline_arg;
->> +	u64 msr;
->> +
->> +	/* Check for an AMD processor */
->> +	eax = 0;
->> +	ecx = 0;
->> +	native_cpuid(&eax, &ebx, &ecx, &edx);
->> +	if ((ebx != 0x68747541) || (edx != 0x69746e65) || (ecx != 0x444d4163))
->> +		goto out;
->> +
->> +	/* Check for the SME support leaf */
->> +	eax = 0x80000000;
->> +	ecx = 0;
->> +	native_cpuid(&eax, &ebx, &ecx, &edx);
->> +	if (eax < 0x8000001f)
->> +		goto out;
->> +
->> +	/*
->> +	 * Check for the SME feature:
->> +	 *   CPUID Fn8000_001F[EAX] - Bit 0
->> +	 *     Secure Memory Encryption support
->> +	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
->> +	 *     Pagetable bit position used to indicate encryption
->> +	 */
->> +	eax = 0x8000001f;
->> +	ecx = 0;
->> +	native_cpuid(&eax, &ebx, &ecx, &edx);
->> +	if (!(eax & 1))
->> +		goto out;
->> +
->> +	/* Check if SME is enabled */
->> +	msr = native_read_msr(MSR_K8_SYSCFG);
->
-> This native_read_msr() wankery is adding this check:
->
-> 	if (msr_tracepoint_active(__tracepoint_read_msr))
->
-> and here it is clearly too early for tracepoints. Please use __rdmsr()
-> which is purely doing the MSR operation. (... and exception handling for
-
-Ah, good catch.  I'll switch to __rdmsr().
-
-> when the RDMSR itself raises an exception but we're very early here too
-> so the MSR better be there, otherwise we'll blow up).
-
-Yes, it will be there if SME support is indicated in the CPUID result.
-
->
->> +	if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
->> +		goto out;
->> +
->> +	/*
->> +	 * Fixups have not been to applied phys_base yet, so we must obtain
->
-> 		...    not been applied to phys_base yet ...
-
-Yup.
-
->
->> +	 * the address to the SME command line option in the following way.
->> +	 */
->> +	if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT)) {
->> +		asm ("lea sme_cmdline_arg_off(%%rip), %0"
->> +		     : "=r" (cmdline_arg)
->> +		     : "p" (sme_cmdline_arg_off));
->> +		enable_if_found = false;
->> +	} else {
->> +		asm ("lea sme_cmdline_arg_on(%%rip), %0"
->> +		     : "=r" (cmdline_arg)
->> +		     : "p" (sme_cmdline_arg_on));
->> +		enable_if_found = true;
->> +	}
->> +
->> +	cmdline_ptr = bp->hdr.cmd_line_ptr | ((u64)bp->ext_cmd_line_ptr << 32);
->> +
->> +	if (cmdline_find_option_bool((char *)cmdline_ptr, cmdline_arg))
->> +		sme_me_mask = enable_if_found ? 1UL << (ebx & 0x3f) : 0;
->> +	else
->> +		sme_me_mask = enable_if_found ? 0 : 1UL << (ebx & 0x3f);
->
-> I have a better idea: you can copy __cmdline_find_option() +
-> cmdline_find_option() to arch/x86/lib/cmdline.c in a pre-patch. Then,
-> pass in a buffer and check for "on" and "off". This way you don't
-> have to misuse the _bool() variant for something which is actually
-> "option=argument".
-
-I can do that.  Because phys_base hasn't been updated yet, I'll have to
-create "on" and "off" constants and get their address in a similar way
-to the command line option so that I can do the strncmp properly.
-
-Thanks,
-Tom
-
->
-> Thanks.
->
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
