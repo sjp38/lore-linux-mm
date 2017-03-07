@@ -1,247 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D23F6B0387
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:51:01 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id e136so3956223itc.0
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:51:01 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id e9si14234116itb.43.2017.03.07.05.50.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BBE1B6B0387
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:53:02 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n11so1440786wma.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:53:02 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id j62si87528wrj.264.2017.03.07.05.53.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 05:51:00 -0800 (PST)
-Subject: Re: [PATCH] mm: move pcp and lru-pcp drainging into single wq
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170307131751.24936-1-mhocko@kernel.org>
-In-Reply-To: <20170307131751.24936-1-mhocko@kernel.org>
-Message-Id: <201703072250.FJD86423.FJOHOFLFOMQVSt@I-love.SAKURA.ne.jp>
-Date: Tue, 7 Mar 2017 22:50:48 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Mar 2017 05:53:01 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id u132so1108283wmg.1
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:53:01 -0800 (PST)
+Date: Tue, 7 Mar 2017 16:52:58 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 3/4] thp: fix MADV_DONTNEED vs. MADV_FREE race
+Message-ID: <20170307135258.GA2412@node>
+References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
+ <20170302151034.27829-4-kirill.shutemov@linux.intel.com>
+ <871subdsrk.fsf@skywalker.in.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <871subdsrk.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: vbabka@suse.cz, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Mon, Mar 06, 2017 at 08:19:03AM +0530, Aneesh Kumar K.V wrote:
+> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 > 
-> We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
-> vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
-> per cpu lru caches. This seems more than necessary because both can run
-> on a single WQ. Both do not block on locks requiring a memory allocation
-> nor perform any allocations themselves. We will save one rescuer thread
-> this way.
+> > Basically the same race as with numa balancing in change_huge_pmd(), but
+> > a bit simpler to mitigate: we don't need to preserve dirty/young flags
+> > here due to MADV_FREE functionality.
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  mm/huge_memory.c | 2 --
+> >  1 file changed, 2 deletions(-)
+> >
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index bb2b3646bd78..324217c31ec9 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1566,8 +1566,6 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> >  		deactivate_page(page);
+> >  
+> >  	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
+> > -		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
+> > -			tlb->fullmm);
+> >  		orig_pmd = pmd_mkold(orig_pmd);
+> >  		orig_pmd = pmd_mkclean(orig_pmd);
+> >  
 > 
-> On the other hand drain_all_pages() queues work on the system wq which
-> doesn't have rescuer and so this depend on memory allocation (when all
-> workers are stuck allocating and new ones cannot be created). This is
-> not critical as there should be somebody invoking the OOM killer (e.g.
-> the forking worker) and get the situation unstuck and eventually
-> performs the draining. Quite annoying though. This worker should be
-> using WQ_RECLAIM as well. We can reuse the same one as for lru draining
-> and vmstat.
+> Instead can we do a new interface that does something like
+> 
+> pmdp_huge_update(tlb->mm, addr, pmd, new_pmd);
+> 
+> We do have a variant already in ptep_set_access_flags. What we need is
+> something that can be used to update THP pmd, without converting it to
+> pmd_none and one which doens't loose reference and change bit ?
 
-Is "there should be somebody invoking the OOM killer" really true?
-According to http://lkml.kernel.org/r/201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp
+Sounds like a good idea. Would you volunteer to implement it?
+I don't have time for this right now.
 
-  kthreadd (PID = 2) is trying to allocate "struct task_struct" requested by
-  workqueue managers (PID = 19, 157, 10499) but is blocked on memory allocation.
-
-__GFP_FS allocations could get stuck waiting for drain_all_pages() ?
-Also, order > 0 allocation request by the forking worker could get stuck
-at too_many_isolated() in mm/compaction.c ?
-
-> 
-> Changes since v1
-> - rename vmstat_wq to mm_percpu_wq - per Mel
-> - make sure we are not trying to enqueue anything while the WQ hasn't
->   been intialized yet. This shouldn't happen because the initialization
->   is done from an init code but some init section might be triggering
->   those paths indirectly so just warn and skip the draining in that case
->   per Vlastimil
-> - do not propagate error from setup_vmstat to keep the previous behavior
->   per Mel
-> 
-> Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi,
-> this has been previous posted [1] as an RFC. There was no fundamental
-> opposition and some minor comments are addressed in this patch I
-> believe.
-> 
-> To remind the original motivation, Tetsuo has noted that drain_all_pages
-> doesn't use WQ_RECLAIM [1] and asked whether we can move the worker to
-> the vmstat_wq which is WQ_RECLAIM. I think the deadlock he has described
-> shouldn't happen but it would be really better to have the rescuer. I
-> also think that we do not really need 2 or more workqueues and also pull
-> lru draining in.
-> 
-> [1] http://lkml.kernel.org/r/20170207210908.530-1-mhocko@kernel.org
-> 
->  mm/internal.h   |  7 +++++++
->  mm/page_alloc.c |  9 ++++++++-
->  mm/swap.c       | 27 ++++++++-------------------
->  mm/vmstat.c     | 14 ++++++++------
->  4 files changed, 31 insertions(+), 26 deletions(-)
-> 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 823a7a89099b..04d08ef91224 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -486,6 +486,13 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
->  enum ttu_flags;
->  struct tlbflush_unmap_batch;
->  
-> +
-> +/*
-> + * only for MM internal work items which do not depend on
-> + * any allocations or locks which might depend on allocations
-> + */
-> +extern struct workqueue_struct *mm_percpu_wq;
-> +
->  #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
->  void try_to_unmap_flush(void);
->  void try_to_unmap_flush_dirty(void);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1c72dd91c82e..1aa5729c8f98 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2362,6 +2362,13 @@ void drain_all_pages(struct zone *zone)
->  	 */
->  	static cpumask_t cpus_with_pcps;
->  
-> +	/*
-> +	 * Make sure nobody triggers this path before mm_percpu_wq is fully
-> +	 * initialized.
-> +	 */
-> +	if (WARN_ON_ONCE(!mm_percpu_wq))
-> +		return;
-> +
->  	/* Workqueues cannot recurse */
->  	if (current->flags & PF_WQ_WORKER)
->  		return;
-> @@ -2411,7 +2418,7 @@ void drain_all_pages(struct zone *zone)
->  	for_each_cpu(cpu, &cpus_with_pcps) {
->  		struct work_struct *work = per_cpu_ptr(&pcpu_drain, cpu);
->  		INIT_WORK(work, drain_local_pages_wq);
-> -		schedule_work_on(cpu, work);
-> +		queue_work_on(cpu, mm_percpu_wq, work);
->  	}
->  	for_each_cpu(cpu, &cpus_with_pcps)
->  		flush_work(per_cpu_ptr(&pcpu_drain, cpu));
-> diff --git a/mm/swap.c b/mm/swap.c
-> index ac98eb443a03..361bdb1575ab 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -677,30 +677,19 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
->  
->  static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
->  
-> -/*
-> - * lru_add_drain_wq is used to do lru_add_drain_all() from a WQ_MEM_RECLAIM
-> - * workqueue, aiding in getting memory freed.
-> - */
-> -static struct workqueue_struct *lru_add_drain_wq;
-> -
-> -static int __init lru_init(void)
-> -{
-> -	lru_add_drain_wq = alloc_workqueue("lru-add-drain", WQ_MEM_RECLAIM, 0);
-> -
-> -	if (WARN(!lru_add_drain_wq,
-> -		"Failed to create workqueue lru_add_drain_wq"))
-> -		return -ENOMEM;
-> -
-> -	return 0;
-> -}
-> -early_initcall(lru_init);
-> -
->  void lru_add_drain_all(void)
->  {
->  	static DEFINE_MUTEX(lock);
->  	static struct cpumask has_work;
->  	int cpu;
->  
-> +	/*
-> +	 * Make sure nobody triggers this path before mm_percpu_wq is fully
-> +	 * initialized.
-> +	 */
-> +	if (WARN_ON(!mm_percpu_wq))
-> +		return;
-> +
->  	mutex_lock(&lock);
->  	get_online_cpus();
->  	cpumask_clear(&has_work);
-> @@ -714,7 +703,7 @@ void lru_add_drain_all(void)
->  		    pagevec_count(&per_cpu(lru_lazyfree_pvecs, cpu)) ||
->  		    need_activate_page_drain(cpu)) {
->  			INIT_WORK(work, lru_add_drain_per_cpu);
-> -			queue_work_on(cpu, lru_add_drain_wq, work);
-> +			queue_work_on(cpu, mm_percpu_wq, work);
->  			cpumask_set_cpu(cpu, &has_work);
->  		}
->  	}
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 9557fc0f36a4..ff9c49c47f32 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1563,7 +1563,6 @@ static const struct file_operations proc_vmstat_file_operations = {
->  #endif /* CONFIG_PROC_FS */
->  
->  #ifdef CONFIG_SMP
-> -static struct workqueue_struct *vmstat_wq;
->  static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
->  int sysctl_stat_interval __read_mostly = HZ;
->  
-> @@ -1621,7 +1620,7 @@ static void vmstat_update(struct work_struct *w)
->  		 * to occur in the future. Keep on running the
->  		 * update worker thread.
->  		 */
-> -		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
-> +		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
->  				this_cpu_ptr(&vmstat_work),
->  				round_jiffies_relative(sysctl_stat_interval));
->  	}
-> @@ -1700,7 +1699,7 @@ static void vmstat_shepherd(struct work_struct *w)
->  		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
->  
->  		if (!delayed_work_pending(dw) && need_update(cpu))
-> -			queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
-> +			queue_delayed_work_on(cpu, mm_percpu_wq, dw, 0);
->  	}
->  	put_online_cpus();
->  
-> @@ -1716,7 +1715,6 @@ static void __init start_shepherd_timer(void)
->  		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
->  			vmstat_update);
->  
-> -	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
->  	schedule_delayed_work(&shepherd,
->  		round_jiffies_relative(sysctl_stat_interval));
->  }
-> @@ -1762,11 +1760,15 @@ static int vmstat_cpu_dead(unsigned int cpu)
->  
->  #endif
->  
-> +struct workqueue_struct *mm_percpu_wq;
-> +
->  static int __init setup_vmstat(void)
->  {
-> -#ifdef CONFIG_SMP
-> -	int ret;
-> +	int ret __maybe_unused;
->  
-> +	mm_percpu_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
-> +
-> +#ifdef CONFIG_SMP
->  	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
->  					NULL, vmstat_cpu_dead);
->  	if (ret < 0)
-> -- 
-> 2.11.0
-> 
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
