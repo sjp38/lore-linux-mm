@@ -1,192 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC9AA6B0387
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 09:03:21 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id f191so4598025qka.7
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 06:03:21 -0800 (PST)
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com. [209.85.220.178])
-        by mx.google.com with ESMTPS id m187si103895qkf.95.2017.03.07.06.03.20
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 59DD66B0388
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 09:04:58 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v190so1715501wme.0
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 06:04:58 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id l135si685099wma.19.2017.03.07.06.04.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 06:03:20 -0800 (PST)
-Received: by mail-qk0-f178.google.com with SMTP id 1so4794751qkl.3
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 06:03:20 -0800 (PST)
-Message-ID: <1488895397.2788.3.camel@redhat.com>
-Subject: Re: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting
- business
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 07 Mar 2017 09:03:17 -0500
-In-Reply-To: <20170307102622.GB2578@quack2.suse.cz>
-References: <20170305133535.6516-1-jlayton@redhat.com>
-	 <1488724854.2925.6.camel@redhat.com>
-	 <20170306230801.GA28111@linux.intel.com>
-	 <20170307102622.GB2578@quack2.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 07 Mar 2017 06:04:57 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id u132so1166655wmg.1
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 06:04:56 -0800 (PST)
+Date: Tue, 7 Mar 2017 17:04:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 3/4] thp: fix MADV_DONTNEED vs. MADV_FREE race
+Message-ID: <20170307140453.GB2412@node>
+References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
+ <20170302151034.27829-4-kirill.shutemov@linux.intel.com>
+ <07b101d293df$ed8c9850$c8a5c8f0$@alibaba-inc.com>
+ <20170303102636.bhd2zhtpds4mt62a@black.fi.intel.com>
+ <20170306014446.GB8779@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170306014446.GB8779@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, NeilBrown <neilb@suse.com>, Kevin Wolf <kwolf@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2017-03-07 at 11:26 +0100, Jan Kara wrote:
-> On Mon 06-03-17 16:08:01, Ross Zwisler wrote:
-> > On Sun, Mar 05, 2017 at 09:40:54AM -0500, Jeff Layton wrote:
-> > > On Sun, 2017-03-05 at 08:35 -0500, Jeff Layton wrote:
-> > > > I recently did some work to wire up -ENOSPC handling in ceph, and found
-> > > > I could get back -EIO errors in some cases when I should have instead
-> > > > gotten -ENOSPC. The problem was that the ceph writeback code would set
-> > > > PG_error on a writeback error, and that error would clobber the mapping
-> > > > error.
-> > > > 
-> > > 
-> > > I should also note that relying on PG_error to report writeback errors
-> > > is inherently unreliable as well. If someone calls sync() before your
-> > > fsync gets in there, then you'll likely lose it anyway.
-> > > 
-> > > filemap_fdatawait_keep_errors will preserve the error in the mapping,
-> > > but not the individual PG_error flags, so I think we do want to ensure
-> > > that the mapping error is set when there is a writeback error and not
-> > > rely on PG_error bit for that.
-> > > 
-> > > > While I fixed that problem by simply not setting that bit on errors,
-> > > > that led me down a rabbit hole of looking at how PG_error is being
-> > > > handled in the kernel.
-> > > > 
-> > > > This patch series is a few fixes for things that I 100% noticed by
-> > > > inspection. I don't have a great way to test these since they involve
-> > > > error handling. I can certainly doctor up a kernel to inject errors
-> > > > in this code and test by hand however if these look plausible up front.
-> > > > 
-> > > > Jeff Layton (3):
-> > > >   nilfs2: set the mapping error when calling SetPageError on writeback
-> > > >   mm: don't TestClearPageError in __filemap_fdatawait_range
-> > > >   mm: set mapping error when launder_pages fails
-> > > > 
-> > > >  fs/nilfs2/segment.c |  1 +
-> > > >  mm/filemap.c        | 19 ++++---------------
-> > > >  mm/truncate.c       |  6 +++++-
-> > > >  3 files changed, 10 insertions(+), 16 deletions(-)
-> > > > 
-> > > 
-> > > (cc'ing Ross...)
-> > > 
-> > > Just when I thought that only NILFS2 needed a little work here, I see
-> > > another spot...
-> > > 
-> > > I think that we should also need to fix dax_writeback_mapping_range to
-> > > set a mapping error on writeback as well. It looks like that's not
-> > > happening today. Something like the patch below (obviously untested).
-> > > 
-> > > I'll also plan to follow up with a patch to vfs.txt to outline how
-> > > writeback errors should be handled by filesystems, assuming that this
-> > > patchset isn't completely off base.
-> > > 
-> > > -------------------8<-----------------------
-> > > 
-> > > [PATCH] dax: set error in mapping when writeback fails
-> > > 
-> > > In order to get proper error codes from fsync, we must set an error in
-> > > the mapping range when writeback fails.
-> > > 
-> > > Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> > > ---
-> > >  fs/dax.c | 4 +++-
-> > >  1 file changed, 3 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/fs/dax.c b/fs/dax.c
-> > > index c45598b912e1..9005d90deeda 100644
-> > > --- a/fs/dax.c
-> > > +++ b/fs/dax.c
-> > > @@ -888,8 +888,10 @@ int dax_writeback_mapping_range(struct address_space *mapping,
-> > >  
-> > >  			ret = dax_writeback_one(bdev, mapping, indices[i],
-> > >  					pvec.pages[i]);
-> > > -			if (ret < 0)
-> > > +			if (ret < 0) {
-> > > +				mapping_set_error(mapping, ret);
-> > >  				return ret;
-> > > +			}
-> > 
-> > (Adding Jan)
-> > 
-> > I tested this a bit, and for the DAX case at least I don't think this does
-> > what you want.  The current code already returns -EIO if dax_writeback_one()
-> > hits an error, which bubbles up through the call stack and makes the fsync()
-> > call in userspace fail with EIO, as we want.  With both ext4 and xfs this
-> > patch (applied to v4.10) makes it so that we fail the current fsync() due to
-> > the return value of -EIO, then we fail the next fsync() as well because only
-> > then do we actually process the AS_EIO flag inside of filemap_check_errors().
-> > 
-> > I think maybe the missing piece is that our normal DAX fsync call stack
-> > doesn't include a call to filemap_check_errors() if we return -EIO.  Here's
-> > our stack in xfs:
-> > 
-> >     dax_writeback_mapping_range+0x32/0x70
-> >     xfs_vm_writepages+0x8c/0xf0
-> >     do_writepages+0x21/0x30
-> >     __filemap_fdatawrite_range+0xc6/0x100
-> >     filemap_write_and_wait_range+0x44/0x90
-> >     xfs_file_fsync+0x7a/0x2c0
-> >     vfs_fsync_range+0x4b/0xb0
-> >     ? trace_hardirqs_on_caller+0xf5/0x1b0
-> >     do_fsync+0x3d/0x70
-> >     SyS_fsync+0x10/0x20
-> >     entry_SYSCALL_64_fastpath+0x1f/0xc2
-> > 
-> > On the subsequent fsync() call we *do* end up calling filemap_check_errors()
-> > via filemap_fdatawrite_range(), which tests & clears the AS_EIO flag in the
-> > mapping:
-> > 
-> >     filemap_fdatawait_range+0x3b/0x80
-> >     filemap_write_and_wait_range+0x5a/0x90
-> >     xfs_file_fsync+0x7a/0x2c0
-> >     vfs_fsync_range+0x4b/0xb0
-> >     ? trace_hardirqs_on_caller+0xf5/0x1b0
-> >     do_fsync+0x3d/0x70
-> >     SyS_fsync+0x10/0x20
-> >     entry_SYSCALL_64_fastpath+0x1f/0xc2
-> > 
-> > Was your concern just that you didn't think that fsync() was properly
-> > returning an error when dax_writeback_one() hit an error?  Or is there another
-> > path by which we need to report the error, where it is actually important that
-> > we set AS_EIO?  If it's the latter, then I think we need to rework the fsync
-> > call path so that we both generate and consume AS_EIO on the same call,
-> > probably in filemap_write_and_wait_range().
+On Mon, Mar 06, 2017 at 10:44:46AM +0900, Minchan Kim wrote:
+> Hello, Kirill,
 > 
-> So I believe this is due to the special handling of EIO inside
-> filemap_write_and_wait(). Normally, filemap_check_errors() happens inside
-> filemap_fdatawait() there however not for EIO returned from
-> filemap_fdatawrite(). In that case we bail out immediately. So I think
-> Jeff's patch is correct but we need to change filemap_write_and_wait() to
-> call also filemap_check_errors() directly on EIO from filemap_fdatawrite().
+> On Fri, Mar 03, 2017 at 01:26:36PM +0300, Kirill A. Shutemov wrote:
+> > On Fri, Mar 03, 2017 at 01:35:11PM +0800, Hillf Danton wrote:
+> > > 
+> > > On March 02, 2017 11:11 PM Kirill A. Shutemov wrote: 
+> > > > 
+> > > > Basically the same race as with numa balancing in change_huge_pmd(), but
+> > > > a bit simpler to mitigate: we don't need to preserve dirty/young flags
+> > > > here due to MADV_FREE functionality.
+> > > > 
+> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > Cc: Minchan Kim <minchan@kernel.org>
+> > > > ---
+> > > >  mm/huge_memory.c | 2 --
+> > > >  1 file changed, 2 deletions(-)
+> > > > 
+> > > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > > index bb2b3646bd78..324217c31ec9 100644
+> > > > --- a/mm/huge_memory.c
+> > > > +++ b/mm/huge_memory.c
+> > > > @@ -1566,8 +1566,6 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> > > >  		deactivate_page(page);
+> > > > 
+> > > >  	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
+> > > > -		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
+> > > > -			tlb->fullmm);
+> > > >  		orig_pmd = pmd_mkold(orig_pmd);
+> > > >  		orig_pmd = pmd_mkclean(orig_pmd);
+> > > > 
+> > > $ grep -n set_pmd_at  linux-4.10/arch/powerpc/mm/pgtable-book3s64.c
+> > > 
+> > > /*
+> > >  * set a new huge pmd. We should not be called for updating
+> > >  * an existing pmd entry. That should go via pmd_hugepage_update.
+> > >  */
+> > > void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+> > 
+> > +Aneesh.
+> > 
+> > Urgh... Power is special again.
+> > 
+> > I think this should work fine.
+> > 
+> > From 056914fa025992c0a2212aee057c26307ce60238 Mon Sep 17 00:00:00 2001
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Date: Thu, 2 Mar 2017 16:47:45 +0300
+> > Subject: [PATCH] thp: fix MADV_DONTNEED vs. MADV_FREE race
+> > 
+> > Basically the same race as with numa balancing in change_huge_pmd(), but
+> > a bit simpler to mitigate: we don't need to preserve dirty/young flags
+> > here due to MADV_FREE functionality.
 > 
+> Could you elaborate a bit more here rather than relying on other
+> patch's description?
 
-Yes that makes total sense. I've got a filemap_write_and_wait patch in
-my pile now that does this. I'll run what I have through an xfstests
-run, and see how it does, and will plan to post a v2 set once I do.
+Okay, updated patch is below.
 
-> On a more general note (DAX is actually fine here), I find the current
-> practice of clearing page dirty bits on error and reporting it just once
-> problematic. It keeps the system running but data is lost and possibly
-> without getting the error anywhere where it is useful. We get away with
-> this because it is a rare event but it seems like a problematic behavior.
-> But this is more for the discussion at LSF.
-> 
+> And could you say what happens to the userspace if that race
+> happens? When I guess from title "MADV_DONTNEED vs MADV_FREE",
+> a page cannot be zapped but marked lazyfree or vise versa? Right?
 
-That really is the crux of the matter. Unfortunately, that's sort of how
-the POSIX write/fsync model is designed. If we want to change that, then
-I think that we have to consider what a new interface for this would
-look like. Maybe we can do something there with new sync_file_range
-flags?
-
-I think this probably also dovetails with Kevin Wolf's proposed LSF
-topic too, so maybe we can discuss all of this together there.
--- 
-Jeff Layton <jlayton@redhat.com>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+"Vise versa" part should be fine. The case I'm worry about is that
+MADV_DONTNEED would skip the pmd and it will not be cleared.
+Userspace expects the area of memory to be clean after MADV_DONTNEED, but
+it's not. It can lead to userspace misbehaviour.
