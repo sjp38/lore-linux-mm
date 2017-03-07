@@ -1,69 +1,62 @@
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [RFC PATCH v2 19/32] crypto: ccp: Introduce the AMD Secure
- Processor device
-Date: Thu, 2 Mar 2017 17:39:37 +0000
-Message-ID: <20170302173936.GC11970@leverpostej>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846777589.2349.11698765767451886038.stgit@brijesh-build-machine>
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm: Do not use double negation for testing page flags
+Date: Tue, 7 Mar 2017 15:36:37 +0900
+Message-ID: <1488868597-32222-1-git-send-email-minchan@kernel.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-crypto-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <148846777589.2349.11698765767451886038.stgit@brijesh-build-machine>
-Sender: linux-crypto-owner@vger.kernel.org
-To: Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.o
+Content-Type: text/plain
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Minchan Kim <minchan@kernel.org>, Vlastimil Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 List-Id: linux-mm.kvack.org
 
-On Thu, Mar 02, 2017 at 10:16:15AM -0500, Brijesh Singh wrote:
-> The CCP device is part of the AMD Secure Processor. In order to expand the
-> usage of the AMD Secure Processor, create a framework that allows functional
-> components of the AMD Secure Processor to be initialized and handled
-> appropriately.
-> 
-> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  drivers/crypto/Kconfig           |   10 +
->  drivers/crypto/ccp/Kconfig       |   43 +++--
->  drivers/crypto/ccp/Makefile      |    8 -
->  drivers/crypto/ccp/ccp-dev-v3.c  |   86 +++++-----
->  drivers/crypto/ccp/ccp-dev-v5.c  |   73 ++++-----
->  drivers/crypto/ccp/ccp-dev.c     |  137 +++++++++-------
->  drivers/crypto/ccp/ccp-dev.h     |   35 ----
->  drivers/crypto/ccp/sp-dev.c      |  308 ++++++++++++++++++++++++++++++++++++
->  drivers/crypto/ccp/sp-dev.h      |  140 ++++++++++++++++
->  drivers/crypto/ccp/sp-pci.c      |  324 ++++++++++++++++++++++++++++++++++++++
->  drivers/crypto/ccp/sp-platform.c |  268 +++++++++++++++++++++++++++++++
->  include/linux/ccp.h              |    3 
->  12 files changed, 1240 insertions(+), 195 deletions(-)
->  create mode 100644 drivers/crypto/ccp/sp-dev.c
->  create mode 100644 drivers/crypto/ccp/sp-dev.h
->  create mode 100644 drivers/crypto/ccp/sp-pci.c
->  create mode 100644 drivers/crypto/ccp/sp-platform.c
+With the discussion[1], I found it seems there are every PageFlags
+functions return bool at this moment so we don't need double
+negation any more.
+Although it's not a problem to keep it, it makes future users
+confused to use dobule negation for them, too.
 
-> diff --git a/drivers/crypto/ccp/Makefile b/drivers/crypto/ccp/Makefile
-> index 346ceb8..8127e18 100644
-> --- a/drivers/crypto/ccp/Makefile
-> +++ b/drivers/crypto/ccp/Makefile
-> @@ -1,11 +1,11 @@
-> -obj-$(CONFIG_CRYPTO_DEV_CCP_DD) += ccp.o
-> -ccp-objs := ccp-dev.o \
-> +obj-$(CONFIG_CRYPTO_DEV_SP_DD) += ccp.o
-> +ccp-objs := sp-dev.o sp-platform.o
-> +ccp-$(CONFIG_PCI) += sp-pci.o
-> +ccp-$(CONFIG_CRYPTO_DEV_CCP) += ccp-dev.o \
->  	    ccp-ops.o \
->  	    ccp-dev-v3.o \
->  	    ccp-dev-v5.o \
-> -	    ccp-platform.o \
->  	    ccp-dmaengine.o
+Remove such possibility.
 
-It looks like ccp-platform.c has morphed into sp-platform.c (judging by
-the compatible string and general shape of the code), and the original
-ccp-platform.c is no longer built.
+[1] https://marc.info/?l=linux-kernel&m=148881578820434
 
-Shouldn't ccp-platform.c be deleted by this patch?
+Frankly sepaking, I like every PageFlags return bool instead of int.
+It will make it clear. AFAIR, Chen Gang had tried it but don't know
+why it was not merged at that time.
 
-Thanks,
-Mark.
+http://lkml.kernel.org/r/1469336184-1904-1-git-send-email-chengang@emindsoft.com.cn
+
+Cc: Vlastimil Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Chen Gang <gang.chen.5i5j@gmail.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/khugepaged.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 88e4b17..7cb9c88 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -548,7 +548,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		 * The page must only be referenced by the scanned process
+ 		 * and page swap cache.
+ 		 */
+-		if (page_count(page) != 1 + !!PageSwapCache(page)) {
++		if (page_count(page) != 1 + PageSwapCache(page)) {
+ 			unlock_page(page);
+ 			result = SCAN_PAGE_COUNT;
+ 			goto out;
+@@ -1181,7 +1181,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 		 * The page must only be referenced by the scanned process
+ 		 * and page swap cache.
+ 		 */
+-		if (page_count(page) != 1 + !!PageSwapCache(page)) {
++		if (page_count(page) != 1 + PageSwapCache(page)) {
+ 			result = SCAN_PAGE_COUNT;
+ 			goto out_unmap;
+ 		}
+-- 
+2.7.4
