@@ -1,66 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B94D6B0388
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 13:26:09 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y51so3504687wry.6
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 10:26:08 -0800 (PST)
-Received: from SMTP.EU.CITRIX.COM (smtp.eu.citrix.com. [185.25.65.24])
-        by mx.google.com with ESMTPS id c133si18436939wme.67.2017.03.07.10.26.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 695016B0388
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 13:28:47 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id v190so16122278pfb.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 10:28:47 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id w17si745235pge.203.2017.03.07.10.28.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 10:26:07 -0800 (PST)
-Subject: Re: [Xen-devel] [PATCHv4 18/33] x86/xen: convert __xen_pgd_walk() and
- xen_cleanmfnmap() to support p4d
-References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
- <20170306135357.3124-19-kirill.shutemov@linux.intel.com>
- <ab2868ea-1dd1-d51b-4c5a-921ef5c9a427@oracle.com>
- <20170307130009.GA2154@node>
- <8bd7d5b7-7a22-a0a2-8eff-e909a1c6783e@oracle.com>
-From: Andrew Cooper <andrew.cooper3@citrix.com>
-Message-ID: <47f06f4a-ef29-5a77-c48b-43a91a8c9579@citrix.com>
-Date: Tue, 7 Mar 2017 18:26:05 +0000
+        Tue, 07 Mar 2017 10:28:46 -0800 (PST)
+Date: Tue, 7 Mar 2017 10:28:41 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm, vmalloc: use __GFP_HIGHMEM implicitly
+Message-ID: <20170307182841.GS16328@bombadil.infradead.org>
+References: <20170307141020.29107-1-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <8bd7d5b7-7a22-a0a2-8eff-e909a1c6783e@oracle.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307141020.29107-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Zhang, Xiong Y" <xiong.y.zhang@intel.com>
-Cc: linux-arch@vger.kernel.org, Juergen Gross <jgross@suse.com>, Andi Kleen <ak@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, xen-devel <xen-devel@lists.xen.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Cristopher Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 07/03/17 18:18, Boris Ostrovsky wrote:
->>> Don't we need to pass vaddr down to all routines so that they select
->>> appropriate tables? You seem to always be choosing the first one.
->> IIUC, we clear whole page table subtree covered by one pgd entry.
->> So, no, there's no need to pass vaddr down. Just pointer to page table
->> entry is enough.
->>
->> But I know virtually nothing about Xen. Please re-check my reasoning.
-> Yes, we effectively remove the whole page table for vaddr so I guess
-> it's OK.
->
->> I would also appreciate help with getting x86 Xen code work with 5-level
->> paging enabled. For now I make CONFIG_XEN dependent on !CONFIG_X86_5LEVEL.
-> Hmmm... that's a problem since this requires changes in the hypervisor
-> and even if/when these changes are made older version of hypervisor
-> still will not be able to run those guests.
->
-> This affects only PV guests and there is a series under review that
-> provides clean code separation with CONFIG_XEN_PV but because, for
-> example, dom0 (Xen control domain) is PV this will significantly limit
-> availability of dom0-capable kernels (because I assume distros will want
-> to have CONFIG_X86_5LEVEL).
+On Tue, Mar 07, 2017 at 03:10:20PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> __vmalloc* allows users to provide gfp flags for the underlying
+> allocation. This API is quite popular
+> $ git grep "=[[:space:]]__vmalloc\|return[[:space:]]*__vmalloc" | wc -l
+> 77
+> 
+> the only problem is that many people are not aware that they really want
+> to give __GFP_HIGHMEM along with other flags because there is really no
+> reason to consume precious lowmemory on CONFIG_HIGHMEM systems for pages
+> which are mapped to the kernel vmalloc space. About half of users don't
+> use this flag, though. This signals that we make the API unnecessarily
+> too complex.
+> 
+> This patch simply uses __GFP_HIGHMEM implicitly when allocating pages to
+> be mapped to the vmalloc space. Current users which add __GFP_HIGHMEM
+> are simplified and drop the flag.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Wasn't the plan to be able to automatically detect 4 vs 5 level support,
-and cope either way, so distros didn't have to ship two different builds
-of Linux?
-
-If so, all we need to do git things to compile sensibly, and have the PV
-entry code in Linux configure the rest of the kernel appropriately.
-
-(If not, please ignore me.)
-
-~Andrew
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
