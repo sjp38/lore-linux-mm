@@ -1,191 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1366B0392
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 16:24:50 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id n76so16916428ioe.1
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 13:24:50 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id t28si1694390ioe.54.2017.03.07.13.24.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B7076B0398
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 16:29:49 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id v190so23953951pfb.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 13:29:49 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id o13si1092317pgd.349.2017.03.07.13.29.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 13:24:50 -0800 (PST)
-Message-Id: <20170307212438.398832999@linux.com>
-Date: Tue, 07 Mar 2017 15:24:35 -0600
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 6/6] slub: Extend slabinfo to support -D and -F options
-References: <20170307212429.044249411@linux.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=extend_slabinfo
+        Tue, 07 Mar 2017 13:29:48 -0800 (PST)
+Message-Id: <20170307212943.573855971@goodmis.org>
+Date: Tue, 07 Mar 2017 16:28:37 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: [RFC][PATCH 4/4] ftrace: Allow for function tracing to record init functions on boot
+ up
+References: <20170307212833.964734229@goodmis.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Disposition: inline; filename=0004-ftrace-Allow-for-function-tracing-to-record-init-fun.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Todd Brandt <todd.e.brandt@linux.intel.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>
 
--F lists caches that support defragmentation
+From: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
 
--C lists caches that use a ctor.
+Adding a hook into free_reserve_area() that informs ftrace that boot up init
+text is being free, lets ftrace safely remove those init functions from its
+records, which keeps ftrace from trying to modify text that no longer
+exists.
 
-Change field names for defrag_ratio and remote_node_defrag_ratio.
+Note, this still does not allow for tracing .init text of modules, as
+modules require different work for freeing its init code.
 
-Add determination of the allocation ratio for a slab. The allocation ratio
-is the percentage of available slots for objects in use.
+Link: http://lkml.kernel.org/r/1488502497.7212.24.camel@linux.intel.com
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
+Cc: linux-mm@kvack.org
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Requested-by: Todd Brandt <todd.e.brandt@linux.intel.com>
+Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
 ---
- Documentation/vm/slabinfo.c |   48 +++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 43 insertions(+), 5 deletions(-)
+ include/linux/ftrace.h  |  3 +++
+ include/linux/init.h    |  4 +++-
+ kernel/trace/ftrace.c   | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c         |  4 ++++
+ scripts/recordmcount.c  |  1 +
+ scripts/recordmcount.pl |  1 +
+ 6 files changed, 56 insertions(+), 1 deletion(-)
 
-Index: linux/tools/vm/slabinfo.c
-===================================================================
---- linux.orig/tools/vm/slabinfo.c
-+++ linux/tools/vm/slabinfo.c
-@@ -32,6 +32,8 @@ struct slabinfo {
- 	int hwcache_align, object_size, objs_per_slab;
- 	int sanity_checks, slab_size, store_user, trace;
- 	int order, poison, reclaim_account, red_zone;
-+	int defrag, ctor;
-+	int defrag_ratio, remote_node_defrag_ratio;
- 	unsigned long partial, objects, slabs, objects_partial, objects_total;
- 	unsigned long alloc_fastpath, alloc_slowpath;
- 	unsigned long free_fastpath, free_slowpath;
-@@ -66,6 +68,8 @@ int show_report;
- int show_alias;
- int show_slab;
- int skip_zero = 1;
-+int show_defrag;
-+int show_ctor;
- int show_numa;
- int show_track;
- int show_first_alias;
-@@ -107,14 +111,16 @@ static void fatal(const char *x, ...)
+diff --git a/include/linux/ftrace.h b/include/linux/ftrace.h
+index 569db5589851..25407b5553c3 100644
+--- a/include/linux/ftrace.h
++++ b/include/linux/ftrace.h
+@@ -249,6 +249,8 @@ static inline int ftrace_function_local_disabled(struct ftrace_ops *ops)
+ extern void ftrace_stub(unsigned long a0, unsigned long a1,
+ 			struct ftrace_ops *op, struct pt_regs *regs);
  
- static void usage(void)
- {
--	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
--		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
-+	printf("slabinfo 4/15/2017. (c) 2007 sgi/(c) 2011 Linux Foundation/(c) 2017 Jump Trading LLC.\n\n"
-+		"slabinfo [-aCdDefFhnpvtsz] [-d debugopts] [slab-regexp]\n"
- 		"-a|--aliases           Show aliases\n"
- 		"-A|--activity          Most active slabs first\n"
- 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
-+		"-C|--ctor              Show slabs with ctors\n"
- 		"-D|--display-active    Switch line format to activity\n"
- 		"-e|--empty             Show empty slabs\n"
- 		"-f|--first-alias       Show first alias\n"
-+		"-F|--defrag            Show defragmentable caches\n"
- 		"-h|--help              Show usage information\n"
- 		"-i|--inverted          Inverted list\n"
- 		"-l|--slabs             Show slabs\n"
-@@ -366,7 +372,7 @@ static void slab_numa(struct slabinfo *s
- 		return;
- 
- 	if (!line) {
--		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
-+		printf("\n%-21s: Rto ", mode ? "NUMA nodes" : "Slab");
- 		for(node = 0; node <= highest_node; node++)
- 			printf(" %4d", node);
- 		printf("\n----------------------");
-@@ -375,6 +381,7 @@ static void slab_numa(struct slabinfo *s
- 		printf("\n");
- 	}
- 	printf("%-21s ", mode ? "All slabs" : s->name);
-+	printf("%3d ", s->remote_node_defrag_ratio);
- 	for(node = 0; node <= highest_node; node++) {
- 		char b[20];
- 
-@@ -532,6 +539,8 @@ static void report(struct slabinfo *s)
- 		printf("** Slabs are destroyed via RCU\n");
- 	if (s->reclaim_account)
- 		printf("** Reclaim accounting active\n");
-+	if (s->defrag)
-+		printf("** Defragmentation at %d%%\n", s->defrag_ratio);
- 
- 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
- 	printf("------------------------------------------------------------------------\n");
-@@ -579,6 +588,12 @@ static void slabcache(struct slabinfo *s
- 	if (show_empty && s->slabs)
- 		return;
- 
-+	if (show_defrag && !s->defrag)
-+		return;
++void ftrace_free_mem(void *start, void *end);
 +
-+	if (show_ctor && !s->ctor)
-+		return;
-+
- 	if (sort_loss == 0)
- 		store_size(size_str, slab_size(s));
- 	else
-@@ -593,6 +608,10 @@ static void slabcache(struct slabinfo *s
- 		*p++ = '*';
- 	if (s->cache_dma)
- 		*p++ = 'd';
-+	if (s->defrag)
-+		*p++ = 'F';
-+	if (s->ctor)
-+		*p++ = 'C';
- 	if (s->hwcache_align)
- 		*p++ = 'A';
- 	if (s->poison)
-@@ -627,7 +646,8 @@ static void slabcache(struct slabinfo *s
- 		printf("%-21s %8ld %7d %15s %14s %4d %1d %3ld %3ld %s\n",
- 			s->name, s->objects, s->object_size, size_str, dist_str,
- 			s->objs_per_slab, s->order,
--			s->slabs ? (s->partial * 100) / s->slabs : 100,
-+			s->slabs ? (s->partial * 100) /
-+					(s->slabs * s->objs_per_slab) : 100,
- 			s->slabs ? (s->objects * s->object_size * 100) /
- 				(s->slabs * (page_size << s->order)) : 100,
- 			flags);
-@@ -1246,7 +1266,17 @@ static void read_slab_dir(void)
- 			slab->cpu_partial_free = get_obj("cpu_partial_free");
- 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
- 			slab->deactivate_bypass = get_obj("deactivate_bypass");
-+			slab->defrag_ratio = get_obj("defrag_ratio");
-+			slab->remote_node_defrag_ratio =
-+					get_obj("remote_node_defrag_ratio");
- 			chdir("..");
-+			if (read_slab_obj(slab, "ops")) {
-+				if (strstr(buffer, "ctor :"))
-+					slab->ctor = 1;
-+				if (strstr(buffer, "kick :"))
-+					slab->defrag = 1;
-+			}
-+
- 			if (slab->name[0] == ':')
- 				alias_targets++;
- 			slab++;
-@@ -1323,6 +1353,8 @@ static void xtotals(void)
+ #else /* !CONFIG_FUNCTION_TRACER */
+ /*
+  * (un)register_ftrace_function must be a macro since the ops parameter
+@@ -262,6 +264,7 @@ static inline int ftrace_nr_registered_ops(void)
+ }
+ static inline void clear_ftrace_function(void) { }
+ static inline void ftrace_kill(void) { }
++static inline void ftrace_free_mem(void *start, void *end) { }
+ #endif /* CONFIG_FUNCTION_TRACER */
+ 
+ #ifdef CONFIG_STACK_TRACER
+diff --git a/include/linux/init.h b/include/linux/init.h
+index 885c3e6d0f9d..c119e76f6d6e 100644
+--- a/include/linux/init.h
++++ b/include/linux/init.h
+@@ -39,7 +39,7 @@
+ 
+ /* These are for everybody (although not all archs will actually
+    discard it in modules) */
+-#define __init		__section(.init.text) __cold notrace __latent_entropy
++#define __init		__section(.init.text) __cold __inittrace __latent_entropy
+ #define __initdata	__section(.init.data)
+ #define __initconst	__section(.init.rodata)
+ #define __exitdata	__section(.exit.data)
+@@ -68,8 +68,10 @@
+ 
+ #ifdef MODULE
+ #define __exitused
++#define __inittrace notrace
+ #else
+ #define __exitused  __used
++#define __inittrace
+ #endif
+ 
+ #define __exit          __section(.exit.text) __exitused __cold notrace
+diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
+index d129ae51329a..4c2d751eb886 100644
+--- a/kernel/trace/ftrace.c
++++ b/kernel/trace/ftrace.c
+@@ -5251,6 +5251,50 @@ void ftrace_module_enable(struct module *mod)
+ 	mutex_unlock(&ftrace_lock);
  }
  
- struct option opts[] = {
-+	{ "ctor", no_argument, NULL, 'C' },
-+	{ "defrag", no_argument, NULL, 'F' },
- 	{ "aliases", no_argument, NULL, 'a' },
- 	{ "activity", no_argument, NULL, 'A' },
- 	{ "debug", optional_argument, NULL, 'd' },
-@@ -1357,7 +1389,7 @@ int main(int argc, char *argv[])
++void ftrace_free_mem(void *start_ptr, void *end_ptr)
++{
++	unsigned long start = (unsigned long)start_ptr;
++	unsigned long end = (unsigned long)end_ptr;
++	struct ftrace_page **last_pg = &ftrace_pages_start;
++	struct ftrace_page *pg;
++	struct dyn_ftrace *rec;
++	struct dyn_ftrace key;
++	int order;
++
++	key.ip = start;
++	key.flags = end;	/* overload flags, as it is unsigned long */
++
++	mutex_lock(&ftrace_lock);
++
++	for (pg = ftrace_pages_start; pg; last_pg = &pg->next, pg = *last_pg) {
++		if (end < pg->records[0].ip ||
++		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
++			continue;
++ again:
++		rec = bsearch(&key, pg->records, pg->index,
++			      sizeof(struct dyn_ftrace),
++			      ftrace_cmp_recs);
++		if (!rec)
++			continue;
++		pg->index--;
++		if (!pg->index) {
++			*last_pg = pg->next;
++			order = get_count_order(pg->size / ENTRIES_PER_PAGE);
++			free_pages((unsigned long)pg->records, order);
++			kfree(pg);
++			pg = container_of(last_pg, struct ftrace_page, next);
++			if (!(*last_pg))
++				ftrace_pages = pg;
++			continue;
++		}
++		memmove(rec, rec + 1,
++			(pg->index - (rec - pg->records)) * sizeof(*rec));
++		/* More than one function may be in this block */
++		goto again;
++	}
++	mutex_unlock(&ftrace_lock);
++}
++
+ void ftrace_module_init(struct module *mod)
+ {
+ 	if (ftrace_disabled || !mod->num_ftrace_callsites)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2c6d5f64feca..95ac03de4cda 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -64,6 +64,7 @@
+ #include <linux/page_owner.h>
+ #include <linux/kthread.h>
+ #include <linux/memcontrol.h>
++#include <linux/ftrace.h>
  
- 	page_size = getpagesize();
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -6441,6 +6442,9 @@ unsigned long free_reserved_area(void *start, void *end, int poison, char *s)
+ 	void *pos;
+ 	unsigned long pages = 0;
  
--	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXB",
-+	while ((c = getopt_long(argc, argv, "aACd::DefFhil1noprstvzTSN:LXB",
- 						opts, NULL)) != -1)
- 		switch (c) {
- 		case '1':
-@@ -1413,6 +1445,12 @@ int main(int argc, char *argv[])
- 		case 'z':
- 			skip_zero = 0;
- 			break;
-+		case 'C':
-+			show_ctor = 1;
-+			break;
-+		case 'F':
-+			show_defrag = 1;
-+			break;
- 		case 'T':
- 			show_totals = 1;
- 			break;
++	/* This may be .init text, inform ftrace to remove it */
++	ftrace_free_mem(start, end);
++
+ 	start = (void *)PAGE_ALIGN((unsigned long)start);
+ 	end = (void *)((unsigned long)end & PAGE_MASK);
+ 	for (pos = start; pos < end; pos += PAGE_SIZE, pages++) {
+diff --git a/scripts/recordmcount.c b/scripts/recordmcount.c
+index aeb34223167c..16e086dcc567 100644
+--- a/scripts/recordmcount.c
++++ b/scripts/recordmcount.c
+@@ -412,6 +412,7 @@ static int
+ is_mcounted_section_name(char const *const txtname)
+ {
+ 	return strcmp(".text",           txtname) == 0 ||
++		strcmp(".init.text",     txtname) == 0 ||
+ 		strcmp(".ref.text",      txtname) == 0 ||
+ 		strcmp(".sched.text",    txtname) == 0 ||
+ 		strcmp(".spinlock.text", txtname) == 0 ||
+diff --git a/scripts/recordmcount.pl b/scripts/recordmcount.pl
+index faac4b10d8ea..328590d58eee 100755
+--- a/scripts/recordmcount.pl
++++ b/scripts/recordmcount.pl
+@@ -130,6 +130,7 @@ if ($inputfile =~ m,kernel/trace/ftrace\.o$,) {
+ # Acceptable sections to record.
+ my %text_sections = (
+      ".text" => 1,
++     ".init.text" => 1,
+      ".ref.text" => 1,
+      ".sched.text" => 1,
+      ".spinlock.text" => 1,
+-- 
+2.10.2
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
