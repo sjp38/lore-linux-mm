@@ -1,56 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D6BE16B0388
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 14:36:37 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 68so13637769ioh.4
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 11:36:37 -0800 (PST)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id v99si1406028ioi.163.2017.03.07.11.36.36
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D2786B0389
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 14:37:02 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id m124so12532549oig.3
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 11:37:02 -0800 (PST)
+Received: from mail-ot0-x233.google.com (mail-ot0-x233.google.com. [2607:f8b0:4003:c0f::233])
+        by mx.google.com with ESMTPS id o8si507546oih.22.2017.03.07.11.37.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 11:36:36 -0800 (PST)
-Received: by mail-io0-x242.google.com with SMTP id n76so1624607ioe.1
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 11:36:36 -0800 (PST)
+        Tue, 07 Mar 2017 11:37:01 -0800 (PST)
+Received: by mail-ot0-x233.google.com with SMTP id x37so14998995ota.2
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 11:37:01 -0800 (PST)
+Date: Tue, 7 Mar 2017 14:36:59 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
+Message-ID: <20170307193659.GD31179@htj.duckdns.org>
+References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
+ <20170303133950.GD31582@dhcp22.suse.cz>
+ <20170303232512.GI17542@dastard>
+ <20170307121503.GJ28642@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CA+8MBbJpbD=dLwAWCuu+o-1phEA1eVNLOJb62fj-RvkJPR0+fA@mail.gmail.com>
-References: <20161216120009.20064-1-vbabka@suse.cz> <20161216120009.20064-2-vbabka@suse.cz>
- <CA+8MBbJpbD=dLwAWCuu+o-1phEA1eVNLOJb62fj-RvkJPR0+fA@mail.gmail.com>
-From: Tony Luck <tony.luck@gmail.com>
-Date: Tue, 7 Mar 2017 11:36:36 -0800
-Message-ID: <CA+8MBbJNWT5LmekxdLz96_L62qHRJF3_PztjYVBikgv5goorbA@mail.gmail.com>
-Subject: Re: [PATCH v2 2/2] mm, page_alloc: avoid page_to_pfn() when merging buddies
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307121503.GJ28642@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 7, 2017 at 10:40 AM, Tony Luck <tony.luck@gmail.com> wrote:
-> The commit messages talks about the "only caller" of page_is_buddy().
-> But grep shows two call sites:
+Hello,
+
+On Tue, Mar 07, 2017 at 01:15:04PM +0100, Michal Hocko wrote:
+> > The real problem here is that the XFS code has /no idea/ of what
+> > workqueue context it is operating in - the fact it is in a rescuer
+
+I don't see how whether something is running off of a rescuer or not
+matters here.  The only thing workqueue guarantees is that there's
+gonna be at least one kworker thread executing work items from the
+workqueue.  Running on a rescuer doesn't necessarily indicate memory
+pressure condition.
+
+> > thread is completely hidden from the executing context. It seems to
+> > me that the workqueue infrastructure's responsibility to tell memory
+> > reclaim that the rescuer thread needs special access to the memory
+> > reserves to allow the work it is running to allow forwards progress
+> > to be made. i.e.  setting PF_MEMALLOC on the rescuer thread or
+> > something similar...
 >
-> mm/page_alloc.c:816:            if (!page_is_buddy(page, buddy, order))
-> mm/page_alloc.c:876:            if (page_is_buddy(higher_page,
+> I am not sure an automatic access to memory reserves from the rescuer
+> context is safe. This sounds too easy to break (read consume all the
+> reserves) - note that we have almost 200 users of WQ_MEM_RECLAIM and
+> chances are some of them will not be careful with the memory
+> allocations. I agree it would be helpful to know that the current item
+> runs from the rescuer context, though. In such a case the implementation
+> can do what ever it takes to make a forward progress. If that is using
+> __GFP_MEMALLOC then be it but it would be at least explicit and well
+> thought through (I hope).
 
-and it looks like the second one is the problem:
+I don't think doing this automatically is a good idea.  xfs work items
+are free to mark itself PF_MEMALLOC while running tho.  It makes sense
+to mark these cases explicitly anyway.  We can update workqueue code
+so that it automatically clears the flag after each work item
+completion to help.
 
-        if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
-                struct page *higher_page, *higher_buddy;
-                combined_pfn = buddy_pfn & pfn;
-                higher_page = page + (combined_pfn - pfn);
-                buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
-                higher_buddy = higher_page + (buddy_pfn - combined_pfn);
-                if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
-                        list_add_tail(&page->lru,
-                                &zone->free_area[order].free_list[migratetype]);
-                        goto out;
-                }
-        }
+> Tejun, would it be possible/reasonable to add current_is_wq_rescuer() API?
 
-Although outer "if" checked for pfn_valid_within(buddy_pfn),
-we actually pass "higher_buddy" to this call of page_is_buddy().
+It's implementable for sure.  I'm just not sure how it'd help
+anything.  It's not a relevant information on anything.
 
--Tony
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
