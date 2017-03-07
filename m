@@ -1,263 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A277A6B0389
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 07:40:15 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id o135so1084793qke.3
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 04:40:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p189si17818775qkf.269.2017.03.07.04.40.12
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D16A6B0387
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:00:15 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b140so1039813wme.3
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:00:15 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id j20si30706443wrb.254.2017.03.07.05.00.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 04:40:13 -0800 (PST)
-Date: Tue, 7 Mar 2017 13:40:04 +0100
-From: Igor Mammedov <imammedo@redhat.com>
-Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-Message-ID: <20170307134004.58343e14@nial.brq.redhat.com>
-In-Reply-To: <20170306145417.GG27953@dhcp22.suse.cz>
-References: <20170227154304.GK26504@dhcp22.suse.cz>
-	<1488462828-174523-1-git-send-email-imammedo@redhat.com>
-	<20170302142816.GK1404@dhcp22.suse.cz>
-	<20170302180315.78975d4b@nial.brq.redhat.com>
-	<20170303082723.GB31499@dhcp22.suse.cz>
-	<20170303183422.6358ee8f@nial.brq.redhat.com>
-	<20170306145417.GG27953@dhcp22.suse.cz>
+        Tue, 07 Mar 2017 05:00:13 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id n11so863122wma.0
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:00:13 -0800 (PST)
+Date: Tue, 7 Mar 2017 16:00:09 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 18/33] x86/xen: convert __xen_pgd_walk() and
+ xen_cleanmfnmap() to support p4d
+Message-ID: <20170307130009.GA2154@node>
+References: <20170306135357.3124-1-kirill.shutemov@linux.intel.com>
+ <20170306135357.3124-19-kirill.shutemov@linux.intel.com>
+ <ab2868ea-1dd1-d51b-4c5a-921ef5c9a427@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ab2868ea-1dd1-d51b-4c5a-921ef5c9a427@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y.
- Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Igor Mammedov <imammedo@redhat.com>
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, "Zhang, Xiong Y" <xiong.y.zhang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juergen Gross <jgross@suse.com>, xen-devel <xen-devel@lists.xen.org>
 
-On Mon, 6 Mar 2017 15:54:17 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 03-03-17 18:34:22, Igor Mammedov wrote:
-> > On Fri, 3 Mar 2017 09:27:23 +0100
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> >   
-> > > On Thu 02-03-17 18:03:15, Igor Mammedov wrote:  
-> > > > On Thu, 2 Mar 2017 15:28:16 +0100
-> > > > Michal Hocko <mhocko@kernel.org> wrote:
-> > > >     
-> > > > > On Thu 02-03-17 14:53:48, Igor Mammedov wrote:
-[...]
-
-> > > > > memblocks. If that doesn't work I would call it a bug.    
-> > > > It's rather an implementation constrain than a bug
-> > > > for details and workaround patch see
-> > > >  [1] https://bugzilla.redhat.com/show_bug.cgi?id=1314306#c7    
-> > > 
-> > > "You are not authorized to access bug #1314306"  
-> > Sorry,
-> > I've made it public, related comments and patch should be accessible now
-> > (code snippets in BZ are based on older kernel but logic is still the same upstream)
-> >    
-> > > could you paste the reasoning here please?  
-> > sure here is reproducer:
-> > start VM with CLI:
-> >   qemu-system-x86_64  -enable-kvm -m size=1G,slots=2,maxmem=4G -numa node \
-> >   -object memory-backend-ram,id=m1,size=1G -device pc-dimm,node=0,memdev=m1 \
-> >   /path/to/guest_image
-> > 
-> > then in guest dimm1 blocks are from 32-39
-> > 
-> >   echo online_movable > /sys/devices/system/memory/memory32/state
-> > -bash: echo: write error: Invalid argument
-> > 
-> > in current mainline kernel it triggers following code path:
-> > 
-> > online_pages()
-> >   ...
-> >        if (online_type == MMOP_ONLINE_KERNEL) {                                 
-> >                 if (!zone_can_shift(pfn, nr_pages, ZONE_NORMAL, &zone_shift))    
-> >                         return -EINVAL;  
+On Mon, Mar 06, 2017 at 03:48:24PM -0500, Boris Ostrovsky wrote:
 > 
-> Are you sure? I would expect MMOP_ONLINE_MOVABLE here
-pretty much, reproducer is above so try and see for yourself
-
-[...]
-> [...]
-> > > > > > Which means simple udev rule isn't usable since it gets event from
-> > > > > > the first to the last hotplugged block order. So now we would have
-> > > > > > to write a daemon that would
-> > > > > >  - watch for all blocks in hotplugged memory appear (how would it know)
-> > > > > >  - online them in right order (order might also be different depending
-> > > > > >    on kernel version)
-> > > > > >    -- it becomes even more complicated in NUMA case when there are
-> > > > > >       multiple zones and kernel would have to provide user-space
-> > > > > >       with information about zone maps
-> > > > > > 
-> > > > > > In short current experience shows that userspace approach
-> > > > > >  - doesn't solve issues that Vitaly has been fixing (i.e. onlining
-> > > > > >    fast and/or under memory pressure) when udev (or something else
-> > > > > >    might be killed)      
-> > > > > 
-> > > > > yeah and that is why the patch does the onlining from the kernel.    
-> > > > onlining in this patch is limited to hyperv and patch breaks
-> > > > auto-online on x86 kvm/vmware/baremetal as they reuse the same
-> > > > hotplug path.    
-> > > 
-> > > Those can use the udev or do you see any reason why they couldn't?  
-> >
-> > Reasons are above, under >>>> and >> quotations, patch breaks
-> > what Vitaly's fixed (including kvm/vmware usecases) i.e. udev/some
-> > user-space process could be killed if hotplugged memory isn't onlined
-> > fast enough leading to service termination and/or memory not
-> > being onlined at all (if udev is killed)  
+> > +static int xen_p4d_walk(struct mm_struct *mm, p4d_t *p4d,
+> > +		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
+> > +		bool last, unsigned long limit)
+> > +{
+> > +	int i, nr, flush = 0;
+> > +
+> > +	nr = last ? p4d_index(limit) + 1 : PTRS_PER_P4D;
+> > +	for (i = 0; i < nr; i++) {
+> > +		pud_t *pud;
+> > +
+> > +		if (p4d_none(p4d[i]))
+> > +			continue;
+> > +
+> > +		pud = pud_offset(&p4d[i], 0);
+> > +		if (PTRS_PER_PUD > 1)
+> > +			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
+> > +		xen_pud_walk(mm, pud, func, last && i == nr - 1, limit);
+> > +	}
+> > +	return flush;
+> > +}
 > 
-> OK, so from the discussion so far I have learned that this would be
-> problem _only_ if we are trying to hotplug a _lot_ of memory at once
-> (~1.5% of the online memory is needed).  I am kind of skeptical this is
-> a reasonable usecase. Who is going to hotadd 8G to 256M machine (which
-> would eat half of the available memory which is still quite far from
-> OOM)? Even if the memory balloning uses hotplug then such a grow sounds
-> a bit excessive.
-Slow and killable udev issue doesn't really depends on
-amount of hotplugged memory since it's onlined in blocks
-(128M for x64). Considering that it's currently onlined
-as zone normal, kernel doesn't have any issues adding more
-follow up blocks of memory.
-
-> > Currently udev rule is not usable and one needs a daemon
-> > which would correctly do onlining and keep zone balance
-> > even for simple case usecase of 1 normal and 1 movable zone.
-> > And it gets more complicated in case of multiple numa nodes
-> > with multiple zones.  
+> ..
 > 
-> That sounds to be more related to the current implementation than
-> anything else and as such is not a reason to invent specific user
-> visible api. Btw. you are talking about movable zones byt the auto
-> onlining doesn't allow to auto online movable memory. So either I miss
-> your point or I am utterly confused.
-in current state neither does udev rule as memory is onlined
-as NORMAL (x64 variant at least), which is the same as auto online
-does now.
-
-We are discussing 2 different issues here and thread got pretty
-hard to follow. I'll try to sum up at results the end.
-
-> [...]
-> > > > Memory unplug is rather new and it doesn't work reliably so far,
-> > > > moving onlining to user-space won't really help. Further work
-> > > > is need to be done so that it would work reliably.    
-> > > 
-> > > The main problem I have with this is that this is a limited usecase
-> > > driven configuration knob which doesn't work properly for other usecases
-> > > (namely movable online once your distribution choses to set the config
-> > > option to auto online).  
-> >
-> > it works for default usecase in Fedora and non-default
-> > movable can be used with
-> >  1) removable memory auto-online as movable in kernel, like
-> >     patch [1] would make movable hotplugged memory
-> >     (when I have time I'll try to work on it)
-> >  2) (or in worst case due to lack of alternative) explicitly
-> >     disabled auto-online on kernel CLI + onlining daemon 
-> >     (since udev isn't working in current kernel due to ordering issue)  
+> > +		p4d = p4d_offset(&pgd[i], 0);
+> > +		if (PTRS_PER_P4D > 1)
+> > +			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
+> > +		xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
 > 
-> So I fail to see how this can work. Say the default will auto online
-> all the added memory. This will be all in Zone Normal because the auto
-> onlining doesn't do online_movable. Now I would like to online the
-> memory as movable but that might fail because some kernel objects might
-> be already sitting there so the offline would fail.
-same happens with udev rule as currently it can online from
-the first to last hotplugged block only as Zone Normal.
-see
-  arch/x86/mm/init_64.c:
-      acpi_memory_enable_device() -> add_memory -> add_memory_resource
-
-both auto online and udev could be fixed by patch
-https://bugzilla.redhat.com/attachment.cgi?id=1146332
-to online reomovable memory as movable.
-
-> > > There is a userspace solution for this so this
-> > > shouldn't have been merged in the first place!  
-> > Sorry, currently user-space udev solution doesn't work nor
-> > will it work reliably in extreme conditions.
-> >   
-> > > It sneaked a proper review
-> > > process (linux-api wasn't CC to get a broader attenttion) which is
-> > > really sad.  
-> >
-> > get_maintainer.pl doesn't lists linux-api for 31bc3858ea3e,
-> > MAINTAINERS should be fixed if linux-api were to be CCed.  
 > 
-> user visible APIs _should_ be discussed at this mailing list regardless
-> what get_maintainer.pl says. This is not about who is the maintainer but
-> about getting as wide audience for things that would have to be
-> maintained basically for ever.
-How would random contributor know which list to CC?
-
-> > > So unless this causes a major regression which would be hard to fix I
-> > > will submit the patch for inclusion.  
-> > it will be a major regression due to lack of daemon that
-> > could online fast and can't be killed on OOM. So this
-> > clean up patch does break used feature without providing
-> > a viable alternative.  
+> We are losing flush status at all levels so we need something like
 > 
-> So let's discuss the current memory hotplug shortcomings and get rid of
-> the crud which developed on top. I will start by splitting up the patch
-> into 3 parts. Do the auto online thing from the HyperV and xen balloning
-> drivers and dropping the config option and finally drop the sysfs knob.
-> The last patch might be NAKed and I can live with that as long as the
-> reasoning is proper and there is a general consensus on that.
-PS: CC me on that patches too
+> flush |= xen_XXX_walk(...)
 
-It's major regression if you remove auto online in kernels that
-run on top of x86 kvm/vmware hypervisors, making API cleanups
-while breaking useful functionality doesn't make sense.
++ Xiong.
 
-I would ACK config option removal if auto online keeps working
-for all x86 hypervisors (hyperv/xen isn't the only who needs it)
-and keep kernel CLI option to override default.
+Thanks for noticing this. The fixup is below.
 
-That doesn't mean that others will agree with flipping default,
-that's why config option has been added.
+Please test, I don't have a setup for this.
 
-Now to sum up what's been discussed on this thread, there were 2
-different issues discussed:
-  1) memory hotplug: remove in kernel auto online for all
-                     except of hyperv/xen
+> 
+> 
+> 
+> >  	}
+> >  
+> > -out:
+> >  	/* Do the top level last, so that the callbacks can use it as
+> >  	   a cue to do final things like tlb flushes. */
+> >  	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
+> > @@ -1150,57 +1161,97 @@ static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl, bool unpin)
+> >  	xen_free_ro_pages(pa, PAGE_SIZE);
+> >  }
+> >  
+> > +static void __init xen_cleanmfnmap_pmd(pmd_t *pmd, bool unpin)
+> > +{
+> > +	unsigned long pa;
+> > +	pte_t *pte_tbl;
+> > +	int i;
+> > +
+> > +	if (pmd_large(*pmd)) {
+> > +		pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
+> > +		xen_free_ro_pages(pa, PMD_SIZE);
+> > +		return;
+> > +	}
+> > +
+> > +	pte_tbl = pte_offset_kernel(pmd, 0);
+> > +	for (i = 0; i < PTRS_PER_PTE; i++) {
+> > +		if (pte_none(pte_tbl[i]))
+> > +			continue;
+> > +		pa = pte_pfn(pte_tbl[i]) << PAGE_SHIFT;
+> > +		xen_free_ro_pages(pa, PAGE_SIZE);
+> > +	}
+> > +	set_pmd(pmd, __pmd(0));
+> > +	xen_cleanmfnmap_free_pgtbl(pte_tbl, unpin);
+> > +}
+> > +
+> > +static void __init xen_cleanmfnmap_pud(pud_t *pud, bool unpin)
+> > +{
+> > +	unsigned long pa;
+> > +	pmd_t *pmd_tbl;
+> > +	int i;
+> > +
+> > +	if (pud_large(*pud)) {
+> > +		pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
+> > +		xen_free_ro_pages(pa, PUD_SIZE);
+> > +		return;
+> > +	}
+> > +
+> > +	pmd_tbl = pmd_offset(pud, 0);
+> > +	for (i = 0; i < PTRS_PER_PMD; i++) {
+> > +		if (pmd_none(pmd_tbl[i]))
+> > +			continue;
+> > +		xen_cleanmfnmap_pmd(pmd_tbl + i, unpin);
+> > +	}
+> > +	set_pud(pud, __pud(0));
+> > +	xen_cleanmfnmap_free_pgtbl(pmd_tbl, unpin);
+> > +}
+> > +
+> > +static void __init xen_cleanmfnmap_p4d(p4d_t *p4d, bool unpin)
+> > +{
+> > +	unsigned long pa;
+> > +	pud_t *pud_tbl;
+> > +	int i;
+> > +
+> > +	if (p4d_large(*p4d)) {
+> > +		pa = p4d_val(*p4d) & PHYSICAL_PAGE_MASK;
+> > +		xen_free_ro_pages(pa, P4D_SIZE);
+> > +		return;
+> > +	}
+> > +
+> > +	pud_tbl = pud_offset(p4d, 0);
+> > +	for (i = 0; i < PTRS_PER_PUD; i++) {
+> > +		if (pud_none(pud_tbl[i]))
+> > +			continue;
+> > +		xen_cleanmfnmap_pud(pud_tbl + i, unpin);
+> > +	}
+> > +	set_p4d(p4d, __p4d(0));
+> > +	xen_cleanmfnmap_free_pgtbl(pud_tbl, unpin);
+> > +}
+> > +
+> >  /*
+> >   * Since it is well isolated we can (and since it is perhaps large we should)
+> >   * also free the page tables mapping the initial P->M table.
+> >   */
+> >  static void __init xen_cleanmfnmap(unsigned long vaddr)
+> >  {
+> > -	unsigned long va = vaddr & PMD_MASK;
+> > -	unsigned long pa;
+> > -	pgd_t *pgd = pgd_offset_k(va);
+> > -	pud_t *pud_page = pud_offset(pgd, 0);
+> > -	pud_t *pud;
+> > -	pmd_t *pmd;
+> > -	pte_t *pte;
+> > +	pgd_t *pgd;
+> > +	p4d_t *p4d;
+> >  	unsigned int i;
+> >  	bool unpin;
+> >  
+> >  	unpin = (vaddr == 2 * PGDIR_SIZE);
+> > -	set_pgd(pgd, __pgd(0));
+> > -	do {
+> > -		pud = pud_page + pud_index(va);
+> > -		if (pud_none(*pud)) {
+> > -			va += PUD_SIZE;
+> > -		} else if (pud_large(*pud)) {
+> > -			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
+> > -			xen_free_ro_pages(pa, PUD_SIZE);
+> > -			va += PUD_SIZE;
+> > -		} else {
+> > -			pmd = pmd_offset(pud, va);
+> > -			if (pmd_large(*pmd)) {
+> > -				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
+> > -				xen_free_ro_pages(pa, PMD_SIZE);
+> > -			} else if (!pmd_none(*pmd)) {
+> > -				pte = pte_offset_kernel(pmd, va);
+> > -				set_pmd(pmd, __pmd(0));
+> > -				for (i = 0; i < PTRS_PER_PTE; ++i) {
+> > -					if (pte_none(pte[i]))
+> > -						break;
+> > -					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
+> > -					xen_free_ro_pages(pa, PAGE_SIZE);
+> > -				}
+> > -				xen_cleanmfnmap_free_pgtbl(pte, unpin);
+> > -			}
+> > -			va += PMD_SIZE;
+> > -			if (pmd_index(va))
+> > -				continue;
+> > -			set_pud(pud, __pud(0));
+> > -			xen_cleanmfnmap_free_pgtbl(pmd, unpin);
+> > -		}
+> > -
+> > -	} while (pud_index(va) || pmd_index(va));
+> > -	xen_cleanmfnmap_free_pgtbl(pud_page, unpin);
+> > +	vaddr &= PMD_MASK;
+> > +	pgd = pgd_offset_k(vaddr);
+> > +	p4d = p4d_offset(pgd, 0);
+> > +	for (i = 0; i < PTRS_PER_P4D; i++) {
+> > +		if (p4d_none(p4d[i]))
+> > +			continue;
+> > +		xen_cleanmfnmap_p4d(p4d + i, unpin);
+> > +	}
+> 
+> Don't we need to pass vaddr down to all routines so that they select
+> appropriate tables? You seem to always be choosing the first one.
 
-       - suggested RFC is not acceptable from virt point of view
-         as it regresses guests on top of x86 kvm/vmware which
-         both use ACPI based memory hotplug.
+IIUC, we clear whole page table subtree covered by one pgd entry.
+So, no, there's no need to pass vaddr down. Just pointer to page table
+entry is enough.
 
-       - udev/userspace solution doesn't work in practice as it's
-         too slow and unreliable when system is under load which
-         is quite common in virt usecase. That's why auto online
-         has been introduced in the first place.
+But I know virtually nothing about Xen. Please re-check my reasoning.
 
-  2) memory unplug: online memory as movable
+I would also appreciate help with getting x86 Xen code work with 5-level
+paging enabled. For now I make CONFIG_XEN dependent on !CONFIG_X86_5LEVEL.
 
-       - doesn't work currently with udev rule due to kernel
-         issues https://bugzilla.redhat.com/show_bug.cgi?id=1314306#c7
+Fixup:
 
-       - could be fixed both for in kernel auto online and udev
-         with following patch:
-         https://bugzilla.redhat.com/attachment.cgi?id=1146332
-         but fixing it this way exposes zone disbalance issues,
-         which are not present in current kernel as blocks are
-         onlined in Zone Normal. So this is area to work and
-         improve on.
-
-       - currently if one wants to use online_movable,
-         one has to either
-           * disable auto online in kernel OR
-           * remove udev rule that distro ships
-         AND write custom daemon that will be able to online
-         block in right zone/order. So currently whole
-         online_movable thing isn't working by default
-         regardless of who onlines memory.
-
-         I'm in favor of implementing that in kernel as it keeps
-         kernel internals inside kernel and doesn't need
-         kernel API to be involved (memory blocks in sysfs,
-         online_kernel, online_movable)
-         There would be no need in userspace which would have to
-         deal with kernel zoo and maintain that as well.
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index a4079cfab007..d66b7e79781a 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -629,7 +629,8 @@ static int xen_pud_walk(struct mm_struct *mm, pud_t *pud,
+ 		pmd = pmd_offset(&pud[i], 0);
+ 		if (PTRS_PER_PMD > 1)
+ 			flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
+-		xen_pmd_walk(mm, pmd, func, last && i == nr - 1, limit);
++		flush |= xen_pmd_walk(mm, pmd, func,
++				last && i == nr - 1, limit);
+ 	}
+ 	return flush;
+ }
+@@ -650,7 +651,8 @@ static int xen_p4d_walk(struct mm_struct *mm, p4d_t *p4d,
+ 		pud = pud_offset(&p4d[i], 0);
+ 		if (PTRS_PER_PUD > 1)
+ 			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
+-		xen_pud_walk(mm, pud, func, last && i == nr - 1, limit);
++		flush |= xen_pud_walk(mm, pud, func,
++				last && i == nr - 1, limit);
+ 	}
+ 	return flush;
+ }
+@@ -706,7 +708,7 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+ 		p4d = p4d_offset(&pgd[i], 0);
+ 		if (PTRS_PER_P4D > 1)
+ 			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
+-		xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
++		flush |= xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
+ 	}
+ 
+ 	/* Do the top level last, so that the callbacks can use it as
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
