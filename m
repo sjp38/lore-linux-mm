@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D2496B0389
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 12:43:01 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id h89so5817187lfi.6
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 09:43:01 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id n36si267325lfi.293.2017.03.07.09.42.59
-        for <linux-mm@kvack.org>;
-        Tue, 07 Mar 2017 09:42:59 -0800 (PST)
-Date: Tue, 7 Mar 2017 18:42:51 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v4 28/28] x86: Add support to make use of Secure
- Memory Encryption
-Message-ID: <20170307174251.qrg4kgi34anuxd33@pd.tnic>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154825.19244.32545.stgit@tlendack-t1.amdoffice.net>
- <20170301184055.gl3iic3gir6zzb23@pd.tnic>
- <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C96256B0389
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 12:45:28 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id v66so3112881wrc.4
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 09:45:28 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id v25si856399wra.330.2017.03.07.09.45.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Mar 2017 09:45:27 -0800 (PST)
+Date: Tue, 7 Mar 2017 12:39:34 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: Do not use double negation for testing page flags
+Message-ID: <20170307173934.GA22291@cmpxchg.org>
+References: <1488868597-32222-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
+In-Reply-To: <1488868597-32222-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Vlastimil Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Tue, Mar 07, 2017 at 10:05:00AM -0600, Tom Lendacky wrote:
-> I can do that.  Because phys_base hasn't been updated yet, I'll have to
-> create "on" and "off" constants and get their address in a similar way
-> to the command line option so that I can do the strncmp properly.
+On Tue, Mar 07, 2017 at 03:36:37PM +0900, Minchan Kim wrote:
+> With the discussion[1], I found it seems there are every PageFlags
+> functions return bool at this moment so we don't need double
+> negation any more.
+> Although it's not a problem to keep it, it makes future users
+> confused to use dobule negation for them, too.
+> 
+> Remove such possibility.
+> 
+> [1] https://marc.info/?l=linux-kernel&m=148881578820434
+> 
+> Frankly sepaking, I like every PageFlags return bool instead of int.
+> It will make it clear. AFAIR, Chen Gang had tried it but don't know
+> why it was not merged at that time.
+> 
+> http://lkml.kernel.org/r/1469336184-1904-1-git-send-email-chengang@emindsoft.com.cn
+> 
+> Cc: Vlastimil Vlastimil Babka <vbabka@suse.cz>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Chen Gang <gang.chen.5i5j@gmail.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Actually, wouldn't it be simpler to inspect the passed in buffer for
-containing the chars 'o', 'n' - in that order, or 'o', 'f', 'f' - in
-that order too? Because __cmdline_find_option() does copy the option
-characters into the buffer.
-
-Then you wouldn't need those "on" and "off" constants...
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
