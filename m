@@ -1,147 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BCEA6B0389
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C61666B0394
 	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:16:24 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id l37so396338wrc.7
+Received: by mail-wm0-f71.google.com with SMTP id d66so1259327wmi.2
         for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:16:24 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i25si18841963wmb.89.2017.03.07.05.16.22
+        by mx.google.com with ESMTPS id m14si16239035wmc.22.2017.03.07.05.16.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 05:16:22 -0800 (PST)
+        Tue, 07 Mar 2017 05:16:23 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 0/8] try to reduce fragmenting fallbacks
-Date: Tue,  7 Mar 2017 14:15:37 +0100
-Message-Id: <20170307131545.28577-1-vbabka@suse.cz>
+Subject: [PATCH v3 4/8] mm, page_alloc: count movable pages when stealing from pageblock
+Date: Tue,  7 Mar 2017 14:15:41 +0100
+Message-Id: <20170307131545.28577-5-vbabka@suse.cz>
+In-Reply-To: <20170307131545.28577-1-vbabka@suse.cz>
+References: <20170307131545.28577-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
 
-Last year, Johannes Weiner has reported a regression in page mobility
-grouping [1] and while the exact cause was not found, I've come up with some
-ways to improve it by reducing the number of allocations falling back to
-different migratetype and causing permanent fragmentation.
+When stealing pages from pageblock of a different migratetype, we count how
+many free pages were stolen, and change the pageblock's migratetype if more
+than half of the pageblock was free. This might be too conservative, as there
+might be other pages that are not free, but were allocated with the same
+migratetype as our allocation requested.
 
-Changes since v2:
-- incorporated feedback (nothing major)
-- updated to current mmotm
-- dropped the more intrusive RFC patches 9-10
+While we cannot determine the migratetype of allocated pages precisely (at
+least without the page_owner functionality enabled), we can count pages that
+compaction would try to isolate for migration - those are either on LRU or
+__PageMovable(). The rest can be assumed to be MIGRATE_RECLAIMABLE or
+MIGRATE_UNMOVABLE, which we cannot easily distinguish. This counting can be
+done as part of free page stealing with little additional overhead.
 
-The series was tested with mmtests stress-highalloc modified to do GFP_KERNEL
-order-4 allocations, on 4.9 with "mm, vmscan: fix zone balance check in
-prepare_kswapd_sleep" (without that, kcompactd indeed wasn't woken up) on UMA
-machine with 4GB memory. There were 5 repeats of each run, as the extfrag stats
-are quite volatile (note the stats below are sums, not averages, as it was less
-perl hacking for me).
+The page stealing code is changed so that it considers free pages plus pages
+of the "good" migratetype for the decision whether to change pageblock's
+migratetype.
 
-Success rate are the same, already high due to the low allocation order used,
-so I'm not including them.
+The result should be more accurate migratetype of pageblocks wrt the actual
+pages in the pageblocks, when stealing from semi-occupied pageblocks. This
+should help the efficiency of page grouping by mobility.
 
-Compaction stats:
-(the patches are stacked, and I haven't measured the non-functional-changes
-patches separately)
+In testing based on 4.9 kernel with stress-highalloc from mmtests configured
+for order-4 GFP_KERNEL allocations, this patch has reduced the number of
+unmovable allocations falling back to movable pageblocks by 47%. The number
+of movable allocations falling back to other pageblocks are increased by 55%,
+but these events don't cause permanent fragmentation, so the tradeoff should
+be positive. Later patches also offset the movable fallback increase to some
+extent.
 
-                                   patch 1     patch 2     patch 3     patch 4     patch 7     patch 8
-Compaction stalls                    22449       24680       24846       19765       22059       17480
-Compaction success                   12971       14836       14608       10475       11632        8757
-Compaction failures                   9477        9843       10238        9290       10426        8722
-Page migrate success               3109022     3370438     3312164     1695105     1608435     2111379
-Page migrate failure                911588     1149065     1028264     1112675     1077251     1026367
-Compaction pages isolated          7242983     8015530     7782467     4629063     4402787     5377665
-Compaction migrate scanned       980838938   987367943   957690188   917647238   947155598  1018922197
-Compaction free scanned          557926893   598946443   602236894   594024490   541169699   763651731
-Compaction cost                      10243       10578       10304        8286        8398        9440
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ include/linux/page-isolation.h |  5 +--
+ mm/page_alloc.c                | 71 +++++++++++++++++++++++++++++++++---------
+ mm/page_isolation.c            |  5 +--
+ 3 files changed, 61 insertions(+), 20 deletions(-)
 
-Compaction stats are mostly within noise until patch 4, which decreases the
-number of compactions, and migrations. Part of that could be due to more
-pageblocks marked as unmovable, and async compaction skipping those. This
-changes a bit with patch 7, but not so much. Patch 8 increases free scanner
-stats and migrations, which comes from the changed termination criteria.
-Interestingly number of compactions decreases - probably the fully compacted
-pageblock satisfies multiple subsequent allocations, so it amortizes.
-
-Next comes the extfrag tracepoint, where "fragmenting" means that an allocation
-had to fallback to a pageblock of another migratetype which wasn't fully free
-(which is almost all of the fallbacks). I have locally added another tracepoint
-for "Page steal" into steal_suitable_fallback() which triggers in situations
-where we are allowed to do move_freepages_block(). If we decide to also do
-set_pageblock_migratetype(), it's "Pages steal with pageblock" with break down
-for which allocation migratetype we are stealing and from which fallback
-migratetype. The last part "due to counting" comes from patch 4 and counts the
-events where the counting of movable pages allowed us to change pageblock's
-migratetype, while the number of free pages alone wouldn't be enough to cross
-the threshold.
-
-                                                     patch 1     patch 2     patch 3     patch 4     patch 7     patch 8
-Page alloc extfrag event                            10155066     8522968    10164959    15622080    13727068    13140319
-Extfrag fragmenting                                 10149231     8517025    10159040    15616925    13721391    13134792
-Extfrag fragmenting for unmovable                     159504      168500      184177       97835       70625       56948
-Extfrag fragmenting unmovable placed with movable     153613      163549      172693       91740       64099       50917
-Extfrag fragmenting unmovable placed with reclaim.      5891        4951       11484        6095        6526        6031
-Extfrag fragmenting for reclaimable                     4738        4829        6345        4822        5640        5378
-Extfrag fragmenting reclaimable placed with movable     1836        1902        1851        1579        1739        1760
-Extfrag fragmenting reclaimable placed with unmov.      2902        2927        4494        3243        3901        3618
-Extfrag fragmenting for movable                      9984989     8343696     9968518    15514268    13645126    13072466
-Pages steal                                           179954      192291      210880      123254       94545       81486
-Pages steal with pageblock                             22153       18943       20154       33562       29969       33444
-Pages steal with pageblock for unmovable               14350       12858       13256       20660       19003       20852
-Pages steal with pageblock for unmovable from mov.     12812       11402       11683       19072       17467       19298
-Pages steal with pageblock for unmovable from recl.     1538        1456        1573        1588        1536        1554
-Pages steal with pageblock for movable                  7114        5489        5965       11787       10012       11493
-Pages steal with pageblock for movable from unmov.      6885        5291        5541       11179        9525       10885
-Pages steal with pageblock for movable from recl.        229         198         424         608         487         608
-Pages steal with pageblock for reclaimable               689         596         933        1115         954        1099
-Pages steal with pageblock for reclaimable from unmov.   273         219         537         658         547         667
-Pages steal with pageblock for reclaimable from mov.     416         377         396         457         407         432
-Pages steal with pageblock due to counting                                                 11834       10075        7530
-... for unmovable                                                                           8993        7381        4616
-... for movable                                                                             2792        2653        2851
-... for reclaimable                                                                           49          41          63
-
-What we can see is that "Extfrag fragmenting for unmovable" and "... placed with
-movable" drops with almost each patch, which is good as we are polluting less
-movable pageblocks with unmovable pages.
-The most significant change is patch 4 with movable page counting. On the other
-hand it increases "Extfrag fragmenting for movable" by 50%. "Pages steal" drops
-though, so these movable allocation fallbacks find only small free pages and are
-not allowed to steal whole pageblocks back. "Pages steal with pageblock" raises,
-because the patch increases the chances of pageblock migratetype changes to
-happen. This affects all migratetypes.
-The summary is that patch 4 is not a clear win wrt these stats, but I believe
-that the tradeoff it makes is a good one. There's less pollution of movable
-pageblocks by unmovable allocations. There's less stealing between pageblock,
-and those that remain have higher chance of changing migratetype also the
-pageblock itself, so it should more faithfully reflect the migratetype of the
-pages within the pageblock. The increase of movable allocations falling back to
-unmovable pageblock might look dramatic, but those allocations can be migrated
-by compaction when needed, and other patches in the series (7-9) improve that
-aspect.
-Patches 7 and 8 continue the trend of reduced unmovable fallbacks and also
-reduce the impact on movable fallbacks from patch 4.
-
-[1] https://www.spinics.net/lists/linux-mm/msg114237.html
-
-Vlastimil Babka (8):
-  mm, compaction: reorder fields in struct compact_control
-  mm, compaction: remove redundant watermark check in compact_finished()
-  mm, page_alloc: split smallest stolen page in fallback
-  mm, page_alloc: count movable pages when stealing from pageblock
-  mm, compaction: change migrate_async_suitable() to
-    suitable_migration_source()
-  mm, compaction: add migratetype to compact_control
-  mm, compaction: restrict async compaction to pageblocks of same
-    migratetype
-  mm, compaction: finish whole pageblock to reduce fragmentation
-
- include/linux/mmzone.h         |   5 ++
- include/linux/page-isolation.h |   5 +-
- mm/compaction.c                |  83 ++++++++++++++++-------
- mm/internal.h                  |  12 ++--
- mm/page_alloc.c                | 148 ++++++++++++++++++++++++++++-------------
- mm/page_isolation.c            |   5 +-
- 6 files changed, 177 insertions(+), 81 deletions(-)
-
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 047d64706f2a..d4cd2014fa6f 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -33,10 +33,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+ 			 bool skip_hwpoisoned_pages);
+ void set_pageblock_migratetype(struct page *page, int migratetype);
+ int move_freepages_block(struct zone *zone, struct page *page,
+-				int migratetype);
+-int move_freepages(struct zone *zone,
+-			  struct page *start_page, struct page *end_page,
+-			  int migratetype);
++				int migratetype, int *num_movable);
+ 
+ /*
+  * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index eda7fedf6378..db96d1ebbed8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1836,9 +1836,9 @@ static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
+  * Note that start_page and end_pages are not aligned on a pageblock
+  * boundary. If alignment is required, use move_freepages_block()
+  */
+-int move_freepages(struct zone *zone,
++static int move_freepages(struct zone *zone,
+ 			  struct page *start_page, struct page *end_page,
+-			  int migratetype)
++			  int migratetype, int *num_movable)
+ {
+ 	struct page *page;
+ 	unsigned int order;
+@@ -1855,6 +1855,9 @@ int move_freepages(struct zone *zone,
+ 	VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
+ #endif
+ 
++	if (num_movable)
++		*num_movable = 0;
++
+ 	for (page = start_page; page <= end_page;) {
+ 		if (!pfn_valid_within(page_to_pfn(page))) {
+ 			page++;
+@@ -1865,6 +1868,15 @@ int move_freepages(struct zone *zone,
+ 		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
+ 
+ 		if (!PageBuddy(page)) {
++			/*
++			 * We assume that pages that could be isolated for
++			 * migration are movable. But we don't actually try
++			 * isolating, as that would be expensive.
++			 */
++			if (num_movable &&
++					(PageLRU(page) || __PageMovable(page)))
++				(*num_movable)++;
++
+ 			page++;
+ 			continue;
+ 		}
+@@ -1880,7 +1892,7 @@ int move_freepages(struct zone *zone,
+ }
+ 
+ int move_freepages_block(struct zone *zone, struct page *page,
+-				int migratetype)
++				int migratetype, int *num_movable)
+ {
+ 	unsigned long start_pfn, end_pfn;
+ 	struct page *start_page, *end_page;
+@@ -1897,7 +1909,8 @@ int move_freepages_block(struct zone *zone, struct page *page,
+ 	if (!zone_spans_pfn(zone, end_pfn))
+ 		return 0;
+ 
+-	return move_freepages(zone, start_page, end_page, migratetype);
++	return move_freepages(zone, start_page, end_page, migratetype,
++								num_movable);
+ }
+ 
+ static void change_pageblock_range(struct page *pageblock_page,
+@@ -1947,22 +1960,26 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
+ /*
+  * This function implements actual steal behaviour. If order is large enough,
+  * we can steal whole pageblock. If not, we first move freepages in this
+- * pageblock and check whether half of pages are moved or not. If half of
+- * pages are moved, we can change migratetype of pageblock and permanently
+- * use it's pages as requested migratetype in the future.
++ * pageblock to our migratetype and determine how many already-allocated pages
++ * are there in the pageblock with a compatible migratetype. If at least half
++ * of pages are free or compatible, we can change migratetype of the pageblock
++ * itself, so pages freed in the future will be put on the correct free list.
+  */
+ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+ 					int start_type, bool whole_block)
+ {
+ 	unsigned int current_order = page_order(page);
+ 	struct free_area *area;
+-	int pages;
++	int free_pages, movable_pages, alike_pages;
++	int old_block_type;
++
++	old_block_type = get_pageblock_migratetype(page);
+ 
+ 	/*
+ 	 * This can happen due to races and we want to prevent broken
+ 	 * highatomic accounting.
+ 	 */
+-	if (is_migrate_highatomic_page(page))
++	if (is_migrate_highatomic(old_block_type))
+ 		goto single_page;
+ 
+ 	/* Take ownership for orders >= pageblock_order */
+@@ -1975,10 +1992,35 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+ 	if (!whole_block)
+ 		goto single_page;
+ 
+-	pages = move_freepages_block(zone, page, start_type);
++	free_pages = move_freepages_block(zone, page, start_type,
++						&movable_pages);
++	/*
++	 * Determine how many pages are compatible with our allocation.
++	 * For movable allocation, it's the number of movable pages which
++	 * we just obtained. For other types it's a bit more tricky.
++	 */
++	if (start_type == MIGRATE_MOVABLE) {
++		alike_pages = movable_pages;
++	} else {
++		/*
++		 * If we are falling back a RECLAIMABLE or UNMOVABLE allocation
++		 * to MOVABLE pageblock, consider all non-movable pages as
++		 * compatible. If it's UNMOVABLE falling back to RECLAIMABLE or
++		 * vice versa, be conservative since we can't distinguish the
++		 * exact migratetype of non-movable pages.
++		 */
++		if (old_block_type == MIGRATE_MOVABLE)
++			alike_pages = pageblock_nr_pages
++						- (free_pages + movable_pages);
++		else
++			alike_pages = 0;
++	}
+ 
+-	/* Claim the whole block if over half of it is free */
+-	if (pages >= (1 << (pageblock_order-1)) ||
++	/*
++	 * If a sufficient number of pages in the block are either free or of
++	 * comparable migratability as our allocation, claim the whole block.
++	 */
++	if (free_pages + alike_pages >= (1 << (pageblock_order-1)) ||
+ 			page_group_by_mobility_disabled)
+ 		set_pageblock_migratetype(page, start_type);
+ 
+@@ -2056,7 +2098,7 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+ 	    && !is_migrate_cma(mt)) {
+ 		zone->nr_reserved_highatomic += pageblock_nr_pages;
+ 		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+-		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC);
++		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC, NULL);
+ 	}
+ 
+ out_unlock:
+@@ -2133,7 +2175,8 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
+ 			 * may increase.
+ 			 */
+ 			set_pageblock_migratetype(page, ac->migratetype);
+-			ret = move_freepages_block(zone, page, ac->migratetype);
++			ret = move_freepages_block(zone, page, ac->migratetype,
++									NULL);
+ 			if (ret) {
+ 				spin_unlock_irqrestore(&zone->lock, flags);
+ 				return ret;
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 7927bbb54a4e..5092e4ef00c8 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -66,7 +66,8 @@ static int set_migratetype_isolate(struct page *page,
+ 
+ 		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+ 		zone->nr_isolate_pageblock++;
+-		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
++		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE,
++									NULL);
+ 
+ 		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
+ 	}
+@@ -120,7 +121,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+ 	 * pageblock scanning for freepage moving.
+ 	 */
+ 	if (!isolated_page) {
+-		nr_pages = move_freepages_block(zone, page, migratetype);
++		nr_pages = move_freepages_block(zone, page, migratetype, NULL);
+ 		__mod_zone_freepage_state(zone, nr_pages, migratetype);
+ 	}
+ 	set_pageblock_migratetype(page, migratetype);
 -- 
 2.12.0
 
