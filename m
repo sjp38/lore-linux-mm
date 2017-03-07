@@ -1,83 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B02BA6B0389
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 05:05:48 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w37so73616589wrc.2
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 02:05:48 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 74D786B038B
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 05:17:05 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c143so115826wmd.1
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 02:17:05 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b188si18179261wmc.96.2017.03.07.02.05.47
+        by mx.google.com with ESMTPS id b141si18206595wma.133.2017.03.07.02.17.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 02:05:47 -0800 (PST)
-Date: Tue, 7 Mar 2017 11:05:45 +0100
+        Tue, 07 Mar 2017 02:17:04 -0800 (PST)
+Date: Tue, 7 Mar 2017 11:17:02 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
-Message-ID: <20170307100545.GC28642@dhcp22.suse.cz>
-References: <cover.1487965799.git.shli@fb.com>
- <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
- <20170301133624.GF1124@dhcp22.suse.cz>
- <20170301183149.GA14277@cmpxchg.org>
- <20170301185735.GA24905@dhcp22.suse.cz>
- <20170302140101.GA16021@cmpxchg.org>
- <20170302163054.GR1404@dhcp22.suse.cz>
- <20170303161027.6fe4ceb0bcd27e1dbed44a5d@linux-foundation.org>
+Subject: Re: [PATCH 1/9] mm: fix 100% CPU kswapd busyloop on unreclaimable
+ nodes
+Message-ID: <20170307101702.GD28642@dhcp22.suse.cz>
+References: <20170228214007.5621-1-hannes@cmpxchg.org>
+ <20170228214007.5621-2-hannes@cmpxchg.org>
+ <20170303012609.GA3394@bbox>
+ <20170303075954.GA31499@dhcp22.suse.cz>
+ <20170306013740.GA8779@bbox>
+ <20170306162410.GB2090@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170303161027.6fe4ceb0bcd27e1dbed44a5d@linux-foundation.org>
+In-Reply-To: <20170306162410.GB2090@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri 03-03-17 16:10:27, Andrew Morton wrote:
-> On Thu, 2 Mar 2017 17:30:54 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Mon 06-03-17 11:24:10, Johannes Weiner wrote:
+[...]
+> >From e126db716926ff353b35f3a6205bd5853e01877b Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Mon, 6 Mar 2017 10:53:59 -0500
+> Subject: [PATCH] mm: fix 100% CPU kswapd busyloop on unreclaimable nodes fix
 > 
-> > > It's not that I think you're wrong: it *is* an implementation detail.
-> > > But we take a bit of incoherency from batching all over the place, so
-> > > it's a little odd to take a stand over this particular instance of it
-> > > - whether demanding that it'd be fixed, or be documented, which would
-> > > only suggest to users that this is special when it really isn't etc.
-> > 
-> > I am not aware of other counter printed in smaps that would suffer from
-> > the same problem, but I haven't checked too deeply so I might be wrong. 
-> > 
-> > Anyway it seems that I am alone in my position so I will not insist.
-> > If we have any bug report then we can still fix it.
+> Check kswapd failure against the cumulative nr_reclaimed count, not
+> against the count from the lowest priority iteration.
 > 
-> A single lru_add_drain_all() right at the top level (in smaps_show()?)
-> won't kill us
-
-I do not think we want to put lru_add_drain_all cost to a random
-process reading /proc/<pid>/smaps. If anything the one which does the
-madvise should be doing this.
-
-> and should significantly improve this issue.  And it
-> might accidentally make some of the other smaps statistics more
-> accurate as well.
+> Suggested-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/vmscan.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
 > 
-> If not, can we please have a nice comment somewhere appropriate which
-> explains why LazyFree is inaccurate and why we chose to leave it that
-> way?
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ddcff8a11c1e..b834b2dd4e19 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3179,9 +3179,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  	count_vm_event(PAGEOUTRUN);
+>  
+>  	do {
+> +		unsigned long nr_reclaimed = sc.nr_reclaimed;
+>  		bool raise_priority = true;
+>  
+> -		sc.nr_reclaimed = 0;
+>  		sc.reclaim_idx = classzone_idx;
+>  
+>  		/*
+> @@ -3271,7 +3271,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  		 * Raise priority if scanning rate is too low or there was no
+>  		 * progress in reclaiming pages
+>  		 */
+> -		if (raise_priority || !sc.nr_reclaimed)
+> +		nr_reclaimed = sc.nr_reclaimed - nr_reclaimed;
+> +		if (raise_priority || !nr_reclaimed)
+>  			sc.priority--;
+>  	} while (sc.priority >= 1);
+>  
 
-Yeah, I would appreciate the comment more. What about the following
+I would rather not play with the sc state here. From a quick look at
+least 
+	/*
+	 * Fragmentation may mean that the system cannot be rebalanced for
+	 * high-order allocations. If twice the allocation size has been
+	 * reclaimed then recheck watermarks only at order-0 to prevent
+	 * excessive reclaim. Assume that a process requested a high-order
+	 * can direct reclaim/compact.
+	 */
+	if (sc->order && sc->nr_reclaimed >= compact_gap(sc->order))
+		sc->order = 0;
+
+does rely on the value. Wouldn't something like the following be safer?
 ---
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 45853e116eef..0b58b317dc76 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -444,7 +444,9 @@ a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
- and a page is modified, the file page is replaced by a private anonymous copy.
- "LazyFree" shows the amount of memory which is marked by madvise(MADV_FREE).
- The memory isn't freed immediately with madvise(). It's freed in memory
--pressure if the memory is clean.
-+pressure if the memory is clean. Please note that the printed value might
-+be lower than the real value due to optimizations used in the current
-+implementation. If this is not desirable please file a bug report.
- "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
- "ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
- huge pages.
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c15b2e4c47ca..b731f24fed12 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3183,6 +3183,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+ 	};
++	bool reclaimable = false;
+ 	count_vm_event(PAGEOUTRUN);
+ 
+ 	do {
+@@ -3274,6 +3275,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		if (try_to_freeze() || kthread_should_stop())
+ 			break;
+ 
++		if (sc.nr_reclaimed)
++			reclaimable = true;
++
+ 		/*
+ 		 * Raise priority if scanning rate is too low or there was no
+ 		 * progress in reclaiming pages
+@@ -3282,7 +3286,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 			sc.priority--;
+ 	} while (sc.priority >= 1);
+ 
+-	if (!sc.nr_reclaimed)
++	if (!reclaimable)
+ 		pgdat->kswapd_failures++;
+ 
+ out:
 -- 
 Michal Hocko
 SUSE Labs
