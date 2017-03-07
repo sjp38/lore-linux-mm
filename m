@@ -1,126 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F7D66B038C
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BCEA6B0389
 	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 08:16:24 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id v190so1272630wme.0
+Received: by mail-wr0-f199.google.com with SMTP id l37so396338wrc.7
         for <linux-mm@kvack.org>; Tue, 07 Mar 2017 05:16:24 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c41si25237186wrc.279.2017.03.07.05.16.22
+        by mx.google.com with ESMTPS id i25si18841963wmb.89.2017.03.07.05.16.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 07 Mar 2017 05:16:22 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 8/8] mm, compaction: finish whole pageblock to reduce fragmentation
-Date: Tue,  7 Mar 2017 14:15:45 +0100
-Message-Id: <20170307131545.28577-9-vbabka@suse.cz>
-In-Reply-To: <20170307131545.28577-1-vbabka@suse.cz>
-References: <20170307131545.28577-1-vbabka@suse.cz>
+Subject: [PATCH v3 0/8] try to reduce fragmenting fallbacks
+Date: Tue,  7 Mar 2017 14:15:37 +0100
+Message-Id: <20170307131545.28577-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
 
-The main goal of direct compaction is to form a high-order page for allocation,
-but it should also help against long-term fragmentation when possible. Most
-lower-than-pageblock-order compactions are for non-movable allocations, which
-means that if we compact in a movable pageblock and terminate as soon as we
-create the high-order page, it's unlikely that the fallback heuristics will
-claim the whole block. Instead there might be a single unmovable page in a
-pageblock full of movable pages, and the next unmovable allocation might pick
-another pageblock and increase long-term fragmentation.
+Last year, Johannes Weiner has reported a regression in page mobility
+grouping [1] and while the exact cause was not found, I've come up with some
+ways to improve it by reducing the number of allocations falling back to
+different migratetype and causing permanent fragmentation.
 
-To help against such scenarios, this patch changes the termination criteria for
-compaction so that the current pageblock is finished even though the high-order
-page already exists. Note that it might be possible that the high-order page
-formed elsewhere in the zone due to parallel activity, but this patch doesn't
-try to detect that.
+Changes since v2:
+- incorporated feedback (nothing major)
+- updated to current mmotm
+- dropped the more intrusive RFC patches 9-10
 
-This is only done with sync compaction, because async compaction is limited to
-pageblock of the same migratetype, where it cannot result in a migratetype
-fallback. (Async compaction also eagerly skips order-aligned blocks where
-isolation fails, which is against the goal of migrating away as much of the
-pageblock as possible.)
+The series was tested with mmtests stress-highalloc modified to do GFP_KERNEL
+order-4 allocations, on 4.9 with "mm, vmscan: fix zone balance check in
+prepare_kswapd_sleep" (without that, kcompactd indeed wasn't woken up) on UMA
+machine with 4GB memory. There were 5 repeats of each run, as the extfrag stats
+are quite volatile (note the stats below are sums, not averages, as it was less
+perl hacking for me).
 
-As a result of this patch, long-term memory fragmentation should be reduced.
+Success rate are the same, already high due to the low allocation order used,
+so I'm not including them.
 
-In testing based on 4.9 kernel with stress-highalloc from mmtests configured
-for order-4 GFP_KERNEL allocations, this patch has reduced the number of
-unmovable allocations falling back to movable pageblocks by 20%. The number
+Compaction stats:
+(the patches are stacked, and I haven't measured the non-functional-changes
+patches separately)
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/compaction.c | 36 ++++++++++++++++++++++++++++++++++--
- mm/internal.h   |  1 +
- 2 files changed, 35 insertions(+), 2 deletions(-)
+                                   patch 1     patch 2     patch 3     patch 4     patch 7     patch 8
+Compaction stalls                    22449       24680       24846       19765       22059       17480
+Compaction success                   12971       14836       14608       10475       11632        8757
+Compaction failures                   9477        9843       10238        9290       10426        8722
+Page migrate success               3109022     3370438     3312164     1695105     1608435     2111379
+Page migrate failure                911588     1149065     1028264     1112675     1077251     1026367
+Compaction pages isolated          7242983     8015530     7782467     4629063     4402787     5377665
+Compaction migrate scanned       980838938   987367943   957690188   917647238   947155598  1018922197
+Compaction free scanned          557926893   598946443   602236894   594024490   541169699   763651731
+Compaction cost                      10243       10578       10304        8286        8398        9440
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 2c288e75840d..bc7903130501 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1318,6 +1318,17 @@ static enum compact_result __compact_finished(struct zone *zone,
- 	if (is_via_compact_memory(cc->order))
- 		return COMPACT_CONTINUE;
- 
-+	if (cc->finishing_block) {
-+		/*
-+		 * We have finished the pageblock, but better check again that
-+		 * we really succeeded.
-+		 */
-+		if (IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
-+			cc->finishing_block = false;
-+		else
-+			return COMPACT_CONTINUE;
-+	}
-+
- 	/* Direct compactor: Is a suitable page free? */
- 	for (order = cc->order; order < MAX_ORDER; order++) {
- 		struct free_area *area = &zone->free_area[order];
-@@ -1338,8 +1349,29 @@ static enum compact_result __compact_finished(struct zone *zone,
- 		 * other migratetype buddy lists.
- 		 */
- 		if (find_suitable_fallback(area, order, migratetype,
--						true, &can_steal) != -1)
--			return COMPACT_SUCCESS;
-+						true, &can_steal) != -1) {
-+
-+			/* movable pages are OK in any pageblock */
-+			if (migratetype == MIGRATE_MOVABLE)
-+				return COMPACT_SUCCESS;
-+
-+			/*
-+			 * We are stealing for a non-movable allocation. Make
-+			 * sure we finish compacting the current pageblock
-+			 * first so it is as free as possible and we won't
-+			 * have to steal another one soon. This only applies
-+			 * to sync compaction, as async compaction operates
-+			 * on pageblocks of the same migratetype.
-+			 */
-+			if (cc->mode == MIGRATE_ASYNC ||
-+					IS_ALIGNED(cc->migrate_pfn,
-+							pageblock_nr_pages)) {
-+				return COMPACT_SUCCESS;
-+			}
-+
-+			cc->finishing_block = true;
-+			return COMPACT_CONTINUE;
-+		}
- 	}
- 
- 	return COMPACT_NO_SUITABLE_PAGE;
-diff --git a/mm/internal.h b/mm/internal.h
-index 3985656ac261..e417084c2fb1 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -202,6 +202,7 @@ struct compact_control {
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
- 	bool whole_zone;		/* Whole zone should/has been scanned */
- 	bool contended;			/* Signal lock or sched contention */
-+	bool finishing_block;		/* Finishing current pageblock */
- };
- 
- unsigned long
+Compaction stats are mostly within noise until patch 4, which decreases the
+number of compactions, and migrations. Part of that could be due to more
+pageblocks marked as unmovable, and async compaction skipping those. This
+changes a bit with patch 7, but not so much. Patch 8 increases free scanner
+stats and migrations, which comes from the changed termination criteria.
+Interestingly number of compactions decreases - probably the fully compacted
+pageblock satisfies multiple subsequent allocations, so it amortizes.
+
+Next comes the extfrag tracepoint, where "fragmenting" means that an allocation
+had to fallback to a pageblock of another migratetype which wasn't fully free
+(which is almost all of the fallbacks). I have locally added another tracepoint
+for "Page steal" into steal_suitable_fallback() which triggers in situations
+where we are allowed to do move_freepages_block(). If we decide to also do
+set_pageblock_migratetype(), it's "Pages steal with pageblock" with break down
+for which allocation migratetype we are stealing and from which fallback
+migratetype. The last part "due to counting" comes from patch 4 and counts the
+events where the counting of movable pages allowed us to change pageblock's
+migratetype, while the number of free pages alone wouldn't be enough to cross
+the threshold.
+
+                                                     patch 1     patch 2     patch 3     patch 4     patch 7     patch 8
+Page alloc extfrag event                            10155066     8522968    10164959    15622080    13727068    13140319
+Extfrag fragmenting                                 10149231     8517025    10159040    15616925    13721391    13134792
+Extfrag fragmenting for unmovable                     159504      168500      184177       97835       70625       56948
+Extfrag fragmenting unmovable placed with movable     153613      163549      172693       91740       64099       50917
+Extfrag fragmenting unmovable placed with reclaim.      5891        4951       11484        6095        6526        6031
+Extfrag fragmenting for reclaimable                     4738        4829        6345        4822        5640        5378
+Extfrag fragmenting reclaimable placed with movable     1836        1902        1851        1579        1739        1760
+Extfrag fragmenting reclaimable placed with unmov.      2902        2927        4494        3243        3901        3618
+Extfrag fragmenting for movable                      9984989     8343696     9968518    15514268    13645126    13072466
+Pages steal                                           179954      192291      210880      123254       94545       81486
+Pages steal with pageblock                             22153       18943       20154       33562       29969       33444
+Pages steal with pageblock for unmovable               14350       12858       13256       20660       19003       20852
+Pages steal with pageblock for unmovable from mov.     12812       11402       11683       19072       17467       19298
+Pages steal with pageblock for unmovable from recl.     1538        1456        1573        1588        1536        1554
+Pages steal with pageblock for movable                  7114        5489        5965       11787       10012       11493
+Pages steal with pageblock for movable from unmov.      6885        5291        5541       11179        9525       10885
+Pages steal with pageblock for movable from recl.        229         198         424         608         487         608
+Pages steal with pageblock for reclaimable               689         596         933        1115         954        1099
+Pages steal with pageblock for reclaimable from unmov.   273         219         537         658         547         667
+Pages steal with pageblock for reclaimable from mov.     416         377         396         457         407         432
+Pages steal with pageblock due to counting                                                 11834       10075        7530
+... for unmovable                                                                           8993        7381        4616
+... for movable                                                                             2792        2653        2851
+... for reclaimable                                                                           49          41          63
+
+What we can see is that "Extfrag fragmenting for unmovable" and "... placed with
+movable" drops with almost each patch, which is good as we are polluting less
+movable pageblocks with unmovable pages.
+The most significant change is patch 4 with movable page counting. On the other
+hand it increases "Extfrag fragmenting for movable" by 50%. "Pages steal" drops
+though, so these movable allocation fallbacks find only small free pages and are
+not allowed to steal whole pageblocks back. "Pages steal with pageblock" raises,
+because the patch increases the chances of pageblock migratetype changes to
+happen. This affects all migratetypes.
+The summary is that patch 4 is not a clear win wrt these stats, but I believe
+that the tradeoff it makes is a good one. There's less pollution of movable
+pageblocks by unmovable allocations. There's less stealing between pageblock,
+and those that remain have higher chance of changing migratetype also the
+pageblock itself, so it should more faithfully reflect the migratetype of the
+pages within the pageblock. The increase of movable allocations falling back to
+unmovable pageblock might look dramatic, but those allocations can be migrated
+by compaction when needed, and other patches in the series (7-9) improve that
+aspect.
+Patches 7 and 8 continue the trend of reduced unmovable fallbacks and also
+reduce the impact on movable fallbacks from patch 4.
+
+[1] https://www.spinics.net/lists/linux-mm/msg114237.html
+
+Vlastimil Babka (8):
+  mm, compaction: reorder fields in struct compact_control
+  mm, compaction: remove redundant watermark check in compact_finished()
+  mm, page_alloc: split smallest stolen page in fallback
+  mm, page_alloc: count movable pages when stealing from pageblock
+  mm, compaction: change migrate_async_suitable() to
+    suitable_migration_source()
+  mm, compaction: add migratetype to compact_control
+  mm, compaction: restrict async compaction to pageblocks of same
+    migratetype
+  mm, compaction: finish whole pageblock to reduce fragmentation
+
+ include/linux/mmzone.h         |   5 ++
+ include/linux/page-isolation.h |   5 +-
+ mm/compaction.c                |  83 ++++++++++++++++-------
+ mm/internal.h                  |  12 ++--
+ mm/page_alloc.c                | 148 ++++++++++++++++++++++++++++-------------
+ mm/page_isolation.c            |   5 +-
+ 6 files changed, 177 insertions(+), 81 deletions(-)
+
 -- 
 2.12.0
 
