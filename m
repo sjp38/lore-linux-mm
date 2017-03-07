@@ -1,39 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A64BA6B0388
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 00:00:56 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id l37so71452507wrc.7
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 21:00:56 -0800 (PST)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id g14si29128626wrg.275.2017.03.06.21.00.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 21:00:55 -0800 (PST)
-Date: Tue, 7 Mar 2017 06:00:54 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH] xfs: remove kmem_zalloc_greedy
-Message-ID: <20170307050054.GB14000@lst.de>
-References: <20170306184109.GC5280@birch.djwong.org> <20170307000754.GA9959@lst.de> <20170307001327.GC5281@birch.djwong.org> <20170307005420.GO17542@dastard>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A276B0387
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 01:50:51 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id b2so233548086pgc.6
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 22:50:51 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id d198si21542163pga.192.2017.03.06.22.50.49
+        for <linux-mm@kvack.org>;
+        Mon, 06 Mar 2017 22:50:50 -0800 (PST)
+Date: Tue, 7 Mar 2017 15:50:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 05/11] mm: make the try_to_munlock void function
+Message-ID: <20170307065048.GD29458@bbox>
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-6-git-send-email-minchan@kernel.org>
+ <98488e1a-0202-b88b-ca9c-1dc0d6c27ae5@linux.vnet.ibm.com>
+ <20170306020901.GC8779@bbox>
+ <12618e8d-9eaf-322a-4334-e1416dc95b8b@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170307005420.GO17542@dastard>
+In-Reply-To: <12618e8d-9eaf-322a-4334-e1416dc95b8b@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Christoph Hellwig <hch@lst.de>, Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Mar 07, 2017 at 11:54:20AM +1100, Dave Chinner wrote:
-> > Or maybe I've misunderstood, and you're asking if we should try
-> > kmem_zalloc(4 pages), then kmem_zalloc(1 page), and only then switch to
-> > the __vmalloc calls?
+Hi Anshuman,
+
+On Mon, Mar 06, 2017 at 03:10:17PM +0530, Anshuman Khandual wrote:
+> On 03/06/2017 07:39 AM, Minchan Kim wrote:
+> > On Fri, Mar 03, 2017 at 05:13:54PM +0530, Anshuman Khandual wrote:
+> >> On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> >>> try_to_munlock returns SWAP_MLOCK if the one of VMAs mapped
+> >>> the page has VM_LOCKED flag. In that time, VM set PG_mlocked to
+> >>> the page if the page is not pte-mapped THP which cannot be
+> >>> mlocked, either.
+> >>
+> >> Right.
+> >>
+> >>>
+> >>> With that, __munlock_isolated_page can use PageMlocked to check
+> >>> whether try_to_munlock is successful or not without relying on
+> >>> try_to_munlock's retval. It helps to make ttu/ttuo simple with
+> >>> upcoming patches.
+> >>
+> >> Right.
+> >>
+> >>>
+> >>> Cc: Vlastimil Babka <vbabka@suse.cz>
+> >>> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >>> ---
+> >>>  include/linux/rmap.h |  2 +-
+> >>>  mm/mlock.c           |  6 ++----
+> >>>  mm/rmap.c            | 16 ++++------------
+> >>>  3 files changed, 7 insertions(+), 17 deletions(-)
+> >>>
+> >>> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> >>> index b556eef..1b0cd4c 100644
+> >>> --- a/include/linux/rmap.h
+> >>> +++ b/include/linux/rmap.h
+> >>> @@ -235,7 +235,7 @@ int page_mkclean(struct page *);
+> >>>   * called in munlock()/munmap() path to check for other vmas holding
+> >>>   * the page mlocked.
+> >>>   */
+> >>> -int try_to_munlock(struct page *);
+> >>> +void try_to_munlock(struct page *);
+> >>>  
+> >>>  void remove_migration_ptes(struct page *old, struct page *new, bool locked);
+> >>>  
+> >>> diff --git a/mm/mlock.c b/mm/mlock.c
+> >>> index cdbed8a..d34a540 100644
+> >>> --- a/mm/mlock.c
+> >>> +++ b/mm/mlock.c
+> >>> @@ -122,17 +122,15 @@ static bool __munlock_isolate_lru_page(struct page *page, bool getpage)
+> >>>   */
+> >>>  static void __munlock_isolated_page(struct page *page)
+> >>>  {
+> >>> -	int ret = SWAP_AGAIN;
+> >>> -
+> >>>  	/*
+> >>>  	 * Optimization: if the page was mapped just once, that's our mapping
+> >>>  	 * and we don't need to check all the other vmas.
+> >>>  	 */
+> >>>  	if (page_mapcount(page) > 1)
+> >>> -		ret = try_to_munlock(page);
+> >>> +		try_to_munlock(page);
+> >>>  
+> >>>  	/* Did try_to_unlock() succeed or punt? */
+> >>> -	if (ret != SWAP_MLOCK)
+> >>> +	if (!PageMlocked(page))
+> >>
+> >> Checks if the page is still mlocked or not.
+> >>
+> >>>  		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+> >>>  
+> >>>  	putback_lru_page(page);
+> >>> diff --git a/mm/rmap.c b/mm/rmap.c
+> >>> index 0a48958..61ae694 100644
+> >>> --- a/mm/rmap.c
+> >>> +++ b/mm/rmap.c
+> >>> @@ -1540,18 +1540,10 @@ static int page_not_mapped(struct page *page)
+> >>>   * Called from munlock code.  Checks all of the VMAs mapping the page
+> >>>   * to make sure nobody else has this page mlocked. The page will be
+> >>>   * returned with PG_mlocked cleared if no other vmas have it mlocked.
+> >>> - *
+> >>> - * Return values are:
+> >>> - *
+> >>> - * SWAP_AGAIN	- no vma is holding page mlocked, or,
+> >>> - * SWAP_AGAIN	- page mapped in mlocked vma -- couldn't acquire mmap sem
+> >>> - * SWAP_FAIL	- page cannot be located at present
+> >>> - * SWAP_MLOCK	- page is now mlocked.
+> >>>   */
+> >>> -int try_to_munlock(struct page *page)
+> >>> -{
+> >>> -	int ret;
+> >>>  
+> >>> +void try_to_munlock(struct page *page)
+> >>> +{
+> >>>  	struct rmap_walk_control rwc = {
+> >>>  		.rmap_one = try_to_unmap_one,
+> >>>  		.arg = (void *)TTU_MUNLOCK,
+> >>> @@ -1561,9 +1553,9 @@ int try_to_munlock(struct page *page)
+> >>>  	};
+> >>>  
+> >>>  	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
+> >>> +	VM_BUG_ON_PAGE(PageMlocked(page), page);
+> >>
+> >> We are calling on the page to see if its mlocked from any of it's
+> >> mapping VMAs. Then it is a possibility that the page is mlocked
+> >> and the above condition is true and we print VM BUG report there.
+> >> The point is if its a valid possibility why we have added the
+> >> above check ?
+> > 
+> > If I read code properly,  __munlock_isolated_page calls try_to_munlock
+> > always pass the TestClearPageMlocked page to try_to_munlock.
 > 
-> Just call kmem_zalloc_large() for 4 pages without a fallback on
-> failure - that's exactly how we handle allocations for things like
-> the 64k xattr buffers....
+> Right.
+> 
+> > (e.g., munlock_vma_page and __munlock_pagevec) so I thought
+> > try_to_munlock should be called non-PG_mlocked page and try_to_unmap_one
+> > returns PG_mlocked page once it found a VM_LOCKED VMA for a page.
+> > IOW, non-PG_mlocked page is precondition for try_to_munlock.
+> 
+> Okay, I have missed that part. Nonetheless this is a separate issue,
+> should be part of a different patch ? Not inside these cleanups.
 
-Yeah, that sounds fine.  I didn't remember that we actually tried
-kmalloc before vmalloc for kmem_zalloc_large.
+If that precondition is not true, this patch changes the behavior
+slightly.
+
+        UNEVICTABLE_PGMUNLOCKED count mistmatch compared to old.
+
+I wanted to catch it up. If you still think it's separate issue,
+I will do. Please tell me. However, I still think it's no problem
+to merge it in this clean up patch.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
