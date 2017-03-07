@@ -1,52 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D92C36B0389
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 06:29:57 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id h188so486628wma.4
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 03:29:57 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 166FD6B0389
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 06:33:59 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id w37so74143614wrc.2
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 03:33:59 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o67si18452207wme.150.2017.03.07.03.29.56
+        by mx.google.com with ESMTPS id q188si101995wme.156.2017.03.07.03.33.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 03:29:56 -0800 (PST)
-Date: Tue, 7 Mar 2017 12:29:53 +0100
+        Tue, 07 Mar 2017 03:33:57 -0800 (PST)
+Date: Tue, 7 Mar 2017 12:33:54 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC][PATCH 1/2] mm: use MIGRATE_HIGHATOMIC as late as possible
-Message-ID: <20170307112953.GF28642@dhcp22.suse.cz>
-References: <58BE8C91.20600@huawei.com>
- <20170307104758.GE28642@dhcp22.suse.cz>
- <58BE938B.9020908@huawei.com>
+Subject: Re: [PATCH] xfs: remove kmem_zalloc_greedy
+Message-ID: <20170307113354.GG28642@dhcp22.suse.cz>
+References: <20170306184109.GC5280@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <58BE938B.9020908@huawei.com>
+In-Reply-To: <20170306184109.GC5280@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Yisheng Xie <xieyisheng1@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Brian Foster <bfoster@redhat.com>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>
 
-On Tue 07-03-17 19:03:39, Xishi Qiu wrote:
-> On 2017/3/7 18:47, Michal Hocko wrote:
+On Mon 06-03-17 10:41:09, Darrick J. Wong wrote:
+> The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
+> it to grab 1-4 pages for staging of inobt records.  The infinite loop in
+> the greedy allocation function is causing hangs[1] in generic/269, so
+> just get rid of the greedy allocator in favor of kmem_zalloc_large.
+> This makes bulkstat somewhat more likely to ENOMEM if there's really no
+> pages to spare, but eliminates a source of hangs.
 > 
-> > On Tue 07-03-17 18:33:53, Xishi Qiu wrote:
-> >> MIGRATE_HIGHATOMIC page blocks are reserved for an atomic
-> >> high-order allocation, so use it as late as possible.
-> > 
-> > Why is this better? Are you seeing any problem which this patch
-> > resolves? In other words the patch description should explain why not
-> > only what (that is usually clear from looking at the diff).
-> > 
-> 
-> Hi Michal,
-> 
-> I have not see any problem yet, I think if we reserve more high order
-> pageblocks, the more success rate we will get when meet an atomic
-> high-order allocation, right?
+> [1] https://lkml.org/lkml/2017/2/28/832
 
-Please make sure you measure your changes under different workloads and
-present numbers in the changelog when you are touch such a subtle things
-like memory reserves. Ideas that might sound they make sense can turn
-out to behave differently in the real life.
+I cannot really comment on the patch but I would suggest not using
+lkml.org reference in the changelog because I've seen those links being
+broken many times. Could you use
+http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
+
+instead please? Thanks for taking care of this!
+
+> 
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> ---
+>  fs/xfs/kmem.c       |   18 ------------------
+>  fs/xfs/kmem.h       |    2 --
+>  fs/xfs/xfs_itable.c |   14 ++++++++------
+>  3 files changed, 8 insertions(+), 26 deletions(-)
+> 
+> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+> index 339c696..bb2beae 100644
+> --- a/fs/xfs/kmem.c
+> +++ b/fs/xfs/kmem.c
+> @@ -24,24 +24,6 @@
+>  #include "kmem.h"
+>  #include "xfs_message.h"
+>  
+> -/*
+> - * Greedy allocation.  May fail and may return vmalloced memory.
+> - */
+> -void *
+> -kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
+> -{
+> -	void		*ptr;
+> -	size_t		kmsize = maxsize;
+> -
+> -	while (!(ptr = vzalloc(kmsize))) {
+> -		if ((kmsize >>= 1) <= minsize)
+> -			kmsize = minsize;
+> -	}
+> -	if (ptr)
+> -		*size = kmsize;
+> -	return ptr;
+> -}
+> -
+>  void *
+>  kmem_alloc(size_t size, xfs_km_flags_t flags)
+>  {
+> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+> index 689f746..f0fc84f 100644
+> --- a/fs/xfs/kmem.h
+> +++ b/fs/xfs/kmem.h
+> @@ -69,8 +69,6 @@ static inline void  kmem_free(const void *ptr)
+>  }
+>  
+>  
+> -extern void *kmem_zalloc_greedy(size_t *, size_t, size_t);
+> -
+>  static inline void *
+>  kmem_zalloc(size_t size, xfs_km_flags_t flags)
+>  {
+> diff --git a/fs/xfs/xfs_itable.c b/fs/xfs/xfs_itable.c
+> index 8b2150d..283e76c 100644
+> --- a/fs/xfs/xfs_itable.c
+> +++ b/fs/xfs/xfs_itable.c
+> @@ -362,7 +362,6 @@ xfs_bulkstat(
+>  	xfs_agino_t		agino;	/* inode # in allocation group */
+>  	xfs_agnumber_t		agno;	/* allocation group number */
+>  	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
+> -	size_t			irbsize; /* size of irec buffer in bytes */
+>  	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
+>  	int			nirbuf;	/* size of irbuf */
+>  	int			ubcount; /* size of user's buffer */
+> @@ -389,11 +388,14 @@ xfs_bulkstat(
+>  	*ubcountp = 0;
+>  	*done = 0;
+>  
+> -	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
+> -	if (!irbuf)
+> -		return -ENOMEM;
+> -
+> -	nirbuf = irbsize / sizeof(*irbuf);
+> +	nirbuf = (PAGE_SIZE * 4) / sizeof(*irbuf);
+> +	irbuf = kmem_zalloc_large(PAGE_SIZE * 4, KM_SLEEP);
+> +	if (!irbuf) {
+> +		irbuf = kmem_zalloc_large(PAGE_SIZE, KM_SLEEP);
+> +		if (!irbuf)
+> +			return -ENOMEM;
+> +		nirbuf /= 4;
+> +	}
+>  
+>  	/*
+>  	 * Loop over the allocation groups, starting from the last
+
 -- 
 Michal Hocko
 SUSE Labs
