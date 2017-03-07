@@ -1,120 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3D46B0387
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 10:39:58 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 67so8745842pfg.0
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 07:39:58 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id o20si367816pgn.150.2017.03.07.07.39.57
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D91E6B038D
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 10:48:51 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l37so1752658wrc.7
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 07:48:51 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id y16si484701wrd.240.2017.03.07.07.48.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 07:39:57 -0800 (PST)
-Subject: Re: [PATCH v6 4/4] sparc64: Add support for ADI (Application Data
- Integrity)
-References: <cover.1488232591.git.khalid.aziz@oracle.com>
- <cover.1488232591.git.khalid.aziz@oracle.com>
- <85d8a35b577915945703ff84cec6f7f4d85ec214.1488232598.git.khalid.aziz@oracle.com>
- <AA645D3A-5FB0-4768-977F-D0725AE5CEC7@oracle.com>
- <f57a7108-188b-7b77-1a47-52fac5f3aed7@oracle.com>
- <C9588390-704B-452D-BB52-FBF2EF892DBB@oracle.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <0dc0280e-4d3c-961b-0d2b-bfd099b8d8cd@oracle.com>
-Date: Tue, 7 Mar 2017 08:39:38 -0700
-MIME-Version: 1.0
-In-Reply-To: <C9588390-704B-452D-BB52-FBF2EF892DBB@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Tue, 07 Mar 2017 07:48:50 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id n11so1675118wma.0
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 07:48:50 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH 0/4 v2] mm: give __GFP_REPEAT a better semantic
+Date: Tue,  7 Mar 2017 16:48:39 +0100
+Message-Id: <20170307154843.32516-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anthony Yznaga <anthony.yznaga@oracle.com>, davem@davemloft.net
-Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+To: linux-mm@kvack.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>
 
-On 03/06/2017 06:25 PM, Anthony Yznaga wrote:
-> 
->> On Mar 6, 2017, at 4:31 PM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
->>
->> On 03/06/2017 05:13 PM, Anthony Yznaga wrote:
->>>
->>>> On Feb 28, 2017, at 10:35 AM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
->>>>
->>>> diff --git a/arch/sparc/kernel/etrap_64.S b/arch/sparc/kernel/etrap_64.S
->>>> index 1276ca2..7be33bf 100644
->>>> --- a/arch/sparc/kernel/etrap_64.S
->>>> +++ b/arch/sparc/kernel/etrap_64.S
->>>> @@ -132,7 +132,33 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
->>>> 		stx	%g6, [%sp + PTREGS_OFF + PT_V9_G6]
->>>> 		stx	%g7, [%sp + PTREGS_OFF + PT_V9_G7]
->>>> 		or	%l7, %l0, %l7
->>>> -		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
->>>> +661:		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
->>>> +		/*
->>>> +		 * If userspace is using ADI, it could potentially pass
->>>> +		 * a pointer with version tag embedded in it. To maintain
->>>> +		 * the ADI security, we must enable PSTATE.mcde. Userspace
->>>> +		 * would have already set TTE.mcd in an earlier call to
->>>> +		 * kernel and set the version tag for the address being
->>>> +		 * dereferenced. Setting PSTATE.mcde would ensure any
->>>> +		 * access to userspace data through a system call honors
->>>> +		 * ADI and does not allow a rogue app to bypass ADI by
->>>> +		 * using system calls. Setting PSTATE.mcde only affects
->>>> +		 * accesses to virtual addresses that have TTE.mcd set.
->>>> +		 * Set PMCDPER to ensure any exceptions caused by ADI
->>>> +		 * version tag mismatch are exposed before system call
->>>> +		 * returns to userspace. Setting PMCDPER affects only
->>>> +		 * writes to virtual addresses that have TTE.mcd set and
->>>> +		 * have a version tag set as well.
->>>> +		 */
->>>> +		.section .sun_m7_1insn_patch, "ax"
->>>> +		.word	661b
->>>> +		sethi	%hi(TSTATE_TSO | TSTATE_PEF | TSTATE_MCDE), %l0
->>>> +		.previous
->>>> +661:		nop
->>>> +		.section .sun_m7_1insn_patch, "ax"
->>>> +		.word	661b
->>>> +		.word 0xaf902001	/* wrpr %g0, 1, %pmcdper */
->>>
->>> Since PMCDPER is never cleared, setting it here is quickly going to set it on all CPUs and then become an expensive "nop" that burns ~50 cycles each time through etrap.  Consider setting it at boot time and when a CPU is DR'd into the system.
->>>
->>> Anthony
->>>
->>
->> I considered that possibility. What made me uncomfortable with that is there is no way to prevent a driver/module or future code elsewhere in kernel from clearing PMCDPER with possibly good reason. If that were to happen, setting PMCDPER here ensures kernel will always see consistent behavior with system calls. It does come at a cost. Is that cost unacceptable to ensure consistent behavior?
-> 
-> Aren't you still at risk if the thread relinquishes the CPU while in the kernel and is then rescheduled on a CPU where PMCDPER has erroneously been left cleared?  You may need to save and restore PMCDPER as well as MCDPER on context switch, but I don't know if that will cover you completely.
-> 
+Hi,
+this is a follow up for __GFP_REPEAT clean up merged in 4.7. The previous
+version of this patch series was posted as an RFC
+http://lkml.kernel.org/r/1465212736-14637-1-git-send-email-mhocko@kernel.org
+Since then I have reconsidered the semantic and made it a counterpart
+to the __GFP_NORETRY and made it the other extreme end of the retry
+logic. Both are not invoking the OOM killer so they are suitable
+for allocation paths with a fallback. Also a new potential user has
+emerged (kvmalloc - see patch 4). I have also renamed the flag from
+__GFP_RETRY_HARD to __GFP_RETRY_MAY_FAIL as this should be more clear.
 
-You mean something like this?
+I have kept the RFC status because of the semantic change. The patch 1
+is an exception because it should be merge regardless of the rest.
 
---- arch/sparc/include/asm/mmu_context_64.h	2017-03-03 14:05:30.398573081 -0700
-+++ /tmp/mmu_context_64.h	2017-03-07 08:26:20.582124798 -0700
-@@ -193,6 +193,7 @@
- 		__asm__ __volatile__(
- 			"mov %0, %%g1\n\t"
- 			".word 0x9d800001\n\t"	/* wr %g0, %g1, %mcdper" */
-+			".word 0xaf902001\n\t"	/* wrpr %g0, 1, %pmcdper */
- 			:
- 			: "ir" (tmp_mcdper)
- 			: "g1");
+The main motivation for the change is that the current implementation of
+__GFP_REPEAT is not very much useful.
 
-> Alternatively you can avoid problems from buggy code and avoid the performance hit when storing to ADI enabled memory with precise mode enabled (e.g. when reading from a file into an ADI-enabled buffer) by handling disrupting mismatches that happen in copy_to_user() or put_user().  That does require adding error barriers and appropriate exception table entries, though, to deal with the nature of disrupting exceptions.
-> 
+The documentation says:
+ * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+ *   _might_ fail.  This depends upon the particular VM implementation.
 
-put_user() can be called for writing just one word of data to the userspace
-and memory barrier for that is as expensive as running with the worst case 
-with PMCDPER set. PMCDPER being set only affects writes to ADI-enabled
-userpsace VAs while barrier affects every write. A memory barrier before
-we return from kernel can ensure any exceptions due to userspace memory
-access are exposed while we are still in the kernel but the cost is high
-and it affects writes to non-ADI enabled memory as well. Doing this for
-copy_to_user() makes more sense due to larger number of writes. I still
-think it is more effective to run in the kernel with PMCDPER set, and
-clear it in NG4copy_to_user() for the larger number of copies. Clearing
-can be done conditionally if any of the memory kernel is about to write
-to is ADI enabled. This can be done as a separate optimization patch if
-it makes sense. This does add more code to NG4copy_to_user(). Thoughts?
+It just fails to mention that this is true only for large (costly) high
+order which has been the case since the flag was introduced. A similar
+semantic would be really helpful for smal orders as well, though,
+because we have places where a failure with a specific fallback error
+handling is preferred to a potential endless loop inside the page
+allocator.
 
-Thanks,
-Khalid
+The earlier cleanup dropped __GFP_REPEAT usage for low (!costly) order
+users so only those which might use larger orders have stayed. One user
+which slipped through cracks is addressed in patch 1.
+
+Let's rename the flag to something more verbose and use it for existing
+users. Semantic for those will not change. Then implement low (!costly)
+orders failure path which is hit after the page allocator is about to
+invoke the oom killer. Now we have a good counterpart for __GFP_NORETRY
+and finally can tell try as hard as possible without the OOM killer.
+
+Xfs code already has an existing annotation for allocations which are
+allowed to fail and we can trivially map them to the new gfp flag
+because it will provide the semantic KM_MAYFAIL wants.
+
+kvmalloc will allow also !costly high order allocations to retry hard
+before falling back to the vmalloc.
+
+The patchset is based on the current linux-next.
+
+Shortlog
+Michal Hocko (4):
+      s390: get rid of superfluous __GFP_REPEAT
+      mm, tree wide: replace __GFP_REPEAT by __GFP_RETRY_MAYFAIL with more useful semantic
+      xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
+      mm: kvmalloc support __GFP_RETRY_MAYFAIL for all sizes
+
+Diffstat
+ Documentation/DMA-ISA-LPC.txt                |  2 +-
+ arch/powerpc/include/asm/book3s/64/pgalloc.h |  2 +-
+ arch/powerpc/kvm/book3s_64_mmu_hv.c          |  2 +-
+ arch/s390/mm/pgalloc.c                       |  2 +-
+ drivers/mmc/host/wbsd.c                      |  2 +-
+ drivers/s390/char/vmcp.c                     |  2 +-
+ drivers/target/target_core_transport.c       |  2 +-
+ drivers/vhost/net.c                          |  2 +-
+ drivers/vhost/scsi.c                         |  2 +-
+ drivers/vhost/vsock.c                        |  2 +-
+ fs/btrfs/check-integrity.c                   |  2 +-
+ fs/btrfs/raid56.c                            |  2 +-
+ fs/xfs/kmem.h                                | 10 +++++++++
+ include/linux/gfp.h                          | 32 +++++++++++++++++++---------
+ include/linux/slab.h                         |  3 ++-
+ include/trace/events/mmflags.h               |  2 +-
+ mm/hugetlb.c                                 |  4 ++--
+ mm/internal.h                                |  2 +-
+ mm/page_alloc.c                              | 14 +++++++++---
+ mm/sparse-vmemmap.c                          |  4 ++--
+ mm/util.c                                    | 14 ++++--------
+ mm/vmalloc.c                                 |  2 +-
+ mm/vmscan.c                                  |  8 +++----
+ net/core/dev.c                               |  6 +++---
+ net/core/skbuff.c                            |  2 +-
+ net/sched/sch_fq.c                           |  2 +-
+ tools/perf/builtin-kmem.c                    |  2 +-
+ 27 files changed, 78 insertions(+), 53 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
