@@ -1,121 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C76026B0387
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 19:03:57 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id y17so49807105pgh.2
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 16:03:57 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id d18si1318758pgi.295.2017.03.06.16.03.56
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CE19E6B0387
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 19:07:55 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id d66so16152557wmi.2
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 16:07:55 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 25si11124111wrv.199.2017.03.06.16.07.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 16:03:56 -0800 (PST)
-Date: Mon, 6 Mar 2017 18:03:49 -0600
-From: Bjorn Helgaas <helgaas@kernel.org>
-Subject: Re: [RFC PATCH v2 06/32] x86/pci: Use memremap when walking setup
- data
-Message-ID: <20170307000349.GC5305@bhelgaas-glaptop.roam.corp.google.com>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846759008.2349.8274808454274279039.stgit@brijesh-build-machine>
- <20170303204209.GA31767@bhelgaas-glaptop.roam.corp.google.com>
- <df526224-0a4b-abc6-6377-efbca77284b1@amd.com>
+        Mon, 06 Mar 2017 16:07:54 -0800 (PST)
+Date: Tue, 7 Mar 2017 01:07:54 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH] xfs: remove kmem_zalloc_greedy
+Message-ID: <20170307000754.GA9959@lst.de>
+References: <20170306184109.GC5280@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <df526224-0a4b-abc6-6377-efbca77284b1@amd.com>
+In-Reply-To: <20170306184109.GC5280@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>
 
-On Fri, Mar 03, 2017 at 03:15:34PM -0600, Tom Lendacky wrote:
-> On 3/3/2017 2:42 PM, Bjorn Helgaas wrote:
-> >On Thu, Mar 02, 2017 at 10:13:10AM -0500, Brijesh Singh wrote:
-> >>From: Tom Lendacky <thomas.lendacky@amd.com>
-> >>
-> >>The use of ioremap will force the setup data to be mapped decrypted even
-> >>though setup data is encrypted.  Switch to using memremap which will be
-> >>able to perform the proper mapping.
-> >
-> >How should callers decide whether to use ioremap() or memremap()?
-> >
-> >memremap() existed before SME and SEV, and this code is used even if
-> >SME and SEV aren't supported, so the rationale for this change should
-> >not need the decryption argument.
-> 
-> When SME or SEV is active an ioremap() will remove the encryption bit
-> from the pagetable entry when it is mapped.  This allows MMIO, which
-> doesn't support SME/SEV, to be performed successfully.  So my take is
-> that ioremap() should be used for MMIO and memremap() for pages in RAM.
-
-OK, thanks.  The commit message should say something like "this is
-RAM, not MMIO, so we should map it with memremap(), not ioremap()".
-That's the part that determines whether the change is correct.
-
-You can mention the encryption part, too, but it's definitely
-secondary because the change has to make sense on its own, without
-SME/SEV.
-
-The following commits (from https://github.com/codomania/tip/branches)
-all do basically the same thing so the changelogs (and summaries)
-should all be basically the same:
-
-  cb0d0d1eb0a6 x86: Change early_ioremap to early_memremap for BOOT data
-  91acb68b8333 x86/pci: Use memremap when walking setup data
-  4f687503e23f x86: Access the setup data through sysfs decrypted
-  e90246b8c229 x86: Access the setup data through debugfs decrypted
-
-I would collect them all together and move them to the beginning of
-your series, since they don't depend on anything else.
-
-Also, change "x86/pci: " to "x86/PCI" so it matches the previous
-convention.
-
-> >>Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-
-Acked-by: Bjorn Helgaas <bhelgaas@google.com>
-
-> >>---
-> >> arch/x86/pci/common.c |    4 ++--
-> >> 1 file changed, 2 insertions(+), 2 deletions(-)
-> >>
-> >>diff --git a/arch/x86/pci/common.c b/arch/x86/pci/common.c
-> >>index a4fdfa7..0b06670 100644
-> >>--- a/arch/x86/pci/common.c
-> >>+++ b/arch/x86/pci/common.c
-> >>@@ -691,7 +691,7 @@ int pcibios_add_device(struct pci_dev *dev)
-> >>
-> >> 	pa_data = boot_params.hdr.setup_data;
-> >> 	while (pa_data) {
-> >>-		data = ioremap(pa_data, sizeof(*rom));
-> >>+		data = memremap(pa_data, sizeof(*rom), MEMREMAP_WB);
-> >
-> >I can't quite connect the dots here.  ioremap() on x86 would do
-> >ioremap_nocache().  memremap(MEMREMAP_WB) would do arch_memremap_wb(),
-> >which is ioremap_cache().  Is making a cacheable mapping the important
-> >difference?
-> 
-> The memremap(MEMREMAP_WB) will actually check to see if it can perform
-> a __va(pa_data) in try_ram_remap() and then fallback to the
-> arch_memremap_wb().  So it's actually the __va() vs the ioremap_cache()
-> that is the difference.
-> 
-> Thanks,
-> Tom
-> 
-> >
-> >> 		if (!data)
-> >> 			return -ENOMEM;
-> >>
-> >>@@ -710,7 +710,7 @@ int pcibios_add_device(struct pci_dev *dev)
-> >> 			}
-> >> 		}
-> >> 		pa_data = data->next;
-> >>-		iounmap(data);
-> >>+		memunmap(data);
-> >> 	}
-> >> 	set_dma_domain_ops(dev);
-> >> 	set_dev_domain_options(dev);
-> >>
+I like killing it, but shouldn't we just try a normal kmem_zalloc?
+At least for the fallback it's the right thing, and even for an
+order 2 allocation it seems like a useful first try.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
