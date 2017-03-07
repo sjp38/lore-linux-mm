@@ -1,51 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 278046B0387
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 06:19:45 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id u108so60926990wrb.3
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 03:19:45 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D92C36B0389
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 06:29:57 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id h188so486628wma.4
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 03:29:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b83si13665053wmb.29.2017.03.07.03.19.43
+        by mx.google.com with ESMTPS id o67si18452207wme.150.2017.03.07.03.29.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 03:19:44 -0800 (PST)
-Date: Tue, 7 Mar 2017 12:19:31 +0100
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC PATCH v2 02/32] x86: Secure Encrypted Virtualization (SEV)
- support
-Message-ID: <20170307111931.3rz5ia3ewimfi7gq@pd.tnic>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846754069.2349.4698319264278045964.stgit@brijesh-build-machine>
+        Tue, 07 Mar 2017 03:29:56 -0800 (PST)
+Date: Tue, 7 Mar 2017 12:29:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC][PATCH 1/2] mm: use MIGRATE_HIGHATOMIC as late as possible
+Message-ID: <20170307112953.GF28642@dhcp22.suse.cz>
+References: <58BE8C91.20600@huawei.com>
+ <20170307104758.GE28642@dhcp22.suse.cz>
+ <58BE938B.9020908@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <148846754069.2349.4698319264278045964.stgit@brijesh-build-machine>
+In-Reply-To: <58BE938B.9020908@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Yisheng Xie <xieyisheng1@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 02, 2017 at 10:12:20AM -0500, Brijesh Singh wrote:
-> From: Tom Lendacky <thomas.lendacky@amd.com>
+On Tue 07-03-17 19:03:39, Xishi Qiu wrote:
+> On 2017/3/7 18:47, Michal Hocko wrote:
 > 
-> Provide support for Secure Encyrpted Virtualization (SEV). This initial
-> support defines a flag that is used by the kernel to determine if it is
-> running with SEV active.
+> > On Tue 07-03-17 18:33:53, Xishi Qiu wrote:
+> >> MIGRATE_HIGHATOMIC page blocks are reserved for an atomic
+> >> high-order allocation, so use it as late as possible.
+> > 
+> > Why is this better? Are you seeing any problem which this patch
+> > resolves? In other words the patch description should explain why not
+> > only what (that is usually clear from looking at the diff).
+> > 
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> Hi Michal,
+> 
+> I have not see any problem yet, I think if we reserve more high order
+> pageblocks, the more success rate we will get when meet an atomic
+> high-order allocation, right?
 
-Btw,
-
-you need to add your Signed-off-by here after Tom's to denote that
-you're handing that patch forward.
-
+Please make sure you measure your changes under different workloads and
+present numbers in the changelog when you are touch such a subtle things
+like memory reserves. Ideas that might sound they make sense can turn
+out to behave differently in the real life.
 -- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
