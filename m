@@ -1,127 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 166FD6B0389
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 06:33:59 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id w37so74143614wrc.2
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 03:33:59 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D846B038B
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 06:40:19 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u9so546048wme.6
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 03:40:19 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q188si101995wme.156.2017.03.07.03.33.57
+        by mx.google.com with ESMTPS id g14si30429040wrg.275.2017.03.07.03.40.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 03:33:57 -0800 (PST)
-Date: Tue, 7 Mar 2017 12:33:54 +0100
+        Tue, 07 Mar 2017 03:40:18 -0800 (PST)
+Date: Tue, 7 Mar 2017 12:40:16 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] xfs: remove kmem_zalloc_greedy
-Message-ID: <20170307113354.GG28642@dhcp22.suse.cz>
-References: <20170306184109.GC5280@birch.djwong.org>
+Subject: Re: [PATCH v2] mm: do not call mem_cgroup_free() from within
+ mem_cgroup_alloc()
+Message-ID: <20170307114016.GH28642@dhcp22.suse.cz>
+References: <20170306135947.GF27953@dhcp22.suse.cz>
+ <20170306192122.24262-1-tahsin@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170306184109.GC5280@birch.djwong.org>
+In-Reply-To: <20170306192122.24262-1-tahsin@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Brian Foster <bfoster@redhat.com>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>
+To: Tahsin Erdogan <tahsin@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon 06-03-17 10:41:09, Darrick J. Wong wrote:
-> The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
-> it to grab 1-4 pages for staging of inobt records.  The infinite loop in
-> the greedy allocation function is causing hangs[1] in generic/269, so
-> just get rid of the greedy allocator in favor of kmem_zalloc_large.
-> This makes bulkstat somewhat more likely to ENOMEM if there's really no
-> pages to spare, but eliminates a source of hangs.
+[CC Andrew]
+
+On Mon 06-03-17 11:21:22, Tahsin Erdogan wrote:
+> mem_cgroup_free() indirectly calls wb_domain_exit() which is not
+> prepared to deal with a struct wb_domain object that hasn't executed
+> wb_domain_init(). For instance, the following warning message is
+> printed by lockdep if alloc_percpu() fails in mem_cgroup_alloc():
 > 
-> [1] https://lkml.org/lkml/2017/2/28/832
-
-I cannot really comment on the patch but I would suggest not using
-lkml.org reference in the changelog because I've seen those links being
-broken many times. Could you use
-http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
-
-instead please? Thanks for taking care of this!
-
+>   INFO: trying to register non-static key.
+>   the code is fine but needs lockdep annotation.
+>   turning off the locking correctness validator.
+>   CPU: 1 PID: 1950 Comm: mkdir Not tainted 4.10.0+ #151
+>   Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>   Call Trace:
+>    dump_stack+0x67/0x99
+>    register_lock_class+0x36d/0x540
+>    __lock_acquire+0x7f/0x1a30
+>    ? irq_work_queue+0x73/0x90
+>    ? wake_up_klogd+0x36/0x40
+>    ? console_unlock+0x45d/0x540
+>    ? vprintk_emit+0x211/0x2e0
+>    lock_acquire+0xcc/0x200
+>    ? try_to_del_timer_sync+0x60/0x60
+>    del_timer_sync+0x3c/0xc0
+>    ? try_to_del_timer_sync+0x60/0x60
+>    wb_domain_exit+0x14/0x20
+>    mem_cgroup_free+0x14/0x40
+>    mem_cgroup_css_alloc+0x3f9/0x620
+>    cgroup_apply_control_enable+0x190/0x390
+>    cgroup_mkdir+0x290/0x3d0
+>    kernfs_iop_mkdir+0x58/0x80
+>    vfs_mkdir+0x10e/0x1a0
+>    SyS_mkdirat+0xa8/0xd0
+>    SyS_mkdir+0x14/0x20
+>    entry_SYSCALL_64_fastpath+0x18/0xad
 > 
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> Add __mem_cgroup_free() which skips wb_domain_exit(). This is
+> used by both mem_cgroup_free() and mem_cgroup_alloc() clean up.
+> 
+> Fixes: 0b8f73e104285 ("mm: memcontrol: clean up alloc, online, offline, free functions")
+> Signed-off-by: Tahsin Erdogan <tahsin@google.com>
 > ---
->  fs/xfs/kmem.c       |   18 ------------------
->  fs/xfs/kmem.h       |    2 --
->  fs/xfs/xfs_itable.c |   14 ++++++++------
->  3 files changed, 8 insertions(+), 26 deletions(-)
+> v2:
+>   Added __mem_cgroup_free()
 > 
-> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> index 339c696..bb2beae 100644
-> --- a/fs/xfs/kmem.c
-> +++ b/fs/xfs/kmem.c
-> @@ -24,24 +24,6 @@
->  #include "kmem.h"
->  #include "xfs_message.h"
->  
-> -/*
-> - * Greedy allocation.  May fail and may return vmalloced memory.
-> - */
-> -void *
-> -kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
-> -{
-> -	void		*ptr;
-> -	size_t		kmsize = maxsize;
-> -
-> -	while (!(ptr = vzalloc(kmsize))) {
-> -		if ((kmsize >>= 1) <= minsize)
-> -			kmsize = minsize;
-> -	}
-> -	if (ptr)
-> -		*size = kmsize;
-> -	return ptr;
-> -}
-> -
->  void *
->  kmem_alloc(size_t size, xfs_km_flags_t flags)
->  {
-> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-> index 689f746..f0fc84f 100644
-> --- a/fs/xfs/kmem.h
-> +++ b/fs/xfs/kmem.h
-> @@ -69,8 +69,6 @@ static inline void  kmem_free(const void *ptr)
+>  mm/memcontrol.c | 11 ++++++++---
+>  1 file changed, 8 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c52ec893e241..e7d900c5f2d0 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4135,17 +4135,22 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+>  	kfree(memcg->nodeinfo[node]);
 >  }
 >  
->  
-> -extern void *kmem_zalloc_greedy(size_t *, size_t, size_t);
-> -
->  static inline void *
->  kmem_zalloc(size_t size, xfs_km_flags_t flags)
+> -static void mem_cgroup_free(struct mem_cgroup *memcg)
+> +static void __mem_cgroup_free(struct mem_cgroup *memcg)
 >  {
-> diff --git a/fs/xfs/xfs_itable.c b/fs/xfs/xfs_itable.c
-> index 8b2150d..283e76c 100644
-> --- a/fs/xfs/xfs_itable.c
-> +++ b/fs/xfs/xfs_itable.c
-> @@ -362,7 +362,6 @@ xfs_bulkstat(
->  	xfs_agino_t		agino;	/* inode # in allocation group */
->  	xfs_agnumber_t		agno;	/* allocation group number */
->  	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
-> -	size_t			irbsize; /* size of irec buffer in bytes */
->  	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
->  	int			nirbuf;	/* size of irbuf */
->  	int			ubcount; /* size of user's buffer */
-> @@ -389,11 +388,14 @@ xfs_bulkstat(
->  	*ubcountp = 0;
->  	*done = 0;
+>  	int node;
 >  
-> -	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
-> -	if (!irbuf)
-> -		return -ENOMEM;
-> -
-> -	nirbuf = irbsize / sizeof(*irbuf);
-> +	nirbuf = (PAGE_SIZE * 4) / sizeof(*irbuf);
-> +	irbuf = kmem_zalloc_large(PAGE_SIZE * 4, KM_SLEEP);
-> +	if (!irbuf) {
-> +		irbuf = kmem_zalloc_large(PAGE_SIZE, KM_SLEEP);
-> +		if (!irbuf)
-> +			return -ENOMEM;
-> +		nirbuf /= 4;
-> +	}
+> -	memcg_wb_domain_exit(memcg);
+>  	for_each_node(node)
+>  		free_mem_cgroup_per_node_info(memcg, node);
+>  	free_percpu(memcg->stat);
+>  	kfree(memcg);
+>  }
 >  
->  	/*
->  	 * Loop over the allocation groups, starting from the last
+> +static void mem_cgroup_free(struct mem_cgroup *memcg)
+> +{
+> +	memcg_wb_domain_exit(memcg);
+> +	__mem_cgroup_free(memcg);
+> +}
+> +
+>  static struct mem_cgroup *mem_cgroup_alloc(void)
+>  {
+>  	struct mem_cgroup *memcg;
+> @@ -4196,7 +4201,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+>  fail:
+>  	if (memcg->id.id > 0)
+>  		idr_remove(&mem_cgroup_idr, memcg->id.id);
+> -	mem_cgroup_free(memcg);
+> +	__mem_cgroup_free(memcg);
+>  	return NULL;
+>  }
+>  
+> -- 
+> 2.12.0.rc1.440.g5b76565f74-goog
 
 -- 
 Michal Hocko
