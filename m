@@ -1,118 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 901ED6B038B
-	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 19:53:15 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id j5so217614183pfb.3
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 16:53:15 -0800 (PST)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id o1si3950549pgn.177.2017.03.06.16.53.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Mar 2017 16:53:14 -0800 (PST)
-Received: by mail-pg0-x234.google.com with SMTP id 187so18285476pgb.3
-        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 16:53:14 -0800 (PST)
-Date: Mon, 6 Mar 2017 16:53:13 -0800
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH] mm: Remove rodata_test_data export, add pr_fmt
-Message-ID: <20170307005313.GA85809@beast>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2471A6B038C
+	for <linux-mm@kvack.org>; Mon,  6 Mar 2017 19:54:25 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id e129so42295165pfh.1
+        for <linux-mm@kvack.org>; Mon, 06 Mar 2017 16:54:25 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id d17si1011612pgg.15.2017.03.06.16.54.23
+        for <linux-mm@kvack.org>;
+        Mon, 06 Mar 2017 16:54:24 -0800 (PST)
+Date: Tue, 7 Mar 2017 11:54:20 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] xfs: remove kmem_zalloc_greedy
+Message-ID: <20170307005420.GO17542@dastard>
+References: <20170306184109.GC5280@birch.djwong.org>
+ <20170307000754.GA9959@lst.de>
+ <20170307001327.GC5281@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170307001327.GC5281@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jinbum Park <jinb.park7@gmail.com>, Arjan van de Ven <arjan@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Christoph Hellwig <hch@lst.de>, Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-Since commit 3ad38ceb2769 ("x86/mm: Remove CONFIG_DEBUG_NX_TEST"), nothing
-is using the exported rodata_test_data variable, so drop the export.
-Additionally updates the pr_fmt to avoid redundant strings and adjusts
-some whitespace.
+On Mon, Mar 06, 2017 at 04:13:28PM -0800, Darrick J. Wong wrote:
+> On Tue, Mar 07, 2017 at 01:07:54AM +0100, Christoph Hellwig wrote:
+> > I like killing it, but shouldn't we just try a normal kmem_zalloc?
+> > At least for the fallback it's the right thing, and even for an
+> > order 2 allocation it seems like a useful first try.
+> 
+> I'm confused -- kmem_zalloc_large tries kmem_zalloc with KM_MAYFAIL and
+> only falls back to __vmalloc if it doesn't get anything.
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- include/linux/rodata_test.h |  1 -
- mm/rodata_test.c            | 17 +++++++++--------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+Yup, that's right.
 
-diff --git a/include/linux/rodata_test.h b/include/linux/rodata_test.h
-index ea05f6c51413..84766bcdd01f 100644
---- a/include/linux/rodata_test.h
-+++ b/include/linux/rodata_test.h
-@@ -14,7 +14,6 @@
- #define _RODATA_TEST_H
- 
- #ifdef CONFIG_DEBUG_RODATA_TEST
--extern const int rodata_test_data;
- void rodata_test(void);
- #else
- static inline void rodata_test(void) {}
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-index 0fd21670b513..6bb4deb12e78 100644
---- a/mm/rodata_test.c
-+++ b/mm/rodata_test.c
-@@ -9,11 +9,12 @@
-  * as published by the Free Software Foundation; version 2
-  * of the License.
-  */
-+#define pr_fmt(fmt) "rodata_test: " fmt
-+
- #include <linux/uaccess.h>
- #include <asm/sections.h>
- 
- const int rodata_test_data = 0xC3;
--EXPORT_SYMBOL_GPL(rodata_test_data);
- 
- void rodata_test(void)
- {
-@@ -23,20 +24,20 @@ void rodata_test(void)
- 	/* test 1: read the value */
- 	/* If this test fails, some previous testrun has clobbered the state */
- 	if (!rodata_test_data) {
--		pr_err("rodata_test: test 1 fails (start data)\n");
-+		pr_err("test 1 fails (start data)\n");
- 		return;
- 	}
- 
- 	/* test 2: write to the variable; this should fault */
- 	if (!probe_kernel_write((void *)&rodata_test_data,
--						(void *)&zero, sizeof(zero))) {
--		pr_err("rodata_test: test data was not read only\n");
-+				(void *)&zero, sizeof(zero))) {
-+		pr_err("test data was not read only\n");
- 		return;
- 	}
- 
- 	/* test 3: check the value hasn't changed */
- 	if (rodata_test_data == zero) {
--		pr_err("rodata_test: test data was changed\n");
-+		pr_err("test data was changed\n");
- 		return;
- 	}
- 
-@@ -44,13 +45,13 @@ void rodata_test(void)
- 	start = (unsigned long)__start_rodata;
- 	end = (unsigned long)__end_rodata;
- 	if (start & (PAGE_SIZE - 1)) {
--		pr_err("rodata_test: start of .rodata is not page size aligned\n");
-+		pr_err("start of .rodata is not page size aligned\n");
- 		return;
- 	}
- 	if (end & (PAGE_SIZE - 1)) {
--		pr_err("rodata_test: end of .rodata is not page size aligned\n");
-+		pr_err("end of .rodata is not page size aligned\n");
- 		return;
- 	}
- 
--	pr_info("rodata_test: all tests were successful\n");
-+	pr_info("all tests were successful\n");
- }
+> Or maybe I've misunderstood, and you're asking if we should try
+> kmem_zalloc(4 pages), then kmem_zalloc(1 page), and only then switch to
+> the __vmalloc calls?
+
+Just call kmem_zalloc_large() for 4 pages without a fallback on
+failure - that's exactly how we handle allocations for things like
+the 64k xattr buffers....
+
+Cheers,
+
+Dave.
 -- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
