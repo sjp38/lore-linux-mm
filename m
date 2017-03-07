@@ -1,101 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B349F6B0388
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 16:21:37 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id y17so23929496pgh.2
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 13:21:37 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id q10si1106145plk.101.2017.03.07.13.21.35
-        for <linux-mm@kvack.org>;
-        Tue, 07 Mar 2017 13:21:36 -0800 (PST)
-Date: Wed, 8 Mar 2017 08:21:32 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to favor memory allocations for WQ_MEM_RECLAIM threads?
-Message-ID: <20170307212132.GQ17542@dastard>
-References: <201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp>
- <20170303133950.GD31582@dhcp22.suse.cz>
- <20170303232512.GI17542@dastard>
- <20170307121503.GJ28642@dhcp22.suse.cz>
- <20170307193659.GD31179@htj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170307193659.GD31179@htj.duckdns.org>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6779A6B038A
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 16:24:43 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id r141so14706294ita.6
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 13:24:43 -0800 (PST)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id z136si1703722ioe.30.2017.03.07.13.24.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Mar 2017 13:24:42 -0800 (PST)
+Message-Id: <20170307212429.044249411@linux.com>
+Date: Tue, 07 Mar 2017 15:24:29 -0600
+From: Christoph Lameter <cl@linux.com>
+Subject: [RFC 0/6] Slab Fragmentation Reduction V16
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>
 
-On Tue, Mar 07, 2017 at 02:36:59PM -0500, Tejun Heo wrote:
-> Hello,
-> 
-> On Tue, Mar 07, 2017 at 01:15:04PM +0100, Michal Hocko wrote:
-> > > The real problem here is that the XFS code has /no idea/ of what
-> > > workqueue context it is operating in - the fact it is in a rescuer
-> 
-> I don't see how whether something is running off of a rescuer or not
-> matters here.  The only thing workqueue guarantees is that there's
-> gonna be at least one kworker thread executing work items from the
-> workqueue.  Running on a rescuer doesn't necessarily indicate memory
-> pressure condition.
+V15->V16
+- Reworked core logic against 4.11 kernel code
+- Just the bare bones for Matthew to have the ability to review
+  the patches and to see how slab defrag could work with the radix
+  tree and/or new xarrays. Skip reclaim integration etc etc.
 
-That's news to me. In what situations do we run the rescuer thread
-other than memory allocation failure when queuing work?
+V14->V15
+- The lost version ... I posted it in 2010 but the material is nowhere
+  to be found on my backups.
 
-> > > thread is completely hidden from the executing context. It seems to
-> > > me that the workqueue infrastructure's responsibility to tell memory
-> > > reclaim that the rescuer thread needs special access to the memory
-> > > reserves to allow the work it is running to allow forwards progress
-> > > to be made. i.e.  setting PF_MEMALLOC on the rescuer thread or
-> > > something similar...
-> >
-> > I am not sure an automatic access to memory reserves from the rescuer
-> > context is safe. This sounds too easy to break (read consume all the
-> > reserves) - note that we have almost 200 users of WQ_MEM_RECLAIM and
-> > chances are some of them will not be careful with the memory
-> > allocations. I agree it would be helpful to know that the current item
-> > runs from the rescuer context, though. In such a case the implementation
-> > can do what ever it takes to make a forward progress. If that is using
-> > __GFP_MEMALLOC then be it but it would be at least explicit and well
-> > thought through (I hope).
-> 
-> I don't think doing this automatically is a good idea.  xfs work items
-> are free to mark itself PF_MEMALLOC while running tho.
+V13->V14
+- Rediff against linux-next on request of Andrew
+- TestSetPageLocked -> trylock_page conversion.
 
-I don't think that's a good idea to do unconditionally.It's quite
-common to have IO intensive XFS workloads queue so much work that we
-see several /thousand/ kworker threads running at once, even
-on realtively small 16p systems.
+Slab fragmentation is mainly an issue if Linux is used as a fileserver
+and large amounts of dentries, inodes and buffer heads accumulate. In some
+load situations the slabs become very sparsely populated so that a lot of
+memory is wasted by slabs that only contain one or a few objects. In
+extreme cases the performance of a machine will become sluggish since
+we are continually running reclaim without much succes.
+Slab defragmentation adds the capability to recover the memory that
+is wasted.
 
-> It makes sense
-> to mark these cases explicitly anyway. 
+Memory reclaim for the following slab caches is possible:
 
-Doing it on every work we queue will lead to immediate depletion of
-memory reserves under heavy IO loads.
+1. dentry cache
+2. inode cache (with a generic interface to allow easy setup of more
+   filesystems than the currently supported ext2/3/4 reiserfs, XFS
+   and proc)
+3. buffer_heads
 
-> W  can update workqueue code
-> so that it automatically clears the flag after each work item
-> completion to help.
-> 
-> > Tejun, would it be possible/reasonable to add current_is_wq_rescuer() API?
-> 
-> It's implementable for sure.  I'm just not sure how it'd help
-> anything.  It's not a relevant information on anything.
+One typical mechanism that triggers slab defragmentation on my systems
+is the daily run of
 
-Except to enable us to get closer to the "rescuer must make forwards
-progress" guarantee. In this context, the rescuer is the only
-context we should allow to dip into memory reserves. I'm happy if we
-have to explicitly check for that and set PF_MEMALLOC ourselves 
-(we do that for XFS kernel threads involved in memory reclaim),
-but it's not something we should set automatically on every
-IO completion work item we run....
+	updatedb
 
-Cheers,
+Updatedb scans all files on the system which causes a high inode and dentry
+use. After updatedb is complete we need to go back to the regular use
+patterns (typical on my machine: kernel compiles). Those need the memory now
+for different purposes. The inodes and dentries used for updatedb will
+gradually be aged by the dentry/inode reclaim algorithm which will free
+up the dentries and inode entries randomly through the slabs that were
+allocated. As a result the slabs will become sparsely populated. If they
+become empty then they can be freed but a lot of them will remain sparsely
+populated. That is where slab defrag comes in: It removes the objects from
+the slabs with just a few entries reclaiming more memory for other uses.
+In the simplest case (as provided here) this is done by simply reclaiming
+the objects.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+However, if the logic in the kick() function is made more
+sophisticated then we will be able to move the objects out of the slabs.
+Allocations of objects is possible if a slab is fragmented without the use of
+the page allocator because a large number of free slots are available. Moving
+an object will reduce fragmentation in the slab the object is moved to.
+
+V12->v13:
+- Rebase onto Linux 2.6.27-rc1 (deal with page flags conversion, ctor parameters etc)
+- Fix unitialized variable issue
+
+V11->V12:
+- Pekka and me fixed various minor issues pointed out by Andrew.
+- Split ext2/3/4 defrag support patches.
+- Add more documentation
+- Revise the way that slab defrag is triggered from reclaim. No longer
+  use a timeout but track the amount of slab reclaim done by the shrinkers.
+  Add a field in /proc/sys/vm/slab_defrag_limit to control the threshold.
+- Display current slab_defrag_counters in /proc/zoneinfo (for a zone) and
+  /proc/sys/vm/slab_defrag_count (for global reclaim).
+- Add new config vaue slab_defrag_limit to /proc/sys/vm/slab_defrag_limit
+- Add a patch that obsoletes SLAB and explains why SLOB does not support
+  defrag (Either of those could be theoretically equipped to support
+  slab defrag in some way but it seems that Andrew/Linus want to reduce
+  the number of slab allocators).
+
+V10->V11
+- Simplify determination when to reclaim: Just scan over all partials
+  and check if they are sparsely populated.
+- Add support for performance counters
+- Rediff on top of current slab-mm.
+- Reduce frequency of scanning. A look at the stats showed that we
+  were calling into reclaim very frequently when the system was under
+  memory pressure which slowed things down. Various measures to
+  avoid scanning the partial list too frequently were added and the
+  earlier (expensive) method of determining the defrag ratio of the slab
+  cache as a whole was dropped. I think this addresses the issues that
+  Mel saw with V10.
+
+V9->V10
+- Rediff against upstream
+
+V8->V9
+- Rediff against 2.6.24-rc6-mm1
+
+V7->V8
+- Rediff against 2.6.24-rc3-mm2
+
+V6->V7
+- Rediff against 2.6.24-rc2-mm1
+- Remove lumpy reclaim support. No point anymore given that the antifrag
+  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
+  Targeted reclaim never triggers. This has to wait until we make
+  slabs movable or we need to perform a special version of lumpy reclaim
+  in SLUB while we scan the partial lists for slabs to kick out.
+  Removal simplifies handling significantly since we
+  get to slabs in a more controlled way via the partial lists.
+  The patchset now provides pure reduction of fragmentation levels.
+- SLAB/SLOB: Provide inlines that do nothing
+- Fix various smaller issues that were brought up during review of V6.
+
+V5->V6
+- Rediff against 2.6.24-rc2 + mm slub patches.
+- Add reviewed by lines.
+- Take out the experimental code to make slab pages movable. That
+  has to wait until this has been considered by Mel.
+
+V4->V5:
+- Support lumpy reclaim for slabs
+- Support reclaim via slab_shrink()
+- Add constructors to insure a consistent object state at all times.
+
+V3->V4:
+- Optimize scan for slabs that need defragmentation
+- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
+  per slab.
+- Add support for buffer heads.
+- Describe how the cleanup after the daily updatedb can be
+  improved by slab defragmentation.
+
+V2->V3
+- Support directory reclaim
+- Add infrastructure to trigger defragmentation after slab shrinking if we
+  have slabs with a high degree of fragmentation.
+
+V1->V2
+- Clean up control flow using a state variable. Simplify API. Back to 2
+  functions that now take arrays of objects.
+- Inode defrag support for a set of filesystems
+- Fix up dentry defrag support to work on negative dentries by adding
+  a new dentry flag that indicates that a dentry is not in the process
+  of being freed or allocated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
