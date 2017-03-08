@@ -1,148 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CDAC831CD
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 06:07:50 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id o126so51827287pfb.2
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 03:07:50 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id g2si2966451plk.70.2017.03.08.03.07.49
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 17CAF831D3
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 06:23:58 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id d2so39435178oif.4
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 03:23:58 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r74si1402502ota.326.2017.03.08.03.23.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 03:07:49 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm: Change generic FALLBACK zonelist creation process
-References: <1d67f38b-548f-26a2-23f5-240d6747f286@linux.vnet.ibm.com>
- <20170308092146.5264-1-khandual@linux.vnet.ibm.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <0f787fb7-e299-9afb-8c87-4afdb937fdbb@nvidia.com>
-Date: Wed, 8 Mar 2017 03:07:13 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Mar 2017 03:23:56 -0800 (PST)
+Subject: Re: [RFC PATCH 3/4] xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
+References: <20170307154843.32516-1-mhocko@kernel.org>
+ <20170307154843.32516-4-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <e7f932bf-313a-917d-6304-81528aca5994@I-love.SAKURA.ne.jp>
+Date: Wed, 8 Mar 2017 20:23:37 +0900
 MIME-Version: 1.0
-In-Reply-To: <20170308092146.5264-1-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+In-Reply-To: <20170307154843.32516-4-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Darrick J. Wong" <darrick.wong@oracle.com>
 
-On 03/08/2017 01:21 AM, Anshuman Khandual wrote:
-> Kernel allocation to CDM node has already been prevented by putting it's
-> entire memory in ZONE_MOVABLE. But the CDM nodes must also be isolated
-> from implicit allocations happening on the system.
->
-> Any isolation seeking CDM node requires isolation from implicit memory
-> allocations from user space but at the same time there should also have
-> an explicit way to do the memory allocation.
->
-> Platform node's both zonelists are fundamental to where the memory comes
-> from when there is an allocation request. In order to achieve these two
-> objectives as stated above, zonelists building process has to change as
-> both zonelists (i.e FALLBACK and NOFALLBACK) gives access to the node's
-> memory zones during any kind of memory allocation. The following changes
-> are implemented in this regard.
->
-> * CDM node's zones are not part of any other node's FALLBACK zonelist
-> * CDM node's FALLBACK list contains it's own memory zones followed by
->   all system RAM zones in regular order as before
-
-There was a discussion, on an earlier version of this patchset, in which someone 
-pointed out that a slight over-allocation on a device that has much more memory than 
-the CPU has, could use up system memory. Your latest approach here does not address 
-this.
-
-I'm thinking that, until oversubscription between NUMA nodes is more fully 
-implemented in a way that can be properly controlled, you'd probably better just not 
-fallback to system memory. In other words, a CDM node really is *isolated* from 
-other nodes--no automatic use in either direction.
-
-Also, naming and purpose: maybe this is a "Limited NUMA Node", rather than a 
-Coherent Device Memory node. Because: the real point of this thing is to limit the 
-normal operation of NUMA, just enough to work with what I am *told* is 
-memory-that-is-too-fragile-for-kernel-use (I remain soemwhat on the fence, there, 
-even though you did talk me into it earlier, heh).
-
-On process: it would probably help if you gathered up previous discussion points and 
-carefully, concisely addressed each one, somewhere, (maybe in a cover letter). 
-Because otherwise, it's too easy for earlier, important problems to be forgotten. 
-And reviewers don't want to have to repeat themselves, of course.
-
-thanks
-John Hubbard
-NVIDIA
-
-> * CDM node's zones are part of it's own NOFALLBACK zonelist
->
-> These above changes ensure the following which in turn isolates the CDM
-> nodes as desired.
->
-> * There wont be any implicit memory allocation ending up in the CDM node
-> * Only __GFP_THISNODE marked allocations will come from the CDM node
-> * CDM node memory can be allocated through mbind(MPOL_BIND) interface
-> * System RAM memory will be used as fallback option in regular order in
->   case the CDM memory is insufficient during targted allocation request
->
-> Sample zonelist configuration:
->
-> [NODE (0)]						RAM
->         ZONELIST_FALLBACK (0xc00000000140da00)
->                 (0) (node 0) (DMA     0xc00000000140c000)
->                 (1) (node 1) (DMA     0xc000000100000000)
->         ZONELIST_NOFALLBACK (0xc000000001411a10)
->                 (0) (node 0) (DMA     0xc00000000140c000)
-> [NODE (1)]						RAM
->         ZONELIST_FALLBACK (0xc000000100001a00)
->                 (0) (node 1) (DMA     0xc000000100000000)
->                 (1) (node 0) (DMA     0xc00000000140c000)
->         ZONELIST_NOFALLBACK (0xc000000100005a10)
->                 (0) (node 1) (DMA     0xc000000100000000)
-> [NODE (2)]						CDM
->         ZONELIST_FALLBACK (0xc000000001427700)
->                 (0) (node 2) (Movable 0xc000000001427080)
->                 (1) (node 0) (DMA     0xc00000000140c000)
->                 (2) (node 1) (DMA     0xc000000100000000)
->         ZONELIST_NOFALLBACK (0xc00000000142b710)
->                 (0) (node 2) (Movable 0xc000000001427080)
-> [NODE (3)]						CDM
->         ZONELIST_FALLBACK (0xc000000001431400)
->                 (0) (node 3) (Movable 0xc000000001430d80)
->                 (1) (node 0) (DMA     0xc00000000140c000)
->                 (2) (node 1) (DMA     0xc000000100000000)
->         ZONELIST_NOFALLBACK (0xc000000001435410)
->                 (0) (node 3) (Movable 0xc000000001430d80)
-> [NODE (4)]						CDM
->         ZONELIST_FALLBACK (0xc00000000143b100)
->                 (0) (node 4) (Movable 0xc00000000143aa80)
->                 (1) (node 0) (DMA     0xc00000000140c000)
->                 (2) (node 1) (DMA     0xc000000100000000)
->         ZONELIST_NOFALLBACK (0xc00000000143f110)
->                 (0) (node 4) (Movable 0xc00000000143aa80)
->
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+On 2017/03/08 0:48, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
+> so it relied on the default page allocator behavior for the given set
+> of flags. This means that small allocations actually never failed.
+> 
+> Now that we have __GFP_RETRY_MAYFAIL flag which works independently on the
+> allocation request size we can map KM_MAYFAIL to it. The allocator will
+> try as hard as it can to fulfill the request but fails eventually if
+> the progress cannot be made.
+> 
+> Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  mm/page_alloc.c | 10 ++++++++++
+>  fs/xfs/kmem.h | 10 ++++++++++
 >  1 file changed, 10 insertions(+)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 40908de..6f7dddc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4825,6 +4825,16 @@ static void build_zonelists(pg_data_t *pgdat)
->  	i = 0;
->
->  	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
-> +#ifdef CONFIG_COHERENT_DEVICE
-> +		/*
-> +		 * CDM node's own zones should not be part of any other
-> +		 * node's fallback zonelist but only it's own fallback
-> +		 * zonelist.
-> +		 */
-> +		if (is_cdm_node(node) && (pgdat->node_id != node))
-> +			continue;
-> +#endif
+> 
+> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+> index ae08cfd9552a..ac80a4855c83 100644
+> --- a/fs/xfs/kmem.h
+> +++ b/fs/xfs/kmem.h
+> @@ -54,6 +54,16 @@ kmem_flags_convert(xfs_km_flags_t flags)
+>  			lflags &= ~__GFP_FS;
+>  	}
+>  
+> +	/*
+> +	 * Default page/slab allocator behavior is to retry for ever
+> +	 * for small allocations. We can override this behavior by using
+> +	 * __GFP_RETRY_MAYFAIL which will tell the allocator to retry as long
+> +	 * as it is feasible but rather fail than retry for ever for all
+> +	 * request sizes.
+> +	 */
+> +	if (flags & KM_MAYFAIL)
+> +		lflags |= __GFP_RETRY_MAYFAIL;
+
+I don't see advantages of supporting both __GFP_NORETRY and __GFP_RETRY_MAYFAIL.
+kmem_flags_convert() can always set __GFP_NORETRY because the callers use
+opencoded __GFP_NOFAIL loop (with possible allocation lockup warning) unless
+KM_MAYFAIL is set.
+
 > +
->  		/*
->  		 * We don't want to pressure a particular node.
->  		 * So adding penalty to the first node in same
->
+>  	if (flags & KM_ZERO)
+>  		lflags |= __GFP_ZERO;
+>  
+> 
+
+Well, commit 9a67f6488eca926f ("mm: consolidate GFP_NOFAIL checks in the
+allocator slowpath") unexpectedly changed to always give up without using
+memory reserves (unless __GFP_NOFAIL is set) if TIF_MEMDIE is set to current
+thread when current thread is inside __alloc_pages_may_oom() (precisely speaking,
+if TIF_MEMDIE is set when current thread is after
+
+        if (gfp_pfmemalloc_allowed(gfp_mask))
+                alloc_flags = ALLOC_NO_WATERMARKS;
+
+line and before
+
+        /* Avoid allocations with no watermarks from looping endlessly */
+        if (test_thread_flag(TIF_MEMDIE))
+                goto nopage;
+
+line, which is likely always true); but this is off-topic for this thread.
+
+The lines which are executed only when __GFP_RETRY_MAYFAIL is set rather than
+__GFP_NORETRY is set are
+
+        /* Do not loop if specifically requested */
+        if (gfp_mask & __GFP_NORETRY)
+                goto nopage;
+
+        /*
+         * Do not retry costly high order allocations unless they are
+         * __GFP_RETRY_MAYFAIL
+         */
+        if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_RETRY_MAYFAIL))
+                goto nopage;
+
+        if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+                                 did_some_progress > 0, &no_progress_loops))
+                goto retry;
+
+        /*
+         * It doesn't make any sense to retry for the compaction if the order-0
+         * reclaim is not able to make any progress because the current
+         * implementation of the compaction depends on the sufficient amount
+         * of free memory (see __compaction_suitable)
+         */
+        if (did_some_progress > 0 &&
+                        should_compact_retry(ac, order, alloc_flags,
+                                compact_result, &compact_priority,
+                                &compaction_retries))
+                goto retry;
+
+        /*
+         * It's possible we raced with cpuset update so the OOM would be
+         * premature (see below the nopage: label for full explanation).
+         */
+        if (read_mems_allowed_retry(cpuset_mems_cookie))
+                goto retry_cpuset;
+
+        /* Reclaim has failed us, start killing things */
+        page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+        if (page)
+                goto got_pg;
+
+__alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+        const struct alloc_context *ac, unsigned long *did_some_progress)
+{
+        struct oom_control oc = {
+                .zonelist = ac->zonelist,
+                .nodemask = ac->nodemask,
+                .memcg = NULL,
+                .gfp_mask = gfp_mask,
+                .order = order,
+        };
+        struct page *page;
+
+        *did_some_progress = 0;
+
+        /*
+         * Acquire the oom lock.  If that fails, somebody else is
+         * making progress for us.
+         */
+        if (!mutex_trylock(&oom_lock)) {
+                *did_some_progress = 1;
+                schedule_timeout_uninterruptible(1);
+                return NULL;
+        }
+
+        /*
+         * Go through the zonelist yet one more time, keep very high watermark
+         * here, this is only to catch a parallel oom killing, we must fail if
+         * we're still under heavy pressure.
+         */
+        page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
+                                        ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+        if (page)
+                goto out;
+
+        /* Coredumps can quickly deplete all memory reserves */
+        if (current->flags & PF_DUMPCORE)
+                goto out;
+        /* The OOM killer will not help higher order allocs */
+        if (order > PAGE_ALLOC_COSTLY_ORDER)
+                goto out;
+        /*
+         * We have already exhausted all our reclaim opportunities without any
+         * success so it is time to admit defeat. We will skip the OOM killer
+         * because it is very likely that the caller has a more reasonable
+         * fallback than shooting a random task.
+         */
+        if (gfp_mask & __GFP_RETRY_MAYFAIL)
+                goto out;
+
+where both __GFP_NORETRY and __GFP_RETRY_MAYFAIL are checked after
+direct reclaim and compaction failed. __GFP_RETRY_MAYFAIL optimistically
+retries based on one of should_reclaim_retry() or should_compact_retry()
+or read_mems_allowed_retry() returns true or mutex_trylock(&oom_lock) in
+__alloc_pages_may_oom() returns 0. If !__GFP_FS allocation requests are
+holding oom_lock each other, __GFP_RETRY_MAYFAIL allocation requests (which
+are likely !__GFP_FS allocation requests due to __GFP_FS allocation requests
+being blocked on direct reclaim) can be blocked for uncontrollable duration
+without making progress. It seems to me that the difference between
+__GFP_NORETRY and __GFP_RETRY_MAYFAIL is not useful. Rather, the caller can
+set __GFP_NORETRY and retry with any control (e.g. set __GFP_HIGH upon first
+timeout, give up upon second timeout).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
