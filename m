@@ -1,69 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2548383200
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 15:07:14 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j5so75626410pfb.3
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 12:07:14 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id 1si4199617pgt.65.2017.03.08.12.07.12
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ADC3683200
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 15:21:01 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id a189so106328684qkc.4
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 12:21:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p132si3850799qka.200.2017.03.08.12.20.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 12:07:13 -0800 (PST)
-Date: Wed, 8 Mar 2017 15:07:08 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC][PATCH 4/4] ftrace: Allow for function tracing to record
- init functions on boot up
-Message-ID: <20170308150708.3df9bf15@gandalf.local.home>
-In-Reply-To: <20170307212943.573855971@goodmis.org>
-References: <20170307212833.964734229@goodmis.org>
-	<20170307212943.573855971@goodmis.org>
+        Wed, 08 Mar 2017 12:20:56 -0800 (PST)
+Subject: Re: [PATCHv2 2/5] target/user: Add global data block pool support
+References: <1488962743-17028-1-git-send-email-lixiubo@cmss.chinamobile.com>
+ <1488962743-17028-3-git-send-email-lixiubo@cmss.chinamobile.com>
+From: Andy Grover <agrover@redhat.com>
+Message-ID: <3b1ce412-6072-fda1-3002-220cf8fbf34f@redhat.com>
+Date: Wed, 8 Mar 2017 12:20:54 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1488962743-17028-3-git-send-email-lixiubo@cmss.chinamobile.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Todd Brandt <todd.e.brandt@linux.intel.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>
+To: lixiubo@cmss.chinamobile.com, nab@linux-iscsi.org, mchristi@redhat.com
+Cc: shli@kernel.org, sheng@yasker.org, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, namei.unix@gmail.com, linux-mm@kvack.org
 
+On 03/08/2017 12:45 AM, lixiubo@cmss.chinamobile.com wrote:
+> From: Xiubo Li <lixiubo@cmss.chinamobile.com>
+>
+> For each target there will be one ring, when the target number
+> grows larger and larger, it could eventually runs out of the
+> system memories.
+>
+> In this patch for each target ring, the cmd area size will be
+> limited to 8M and the data area size will be limited to 1G. And
+> the data area will be divided into two parts: the fixed and
+> growing.
+>
+> For the fixed part, it will be 1M size and pre-allocated together
+> with the cmd area. This could speed up the low iops case, and
+> also could make sure that each ring will have at least 1M private
+> data size when there has too many targets, which could get their
+> data blocks as quick as possible.
+>
+> For the growing part, it will get the blocks from the global data
+> block pool. And this part will be used for high iops case.
+>
+> The global data block pool is a cache, and the total size will be
+> limited to max 2G(grows from 0 to 2G as needed). And it will cache
+> the freed data blocks by a list, All targets will get from/release
+> to the free blocks here.
 
-Dear mm folks,
+Hi Xiubo,
 
-Are you OK with this change? I need a hook to when the init sections
-are being freed along with the address that are being freed. As each
-arch frees their own init sections I need a single location to place my
-hook. The archs all call free_reserved_area(). As this isn't a critical
-section (ie. one that needs to be really fast), calling into ftrace
-with the freed address should not be an issue. The ftrace code uses a
-binary search within the blocks of locations so it is rather fast
-itself.
+I will leave the detailed patch critique to others but this does seem to 
+achieve the goals of 1) larger TCMU data buffers to prevent bottlenecks 
+and 2) Allocating memory in a way that avoids using up all system memory 
+in corner cases.
 
-Thoughts? Acks? :-)
+The one thing I'm still unsure about is what we need to do to maintain 
+the data area's virtual mapping properly. Nobody on linux-mm answered my 
+email a few days ago on the right way to do this, alas. But, userspace 
+accessing the data area is going to cause tcmu_vma_fault() to be called, 
+and it seems to me like we must proactively do something -- some kind of 
+unmap call -- before we can reuse that memory for another, possibly 
+completely unrelated, backstore's data area. This could allow one 
+backstore handler to read or write another's data.
 
--- Steve
-
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2c6d5f64feca..95ac03de4cda 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -64,6 +64,7 @@
->  #include <linux/page_owner.h>
->  #include <linux/kthread.h>
->  #include <linux/memcontrol.h>
-> +#include <linux/ftrace.h>
->  
->  #include <asm/sections.h>
->  #include <asm/tlbflush.h>
-> @@ -6441,6 +6442,9 @@ unsigned long free_reserved_area(void *start, void *end, int poison, char *s)
->  	void *pos;
->  	unsigned long pages = 0;
->  
-> +	/* This may be .init text, inform ftrace to remove it */
-> +	ftrace_free_mem(start, end);
-> +
->  	start = (void *)PAGE_ALIGN((unsigned long)start);
->  	end = (void *)((unsigned long)end & PAGE_MASK);
->  	for (pos = start; pos < end; pos += PAGE_SIZE, pages++) {
+Regards -- Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
