@@ -1,93 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E961831D3
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 04:22:51 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id x63so48079385pfx.7
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 01:22:51 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v5si2685098pgo.315.2017.03.08.01.22.50
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D3C3831D3
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 04:22:54 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id y51so9093103wry.6
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 01:22:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r205si7539968wma.48.2017.03.08.01.22.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 01:22:50 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v289Ds7P144118
-	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 04:22:49 -0500
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 292f2kggux-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 Mar 2017 04:22:49 -0500
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 8 Mar 2017 19:22:46 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v289MZRe47972390
-	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 20:22:43 +1100
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v289MAH2020282
-	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 20:22:11 +1100
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] mm: Change mbind(MPOL_BIND) implementation for CDM nodes
-Date: Wed,  8 Mar 2017 14:51:46 +0530
-In-Reply-To: <1d67f38b-548f-26a2-23f5-240d6747f286@linux.vnet.ibm.com>
-References: <1d67f38b-548f-26a2-23f5-240d6747f286@linux.vnet.ibm.com>
-Message-Id: <20170308092146.5264-2-khandual@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Mar 2017 01:22:53 -0800 (PST)
+Date: Wed, 8 Mar 2017 10:22:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, vmalloc: use __GFP_HIGHMEM implicitly
+Message-ID: <20170308092251.GC11028@dhcp22.suse.cz>
+References: <20170307141020.29107-1-mhocko@kernel.org>
+ <20170307150845.075cceea71647bfeba3c5e22@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307150845.075cceea71647bfeba3c5e22@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Cristopher Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-CDM nodes need a way of explicit memory allocation mechanism from the user
-space. After the previous FALLBACK zonelist rebuilding process changes, the
-mbind(MPOL_BIND) based allocation request fails on the CDM node. This is
-because allocation requesting local node's FALLBACK zonelist is selected
-for further nodemask processing targeted at MPOL_BIND implementation. As
-the CDM node's zones are not part of any other regular node's FALLBACK
-zonelist, the allocation simply fails without getting any valid zone. The
-allocation requesting node is always going to be different than the CDM
-node which does not have any CPU. Hence MPOL_MBIND implementation must
-choose given CDM node's FALLBACK zonelist instead of the requesting local
-node's FALLBACK zonelist. This implements that change.
-
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- mm/mempolicy.c | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 1e7873e..6089c711 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1692,6 +1692,27 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
- 		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
- 	}
+On Tue 07-03-17 15:08:45, Andrew Morton wrote:
+> On Tue,  7 Mar 2017 15:10:20 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > __vmalloc* allows users to provide gfp flags for the underlying
+> > allocation. This API is quite popular
+> > $ git grep "=[[:space:]]__vmalloc\|return[[:space:]]*__vmalloc" | wc -l
+> > 77
+> > 
+> > the only problem is that many people are not aware that they really want
+> > to give __GFP_HIGHMEM along with other flags because there is really no
+> > reason to consume precious lowmemory on CONFIG_HIGHMEM systems for pages
+> > which are mapped to the kernel vmalloc space. About half of users don't
+> > use this flag, though. This signals that we make the API unnecessarily
+> > too complex.
+> > 
+> > This patch simply uses __GFP_HIGHMEM implicitly when allocating pages to
+> > be mapped to the vmalloc space. Current users which add __GFP_HIGHMEM
+> > are simplified and drop the flag.
+> 
+> hm.  What happens if a caller wants only lowmem pages?  Drivers do
+> weird stuff...
  
-+#ifdef CONFIG_COHERENT_DEVICE
-+	/*
-+	 * Coherent Device Memory (CDM)
-+	 *
-+	 * In case the local requesting node is not part of the nodemask, test
-+	 * if the first node in the nodemask is CDM, in which case select it.
-+	 *
-+	 * XXX: There are multiple ways of doing this. This node check can be
-+	 * restricted to the first node in the node mask as implemented here or
-+	 * scan through the entire nodemask to find out any present CDM node on
-+	 * it or select the first CDM node only if all other nodes in the node
-+	 * mask are CDM. These are variour approaches possible, the first one
-+	 * is implemented here.
-+	 */
-+	if (policy->mode == MPOL_BIND) {
-+		if (unlikely(!node_isset(nd, policy->v.nodes))) {
-+			if (is_cdm_node(first_node(policy->v.nodes)))
-+				nd = first_node(policy->v.nodes);
-+		}
-+	}
-+#endif
- 	return node_zonelist(nd, gfp);
- }
- 
+Yes they do and we have vmalloc_32 API which works as intended because
+GFP_VMALLOC32 contains GFP_DMA32 and that will override __GFP_HIGHMEM.
+
 -- 
-2.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
