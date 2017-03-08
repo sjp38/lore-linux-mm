@@ -1,70 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B7D6B03BD
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:51:27 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id g8so8650323wmg.7
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:51:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x61si3223145wrb.294.2017.03.07.23.51.25
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 46F88831CE
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 03:00:49 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 77so43625893pgc.5
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:00:49 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id h5si2485207pln.273.2017.03.08.00.00.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Mar 2017 23:51:25 -0800 (PST)
-Subject: Re: [PATCH] mm: Do not use double negation for testing page flags
-References: <1488868597-32222-1-git-send-email-minchan@kernel.org>
- <8b5c4679-484e-fe7f-844b-af5fd41b01e0@linux.vnet.ibm.com>
- <20170308052555.GB11206@bbox>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6f9274f7-6d2e-60a6-c36a-78f8f79004aa@suse.cz>
-Date: Wed, 8 Mar 2017 08:51:23 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Mar 2017 00:00:46 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id 77so2676380pgc.0
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:00:46 -0800 (PST)
+Date: Wed, 8 Mar 2017 16:00:42 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC PATCH 2/2] mm/sparse: add last_section_nr in sparse_init()
+ to reduce some iteration cycle
+Message-ID: <20170308080042.GA18355@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170211021829.9646-1-richard.weiyang@gmail.com>
+ <20170211021829.9646-2-richard.weiyang@gmail.com>
+ <20170211022400.GA19050@mtj.duckdns.org>
+ <CADZGycbxtoXXxCeg-nHjzGmHA72VnA=-td+hNaNqN67Vq2JuKg@mail.gmail.com>
+ <CADZGycapTYxdxwHacFYiECZQ23uPDARQcahw_9zuKrNu-wG63g@mail.gmail.com>
+ <20170306194225.GB19696@htj.duckdns.org>
 MIME-Version: 1.0
-In-Reply-To: <20170308052555.GB11206@bbox>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="VS++wcV0S1rZb1Fb"
+Content-Disposition: inline
+In-Reply-To: <20170306194225.GB19696@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/08/2017 06:25 AM, Minchan Kim wrote:
-> Hi Anshuman,
-> 
-> On Tue, Mar 07, 2017 at 09:31:18PM +0530, Anshuman Khandual wrote:
->> On 03/07/2017 12:06 PM, Minchan Kim wrote:
->>> With the discussion[1], I found it seems there are every PageFlags
->>> functions return bool at this moment so we don't need double
->>> negation any more.
->>> Although it's not a problem to keep it, it makes future users
->>> confused to use dobule negation for them, too.
->>>
->>> Remove such possibility.
->>
->> A quick search of '!!Page' in the source tree does not show any other
->> place having this double negation. So I guess this is all which need
->> to be fixed.
-> 
-> Yeb. That's the why my patch includes only khugepagd part but my
-> concern is PageFlags returns int type not boolean so user might
-> be confused easily and tempted to use dobule negation.
-> 
-> Other side is they who create new custom PageXXX(e.g., PageMovable)
-> should keep it in mind that they should return 0 or 1 although
-> fucntion prototype's return value is int type.
 
-> It shouldn't be
-> documented nowhere.
+--VS++wcV0S1rZb1Fb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Was this double negation intentional? :P
+On Mon, Mar 06, 2017 at 02:42:25PM -0500, Tejun Heo wrote:
+>Hello, Wei.
+>
+>On Fri, Feb 17, 2017 at 10:12:31PM +0800, Wei Yang wrote:
+>> > And compare the ruling with the iteration for the loop to be (1UL <<
+>> > 5) and (1UL << 19).
+>> > The runtime is 0.00s and 0.04s respectively. The absolute value is not=
+ much.
+>
+>systemd-analyze usually does a pretty good job of breaking down which
+>phase took how long.  It might be worthwhile to test whether the
+>improvement is actually visible during the boot.
+>
 
-> Although we can add a little description
-> somewhere in page-flags.h, I believe changing to boolean is more
-> clear/not-error-prone so Chen's work is enough worth, I think.
+Hi, Tejun
 
-Agree, unless some arches benefit from the int by performance
-for some reason (no idea if it's possible).
+Thanks for your suggestion. I have tried systemd-analyze to measure the
+effect, while looks not good.
 
-Anyway, to your original patch:
+Result without patch
+-------------------------
+Startup finished in 7.243s (kernel) + 25.034s (userspace) =3D 32.277s
+Startup finished in 7.254s (kernel) + 19.816s (userspace) =3D 27.071s
+Startup finished in 7.272s (kernel) + 4.363s (userspace) =3D 11.636s
+Startup finished in 7.258s (kernel) + 24.319s (userspace) =3D 31.577s
+Startup finished in 7.262s (kernel) + 9.481s (userspace) =3D 16.743s
+Startup finished in 7.266s (kernel) + 14.766s (userspace) =3D 22.032s
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Avg =3D 7.259s
+
+Result with patch
+-------------------------
+Startup finished in 7.262s (kernel) + 14.294s (userspace) =3D 21.557s
+Startup finished in 7.264s (kernel) + 19.519s (userspace) =3D 26.783s
+Startup finished in 7.266s (kernel) + 4.730s (userspace) =3D 11.997s
+Startup finished in 7.258s (kernel) + 9.514s (userspace) =3D 16.773s
+Startup finished in 7.258s (kernel) + 14.371s (userspace) =3D 21.629s
+Startup finished in 7.258s (kernel) + 14.627s (userspace) =3D 21.885s
+
+Avg =3D 7.261s
+
+It looks the effect is not obvious. Maybe the improvement is not good
+enough :(
+
+>> >> * Do we really need to add full reverse iterator to just get the
+>> >>   highest section number?
+>> >>
+>> >
+>> > You are right. After I sent out the mail, I realized just highest pfn
+>> > is necessary.
+>
+>That said, getting efficient is always great as long as the added
+>complexity is justifiably small enough.  If you can make the change
+>simple enough, it'd be a lot easier to merge.
+>
+
+Agree.
+
+I have replaced the reverse iteration with a simple last pfn return. The te=
+st
+result above is based on the new version.
+
+>Thanks.
+>
+>--=20
+>tejun
+
+--=20
+Wei Yang
+Help you, Help me
+
+--VS++wcV0S1rZb1Fb
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJYv7oqAAoJEKcLNpZP5cTdW0IP/RYXTERjwzLqnqPOGHm8OsHX
+cqT8+4RLUK70SwOnwLh58BFkssM7V4oq/zaR9mGze3z5er+U+UFdXKRry/x6t5KR
+GgHDHzxBVaFuFwDZ8mEDhvcJbnH2/AxS2RLsI49tWPgImBeb+bX8LV2X07Dl7U78
+tFkttZ3Fa1VZRNyFGTNEPeuB5U+/RaC5Xa+EkXfuraju1icDh2xN3f2M7+/dOSpr
+ACGLl7Ug3/B6eBQPUh8ll5pJBpaQoYP/efAZ6xLdIPybsPO7tPxDCEvCVHrhg6tO
+kQVm2nPjOiq4/tpOvRENtdp+VlEdBMSItVlJ651OW2D6Johnl+XIjPzyaAzjgx6Y
+0znAbmDBsG+qbuyR7SWt24A095XlXOTaBsxpcMgZnbgEkODcNpqqzQUIsTr0mXj3
+XzH2LsTZUMTKmkbIqE393aPeq1yl+w0krQ9gN3pEJRmOU7nGcfqOMH2AErEDkl95
+BXFlfEOWaMzDLgs6Uj7r5BVj3TSCduzKmtaQeDhq/pTXA3utD5rq/cuJ6lf8tSkI
++U8GhJ3iu44yl09jvG8IrOil2j62ndb2hoapELMlocOhPQvrmcZ7t8lW8eu3HHsi
+HcPG6Vj3k93Pjmvc5v464TXx8pgKcVDXBkkT8OHWO9p3s3VeDjJ7B0fcXT2D1dwg
+w08jZLsbelG/ek+CFdfq
+=FhWU
+-----END PGP SIGNATURE-----
+
+--VS++wcV0S1rZb1Fb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
