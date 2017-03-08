@@ -1,69 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5184E6B039C
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:42:46 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b2so42609981pgc.6
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:42:46 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id d81si2334696pfd.82.2017.03.07.22.42.44
-        for <linux-mm@kvack.org>;
-        Tue, 07 Mar 2017 22:42:45 -0800 (PST)
-Date: Wed, 8 Mar 2017 15:42:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 06/11] mm: remove SWAP_MLOCK in ttu
-Message-ID: <20170308064242.GH11206@bbox>
-References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-7-git-send-email-minchan@kernel.org>
- <54799ea5-005d-939c-de32-bc21af881ab4@linux.vnet.ibm.com>
- <20170306021508.GD8779@bbox>
- <20170307152437.GB2940@node.shutemov.name>
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6B16B039E
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:56:12 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id v125so56418252qkh.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:56:12 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d204si2249542qka.207.2017.03.07.22.56.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Mar 2017 22:56:11 -0800 (PST)
+Date: Wed, 8 Mar 2017 14:55:55 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [RFC PATCH v4 14/28] Add support to access boot related data in
+ the clear
+Message-ID: <20170308065555.GA11045@dhcp-128-65.nay.redhat.com>
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154508.19244.58580.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-In-Reply-To: <20170307152437.GB2940@node.shutemov.name>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170216154508.19244.58580.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: g@node.shutemov.name, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue, Mar 07, 2017 at 06:24:37PM +0300, Kirill A. Shutemov wrote:
-> On Mon, Mar 06, 2017 at 11:15:08AM +0900, Minchan Kim wrote:
-> > Hi Anshuman,
-> > 
-> > On Fri, Mar 03, 2017 at 06:06:38PM +0530, Anshuman Khandual wrote:
-> > > On 03/02/2017 12:09 PM, Minchan Kim wrote:
-> > > > ttu don't need to return SWAP_MLOCK. Instead, just return SWAP_FAIL
-> > > > because it means the page is not-swappable so it should move to
-> > > > another LRU list(active or unevictable). putback friends will
-> > > > move it to right list depending on the page's LRU flag.
-> > > 
-> > > Right, if it cannot be swapped out there is not much difference with
-> > > SWAP_FAIL once we change the callers who expected to see a SWAP_MLOCK
-> > > return instead.
-> > > 
-> > > > 
-> > > > A side effect is shrink_page_list accounts unevictable list movement
-> > > > by PGACTIVATE but I don't think it corrupts something severe.
-> > > 
-> > > Not sure I got that, could you please elaborate on this. We will still
-> > > activate the page and put it in an appropriate LRU list if it is marked
-> > > mlocked ?
-> > 
-> > Right. putback_iactive_pages/putback_lru_page has a logic to filter
-> > out unevictable pages and move them to unevictable LRU list so it
-> > doesn't break LRU change behavior but the concern is until now,
-> > we have accounted PGACTIVATE for only evictable LRU list page but
-> > by this change, it accounts it to unevictable LRU list as well.
-> > However, although I don't think it's big problem in real practice,
-> > we can fix it simply with checking PG_mlocked if someone reports.
-> 
-> I think it's better to do this pro-actively. Let's hide both pgactivate++
-> and SetPageActive() under "if (!PageMlocked())".
-> SetPageActive() is not free.
+On 02/16/17 at 09:45am, Tom Lendacky wrote:
+[snip]
+> + * This function determines if an address should be mapped encrypted.
+> + * Boot setup data, EFI data and E820 areas are checked in making this
+> + * determination.
+> + */
+> +static bool memremap_should_map_encrypted(resource_size_t phys_addr,
+> +					  unsigned long size)
+> +{
+> +	/*
+> +	 * SME is not active, return true:
+> +	 *   - For early_memremap_pgprot_adjust(), returning true or false
+> +	 *     results in the same protection value
+> +	 *   - For arch_memremap_do_ram_remap(), returning true will allow
+> +	 *     the RAM remap to occur instead of falling back to ioremap()
+> +	 */
+> +	if (!sme_active())
+> +		return true;
 
-I will consider it in next spin.
+>From the function name shouldn't above be return false? 
 
-Thanks!
+> +
+> +	/* Check if the address is part of the setup data */
+> +	if (memremap_is_setup_data(phys_addr, size))
+> +		return false;
+> +
+> +	/* Check if the address is part of EFI boot/runtime data */
+> +	switch (efi_mem_type(phys_addr)) {
+> +	case EFI_BOOT_SERVICES_DATA:
+> +	case EFI_RUNTIME_SERVICES_DATA:
+
+Only these two types needed? I'm not sure about this, just bring up the
+question.
+
+> +		return false;
+> +	default:
+> +		break;
+> +	}
+> +
+> +	/* Check if the address is outside kernel usable area */
+> +	switch (e820__get_entry_type(phys_addr, phys_addr + size - 1)) {
+> +	case E820_TYPE_RESERVED:
+> +	case E820_TYPE_ACPI:
+> +	case E820_TYPE_NVS:
+> +	case E820_TYPE_UNUSABLE:
+> +		return false;
+> +	default:
+> +		break;
+> +	}
+> +
+> +	return true;
+> +}
+> +
+
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
