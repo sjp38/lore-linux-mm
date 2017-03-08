@@ -1,61 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7735B831EB
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:22:06 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id e129so61451016pfh.1
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:22:06 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id e69si3565482pgc.181.2017.03.08.07.22.05
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C3E0C831ED
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:27:33 -0500 (EST)
+Received: by mail-ua0-f198.google.com with SMTP id g43so54164229uah.2
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:27:33 -0800 (PST)
+Received: from mail-ua0-x22f.google.com (mail-ua0-x22f.google.com. [2607:f8b0:400c:c08::22f])
+        by mx.google.com with ESMTPS id j39si1582374uaf.89.2017.03.08.07.27.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 07:22:05 -0800 (PST)
-Date: Wed, 8 Mar 2017 18:21:30 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 6/7] mm: convert generic code to 5-level paging
-Message-ID: <20170308152129.sknp75d5usdu4vne@black.fi.intel.com>
-References: <20170306204514.1852-1-kirill.shutemov@linux.intel.com>
- <20170306204514.1852-7-kirill.shutemov@linux.intel.com>
- <20170308135734.GA11034@dhcp22.suse.cz>
+        Wed, 08 Mar 2017 07:27:32 -0800 (PST)
+Received: by mail-ua0-x22f.google.com with SMTP id f54so39481043uaa.1
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:27:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170308135734.GA11034@dhcp22.suse.cz>
+In-Reply-To: <20170308152027.GA13133@leverpostej>
+References: <20170306124254.77615-1-dvyukov@google.com> <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
+ <20170306125851.GL6500@twins.programming.kicks-ass.net> <20170306130107.GK6536@twins.programming.kicks-ass.net>
+ <CACT4Y+ZDxk2CkaGaqVJfrzoBf4ZXDZ2L8vaAnLOjuY0yx85jgA@mail.gmail.com>
+ <20170306162018.GC18519@leverpostej> <20170306203500.GR6500@twins.programming.kicks-ass.net>
+ <CACT4Y+ZNb_eCLVBz6cUyr0jVPdSW_-nCedcBAh0anfds91B2vw@mail.gmail.com> <20170308152027.GA13133@leverpostej>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 8 Mar 2017 16:27:11 +0100
+Message-ID: <CACT4Y+bZqiE9Mxq1y4vdyT6=DCq0L+y_HjBH1=RJf5C9134CwQ@mail.gmail.com>
+Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Wed, Mar 08, 2017 at 02:57:35PM +0100, Michal Hocko wrote:
-> On Mon 06-03-17 23:45:13, Kirill A. Shutemov wrote:
-> > Convert all non-architecture-specific code to 5-level paging.
-> > 
-> > It's mostly mechanical adding handling one more page table level in
-> > places where we deal with pud_t.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> 
-> OK, I haven't spotted anything major. I am just scratching my head about
-> the __ARCH_HAS_5LEVEL_HACK leak into kasan_init.c (see below). Why do we
-> need it?  It looks more than ugly but I am not familiar with kasan so
-> maybe this is really necessary.
+On Wed, Mar 8, 2017 at 4:20 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> Hi,
+>
+> On Wed, Mar 08, 2017 at 02:42:10PM +0100, Dmitry Vyukov wrote:
+>> I think if we scope compiler atomic builtins to KASAN/KTSAN/KMSAN (and
+>> consequently x86/arm64) initially, it becomes more realistic. For the
+>> tools we don't care about absolute efficiency and this gets rid of
+>> Will's points (2), (4) and (6) here https://lwn.net/Articles/691295/.
+>> Re (3) I think rmb/wmb can be reasonably replaced with
+>> atomic_thread_fence(acquire/release). Re (5) situation with
+>> correctness becomes better very quickly as more people use them in
+>> user-space. Since KASAN is not intended to be used in production (or
+>> at least such build is expected to crash), we can afford to shake out
+>> any remaining correctness issues in such build. (1) I don't fully
+>> understand, what exactly is the problem with seq_cst?
+>
+> I'll have to leave it to Will to have the final word on these; I'm
+> certainly not familiar enough with the C11 memory model to comment on
+> (1).
+>
+> However, w.r.t. (3), I don't think we can substitute rmb() and wmb()
+> with atomic_thread_fence_acquire() and atomic_thread_fence_release()
+> respectively on arm64.
+>
+> The former use barriers with full system scope, whereas the latter may
+> be limited to the inner shareable domain. While I'm not sure of the
+> precise intended semantics of wmb() and rmb(), I believe this
+> substitution would break some cases (e.g. communicating with a
+> non-coherent master).
+>
+> Note that regardless, we'd have to special-case __iowmb() to use a full
+> system barrier.
+>
+> Also, w.r.t. (5), modulo the lack of atomic instrumentation, people use
+> KASAN today, with compilers that are known to have bugs in their atomics
+> (e.g. GCC bug 69875). Thus, we cannot rely on the compiler's
+> implementation of atomics without introducing a functional regression.
+>
+>> i'Ve sketched a patch that does it, and did some testing with/without
+>> KASAN on x86_64.
+>>
+>> In short, it adds include/linux/atomic_compiler.h which is included
+>> from include/linux/atomic.h when CONFIG_COMPILER_ATOMIC is defined;
+>> and <asm/atomic.h> is not included when CONFIG_COMPILER_ATOMIC is
+>> defined.
+>> For bitops it is similar except that only parts of asm/bitops.h are
+>> selectively disabled when CONFIG_COMPILER_ATOMIC, because it also
+>> defines other stuff.
+>> asm/barriers.h is left intact for now. We don't need it for KASAN. But
+>> for KTSAN we can do similar thing -- selectively disable some of the
+>> barriers in asm/barriers.h (e.g. leaving dma_rmb/wmb per arch).
+>>
+>> Such change would allow us to support atomic ops for multiple arches
+>> for all of KASAN/KTSAN/KMSAN.
+>>
+>> Thoughts?
+>
+> As in my other reply, I'd prefer that we wrapped the (arch-specific)
+> atomic implementations such that we can instrument them explicitly in a
+> core header. That means that the implementation and semantics of the
+> atomics don't change at all.
+>
+> Note that we could initially do this just for x86 and arm64), e.g. by
+> having those explicitly include an <asm-generic/atomic-instrumented.h>
+> at the end of their <asm/atomic.h>.
 
-Yeah ugly.
+How exactly do you want to do this incrementally?
+I don't feel ready to shuffle all archs, but doing x86 in one patch
+and then arm64 in another looks tractable.
 
-kasan_zero_p4d is only defined if we have real page table level. It's okay
-if the page table level is folded properly -- using pgtable-nop4d.h -- in
-this case pgd_populate() is nop and we don't reference kasan_zero_p4d.
 
-With 5level-fixup.h, pgd_populate() is not nop, so we would reference
-kasan_zero_p4d and build breaks. We don't need this as p4d_populate()
-would do what we really need in this case.
-
-We can drop the hack once all architectures that support kasan would be
-converted to pgtable-nop4d.h -- amd64 and x86 at the moment.
-
-Makes sense?
-
--- 
- Kirill A. Shutemov
+> For architectures which can use the compiler's atomics, we can allow
+> them to do so, skipping the redundant explicit instrumentation.
+>
+> Other than being potentially slower (which we've established we don't
+> care too much about above), is there a problem with that approach?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
