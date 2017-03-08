@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3A8831FA
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 11:30:34 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id f191so77128321qka.7
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 08:30:34 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t188si3293022qkh.308.2017.03.08.08.30.19
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A2248831FA
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 11:46:43 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id u108so12055418wrb.3
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 08:46:43 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r124si616662wma.43.2017.03.08.08.46.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 08:30:19 -0800 (PST)
-From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v2 7/9] mm: ensure that we set mapping error if writeout() fails
-Date: Wed,  8 Mar 2017 11:29:32 -0500
-Message-Id: <20170308162934.21989-8-jlayton@redhat.com>
-In-Reply-To: <20170308162934.21989-1-jlayton@redhat.com>
-References: <20170308162934.21989-1-jlayton@redhat.com>
+        Wed, 08 Mar 2017 08:46:42 -0800 (PST)
+Date: Wed, 8 Mar 2017 11:46:31 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 0/8] try to reduce fragmenting fallbacks
+Message-ID: <20170308164631.GA12130@cmpxchg.org>
+References: <20170307131545.28577-1-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307131545.28577-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@zeniv.linux.org.uk, akpm@linux-foundation.org
-Cc: konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, ross.zwisler@linux.intel.com, jack@suse.cz, neilb@suse.com, openosd@gmail.com, adilger@dilger.ca, James.Bottomley@HansenPartnership.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com
 
-If writepage fails during a page migration, then we need to ensure that
-fsync will see it by flagging the mapping.
+On Tue, Mar 07, 2017 at 02:15:37PM +0100, Vlastimil Babka wrote:
+> Last year, Johannes Weiner has reported a regression in page mobility
+> grouping [1] and while the exact cause was not found, I've come up with some
+> ways to improve it by reducing the number of allocations falling back to
+> different migratetype and causing permanent fragmentation.
 
-Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- mm/migrate.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+I finally managed to get a handful of our machines on 4.10 with these
+patches applied and a 4.10 vanilla control group.
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9a0897a14d37..a9c0b46865b7 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -789,7 +789,11 @@ static int writeout(struct address_space *mapping, struct page *page)
- 		/* unlocked. Relock */
- 		lock_page(page);
- 
--	return (rc < 0) ? -EIO : -EAGAIN;
-+	if (rc < 0) {
-+		mapping_set_error(mapping, rc);
-+		return -EIO;
-+	}
-+	return -EAGAIN;
- }
- 
- /*
--- 
-2.9.3
+The sampling period is over twelve hours, which is on the short side
+for evaluating that load, so take the results with a grain of salt.
+
+The allocstall rate (events per second) is down on average, but there
+are occasionally fairly high spikes that exceed the peaks in 4.10:
+
+http://cmpxchg.org/antifrag/allocstallrate.png
+
+Activity from the compaction free scanner is down, while the migration
+scanner does more work. I would assume most of this is coming from the
+same-migratetype restriction on the source blocks:
+
+http://cmpxchg.org/antifrag/compactfreescannedrate.png
+http://cmpxchg.org/antifrag/compactmigratescannedrate.png
+
+Unfortunately, the average compaction stall rate is consistently much
+higher with the patches. The 1h rate averages are 2-3x higher:
+
+http://cmpxchg.org/antifrag/compactstallrate.png
+
+An increase in direct compaction is a bit worrisome, but the task
+completion rates - the bottom line metric for this workload - are
+still too chaotic to say whether the increased allocation latency
+affects us meaningfully here. I'll give it a few more days.
+
+Is there any other data you would like me to gather?
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
