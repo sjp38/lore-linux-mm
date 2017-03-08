@@ -1,155 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2716B03A4
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:09:54 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id o135so63117398qke.3
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:09:54 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s56si2261919qte.291.2017.03.07.23.09.53
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A4C746B03A6
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:20:08 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id e5so44387518pgk.1
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:20:08 -0800 (PST)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id q77si2421330pfi.41.2017.03.07.23.20.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 23:09:53 -0800 (PST)
-Date: Wed, 8 Mar 2017 15:09:34 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [RFC PATCH v4 25/28] x86: Access the setup data through sysfs
- decrypted
-Message-ID: <20170308070934.GC11045@dhcp-128-65.nay.redhat.com>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154738.19244.37908.stgit@tlendack-t1.amdoffice.net>
+        Tue, 07 Mar 2017 23:20:07 -0800 (PST)
+Subject: Re: [RFC 08/11] mm: make ttu's return boolean
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-9-git-send-email-minchan@kernel.org>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <70f60783-e098-c1a9-11b4-544530bcd809@nvidia.com>
+Date: Tue, 7 Mar 2017 23:13:26 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170216154738.19244.37908.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <1488436765-32350-9-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 02/16/17 at 09:47am, Tom Lendacky wrote:
-> Use memremap() to map the setup data.  This will make the appropriate
-> decision as to whether a RAM remapping can be done or if a fallback to
-> ioremap_cache() is needed (similar to the setup data debugfs support).
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/kernel/ksysfs.c |   27 ++++++++++++++-------------
->  1 file changed, 14 insertions(+), 13 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/ksysfs.c b/arch/x86/kernel/ksysfs.c
-> index 4afc67f..d653b3e 100644
-> --- a/arch/x86/kernel/ksysfs.c
-> +++ b/arch/x86/kernel/ksysfs.c
-> @@ -16,6 +16,7 @@
->  #include <linux/stat.h>
->  #include <linux/slab.h>
->  #include <linux/mm.h>
-> +#include <linux/io.h>
->  
->  #include <asm/io.h>
->  #include <asm/setup.h>
-> @@ -79,12 +80,12 @@ static int get_setup_data_paddr(int nr, u64 *paddr)
->  			*paddr = pa_data;
->  			return 0;
->  		}
-> -		data = ioremap_cache(pa_data, sizeof(*data));
-> +		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
->  		if (!data)
->  			return -ENOMEM;
->  
->  		pa_data = data->next;
-> -		iounmap(data);
-> +		memunmap(data);
->  		i++;
->  	}
->  	return -EINVAL;
-> @@ -97,17 +98,17 @@ static int __init get_setup_data_size(int nr, size_t *size)
->  	u64 pa_data = boot_params.hdr.setup_data;
->  
->  	while (pa_data) {
-> -		data = ioremap_cache(pa_data, sizeof(*data));
-> +		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
->  		if (!data)
->  			return -ENOMEM;
->  		if (nr == i) {
->  			*size = data->len;
-> -			iounmap(data);
-> +			memunmap(data);
->  			return 0;
->  		}
->  
->  		pa_data = data->next;
-> -		iounmap(data);
-> +		memunmap(data);
->  		i++;
->  	}
->  	return -EINVAL;
-> @@ -127,12 +128,12 @@ static ssize_t type_show(struct kobject *kobj,
->  	ret = get_setup_data_paddr(nr, &paddr);
->  	if (ret)
->  		return ret;
-> -	data = ioremap_cache(paddr, sizeof(*data));
-> +	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
->  	if (!data)
->  		return -ENOMEM;
->  
->  	ret = sprintf(buf, "0x%x\n", data->type);
-> -	iounmap(data);
-> +	memunmap(data);
->  	return ret;
->  }
->  
-> @@ -154,7 +155,7 @@ static ssize_t setup_data_data_read(struct file *fp,
->  	ret = get_setup_data_paddr(nr, &paddr);
->  	if (ret)
->  		return ret;
-> -	data = ioremap_cache(paddr, sizeof(*data));
-> +	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
->  	if (!data)
->  		return -ENOMEM;
->  
-> @@ -170,15 +171,15 @@ static ssize_t setup_data_data_read(struct file *fp,
->  		goto out;
->  
->  	ret = count;
-> -	p = ioremap_cache(paddr + sizeof(*data), data->len);
-> +	p = memremap(paddr + sizeof(*data), data->len, MEMREMAP_WB);
->  	if (!p) {
->  		ret = -ENOMEM;
->  		goto out;
->  	}
->  	memcpy(buf, p + off, count);
-> -	iounmap(p);
-> +	memunmap(p);
->  out:
-> -	iounmap(data);
-> +	memunmap(data);
->  	return ret;
->  }
->  
-> @@ -250,13 +251,13 @@ static int __init get_setup_data_total_num(u64 pa_data, int *nr)
->  	*nr = 0;
->  	while (pa_data) {
->  		*nr += 1;
-> -		data = ioremap_cache(pa_data, sizeof(*data));
-> +		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
->  		if (!data) {
->  			ret = -ENOMEM;
->  			goto out;
->  		}
->  		pa_data = data->next;
-> -		iounmap(data);
-> +		memunmap(data);
->  	}
->  
->  out:
-> 
+On 03/01/2017 10:39 PM, Minchan Kim wrote:
+> try_to_unmap returns SWAP_SUCCESS or SWAP_FAIL so it's suitable for
+> boolean return. This patch changes it.
 
-It would be better that these cleanup patches are sent separately.
+Hi Minchan,
 
-Acked-by: Dave Young <dyoung@redhat.com>
+So, up until this patch, I definitely like the cleanup, because as you observed, the 
+return values didn't need so many different values. However, at this point, I think 
+you should stop, and keep the SWAP_SUCCESS and SWAP_FAIL (or maybe even rename them 
+to UNMAP_* or TTU_RESULT_*, to match their functions' names better), because 
+removing them makes the code considerably less readable.
 
-Thanks
-Dave
+And since this is billed as a cleanup, we care here, even though this is a minor 
+point. :)
+
+Bool return values are sometimes perfect, such as when asking a question:
+
+    bool mode_changed = needs_modeset(crtc_state);
+
+The above is very nice. However, for returning success or failure, bools are not as 
+nice, because *usually* success == true, except when you use the errno-based system, 
+in which success == 0 (which would translate to false, if you mistakenly treated it 
+as a bool). That leads to the reader having to remember which system is in use, 
+usually with no visual cues to help.
+
+>
+[...]
+>  	if (PageSwapCache(p)) {
+> @@ -971,7 +971,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+>  		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
+>
+>  	ret = try_to_unmap(hpage, ttu);
+> -	if (ret != SWAP_SUCCESS)
+> +	if (!ret)
+>  		pr_err("Memory failure: %#lx: failed to unmap page (mapcount=%d)\n",
+>  		       pfn, page_mapcount(hpage));
+>
+> @@ -986,8 +986,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+>  	 * any accesses to the poisoned memory.
+>  	 */
+>  	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
+> -	kill_procs(&tokill, forcekill, trapno,
+> -		      ret != SWAP_SUCCESS, p, pfn, flags);
+> +	kill_procs(&tokill, forcekill, trapno, !ret , p, pfn, flags);
+
+The kill_procs() invocation was a little more readable before.
+
+>
+[...]
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 170c61f..e4b74f1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -966,7 +966,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		int may_enter_fs;
+>  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
+>  		bool dirty, writeback;
+> -		int ret = SWAP_SUCCESS;
+>
+>  		cond_resched();
+>
+> @@ -1139,13 +1138,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		 * processes. Try to unmap it here.
+>  		 */
+>  		if (page_mapped(page)) {
+> -			switch (ret = try_to_unmap(page,
+> -				ttu_flags | TTU_BATCH_FLUSH)) {
+> -			case SWAP_FAIL:
+
+Again: the SWAP_FAIL makes it crystal clear which case we're in.
+
+I also wonder if UNMAP_FAIL or TTU_RESULT_FAIL is a better name?
+
+thanks,
+John Hubbard
+NVIDIA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
