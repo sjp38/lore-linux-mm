@@ -1,31 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A25376B038B
-	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 19:36:57 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id g10so5938077wrg.5
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 16:36:57 -0800 (PST)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id l66si20934214wmb.111.2017.03.07.16.36.56
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 544846B0388
+	for <linux-mm@kvack.org>; Tue,  7 Mar 2017 21:06:27 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id e5so34714899pgk.1
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 18:06:27 -0800 (PST)
+Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
+        by mx.google.com with ESMTPS id s81si1701309pgs.29.2017.03.07.18.06.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 16:36:56 -0800 (PST)
-Date: Wed, 8 Mar 2017 01:36:55 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v2] xfs: remove kmem_zalloc_greedy
-Message-ID: <20170308003655.GA7458@lst.de>
-References: <20170308003528.GK5280@birch.djwong.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Mar 2017 18:06:26 -0800 (PST)
+From: <zhouxianrong@huawei.com>
+Subject: [PATCH] compaction: add def_blk_aops migrate function for memory compaction
+Date: Wed, 8 Mar 2017 09:51:55 +0800
+Message-ID: <1488937915-78955-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170308003528.GK5280@birch.djwong.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, minchan@kernel.org, mgorman@techsingularity.net, vbabka@suse.cz, viro@zeniv.linux.org.uk, Mi.Sophia.Wang@huawei.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com, zhouxiaoyan1@huawei.com
 
-Looks fine,
+From: zhouxianrong <zhouxianrong@huawei.com>
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+the reason for why to do this is based on below factors.
+
+1. larg file read/write operations with order 0 can fragmentize
+   memory rapidly.
+
+2. when a special filesystem does not supply migratepage callback,
+   kernel would fallback to default function fallback_migrate_page.
+   but fallback_migrate_page could not migrate diry page nicely;
+   specially kcompactd with MIGRATE_SYNC_LIGHT could not migrate
+   diry pages due to this until clear_page_dirty_for_io in some
+   procedure. i think it is not suitable here in this scenario.
+   for dirty pages we should migrate it rather than skip or writeout
+   it in kcomapctd with MIGRATE_SYNC_LIGHT. i think this problem is
+   for all filesystem without migratepage not only for block device fs. 
+   
+so for compaction under large file writing supply migratepage for
+def_blk_aops.
+
+Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
+---
+ fs/block_dev.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 1c62845..9343b60 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -2062,6 +2062,9 @@ static int blkdev_writepages(struct address_space *mapping,
+ 	.releasepage	= blkdev_releasepage,
+ 	.direct_IO	= blkdev_direct_IO,
+ 	.is_dirty_writeback = buffer_check_dirty_writeback,
++#ifdef CONFIG_MIGRATION
++	.migratepage = buffer_migrate_page,
++#endif
+ };
+ 
+ #define	BLKDEV_FALLOC_FL_SUPPORTED					\
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
