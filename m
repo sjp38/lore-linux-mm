@@ -1,346 +1,407 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 06727831D3
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 08:09:35 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g2so55658141pge.7
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 05:09:34 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id m63si3258762pld.36.2017.03.08.05.09.33
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 21138831E6
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 08:42:33 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id f54so47790372uaa.5
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 05:42:33 -0800 (PST)
+Received: from mail-vk0-x22b.google.com (mail-vk0-x22b.google.com. [2607:f8b0:400c:c05::22b])
+        by mx.google.com with ESMTPS id s32si1429511uas.160.2017.03.08.05.42.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 05:09:33 -0800 (PST)
-Date: Wed, 8 Mar 2017 05:09:32 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH] radix-tree: Remove 'private' parameter to functions
-Message-ID: <20170308130932.GY16328@bombadil.infradead.org>
+        Wed, 08 Mar 2017 05:42:32 -0800 (PST)
+Received: by mail-vk0-x22b.google.com with SMTP id t8so9471045vke.3
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 05:42:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20170306203500.GR6500@twins.programming.kicks-ass.net>
+References: <20170306124254.77615-1-dvyukov@google.com> <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
+ <20170306125851.GL6500@twins.programming.kicks-ass.net> <20170306130107.GK6536@twins.programming.kicks-ass.net>
+ <CACT4Y+ZDxk2CkaGaqVJfrzoBf4ZXDZ2L8vaAnLOjuY0yx85jgA@mail.gmail.com>
+ <20170306162018.GC18519@leverpostej> <20170306203500.GR6500@twins.programming.kicks-ass.net>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 8 Mar 2017 14:42:10 +0100
+Message-ID: <CACT4Y+ZNb_eCLVBz6cUyr0jVPdSW_-nCedcBAh0anfds91B2vw@mail.gmail.com>
+Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
+Content-Type: multipart/mixed; boundary=001a114df5d8d7c02f054a384cd7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Will Deacon <will.deacon@arm.com>
+
+--001a114df5d8d7c02f054a384cd7
+Content-Type: text/plain; charset=UTF-8
+
+On Mon, Mar 6, 2017 at 9:35 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Mon, Mar 06, 2017 at 04:20:18PM +0000, Mark Rutland wrote:
+>> > >> So the problem is doing load/stores from asm bits, and GCC
+>> > >> (traditionally) doesn't try and interpret APP asm bits.
+>> > >>
+>> > >> However, could we not write a GCC plugin that does exactly that?
+>> > >> Something that interprets the APP asm bits and generates these KASAN
+>> > >> bits that go with it?
+>
+>> I don't think there's much you'll be able to do within the compiler,
+>> assuming you mean to derive this from the asm block inputs and outputs.
+>
+> Nah, I was thinking about a full asm interpreter.
+>
+>> Those can hide address-generation (e.g. with per-cpu stuff), which the
+>> compiler may erroneously be detected as racing.
+>>
+>> Those may also take fake inputs (e.g. the sp input to arm64's
+>> __my_cpu_offset()) which may confuse matters.
+>>
+>> Parsing the assembly itself will be *extremely* painful due to the way
+>> that's set up for run-time patching.
+>
+> Argh, yah, completely forgot about all that alternative and similar
+> nonsense :/
 
 
-Hey Johannes, could I get your Acked-by on this?
 
-For the xarray, I'm thinking about moving some of this logic into the
-xarray (controlled by a bit on the xarray so it's opt-in per xarray),
-so that we can defrag nodes which are on the LRU lists.
+I think if we scope compiler atomic builtins to KASAN/KTSAN/KMSAN (and
+consequently x86/arm64) initially, it becomes more realistic. For the
+tools we don't care about absolute efficiency and this gets rid of
+Will's points (2), (4) and (6) here https://lwn.net/Articles/691295/.
+Re (3) I think rmb/wmb can be reasonably replaced with
+atomic_thread_fence(acquire/release). Re (5) situation with
+correctness becomes better very quickly as more people use them in
+user-space. Since KASAN is not intended to be used in production (or
+at least such build is expected to crash), we can afford to shake out
+any remaining correctness issues in such build. (1) I don't fully
+understand, what exactly is the problem with seq_cst?
 
------8<-----
+I've sketched a patch that does it, and did some testing with/without
+KASAN on x86_64.
 
-Now that radix_tree_node carries a pointer to the root, we no longer
-have to pass the mapping pointer into workingset_update_node().
+In short, it adds include/linux/atomic_compiler.h which is included
+from include/linux/atomic.h when CONFIG_COMPILER_ATOMIC is defined;
+and <asm/atomic.h> is not included when CONFIG_COMPILER_ATOMIC is
+defined.
+For bitops it is similar except that only parts of asm/bitops.h are
+selectively disabled when CONFIG_COMPILER_ATOMIC, because it also
+defines other stuff.
+asm/barriers.h is left intact for now. We don't need it for KASAN. But
+for KTSAN we can do similar thing -- selectively disable some of the
+barriers in asm/barriers.h (e.g. leaving dma_rmb/wmb per arch).
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- fs/dax.c                              |  2 +-
- include/linux/radix-tree.h            |  7 +++----
- include/linux/swap.h                  |  2 +-
- lib/idr.c                             |  2 +-
- lib/radix-tree.c                      | 34 +++++++++++++++-------------------
- mm/filemap.c                          |  4 ++--
- mm/shmem.c                            |  2 +-
- mm/truncate.c                         |  2 +-
- mm/workingset.c                       | 11 +++++++----
- tools/testing/radix-tree/multiorder.c |  2 +-
- 10 files changed, 33 insertions(+), 35 deletions(-)
+Such change would allow us to support atomic ops for multiple arches
+for all of KASAN/KTSAN/KMSAN.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 3af2da5..cdf31cb 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -656,7 +656,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 		ret = __radix_tree_lookup(page_tree, index, &node, &slot);
- 		WARN_ON_ONCE(ret != entry);
- 		__radix_tree_replace(page_tree, node, slot,
--				     new_entry, NULL, NULL);
-+				     new_entry, NULL);
- 	}
- 	if (vmf->flags & FAULT_FLAG_WRITE)
- 		radix_tree_tag_set(page_tree, index, PAGECACHE_TAG_DIRTY);
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index e505efa..a66e9d8 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -301,19 +301,18 @@ void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
- 			  struct radix_tree_node **nodep, void ***slotp);
- void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
- void **radix_tree_lookup_slot(const struct radix_tree_root *, unsigned long);
--typedef void (*radix_tree_update_node_t)(struct radix_tree_node *, void *);
-+typedef void (*radix_tree_update_node_t)(struct radix_tree_node *);
- void __radix_tree_replace(struct radix_tree_root *root,
- 			  struct radix_tree_node *node,
- 			  void **slot, void *item,
--			  radix_tree_update_node_t update_node, void *private);
-+			  radix_tree_update_node_t update_node);
- void radix_tree_iter_replace(struct radix_tree_root *,
- 		const struct radix_tree_iter *, void **slot, void *item);
- void radix_tree_replace_slot(struct radix_tree_root *root,
- 			     void **slot, void *item);
- void __radix_tree_delete_node(struct radix_tree_root *root,
- 			      struct radix_tree_node *node,
--			      radix_tree_update_node_t update_node,
--			      void *private);
-+			      radix_tree_update_node_t update_node);
- void radix_tree_iter_delete(struct radix_tree_root *,
- 				struct radix_tree_iter *iter, void **slot);
- void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7f47b70..b9c37c9 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -247,7 +247,7 @@ struct swap_info_struct {
- void *workingset_eviction(struct address_space *mapping, struct page *page);
- bool workingset_refault(void *shadow);
- void workingset_activation(struct page *page);
--void workingset_update_node(struct radix_tree_node *node, void *private);
-+void workingset_update_node(struct radix_tree_node *node);
- 
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
-diff --git a/lib/idr.c b/lib/idr.c
-index 8472fb7..0e31267 100644
---- a/lib/idr.c
-+++ b/lib/idr.c
-@@ -163,7 +163,7 @@ void *idr_replace(struct idr *idr, void *ptr, int id)
- 	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
- 		return ERR_PTR(-ENOENT);
- 
--	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL, NULL);
-+	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL);
- 
- 	return entry;
- }
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 5eef432..5007015 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -668,12 +668,12 @@ out:
- }
- 
- /**
-- *	radix_tree_shrink    -    shrink radix tree to minimum height
-- *	@root		radix tree root
-+ * radix_tree_shrink - shrink radix tree to minimum height
-+ * @root: radix tree root
-+ * @update_node: Callback if we free the node
-  */
- static inline bool radix_tree_shrink(struct radix_tree_root *root,
--				     radix_tree_update_node_t update_node,
--				     void *private)
-+				     radix_tree_update_node_t update_node)
- {
- 	bool shrunk = false;
- 
-@@ -734,7 +734,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 		if (!radix_tree_is_internal_node(child)) {
- 			node->slots[0] = RADIX_TREE_RETRY;
- 			if (update_node)
--				update_node(node, private);
-+				update_node(node);
- 		}
- 
- 		WARN_ON_ONCE(!list_empty(&node->private_list));
-@@ -747,7 +747,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 
- static bool delete_node(struct radix_tree_root *root,
- 			struct radix_tree_node *node,
--			radix_tree_update_node_t update_node, void *private)
-+			radix_tree_update_node_t update_node)
- {
- 	bool deleted = false;
- 
-@@ -756,8 +756,7 @@ static bool delete_node(struct radix_tree_root *root,
- 
- 		if (node->count) {
- 			if (node == entry_to_node(root->rnode))
--				deleted |= radix_tree_shrink(root, update_node,
--								private);
-+				deleted |= radix_tree_shrink(root, update_node);
- 			return deleted;
- 		}
- 
-@@ -1167,7 +1166,6 @@ static int calculate_count(struct radix_tree_root *root,
-  * @slot:		pointer to slot in @node
-  * @item:		new item to store in the slot.
-  * @update_node:	callback for changing leaf nodes
-- * @private:		private data to pass to @update_node
-  *
-  * For use with __radix_tree_lookup().  Caller must hold tree write locked
-  * across slot lookup and replacement.
-@@ -1175,7 +1173,7 @@ static int calculate_count(struct radix_tree_root *root,
- void __radix_tree_replace(struct radix_tree_root *root,
- 			  struct radix_tree_node *node,
- 			  void **slot, void *item,
--			  radix_tree_update_node_t update_node, void *private)
-+			  radix_tree_update_node_t update_node)
- {
- 	void *old = rcu_dereference_raw(*slot);
- 	int exceptional = !!radix_tree_exceptional_entry(item) -
-@@ -1195,9 +1193,9 @@ void __radix_tree_replace(struct radix_tree_root *root,
- 		return;
- 
- 	if (update_node)
--		update_node(node, private);
-+		update_node(node);
- 
--	delete_node(root, node, update_node, private);
-+	delete_node(root, node, update_node);
- }
- 
- /**
-@@ -1219,7 +1217,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
- void radix_tree_replace_slot(struct radix_tree_root *root,
- 			     void **slot, void *item)
- {
--	__radix_tree_replace(root, NULL, slot, item, NULL, NULL);
-+	__radix_tree_replace(root, NULL, slot, item, NULL);
- }
- 
- /**
-@@ -1234,7 +1232,7 @@ void radix_tree_replace_slot(struct radix_tree_root *root,
- void radix_tree_iter_replace(struct radix_tree_root *root,
- 		const struct radix_tree_iter *iter, void **slot, void *item)
- {
--	__radix_tree_replace(root, iter->node, slot, item, NULL, NULL);
-+	__radix_tree_replace(root, iter->node, slot, item, NULL);
- }
- 
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
-@@ -1961,7 +1959,6 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
-  *	@root:		radix tree root
-  *	@node:		node containing @index
-  *	@update_node:	callback for changing leaf nodes
-- *	@private:	private data to pass to @update_node
-  *
-  *	After clearing the slot at @index in @node from radix tree
-  *	rooted at @root, call this function to attempt freeing the
-@@ -1969,10 +1966,9 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
-  */
- void __radix_tree_delete_node(struct radix_tree_root *root,
- 			      struct radix_tree_node *node,
--			      radix_tree_update_node_t update_node,
--			      void *private)
-+			      radix_tree_update_node_t update_node)
- {
--	delete_node(root, node, update_node, private);
-+	delete_node(root, node, update_node);
- }
- 
- static bool __radix_tree_delete(struct radix_tree_root *root,
-@@ -1990,7 +1986,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 			node_tag_clear(root, node, tag, offset);
- 
- 	replace_slot(slot, NULL, node, -1, exceptional);
--	return node && delete_node(root, node, NULL, NULL);
-+	return node && delete_node(root, node, NULL);
- }
- 
- /**
-diff --git a/mm/filemap.c b/mm/filemap.c
-index b772a33..bb53277 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -142,7 +142,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
- 		}
- 	}
- 	__radix_tree_replace(&mapping->page_tree, node, slot, page,
--			     workingset_update_node, mapping);
-+			     workingset_update_node);
- 	mapping->nrpages++;
- 	return 0;
- }
-@@ -170,7 +170,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
- 
- 		radix_tree_clear_tags(&mapping->page_tree, node, slot);
- 		__radix_tree_replace(&mapping->page_tree, node, slot, shadow,
--				     workingset_update_node, mapping);
-+				     workingset_update_node);
- 	}
- 
- 	if (shadow) {
-diff --git a/mm/shmem.c b/mm/shmem.c
-index bb53285..0ef377c 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -312,7 +312,7 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
- 	if (item != expected)
- 		return -ENOENT;
- 	__radix_tree_replace(&mapping->page_tree, node, pslot,
--			     replacement, NULL, NULL);
-+			     replacement, NULL);
- 	return 0;
- }
- 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index dd7b24e..7b83cce 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -41,7 +41,7 @@ static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
- 	if (*slot != entry)
- 		goto unlock;
- 	__radix_tree_replace(&mapping->page_tree, node, slot, NULL,
--			     workingset_update_node, mapping);
-+			     workingset_update_node);
- 	mapping->nrexceptional--;
- unlock:
- 	spin_unlock_irq(&mapping->tree_lock);
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 80c913c..5734ad3 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -337,9 +337,12 @@ out:
- 
- static struct list_lru shadow_nodes;
- 
--void workingset_update_node(struct radix_tree_node *node, void *private)
-+#define node_mapping(node)	\
-+	container_of(node->root, struct address_space, page_tree)
-+
-+void workingset_update_node(struct radix_tree_node *node)
- {
--	struct address_space *mapping = private;
-+	struct address_space *mapping = node_mapping(node);
- 
- 	/* Only regular page cache has shadow entries */
- 	if (dax_mapping(mapping) || shmem_mapping(mapping))
-@@ -433,7 +436,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 	 */
- 
- 	node = container_of(item, struct radix_tree_node, private_list);
--	mapping = container_of(node->root, struct address_space, page_tree);
-+	mapping = node_mapping(node);
- 
- 	/* Coming from the list, invert the lock order */
- 	if (!spin_trylock(&mapping->tree_lock)) {
-@@ -472,7 +475,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 		goto out_invalid;
- 	inc_node_state(page_pgdat(virt_to_page(node)), WORKINGSET_NODERECLAIM);
- 	__radix_tree_delete_node(&mapping->page_tree, node,
--				 workingset_update_node, mapping);
-+				 workingset_update_node);
- 
- out_invalid:
- 	spin_unlock(&mapping->tree_lock);
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 06c7117..59245b3 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -618,7 +618,7 @@ static void multiorder_account(void)
- 	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
- 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
- 	assert(node->count == node->exceptional * 2);
--	__radix_tree_replace(&tree, node, slot, NULL, NULL, NULL);
-+	__radix_tree_replace(&tree, node, slot, NULL, NULL);
- 	assert(node->exceptional == 0);
- 
- 	item_kill_tree(&tree);
--- 
-2.9.3
+Thoughts?
 
+--001a114df5d8d7c02f054a384cd7
+Content-Type: text/x-patch; charset=US-ASCII; name="atomic_compiler.patch"
+Content-Disposition: attachment; filename="atomic_compiler.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_j010bdh40
 
+ZGlmZiAtLWdpdCBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL2F0b21pYy5oIGIvYXJjaC94ODYvaW5j
+bHVkZS9hc20vYXRvbWljLmgKaW5kZXggMTQ2MzVjNWVhMDI1Li43YmNiMTA1NDRmYzEgMTAwNjQ0
+Ci0tLSBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL2F0b21pYy5oCisrKyBiL2FyY2gveDg2L2luY2x1
+ZGUvYXNtL2F0b21pYy5oCkBAIC0xLDYgKzEsMTAgQEAKICNpZm5kZWYgX0FTTV9YODZfQVRPTUlD
+X0gKICNkZWZpbmUgX0FTTV9YODZfQVRPTUlDX0gKIAorI2lmZGVmIENPTkZJR19DT01QSUxFUl9B
+VE9NSUMKKyNlcnJvciAic2hvdWxkIG5vdCBiZSBpbmNsdWRlZCIKKyNlbmRpZgorCiAjaW5jbHVk
+ZSA8bGludXgvY29tcGlsZXIuaD4KICNpbmNsdWRlIDxsaW51eC90eXBlcy5oPgogI2luY2x1ZGUg
+PGFzbS9hbHRlcm5hdGl2ZS5oPgpkaWZmIC0tZ2l0IGEvYXJjaC94ODYvaW5jbHVkZS9hc20vYml0
+b3BzLmggYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9iaXRvcHMuaAppbmRleCA4NTQwMjI3NzJjNWIu
+LmU0MmI4NWYxZWQ3NSAxMDA2NDQKLS0tIGEvYXJjaC94ODYvaW5jbHVkZS9hc20vYml0b3BzLmgK
+KysrIGIvYXJjaC94ODYvaW5jbHVkZS9hc20vYml0b3BzLmgKQEAgLTY4LDYgKzY4LDcgQEAKICAq
+IE5vdGUgdGhhdCBAbnIgbWF5IGJlIGFsbW9zdCBhcmJpdHJhcmlseSBsYXJnZTsgdGhpcyBmdW5j
+dGlvbiBpcyBub3QKICAqIHJlc3RyaWN0ZWQgdG8gYWN0aW5nIG9uIGEgc2luZ2xlLXdvcmQgcXVh
+bnRpdHkuCiAgKi8KKyNpZm5kZWYgQ09ORklHX0NPTVBJTEVSX0JJVE9QUwogc3RhdGljIF9fYWx3
+YXlzX2lubGluZSB2b2lkCiBzZXRfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcg
+KmFkZHIpCiB7CkBAIC04MSw2ICs4Miw3IEBAIHNldF9iaXQobG9uZyBuciwgdm9sYXRpbGUgdW5z
+aWduZWQgbG9uZyAqYWRkcikKIAkJCTogQklUT1BfQUREUihhZGRyKSA6ICJJciIgKG5yKSA6ICJt
+ZW1vcnkiKTsKIAl9CiB9CisjZW5kaWYKIAogLyoqCiAgKiBfX3NldF9iaXQgLSBTZXQgYSBiaXQg
+aW4gbWVtb3J5CkBAIC0xMDYsNiArMTA4LDcgQEAgc3RhdGljIF9fYWx3YXlzX2lubGluZSB2b2lk
+IF9fc2V0X2JpdChsb25nIG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogICogeW91
+IHNob3VsZCBjYWxsIHNtcF9tYl9fYmVmb3JlX2F0b21pYygpIGFuZC9vciBzbXBfbWJfX2FmdGVy
+X2F0b21pYygpCiAgKiBpbiBvcmRlciB0byBlbnN1cmUgY2hhbmdlcyBhcmUgdmlzaWJsZSBvbiBv
+dGhlciBwcm9jZXNzb3JzLgogICovCisjaWZuZGVmIENPTkZJR19DT01QSUxFUl9CSVRPUFMKIHN0
+YXRpYyBfX2Fsd2F5c19pbmxpbmUgdm9pZAogY2xlYXJfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVu
+c2lnbmVkIGxvbmcgKmFkZHIpCiB7CkBAIC0xMTksNiArMTIyLDcgQEAgY2xlYXJfYml0KGxvbmcg
+bnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiAJCQk6ICJJciIgKG5yKSk7CiAJfQog
+fQorI2VuZGlmCiAKIC8qCiAgKiBjbGVhcl9iaXRfdW5sb2NrIC0gQ2xlYXJzIGEgYml0IGluIG1l
+bW9yeQpAQCAtMTI4LDE3ICsxMzIsMjAgQEAgY2xlYXJfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVu
+c2lnbmVkIGxvbmcgKmFkZHIpCiAgKiBjbGVhcl9iaXQoKSBpcyBhdG9taWMgYW5kIGltcGxpZXMg
+cmVsZWFzZSBzZW1hbnRpY3MgYmVmb3JlIHRoZSBtZW1vcnkKICAqIG9wZXJhdGlvbi4gSXQgY2Fu
+IGJlIHVzZWQgZm9yIGFuIHVubG9jay4KICAqLworI2lmbmRlZiBDT05GSUdfQ09NUElMRVJfQklU
+T1BTCiBzdGF0aWMgX19hbHdheXNfaW5saW5lIHZvaWQgY2xlYXJfYml0X3VubG9jayhsb25nIG5y
+LCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCWJhcnJpZXIoKTsKIAljbGVhcl9i
+aXQobnIsIGFkZHIpOwogfQorI2VuZGlmCiAKIHN0YXRpYyBfX2Fsd2F5c19pbmxpbmUgdm9pZCBf
+X2NsZWFyX2JpdChsb25nIG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCWFz
+bSB2b2xhdGlsZSgiYnRyICUxLCUwIiA6IEFERFIgOiAiSXIiIChucikpOwogfQogCisjaWZuZGVm
+IENPTkZJR19DT01QSUxFUl9CSVRPUFMKIHN0YXRpYyBfX2Fsd2F5c19pbmxpbmUgYm9vbCBjbGVh
+cl9iaXRfdW5sb2NrX2lzX25lZ2F0aXZlX2J5dGUobG9uZyBuciwgdm9sYXRpbGUgdW5zaWduZWQg
+bG9uZyAqYWRkcikKIHsKIAlib29sIG5lZ2F0aXZlOwpAQCAtMTUxLDYgKzE1OCw3IEBAIHN0YXRp
+YyBfX2Fsd2F5c19pbmxpbmUgYm9vbCBjbGVhcl9iaXRfdW5sb2NrX2lzX25lZ2F0aXZlX2J5dGUo
+bG9uZyBuciwgdm9sYXRpbGUKIAogLy8gTGV0IGV2ZXJ5Ym9keSBrbm93IHdlIGhhdmUgaXQKICNk
+ZWZpbmUgY2xlYXJfYml0X3VubG9ja19pc19uZWdhdGl2ZV9ieXRlIGNsZWFyX2JpdF91bmxvY2tf
+aXNfbmVnYXRpdmVfYnl0ZQorI2VuZGlmCiAKIC8qCiAgKiBfX2NsZWFyX2JpdF91bmxvY2sgLSBD
+bGVhcnMgYSBiaXQgaW4gbWVtb3J5CkBAIC0xOTMsNiArMjAxLDcgQEAgc3RhdGljIF9fYWx3YXlz
+X2lubGluZSB2b2lkIF9fY2hhbmdlX2JpdChsb25nIG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25n
+ICphZGRyKQogICogTm90ZSB0aGF0IEBuciBtYXkgYmUgYWxtb3N0IGFyYml0cmFyaWx5IGxhcmdl
+OyB0aGlzIGZ1bmN0aW9uIGlzIG5vdAogICogcmVzdHJpY3RlZCB0byBhY3Rpbmcgb24gYSBzaW5n
+bGUtd29yZCBxdWFudGl0eS4KICAqLworI2lmbmRlZiBDT05GSUdfQ09NUElMRVJfQklUT1BTCiBz
+dGF0aWMgX19hbHdheXNfaW5saW5lIHZvaWQgY2hhbmdlX2JpdChsb25nIG5yLCB2b2xhdGlsZSB1
+bnNpZ25lZCBsb25nICphZGRyKQogewogCWlmIChJU19JTU1FRElBVEUobnIpKSB7CkBAIC0yMDUs
+NiArMjE0LDcgQEAgc3RhdGljIF9fYWx3YXlzX2lubGluZSB2b2lkIGNoYW5nZV9iaXQobG9uZyBu
+ciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIAkJCTogIklyIiAobnIpKTsKIAl9CiB9
+CisjZW5kaWYKIAogLyoqCiAgKiB0ZXN0X2FuZF9zZXRfYml0IC0gU2V0IGEgYml0IGFuZCByZXR1
+cm4gaXRzIG9sZCB2YWx1ZQpAQCAtMjE0LDEwICsyMjQsMTIgQEAgc3RhdGljIF9fYWx3YXlzX2lu
+bGluZSB2b2lkIGNoYW5nZV9iaXQobG9uZyBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRk
+cikKICAqIFRoaXMgb3BlcmF0aW9uIGlzIGF0b21pYyBhbmQgY2Fubm90IGJlIHJlb3JkZXJlZC4K
+ICAqIEl0IGFsc28gaW1wbGllcyBhIG1lbW9yeSBiYXJyaWVyLgogICovCisjaWZuZGVmIENPTkZJ
+R19DT01QSUxFUl9CSVRPUFMKIHN0YXRpYyBfX2Fsd2F5c19pbmxpbmUgYm9vbCB0ZXN0X2FuZF9z
+ZXRfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiB7CiAJR0VOX0JJ
+TkFSWV9STVdjYyhMT0NLX1BSRUZJWCAiYnRzIiwgKmFkZHIsICJJciIsIG5yLCAiJTAiLCBjKTsK
+IH0KKyNlbmRpZgogCiAvKioKICAqIHRlc3RfYW5kX3NldF9iaXRfbG9jayAtIFNldCBhIGJpdCBh
+bmQgcmV0dXJuIGl0cyBvbGQgdmFsdWUgZm9yIGxvY2sKQEAgLTIyNiwxMSArMjM4LDEzIEBAIHN0
+YXRpYyBfX2Fsd2F5c19pbmxpbmUgYm9vbCB0ZXN0X2FuZF9zZXRfYml0KGxvbmcgbnIsIHZvbGF0
+aWxlIHVuc2lnbmVkIGxvbmcgKmFkCiAgKgogICogVGhpcyBpcyB0aGUgc2FtZSBhcyB0ZXN0X2Fu
+ZF9zZXRfYml0IG9uIHg4Ni4KICAqLworI2lmbmRlZiBDT05GSUdfQ09NUElMRVJfQklUT1BTCiBz
+dGF0aWMgX19hbHdheXNfaW5saW5lIGJvb2wKIHRlc3RfYW5kX3NldF9iaXRfbG9jayhsb25nIG5y
+LCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCXJldHVybiB0ZXN0X2FuZF9zZXRf
+Yml0KG5yLCBhZGRyKTsKIH0KKyNlbmRpZgogCiAvKioKICAqIF9fdGVzdF9hbmRfc2V0X2JpdCAt
+IFNldCBhIGJpdCBhbmQgcmV0dXJuIGl0cyBvbGQgdmFsdWUKQEAgLTI2MCwxMCArMjc0LDEyIEBA
+IHN0YXRpYyBfX2Fsd2F5c19pbmxpbmUgYm9vbCBfX3Rlc3RfYW5kX3NldF9iaXQobG9uZyBuciwg
+dm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqCiAgKiBUaGlzIG9wZXJhdGlvbiBpcyBhdG9taWMgYW5k
+IGNhbm5vdCBiZSByZW9yZGVyZWQuCiAgKiBJdCBhbHNvIGltcGxpZXMgYSBtZW1vcnkgYmFycmll
+ci4KICAqLworI2lmbmRlZiBDT05GSUdfQ09NUElMRVJfQklUT1BTCiBzdGF0aWMgX19hbHdheXNf
+aW5saW5lIGJvb2wgdGVzdF9hbmRfY2xlYXJfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVk
+IGxvbmcgKmFkZHIpCiB7CiAJR0VOX0JJTkFSWV9STVdjYyhMT0NLX1BSRUZJWCAiYnRyIiwgKmFk
+ZHIsICJJciIsIG5yLCAiJTAiLCBjKTsKIH0KKyNlbmRpZgogCiAvKioKICAqIF9fdGVzdF9hbmRf
+Y2xlYXJfYml0IC0gQ2xlYXIgYSBiaXQgYW5kIHJldHVybiBpdHMgb2xkIHZhbHVlCkBAIC0zMTMs
+MTAgKzMyOSwxMiBAQCBzdGF0aWMgX19hbHdheXNfaW5saW5lIGJvb2wgX190ZXN0X2FuZF9jaGFu
+Z2VfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbgogICogVGhpcyBvcGVyYXRpb24g
+aXMgYXRvbWljIGFuZCBjYW5ub3QgYmUgcmVvcmRlcmVkLgogICogSXQgYWxzbyBpbXBsaWVzIGEg
+bWVtb3J5IGJhcnJpZXIuCiAgKi8KKyNpZm5kZWYgQ09ORklHX0NPTVBJTEVSX0JJVE9QUwogc3Rh
+dGljIF9fYWx3YXlzX2lubGluZSBib29sIHRlc3RfYW5kX2NoYW5nZV9iaXQobG9uZyBuciwgdm9s
+YXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIHsKIAlHRU5fQklOQVJZX1JNV2NjKExPQ0tfUFJF
+RklYICJidGMiLCAqYWRkciwgIklyIiwgbnIsICIlMCIsIGMpOwogfQorI2VuZGlmCiAKIHN0YXRp
+YyBfX2Fsd2F5c19pbmxpbmUgYm9vbCBjb25zdGFudF90ZXN0X2JpdChsb25nIG5yLCBjb25zdCB2
+b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewpkaWZmIC0tZ2l0IGEvYXJjaC94ODYvaW5j
+bHVkZS9hc20vbXNyLmggYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9tc3IuaAppbmRleCA4OThkYmEy
+ZTJlMmMuLjMzYTg3ZWQzYzE1MCAxMDA2NDQKLS0tIGEvYXJjaC94ODYvaW5jbHVkZS9hc20vbXNy
+LmgKKysrIGIvYXJjaC94ODYvaW5jbHVkZS9hc20vbXNyLmgKQEAgLTYzLDcgKzYzLDcgQEAgc3Ry
+dWN0IHNhdmVkX21zcnMgewogLyoKICAqIEJlIHZlcnkgY2FyZWZ1bCB3aXRoIGluY2x1ZGVzLiBU
+aGlzIGhlYWRlciBpcyBwcm9uZSB0byBpbmNsdWRlIGxvb3BzLgogICovCi0jaW5jbHVkZSA8YXNt
+L2F0b21pYy5oPgorI2luY2x1ZGUgPGxpbnV4L2F0b21pYy5oPgogI2luY2x1ZGUgPGxpbnV4L3Ry
+YWNlcG9pbnQtZGVmcy5oPgogCiBleHRlcm4gc3RydWN0IHRyYWNlcG9pbnQgX190cmFjZXBvaW50
+X3JlYWRfbXNyOwpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9hdG9taWMuaCBiL2luY2x1ZGUv
+bGludXgvYXRvbWljLmgKaW5kZXggZTcxODM1YmY2MGE5Li41ZTAyZDAxMDA3ZDEgMTAwNjQ0Ci0t
+LSBhL2luY2x1ZGUvbGludXgvYXRvbWljLmgKKysrIGIvaW5jbHVkZS9saW51eC9hdG9taWMuaApA
+QCAtMSw3ICsxLDE0IEBACiAvKiBBdG9taWMgb3BlcmF0aW9ucyB1c2FibGUgaW4gbWFjaGluZSBp
+bmRlcGVuZGVudCBjb2RlICovCiAjaWZuZGVmIF9MSU5VWF9BVE9NSUNfSAogI2RlZmluZSBfTElO
+VVhfQVRPTUlDX0gKKworI2lmIGRlZmluZWQoQ09ORklHX0tBU0FOKQorI2RlZmluZSBDT05GSUdf
+Q09NUElMRVJfQVRPTUlDCisjaW5jbHVkZSA8bGludXgvYXRvbWljX2NvbXBpbGVyLmg+CisjZWxz
+ZQogI2luY2x1ZGUgPGFzbS9hdG9taWMuaD4KKyNlbmRpZgorCiAjaW5jbHVkZSA8YXNtL2JhcnJp
+ZXIuaD4KIAogLyoKZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvYXRvbWljX2NvbXBpbGVyLmgg
+Yi9pbmNsdWRlL2xpbnV4L2F0b21pY19jb21waWxlci5oCm5ldyBmaWxlIG1vZGUgMTAwNjQ0Cmlu
+ZGV4IDAwMDAwMDAwMDAwMC4uNDAzOTc2MTQ0OWRkCi0tLSAvZGV2L251bGwKKysrIGIvaW5jbHVk
+ZS9saW51eC9hdG9taWNfY29tcGlsZXIuaApAQCAtMCwwICsxLDMzOSBAQAorI2lmbmRlZiBfTElO
+VVhfQVRPTUlDX0NPTVBJTEVSX0gKKyNkZWZpbmUgX0xJTlVYX0FUT01JQ19DT01QSUxFUl9ICisK
+KyNpbmNsdWRlIDxsaW51eC90eXBlcy5oPgorCisvKiBUaGUgMzItYml0IGF0b21pYyB0eXBlICov
+CisKKyNkZWZpbmUgQVRPTUlDX0lOSVQoaSkJeyAoaSkgfQorCitzdGF0aWMgaW5saW5lIGludCBh
+dG9taWNfcmVhZChjb25zdCBhdG9taWNfdCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNfbG9hZF9u
+KCZ2LT5jb3VudGVyLCBfX0FUT01JQ19SRUxBWEVEKTsKK30KKworc3RhdGljIGlubGluZSB2b2lk
+IGF0b21pY19zZXQoYXRvbWljX3QgKnYsIGludCBpKQoreworCV9fYXRvbWljX3N0b3JlX24oJnYt
+PmNvdW50ZXIsIGksIF9fQVRPTUlDX1JFTEFYRUQpOworfQorCitzdGF0aWMgaW5saW5lIHZvaWQg
+YXRvbWljX2FkZChpbnQgaSwgYXRvbWljX3QgKnYpCit7CisJX19hdG9taWNfZmV0Y2hfYWRkKCZ2
+LT5jb3VudGVyLCBpLCBfX0FUT01JQ19SRUxBWEVEKTsKK30KKworc3RhdGljIGlubGluZSB2b2lk
+IGF0b21pY19zdWIoaW50IGksIGF0b21pY190ICp2KQoreworCV9fYXRvbWljX2ZldGNoX3N1Yigm
+di0+Y291bnRlciwgaSwgX19BVE9NSUNfUkVMQVhFRCk7Cit9CisKK3N0YXRpYyBpbmxpbmUgYm9v
+bCBhdG9taWNfc3ViX2FuZF90ZXN0KGludCBpLCBhdG9taWNfdCAqdikKK3sKKwlyZXR1cm4gX19h
+dG9taWNfZmV0Y2hfc3ViKCZ2LT5jb3VudGVyLCBpLCBfX0FUT01JQ19BQ1FfUkVMKSA9PSBpOwor
+fQorCisjZGVmaW5lIGF0b21pY19pbmModikgIChhdG9taWNfYWRkKDEsIHYpKQorI2RlZmluZSBh
+dG9taWNfZGVjKHYpICAoYXRvbWljX3N1YigxLCB2KSkKKworc3RhdGljIGlubGluZSBib29sIGF0
+b21pY19kZWNfYW5kX3Rlc3QoYXRvbWljX3QgKnYpCit7CisJcmV0dXJuIF9fYXRvbWljX2ZldGNo
+X3N1Yigmdi0+Y291bnRlciwgMSwgX19BVE9NSUNfQUNRX1JFTCkgPT0gMTsKK30KKworc3RhdGlj
+IGlubGluZSBib29sIGF0b21pY19pbmNfYW5kX3Rlc3QoYXRvbWljX3QgKnYpCit7CisJcmV0dXJu
+IF9fYXRvbWljX2ZldGNoX2FkZCgmdi0+Y291bnRlciwgMSwgX19BVE9NSUNfQUNRX1JFTCkgPT0g
+LTE7Cit9CisKK3N0YXRpYyBpbmxpbmUgYm9vbCBhdG9taWNfYWRkX25lZ2F0aXZlKGludCBpLCBh
+dG9taWNfdCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNfZmV0Y2hfYWRkKCZ2LT5jb3VudGVyLCBp
+LCBfX0FUT01JQ19BQ1FfUkVMKSArIGkgPCAwOworfQorCitzdGF0aWMgaW5saW5lIGludCBhdG9t
+aWNfYWRkX3JldHVybihpbnQgaSwgYXRvbWljX3QgKnYpCit7CisJcmV0dXJuIF9fYXRvbWljX2Zl
+dGNoX2FkZCgmdi0+Y291bnRlciwgaSwgX19BVE9NSUNfQUNRX1JFTCkgKyBpOworfQorCitzdGF0
+aWMgaW5saW5lIGludCBhdG9taWNfc3ViX3JldHVybihpbnQgaSwgYXRvbWljX3QgKnYpCit7CisJ
+cmV0dXJuIF9fYXRvbWljX2ZldGNoX3N1Yigmdi0+Y291bnRlciwgaSwgX19BVE9NSUNfQUNRX1JF
+TCkgLSBpOworfQorCisjZGVmaW5lIGF0b21pY19pbmNfcmV0dXJuKHYpICAoYXRvbWljX2FkZF9y
+ZXR1cm4oMSwgdikpCisjZGVmaW5lIGF0b21pY19kZWNfcmV0dXJuKHYpICAoYXRvbWljX3N1Yl9y
+ZXR1cm4oMSwgdikpCisKK3N0YXRpYyBpbmxpbmUgaW50IGF0b21pY19mZXRjaF9hZGQoaW50IGks
+IGF0b21pY190ICp2KQoreworCXJldHVybiBfX2F0b21pY19mZXRjaF9hZGQoJnYtPmNvdW50ZXIs
+IGksIF9fQVRPTUlDX0FDUV9SRUwpOworfQorCitzdGF0aWMgaW5saW5lIGludCBhdG9taWNfZmV0
+Y2hfc3ViKGludCBpLCBhdG9taWNfdCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNfZmV0Y2hfc3Vi
+KCZ2LT5jb3VudGVyLCBpLCBfX0FUT01JQ19BQ1FfUkVMKTsKK30KKworc3RhdGljIGlubGluZSBp
+bnQgYXRvbWljX2NtcHhjaGcoYXRvbWljX3QgKnYsIGludCBvbGQsIGludCBuZXcpCit7CisJX19h
+dG9taWNfY29tcGFyZV9leGNoYW5nZV9uKCZ2LT5jb3VudGVyLCAmb2xkLCBuZXcsIDAsIF9fQVRP
+TUlDX0FDUV9SRUwsIF9fQVRPTUlDX0FDUVVJUkUpOworCXJldHVybiBvbGQ7Cit9CisKK3N0YXRp
+YyBpbmxpbmUgaW50IGF0b21pY194Y2hnKGF0b21pY190ICp2LCBpbnQgbmV3KQoreworCXJldHVy
+biBfX2F0b21pY19leGNoYW5nZV9uKCZ2LT5jb3VudGVyLCBuZXcsIF9fQVRPTUlDX0FDUV9SRUwp
+OworfQorCitzdGF0aWMgaW5saW5lIGludCBfX2F0b21pY19hZGRfdW5sZXNzKGF0b21pY190ICp2
+LCBpbnQgYSwgaW50IHUpCit7CisJaW50IGMsIG9sZDsKKwljID0gYXRvbWljX3JlYWQodik7CisJ
+Zm9yICg7OykgeworCQlpZiAodW5saWtlbHkoYyA9PSB1KSkKKwkJCWJyZWFrOworCQlvbGQgPSBh
+dG9taWNfY21weGNoZyh2LCBjLCBjICsgYSk7CisJCWlmIChsaWtlbHkob2xkID09IGMpKQorCQkJ
+YnJlYWs7CisJCWMgPSBvbGQ7CisJfQorCXJldHVybiBjOworfQorCisjZGVmaW5lIEFUT01JQ19P
+UChvcCkJCQkJCQkJXAorc3RhdGljIGlubGluZSB2b2lkIGF0b21pY18jI29wKGludCBpLCBhdG9t
+aWNfdCAqdikJCQlcCit7CQkJCQkJCQkJXAorCV9fYXRvbWljX2ZldGNoXyMjb3AoJih2KS0+Y291
+bnRlciwgaSwgX19BVE9NSUNfUkVMQVhFRCk7CVwKK30KKworI2RlZmluZSBBVE9NSUNfRkVUQ0hf
+T1Aob3AsIGNfb3ApCQkJCQlcCitzdGF0aWMgaW5saW5lIGludCBhdG9taWNfZmV0Y2hfIyNvcChp
+bnQgaSwgYXRvbWljX3QgKnYpCQkJXAorewkJCQkJCQkJCVwKKwlyZXR1cm4gX19hdG9taWNfZmV0
+Y2hfIyNvcCgmKHYpLT5jb3VudGVyLCBpLCBfX0FUT01JQ19BQ1FfUkVMKTsgXAorfQorCisjZGVm
+aW5lIEFUT01JQ19PUFMob3AsIGNfb3ApCQkJCQkJXAorCUFUT01JQ19PUChvcCkJCQkJCQkJXAor
+CUFUT01JQ19GRVRDSF9PUChvcCwgY19vcCkKKworQVRPTUlDX09QUyhhbmQsICYpCitBVE9NSUNf
+T1BTKG9yICwgfCkKK0FUT01JQ19PUFMoeG9yLCBeKQorCisjdW5kZWYgQVRPTUlDX09QUworI3Vu
+ZGVmIEFUT01JQ19GRVRDSF9PUAorI3VuZGVmIEFUT01JQ19PUAorCisvKiBUaGUgNjQtYml0IGF0
+b21pYyB0eXBlICovCisKKyNpZm5kZWYgQ09ORklHXzY0QklUCit0eXBlZGVmIHN0cnVjdCB7CisJ
+dTY0IF9fYWxpZ25lZCg4KSBjb3VudGVyOworfSBhdG9taWM2NF90OworI2VuZGlmCisKKyNkZWZp
+bmUgQVRPTUlDNjRfSU5JVChpKQl7IChpKSB9CisKK3N0YXRpYyBpbmxpbmUgdTY0IGF0b21pYzY0
+X3JlYWQoY29uc3QgYXRvbWljNjRfdCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNfbG9hZF9uKCZ2
+LT5jb3VudGVyLCBfX0FUT01JQ19SRUxBWEVEKTsKK30KKworc3RhdGljIGlubGluZSB2b2lkIGF0
+b21pYzY0X3NldChhdG9taWM2NF90ICp2LCB1NjQgaSkKK3sKKwlfX2F0b21pY19zdG9yZV9uKCZ2
+LT5jb3VudGVyLCBpLCBfX0FUT01JQ19SRUxBWEVEKTsKK30KKworc3RhdGljIGlubGluZSB2b2lk
+IGF0b21pYzY0X2FkZCh1NjQgaSwgYXRvbWljNjRfdCAqdikKK3sKKwlfX2F0b21pY19mZXRjaF9h
+ZGQoJnYtPmNvdW50ZXIsIGksIF9fQVRPTUlDX1JFTEFYRUQpOworfQorCitzdGF0aWMgaW5saW5l
+IHZvaWQgYXRvbWljNjRfc3ViKHU2NCBpLCBhdG9taWM2NF90ICp2KQoreworCV9fYXRvbWljX2Zl
+dGNoX3N1Yigmdi0+Y291bnRlciwgaSwgX19BVE9NSUNfUkVMQVhFRCk7Cit9CisKK3N0YXRpYyBp
+bmxpbmUgYm9vbCBhdG9taWM2NF9zdWJfYW5kX3Rlc3QodTY0IGksIGF0b21pYzY0X3QgKnYpCit7
+CisJcmV0dXJuIF9fYXRvbWljX2ZldGNoX3N1Yigmdi0+Y291bnRlciwgaSwgX19BVE9NSUNfQUNR
+X1JFTCkgPT0gaTsKK30KKworI2RlZmluZSBhdG9taWM2NF9pbmModikgIChhdG9taWM2NF9hZGQo
+MSwgdikpCisjZGVmaW5lIGF0b21pYzY0X2RlYyh2KSAgKGF0b21pYzY0X3N1YigxLCB2KSkKKwor
+c3RhdGljIGlubGluZSBib29sIGF0b21pYzY0X2RlY19hbmRfdGVzdChhdG9taWM2NF90ICp2KQor
+eworCXJldHVybiBfX2F0b21pY19mZXRjaF9zdWIoJnYtPmNvdW50ZXIsIDEsIF9fQVRPTUlDX0FD
+UV9SRUwpID09IDE7Cit9CisKK3N0YXRpYyBpbmxpbmUgYm9vbCBhdG9taWM2NF9pbmNfYW5kX3Rl
+c3QoYXRvbWljNjRfdCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNfZmV0Y2hfYWRkKCZ2LT5jb3Vu
+dGVyLCAxLCBfX0FUT01JQ19BQ1FfUkVMKSA9PSAtMTsKK30KKworc3RhdGljIGlubGluZSBib29s
+IGF0b21pYzY0X2FkZF9uZWdhdGl2ZSh1NjQgaSwgYXRvbWljNjRfdCAqdikKK3sKKwlyZXR1cm4g
+X19hdG9taWNfZmV0Y2hfYWRkKCZ2LT5jb3VudGVyLCBpLCBfX0FUT01JQ19BQ1FfUkVMKSArIGkg
+PCAwOworfQorCitzdGF0aWMgaW5saW5lIHU2NCBhdG9taWM2NF9hZGRfcmV0dXJuKHU2NCBpLCBh
+dG9taWM2NF90ICp2KQoreworCXJldHVybiBfX2F0b21pY19mZXRjaF9hZGQoJnYtPmNvdW50ZXIs
+IGksIF9fQVRPTUlDX0FDUV9SRUwpICsgaTsKK30KKworc3RhdGljIGlubGluZSB1NjQgYXRvbWlj
+NjRfc3ViX3JldHVybih1NjQgaSwgYXRvbWljNjRfdCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNf
+ZmV0Y2hfc3ViKCZ2LT5jb3VudGVyLCBpLCBfX0FUT01JQ19BQ1FfUkVMKSAtIGk7Cit9CisKKyNk
+ZWZpbmUgYXRvbWljNjRfaW5jX3JldHVybih2KSAgKGF0b21pYzY0X2FkZF9yZXR1cm4oMSwgKHYp
+KSkKKyNkZWZpbmUgYXRvbWljNjRfZGVjX3JldHVybih2KSAgKGF0b21pYzY0X3N1Yl9yZXR1cm4o
+MSwgKHYpKSkKKworc3RhdGljIGlubGluZSB1NjQgYXRvbWljNjRfZmV0Y2hfYWRkKHU2NCBpLCBh
+dG9taWM2NF90ICp2KQoreworCXJldHVybiBfX2F0b21pY19mZXRjaF9hZGQoJnYtPmNvdW50ZXIs
+IGksIF9fQVRPTUlDX0FDUV9SRUwpOworfQorCitzdGF0aWMgaW5saW5lIHU2NCBhdG9taWM2NF9m
+ZXRjaF9zdWIodTY0IGksIGF0b21pYzY0X3QgKnYpCit7CisJcmV0dXJuIF9fYXRvbWljX2ZldGNo
+X3N1Yigmdi0+Y291bnRlciwgaSwgX19BVE9NSUNfQUNRX1JFTCk7Cit9CisKK3N0YXRpYyBpbmxp
+bmUgdTY0IGF0b21pYzY0X2NtcHhjaGcoYXRvbWljNjRfdCAqdiwgdTY0IG9sZCwgdTY0IG5ldykK
+K3sKKwlfX2F0b21pY19jb21wYXJlX2V4Y2hhbmdlX24oJnYtPmNvdW50ZXIsICZvbGQsIG5ldywg
+MCwgX19BVE9NSUNfQUNRX1JFTCwgX19BVE9NSUNfQUNRVUlSRSk7CisJcmV0dXJuIG9sZDsKK30K
+Kworc3RhdGljIGlubGluZSB1NjQgYXRvbWljNjRfeGNoZyhhdG9taWM2NF90ICp2LCB1NjQgbmV3
+KQoreworCXJldHVybiBfX2F0b21pY19leGNoYW5nZV9uKCZ2LT5jb3VudGVyLCBuZXcsIF9fQVRP
+TUlDX0FDUV9SRUwpOworfQorCitzdGF0aWMgaW5saW5lIGJvb2wgYXRvbWljNjRfYWRkX3VubGVz
+cyhhdG9taWM2NF90ICp2LCB1NjQgYSwgdTY0IHUpCit7CisJdTY0IGMsIG9sZDsKKwljID0gYXRv
+bWljNjRfcmVhZCh2KTsKKwlmb3IgKDs7KSB7CisJCWlmICh1bmxpa2VseShjID09IHUpKQorCQkJ
+YnJlYWs7CisJCW9sZCA9IGF0b21pYzY0X2NtcHhjaGcodiwgYywgYyArIGEpOworCQlpZiAobGlr
+ZWx5KG9sZCA9PSBjKSkKKwkJCWJyZWFrOworCQljID0gb2xkOworCX0KKwlyZXR1cm4gYyAhPSB1
+OworfQorCisjZGVmaW5lIGF0b21pYzY0X2luY19ub3RfemVybyh2KSBhdG9taWM2NF9hZGRfdW5s
+ZXNzKCh2KSwgMSwgMCkKKworc3RhdGljIGlubGluZSB1NjQgYXRvbWljNjRfZGVjX2lmX3Bvc2l0
+aXZlKGF0b21pYzY0X3QgKnYpCit7CisJdTY0IGMsIG9sZCwgZGVjOworCWMgPSBhdG9taWM2NF9y
+ZWFkKHYpOworCWZvciAoOzspIHsKKwkJZGVjID0gYyAtIDE7CisJCWlmICh1bmxpa2VseShkZWMg
+PCAwKSkKKwkJCWJyZWFrOworCQlvbGQgPSBhdG9taWM2NF9jbXB4Y2hnKHYsIGMsIGRlYyk7CisJ
+CWlmIChsaWtlbHkob2xkID09IGMpKQorCQkJYnJlYWs7CisJCWMgPSBvbGQ7CisJfQorCXJldHVy
+biBkZWM7Cit9CisKKyNkZWZpbmUgQVRPTUlDNjRfT1Aob3ApCQkJCQkJCVwKK3N0YXRpYyBpbmxp
+bmUgdm9pZCBhdG9taWM2NF8jI29wKHU2NCBpLCBhdG9taWM2NF90ICp2KQkJCVwKK3sJCQkJCQkJ
+CQlcCisJX19hdG9taWNfZmV0Y2hfIyNvcCgmKHYpLT5jb3VudGVyLCBpLCBfX0FUT01JQ19SRUxB
+WEVEKTsJXAorfQorCisjZGVmaW5lIEFUT01JQzY0X0ZFVENIX09QKG9wLCBjX29wKQkJCQkJXAor
+c3RhdGljIGlubGluZSB1NjQgYXRvbWljNjRfZmV0Y2hfIyNvcCh1NjQgaSwgYXRvbWljNjRfdCAq
+dikJCVwKK3sJCQkJCQkJCQlcCisJcmV0dXJuIF9fYXRvbWljX2ZldGNoXyMjb3AoJih2KS0+Y291
+bnRlciwgaSwgX19BVE9NSUNfQUNRX1JFTCk7IFwKK30KKworI2RlZmluZSBBVE9NSUM2NF9PUFMo
+b3AsIGNfb3ApCQkJCQkJXAorCUFUT01JQzY0X09QKG9wKQkJCQkJCQlcCisJQVRPTUlDNjRfRkVU
+Q0hfT1Aob3AsIGNfb3ApCisKK0FUT01JQzY0X09QUyhhbmQsICYpCitBVE9NSUM2NF9PUFMob3Is
+IHwpCitBVE9NSUM2NF9PUFMoeG9yLCBeKQorCisjdW5kZWYgQVRPTUlDNjRfT1BTCisjdW5kZWYg
+QVRPTUlDNjRfRkVUQ0hfT1AKKyN1bmRlZiBBVE9NSUM2NF9PUAorCisvKiBDbXB4Y2hnICovCisK
+KyNkZWZpbmUgeGNoZyhwdHIsIHYpIF9fYXRvbWljX2V4Y2hhbmdlX24oKHB0ciksICh2KSwgX19B
+VE9NSUNfQUNRX1JFTCkKKyNkZWZpbmUgeGFkZChwdHIsIGluYykgX19hdG9taWNfYWRkX2ZldGNo
+KChwdHIpLCAoaW5jKSwgX19BVE9NSUNfQUNRX1JFTCkKKworI2RlZmluZSBjbXB4Y2hnKHB0ciwg
+b2xkLCBuZXcpICh7CQkJCQkJCQlcCisJdHlwZW9mKG9sZCkgdG1wID0gb2xkOwkJCQkJCQkJCVwK
+KwlfX2F0b21pY19jb21wYXJlX2V4Y2hhbmdlX24oKHB0ciksICZ0bXAsIChuZXcpLCAwLCBfX0FU
+T01JQ19BQ1FfUkVMLCBfX0FUT01JQ19BQ1FVSVJFKTsJXAorCXRtcDsJCQkJCQkJCQkJCVwKK30p
+CisKKyNkZWZpbmUgc3luY19jbXB4Y2hnCWNtcHhjaGcKKyNkZWZpbmUgY21weGNoZ19sb2NhbAlj
+bXB4Y2hnCisjZGVmaW5lIGNtcHhjaGc2NAljbXB4Y2hnCisjZGVmaW5lIGNtcHhjaGc2NF9sb2Nh
+bAljbXB4Y2hnCisKKy8qCit0eXBlZGVmIHN0cnVjdCB7CisJbG9uZyB2MSwgdjI7Cit9IF9fY21w
+eGNoZ19kb3VibGVfc3RydWN0OworCisjZGVmaW5lIGNtcHhjaGdfZG91YmxlKHAxLCBwMiwgbzEs
+IG8yLCBuMSwgbjIpCQkJCVwKKyh7CQkJCQkJCQkJXAorCV9fY21weGNoZ19kb3VibGVfc3RydWN0
+IG9sZCA9IHsobG9uZylvMSwgKGxvbmcpbzJ9OwkJXAorCV9fY21weGNoZ19kb3VibGVfc3RydWN0
+IG5ldyA9IHsobG9uZyluMSwgKGxvbmcpbjJ9OwkJXAorCUJVSUxEX0JVR19PTihzaXplb2YoKihw
+MSkpICE9IHNpemVvZihsb25nKSk7CQkJXAorCUJVSUxEX0JVR19PTihzaXplb2YoKihwMikpICE9
+IHNpemVvZihsb25nKSk7CQkJXAorCVZNX0JVR19PTigodW5zaWduZWQgbG9uZykocDEpICUgKDIg
+KiBzaXplb2YobG9uZykpKTsJCVwKKwlWTV9CVUdfT04oKHVuc2lnbmVkIGxvbmcpKChwMSkgKyAx
+KSAhPSAodW5zaWduZWQgbG9uZykocDIpKTsJXAorCV9fYXRvbWljX2NvbXBhcmVfZXhjaGFuZ2Vf
+bigoX19pbnQxMjggKikocDEpLCAoX19pbnQxMjggKikmb2xkLCAqKF9faW50MTI4ICopJm5ldywg
+MCwgX19BVE9NSUNfQUNRX1JFTCwgX19BVE9NSUNfQUNRVUlSRSk7CVwKK30pCisKKyNkZWZpbmUg
+Y21weGNoZ19kb3VibGVfbG9jYWwJY21weGNoZ19kb3VibGUKKyNkZWZpbmUgc3lzdGVtX2hhc19j
+bXB4Y2hnX2RvdWJsZSgpIDEKKyovCisKKyN1bmRlZiBDT05GSUdfSEFWRV9DTVBYQ0hHX0RPVUJM
+RQorCisvKiAxNi1iaXQgYXRvbWljIG9wcyAqLworCitzdGF0aWMgaW5saW5lIHNob3J0IGludCBh
+dG9taWNfaW5jX3Nob3J0KHNob3J0IGludCAqdikKK3sKKwlyZXR1cm4gX19hdG9taWNfZmV0Y2hf
+YWRkKHYsIDEsIF9fQVRPTUlDX0FDUV9SRUwpICsgMTsKK30KKworLyogQmFycmllcnMgKi8KKy8q
+CisjZGVmaW5lIGJhcnJpZXIoKQlfX2F0b21pY19zaWduYWxfZmVuY2UoX19BVE9NSUNfU0VRX0NT
+VCkKKyNkZWZpbmUgbWIoKQkJX19hdG9taWNfdGhyZWFkX2ZlbmNlKF9fQVRPTUlDX1NFUV9DU1Qp
+CisjZGVmaW5lIHJtYigpCQlfX2F0b21pY190aHJlYWRfZmVuY2UoX19BVE9NSUNfQUNRVUlSRSkK
+KyNkZWZpbmUgd21iKCkJCV9fYXRvbWljX3RocmVhZF9mZW5jZShfX0FUT01JQ19SRUxFQVNFKQor
+CisjZGVmaW5lIF9fc21wX21iKCkJbWIoKQorI2RlZmluZSBfX3NtcF9ybWIoKQlybWIoKQorI2Rl
+ZmluZSBfX3NtcF93bWIoKQl3bWIoKQorCisjZGVmaW5lIGRtYV9ybWIoKQltYigpCisjZGVmaW5l
+IGRtYV93bWIoKQltYigpCisKKyNkZWZpbmUgX19zbXBfc3RvcmVfbWIodmFyLCB2YWx1ZSkgX19h
+dG9taWNfc3RvcmVfbigmKHZhciksICh2YWx1ZSksIF9fQVRPTUlDX1NFUV9DU1QpCisjZGVmaW5l
+IF9fc21wX3N0b3JlX3JlbGVhc2UocCwgdikgX19hdG9taWNfc3RvcmVfbigocCksICh2KSwgX19B
+VE9NSUNfUkVMRUFTRSkKKyNkZWZpbmUgX19zbXBfbG9hZF9hY3F1aXJlKHApIF9fYXRvbWljX2xv
+YWRfbigocCksIF9fQVRPTUlDX0FDUVVJUkUpCisKKyNkZWZpbmUgX19zbXBfbWJfX2JlZm9yZV9h
+dG9taWMoKQltYigpCisjZGVmaW5lIF9fc21wX21iX19hZnRlcl9hdG9taWMoKQltYigpCisKKyNp
+bmNsdWRlIDxhc20tZ2VuZXJpYy9iYXJyaWVyLmg+CisqLworCisjZW5kaWYgLyogX0xJTlVYX0FU
+T01JQ19DT01QSUxFUl9IICovCmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L2JpdG9wcy5oIGIv
+aW5jbHVkZS9saW51eC9iaXRvcHMuaAppbmRleCBhODNjODIyYzM1YzIuLjFjNmIxYjkyNWRkOSAx
+MDA2NDQKLS0tIGEvaW5jbHVkZS9saW51eC9iaXRvcHMuaAorKysgYi9pbmNsdWRlL2xpbnV4L2Jp
+dG9wcy5oCkBAIC0xLDUgKzEsMTEgQEAKICNpZm5kZWYgX0xJTlVYX0JJVE9QU19ICiAjZGVmaW5l
+IF9MSU5VWF9CSVRPUFNfSAorCisjaWYgZGVmaW5lZChDT05GSUdfS0FTQU4pCisjZGVmaW5lIENP
+TkZJR19DT01QSUxFUl9CSVRPUFMKKyNpbmNsdWRlIDxsaW51eC9iaXRvcHNfY29tcGlsZXIuaD4K
+KyNlbmRpZgorCiAjaW5jbHVkZSA8YXNtL3R5cGVzLmg+CiAKICNpZmRlZglfX0tFUk5FTF9fCmRp
+ZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L2JpdG9wc19jb21waWxlci5oIGIvaW5jbHVkZS9saW51
+eC9iaXRvcHNfY29tcGlsZXIuaApuZXcgZmlsZSBtb2RlIDEwMDY0NAppbmRleCAwMDAwMDAwMDAw
+MDAuLjRkMmEyNTM3NzZmMgotLS0gL2Rldi9udWxsCisrKyBiL2luY2x1ZGUvbGludXgvYml0b3Bz
+X2NvbXBpbGVyLmgKQEAgLTAsMCArMSw1NiBAQAorI2lmbmRlZiBfTElOVVhfQklUT1BTX0NPTVBJ
+TEVSX0gKKyNkZWZpbmUgX0xJTlVYX0JJVE9QU19DT01QSUxFUl9ICisKKyNpbmNsdWRlIDxsaW51
+eC90eXBlcy5oPgorCitzdGF0aWMgaW5saW5lIHZvaWQKK3NldF9iaXQobG9uZyBuciwgdm9sYXRp
+bGUgdW5zaWduZWQgbG9uZyAqYWRkcikKK3sKKwlfX2F0b21pY19mZXRjaF9vcigoY2hhciAqKWFk
+ZHIgKyAobnIgLyA4KSwgMSA8PCAobnIgJSA4KSwgX19BVE9NSUNfUkVMQVhFRCk7Cit9CisKK3N0
+YXRpYyBpbmxpbmUgdm9pZAorY2xlYXJfYml0KGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxv
+bmcgKmFkZHIpCit7CisJX19hdG9taWNfZmV0Y2hfYW5kKChjaGFyICopYWRkciArIChuciAvIDgp
+LCB+KDEgPDwgKG5yICUgOCkpLCBfX0FUT01JQ19SRUxBWEVEKTsKK30KKworc3RhdGljIGlubGlu
+ZSB2b2lkIGNsZWFyX2JpdF91bmxvY2sobG9uZyBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAq
+YWRkcikKK3sKKwlfX2F0b21pY19mZXRjaF9hbmQoKGNoYXIgKilhZGRyICsgKG5yIC8gOCksIH4o
+MSA8PCAobnIgJSA4KSksIF9fQVRPTUlDX1JFTEVBU0UpOworfQorCitzdGF0aWMgaW5saW5lIGJv
+b2wgY2xlYXJfYml0X3VubG9ja19pc19uZWdhdGl2ZV9ieXRlKGxvbmcgbnIsIHZvbGF0aWxlIHVu
+c2lnbmVkIGxvbmcgKmFkZHIpCit7CisJcmV0dXJuIF9fYXRvbWljX2ZldGNoX2FuZCgoY2hhciAq
+KWFkZHIgKyAobnIgLyA4KSwgfigxIDw8IChuciAlIDgpKSwgX19BVE9NSUNfUkVMRUFTRSkgPCAw
+OworfQorCisjZGVmaW5lIGNsZWFyX2JpdF91bmxvY2tfaXNfbmVnYXRpdmVfYnl0ZSBjbGVhcl9i
+aXRfdW5sb2NrX2lzX25lZ2F0aXZlX2J5dGUKKworc3RhdGljIGlubGluZSB2b2lkIGNoYW5nZV9i
+aXQobG9uZyBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKK3sKKwlfX2F0b21pY19m
+ZXRjaF94b3IoKGNoYXIgKilhZGRyICsgKG5yIC8gOCksIDEgPDwgKG5yICUgOCksIF9fQVRPTUlD
+X1JFTEFYRUQpOworfQorCitzdGF0aWMgaW5saW5lIGJvb2wgdGVzdF9hbmRfc2V0X2JpdChsb25n
+IG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQoreworCXJldHVybiBfX2F0b21pY19m
+ZXRjaF9vcigoY2hhciAqKWFkZHIgKyAobnIgLyA4KSwgMSA8PCAobnIgJSA4KSwgX19BVE9NSUNf
+QUNRX1JFTCkgJiAoMSA8PCAobnIgJSA4KSk7Cit9CisKK3N0YXRpYyBpbmxpbmUgYm9vbAordGVz
+dF9hbmRfc2V0X2JpdF9sb2NrKGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIp
+Cit7CisJcmV0dXJuIF9fYXRvbWljX2ZldGNoX29yKChjaGFyICopYWRkciArIChuciAvIDgpLCAx
+IDw8IChuciAlIDgpLCBfX0FUT01JQ19BQ1FVSVJFKSAmICgxIDw8IChuciAlIDgpKTsKK30KKwor
+c3RhdGljIGlubGluZSBib29sIHRlc3RfYW5kX2NsZWFyX2JpdChsb25nIG5yLCB2b2xhdGlsZSB1
+bnNpZ25lZCBsb25nICphZGRyKQoreworCXJldHVybiBfX2F0b21pY19mZXRjaF9hbmQoKGNoYXIg
+KilhZGRyICsgKG5yIC8gOCksIH4oMSA8PCAobnIgJSA4KSksIF9fQVRPTUlDX0FDUV9SRUwpICYg
+KDEgPDwgKG5yICUgOCkpOworfQorCitzdGF0aWMgaW5saW5lIGJvb2wgdGVzdF9hbmRfY2hhbmdl
+X2JpdChsb25nIG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQoreworCXJldHVybiBf
+X2F0b21pY19mZXRjaF94b3IoKGNoYXIgKilhZGRyICsgKG5yIC8gOCksIDEgPDwgKG5yICUgOCks
+IF9fQVRPTUlDX0FDUV9SRUwpICYgKDEgPDwgKG5yICUgOCkpOworfQorCisjZW5kaWYgLyogX0xJ
+TlVYX0JJVE9QU19DT01QSUxFUl9IICovCmRpZmYgLS1naXQgYS9uZXQvc3VucnBjL3hwcnRtdWx0
+aXBhdGguYyBiL25ldC9zdW5ycGMveHBydG11bHRpcGF0aC5jCmluZGV4IGFlOTJhOWU5YmE1Mi4u
+M2IxZTg1NjE5Y2UwIDEwMDY0NAotLS0gYS9uZXQvc3VucnBjL3hwcnRtdWx0aXBhdGguYworKysg
+Yi9uZXQvc3VucnBjL3hwcnRtdWx0aXBhdGguYwpAQCAtMTIsNyArMTIsNyBAQAogI2luY2x1ZGUg
+PGxpbnV4L3JjdXBkYXRlLmg+CiAjaW5jbHVkZSA8bGludXgvcmN1bGlzdC5oPgogI2luY2x1ZGUg
+PGxpbnV4L3NsYWIuaD4KLSNpbmNsdWRlIDxhc20vY21weGNoZy5oPgorI2luY2x1ZGUgPGxpbnV4
+L2F0b21pYy5oPgogI2luY2x1ZGUgPGxpbnV4L3NwaW5sb2NrLmg+CiAjaW5jbHVkZSA8bGludXgv
+c3VucnBjL3hwcnQuaD4KICNpbmNsdWRlIDxsaW51eC9zdW5ycGMvYWRkci5oPgo=
+--001a114df5d8d7c02f054a384cd7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
