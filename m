@@ -1,65 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A2248831FA
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 11:46:43 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id u108so12055418wrb.3
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 08:46:43 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r124si616662wma.43.2017.03.08.08.46.41
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E5DB3831FE
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 12:06:24 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j5so67239692pfb.3
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 09:06:24 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id 68si3800712pfa.203.2017.03.08.09.06.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 08:46:42 -0800 (PST)
-Date: Wed, 8 Mar 2017 11:46:31 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 0/8] try to reduce fragmenting fallbacks
-Message-ID: <20170308164631.GA12130@cmpxchg.org>
-References: <20170307131545.28577-1-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170307131545.28577-1-vbabka@suse.cz>
+        Wed, 08 Mar 2017 09:06:24 -0800 (PST)
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: [PATCH] mm,hugetlb: compute page_size_log properly
+Date: Wed,  8 Mar 2017 09:06:01 -0800
+Message-Id: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, ak@linux.intel.com, mtk.manpages@gmail.com, dave@stgolabs.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
 
-On Tue, Mar 07, 2017 at 02:15:37PM +0100, Vlastimil Babka wrote:
-> Last year, Johannes Weiner has reported a regression in page mobility
-> grouping [1] and while the exact cause was not found, I've come up with some
-> ways to improve it by reducing the number of allocations falling back to
-> different migratetype and causing permanent fragmentation.
+The SHM_HUGE_* stuff  was introduced in:
 
-I finally managed to get a handful of our machines on 4.10 with these
-patches applied and a 4.10 vanilla control group.
+   42d7395feb5 (mm: support more pagesizes for MAP_HUGETLB/SHM_HUGETLB)
 
-The sampling period is over twelve hours, which is on the short side
-for evaluating that load, so take the results with a grain of salt.
+It unnecessarily adds another layer, specific to sysv shm, without
+anything special about it: the macros are identical to the MAP_HUGE_*
+stuff, which in turn does correctly describe the hugepage subsystem.
 
-The allocstall rate (events per second) is down on average, but there
-are occasionally fairly high spikes that exceed the peaks in 4.10:
+One example of the problems with extra layers what this patch fixes:
+mmap_pgoff() should never be using SHM_HUGE_* logic. This was
+introduced by:
 
-http://cmpxchg.org/antifrag/allocstallrate.png
+   091d0d55b28 (shm: fix null pointer deref when userspace specifies invalid hugepage size)
 
-Activity from the compaction free scanner is down, while the migration
-scanner does more work. I would assume most of this is coming from the
-same-migratetype restriction on the source blocks:
+It is obviously harmless but lets just rip out the whole thing --
+the shmget.2 manpage will need updating, as it should not be
+describing kernel internals.
 
-http://cmpxchg.org/antifrag/compactfreescannedrate.png
-http://cmpxchg.org/antifrag/compactmigratescannedrate.png
+Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+---
+ include/linux/shm.h                    | 13 -------------
+ ipc/shm.c                              |  6 +++---
+ mm/mmap.c                              |  2 +-
+ tools/testing/selftests/vm/thuge-gen.c |  8 +-------
+ 4 files changed, 5 insertions(+), 24 deletions(-)
 
-Unfortunately, the average compaction stall rate is consistently much
-higher with the patches. The 1h rate averages are 2-3x higher:
-
-http://cmpxchg.org/antifrag/compactstallrate.png
-
-An increase in direct compaction is a bit worrisome, but the task
-completion rates - the bottom line metric for this workload - are
-still too chaotic to say whether the increased allocation latency
-affects us meaningfully here. I'll give it a few more days.
-
-Is there any other data you would like me to gather?
-
-Thanks!
+diff --git a/include/linux/shm.h b/include/linux/shm.h
+index 429c1995d756..98fc25f9db8a 100644
+--- a/include/linux/shm.h
++++ b/include/linux/shm.h
+@@ -31,19 +31,6 @@ struct shmid_kernel /* private to the kernel */
+ 
+ /* Bits [26:31] are reserved */
+ 
+-/*
+- * When SHM_HUGETLB is set bits [26:31] encode the log2 of the huge page size.
+- * This gives us 6 bits, which is enough until someone invents 128 bit address
+- * spaces.
+- *
+- * Assume these are all power of twos.
+- * When 0 use the default page size.
+- */
+-#define SHM_HUGE_SHIFT  26
+-#define SHM_HUGE_MASK   0x3f
+-#define SHM_HUGE_2MB    (21 << SHM_HUGE_SHIFT)
+-#define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
+-
+ #ifdef CONFIG_SYSVIPC
+ long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr,
+ 	      unsigned long shmlba);
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 7e199fa1960f..f21a2338ee39 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -491,8 +491,8 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+ 
+ 	sprintf (name, "SYSV%08x", key);
+ 	if (shmflg & SHM_HUGETLB) {
+-		struct hstate *hs = hstate_sizelog((shmflg >> SHM_HUGE_SHIFT)
+-						& SHM_HUGE_MASK);
++		struct hstate *hs = hstate_sizelog((shmflg >> MAP_HUGE_SHIFT)
++						   & MAP_HUGE_MASK);
+ 		size_t hugesize;
+ 
+ 		if (!hs) {
+@@ -506,7 +506,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+ 			acctflag = VM_NORESERVE;
+ 		file = hugetlb_file_setup(name, hugesize, acctflag,
+ 				  &shp->mlock_user, HUGETLB_SHMFS_INODE,
+-				(shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK);
++				(shmflg >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
+ 	} else {
+ 		/*
+ 		 * Do not allow no accounting for OVERCOMMIT_NEVER, even
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 0718c175db8f..a1c4cefc5a38 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1369,7 +1369,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 	} else if (flags & MAP_HUGETLB) {
+ 		struct user_struct *user = NULL;
+ 		struct hstate *hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) &
+-						   SHM_HUGE_MASK);
++						   MAP_HUGE_MASK);
+ 
+ 		if (!hs)
+ 			return -EINVAL;
+diff --git a/tools/testing/selftests/vm/thuge-gen.c b/tools/testing/selftests/vm/thuge-gen.c
+index c87957295f74..4479015ec96a 100644
+--- a/tools/testing/selftests/vm/thuge-gen.c
++++ b/tools/testing/selftests/vm/thuge-gen.c
+@@ -32,12 +32,6 @@
+ #define MAP_HUGE_MASK   0x3f
+ #define MAP_HUGETLB	0x40000
+ 
+-#define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
+-#define SHM_HUGE_SHIFT  26
+-#define SHM_HUGE_MASK   0x3f
+-#define SHM_HUGE_2MB    (21 << SHM_HUGE_SHIFT)
+-#define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
+-
+ #define NUM_PAGESIZES   5
+ 
+ #define NUM_PAGES 4
+@@ -243,7 +237,7 @@ int main(void)
+ 
+ 	for (i = 0; i < num_page_sizes; i++) {
+ 		unsigned long ps = page_sizes[i];
+-		int arg = ilog2(ps) << SHM_HUGE_SHIFT;
++		int arg = ilog2(ps) << MAP_HUGE_SHIFT;
+ 		printf("Testing %luMB shmget with shift %x\n", ps >> 20, arg);
+ 		test_shmget(ps, SHM_HUGETLB | arg);
+ 	}
+-- 
+2.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
