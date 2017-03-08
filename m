@@ -1,207 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0B36831CE
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 03:34:44 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id o126so46918437pfb.2
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:34:44 -0800 (PST)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id j61si2591450plb.86.2017.03.08.00.34.43
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B8FF831D3
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 03:46:30 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id d66so8947591wmi.2
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:46:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 124si3917189wmc.106.2017.03.08.00.46.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 00:34:43 -0800 (PST)
-Subject: Re: [PATCH] mm: drop "wait" parameter from write_one_page
-References: <20170305132313.5840-1-jlayton@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <f7276bea-141f-fc12-9d0a-5ce93700f40a@nvidia.com>
-Date: Wed, 8 Mar 2017 00:34:42 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Mar 2017 00:46:29 -0800 (PST)
+Date: Wed, 8 Mar 2017 09:46:02 +0100
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v2 09/32] x86: Change early_ioremap to early_memremap
+ for BOOT data
+Message-ID: <20170308084602.z6t44k2izdum3w3v@pd.tnic>
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846763334.2349.9327692408737971533.stgit@brijesh-build-machine>
 MIME-Version: 1.0
-In-Reply-To: <20170305132313.5840-1-jlayton@redhat.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <148846763334.2349.9327692408737971533.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>, viro@zeniv.linux.org.uk
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-On 03/05/2017 05:23 AM, Jeff Layton wrote:
-> The callers all have it set to 1 anyway. Also, make it clear that this
-> function will not set any sort of AS_* error, and that the caller must
-> do so if necessary.
+On Thu, Mar 02, 2017 at 10:13:53AM -0500, Brijesh Singh wrote:
+> From: Tom Lendacky <thomas.lendacky@amd.com>
+> 
+> In order to map BOOT data with the proper encryption bit, the
 
-Hi Jeff,
+Btw, what does that all-caps spelling "BOOT" denote? Something I'm
+missing?
 
-Silly nit: The above bit about not setting AS_* errors seems to not have made it 
-into the write_one_page() comment header. I see that it now says it will 
-(unconditionally) wait on IO, which implies no async IO errors, that's true. But 
-also the part about the caller setting having to set that...makes it look like you 
-intended to document this in the code, but got interrupted, maybe?
-
-The code changes look perfect, though. And although I'm not a fs guy, it seems 
-pretty clear that with all the callers passing in 1 all this time, nobody is likely 
-to complain about this simplification.
-
-thanks,
-John Hubbard
-NVIDIA
-
-
-  No existing caller uses this on normal files, so
-> none of them need it.
->
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> early_ioremap() function calls are changed to early_memremap() calls.
+> This allows the proper access for both SME and SEV.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 > ---
->  fs/exofs/dir.c        |  2 +-
->  fs/ext2/dir.c         |  2 +-
->  fs/jfs/jfs_metapage.c |  4 ++--
->  fs/minix/dir.c        |  2 +-
->  fs/sysv/dir.c         |  2 +-
->  fs/ufs/dir.c          |  2 +-
->  include/linux/mm.h    |  2 +-
->  mm/page-writeback.c   | 14 +++++++-------
->  8 files changed, 15 insertions(+), 15 deletions(-)
->
-> diff --git a/fs/exofs/dir.c b/fs/exofs/dir.c
-> index 42f9a0a0c4ca..e163ed980c20 100644
-> --- a/fs/exofs/dir.c
-> +++ b/fs/exofs/dir.c
-> @@ -72,7 +72,7 @@ static int exofs_commit_chunk(struct page *page, loff_t pos, unsigned len)
->  	set_page_dirty(page);
->
->  	if (IS_DIRSYNC(dir))
-> -		err = write_one_page(page, 1);
-> +		err = write_one_page(page);
->  	else
->  		unlock_page(page);
->
-> diff --git a/fs/ext2/dir.c b/fs/ext2/dir.c
-> index d9650c9508e4..e2709695b177 100644
-> --- a/fs/ext2/dir.c
-> +++ b/fs/ext2/dir.c
-> @@ -100,7 +100,7 @@ static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
->  	}
->
->  	if (IS_DIRSYNC(dir)) {
-> -		err = write_one_page(page, 1);
-> +		err = write_one_page(page);
->  		if (!err)
->  			err = sync_inode_metadata(dir, 1);
->  	} else {
-> diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
-> index 489aaa1403e5..744fa3c079e6 100644
-> --- a/fs/jfs/jfs_metapage.c
-> +++ b/fs/jfs/jfs_metapage.c
-> @@ -711,7 +711,7 @@ void force_metapage(struct metapage *mp)
->  	get_page(page);
->  	lock_page(page);
->  	set_page_dirty(page);
-> -	write_one_page(page, 1);
-> +	write_one_page(page);
->  	clear_bit(META_forcewrite, &mp->flag);
->  	put_page(page);
->  }
-> @@ -756,7 +756,7 @@ void release_metapage(struct metapage * mp)
->  		set_page_dirty(page);
->  		if (test_bit(META_sync, &mp->flag)) {
->  			clear_bit(META_sync, &mp->flag);
-> -			write_one_page(page, 1);
-> +			write_one_page(page);
->  			lock_page(page); /* write_one_page unlocks the page */
->  		}
->  	} else if (mp->lsn)	/* discard_metapage doesn't remove it */
-> diff --git a/fs/minix/dir.c b/fs/minix/dir.c
-> index 7edc9b395700..baa9721f1299 100644
-> --- a/fs/minix/dir.c
-> +++ b/fs/minix/dir.c
-> @@ -57,7 +57,7 @@ static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
->  		mark_inode_dirty(dir);
->  	}
->  	if (IS_DIRSYNC(dir))
-> -		err = write_one_page(page, 1);
-> +		err = write_one_page(page);
->  	else
->  		unlock_page(page);
->  	return err;
-> diff --git a/fs/sysv/dir.c b/fs/sysv/dir.c
-> index 5bdae85ceef7..f5191cb2c947 100644
-> --- a/fs/sysv/dir.c
-> +++ b/fs/sysv/dir.c
-> @@ -45,7 +45,7 @@ static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
->  		mark_inode_dirty(dir);
->  	}
->  	if (IS_DIRSYNC(dir))
-> -		err = write_one_page(page, 1);
-> +		err = write_one_page(page);
->  	else
->  		unlock_page(page);
->  	return err;
-> diff --git a/fs/ufs/dir.c b/fs/ufs/dir.c
-> index de01b8f2aa78..48609f1d9580 100644
-> --- a/fs/ufs/dir.c
-> +++ b/fs/ufs/dir.c
-> @@ -53,7 +53,7 @@ static int ufs_commit_chunk(struct page *page, loff_t pos, unsigned len)
->  		mark_inode_dirty(dir);
->  	}
->  	if (IS_DIRSYNC(dir))
-> -		err = write_one_page(page, 1);
-> +		err = write_one_page(page);
->  	else
->  		unlock_page(page);
->  	return err;
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index b84615b0f64c..e17ebedba623 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2094,7 +2094,7 @@ extern void filemap_map_pages(struct vm_fault *vmf,
->  extern int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
->
->  /* mm/page-writeback.c */
-> -int write_one_page(struct page *page, int wait);
-> +int write_one_page(struct page *page);
->  void task_dirty_inc(struct task_struct *tsk);
->
->  /* readahead.c */
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 290e8b7d3181..855278fc538e 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2360,15 +2360,16 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
->  }
->
->  /**
-> - * write_one_page - write out a single page and optionally wait on I/O
-> + * write_one_page - write out a single page and wait on I/O
->   * @page: the page to write
-> - * @wait: if true, wait on writeout
->   *
->   * The page must be locked by the caller and will be unlocked upon return.
->   *
-> - * write_one_page() returns a negative error code if I/O failed.
-> + * write_one_page() returns a negative error code if I/O failed. Note that
-> + * the address_space is not marked for error. The caller must do this if
-> + * needed.
->   */
-> -int write_one_page(struct page *page, int wait)
-> +int write_one_page(struct page *page)
->  {
->  	struct address_space *mapping = page->mapping;
->  	int ret = 0;
-> @@ -2379,13 +2380,12 @@ int write_one_page(struct page *page, int wait)
->
->  	BUG_ON(!PageLocked(page));
->
-> -	if (wait)
-> -		wait_on_page_writeback(page);
-> +	wait_on_page_writeback(page);
->
->  	if (clear_page_dirty_for_io(page)) {
->  		get_page(page);
->  		ret = mapping->a_ops->writepage(page, &wbc);
-> -		if (ret == 0 && wait) {
-> +		if (ret == 0) {
->  			wait_on_page_writeback(page);
->  			if (PageError(page))
->  				ret = -EIO;
->
+>  arch/x86/kernel/acpi/boot.c |    4 ++--
+>  arch/x86/kernel/mpparse.c   |   10 +++++-----
+>  drivers/sfi/sfi_core.c      |    6 +++---
+>  3 files changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+> index 35174c6..468c25a 100644
+> --- a/arch/x86/kernel/acpi/boot.c
+> +++ b/arch/x86/kernel/acpi/boot.c
+> @@ -124,7 +124,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
+>  	if (!phys || !size)
+>  		return NULL;
+>  
+> -	return early_ioremap(phys, size);
+> +	return early_memremap(phys, size);
+
+Right, the question will keep popping up why we can simply replace
+memremap with ioremap and the general difference wrt to SME/SEV. So it
+would be a good idea to have a comment in, say, arch/x86/mm/ioremap.c,
+explaining the general situation.
+
+Thanks.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
