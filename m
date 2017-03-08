@@ -1,109 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C3E0C831ED
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:27:33 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id g43so54164229uah.2
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:27:33 -0800 (PST)
-Received: from mail-ua0-x22f.google.com (mail-ua0-x22f.google.com. [2607:f8b0:400c:c08::22f])
-        by mx.google.com with ESMTPS id j39si1582374uaf.89.2017.03.08.07.27.32
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DED10831ED
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:37:30 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id b2so62017380pgc.6
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:37:30 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k15si3592656pfj.185.2017.03.08.07.37.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 07:27:32 -0800 (PST)
-Received: by mail-ua0-x22f.google.com with SMTP id f54so39481043uaa.1
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:27:32 -0800 (PST)
+        Wed, 08 Mar 2017 07:37:30 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v28FYTWQ035198
+	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 10:37:29 -0500
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 292fxnxrgg-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 08 Mar 2017 10:37:28 -0500
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 8 Mar 2017 21:07:25 +0530
+Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
+	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v28FbMux9437226
+	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 21:07:22 +0530
+Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
+	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v28FbKAQ004092
+	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 21:07:22 +0530
+Subject: Re: [PATCH 6/6] sysctl: Add global tunable mt_page_copy
+References: <201702172358.xrHUyT1e%fengguang.wu@intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 8 Mar 2017 21:07:17 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170308152027.GA13133@leverpostej>
-References: <20170306124254.77615-1-dvyukov@google.com> <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
- <20170306125851.GL6500@twins.programming.kicks-ass.net> <20170306130107.GK6536@twins.programming.kicks-ass.net>
- <CACT4Y+ZDxk2CkaGaqVJfrzoBf4ZXDZ2L8vaAnLOjuY0yx85jgA@mail.gmail.com>
- <20170306162018.GC18519@leverpostej> <20170306203500.GR6500@twins.programming.kicks-ass.net>
- <CACT4Y+ZNb_eCLVBz6cUyr0jVPdSW_-nCedcBAh0anfds91B2vw@mail.gmail.com> <20170308152027.GA13133@leverpostej>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 8 Mar 2017 16:27:11 +0100
-Message-ID: <CACT4Y+bZqiE9Mxq1y4vdyT6=DCq0L+y_HjBH1=RJf5C9134CwQ@mail.gmail.com>
-Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <201702172358.xrHUyT1e%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
+Message-Id: <fa0c0260-9b98-42fc-9268-6f0b9c9ff592@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
+To: kbuild test robot <lkp@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
 
-On Wed, Mar 8, 2017 at 4:20 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> Hi,
->
-> On Wed, Mar 08, 2017 at 02:42:10PM +0100, Dmitry Vyukov wrote:
->> I think if we scope compiler atomic builtins to KASAN/KTSAN/KMSAN (and
->> consequently x86/arm64) initially, it becomes more realistic. For the
->> tools we don't care about absolute efficiency and this gets rid of
->> Will's points (2), (4) and (6) here https://lwn.net/Articles/691295/.
->> Re (3) I think rmb/wmb can be reasonably replaced with
->> atomic_thread_fence(acquire/release). Re (5) situation with
->> correctness becomes better very quickly as more people use them in
->> user-space. Since KASAN is not intended to be used in production (or
->> at least such build is expected to crash), we can afford to shake out
->> any remaining correctness issues in such build. (1) I don't fully
->> understand, what exactly is the problem with seq_cst?
->
-> I'll have to leave it to Will to have the final word on these; I'm
-> certainly not familiar enough with the C11 memory model to comment on
-> (1).
->
-> However, w.r.t. (3), I don't think we can substitute rmb() and wmb()
-> with atomic_thread_fence_acquire() and atomic_thread_fence_release()
-> respectively on arm64.
->
-> The former use barriers with full system scope, whereas the latter may
-> be limited to the inner shareable domain. While I'm not sure of the
-> precise intended semantics of wmb() and rmb(), I believe this
-> substitution would break some cases (e.g. communicating with a
-> non-coherent master).
->
-> Note that regardless, we'd have to special-case __iowmb() to use a full
-> system barrier.
->
-> Also, w.r.t. (5), modulo the lack of atomic instrumentation, people use
-> KASAN today, with compilers that are known to have bugs in their atomics
-> (e.g. GCC bug 69875). Thus, we cannot rely on the compiler's
-> implementation of atomics without introducing a functional regression.
->
->> i'Ve sketched a patch that does it, and did some testing with/without
->> KASAN on x86_64.
->>
->> In short, it adds include/linux/atomic_compiler.h which is included
->> from include/linux/atomic.h when CONFIG_COMPILER_ATOMIC is defined;
->> and <asm/atomic.h> is not included when CONFIG_COMPILER_ATOMIC is
->> defined.
->> For bitops it is similar except that only parts of asm/bitops.h are
->> selectively disabled when CONFIG_COMPILER_ATOMIC, because it also
->> defines other stuff.
->> asm/barriers.h is left intact for now. We don't need it for KASAN. But
->> for KTSAN we can do similar thing -- selectively disable some of the
->> barriers in asm/barriers.h (e.g. leaving dma_rmb/wmb per arch).
->>
->> Such change would allow us to support atomic ops for multiple arches
->> for all of KASAN/KTSAN/KMSAN.
->>
->> Thoughts?
->
-> As in my other reply, I'd prefer that we wrapped the (arch-specific)
-> atomic implementations such that we can instrument them explicitly in a
-> core header. That means that the implementation and semantics of the
-> atomics don't change at all.
->
-> Note that we could initially do this just for x86 and arm64), e.g. by
-> having those explicitly include an <asm-generic/atomic-instrumented.h>
-> at the end of their <asm/atomic.h>.
+On 02/17/2017 09:00 PM, kbuild test robot wrote:
+> Hi Zi,
+> 
+> [auto build test ERROR on linus/master]
+> [also build test ERROR on v4.10-rc8 next-20170217]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Anshuman-Khandual/Enable-parallel-page-migration/20170217-200523
+> config: i386-randconfig-a0-02131010 (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
 
-How exactly do you want to do this incrementally?
-I don't feel ready to shuffle all archs, but doing x86 in one patch
-and then arm64 in another looks tractable.
+Though I dont have the same compiler, I am unable to reproduce this
+build failure exactly. The build fails but for a different symbol.
+I have the following gcc version but does it really make a
+difference with respect to finding the symbol etc ?
+
+gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2
 
 
-> For architectures which can use the compiler's atomics, we can allow
-> them to do so, skipping the redundant explicit instrumentation.
->
-> Other than being potentially slower (which we've established we don't
-> care too much about above), is there a problem with that approach?
+mm/memory.c: In function ?copy_pmd_range?:
+mm/memory.c:1002:3: error: implicit declaration of function
+?pmd_related? [-Werror=implicit-function-declaration]
+   if (pmd_related(*src_pmd)) {
+   ^
+cc1: some warnings being treated as errors
+scripts/Makefile.build:294: recipe for target 'mm/memory.o' failed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
