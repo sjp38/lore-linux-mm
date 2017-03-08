@@ -1,196 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BB1F36B03AE
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:50 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id y17so44388797pgh.2
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:50 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9AF6B03AF
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:52 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id l66so44315136pfl.6
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:52 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.49
+        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 23:26:49 -0800 (PST)
+        Tue, 07 Mar 2017 23:26:51 -0800 (PST)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v6 6/9] mm, THP, swap: Support to add/delete THP to/from swap cache
-Date: Wed,  8 Mar 2017 15:26:10 +0800
-Message-Id: <20170308072613.17634-7-ying.huang@intel.com>
+Subject: [PATCH -mm -v6 7/9] mm, THP: Add can_split_huge_page()
+Date: Wed,  8 Mar 2017 15:26:11 +0800
+Message-Id: <20170308072613.17634-8-ying.huang@intel.com>
 In-Reply-To: <20170308072613.17634-1-ying.huang@intel.com>
 References: <20170308072613.17634-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
 From: Huang Ying <ying.huang@intel.com>
 
-With this patch, a THP (Transparent Huge Page) can be added/deleted
-to/from the swap cache as a set of (HPAGE_PMD_NR) sub-pages.
+Separates checking whether we can split the huge page from
+split_huge_page_to_list() into a function.  This will help to check that
+before splitting the THP (Transparent Huge Page) really.
 
-This will be used for the THP (Transparent Huge Page) swap support.
-Where one THP may be added/delted to/from the swap cache.  This will
-batch the swap cache operations to reduce the lock acquire/release times
-for the THP swap too.
+This will be used for delaying splitting THP during swapping out.  Where
+for a THP, we will allocate a swap cluster, add the THP into the swap
+cache, then split the THP.  To avoid the unnecessary operations for the
+un-splittable THP, we will check that firstly.
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
+There is no functionality change in this patch.
+
 Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/page-flags.h |  5 ++--
- mm/swap_state.c            | 64 ++++++++++++++++++++++++++++++----------------
- 2 files changed, 45 insertions(+), 24 deletions(-)
+ include/linux/huge_mm.h |  7 +++++++
+ mm/huge_memory.c        | 17 ++++++++++++++---
+ 2 files changed, 21 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6b5818d6de32..f4acd6c4f808 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -326,11 +326,12 @@ PAGEFLAG_FALSE(HighMem)
- #ifdef CONFIG_SWAP
- static __always_inline int PageSwapCache(struct page *page)
- {
-+	page = compound_head(page);
- 	return PageSwapBacked(page) && test_bit(PG_swapcache, &page->flags);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a3762d49ba39..d3b3e8fcc717 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -113,6 +113,7 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
+ extern void prep_transhuge_page(struct page *page);
+ extern void free_transhuge_page(struct page *page);
  
++bool can_split_huge_page(struct page *page, int *pextra_pins);
+ int split_huge_page_to_list(struct page *page, struct list_head *list);
+ static inline int split_huge_page(struct page *page)
+ {
+@@ -231,6 +232,12 @@ static inline void prep_transhuge_page(struct page *page) {}
+ 
+ #define thp_get_unmapped_area	NULL
+ 
++static inline bool
++can_split_huge_page(struct page *page, int *pextra_pins)
++{
++	BUILD_BUG();
++	return false;
++}
+ static inline int
+ split_huge_page_to_list(struct page *page, struct list_head *list)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 2b4120f6930c..45f944db43b0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2362,6 +2362,19 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
+ 	return ret;
  }
--SETPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
--CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
-+SETPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
-+CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
- #else
- PAGEFLAG_FALSE(SwapCache)
- #endif
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 3c248f0a0abc..387466fd114b 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -38,6 +38,7 @@ struct address_space *swapper_spaces[MAX_SWAPFILES];
- static unsigned int nr_swapper_spaces[MAX_SWAPFILES];
  
- #define INC_CACHE_INFO(x)	do { swap_cache_info.x++; } while (0)
-+#define ADD_CACHE_INFO(x, nr)	do { swap_cache_info.x += (nr); } while (0)
- 
- static struct {
- 	unsigned long add_total;
-@@ -90,39 +91,52 @@ void show_swap_cache_info(void)
-  */
- int __add_to_swap_cache(struct page *page, swp_entry_t entry)
- {
--	int error;
-+	int error, i, nr = hpage_nr_pages(page);
- 	struct address_space *address_space;
-+	struct page *cur_page;
-+	swp_entry_t cur_entry;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageSwapCache(page), page);
- 	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
- 
--	get_page(page);
-+	page_ref_add(page, nr);
- 	SetPageSwapCache(page);
--	set_page_private(page, entry.val);
- 
- 	address_space = swap_address_space(entry);
-+	cur_page = page;
-+	cur_entry.val = entry.val;
- 	spin_lock_irq(&address_space->tree_lock);
--	error = radix_tree_insert(&address_space->page_tree,
--				  swp_offset(entry), page);
--	if (likely(!error)) {
--		address_space->nrpages++;
--		__inc_node_page_state(page, NR_FILE_PAGES);
--		INC_CACHE_INFO(add_total);
-+	for (i = 0; i < nr; i++, cur_page++, cur_entry.val++) {
-+		set_page_private(cur_page, cur_entry.val);
-+		error = radix_tree_insert(&address_space->page_tree,
-+					  swp_offset(cur_entry), cur_page);
-+		if (unlikely(error))
-+			break;
- 	}
--	spin_unlock_irq(&address_space->tree_lock);
--
--	if (unlikely(error)) {
-+	if (likely(!error)) {
-+		address_space->nrpages += nr;
-+		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
-+		ADD_CACHE_INFO(add_total, nr);
-+	} else {
- 		/*
- 		 * Only the context which have set SWAP_HAS_CACHE flag
- 		 * would call add_to_swap_cache().
- 		 * So add_to_swap_cache() doesn't returns -EEXIST.
- 		 */
- 		VM_BUG_ON(error == -EEXIST);
--		set_page_private(page, 0UL);
-+		set_page_private(cur_page, 0UL);
-+		while (i--) {
-+			cur_page--;
-+			cur_entry.val--;
-+			radix_tree_delete(&address_space->page_tree,
-+					  swp_offset(cur_entry));
-+			set_page_private(cur_page, 0UL);
-+		}
- 		ClearPageSwapCache(page);
--		put_page(page);
-+		page_ref_sub(page, nr);
- 	}
-+	spin_unlock_irq(&address_space->tree_lock);
- 
- 	return error;
- }
-@@ -132,7 +146,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
- {
- 	int error;
- 
--	error = radix_tree_maybe_preload(gfp_mask);
-+	error = radix_tree_maybe_preload_order(gfp_mask, compound_order(page));
- 	if (!error) {
- 		error = __add_to_swap_cache(page, entry);
- 		radix_tree_preload_end();
-@@ -148,6 +162,7 @@ void __delete_from_swap_cache(struct page *page)
- {
- 	swp_entry_t entry;
- 	struct address_space *address_space;
-+	int i, nr = hpage_nr_pages(page);
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-@@ -155,12 +170,17 @@ void __delete_from_swap_cache(struct page *page)
- 
- 	entry.val = page_private(page);
- 	address_space = swap_address_space(entry);
--	radix_tree_delete(&address_space->page_tree, swp_offset(entry));
--	set_page_private(page, 0);
-+	for (i = 0; i < nr; i++, entry.val++) {
-+		struct page *cur_page = page + i;
++/* Racy check whether the huge page can be split */
++bool can_split_huge_page(struct page *page, int *pextra_pins)
++{
++	int extra_pins = 0;
 +
-+		radix_tree_delete(&address_space->page_tree,
-+				  swp_offset(entry));
-+		set_page_private(cur_page, 0);
-+	}
- 	ClearPageSwapCache(page);
--	address_space->nrpages--;
--	__dec_node_page_state(page, NR_FILE_PAGES);
--	INC_CACHE_INFO(del_total);
-+	address_space->nrpages -= nr;
-+	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
-+	ADD_CACHE_INFO(del_total, nr);
- }
++	/* Additional pins from radix tree */
++	if (!PageAnon(page))
++		extra_pins = HPAGE_PMD_NR;
++	if (pextra_pins)
++		*pextra_pins = extra_pins;
++	return total_mapcount(page) == page_count(page) - extra_pins - 1;
++}
++
+ /*
+  * This function splits huge page into normal pages. @page can point to any
+  * subpage of huge page to split. Split doesn't change the position of @page.
+@@ -2421,8 +2434,6 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			goto out;
+ 		}
  
- /**
-@@ -237,8 +257,8 @@ void delete_from_swap_cache(struct page *page)
- 	__delete_from_swap_cache(page);
- 	spin_unlock_irq(&address_space->tree_lock);
- 
--	swapcache_free(entry);
--	put_page(page);
-+	__swapcache_free(entry, PageTransHuge(page));
-+	page_ref_sub(page, hpage_nr_pages(page));
- }
- 
- /* 
+-		/* Addidional pins from radix tree */
+-		extra_pins = HPAGE_PMD_NR;
+ 		anon_vma = NULL;
+ 		i_mmap_lock_read(mapping);
+ 	}
+@@ -2431,7 +2442,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	 * Racy check if we can split the page, before freeze_page() will
+ 	 * split PMDs
+ 	 */
+-	if (total_mapcount(head) != page_count(head) - extra_pins - 1) {
++	if (!can_split_huge_page(head, &extra_pins)) {
+ 		ret = -EBUSY;
+ 		goto out_unlock;
+ 	}
 -- 
 2.11.0
 
