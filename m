@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 169476B03AC
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:46 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v190so44145215pfb.5
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:46 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B6576B03AD
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:48 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 77so42590006pgc.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:48 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.45
+        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 23:26:45 -0800 (PST)
+        Tue, 07 Mar 2017 23:26:47 -0800 (PST)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v6 4/9] mm, THP, swap: Add get_huge_swap_page()
-Date: Wed,  8 Mar 2017 15:26:08 +0800
-Message-Id: <20170308072613.17634-5-ying.huang@intel.com>
+Subject: [PATCH -mm -v6 5/9] mm, THP, swap: Support to clear SWAP_HAS_CACHE for huge page
+Date: Wed,  8 Mar 2017 15:26:09 +0800
+Message-Id: <20170308072613.17634-6-ying.huang@intel.com>
 In-Reply-To: <20170308072613.17634-1-ying.huang@intel.com>
 References: <20170308072613.17634-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,22 +22,19 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@int
 
 From: Huang Ying <ying.huang@intel.com>
 
-A variation of get_swap_page(), get_huge_swap_page(), is added to
-allocate a swap cluster (HPAGE_PMD_NR swap slots) based on the swap
-cluster allocation function.  A fair simple algorithm is used, that is,
-only the first swap device in priority list will be tried to allocate
-the swap cluster.  The function will fail if the trying is not
-successful, and the caller will fallback to allocate a single swap slot
-instead.  This works good enough for normal cases.
+__swapcache_free() is added to support to clear the SWAP_HAS_CACHE flag
+for the huge page.  This will free the specified swap cluster now.
+Because now this function will be called only in the error path to free
+the swap cluster just allocated.  So the corresponding swap_map[i] ==
+SWAP_HAS_CACHE, that is, the swap count is 0.  This makes the
+implementation simpler than that of the ordinary swap entry.
 
-This will be used for the THP (Transparent Huge Page) swap support.
-Where get_huge_swap_page() will be used to allocate one swap cluster for
-each THP swapped out.
-
-Because of the algorithm adopted, if the difference of the number of the
-free swap clusters among multiple swap devices is significant, it is
-possible that some THPs are split earlier than necessary.  For example,
-this could be caused by big size difference among multiple swap devices.
+This will be used for delaying splitting THP (Transparent Huge Page)
+during swapping out.  Where for one THP to swap out, we will allocate a
+swap cluster, add the THP into the swap cache, then split the THP.  If
+anything fails after allocating the swap cluster and before splitting
+the THP successfully, the swapcache_free_trans_huge() will be used to
+free the swap space allocated.
 
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
@@ -47,117 +44,108 @@ Cc: Minchan Kim <minchan@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/swap.h | 19 ++++++++++++++++++-
- mm/swap_slots.c      |  5 +++--
- mm/swapfile.c        | 16 ++++++++++++----
- 3 files changed, 33 insertions(+), 7 deletions(-)
+ include/linux/swap.h |  9 +++++++--
+ mm/swapfile.c        | 34 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 39 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 278e1349a424..e3a7609a8989 100644
+index e3a7609a8989..2f2a6c0363aa 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -388,7 +388,7 @@ static inline long get_nr_swap_pages(void)
- extern void si_swapinfo(struct sysinfo *);
- extern swp_entry_t get_swap_page(void);
- extern swp_entry_t get_swap_page_of_type(int);
--extern int get_swap_pages(int n, swp_entry_t swp_entries[]);
-+extern int get_swap_pages(int n, swp_entry_t swp_entries[], bool huge);
- extern int add_swap_count_continuation(swp_entry_t, gfp_t);
- extern void swap_shmem_alloc(swp_entry_t);
+@@ -394,7 +394,7 @@ extern void swap_shmem_alloc(swp_entry_t);
  extern int swap_duplicate(swp_entry_t);
-@@ -527,6 +527,23 @@ static inline swp_entry_t get_swap_page(void)
+ extern int swapcache_prepare(swp_entry_t);
+ extern void swap_free(swp_entry_t);
+-extern void swapcache_free(swp_entry_t);
++extern void __swapcache_free(swp_entry_t entry, bool huge);
+ extern void swapcache_free_entries(swp_entry_t *entries, int n);
+ extern int free_swap_and_cache(swp_entry_t);
+ extern int swap_type_of(dev_t, sector_t, struct block_device **);
+@@ -456,7 +456,7 @@ static inline void swap_free(swp_entry_t swp)
+ {
+ }
  
- #endif /* CONFIG_SWAP */
+-static inline void swapcache_free(swp_entry_t swp)
++static inline void __swapcache_free(swp_entry_t swp, bool huge)
+ {
+ }
  
-+#ifdef CONFIG_THP_SWAP_CLUSTER
-+static inline swp_entry_t get_huge_swap_page(void)
+@@ -544,6 +544,11 @@ static inline swp_entry_t get_huge_swap_page(void)
+ }
+ #endif
+ 
++static inline void swapcache_free(swp_entry_t entry)
 +{
-+	swp_entry_t entry;
-+
-+	if (get_swap_pages(1, &entry, true))
-+		return entry;
-+	else
-+		return (swp_entry_t) {0};
++	__swapcache_free(entry, false);
 +}
-+#else
-+static inline swp_entry_t get_huge_swap_page(void)
-+{
-+	return (swp_entry_t) {0};
-+}
-+#endif
 +
  #ifdef CONFIG_MEMCG
  static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
  {
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index 9b5bc86f96ad..075bb39e03c5 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -258,7 +258,8 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
- 
- 	cache->cur = 0;
- 	if (swap_slot_cache_active)
--		cache->nr = get_swap_pages(SWAP_SLOTS_CACHE_SIZE, cache->slots);
-+		cache->nr = get_swap_pages(SWAP_SLOTS_CACHE_SIZE, cache->slots,
-+					   false);
- 
- 	return cache->nr;
- }
-@@ -334,7 +335,7 @@ swp_entry_t get_swap_page(void)
- 			return entry;
- 	}
- 
--	get_swap_pages(1, &entry);
-+	get_swap_pages(1, &entry, false);
- 
- 	return entry;
- }
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 91876c33114b..7241c937e52b 100644
+index 7241c937e52b..6019f94afbaf 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -904,11 +904,12 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
- 
+@@ -855,6 +855,29 @@ static void swap_free_huge_cluster(struct swap_info_struct *si,
+ 	_swap_entry_free(si, offset, true);
  }
  
--int get_swap_pages(int n_goal, swp_entry_t swp_entries[])
-+int get_swap_pages(int n_goal, swp_entry_t swp_entries[], bool huge)
- {
- 	struct swap_info_struct *si, *next;
- 	long avail_pgs;
- 	int n_ret = 0;
-+	int nr_pages = huge_cluster_nr_entries(huge);
- 
- 	avail_pgs = atomic_long_read(&nr_swap_pages);
- 	if (avail_pgs <= 0)
-@@ -920,6 +921,10 @@ int get_swap_pages(int n_goal, swp_entry_t swp_entries[])
- 	if (n_goal > avail_pgs)
- 		n_goal = avail_pgs;
- 
-+	n_goal *= nr_pages;
-+	if (avail_pgs < n_goal)
-+		goto noswap;
++static void swapcache_free_trans_huge(struct swap_info_struct *si,
++				      swp_entry_t entry)
++{
++	unsigned long offset = swp_offset(entry);
++	unsigned long idx = offset / SWAPFILE_CLUSTER;
++	struct swap_cluster_info *ci;
++	unsigned char *map;
++	unsigned int i;
 +
- 	atomic_long_sub(n_goal, &nr_swap_pages);
++	spin_lock(&si->lock);
++	ci = lock_cluster(si, offset);
++	map = si->swap_map + offset;
++	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
++		VM_BUG_ON(map[i] != SWAP_HAS_CACHE);
++		map[i] &= ~SWAP_HAS_CACHE;
++	}
++	unlock_cluster(ci);
++	/* Cluster size is same as huge pmd size */
++	mem_cgroup_uncharge_swap(entry, HPAGE_PMD_NR);
++	swap_free_huge_cluster(si, idx);
++	spin_unlock(&si->lock);
++}
++
+ static int swap_alloc_huge_cluster(struct swap_info_struct *si,
+ 				   swp_entry_t *slot)
+ {
+@@ -887,6 +910,11 @@ static inline int swap_alloc_huge_cluster(struct swap_info_struct *si,
+ {
+ 	return 0;
+ }
++
++static inline void swapcache_free_trans_huge(struct swap_info_struct *si,
++					     swp_entry_t entry)
++{
++}
+ #endif
  
- 	spin_lock(&swap_avail_lock);
-@@ -946,10 +951,13 @@ int get_swap_pages(int n_goal, swp_entry_t swp_entries[])
- 			spin_unlock(&si->lock);
- 			goto nextsi;
- 		}
--		n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
--					    n_goal, swp_entries);
-+		if (likely(nr_pages == 1))
-+			n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
-+						    n_goal, swp_entries);
-+		else
-+			n_ret = swap_alloc_huge_cluster(si, swp_entries);
- 		spin_unlock(&si->lock);
--		if (n_ret)
-+		if (n_ret || unlikely(nr_pages != 1))
- 			goto check_out;
- 		pr_debug("scan_swap_map of si %d failed to find offset\n",
- 			si->type);
+ static unsigned long scan_swap_map(struct swap_info_struct *si,
+@@ -1161,13 +1189,15 @@ void swap_free(swp_entry_t entry)
+ /*
+  * Called after dropping swapcache to decrease refcnt to swap entries.
+  */
+-void swapcache_free(swp_entry_t entry)
++void __swapcache_free(swp_entry_t entry, bool huge)
+ {
+ 	struct swap_info_struct *p;
+ 
+ 	p = _swap_info_get(entry);
+ 	if (p) {
+-		if (!__swap_entry_free(p, entry, SWAP_HAS_CACHE))
++		if (unlikely(huge))
++			swapcache_free_trans_huge(p, entry);
++		else if (!__swap_entry_free(p, entry, SWAP_HAS_CACHE))
+ 			free_swap_slot(entry);
+ 	}
+ }
 -- 
 2.11.0
 
