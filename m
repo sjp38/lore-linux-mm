@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DE7E831ED
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:55:01 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id 9so93079595qkk.6
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:55:01 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f7si3242895qtf.104.2017.03.08.07.55.00
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 590336B03B8
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:59:05 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id r141so40326111ita.6
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:59:05 -0800 (PST)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id v7si4217587iod.13.2017.03.08.07.59.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 07:55:00 -0800 (PST)
-Message-ID: <1488988497.8850.23.camel@redhat.com>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 08 Mar 2017 10:54:57 -0500
-In-Reply-To: <20170308092114.GB11028@dhcp22.suse.cz>
-References: <20170307133057.26182-1-mhocko@kernel.org>
-	 <1488916356.6405.4.camel@redhat.com>
-	 <20170308092114.GB11028@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 08 Mar 2017 07:59:04 -0800 (PST)
+Date: Wed, 8 Mar 2017 09:58:58 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC 0/6] Slab Fragmentation Reduction V16
+In-Reply-To: <20170308143411.GC11034@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1703080955180.16208@east.gentwo.org>
+References: <20170307212429.044249411@linux.com> <20170308143411.GC11034@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>
 
-On Wed, 2017-03-08 at 10:21 +0100, Michal Hocko wrote:
+On Wed, 8 Mar 2017, Michal Hocko wrote:
 
-> > Could that create problems if we have many concurrent
-> > reclaimers?
-> 
-> As the changelog mentions it might cause a premature oom killer
-> invocation theoretically. We could easily see that from the oom
-> report
-> by checking isolated counters. My testing didn't trigger that though
-> and I was hammering the page allocator path from many threads.
-> 
-> I suspect some artificial tests can trigger that, I am not so sure
-> about
-> reasonabel workloads. If we see this happening though then the fix
-> would
-> be to resurrect my previous attempt to track NR_ISOLATED* per zone
-> and
-> use them in the allocator retry logic.
+> JFTR the previous version was posted here: https://lwn.net/Articles/371892/
+> and Dave had some concerns https://lkml.org/lkml/2010/2/8/329 which led
+> to a different approach and design of the slab shrinking
+> https://lkml.org/lkml/2010/2/8/329.
+>
+> I haven't looked at this series yet but has those concerns been
+> addressed/considered?
 
-I am not sure the workload in question is "artificial".
-A heavily forking (or multi-threaded) server running out
-of physical memory could easily get hundreds of tasks
-doing direct reclaim simultaneously.
+Well yes this has been discussed for a couple of years. The basic approach
+is not only needed for the file systems (like what Chinner was focusing
+on) but in general for slab caches. The objection was regarding the
+integration into the slab reclaim logic in vmscan.c and the filesystem
+reclaim in general.
 
-In fact, false OOM kills with that kind of workload is
-how we ended up getting the "too many isolated" logic
-in the first place.
+Dave and Matthew were at linux.conf.au and we agreed to first try it with
+the radix tree and then generalize from there.  The reclaim logic
+was a bit hacky and we will have to find some better way to
+integrate this.
 
-I am perfectly fine with moving the retry logic up like
-you did, but think it may make sense to check the number
-of reclaimable pages if we have too many isolated pages,
-instead of risking a too-early OOM kill.
+There is a video on youtube capturing the discussion (My talk on movable
+kernel objects).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
