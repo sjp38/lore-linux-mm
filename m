@@ -1,83 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 458D9831D3
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 04:27:02 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b140so9302566wme.3
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 01:27:02 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF0E6B039F
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 04:32:43 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id u9so9291195wme.6
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 01:32:43 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y103si3560925wrc.102.2017.03.08.01.27.00
+        by mx.google.com with ESMTPS id a143si4102910wme.44.2017.03.08.01.32.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Mar 2017 01:27:01 -0800 (PST)
-Date: Wed, 8 Mar 2017 10:26:59 +0100
+        Wed, 08 Mar 2017 01:32:41 -0800 (PST)
+Date: Wed, 8 Mar 2017 10:32:40 +0100
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm, vmalloc: use __GFP_HIGHMEM implicitly
-Message-ID: <20170308092659.GD11028@dhcp22.suse.cz>
+Message-ID: <20170308093239.GE11028@dhcp22.suse.cz>
 References: <20170307141020.29107-1-mhocko@kernel.org>
- <a984cf7d-221d-6106-e91d-6258b4e1d03c@suse.cz>
+ <20170307182841.GS16328@bombadil.infradead.org>
+ <20170307185748.GU16328@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a984cf7d-221d-6106-e91d-6258b4e1d03c@suse.cz>
+In-Reply-To: <20170307185748.GU16328@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Cristopher Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Cristopher Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 08-03-17 08:33:58, Vlastimil Babka wrote:
-> On 03/07/2017 03:10 PM, Michal Hocko wrote:
-[...]
-> > index dece26f119d4..a804a4107fbc 100644
-> > --- a/drivers/block/drbd/drbd_bitmap.c
-> > +++ b/drivers/block/drbd/drbd_bitmap.c
-> > @@ -409,7 +409,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
-> >  	new_pages = kzalloc(bytes, GFP_NOIO | __GFP_NOWARN);
-> >  	if (!new_pages) {
-> >  		new_pages = __vmalloc(bytes,
-> > -				GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO,
-> > +				GFP_NOIO | __GFP_ZERO,
+On Tue 07-03-17 10:57:48, Matthew Wilcox wrote:
+> On Tue, Mar 07, 2017 at 10:28:41AM -0800, Matthew Wilcox wrote:
+> > On Tue, Mar 07, 2017 at 03:10:20PM +0100, Michal Hocko wrote:
+> > > This patch simply uses __GFP_HIGHMEM implicitly when allocating pages to
+> > > be mapped to the vmalloc space. Current users which add __GFP_HIGHMEM
+> > > are simplified and drop the flag.
 > 
-> This should be converted to memalloc_noio_save(), right? And then
-> kvmalloc? Unless that happens in your other series :)
+> btw, I had another idea for GFP_HIGHMEM -- remove it when CONFIG_HIGHMEM
+> isn't enabled.  Saves 26 bytes of .text and 64 bytes of .data on my
+> laptop's kernel build.  What do you think?
 
-yeah, that would be for a separate patch(es).
+I wouldn't be opposed. The downside would be a slight confusion when
+printing gfp flags but we already have this for ___GFP_NOLOCKDEP ;)
 
-[...]
-> > diff --git a/fs/btrfs/free-space-tree.c b/fs/btrfs/free-space-tree.c
-> > index dd7fb22a955a..fc0bd8406758 100644
-> > --- a/fs/btrfs/free-space-tree.c
-> > +++ b/fs/btrfs/free-space-tree.c
-> > @@ -167,8 +167,7 @@ static u8 *alloc_bitmap(u32 bitmap_size)
-> >  	if (mem)
-> >  		return mem;
-> >  
-> > -	return __vmalloc(bitmap_size, GFP_NOFS | __GFP_HIGHMEM | __GFP_ZERO,
-> > -			 PAGE_KERNEL);
-> > +	return __vmalloc(bitmap_size, GFP_NOFS | __GFP_ZERO, PAGE_KERNEL);
-> 
-> memalloc_nofs_save() and plain vzalloc()?
+> Also, I suspect the layout of bits is suboptimal from an assembly
+> language perspective.  I still mostly care about x86 which doesn't
+> benefit, so I'm not inclined to do the work, but certainly ARM, PA-RISC,
+> SPARC and Itanium would all benefit from having frequently-used bits
+> (ie those used in GFP_KERNEL and GFP_ATOMIC) placed in the low 8 bits.
 
-I would really prefer to check whether GFP_NOFS is really needed here
-and if yes then place memalloc_nofs_save where the locking really
-requires it so this would become plan vmalloc as a side effect
- 
-> > diff --git a/mm/nommu.c b/mm/nommu.c
-> > index a80411d258fc..fc184f597d59 100644
-> > --- a/mm/nommu.c
-> > +++ b/mm/nommu.c
-> > @@ -246,8 +246,7 @@ void *vmalloc_user(unsigned long size)
-> >  {
-> >  	void *ret;
-> >  
-> > -	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
-> > -			PAGE_KERNEL);
-> > +	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
-> 
-> vzalloc()?
+be careful that there is some elaborate logic around low gfp bits to map
+to proper zones and ALLOC_ constants.
 
-after some code moving in mm/nommu.c yes. But I am not sure this is a
-huge win
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 0fe0b6295ab5..d88cb532d7c8 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -16,7 +16,11 @@ struct vm_area_struct;
+>  
+>  /* Plain integer GFP bitmasks. Do not use this directly. */
+>  #define ___GFP_DMA		0x01u
+> +#ifdef CONFIG_HIGHMEM
+>  #define ___GFP_HIGHMEM		0x02u
+> +#else
+> +#define ___GFP_HIGHMEM		0x0u
+> +#endif
+>  #define ___GFP_DMA32		0x04u
+>  #define ___GFP_MOVABLE		0x08u
+>  #define ___GFP_RECLAIMABLE	0x10u
 
+Anyway, thanks for your review!
 -- 
 Michal Hocko
 SUSE Labs
