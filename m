@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E4D226B03CE
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:05:37 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id g70so21127059lfh.4
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:05:37 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id q130si1621306ljb.271.2017.03.08.07.05.36
-        for <linux-mm@kvack.org>;
-        Wed, 08 Mar 2017 07:05:36 -0800 (PST)
-Date: Wed, 8 Mar 2017 16:05:20 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v4 28/28] x86: Add support to make use of Secure
- Memory Encryption
-Message-ID: <20170308150520.fwdrit6bjweqsztq@pd.tnic>
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154825.19244.32545.stgit@tlendack-t1.amdoffice.net>
- <20170301184055.gl3iic3gir6zzb23@pd.tnic>
- <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B9CF36B0393
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 10:06:19 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n11so11576128wma.5
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 07:06:19 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g80si4714578wrd.149.2017.03.08.07.06.18
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Mar 2017 07:06:18 -0800 (PST)
+Date: Wed, 8 Mar 2017 16:06:03 +0100
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v2 02/32] x86: Secure Encrypted Virtualization (SEV)
+ support
+Message-ID: <20170308150603.5n4efpylat5i7rgb@pd.tnic>
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846754069.2349.4698319264278045964.stgit@brijesh-build-machine>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <7e6c308f-3caf-5531-3cb2-9b6986f4288e@amd.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <148846754069.2349.4698319264278045964.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-On Tue, Mar 07, 2017 at 10:05:00AM -0600, Tom Lendacky wrote:
-> > And then you need to correct the function signature in the
-> > !CONFIG_AMD_MEM_ENCRYPT case, at the end of this file, too:
-> > 
-> > unsigned long __init sme_enable(struct boot_params *bp)		{ return 0; }
+On Thu, Mar 02, 2017 at 10:12:20AM -0500, Brijesh Singh wrote:
+> From: Tom Lendacky <thomas.lendacky@amd.com>
 > 
-> Yup, missed that.  I'll make it match.
+> Provide support for Secure Encyrpted Virtualization (SEV). This initial
+> support defines a flag that is used by the kernel to determine if it is
+> running with SEV active.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/mem_encrypt.h |   14 +++++++++++++-
+>  arch/x86/mm/mem_encrypt.c          |    3 +++
+>  include/linux/mem_encrypt.h        |    6 ++++++
+>  3 files changed, 22 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+> index 1fd5426..9799835 100644
+> --- a/arch/x86/include/asm/mem_encrypt.h
+> +++ b/arch/x86/include/asm/mem_encrypt.h
+> @@ -20,10 +20,16 @@
+>  #ifdef CONFIG_AMD_MEM_ENCRYPT
+>  
+>  extern unsigned long sme_me_mask;
+> +extern unsigned int sev_enabled;
 
-Or, you can do this:
+So there's a function name sev_enabled() and an int sev_enabled too.
 
-unsigned long __init sme_enable(void *boot_data)
-{
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-        struct boot_params *bp = boot_data;
-        unsigned int eax, ebx, ecx, edx;
-        unsigned long cmdline_ptr;
+It looks to me like you want to call the function "sev_enable()" -
+similar to sme_enable(), convert it to C code - i.e., I don't see what
+would speak against it - and rename that sev_enc_bit to sev_enabled and
+use it everywhere when testing SEV status.
 
-	...
+>  static inline bool sme_active(void)
+>  {
+> -	return (sme_me_mask) ? true : false;
+> +	return (sme_me_mask && !sev_enabled) ? true : false;
+> +}
+> +
+> +static inline bool sev_active(void)
+> +{
+> +	return (sme_me_mask && sev_enabled) ? true : false;
 
-out:
-#endif /* CONFIG_AMD_MEM_ENCRYPT */
-        return sme_me_mask;
-}
+Then, those read strange: like SME and SEV are mutually exclusive. Why?
+I might have an idea but I'd like for you to confirm it :-)
 
-and never worry for function headers going out of whack.
+Then, you're calling sev_enabled in startup_32() but we can enter
+in arch/x86/boot/compressed/head_64.S::startup_64() too, when we're
+loaded by a 64-bit bootloader, which would then theoretically bypass
+sev_enabled().
 
 -- 
 Regards/Gruss,
     Boris.
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
