@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 23ED76B0396
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:25:22 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id b2so42111560pgc.6
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:25:22 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id s2si2274147plk.272.2017.03.07.22.25.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1AC6B0398
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:40:42 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 67so42781447pfg.0
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:40:42 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id m14si2314376pln.225.2017.03.07.22.40.40
         for <linux-mm@kvack.org>;
-        Tue, 07 Mar 2017 22:25:21 -0800 (PST)
-Date: Wed, 8 Mar 2017 15:25:19 +0900
+        Tue, 07 Mar 2017 22:40:41 -0800 (PST)
+Date: Wed, 8 Mar 2017 15:40:38 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 01/11] mm: use SWAP_SUCCESS instead of 0
-Message-ID: <20170308062519.GE11206@bbox>
+Subject: Re: [RFC 04/11] mm: remove SWAP_MLOCK check for SWAP_SUCCESS in ttu
+Message-ID: <20170308064038.GF11206@bbox>
 References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-2-git-send-email-minchan@kernel.org>
- <20170307141933.GA2779@node.shutemov.name>
+ <1488436765-32350-5-git-send-email-minchan@kernel.org>
+ <20170307142643.GD2779@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170307141933.GA2779@node.shutemov.name>
+In-Reply-To: <20170307142643.GD2779@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-Hi Kirill,
-
-On Tue, Mar 07, 2017 at 05:19:33PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Mar 02, 2017 at 03:39:15PM +0900, Minchan Kim wrote:
-> > SWAP_SUCCESS defined value 0 can be changed always so don't rely on
-> > it. Instead, use explict macro.
+On Tue, Mar 07, 2017 at 05:26:43PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Mar 02, 2017 at 03:39:18PM +0900, Minchan Kim wrote:
+> > If the page is mapped and rescue in ttuo, page_mapcount(page) == 0 cannot
+> > be true so page_mapcount check in ttu is enough to return SWAP_SUCCESS.
+> > IOW, SWAP_MLOCK check is redundant so remove it.
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  mm/rmap.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index 3a14013..0a48958 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1523,7 +1523,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+> >  	else
+> >  		ret = rmap_walk(page, &rwc);
+> >  
+> > -	if (ret != SWAP_MLOCK && !page_mapcount(page))
+> > +	if (!page_mapcount(page))
 > 
-> I'm okay with this as long as it's prepartion for something meaningful.
-> 0 as success is widely used. I don't think replacing it's with macro here
-> has value on its own.
+> Hm. I think there's bug in current code.
+> It should be !total_mapcount(page) otherwise it can be false-positive if
+> there's THP mapped with PTEs.
 
-It's the prepartion for making try_to_unmap return bool type but strictly
-speaking, it's not necessary but I wanted to replace it with SWAP_SUCCESS
-in this chance because it has several *defined* return type so it would
-make it clear if we use one of those defiend type, IMO.
-However, my thumb rule is to keep author/maintainer's credit for trivial
-case and it seems you don't like so I will drop in next spin.
+Hmm, I lost THP thesedays totally so I can miss something easily.
+When I look at that, it seems every pages passed try_to_unmap is already
+splited by split split_huge_page_to_list which calls freeze_page which
+split pmd. So I guess it's no problem. Right?
 
-Thanks.
+Anyway, it's out of scope in this patch so if it's really problem,
+I'd like to handle it separately.
 
+One asking:
+
+When we should use total_mapcount instead of page_mapcount?
+If total_mapcount has some lengthy description, it would be very helpful
+for one who not is faimilar with that.
 
 > 
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> And in this case ret != SWAP_MLOCK is helpful to cut down some cost.
+> Althouth it should be fine to remove it, I guess.
+
+Sure but be hard to measure it, I think. As well, later patch removes
+SWAP_MLOCK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
