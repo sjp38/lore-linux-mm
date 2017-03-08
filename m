@@ -1,137 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 46F88831CE
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 03:00:49 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 77so43625893pgc.5
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:00:49 -0800 (PST)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id h5si2485207pln.273.2017.03.08.00.00.46
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB73831CE
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 03:12:52 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id v125so60162783qkh.5
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:12:52 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n2si2368357qtc.295.2017.03.08.00.12.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 00:00:46 -0800 (PST)
-Received: by mail-pg0-x241.google.com with SMTP id 77so2676380pgc.0
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 00:00:46 -0800 (PST)
-Date: Wed, 8 Mar 2017 16:00:42 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [RFC PATCH 2/2] mm/sparse: add last_section_nr in sparse_init()
- to reduce some iteration cycle
-Message-ID: <20170308080042.GA18355@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170211021829.9646-1-richard.weiyang@gmail.com>
- <20170211021829.9646-2-richard.weiyang@gmail.com>
- <20170211022400.GA19050@mtj.duckdns.org>
- <CADZGycbxtoXXxCeg-nHjzGmHA72VnA=-td+hNaNqN67Vq2JuKg@mail.gmail.com>
- <CADZGycapTYxdxwHacFYiECZQ23uPDARQcahw_9zuKrNu-wG63g@mail.gmail.com>
- <20170306194225.GB19696@htj.duckdns.org>
+        Wed, 08 Mar 2017 00:12:51 -0800 (PST)
+Date: Wed, 8 Mar 2017 16:12:28 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [RFC PATCH v4 26/28] x86: Allow kexec to be used with SME
+Message-ID: <20170308081228.GD11045@dhcp-128-65.nay.redhat.com>
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154755.19244.51276.stgit@tlendack-t1.amdoffice.net>
+ <20170217155756.GJ30272@char.us.ORACLE.com>
+ <d2f16b24-f2ef-a22b-3c72-2d8ad585553e@amd.com>
+ <20170301092536.GB8353@dhcp-128-65.nay.redhat.com>
+ <998eb58b-eefd-3093-093f-9ae25ddda472@amd.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="VS++wcV0S1rZb1Fb"
-Content-Disposition: inline
-In-Reply-To: <20170306194225.GB19696@htj.duckdns.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-
---VS++wcV0S1rZb1Fb
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <998eb58b-eefd-3093-093f-9ae25ddda472@amd.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Mon, Mar 06, 2017 at 02:42:25PM -0500, Tejun Heo wrote:
->Hello, Wei.
->
->On Fri, Feb 17, 2017 at 10:12:31PM +0800, Wei Yang wrote:
->> > And compare the ruling with the iteration for the loop to be (1UL <<
->> > 5) and (1UL << 19).
->> > The runtime is 0.00s and 0.04s respectively. The absolute value is not=
- much.
->
->systemd-analyze usually does a pretty good job of breaking down which
->phase took how long.  It might be worthwhile to test whether the
->improvement is actually visible during the boot.
->
+On 03/06/17 at 11:58am, Tom Lendacky wrote:
+> On 3/1/2017 3:25 AM, Dave Young wrote:
+> > Hi Tom,
+> 
+> Hi Dave,
+> 
+> > 
+> > On 02/17/17 at 10:43am, Tom Lendacky wrote:
+> > > On 2/17/2017 9:57 AM, Konrad Rzeszutek Wilk wrote:
+> > > > On Thu, Feb 16, 2017 at 09:47:55AM -0600, Tom Lendacky wrote:
+> > > > > Provide support so that kexec can be used to boot a kernel when SME is
+> > > > > enabled.
+> > > > 
+> > > > Is the point of kexec and kdump to ehh, dump memory ? But if the
+> > > > rest of the memory is encrypted you won't get much, will you?
+> > > 
+> > > Kexec can be used to reboot a system without going back through BIOS.
+> > > So you can use kexec without using kdump.
+> > > 
+> > > For kdump, just taking a quick look, the option to enable memory
+> > > encryption can be provided on the crash kernel command line and then
+> > 
+> > Is there a simple way to get the SME status? Probably add some sysfs
+> > file for this purpose.
+> 
+> Currently there is not.  I can look at adding something, maybe just the
+> sme_me_mask value, which if non-zero, would indicate SME is active.
+> 
+> > 
+> > > crash kernel can would be able to copy the memory decrypted if the
+> > > pagetable is set up properly. It looks like currently ioremap_cache()
+> > > is used to map the old memory page.  That might be able to be changed
+> > > to a memremap() so that the encryption bit is set in the mapping. That
+> > > will mean that memory that is not marked encrypted (EFI tables, swiotlb
+> > > memory, etc) would not be read correctly.
+> > 
+> > Manage to store info about those ranges which are not encrypted so that
+> > memremap can handle them?
+> 
+> I can look into whether something can be done in this area. Any input
+> you can provide as to what would be the best way/place to store the
+> range info so kdump can make use of it, would be greatly appreciated.
 
-Hi, Tejun
+Previously to support efi runtime in kexec, I passed some efi
+infomation via setup_data, see below userspace kexec-tools commit:
+e1ffc9e9a0769e1f54185003102e9bec428b84e8, it was what Boris mentioned
+about the setup_data use case for kexec.
 
-Thanks for your suggestion. I have tried systemd-analyze to measure the
-effect, while looks not good.
+Suppose you have successfully tested kexec reboot, so the EFI tables you
+mentioned should be those area in old mem for copying /proc/vmcore? If
+only EFI tables and swiotlb maybe not worth to passing those stuff
+across kexec reboot.
 
-Result without patch
--------------------------
-Startup finished in 7.243s (kernel) + 25.034s (userspace) =3D 32.277s
-Startup finished in 7.254s (kernel) + 19.816s (userspace) =3D 27.071s
-Startup finished in 7.272s (kernel) + 4.363s (userspace) =3D 11.636s
-Startup finished in 7.258s (kernel) + 24.319s (userspace) =3D 31.577s
-Startup finished in 7.262s (kernel) + 9.481s (userspace) =3D 16.743s
-Startup finished in 7.266s (kernel) + 14.766s (userspace) =3D 22.032s
+I have more idea about this for now..
+> 
+> > 
+> > > 
+> > > > 
+> > > > Would it make sense to include some printk to the user if they
+> > > > are setting up kdump that they won't get anything out of it?
+> > > 
+> > > Probably a good idea to add something like that.
+> > 
+> > It will break kdump functionality, it should be fixed instead of
+> > just adding printk to warn user..
+> 
+> I do want kdump to work. I'll investigate further what can be done in
+> this area.
 
-Avg =3D 7.259s
+Thanks a lot!
 
-Result with patch
--------------------------
-Startup finished in 7.262s (kernel) + 14.294s (userspace) =3D 21.557s
-Startup finished in 7.264s (kernel) + 19.519s (userspace) =3D 26.783s
-Startup finished in 7.266s (kernel) + 4.730s (userspace) =3D 11.997s
-Startup finished in 7.258s (kernel) + 9.514s (userspace) =3D 16.773s
-Startup finished in 7.258s (kernel) + 14.371s (userspace) =3D 21.629s
-Startup finished in 7.258s (kernel) + 14.627s (userspace) =3D 21.885s
-
-Avg =3D 7.261s
-
-It looks the effect is not obvious. Maybe the improvement is not good
-enough :(
-
->> >> * Do we really need to add full reverse iterator to just get the
->> >>   highest section number?
->> >>
->> >
->> > You are right. After I sent out the mail, I realized just highest pfn
->> > is necessary.
->
->That said, getting efficient is always great as long as the added
->complexity is justifiably small enough.  If you can make the change
->simple enough, it'd be a lot easier to merge.
->
-
-Agree.
-
-I have replaced the reverse iteration with a simple last pfn return. The te=
-st
-result above is based on the new version.
-
->Thanks.
->
->--=20
->tejun
-
---=20
-Wei Yang
-Help you, Help me
-
---VS++wcV0S1rZb1Fb
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJYv7oqAAoJEKcLNpZP5cTdW0IP/RYXTERjwzLqnqPOGHm8OsHX
-cqT8+4RLUK70SwOnwLh58BFkssM7V4oq/zaR9mGze3z5er+U+UFdXKRry/x6t5KR
-GgHDHzxBVaFuFwDZ8mEDhvcJbnH2/AxS2RLsI49tWPgImBeb+bX8LV2X07Dl7U78
-tFkttZ3Fa1VZRNyFGTNEPeuB5U+/RaC5Xa+EkXfuraju1icDh2xN3f2M7+/dOSpr
-ACGLl7Ug3/B6eBQPUh8ll5pJBpaQoYP/efAZ6xLdIPybsPO7tPxDCEvCVHrhg6tO
-kQVm2nPjOiq4/tpOvRENtdp+VlEdBMSItVlJ651OW2D6Johnl+XIjPzyaAzjgx6Y
-0znAbmDBsG+qbuyR7SWt24A095XlXOTaBsxpcMgZnbgEkODcNpqqzQUIsTr0mXj3
-XzH2LsTZUMTKmkbIqE393aPeq1yl+w0krQ9gN3pEJRmOU7nGcfqOMH2AErEDkl95
-BXFlfEOWaMzDLgs6Uj7r5BVj3TSCduzKmtaQeDhq/pTXA3utD5rq/cuJ6lf8tSkI
-+U8GhJ3iu44yl09jvG8IrOil2j62ndb2hoapELMlocOhPQvrmcZ7t8lW8eu3HHsi
-HcPG6Vj3k93Pjmvc5v464TXx8pgKcVDXBkkT8OHWO9p3s3VeDjJ7B0fcXT2D1dwg
-w08jZLsbelG/ek+CFdfq
-=FhWU
------END PGP SIGNATURE-----
-
---VS++wcV0S1rZb1Fb--
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
