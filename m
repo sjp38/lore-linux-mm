@@ -1,151 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6576B03AD
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:48 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 77so42590006pgc.5
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:48 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1F36B03AE
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:50 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y17so44388797pgh.2
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:50 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.47
+        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 23:26:47 -0800 (PST)
+        Tue, 07 Mar 2017 23:26:49 -0800 (PST)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v6 5/9] mm, THP, swap: Support to clear SWAP_HAS_CACHE for huge page
-Date: Wed,  8 Mar 2017 15:26:09 +0800
-Message-Id: <20170308072613.17634-6-ying.huang@intel.com>
+Subject: [PATCH -mm -v6 6/9] mm, THP, swap: Support to add/delete THP to/from swap cache
+Date: Wed,  8 Mar 2017 15:26:10 +0800
+Message-Id: <20170308072613.17634-7-ying.huang@intel.com>
 In-Reply-To: <20170308072613.17634-1-ying.huang@intel.com>
 References: <20170308072613.17634-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
 From: Huang Ying <ying.huang@intel.com>
 
-__swapcache_free() is added to support to clear the SWAP_HAS_CACHE flag
-for the huge page.  This will free the specified swap cluster now.
-Because now this function will be called only in the error path to free
-the swap cluster just allocated.  So the corresponding swap_map[i] ==
-SWAP_HAS_CACHE, that is, the swap count is 0.  This makes the
-implementation simpler than that of the ordinary swap entry.
+With this patch, a THP (Transparent Huge Page) can be added/deleted
+to/from the swap cache as a set of (HPAGE_PMD_NR) sub-pages.
 
-This will be used for delaying splitting THP (Transparent Huge Page)
-during swapping out.  Where for one THP to swap out, we will allocate a
-swap cluster, add the THP into the swap cache, then split the THP.  If
-anything fails after allocating the swap cluster and before splitting
-the THP successfully, the swapcache_free_trans_huge() will be used to
-free the swap space allocated.
+This will be used for the THP (Transparent Huge Page) swap support.
+Where one THP may be added/delted to/from the swap cache.  This will
+batch the swap cache operations to reduce the lock acquire/release times
+for the THP swap too.
 
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: Shaohua Li <shli@kernel.org>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/swap.h |  9 +++++++--
- mm/swapfile.c        | 34 ++++++++++++++++++++++++++++++++--
- 2 files changed, 39 insertions(+), 4 deletions(-)
+ include/linux/page-flags.h |  5 ++--
+ mm/swap_state.c            | 64 ++++++++++++++++++++++++++++++----------------
+ 2 files changed, 45 insertions(+), 24 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index e3a7609a8989..2f2a6c0363aa 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -394,7 +394,7 @@ extern void swap_shmem_alloc(swp_entry_t);
- extern int swap_duplicate(swp_entry_t);
- extern int swapcache_prepare(swp_entry_t);
- extern void swap_free(swp_entry_t);
--extern void swapcache_free(swp_entry_t);
-+extern void __swapcache_free(swp_entry_t entry, bool huge);
- extern void swapcache_free_entries(swp_entry_t *entries, int n);
- extern int free_swap_and_cache(swp_entry_t);
- extern int swap_type_of(dev_t, sector_t, struct block_device **);
-@@ -456,7 +456,7 @@ static inline void swap_free(swp_entry_t swp)
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 6b5818d6de32..f4acd6c4f808 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -326,11 +326,12 @@ PAGEFLAG_FALSE(HighMem)
+ #ifdef CONFIG_SWAP
+ static __always_inline int PageSwapCache(struct page *page)
  {
- }
++	page = compound_head(page);
+ 	return PageSwapBacked(page) && test_bit(PG_swapcache, &page->flags);
  
--static inline void swapcache_free(swp_entry_t swp)
-+static inline void __swapcache_free(swp_entry_t swp, bool huge)
- {
  }
- 
-@@ -544,6 +544,11 @@ static inline swp_entry_t get_huge_swap_page(void)
- }
+-SETPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
+-CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
++SETPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
++CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
+ #else
+ PAGEFLAG_FALSE(SwapCache)
  #endif
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 3c248f0a0abc..387466fd114b 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -38,6 +38,7 @@ struct address_space *swapper_spaces[MAX_SWAPFILES];
+ static unsigned int nr_swapper_spaces[MAX_SWAPFILES];
  
-+static inline void swapcache_free(swp_entry_t entry)
-+{
-+	__swapcache_free(entry, false);
-+}
-+
- #ifdef CONFIG_MEMCG
- static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
- {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 7241c937e52b..6019f94afbaf 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -855,6 +855,29 @@ static void swap_free_huge_cluster(struct swap_info_struct *si,
- 	_swap_entry_free(si, offset, true);
- }
+ #define INC_CACHE_INFO(x)	do { swap_cache_info.x++; } while (0)
++#define ADD_CACHE_INFO(x, nr)	do { swap_cache_info.x += (nr); } while (0)
  
-+static void swapcache_free_trans_huge(struct swap_info_struct *si,
-+				      swp_entry_t entry)
-+{
-+	unsigned long offset = swp_offset(entry);
-+	unsigned long idx = offset / SWAPFILE_CLUSTER;
-+	struct swap_cluster_info *ci;
-+	unsigned char *map;
-+	unsigned int i;
-+
-+	spin_lock(&si->lock);
-+	ci = lock_cluster(si, offset);
-+	map = si->swap_map + offset;
-+	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-+		VM_BUG_ON(map[i] != SWAP_HAS_CACHE);
-+		map[i] &= ~SWAP_HAS_CACHE;
-+	}
-+	unlock_cluster(ci);
-+	/* Cluster size is same as huge pmd size */
-+	mem_cgroup_uncharge_swap(entry, HPAGE_PMD_NR);
-+	swap_free_huge_cluster(si, idx);
-+	spin_unlock(&si->lock);
-+}
-+
- static int swap_alloc_huge_cluster(struct swap_info_struct *si,
- 				   swp_entry_t *slot)
- {
-@@ -887,6 +910,11 @@ static inline int swap_alloc_huge_cluster(struct swap_info_struct *si,
- {
- 	return 0;
- }
-+
-+static inline void swapcache_free_trans_huge(struct swap_info_struct *si,
-+					     swp_entry_t entry)
-+{
-+}
- #endif
- 
- static unsigned long scan_swap_map(struct swap_info_struct *si,
-@@ -1161,13 +1189,15 @@ void swap_free(swp_entry_t entry)
- /*
-  * Called after dropping swapcache to decrease refcnt to swap entries.
+ static struct {
+ 	unsigned long add_total;
+@@ -90,39 +91,52 @@ void show_swap_cache_info(void)
   */
--void swapcache_free(swp_entry_t entry)
-+void __swapcache_free(swp_entry_t entry, bool huge)
+ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
  {
- 	struct swap_info_struct *p;
+-	int error;
++	int error, i, nr = hpage_nr_pages(page);
+ 	struct address_space *address_space;
++	struct page *cur_page;
++	swp_entry_t cur_entry;
  
- 	p = _swap_info_get(entry);
- 	if (p) {
--		if (!__swap_entry_free(p, entry, SWAP_HAS_CACHE))
-+		if (unlikely(huge))
-+			swapcache_free_trans_huge(p, entry);
-+		else if (!__swap_entry_free(p, entry, SWAP_HAS_CACHE))
- 			free_swap_slot(entry);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageSwapCache(page), page);
+ 	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 
+-	get_page(page);
++	page_ref_add(page, nr);
+ 	SetPageSwapCache(page);
+-	set_page_private(page, entry.val);
+ 
+ 	address_space = swap_address_space(entry);
++	cur_page = page;
++	cur_entry.val = entry.val;
+ 	spin_lock_irq(&address_space->tree_lock);
+-	error = radix_tree_insert(&address_space->page_tree,
+-				  swp_offset(entry), page);
+-	if (likely(!error)) {
+-		address_space->nrpages++;
+-		__inc_node_page_state(page, NR_FILE_PAGES);
+-		INC_CACHE_INFO(add_total);
++	for (i = 0; i < nr; i++, cur_page++, cur_entry.val++) {
++		set_page_private(cur_page, cur_entry.val);
++		error = radix_tree_insert(&address_space->page_tree,
++					  swp_offset(cur_entry), cur_page);
++		if (unlikely(error))
++			break;
  	}
+-	spin_unlock_irq(&address_space->tree_lock);
+-
+-	if (unlikely(error)) {
++	if (likely(!error)) {
++		address_space->nrpages += nr;
++		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
++		ADD_CACHE_INFO(add_total, nr);
++	} else {
+ 		/*
+ 		 * Only the context which have set SWAP_HAS_CACHE flag
+ 		 * would call add_to_swap_cache().
+ 		 * So add_to_swap_cache() doesn't returns -EEXIST.
+ 		 */
+ 		VM_BUG_ON(error == -EEXIST);
+-		set_page_private(page, 0UL);
++		set_page_private(cur_page, 0UL);
++		while (i--) {
++			cur_page--;
++			cur_entry.val--;
++			radix_tree_delete(&address_space->page_tree,
++					  swp_offset(cur_entry));
++			set_page_private(cur_page, 0UL);
++		}
+ 		ClearPageSwapCache(page);
+-		put_page(page);
++		page_ref_sub(page, nr);
+ 	}
++	spin_unlock_irq(&address_space->tree_lock);
+ 
+ 	return error;
  }
+@@ -132,7 +146,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+ {
+ 	int error;
+ 
+-	error = radix_tree_maybe_preload(gfp_mask);
++	error = radix_tree_maybe_preload_order(gfp_mask, compound_order(page));
+ 	if (!error) {
+ 		error = __add_to_swap_cache(page, entry);
+ 		radix_tree_preload_end();
+@@ -148,6 +162,7 @@ void __delete_from_swap_cache(struct page *page)
+ {
+ 	swp_entry_t entry;
+ 	struct address_space *address_space;
++	int i, nr = hpage_nr_pages(page);
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+@@ -155,12 +170,17 @@ void __delete_from_swap_cache(struct page *page)
+ 
+ 	entry.val = page_private(page);
+ 	address_space = swap_address_space(entry);
+-	radix_tree_delete(&address_space->page_tree, swp_offset(entry));
+-	set_page_private(page, 0);
++	for (i = 0; i < nr; i++, entry.val++) {
++		struct page *cur_page = page + i;
++
++		radix_tree_delete(&address_space->page_tree,
++				  swp_offset(entry));
++		set_page_private(cur_page, 0);
++	}
+ 	ClearPageSwapCache(page);
+-	address_space->nrpages--;
+-	__dec_node_page_state(page, NR_FILE_PAGES);
+-	INC_CACHE_INFO(del_total);
++	address_space->nrpages -= nr;
++	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
++	ADD_CACHE_INFO(del_total, nr);
+ }
+ 
+ /**
+@@ -237,8 +257,8 @@ void delete_from_swap_cache(struct page *page)
+ 	__delete_from_swap_cache(page);
+ 	spin_unlock_irq(&address_space->tree_lock);
+ 
+-	swapcache_free(entry);
+-	put_page(page);
++	__swapcache_free(entry, PageTransHuge(page));
++	page_ref_sub(page, hpage_nr_pages(page));
+ }
+ 
+ /* 
 -- 
 2.11.0
 
