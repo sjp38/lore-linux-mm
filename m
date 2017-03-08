@@ -1,137 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1436B03D9
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 16:24:00 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id h188so15431795wma.4
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 13:24:00 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AFF16B03DC
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 16:28:59 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c143so15602913wmd.1
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 13:28:59 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o104si5899424wrc.239.2017.03.08.13.23.58
+        by mx.google.com with ESMTPS id a17si5912247wrc.296.2017.03.08.13.28.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Mar 2017 13:23:58 -0800 (PST)
+        Wed, 08 Mar 2017 13:28:57 -0800 (PST)
 From: NeilBrown <neilb@suse.com>
-Date: Thu, 09 Mar 2017 08:23:43 +1100
-Subject: Re: [PATCH v2 3/9] mm: clear any AS_* errors when returning error on any fsync or close
-In-Reply-To: <20170308162934.21989-4-jlayton@redhat.com>
-References: <20170308162934.21989-1-jlayton@redhat.com> <20170308162934.21989-4-jlayton@redhat.com>
-Message-ID: <8760jjv4ww.fsf@notabene.neil.brown.name>
+Date: Thu, 09 Mar 2017 08:28:44 +1100
+Subject: Re: [PATCH v2 6/9] mm: set mapping error when launder_pages fails
+In-Reply-To: <1488996103.3098.4.camel@primarydata.com>
+References: <20170308162934.21989-1-jlayton@redhat.com> <20170308162934.21989-7-jlayton@redhat.com> <1488996103.3098.4.camel@primarydata.com>
+Message-ID: <8737env4oj.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
 Content-Type: multipart/signed; boundary="=-=-=";
 	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
-Cc: konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, ross.zwisler@linux.intel.com, jack@suse.cz, openosd@gmail.com, adilger@dilger.ca, James.Bottomley@HansenPartnership.com
+To: Trond Myklebust <trondmy@primarydata.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "jlayton@redhat.com" <jlayton@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "konishi.ryusuke@lab.ntt.co.jp" <konishi.ryusuke@lab.ntt.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adilger@dilger.ca" <adilger@dilger.ca>, "James.Bottomley@HansenPartnership.com" <James.Bottomley@HansenPartnership.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "openosd@gmail.com" <openosd@gmail.com>, "jack@suse.cz" <jack@suse.cz>
 
 --=-=-=
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-On Thu, Mar 09 2017, Jeff Layton wrote:
+On Thu, Mar 09 2017, Trond Myklebust wrote:
 
-> Currently we don't clear the address space error when there is a -EIO
-> error on fsynci, due to writeback initiation failure. If writes fail
-> with -EIO and the mapping is flagged with an AS_EIO or AS_ENOSPC error,
-> then we can end up returning errors on two fsync calls, even when a
-> write between them succeeded (or there was no write).
+> On Wed, 2017-03-08 at 11:29 -0500, Jeff Layton wrote:
+>> If launder_page fails, then we hit a problem writing back some inode
+>> data. Ensure that we communicate that fact in a subsequent fsync
+>> since
+>> another task could still have it open for write.
+>>=20
+>> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+>> ---
+>> =C2=A0mm/truncate.c | 6 +++++-
+>> =C2=A01 file changed, 5 insertions(+), 1 deletion(-)
+>>=20
+>> diff --git a/mm/truncate.c b/mm/truncate.c
+>> index 6263affdef88..29ae420a5bf9 100644
+>> --- a/mm/truncate.c
+>> +++ b/mm/truncate.c
+>> @@ -594,11 +594,15 @@ invalidate_complete_page2(struct address_space
+>> *mapping, struct page *page)
+>> =C2=A0
+>> =C2=A0static int do_launder_page(struct address_space *mapping, struct
+>> page *page)
+>> =C2=A0{
+>> +	int ret;
+>> +
+>> =C2=A0	if (!PageDirty(page))
+>> =C2=A0		return 0;
+>> =C2=A0	if (page->mapping !=3D mapping || mapping->a_ops->launder_page=20
+>> =3D=3D NULL)
+>> =C2=A0		return 0;
+>> -	return mapping->a_ops->launder_page(page);
+>> +	ret =3D mapping->a_ops->launder_page(page);
+>> +	mapping_set_error(mapping, ret);
+>> +	return ret;
+>> =C2=A0}
+>> =C2=A0
+>> =C2=A0/**
 >
-> Ensure that we also clear out any mapping errors when initiating
-> writeback fails with -EIO in filemap_write_and_wait and
-> filemap_write_and_wait_range.
+> No. At that layer, you don't know that this is a page error. In the NFS
+> case, it could, for instance, just as well be a fatal signal.
+>
 
-This change appears to assume that filemap_write_and_wait* is only
-called from fsync() (or similar) and the return status is always
-checked.
-
-A __must_check annotation might be helpful.
-
-It would catch v9_fs_file_lock(), afs_setattr() and others.
-
-While I think your change is probably heading in the right direction,
-there seem to be some loose ends still.
+In that case, would 'ret' be ERESTARTSYS or EAGAIN or similar?
+Should mapping_set_error() ignore those?
 
 Thanks,
 NeilBrown
 
-
->
-> Suggested-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> ---
->  mm/filemap.c | 20 ++++++++++++++++++--
->  1 file changed, 18 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 1694623a6289..fc123b9833e1 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -488,7 +488,7 @@ EXPORT_SYMBOL(filemap_fdatawait);
->=20=20
->  int filemap_write_and_wait(struct address_space *mapping)
->  {
-> -	int err =3D 0;
-> +	int err;
->=20=20
->  	if ((!dax_mapping(mapping) && mapping->nrpages) ||
->  	    (dax_mapping(mapping) && mapping->nrexceptional)) {
-> @@ -499,10 +499,18 @@ int filemap_write_and_wait(struct address_space *ma=
-pping)
->  		 * But the -EIO is special case, it may indicate the worst
->  		 * thing (e.g. bug) happened, so we avoid waiting for it.
->  		 */
-> -		if (err !=3D -EIO) {
-> +		if (likely(err !=3D -EIO)) {
->  			int err2 =3D filemap_fdatawait(mapping);
->  			if (!err)
->  				err =3D err2;
-> +		} else {
-> +			/*
-> +			 * Clear the error in the address space since we're
-> +			 * returning an error here. -EIO takes precedence over
-> +			 * everything else though, so we can just discard
-> +			 * the return here.
-> +			 */
-> +			filemap_check_errors(mapping);
->  		}
->  	} else {
->  		err =3D filemap_check_errors(mapping);
-> @@ -537,6 +545,14 @@ int filemap_write_and_wait_range(struct address_spac=
-e *mapping,
->  						lstart, lend);
->  			if (!err)
->  				err =3D err2;
-> +		} else {
-> +			/*
-> +			 * Clear the error in the address space since we're
-> +			 * returning an error here. -EIO takes precedence over
-> +			 * everything else though, so we can just discard
-> +			 * the return here.
-> +			 */
-> +			filemap_check_errors(mapping);
->  		}
->  	} else {
->  		err =3D filemap_check_errors(mapping);
 > --=20
-> 2.9.3
+> Trond Myklebust
+> Linux NFS client maintainer, PrimaryData
+> trond.myklebust@primarydata.com
 
 --=-=-=
 Content-Type: application/pgp-signature; name="signature.asc"
 
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAljAdl8ACgkQOeye3VZi
-gbl3eA/+MHlvrAE/RoCtylFQeUKXcIJwyWqCGL5/a9GFsx4b7ThrjUDLSSn4O3Gz
-sqtpmMfUiFp+1f0P+R/khbRx52i29fPQ2oQEhcCtz/2RwDMsWqD1GzT6gZRt+zSs
-ez8CnRf4xPsI7HlY64nEj9XspXkGsqx88hamQuuB+jfiNUVPIxn9Oh18JZf6A1UD
-Seb38eTEt9DAZUQKaDdT36lsIEEqNNW/CdGwJoVQg75R4lubYngFi/PgJy4eQULp
-OSwB1i8aIFTEU0qMjkJH2uD60KA8jwhKZWWW8SKUsgehzfjKT928ScHmKnE3KU44
-zg0klEdPQe/L5DAMnzTkH4p7cT7cFo2bx6a8jVjgAPsOgYfmLe1GpFcRUjW/CbZw
-MPmE0OYFjLb07DbKqRrwP7z6raS6IN2/Gp3jQe/ijfG0/BqqSvaZcgG3zGkqkrp6
-sVAo1VvQv5fVpefXJ6VFFLN1yK/V6nOHuBA+Gi5YEgNBgV4DVEmGLTrT/Mwouoxn
-zgjhJsCnsy9rE8bAB6G8w2dFD+p3rHuH41rr+NygHEcFgnPK6O0WGFp97I9E4mN+
-JiD7Eh0GODBhvjDraTDKuwSBiSIj0/FtzbQyQYetGZm8guig4AB69s/1iNj+Tf14
-oT/26tlpK5GDYoYwMVW/7Hvq40FTFjpiADVkqWDHHoarP2I+szY=
-=5okT
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAljAd4wACgkQOeye3VZi
+gbm1Aw/+KUaI5yaNmIZ/B1joRbcEHuqoYG5C+/qQf/DemKx0xH/GG+zANX6leXfH
+rWjSdfIlacmYOi4POgf1cgkcPv04PQIeb+9hZRC32tQL1AOYGMO1Yxsklt65hgto
+bbUz1NfKtohdNC4evGem/whT5lZcfEUOB2CM29FnG3rwluAGFrFRoPETaAiWSse8
+yg/UG4iScH6zfarf3ts3wf1wQ0vJEuqEMDoP298gQsWFi/ZildFlxbpjF6DTYchF
+LugVAQOhk68zrQ2xe9OJKDfiSQyTm2c3GptTotMa8KTvNT8ZFtfaC6lWA/14BZuS
+yJ8r1ZVJCprEVR/uYsclTEgouzuUbImnS/QyCoB+Nfd19KkxJAOC8+ssZsuhh/uH
+ERSV3j+mnJGpYhvBygUNDxyYwpkjZHPCOvLuIhWnb0u8YR40ldbwjrpN0Vd0ttZK
+rhQY6AxSIe9EcM2/NBR4U2KmFjY6/ErBgpBmeG5tOKkANG2od6j/bIwO9o9sIhp2
+euOXk/NzD0tqEbvRG9NYk0g9sFIUI+frn1vBj150VwSrcef3wJyOEED6IuXB5W00
+anHaZr8QfQXSIvwKPYEWW9TPo34oTMrTuN7cTV2zik275CBqsEEiFpiHLGbJSnHj
+JQ7j6EHBdoH9FYH9FIEsGFHm8fHnF9l2VzD0nO9C/09VkpFAt0U=
+=lbYc
 -----END PGP SIGNATURE-----
 --=-=-=--
 
