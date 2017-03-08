@@ -1,226 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BE02E831DF
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 06:47:35 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id e5so52795174pgk.1
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 03:47:35 -0800 (PST)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id p186si3066774pfg.26.2017.03.08.03.47.34
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C5120831DF
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 06:50:57 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id i50so43523969otd.3
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 03:50:57 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 142si1432119oie.282.2017.03.08.03.50.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Mar 2017 03:47:34 -0800 (PST)
-Received: from epcas5p1.samsung.com (unknown [182.195.41.39])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OMH02M0TVF86G30@mailout2.samsung.com> for linux-mm@kvack.org;
- Wed, 08 Mar 2017 20:47:32 +0900 (KST)
-MIME-version: 1.0
-Subject: [PATCH] zswap: Zero-filled pages handling
-Reply-to: srividya.dr@samsung.com
-From: Srividya Desireddy <srividya.dr@samsung.com>
-In-reply-to: 
- <CALZtONCqMmOqaO-UWM5tVs4MauXx-eHH=GkYzw6CQ07mOwhcTQ@mail.gmail.com>
-Message-id: <20170308114731epcms5p2fae83e707aec9640e8f2fe11755fbe9a@epcms5p2>
-Date: Wed, 08 Mar 2017 11:47:31 +0000
-Content-type: multipart/related;
- boundary="----=_Part_286835_1483174625.1488973651596"
-References: 
- <CALZtONCqMmOqaO-UWM5tVs4MauXx-eHH=GkYzw6CQ07mOwhcTQ@mail.gmail.com>
- <20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p1>
- <CAP2rAF-C1Fti4qZRFgQxnzUucpm+KvrbPY3kEPi9zgyqC_y0DQ@mail.gmail.com>
- <CGME20170225144222epcms5p15930f37372ec628420474e4d43ccfa16@epcms5p2>
+        Wed, 08 Mar 2017 03:50:57 -0800 (PST)
+Subject: Re: [PATCH] mm: move pcp and lru-pcp drainging into single wq
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170307131751.24936-1-mhocko@kernel.org>
+	<201703072250.FJD86423.FJOHOFLFOMQVSt@I-love.SAKURA.ne.jp>
+	<20170307142338.GL28642@dhcp22.suse.cz>
+In-Reply-To: <20170307142338.GL28642@dhcp22.suse.cz>
+Message-Id: <201703082050.FHI90692.OFFJMOFVQtOSHL@I-love.SAKURA.ne.jp>
+Date: Wed, 8 Mar 2017 20:50:45 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>, Sarbojit Ganguly <unixman.linuxboy@gmail.com>
-Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, Sarbojit Ganguly <ganguly.s@samsung.com>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-------=_Part_286835_1483174625.1488973651596
-Content-Transfer-Encoding: base64
-Content-Type: text/plain; charset="utf-8"
+Michal Hocko wrote:
+> On Tue 07-03-17 22:50:48, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
+> > > vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
+> > > per cpu lru caches. This seems more than necessary because both can run
+> > > on a single WQ. Both do not block on locks requiring a memory allocation
+> > > nor perform any allocations themselves. We will save one rescuer thread
+> > > this way.
+> > > 
+> > > On the other hand drain_all_pages() queues work on the system wq which
+> > > doesn't have rescuer and so this depend on memory allocation (when all
+> > > workers are stuck allocating and new ones cannot be created). This is
+> > > not critical as there should be somebody invoking the OOM killer (e.g.
+> > > the forking worker) and get the situation unstuck and eventually
+> > > performs the draining. Quite annoying though. This worker should be
+> > > using WQ_RECLAIM as well. We can reuse the same one as for lru draining
+> > > and vmstat.
+> > 
+> > Is "there should be somebody invoking the OOM killer" really true?
+> 
+> in most cases there should be... I didn't say there will be...
 
-DQpPbiBTYXQsIE1hciA0LCAyMDE3IGF0IDAyOjU1IEFNLCBEYW4gU3RyZWV0bWFuIDxkZHN0cmVl
-dEBpZWVlLm9yZz4gd3JvdGU6DQo+IE9uIFNhdCwgRmViIDI1LCAyMDE3IGF0IDEyOjE4IFBNLCBT
-YXJib2ppdCBHYW5ndWx5DQo+IDx1bml4bWFuLmxpbnV4Ym95QGdtYWlsLmNvbT4gd3JvdGU6DQo+
-PiBPbiAyNSBGZWJydWFyeSAyMDE3IGF0IDIwOjEyLCBTcml2aWR5YSBEZXNpcmVkZHkNCj4+IDxz
-cml2aWR5YS5kckBzYW1zdW5nLmNvbT4gd3JvdGU6DQo+Pj4gRnJvbTogU3JpdmlkeWEgRGVzaXJl
-ZGR5IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4NCj4+PiBEYXRlOiBUaHUsIDIzIEZlYiAyMDE3
-IDE1OjA0OjA2ICswNTMwDQo+Pj4gU3ViamVjdDogW1BBVENIXSB6c3dhcDogWmVyby1maWxsZWQg
-cGFnZXMgaGFuZGxpbmcNCj4NCj4geW91ciBlbWFpbCBpcyBiYXNlNjQtZW5jb2RlZDsgcGxlYXNl
-IHNlbmQgcGxhaW4gdGV4dCBlbWFpbHMuDQo+DQo+Pj4NCj4+PiBac3dhcCBpcyBhIGNhY2hlIHdo
-aWNoIGNvbXByZXNzZXMgdGhlIHBhZ2VzIHRoYXQgYXJlIGJlaW5nIHN3YXBwZWQgb3V0DQo+Pj4g
-YW5kIHN0b3JlcyB0aGVtIGludG8gYSBkeW5hbWljYWxseSBhbGxvY2F0ZWQgUkFNLWJhc2VkIG1l
-bW9yeSBwb29sLg0KPj4+IEV4cGVyaW1lbnRzIGhhdmUgc2hvd24gdGhhdCBhcm91bmQgMTAtMjAl
-IG9mIHBhZ2VzIHN0b3JlZCBpbiB6c3dhcA0KPj4+IGFyZSB6ZXJvLWZpbGxlZCBwYWdlcyAoaS5l
-LiBjb250ZW50cyBvZiB0aGUgcGFnZSBhcmUgYWxsIHplcm9zKSwgYnV0DQo+DQo+IDIwJT8gIHRo
-YXQncyBhIExPVCBvZiB6ZXJvIHBhZ2VzLi4ud2hpY2ggc2VlbXMgbGlrZSBhcHBsaWNhdGlvbnMg
-YXJlDQo+IHdhc3RpbmcgYSBsb3Qgb2YgbWVtb3J5LiAgd2hhdCBraW5kIG9mIHdvcmtsb2FkIGFy
-ZSB5b3UgdGVzdGluZyB3aXRoPw0KPg0KDQpJIGhhdmUgdGVzdGVkIHRoaXMgcGF0Y2ggd2l0aCBk
-aWZmZXJlbnQgd29ya2xvYWRlZCBvbiBkaWZmZXJlbnQgZGV2aWNlcy4NCk9uIFVidW50dSBQQyB3
-aXRoIDJHQiBSQU0sIHdoaWxlIGV4ZWN1dGluZyBrZXJuZWwgYnVpbGQgYW5kIG90aGVyIHRlc3Qg
-DQpzY3JpcHRzIH4xNSUgb2YgcGFnZXMgaW4genN3YXAgd2VyZSB6ZXJvIHBhZ2VzLiBXaXRoIG11
-bHRpbWVkaWEgd29ya2xvYWQNCm1vcmUgdGhhbiAyMCUgb2YgenN3YXAgcGFnZXMgd2VyZSBmb3Vu
-ZCB0byBiZSB6ZXJvIHBhZ2VzLg0KT24gYSBBUk0gUXVhZCBDb3JlIDMyLWJpdCBkZXZpY2Ugd2l0
-aCAxLjVHQiBSQU0gYW4gYXZlcmFnZSAxMCUgb2YgemVybw0KcGFnZXMgd2VyZSBmb3VuZCBvbiBs
-YXVuY2hpbmcgYW5kIHJlbGF1bmNoaW5nIDE1IGFwcGxpY2F0aW9ucy4NCg0KPj4+IHRoZXNlIHBh
-Z2VzIGFyZSBoYW5kbGVkIGFzIG5vcm1hbCBwYWdlcyBieSBjb21wcmVzc2luZyBhbmQgYWxsb2Nh
-dGluZw0KPj4+IG1lbW9yeSBpbiB0aGUgcG9vbC4NCj4+Pg0KPj4+IFRoaXMgcGF0Y2ggYWRkcyBh
-IGNoZWNrIGluIHpzd2FwX2Zyb250c3dhcF9zdG9yZSgpIHRvIGlkZW50aWZ5IHplcm8tZmlsbGVk
-DQo+Pj4gcGFnZSBiZWZvcmUgY29tcHJlc3Npb24gb2YgdGhlIHBhZ2UuIElmIHRoZSBwYWdlIGlz
-IGEgemVyby1maWxsZWQgcGFnZSwgc2V0DQo+Pj4genN3YXBfZW50cnkuemVyb2ZsYWcgYW5kIHNr
-aXAgdGhlIGNvbXByZXNzaW9uIG9mIHRoZSBwYWdlIGFuZCBhbGxvY3Rpb24NCj4+PiBvZiBtZW1v
-cnkgaW4genBvb2wuIEluIHpzd2FwX2Zyb250c3dhcF9sb2FkKCksIGNoZWNrIGlmIHRoZSB6ZXJv
-ZmxhZyBpcw0KPj4+IHNldCBmb3IgdGhlIHBhZ2UgaW4genN3YXBfZW50cnkuIElmIHRoZSBmbGFn
-IGlzIHNldCwgbWVtc2V0IHRoZSBwYWdlIHdpdGgNCj4+PiB6ZXJvLiBUaGlzIHNhdmVzIHRoZSBk
-ZWNvbXByZXNzaW9uIHRpbWUgZHVyaW5nIGxvYWQuDQo+Pj4NCj4+PiBUaGUgb3ZlcmFsbCBvdmVy
-aGVhZCBjYXVzZWQgdG8gY2hlY2sgZm9yIGEgemVyby1maWxsZWQgcGFnZSBpcyB2ZXJ5IG1pbmlt
-YWwNCj4+PiB3aGVuIGNvbXBhcmVkIHRvIHRoZSB0aW1lIHNhdmVkIGJ5IGF2b2lkaW5nIGNvbXBy
-ZXNzaW9uIGFuZCBhbGxvY2F0aW9uIGluDQo+Pj4gY2FzZSBvZiB6ZXJvLWZpbGxlZCBwYWdlcy4g
-QWx0aG91Z2gsIGNvbXByZXNzZWQgc2l6ZSBvZiBhIHplcm8tZmlsbGVkIHBhZ2UNCj4+PiBpcyB2
-ZXJ5IGxlc3MsIHdpdGggdGhpcyBwYXRjaCBsb2FkIHRpbWUgb2YgYSB6ZXJvLWZpbGxlZCBwYWdl
-IGlzIHJlZHVjZWQgYnkNCj4+PiA4MCUgd2hlbiBjb21wYXJlZCB0byBiYXNlbGluZS4NCj4+DQo+
-PiBJcyBpdCBwb3NzaWJsZSB0byBzaGFyZSB0aGUgYmVuY2htYXJrIGRldGFpbHM/DQo+DQo+IFdh
-cyB0aGVyZSBhbiBhbnN3ZXIgdG8gdGhpcz8NCj4NCg0KVGhpcyBwYXRjaCBpcyB0ZXN0ZWQgb24g
-YSBBUk0gUXVhZCBDb3JlIDMyLWJpdCBkZXZpY2Ugd2l0aCAxLjVHQiBSQU0gYnkNCmxhdW5jaGlu
-ZyBhbmQgcmVsYXVuY2hpbmcgZGlmZmVyZW50IGFwcGxpY2F0aW9ucy4gV2l0aCB0aGUgcGF0Y2gs
-IGFuDQphdmVyYWdlIG9mIDUwMDAgcGFnZXMgemVybyBwYWdlcyBmb3VuZCBpbiB6c3dhcCBvdXQg
-b2YgdGhlIH41MDAwMCBwYWdlcw0Kc3RvcmVkIGluIHpzd2FwIGFuZCBhcHBsaWNhdGlvbiBsYXVu
-Y2ggdGltZSBpbXByb3ZlZCBieSB+MyUuDQoNClRlc3QgUGFyYW1ldGVycwkJQmFzZWxpbmUgICAg
-V2l0aCBwYXRjaCAgSW1wcm92ZW1lbnQNCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tDQpUb3RhbCBSQU0gICAgICAgICAgICAgICAxMzQz
-TUIgICAgICAxMzQzTUIgICAgICAgICANCkF2YWlsYWJsZSBSQU0gICAgICAgICAgIDQ1MU1CICAg
-ICAgIDQ0NU1CICAgICAgICAgLTZNQg0KQXZnLiBNZW1mcmVlICAgICAgICAgICAgNjlNQiAgICAg
-ICAgNzBNQiAgICAgICAgICAxTUINCkF2Zy4gU3dhcCBVc2VkICAgICAgICAgIDIyNk1CICAgICAg
-IDIxNU1CICAgICAgICAgLTExTUINCkF2Zy4gQXBwIGVudHJ5IHRpbWUgICAgIDY0NG1zZWMgICAg
-IDYyM21zZWMgICAgICAgMyUNCg0KV2l0aCBwYXRjaCwgZXZlcnkgcGFnZSBzd2FwcGVkIHRvIHpz
-d2FwIGlzIGNoZWNrZWQgaWYgaXQgaXMgYSB6ZXJvDQpwYWdlIG9yIG5vdCBhbmQgZm9yIGFsbCB0
-aGUgemVybyBwYWdlcyBjb21wcmVzc2lvbiBhbmQgbWVtb3J5IGFsbG9jYXRpb24NCm9wZXJhdGlv
-bnMgYXJlIHNraXBwZWQuIE92ZXJhbGwgdGhlcmUgaXMgYW4gaW1wcm92ZW1lbnQgb2YgMzAlIGlu
-IHpzd2FwDQpzdG9yZSB0aW1lLg0KSW4gY2FzZSBvZiBub24temVybyBwYWdlcyB0aGVyZSBpcyBu
-byBvdmVyaGVhZCBkdXJpbmcgenN3YXAgcGFnZSBsb2FkLiBGb3IgDQp6ZXJvIHBhZ2VzIHRoZXJl
-IGlzIGEgaW1wcm92ZW1lbnQgb2YgbW9yZSB0aGFuIDYwJSBpbiB0aGUgenN3YXAgbG9hZCB0aW1l
-IA0KYXMgdGhlIHplcm8gcGFnZSBkZWNvbXByZXNzaW9uIGlzIGF2b2lkZWQuDQoNClRoZSBiZWxv
-dyB0YWJsZSBzaG93cyB0aGUgZXhlY3V0aW9uIHRpbWUgcHJvZmlsaW5nIG9mIHRoZSBwYXRjaC4N
-Cg0KWnN3YXAgU3RvcmUgT3BlcmF0aW9uICAgICBCYXNlbGluZSAgICBXaXRoIHBhdGNoICAlIElt
-cHJvdmVtZW50DQotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLQ0KKiBaZXJvIHBhZ2UgY2hlY2sgICAgICAgICAgICAtLSAgICAgICAg
-IDIyLjVtcw0KIChmb3Igbm9uLXplcm8gcGFnZXMpDQoqIFplcm8gcGFnZSBjaGVjayAgICAgICAg
-ICAgIC0tICAgICAgICAgMjRtcw0KIChmb3IgemVybyBwYWdlcykNCiogQ29tcHJlc3Npb24gdGlt
-ZSAgICAgICAgICA1NW1zICAgICAgICAgLS0NCiAob2YgemVybyBwYWdlcykNCiogQWxsb2NhdGlv
-biB0aW1lICAgICAgICAgICAxNG1zICAgICAgICAgLS0NCiAodG8gc3RvcmUgY29tcHJlc3NlZCAN
-CiAgemVybyBwYWdlcykNCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0gICANClRvdGFsICAgICAgICAgICAgICAgICAgICAgICA2OW1z
-ICAgICAgICA0Ni41bXMgICAgICAgICAzMiUNCg0KWnN3YXAgTG9hZCBPcGVyYXRpb24gICAgIEJh
-c2VsaW5lICAgIFdpdGggcGF0Y2ggICUgSW1wcm92ZW1lbnQNCi0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0NCiogRGVjb21wcmVzc2lv
-biB0aW1lICAgICAgMzAuNG1zICAgICAgICAtLQ0KIChvZiB6ZXJvIHBhZ2VzKQ0KKiBaZXJvIHBh
-Z2UgY2hlY2sgKyAgICAgICAgLS0gICAgICAgICAxMC4wNG1zDQogbWVtc2V0IG9wZXJhdGlvbg0K
-IChvZiB6ZXJvIHBhZ2VzKQ0KLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLSAgIA0KVG90YWwgICAgICAgICAgICAgICAgICAgICAzMC40
-bXMgICAgICAxMC4wNG1zICAgICAgIDY2JQ0KDQoqVGhlIGV4ZWN1dGlvbiB0aW1lcyBtYXkgdmFy
-eSB3aXRoIHRlc3QgZGV2aWNlIHVzZWQuDQoNCj4+DQo+Pg0KPj4+DQo+Pj4gU2lnbmVkLW9mZi1i
-eTogU3JpdmlkeWEgRGVzaXJlZGR5IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4NCj4+PiAtLS0N
-Cj4+PiAgbW0venN3YXAuYyB8ICAgNDggKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKysrLS0tDQo+Pj4gIDEgZmlsZSBjaGFuZ2VkLCA0NSBpbnNlcnRpb25zKCspLCAz
-IGRlbGV0aW9ucygtKQ0KPj4+DQo+Pj4gZGlmZiAtLWdpdCBhL21tL3pzd2FwLmMgYi9tbS96c3dh
-cC5jDQo+Pj4gaW5kZXggMDY3YTBkNi4uYTU3NDAwOCAxMDA2NDQNCj4+PiAtLS0gYS9tbS96c3dh
-cC5jDQo+Pj4gKysrIGIvbW0venN3YXAuYw0KPj4+IEBAIC00OSw2ICs0OSw4IEBADQo+Pj4gIHN0
-YXRpYyB1NjQgenN3YXBfcG9vbF90b3RhbF9zaXplOw0KPj4+ICAvKiBUaGUgbnVtYmVyIG9mIGNv
-bXByZXNzZWQgcGFnZXMgY3VycmVudGx5IHN0b3JlZCBpbiB6c3dhcCAqLw0KPj4+ICBzdGF0aWMg
-YXRvbWljX3QgenN3YXBfc3RvcmVkX3BhZ2VzID0gQVRPTUlDX0lOSVQoMCk7DQo+Pj4gKy8qIFRo
-ZSBudW1iZXIgb2YgemVybyBmaWxsZWQgcGFnZXMgc3dhcHBlZCBvdXQgdG8genN3YXAgKi8NCj4+
-PiArc3RhdGljIGF0b21pY190IHpzd2FwX3plcm9fcGFnZXMgPSBBVE9NSUNfSU5JVCgwKTsNCj4+
-Pg0KPj4+ICAvKg0KPj4+ICAgKiBUaGUgc3RhdGlzdGljcyBiZWxvdyBhcmUgbm90IHByb3RlY3Rl
-ZCBmcm9tIGNvbmN1cnJlbnQgYWNjZXNzIGZvcg0KPj4+IEBAIC0xNDAsNiArMTQyLDggQEAgc3Ry
-dWN0IHpzd2FwX3Bvb2wgew0KPj4+ICAgKiAgICAgICAgICBkZWNvbXByZXNzaW9uDQo+Pj4gICAq
-IHBvb2wgLSB0aGUgenN3YXBfcG9vbCB0aGUgZW50cnkncyBkYXRhIGlzIGluDQo+Pj4gICAqIGhh
-bmRsZSAtIHpwb29sIGFsbG9jYXRpb24gaGFuZGxlIHRoYXQgc3RvcmVzIHRoZSBjb21wcmVzc2Vk
-IHBhZ2UgZGF0YQ0KPj4+ICsgKiB6ZXJvZmxhZyAtIHRoZSBmbGFnIGlzIHNldCBpZiB0aGUgY29u
-dGVudCBvZiB0aGUgcGFnZSBpcyBmaWxsZWQgd2l0aA0KPj4+ICsgKiAgICAgICAgICAgIHplcm9z
-DQo+Pj4gICAqLw0KPj4+ICBzdHJ1Y3QgenN3YXBfZW50cnkgew0KPj4+ICAgICAgICAgc3RydWN0
-IHJiX25vZGUgcmJub2RlOw0KPj4+IEBAIC0xNDgsNiArMTUyLDcgQEAgc3RydWN0IHpzd2FwX2Vu
-dHJ5IHsNCj4+PiAgICAgICAgIHVuc2lnbmVkIGludCBsZW5ndGg7DQo+Pj4gICAgICAgICBzdHJ1
-Y3QgenN3YXBfcG9vbCAqcG9vbDsNCj4+PiAgICAgICAgIHVuc2lnbmVkIGxvbmcgaGFuZGxlOw0K
-Pj4+ICsgICAgICAgdW5zaWduZWQgY2hhciB6ZXJvZmxhZzsNCj4NCj4gaW5zdGVhZCBvZiBhIGZs
-YWcsIHdlIGNhbiB1c2UgbGVuZ3RoID09IDA7IHRoZSBsZW5ndGggd2lsbCBuZXZlciBiZSAwDQo+
-IGZvciBhbnkgYWN0dWFsbHkgY29tcHJlc3NlZCBwYWdlLg0KPg0KDQpJIHRlc3RlZCB0aGUgcGF0
-Y2ggdXNpbmcgZW50cnktPmxlbmd0aCBpdHNlbGYgYXMgZmxhZyBmb3IgbWFya2luZyB6ZXJvIHBh
-Z2VzLg0KSXQgd29ya3MgZmluZSBhbmQgdGhlIGZ1bmN0aW9uYWxpdHkgaXMgc2FtZS4gU2hvdWxk
-IEkgcmVzZW5kIHdpdGggdGhpcyBjaGFuZ2UNCnVwZGF0ZWQ/DQoNCj4+PiAgfTsNCj4+Pg0KPj4+
-ICBzdHJ1Y3QgenN3YXBfaGVhZGVyIHsNCj4+PiBAQCAtMjM2LDYgKzI0MSw3IEBAIHN0YXRpYyBz
-dHJ1Y3QgenN3YXBfZW50cnkgKnpzd2FwX2VudHJ5X2NhY2hlX2FsbG9jKGdmcF90IGdmcCkNCj4+
-PiAgICAgICAgIGlmICghZW50cnkpDQo+Pj4gICAgICAgICAgICAgICAgIHJldHVybiBOVUxMOw0K
-Pj4+ICAgICAgICAgZW50cnktPnJlZmNvdW50ID0gMTsNCj4+PiArICAgICAgIGVudHJ5LT56ZXJv
-ZmxhZyA9IDA7DQo+Pj4gICAgICAgICBSQl9DTEVBUl9OT0RFKCZlbnRyeS0+cmJub2RlKTsNCj4+
-PiAgICAgICAgIHJldHVybiBlbnRyeTsNCj4+PiAgfQ0KPj4+IEBAIC0zMDYsOCArMzEyLDEyIEBA
-IHN0YXRpYyB2b2lkIHpzd2FwX3JiX2VyYXNlKHN0cnVjdCByYl9yb290ICpyb290LCBzdHJ1Y3Qg
-enN3YXBfZW50cnkgKmVudHJ5KQ0KPj4+ICAgKi8NCj4+PiAgc3RhdGljIHZvaWQgenN3YXBfZnJl
-ZV9lbnRyeShzdHJ1Y3QgenN3YXBfZW50cnkgKmVudHJ5KQ0KPj4+ICB7DQo+Pj4gLSAgICAgICB6
-cG9vbF9mcmVlKGVudHJ5LT5wb29sLT56cG9vbCwgZW50cnktPmhhbmRsZSk7DQo+Pj4gLSAgICAg
-ICB6c3dhcF9wb29sX3B1dChlbnRyeS0+cG9vbCk7DQo+Pj4gKyAgICAgICBpZiAoZW50cnktPnpl
-cm9mbGFnKQ0KPj4+ICsgICAgICAgICAgICAgICBhdG9taWNfZGVjKCZ6c3dhcF96ZXJvX3BhZ2Vz
-KTsNCj4+PiArICAgICAgIGVsc2Ugew0KPj4+ICsgICAgICAgICAgICAgICB6cG9vbF9mcmVlKGVu
-dHJ5LT5wb29sLT56cG9vbCwgZW50cnktPmhhbmRsZSk7DQo+Pj4gKyAgICAgICAgICAgICAgIHpz
-d2FwX3Bvb2xfcHV0KGVudHJ5LT5wb29sKTsNCj4+PiArICAgICAgIH0NCj4+PiAgICAgICAgIHpz
-d2FwX2VudHJ5X2NhY2hlX2ZyZWUoZW50cnkpOw0KPj4+ICAgICAgICAgYXRvbWljX2RlYygmenN3
-YXBfc3RvcmVkX3BhZ2VzKTsNCj4+PiAgICAgICAgIHpzd2FwX3VwZGF0ZV90b3RhbF9zaXplKCk7
-DQo+Pj4gQEAgLTg3Nyw2ICs4ODcsMTkgQEAgc3RhdGljIGludCB6c3dhcF9zaHJpbmsodm9pZCkN
-Cj4+PiAgICAgICAgIHJldHVybiByZXQ7DQo+Pj4gIH0NCj4+Pg0KPj4+ICtzdGF0aWMgaW50IHpz
-d2FwX2lzX3BhZ2VfemVyb19maWxsZWQodm9pZCAqcHRyKQ0KPj4+ICt7DQo+Pj4gKyAgICAgICB1
-bnNpZ25lZCBpbnQgcG9zOw0KPj4+ICsgICAgICAgdW5zaWduZWQgbG9uZyAqcGFnZTsNCj4+PiAr
-DQo+Pj4gKyAgICAgICBwYWdlID0gKHVuc2lnbmVkIGxvbmcgKilwdHI7DQo+Pj4gKyAgICAgICBm
-b3IgKHBvcyA9IDA7IHBvcyAhPSBQQUdFX1NJWkUgLyBzaXplb2YoKnBhZ2UpOyBwb3MrKykgew0K
-Pj4+ICsgICAgICAgICAgICAgICBpZiAocGFnZVtwb3NdKQ0KPj4+ICsgICAgICAgICAgICAgICAg
-ICAgICAgIHJldHVybiAwOw0KPj4+ICsgICAgICAgfQ0KPj4+ICsgICAgICAgcmV0dXJuIDE7DQo+
-Pj4gK30NCj4+PiArDQo+Pj4gIC8qKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioNCj4+
-PiAgKiBmcm9udHN3YXAgaG9va3MNCj4+PiAgKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKi8NCj4+PiBAQCAtOTE3LDYgKzk0MCwxNSBAQCBzdGF0aWMgaW50IHpzd2FwX2Zyb250c3dh
-cF9zdG9yZSh1bnNpZ25lZCB0eXBlLCBwZ29mZl90IG9mZnNldCwNCj4+PiAgICAgICAgICAgICAg
-ICAgZ290byByZWplY3Q7DQo+Pj4gICAgICAgICB9DQo+Pj4NCj4+PiArICAgICAgIHNyYyA9IGtt
-YXBfYXRvbWljKHBhZ2UpOw0KPj4+ICsgICAgICAgaWYgKHpzd2FwX2lzX3BhZ2VfemVyb19maWxs
-ZWQoc3JjKSkgew0KPj4+ICsgICAgICAgICAgICAgICBrdW5tYXBfYXRvbWljKHNyYyk7DQo+Pj4g
-KyAgICAgICAgICAgICAgIGVudHJ5LT5vZmZzZXQgPSBvZmZzZXQ7DQo+Pj4gKyAgICAgICAgICAg
-ICAgIGVudHJ5LT56ZXJvZmxhZyA9IDE7DQo+Pj4gKyAgICAgICAgICAgICAgIGF0b21pY19pbmMo
-Jnpzd2FwX3plcm9fcGFnZXMpOw0KPj4+ICsgICAgICAgICAgICAgICBnb3RvIGluc2VydF9lbnRy
-eTsNCj4+PiArICAgICAgIH0NCj4+PiArDQo+Pj4gICAgICAgICAvKiBpZiBlbnRyeSBpcyBzdWNj
-ZXNzZnVsbHkgYWRkZWQsIGl0IGtlZXBzIHRoZSByZWZlcmVuY2UgKi8NCj4+PiAgICAgICAgIGVu
-dHJ5LT5wb29sID0genN3YXBfcG9vbF9jdXJyZW50X2dldCgpOw0KPj4+ICAgICAgICAgaWYgKCFl
-bnRyeS0+cG9vbCkgew0KPj4+IEBAIC05MjcsNyArOTU5LDYgQEAgc3RhdGljIGludCB6c3dhcF9m
-cm9udHN3YXBfc3RvcmUodW5zaWduZWQgdHlwZSwgcGdvZmZfdCBvZmZzZXQsDQo+Pj4gICAgICAg
-ICAvKiBjb21wcmVzcyAqLw0KPj4+ICAgICAgICAgZHN0ID0gZ2V0X2NwdV92YXIoenN3YXBfZHN0
-bWVtKTsNCj4+PiAgICAgICAgIHRmbSA9ICpnZXRfY3B1X3B0cihlbnRyeS0+cG9vbC0+dGZtKTsN
-Cj4+PiAtICAgICAgIHNyYyA9IGttYXBfYXRvbWljKHBhZ2UpOw0KPj4+ICAgICAgICAgcmV0ID0g
-Y3J5cHRvX2NvbXBfY29tcHJlc3ModGZtLCBzcmMsIFBBR0VfU0laRSwgZHN0LCAmZGxlbik7DQo+
-Pj4gICAgICAgICBrdW5tYXBfYXRvbWljKHNyYyk7DQo+Pj4gICAgICAgICBwdXRfY3B1X3B0cihl
-bnRyeS0+cG9vbC0+dGZtKTsNCj4+PiBAQCAtOTYxLDYgKzk5Miw3IEBAIHN0YXRpYyBpbnQgenN3
-YXBfZnJvbnRzd2FwX3N0b3JlKHVuc2lnbmVkIHR5cGUsIHBnb2ZmX3Qgb2Zmc2V0LA0KPj4+ICAg
-ICAgICAgZW50cnktPmhhbmRsZSA9IGhhbmRsZTsNCj4+PiAgICAgICAgIGVudHJ5LT5sZW5ndGgg
-PSBkbGVuOw0KPj4+DQo+Pj4gK2luc2VydF9lbnRyeToNCj4+PiAgICAgICAgIC8qIG1hcCAqLw0K
-Pj4+ICAgICAgICAgc3Bpbl9sb2NrKCZ0cmVlLT5sb2NrKTsNCj4+PiAgICAgICAgIGRvIHsNCj4+
-PiBAQCAtMTAxMyw2ICsxMDQ1LDEzIEBAIHN0YXRpYyBpbnQgenN3YXBfZnJvbnRzd2FwX2xvYWQo
-dW5zaWduZWQgdHlwZSwgcGdvZmZfdCBvZmZzZXQsDQo+Pj4gICAgICAgICB9DQo+Pj4gICAgICAg
-ICBzcGluX3VubG9jaygmdHJlZS0+bG9jayk7DQo+Pj4NCj4+PiArICAgICAgIGlmIChlbnRyeS0+
-emVyb2ZsYWcpIHsNCj4+PiArICAgICAgICAgICAgICAgZHN0ID0ga21hcF9hdG9taWMocGFnZSk7
-DQo+Pj4gKyAgICAgICAgICAgICAgIG1lbXNldChkc3QsIDAsIFBBR0VfU0laRSk7DQo+Pj4gKyAg
-ICAgICAgICAgICAgIGt1bm1hcF9hdG9taWMoZHN0KTsNCj4+PiArICAgICAgICAgICAgICAgZ290
-byBmcmVlZW50cnk7DQo+Pj4gKyAgICAgICB9DQo+Pj4gKw0KPj4+ICAgICAgICAgLyogZGVjb21w
-cmVzcyAqLw0KPj4+ICAgICAgICAgZGxlbiA9IFBBR0VfU0laRTsNCj4+PiAgICAgICAgIHNyYyA9
-ICh1OCAqKXpwb29sX21hcF9oYW5kbGUoZW50cnktPnBvb2wtPnpwb29sLCBlbnRyeS0+aGFuZGxl
-LA0KPj4+IEBAIC0xMDI1LDYgKzEwNjQsNyBAQCBzdGF0aWMgaW50IHpzd2FwX2Zyb250c3dhcF9s
-b2FkKHVuc2lnbmVkIHR5cGUsIHBnb2ZmX3Qgb2Zmc2V0LA0KPj4+ICAgICAgICAgenBvb2xfdW5t
-YXBfaGFuZGxlKGVudHJ5LT5wb29sLT56cG9vbCwgZW50cnktPmhhbmRsZSk7DQo+Pj4gICAgICAg
-ICBCVUdfT04ocmV0KTsNCj4+Pg0KPj4+ICtmcmVlZW50cnk6DQo+Pj4gICAgICAgICBzcGluX2xv
-Y2soJnRyZWUtPmxvY2spOw0KPj4+ICAgICAgICAgenN3YXBfZW50cnlfcHV0KHRyZWUsIGVudHJ5
-KTsNCj4+PiAgICAgICAgIHNwaW5fdW5sb2NrKCZ0cmVlLT5sb2NrKTsNCj4+PiBAQCAtMTEzMyw2
-ICsxMTczLDggQEAgc3RhdGljIGludCBfX2luaXQgenN3YXBfZGVidWdmc19pbml0KHZvaWQpDQo+
-Pj4gICAgICAgICAgICAgICAgICAgICAgICAgenN3YXBfZGVidWdmc19yb290LCAmenN3YXBfcG9v
-bF90b3RhbF9zaXplKTsNCj4+PiAgICAgICAgIGRlYnVnZnNfY3JlYXRlX2F0b21pY190KCJzdG9y
-ZWRfcGFnZXMiLCBTX0lSVUdPLA0KPj4+ICAgICAgICAgICAgICAgICAgICAgICAgIHpzd2FwX2Rl
-YnVnZnNfcm9vdCwgJnpzd2FwX3N0b3JlZF9wYWdlcyk7DQo+Pj4gKyAgICAgICBkZWJ1Z2ZzX2Ny
-ZWF0ZV9hdG9taWNfdCgiemVyb19wYWdlcyIsIDA0NDQsDQo+Pj4gKyAgICAgICAgICAgICAgICAg
-ICAgICAgenN3YXBfZGVidWdmc19yb290LCAmenN3YXBfemVyb19wYWdlcyk7DQo+Pj4NCj4+PiAg
-ICAgICAgIHJldHVybiAwOw0KPj4+ICB9DQo+Pj4gLS0NCj4+PiAxLjcuOS41DQo+Pg0KPj4NCj4+
-DQo+PiAtLQ0KPj4gUmVnYXJkcywNCj4+IFNhcmJvaml0
-------=_Part_286835_1483174625.1488973651596--
+It can become critical if there is nobody who can invoke the OOM killer.
+
+> 
+> > According to http://lkml.kernel.org/r/201703031948.CHJ81278.VOHSFFFOOLJQMt@I-love.SAKURA.ne.jp
+> > 
+> >   kthreadd (PID = 2) is trying to allocate "struct task_struct" requested by
+> >   workqueue managers (PID = 19, 157, 10499) but is blocked on memory allocation.
+> > 
+> > __GFP_FS allocations could get stuck waiting for drain_all_pages() ?
+> > Also, order > 0 allocation request by the forking worker could get stuck
+> > at too_many_isolated() in mm/compaction.c ?
+> 
+> There might be some extreme cases which however do not change the
+> justification of this patch. I didn't see such cases reported anywhere
+> - other than in your stress testing where we do not really know what is
+> going on yet - and so I didn't mention them and nor I have marked the
+> patch for stable.
+
+As shown in my stress testing, warn_alloc() is not powerful enough when
+something we did not imagine happens.
+
+> 
+> I am wondering what is the point of this feedback actually? Do you
+> see anything wrong in the patch or is this about the wording of the
+> changelog? If it is the later is your concern serious enough to warrant
+> the rewording/reposting?
+
+I don't see anything wrong in the patch. I just thought
+
+  This is not critical as there should be somebody invoking the OOM killer
+  (e.g. the forking worker) and get the situation unstuck and eventually
+  performs the draining. Quite annoying though.
+
+part can be dropped because there is no guarantee that something we do not
+imagine won't happen.
+
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+
+After applying this patch, we might be able to replace
+
+        if (unlikely(!mutex_trylock(&pcpu_drain_mutex))) {
+                if (!zone)
+                        return;
+                mutex_lock(&pcpu_drain_mutex);
+        }
+
+with
+
+        if (mutex_lock_killable(&pcpu_drain_mutex))
+		return;
+
+because forward progress will be guaranteed by this patch and
+we can favor pcpu_drain_mutex owner to use other CPU's time for
+flushing queued works when many other allocating threads are
+almost busy looping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
