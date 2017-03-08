@@ -1,81 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ADBBE6B0392
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 00:36:19 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f21so40890053pgi.4
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 21:36:19 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id l3si2151736pgl.298.2017.03.07.21.36.17
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D3DD86B0394
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:17:30 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id b2so41894285pgc.6
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:17:30 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id c11si2272307pgn.188.2017.03.07.22.17.29
         for <linux-mm@kvack.org>;
-        Tue, 07 Mar 2017 21:36:18 -0800 (PST)
-Date: Wed, 8 Mar 2017 14:36:15 +0900
+        Tue, 07 Mar 2017 22:17:30 -0800 (PST)
+Date: Wed, 8 Mar 2017 15:17:26 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH V5 6/6] proc: show MADV_FREE pages info in smaps
-Message-ID: <20170308053615.GC11206@bbox>
-References: <cover.1487965799.git.shli@fb.com>
- <89efde633559de1ec07444f2ef0f4963a97a2ce8.1487965799.git.shli@fb.com>
- <20170301133624.GF1124@dhcp22.suse.cz>
- <20170301183149.GA14277@cmpxchg.org>
- <20170301185735.GA24905@dhcp22.suse.cz>
- <20170302140101.GA16021@cmpxchg.org>
- <20170302163054.GR1404@dhcp22.suse.cz>
- <20170303161027.6fe4ceb0bcd27e1dbed44a5d@linux-foundation.org>
- <20170307100545.GC28642@dhcp22.suse.cz>
- <20170307144338.023080a8cd600172f37dfe16@linux-foundation.org>
+Subject: Re: [PATCH 3/4] thp: fix MADV_DONTNEED vs. MADV_FREE race
+Message-ID: <20170308061726.GD11206@bbox>
+References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
+ <20170302151034.27829-4-kirill.shutemov@linux.intel.com>
+ <07b101d293df$ed8c9850$c8a5c8f0$@alibaba-inc.com>
+ <20170303102636.bhd2zhtpds4mt62a@black.fi.intel.com>
+ <20170306014446.GB8779@bbox>
+ <20170307140453.GB2412@node>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170307140453.GB2412@node>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170307144338.023080a8cd600172f37dfe16@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew,
-
-On Tue, Mar 07, 2017 at 02:43:38PM -0800, Andrew Morton wrote:
-> On Tue, 7 Mar 2017 11:05:45 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > On Fri 03-03-17 16:10:27, Andrew Morton wrote:
-> > > On Thu, 2 Mar 2017 17:30:54 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> > > 
-> > > > > It's not that I think you're wrong: it *is* an implementation detail.
-> > > > > But we take a bit of incoherency from batching all over the place, so
-> > > > > it's a little odd to take a stand over this particular instance of it
-> > > > > - whether demanding that it'd be fixed, or be documented, which would
-> > > > > only suggest to users that this is special when it really isn't etc.
-> > > > 
-> > > > I am not aware of other counter printed in smaps that would suffer from
-> > > > the same problem, but I haven't checked too deeply so I might be wrong. 
-> > > > 
-> > > > Anyway it seems that I am alone in my position so I will not insist.
-> > > > If we have any bug report then we can still fix it.
-> > > 
-> > > A single lru_add_drain_all() right at the top level (in smaps_show()?)
-> > > won't kill us
+On Tue, Mar 07, 2017 at 05:04:53PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Mar 06, 2017 at 10:44:46AM +0900, Minchan Kim wrote:
+> > Hello, Kirill,
 > > 
-> > I do not think we want to put lru_add_drain_all cost to a random
-> > process reading /proc/<pid>/smaps.
+> > On Fri, Mar 03, 2017 at 01:26:36PM +0300, Kirill A. Shutemov wrote:
+> > > On Fri, Mar 03, 2017 at 01:35:11PM +0800, Hillf Danton wrote:
+> > > > 
+> > > > On March 02, 2017 11:11 PM Kirill A. Shutemov wrote: 
+> > > > > 
+> > > > > Basically the same race as with numa balancing in change_huge_pmd(), but
+> > > > > a bit simpler to mitigate: we don't need to preserve dirty/young flags
+> > > > > here due to MADV_FREE functionality.
+> > > > > 
+> > > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > > Cc: Minchan Kim <minchan@kernel.org>
+> > > > > ---
+> > > > >  mm/huge_memory.c | 2 --
+> > > > >  1 file changed, 2 deletions(-)
+> > > > > 
+> > > > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > > > index bb2b3646bd78..324217c31ec9 100644
+> > > > > --- a/mm/huge_memory.c
+> > > > > +++ b/mm/huge_memory.c
+> > > > > @@ -1566,8 +1566,6 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> > > > >  		deactivate_page(page);
+> > > > > 
+> > > > >  	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
+> > > > > -		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
+> > > > > -			tlb->fullmm);
+> > > > >  		orig_pmd = pmd_mkold(orig_pmd);
+> > > > >  		orig_pmd = pmd_mkclean(orig_pmd);
+> > > > > 
+> > > > $ grep -n set_pmd_at  linux-4.10/arch/powerpc/mm/pgtable-book3s64.c
+> > > > 
+> > > > /*
+> > > >  * set a new huge pmd. We should not be called for updating
+> > > >  * an existing pmd entry. That should go via pmd_hugepage_update.
+> > > >  */
+> > > > void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+> > > 
+> > > +Aneesh.
+> > > 
+> > > Urgh... Power is special again.
+> > > 
+> > > I think this should work fine.
+> > > 
+> > > From 056914fa025992c0a2212aee057c26307ce60238 Mon Sep 17 00:00:00 2001
+> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > Date: Thu, 2 Mar 2017 16:47:45 +0300
+> > > Subject: [PATCH] thp: fix MADV_DONTNEED vs. MADV_FREE race
+> > > 
+> > > Basically the same race as with numa balancing in change_huge_pmd(), but
+> > > a bit simpler to mitigate: we don't need to preserve dirty/young flags
+> > > here due to MADV_FREE functionality.
+> > 
+> > Could you elaborate a bit more here rather than relying on other
+> > patch's description?
 > 
-> Why not?  It's that process which is calling for the work to be done.
-> 
-> > If anything the one which does the
-> > madvise should be doing this.
-> 
-> But it would be silly to do extra work in madvise() if nobody will be
-> reading smaps for the next two months.
-> 
-> How much work is it anyway?  What would be the relative impact upon a
-> smaps read?
+> Okay, updated patch is below.
 
-I agree only if the draining guarantees all of mapped pages in the range
-could be marked to lazyfree. However, it's not true because there are a
-few of logics to skip the page marking in madvise_free_pte_range.
+Thanks. It looks much better.
 
-So, my conclusion is drainning helps a bit but not gaurantees.
-In such case, IMHO, let's not do the effort to make better.
+> 
+> > And could you say what happens to the userspace if that race
+> > happens? When I guess from title "MADV_DONTNEED vs MADV_FREE",
+> > a page cannot be zapped but marked lazyfree or vise versa? Right?
+> 
+> "Vise versa" part should be fine. The case I'm worry about is that
+> MADV_DONTNEED would skip the pmd and it will not be cleared.
+> Userspace expects the area of memory to be clean after MADV_DONTNEED, but
+> it's not. It can lead to userspace misbehaviour.
 
-Thanks.
+Yeb.
+
+> 
+> From a0967b0293a6f8053d85785c4d6340e550e849ea Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Thu, 2 Mar 2017 16:47:45 +0300
+> Subject: [PATCH] thp: fix MADV_DONTNEED vs. MADV_FREE race
+> 
+> Both MADV_DONTNEED and MADV_FREE handled with down_read(mmap_sem).
+> It's critical to not clear pmd intermittently while handling MADV_FREE to
+> avoid race with MADV_DONTNEED:
+> 
+> 	CPU0:				CPU1:
+> 				madvise_free_huge_pmd()
+> 				 pmdp_huge_get_and_clear_full()
+> madvise_dontneed()
+>  zap_pmd_range()
+>   pmd_trans_huge(*pmd) == 0 (without ptl)
+>   // skip the pmd
+> 				 set_pmd_at();
+> 				 // pmd is re-established
+> 
+> It results in MADV_DONTNEED skipping the pmd, leaving it not cleared. It
+> violates MADV_DONTNEED interface and can result is userspace misbehaviour.
+> 
+> Basically it's the same race as with numa balancing in change_huge_pmd(),
+> but a bit simpler to mitigate: we don't need to preserve dirty/young flags
+> here due to MADV_FREE functionality.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
