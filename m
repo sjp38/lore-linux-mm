@@ -1,69 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 628D76B039A
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:41:51 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v190so42666321pfb.5
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:41:51 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5184E6B039C
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 01:42:46 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b2so42609981pgc.6
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 22:42:46 -0800 (PST)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id k2si2309914pga.293.2017.03.07.22.41.49
+        by mx.google.com with ESMTP id d81si2334696pfd.82.2017.03.07.22.42.44
         for <linux-mm@kvack.org>;
-        Tue, 07 Mar 2017 22:41:50 -0800 (PST)
-Date: Wed, 8 Mar 2017 15:41:47 +0900
+        Tue, 07 Mar 2017 22:42:45 -0800 (PST)
+Date: Wed, 8 Mar 2017 15:42:42 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 05/11] mm: make the try_to_munlock void function
-Message-ID: <20170308064147.GG11206@bbox>
+Subject: Re: [RFC 06/11] mm: remove SWAP_MLOCK in ttu
+Message-ID: <20170308064242.GH11206@bbox>
 References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-6-git-send-email-minchan@kernel.org>
- <20170307151747.GA2940@node.shutemov.name>
+ <1488436765-32350-7-git-send-email-minchan@kernel.org>
+ <54799ea5-005d-939c-de32-bc21af881ab4@linux.vnet.ibm.com>
+ <20170306021508.GD8779@bbox>
+ <20170307152437.GB2940@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20170307151747.GA2940@node.shutemov.name>
+In-Reply-To: <20170307152437.GB2940@node.shutemov.name>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: g@node.shutemov.name, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Mar 07, 2017 at 06:17:47PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Mar 02, 2017 at 03:39:19PM +0900, Minchan Kim wrote:
-> > try_to_munlock returns SWAP_MLOCK if the one of VMAs mapped
-> > the page has VM_LOCKED flag. In that time, VM set PG_mlocked to
-> > the page if the page is not pte-mapped THP which cannot be
-> > mlocked, either.
+On Tue, Mar 07, 2017 at 06:24:37PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Mar 06, 2017 at 11:15:08AM +0900, Minchan Kim wrote:
+> > Hi Anshuman,
 > > 
-> > With that, __munlock_isolated_page can use PageMlocked to check
-> > whether try_to_munlock is successful or not without relying on
-> > try_to_munlock's retval. It helps to make ttu/ttuo simple with
-> > upcoming patches.
+> > On Fri, Mar 03, 2017 at 06:06:38PM +0530, Anshuman Khandual wrote:
+> > > On 03/02/2017 12:09 PM, Minchan Kim wrote:
+> > > > ttu don't need to return SWAP_MLOCK. Instead, just return SWAP_FAIL
+> > > > because it means the page is not-swappable so it should move to
+> > > > another LRU list(active or unevictable). putback friends will
+> > > > move it to right list depending on the page's LRU flag.
+> > > 
+> > > Right, if it cannot be swapped out there is not much difference with
+> > > SWAP_FAIL once we change the callers who expected to see a SWAP_MLOCK
+> > > return instead.
+> > > 
+> > > > 
+> > > > A side effect is shrink_page_list accounts unevictable list movement
+> > > > by PGACTIVATE but I don't think it corrupts something severe.
+> > > 
+> > > Not sure I got that, could you please elaborate on this. We will still
+> > > activate the page and put it in an appropriate LRU list if it is marked
+> > > mlocked ?
+> > 
+> > Right. putback_iactive_pages/putback_lru_page has a logic to filter
+> > out unevictable pages and move them to unevictable LRU list so it
+> > doesn't break LRU change behavior but the concern is until now,
+> > we have accounted PGACTIVATE for only evictable LRU list page but
+> > by this change, it accounts it to unevictable LRU list as well.
+> > However, although I don't think it's big problem in real practice,
+> > we can fix it simply with checking PG_mlocked if someone reports.
 > 
-> I *think* you're correct, but it took time to wrap my head around.
-> We basically rely on try_to_munlock() never caller for PTE-mapped THP.
-> And we don't at the moment.
-> 
-> It worth adding something like
-> 
-> 	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
-> 
-> into try_to_munlock().
+> I think it's better to do this pro-actively. Let's hide both pgactivate++
+> and SetPageActive() under "if (!PageMlocked())".
+> SetPageActive() is not free.
 
-Agree.
+I will consider it in next spin.
 
-> 
-> Otherwise looks good to me.
-> 
-> Will free adding my Acked-by once this nit is addressed.
-
-Thanks for the review this part, Kirill!
-
-> 
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
