@@ -1,169 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8546E6B03D1
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 05:57:05 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id l37so9244378wrc.7
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 02:57:05 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h17si3872810wrb.98.2017.03.08.02.57.03
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CDAC831CD
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 06:07:50 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id o126so51827287pfb.2
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 03:07:50 -0800 (PST)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id g2si2966451plk.70.2017.03.08.03.07.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Mar 2017 02:57:04 -0800 (PST)
-Date: Wed, 8 Mar 2017 11:56:49 +0100
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC PATCH v2 10/32] x86: DMA support for SEV memory encryption
-Message-ID: <20170308105649.x6qcwpiwyxzp4nvb@pd.tnic>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846766532.2349.4832844575566575886.stgit@brijesh-build-machine>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Mar 2017 03:07:49 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm: Change generic FALLBACK zonelist creation process
+References: <1d67f38b-548f-26a2-23f5-240d6747f286@linux.vnet.ibm.com>
+ <20170308092146.5264-1-khandual@linux.vnet.ibm.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <0f787fb7-e299-9afb-8c87-4afdb937fdbb@nvidia.com>
+Date: Wed, 8 Mar 2017 03:07:13 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <148846766532.2349.4832844575566575886.stgit@brijesh-build-machine>
+In-Reply-To: <20170308092146.5264-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
 
-On Thu, Mar 02, 2017 at 10:14:25AM -0500, Brijesh Singh wrote:
-> From: Tom Lendacky <thomas.lendacky@amd.com>
-> 
-> DMA access to memory mapped as encrypted while SEV is active can not be
-> encrypted during device write or decrypted during device read. In order
-> for DMA to properly work when SEV is active, the swiotlb bounce buffers
-> must be used.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+On 03/08/2017 01:21 AM, Anshuman Khandual wrote:
+> Kernel allocation to CDM node has already been prevented by putting it's
+> entire memory in ZONE_MOVABLE. But the CDM nodes must also be isolated
+> from implicit allocations happening on the system.
+>
+> Any isolation seeking CDM node requires isolation from implicit memory
+> allocations from user space but at the same time there should also have
+> an explicit way to do the memory allocation.
+>
+> Platform node's both zonelists are fundamental to where the memory comes
+> from when there is an allocation request. In order to achieve these two
+> objectives as stated above, zonelists building process has to change as
+> both zonelists (i.e FALLBACK and NOFALLBACK) gives access to the node's
+> memory zones during any kind of memory allocation. The following changes
+> are implemented in this regard.
+>
+> * CDM node's zones are not part of any other node's FALLBACK zonelist
+> * CDM node's FALLBACK list contains it's own memory zones followed by
+>   all system RAM zones in regular order as before
+
+There was a discussion, on an earlier version of this patchset, in which someone 
+pointed out that a slight over-allocation on a device that has much more memory than 
+the CPU has, could use up system memory. Your latest approach here does not address 
+this.
+
+I'm thinking that, until oversubscription between NUMA nodes is more fully 
+implemented in a way that can be properly controlled, you'd probably better just not 
+fallback to system memory. In other words, a CDM node really is *isolated* from 
+other nodes--no automatic use in either direction.
+
+Also, naming and purpose: maybe this is a "Limited NUMA Node", rather than a 
+Coherent Device Memory node. Because: the real point of this thing is to limit the 
+normal operation of NUMA, just enough to work with what I am *told* is 
+memory-that-is-too-fragile-for-kernel-use (I remain soemwhat on the fence, there, 
+even though you did talk me into it earlier, heh).
+
+On process: it would probably help if you gathered up previous discussion points and 
+carefully, concisely addressed each one, somewhere, (maybe in a cover letter). 
+Because otherwise, it's too easy for earlier, important problems to be forgotten. 
+And reviewers don't want to have to repeat themselves, of course.
+
+thanks
+John Hubbard
+NVIDIA
+
+> * CDM node's zones are part of it's own NOFALLBACK zonelist
+>
+> These above changes ensure the following which in turn isolates the CDM
+> nodes as desired.
+>
+> * There wont be any implicit memory allocation ending up in the CDM node
+> * Only __GFP_THISNODE marked allocations will come from the CDM node
+> * CDM node memory can be allocated through mbind(MPOL_BIND) interface
+> * System RAM memory will be used as fallback option in regular order in
+>   case the CDM memory is insufficient during targted allocation request
+>
+> Sample zonelist configuration:
+>
+> [NODE (0)]						RAM
+>         ZONELIST_FALLBACK (0xc00000000140da00)
+>                 (0) (node 0) (DMA     0xc00000000140c000)
+>                 (1) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc000000001411a10)
+>                 (0) (node 0) (DMA     0xc00000000140c000)
+> [NODE (1)]						RAM
+>         ZONELIST_FALLBACK (0xc000000100001a00)
+>                 (0) (node 1) (DMA     0xc000000100000000)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>         ZONELIST_NOFALLBACK (0xc000000100005a10)
+>                 (0) (node 1) (DMA     0xc000000100000000)
+> [NODE (2)]						CDM
+>         ZONELIST_FALLBACK (0xc000000001427700)
+>                 (0) (node 2) (Movable 0xc000000001427080)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>                 (2) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc00000000142b710)
+>                 (0) (node 2) (Movable 0xc000000001427080)
+> [NODE (3)]						CDM
+>         ZONELIST_FALLBACK (0xc000000001431400)
+>                 (0) (node 3) (Movable 0xc000000001430d80)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>                 (2) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc000000001435410)
+>                 (0) (node 3) (Movable 0xc000000001430d80)
+> [NODE (4)]						CDM
+>         ZONELIST_FALLBACK (0xc00000000143b100)
+>                 (0) (node 4) (Movable 0xc00000000143aa80)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>                 (2) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc00000000143f110)
+>                 (0) (node 4) (Movable 0xc00000000143aa80)
+>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 > ---
->  arch/x86/mm/mem_encrypt.c |   77 +++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 77 insertions(+)
-> 
-> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-> index 090419b..7df5f4c 100644
-> --- a/arch/x86/mm/mem_encrypt.c
-> +++ b/arch/x86/mm/mem_encrypt.c
-> @@ -197,8 +197,81 @@ void __init sme_early_init(void)
->  	/* Update the protection map with memory encryption mask */
->  	for (i = 0; i < ARRAY_SIZE(protection_map); i++)
->  		protection_map[i] = pgprot_encrypted(protection_map[i]);
-> +
-> +	if (sev_active())
-> +		swiotlb_force = SWIOTLB_FORCE;
-> +}
-> +
-> +static void *sme_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-> +		       gfp_t gfp, unsigned long attrs)
-> +{
-> +	unsigned long dma_mask;
-> +	unsigned int order;
-> +	struct page *page;
-> +	void *vaddr = NULL;
-> +
-> +	dma_mask = dma_alloc_coherent_mask(dev, gfp);
-> +	order = get_order(size);
-> +
-> +	gfp &= ~__GFP_ZERO;
-
-Please add a comment around here that swiotlb_alloc_coherent() will
-memset(, 0, ) the memory. It took me a while to figure out what the
-situation is.
-
-Also, Joerg says the __GFP_ZERO is not absolutely necessary but it has
-not been fixed in the other DMA alloc* functions because of fears that
-something would break. That bit could also be part of the comment.
-
-> +
-> +	page = alloc_pages_node(dev_to_node(dev), gfp, order);
-> +	if (page) {
-> +		dma_addr_t addr;
-> +
+>  mm/page_alloc.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 40908de..6f7dddc 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4825,6 +4825,16 @@ static void build_zonelists(pg_data_t *pgdat)
+>  	i = 0;
+>
+>  	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
+> +#ifdef CONFIG_COHERENT_DEVICE
 > +		/*
-> +		 * Since we will be clearing the encryption bit, check the
-> +		 * mask with it already cleared.
+> +		 * CDM node's own zones should not be part of any other
+> +		 * node's fallback zonelist but only it's own fallback
+> +		 * zonelist.
 > +		 */
-> +		addr = phys_to_dma(dev, page_to_phys(page)) & ~sme_me_mask;
-> +		if ((addr + size) > dma_mask) {
-> +			__free_pages(page, get_order(size));
-> +		} else {
-> +			vaddr = page_address(page);
-> +			*dma_handle = addr;
-> +		}
-> +	}
+> +		if (is_cdm_node(node) && (pgdat->node_id != node))
+> +			continue;
+> +#endif
 > +
-> +	if (!vaddr)
-> +		vaddr = swiotlb_alloc_coherent(dev, size, dma_handle, gfp);
-> +
-> +	if (!vaddr)
-> +		return NULL;
-> +
-> +	/* Clear the SME encryption bit for DMA use if not swiotlb area */
-> +	if (!is_swiotlb_buffer(dma_to_phys(dev, *dma_handle))) {
-> +		set_memory_decrypted((unsigned long)vaddr, 1 << order);
-> +		*dma_handle &= ~sme_me_mask;
-> +	}
-> +
-> +	return vaddr;
->  }
->  
-> +static void sme_free(struct device *dev, size_t size, void *vaddr,
-> +		     dma_addr_t dma_handle, unsigned long attrs)
-> +{
-> +	/* Set the SME encryption bit for re-use if not swiotlb area */
-> +	if (!is_swiotlb_buffer(dma_to_phys(dev, dma_handle)))
-> +		set_memory_encrypted((unsigned long)vaddr,
-> +				     1 << get_order(size));
-> +
-> +	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
-> +}
-> +
-> +static struct dma_map_ops sme_dma_ops = {
-
-WARNING: struct dma_map_ops should normally be const
-#112: FILE: arch/x86/mm/mem_encrypt.c:261:
-+static struct dma_map_ops sme_dma_ops = {
-
-Please integrate scripts/checkpatch.pl in your patch creation workflow.
-Some of the warnings/errors *actually* make sense.
-
-
-> +	.alloc                  = sme_alloc,
-> +	.free                   = sme_free,
-> +	.map_page               = swiotlb_map_page,
-> +	.unmap_page             = swiotlb_unmap_page,
-> +	.map_sg                 = swiotlb_map_sg_attrs,
-> +	.unmap_sg               = swiotlb_unmap_sg_attrs,
-> +	.sync_single_for_cpu    = swiotlb_sync_single_for_cpu,
-> +	.sync_single_for_device = swiotlb_sync_single_for_device,
-> +	.sync_sg_for_cpu        = swiotlb_sync_sg_for_cpu,
-> +	.sync_sg_for_device     = swiotlb_sync_sg_for_device,
-> +	.mapping_error          = swiotlb_dma_mapping_error,
-> +};
-> +
->  /* Architecture __weak replacement functions */
->  void __init mem_encrypt_init(void)
->  {
-> @@ -208,6 +281,10 @@ void __init mem_encrypt_init(void)
->  	/* Call into SWIOTLB to update the SWIOTLB DMA buffers */
->  	swiotlb_update_mem_attributes();
->  
-> +	/* Use SEV DMA operations if SEV is active */
-
-That's obvious. The WHY is not.
-
-> +	if (sev_active())
-> +		dma_ops = &sme_dma_ops;
-> +
->  	pr_info("AMD Secure Memory Encryption (SME) active\n");
->  }
->  
-> 
-
--- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+>  		/*
+>  		 * We don't want to pressure a particular node.
+>  		 * So adding penalty to the first node in same
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
