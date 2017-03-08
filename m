@@ -1,105 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A4C746B03A6
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:20:08 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e5so44387518pgk.1
-        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:20:08 -0800 (PST)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id q77si2421330pfi.41.2017.03.07.23.20.06
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0CB6B03A8
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 02:26:37 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 77so42584270pgc.5
+        for <linux-mm@kvack.org>; Tue, 07 Mar 2017 23:26:37 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id y70si2425223plh.168.2017.03.07.23.26.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Mar 2017 23:20:07 -0800 (PST)
-Subject: Re: [RFC 08/11] mm: make ttu's return boolean
-References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
- <1488436765-32350-9-git-send-email-minchan@kernel.org>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <70f60783-e098-c1a9-11b4-544530bcd809@nvidia.com>
-Date: Tue, 7 Mar 2017 23:13:26 -0800
+        Tue, 07 Mar 2017 23:26:36 -0800 (PST)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -v6 0/9] THP swap: Delay splitting THP during swapping out
+Date: Wed,  8 Mar 2017 15:26:04 +0800
+Message-Id: <20170308072613.17634-1-ying.huang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1488436765-32350-9-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On 03/01/2017 10:39 PM, Minchan Kim wrote:
-> try_to_unmap returns SWAP_SUCCESS or SWAP_FAIL so it's suitable for
-> boolean return. This patch changes it.
+From: Huang Ying <ying.huang@intel.com>
 
-Hi Minchan,
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-So, up until this patch, I definitely like the cleanup, because as you observed, the 
-return values didn't need so many different values. However, at this point, I think 
-you should stop, and keep the SWAP_SUCCESS and SWAP_FAIL (or maybe even rename them 
-to UNMAP_* or TTU_RESULT_*, to match their functions' names better), because 
-removing them makes the code considerably less readable.
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?  Especially [1/9], [3/9], [4/9], [5/9],
+[6/9], [9/9].
 
-And since this is billed as a cleanup, we care here, even though this is a minor 
-point. :)
+Hi, Andrea could you help me to review the THP part of the patchset?
+Especially [2/9], [7/9] and [8/9].
 
-Bool return values are sometimes perfect, such as when asking a question:
+Hi, Johannes, Michal and Vladimir, I am not very confident about the
+memory cgroup part, especially [2/9].  Could you help me to review it?
 
-    bool mode_changed = needs_modeset(crtc_state);
+And for all, Any comment is welcome!
 
-The above is very nice. However, for returning success or failure, bools are not as 
-nice, because *usually* success == true, except when you use the errno-based system, 
-in which success == 0 (which would translate to false, if you mistakenly treated it 
-as a bool). That leads to the reader having to remember which system is in use, 
-usually with no visual cues to help.
 
->
-[...]
->  	if (PageSwapCache(p)) {
-> @@ -971,7 +971,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
->  		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
->
->  	ret = try_to_unmap(hpage, ttu);
-> -	if (ret != SWAP_SUCCESS)
-> +	if (!ret)
->  		pr_err("Memory failure: %#lx: failed to unmap page (mapcount=%d)\n",
->  		       pfn, page_mapcount(hpage));
->
-> @@ -986,8 +986,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
->  	 * any accesses to the poisoned memory.
->  	 */
->  	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
-> -	kill_procs(&tokill, forcekill, trapno,
-> -		      ret != SWAP_SUCCESS, p, pfn, flags);
-> +	kill_procs(&tokill, forcekill, trapno, !ret , p, pfn, flags);
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swap out even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
 
-The kill_procs() invocation was a little more readable before.
+The advantages of the THP swap support include:
 
->
-[...]
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 170c61f..e4b74f1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -966,7 +966,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		int may_enter_fs;
->  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
->  		bool dirty, writeback;
-> -		int ret = SWAP_SUCCESS;
->
->  		cond_resched();
->
-> @@ -1139,13 +1138,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 * processes. Try to unmap it here.
->  		 */
->  		if (page_mapped(page)) {
-> -			switch (ret = try_to_unmap(page,
-> -				ttu_flags | TTU_BATCH_FLUSH)) {
-> -			case SWAP_FAIL:
+- Batch the swap operations for the THP to reduce lock
+  acquiring/releasing, including allocating/freeing the swap space,
+  adding/deleting to/from the swap cache, and writing/reading the swap
+  space, etc.  This will help improve the performance of the THP swap.
 
-Again: the SWAP_FAIL makes it crystal clear which case we're in.
+- The THP swap space read/write will be 2M sequential IO.  It is
+  particularly helpful for the swap read, which are usually 4k random
+  IO.  This will improve the performance of the THP swap too.
 
-I also wonder if UNMAP_FAIL or TTU_RESULT_FAIL is a better name?
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The 2M continuous pages will be
+  free up after THP swapping out.
 
-thanks,
-John Hubbard
-NVIDIA
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapping out, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapped in.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
+
+There are some concerns regarding THP swap in, mainly because possible
+enlarged read/write IO size (for swap in/out) may put more overhead on
+the storage device.  To deal with that, the THP swap in should be
+turned on only when necessary.  For example, it can be selected via
+"always/never/madvise" logic, to be turned on globally, turned off
+globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
+
+This patchset is based on 03/06 head of mmotm/master.
+
+This patchset is the first step for the THP swap support.  The plan is
+to delay splitting THP step by step, finally avoid splitting THP
+during the THP swapping out and swap out/in the THP as a whole.
+
+As the first step, in this patchset, the splitting huge page is
+delayed from almost the first step of swapping out to after allocating
+the swap space for the THP and adding the THP into the swap cache.
+This will reduce lock acquiring/releasing for the locks used for the
+swap cache management.
+
+With the patchset, the swap out throughput improves 14.9% (from about
+3.77GB/s to about 4.34GB/s) in the vm-scalability swap-w-seq test case
+with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+device used is a RAM simulated PMEM (persistent memory) device.  To
+test the sequential swapping out, the test case creates 8 processes,
+which sequentially allocate and write to the anonymous pages until the
+RAM and part of the swap device is used up.
+
+The detailed comparison result is as follow,
+
+base             base+patchset
+---------------- -------------------------- 
+         %stddev     %change         %stddev
+             \          |                \  
+   7043990 A+-  0%     +21.2%    8536807 A+-  0%  vm-scalability.throughput
+    109.94 A+-  1%     -16.2%      92.09 A+-  0%  vm-scalability.time.elapsed_time
+   3957091 A+-  0%     +14.9%    4547173 A+-  0%  vmstat.swap.so
+     31.46 A+-  1%     -38.3%      19.42 A+-  0%  perf-stat.cache-miss-rate%
+      1.04 A+-  1%     +22.2%       1.27 A+-  0%  perf-stat.ipc
+      9.33 A+-  2%     -60.7%       3.67 A+-  1%  perf-profile.calltrace.cycles-pp.add_to_swap.shrink_page_list.shrink_inactive_list.shrink_node_memcg.shrink_node
+
+Changelog:
+
+v6:
+
+- Rebased on latest -mm tree (cluster lock, etc).
+- Fix a potential uninitialized variable bug in __swap_entry_free()
+- Revise the swap read-ahead changes to avoid a potential race
+  condition between swap off and swap out in theory.
+
+v5:
+
+- Per Hillf's comments, fix a locking bug in error path of
+  __add_to_swap_cache().  And merge the code to calculate extra_pins
+  into can_split_huge_page().
+
+v4:
+
+- Per Johannes' comments, simplified swap cgroup array accessing code.
+- Per Kirill and Dave Hansen's comments, used HPAGE_PMD_NR instead of
+  HPAGE_SIZE/PAGE_SIZE.
+- Per Anshuman's comments, used HPAGE_PMD_NR instead of 512 in patch
+  description.
+
+v3:
+
+- Per Andrew's suggestion, used a more systematical way to determine
+  whether to enable THP swap optimization
+- Per Andrew's comments, moved as much as possible code into
+  #ifdef CONFIG_TRANSPARENT_HUGE_PAGE/#endif or "if (PageTransHuge())"
+- Fixed some coding style warning.
+
+v2:
+
+- Original [1/11] sent separately and merged
+- Use switch in 10/10 per Hiff's suggestion
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
