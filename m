@@ -1,92 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 868096B0397
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 22:25:53 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id g2so91481494pge.7
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 19:25:53 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 21si5100841pfs.216.2017.03.08.19.25.52
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FF566B03E8
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 22:44:21 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 77so87933815pgc.5
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 19:44:21 -0800 (PST)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id f12si5149046pgn.102.2017.03.08.19.44.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 19:25:52 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v293Oaa2129779
-	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 22:25:51 -0500
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 292k8srsvh-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 Mar 2017 22:25:51 -0500
-Received: from localhost
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 9 Mar 2017 13:25:48 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v293Pcck49676522
-	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 14:25:46 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v293PEYL017261
-	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 14:25:14 +1100
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
- <20170308193900.GC32070@tassilo.jf.intel.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 9 Mar 2017 08:54:55 +0530
+        Wed, 08 Mar 2017 19:44:20 -0800 (PST)
+Received: by mail-pf0-x243.google.com with SMTP id v190so5798384pfb.0
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 19:44:20 -0800 (PST)
+Date: Thu, 9 Mar 2017 11:44:15 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 1/2] mm/memblock: use NUMA_NO_NODE instead of
+ MAX_NUMNODES as default node_id
+Message-ID: <20170309034415.GA16588@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170127015922.36249-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170308193900.GC32070@tassilo.jf.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <f10aee73-b288-ed21-682d-3d3727fdab2d@linux.vnet.ibm.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="FL5UXtIhxfXey3p5"
+Content-Disposition: inline
+In-Reply-To: <20170127015922.36249-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/09/2017 01:09 AM, Andi Kleen wrote:
->> One example of the problems with extra layers what this patch fixes:
->> mmap_pgoff() should never be using SHM_HUGE_* logic. This was
->> introduced by:
->>
->>    091d0d55b28 (shm: fix null pointer deref when userspace specifies invalid hugepage size)
->>
->> It is obviously harmless but lets just rip out the whole thing --
->> the shmget.2 manpage will need updating, as it should not be
->> describing kernel internals.
-> 
-> The SHM_* defines were supposed to be exported to user space,
-> but somehow they didn't make it into uapi.
 
-Yeah, its not part of UAPI which it should have been. Now we
-need to ilog2(page_size) and shift it before using them in
-the user space. BTW, mmap() interface also would want this
-encoding should we choose to use non default HugeTLB page
-sizes.
+--FL5UXtIhxfXey3p5
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> 
-> But something like this is useful, it's a much nicer 
-> interface for users than to hard code the bit position
+Hello, everyone,
 
-Right. But as we need this both for shm and mmap() interface,
-we can only have one set of values exported to the UAPI. The
-other set needs to be removed IMHO. BTW, we need to add the
-encoding for other arch supported HugeTLB supported sizes as
-well like 16MB, 16GB etc (on POWER).
- 
-> 
-> So I would rather if you move it to uapi instead of 
-> removing. What the kernel uses internally doesn't
-> really matter.
+By deeper thinking, I am willing to split these two patches into two patch
+set, since they are trying to address two different things.
 
-Had a sent a clean up patch last year which unfortunately I
-forgot to resend though it has got ACK from Michal Hocko
-and Balbir Singh.
+The first one [Patch 1] is trying to use NUMA_NO_NODE as the default node_i=
+d in
+memblock_region.
 
-https://lkml.org/lkml/2016/4/7/43
+Current implementation use MAX_NUMNODES as the default nid in several
+situations:
 
-I had also tried to add POWER HugeTLB size encoding in the
-arch specific header files. Probably its time to move all
-of them to generic header.
+    * when it adds a range from e820 to memblock=20
+    * when it returns an allocated range, it sets nid to MAX_NUMNODES=20
+    * on x86 before initialize the numa info, it set all nid to MAX_NUMNODES
 
-https://lkml.org/lkml/2016/4/7/48
+The usage of MAX_NUMNODES here is not accurate, and NUMA_NO_NODE should be
+used here.
+
+When looking at the allocation procedure of memblock, it translate
+MAX_NUMNODES to NUMA_NO_NODE and mentioned MAX_NUMNODES is deprecated. So I
+think it is reasonable to do this refactor here.
+
+The second one [Patch 2] is trying to address similar issue in
+for_each_mem_pfn_range(). The patch here is the first step. I have searched
+out all related functions and relpaces MAX_NUMNODES with NUMA_NO_NODE. While
+the warning here will still be seen when just this patch applies. While aft=
+er
+all patches applied, we won't see the warning again.
+
+Hmm... it looks like some dirty work, while I still think it worth the effo=
+rts
+to use the correct macro.
+
+Willing to get some feedback :-)
+
+
+On Fri, Jan 27, 2017 at 09:59:21AM +0800, Wei Yang wrote:
+>According to commit <b115423357e0> ('mm/memblock: switch to use
+>NUMA_NO_NODE instead of MAX_NUMNODES'), MAX_NUMNODES is not preferred as an
+>node_id indicator.
+>
+>This patch use NUMA_NO_NODE as the default node_id for memblock.
+>
+>Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>---
+> arch/x86/mm/numa.c | 6 +++---
+> mm/memblock.c      | 8 ++++----
+> 2 files changed, 7 insertions(+), 7 deletions(-)
+>
+>diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+>index 3f35b48d1d9d..4366242356c5 100644
+>--- a/arch/x86/mm/numa.c
+>+++ b/arch/x86/mm/numa.c
+>@@ -506,7 +506,7 @@ static void __init numa_clear_kernel_node_hotplug(void)
+> 	 *   reserve specific pages for Sandy Bridge graphics. ]
+> 	 */
+> 	for_each_memblock(reserved, mb_region) {
+>-		if (mb_region->nid !=3D MAX_NUMNODES)
+>+		if (mb_region->nid !=3D NUMA_NO_NODE)
+> 			node_set(mb_region->nid, reserved_nodemask);
+> 	}
+>=20
+>@@ -633,9 +633,9 @@ static int __init numa_init(int (*init_func)(void))
+> 	nodes_clear(node_online_map);
+> 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+> 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
+>-				  MAX_NUMNODES));
+>+				  NUMA_NO_NODE));
+> 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
+>-				  MAX_NUMNODES));
+>+				  NUMA_NO_NODE));
+> 	/* In case that parsing SRAT failed. */
+> 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
+> 	numa_reset_distance();
+>diff --git a/mm/memblock.c b/mm/memblock.c
+>index d0f2c9632187..7d27566cee11 100644
+>--- a/mm/memblock.c
+>+++ b/mm/memblock.c
+>@@ -292,7 +292,7 @@ static void __init_memblock memblock_remove_region(str=
+uct memblock_type *type, u
+> 		type->regions[0].base =3D 0;
+> 		type->regions[0].size =3D 0;
+> 		type->regions[0].flags =3D 0;
+>-		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+>+		memblock_set_region_node(&type->regions[0], NUMA_NO_NODE);
+> 	}
+> }
+>=20
+>@@ -616,7 +616,7 @@ int __init_memblock memblock_add(phys_addr_t base, phy=
+s_addr_t size)
+> 		     (unsigned long long)base + size - 1,
+> 		     0UL, (void *)_RET_IP_);
+>=20
+>-	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
+>+	return memblock_add_range(&memblock.memory, base, size, NUMA_NO_NODE, 0);
+> }
+>=20
+> /**
+>@@ -734,7 +734,7 @@ int __init_memblock memblock_reserve(phys_addr_t base,=
+ phys_addr_t size)
+> 		     (unsigned long long)base + size - 1,
+> 		     0UL, (void *)_RET_IP_);
+>=20
+>-	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, =
+0);
+>+	return memblock_add_range(&memblock.reserved, base, size, NUMA_NO_NODE, =
+0);
+> }
+>=20
+> /**
+>@@ -1684,7 +1684,7 @@ static void __init_memblock memblock_dump(struct mem=
+block_type *type, char *name
+> 		size =3D rgn->size;
+> 		flags =3D rgn->flags;
+> #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>-		if (memblock_get_region_node(rgn) !=3D MAX_NUMNODES)
+>+		if (memblock_get_region_node(rgn) !=3D NUMA_NO_NODE)
+> 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+> 				 memblock_get_region_node(rgn));
+> #endif
+>--=20
+>2.11.0
+
+--=20
+Wei Yang
+Help you, Help me
+
+--FL5UXtIhxfXey3p5
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJYwM+PAAoJEKcLNpZP5cTdcfUP/jUj/c0zNdSaLhdE6Ph1rueA
+E4CHx2UC36PeQsvd4jGSV7bf3dcYVIfUNoi5QL4yn5gXgETD3gn16GQ2gXLBvXtc
+fQHCOdeEOEnz5SKh2wboYCeGN7jrg1Q8MHkYLlhH/K/VVDqFGqrzdP2TPNL4cpJR
+Z8RHhU7R1V8s1UcqrL+zePS33neU1FV0/C6qDy7jLQwu33KOVotSsMSwKyJrmZp5
+xNG+E9FNI3WuA4v4pC5DKX8bAr5xdKXw5PanD6fsIuyg6bLBuU8AxDGWsVpBQg7H
+FILtROLu5lJHpvhfDX7ecnLPGjzZwYY5dBBEb5PMQLHPvq5M/qwrBg6FvFhkbkpm
+4VUWw2rvuJWhCAi8R1j8VgXLM8I7FxgD8g5DLPexweExKelN8jwn87/2m0EibXEV
+4iY0IByt1Rb2uPimkzvWx4LyUWO2RjpJ1X4GTpNfa72gNudZlC7DSxif11W5b4Tf
+CW7OyNFRN2lXaPHUoowrqWSBeGcky95tnce63u2I2xkbWqoat1hGiEm0/dNrOBGj
+PXyMC3bFowd8/U1GTanjbYX7w+XWopuRLWotS9LL0FWEgPc1zdxCJtCk9VI+wzD7
+3EHIIzPRsTFZLV876HVAcT4nee62UkfEWw6RHjxhKlJhyOCbz7BA3p+PWbExVAvu
+vuspjMxvyoGha930Ifpx
+=Hy0Y
+-----END PGP SIGNATURE-----
+
+--FL5UXtIhxfXey3p5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
