@@ -1,99 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 75ECB6B0391
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 21:57:33 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id w33so78434661uaw.4
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 18:57:33 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id j20si2425141vkf.122.2017.03.08.18.57.31
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 868096B0397
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 22:25:53 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id g2so91481494pge.7
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 19:25:53 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 21si5100841pfs.216.2017.03.08.19.25.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 18:57:32 -0800 (PST)
-Date: Wed, 8 Mar 2017 21:57:25 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting
- business
-Message-ID: <20170309025725.5wrszri462zipiix@thunk.org>
-References: <20170305133535.6516-1-jlayton@redhat.com>
- <1488724854.2925.6.camel@redhat.com>
- <20170306230801.GA28111@linux.intel.com>
- <20170307102622.GB2578@quack2.suse.cz>
+        Wed, 08 Mar 2017 19:25:52 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v293Oaa2129779
+	for <linux-mm@kvack.org>; Wed, 8 Mar 2017 22:25:51 -0500
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 292k8srsvh-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 08 Mar 2017 22:25:51 -0500
+Received: from localhost
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 9 Mar 2017 13:25:48 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v293Pcck49676522
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 14:25:46 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v293PEYL017261
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 14:25:14 +1100
+Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
+References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
+ <20170308193900.GC32070@tassilo.jf.intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 9 Mar 2017 08:54:55 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170307102622.GB2578@quack2.suse.cz>
+In-Reply-To: <20170308193900.GC32070@tassilo.jf.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <f10aee73-b288-ed21-682d-3d3727fdab2d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Jeff Layton <jlayton@redhat.com>, viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, NeilBrown <neilb@suse.com>
+To: Andi Kleen <ak@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
 
-On Tue, Mar 07, 2017 at 11:26:22AM +0100, Jan Kara wrote:
-> On a more general note (DAX is actually fine here), I find the current
-> practice of clearing page dirty bits on error and reporting it just once
-> problematic. It keeps the system running but data is lost and possibly
-> without getting the error anywhere where it is useful. We get away with
-> this because it is a rare event but it seems like a problematic behavior.
-> But this is more for the discussion at LSF.
+On 03/09/2017 01:09 AM, Andi Kleen wrote:
+>> One example of the problems with extra layers what this patch fixes:
+>> mmap_pgoff() should never be using SHM_HUGE_* logic. This was
+>> introduced by:
+>>
+>>    091d0d55b28 (shm: fix null pointer deref when userspace specifies invalid hugepage size)
+>>
+>> It is obviously harmless but lets just rip out the whole thing --
+>> the shmget.2 manpage will need updating, as it should not be
+>> describing kernel internals.
+> 
+> The SHM_* defines were supposed to be exported to user space,
+> but somehow they didn't make it into uapi.
 
-I'm actually running into this in the last day or two because some MM
-folks at $WORK have been trying to push hard for GFP_NOFS removal in
-ext4 (at least when we are holding some mutex/semaphore like
-i_data_sem) because otherwise it's possible for the OOM killer to be
-unable to kill processes because they are holding on to locks that
-ext4 is holding.
+Yeah, its not part of UAPI which it should have been. Now we
+need to ilog2(page_size) and shift it before using them in
+the user space. BTW, mmap() interface also would want this
+encoding should we choose to use non default HugeTLB page
+sizes.
 
-I've done some initial investigation, and while it's not that hard to
-remove GFP_NOFS from certain parts of the writepages() codepath (which
-is where we had been are running into problems), a really, REALLY big
-problem is if any_filesystem->writepages() returns ENOMEM, it causes
-silent data loss, because the pages are marked clean, and so data
-written using buffered writeback goes *poof*.
+> 
+> But something like this is useful, it's a much nicer 
+> interface for users than to hard code the bit position
 
-I confirmed this by creating a test kernel with a simple patch such
-that if the ext4 file system is mounted with -o debug, there was a 1
-in 16 chance that ext4_writepages will immediately return with ENOMEM
-(and printk the inode number, so I knew which inodes had gotten the
-ENOMEM treatment).  The result was **NOT** pretty.
+Right. But as we need this both for shm and mmap() interface,
+we can only have one set of values exported to the UAPI. The
+other set needs to be removed IMHO. BTW, we need to add the
+encoding for other arch supported HugeTLB supported sizes as
+well like 16MB, 16GB etc (on POWER).
+ 
+> 
+> So I would rather if you move it to uapi instead of 
+> removing. What the kernel uses internally doesn't
+> really matter.
 
-What I think we should strongly consider is at the very least, special
-case ENOMEM being returned by writepages() during background
-writeback, and *not* mark the pages clean, and make sure the inode
-stays on the dirty inode list, so we can retry the write later.  This
-is especially important since the process that issued the write may
-have gone away, so there might not even be a userspace process to
-complain to.  By converting certain page allocations (most notably in
-ext4_mb_load_buddy) from GFP_NOFS to GFP_KMALLOC, this allows us to
-release the i_data_sem lock and return an error.  This should allow
-allow the OOM killer to do its dirty deed, and hopefully we can retry
-the writepages() for that inode later.
+Had a sent a clean up patch last year which unfortunately I
+forgot to resend though it has got ACK from Michal Hocko
+and Balbir Singh.
 
-In the case of a data integrity sync being issued by fsync() or
-umount(), we could allow ENOMEM to get returned to userspace in that
-case as well.  I'm not convinced all userspace code will handle an
-ENOMEM correctly or sanely, but at least they people will be (less
-likely) to blame file system developers.  :-)
+https://lkml.org/lkml/2016/4/7/43
 
-The real problem that's going on here, by the way, is that people are
-trying to run programs in insanely tight containers, and then when the
-kernel locks up, they blame the mm developers.  But if there is silent
-data corruption, they will blame the fs developers instead.  And while
-kernel lockups are temporary (all you have to do is let the watchdog
-reboot the system :-), silent data corruption is *forever*.  So what
-we really need to do is to allow the OOM killer do its work, and if
-job owners are unhappy that their processes are getting OOM killed,
-maybe they will be suitably incentivized to pay for more memory in
-their containers....
+I had also tried to add POWER HugeTLB size encoding in the
+arch specific header files. Probably its time to move all
+of them to generic header.
 
-						- Ted
-
-P.S. Michael Hocko, apologies for not getting back to you with your
-GFP_NOFS removal patches.  But the possibility of fs malfunctions that
-might lead to silent data corruption is why I'm being very cautious,
-and I now have rather strong confirmation that this is not just an
-irrational concern on my part.  (This is also performance review
-season, FAST conference was last week, and Usenix ATC program
-committee reviews are due this week.  So apologies for any reply
-latency.)
+https://lkml.org/lkml/2016/4/7/48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
