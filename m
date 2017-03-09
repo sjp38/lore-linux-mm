@@ -1,83 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 716F06B0426
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 18:18:59 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id o126so136572520pfb.2
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 15:18:59 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id x5si1089217pgj.207.2017.03.09.15.18.58
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EC00B2808F6
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 18:46:59 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y17so136650544pgh.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 15:46:59 -0800 (PST)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0130.outbound.protection.outlook.com. [104.47.40.130])
+        by mx.google.com with ESMTPS id n8si7811431pll.303.2017.03.09.15.46.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 15:18:58 -0800 (PST)
-Subject: Re: [Xen-devel] [PATCH v5 2/3] x86: Remap GDT tables in the Fixmap
- section
-References: <20170306220348.79702-1-thgarnie@google.com>
- <20170306220348.79702-2-thgarnie@google.com>
- <CALCETrVXHc-EAhBtdhL9FXSW1G2VbohRY4UJuOtpRG1K0Q-Ogg@mail.gmail.com>
- <17ffcc5b-1c9a-51b6-272a-5eaecf1bc0c4@citrix.com>
- <CALCETrWv-u7OdjWDY+5eF7p-ngPun-yYf0QegMzYc6MGVQd-4w@mail.gmail.com>
- <CAJcbSZExVWA0jvAoxLLc+58Ag9cHchifrHP=fFfzU_onHo2PyA@mail.gmail.com>
- <5cf31779-45c5-d37f-86bc-d5afb3fb7ab6@oracle.com>
- <51c23e92-d1f0-427f-e069-c92fc4ed6226@oracle.com>
- <CAJcbSZEnUBfLHjf+bHqY0JQhQXD9urX45BXrQjx=1=A5gPpp_w@mail.gmail.com>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <36579cc4-05e7-a448-767c-b9ad940362fc@oracle.com>
-Date: Thu, 9 Mar 2017 18:17:18 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 09 Mar 2017 15:46:58 -0800 (PST)
+Message-ID: <58C1E948.9020306@cs.rutgers.edu>
+Date: Thu, 9 Mar 2017 17:46:16 -0600
+From: Zi Yan <zi.yan@cs.rutgers.edu>
 MIME-Version: 1.0
-In-Reply-To: <CAJcbSZEnUBfLHjf+bHqY0JQhQXD9urX45BXrQjx=1=A5gPpp_w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 0/6] Enable parallel page migration
+References: <20170217112453.307-1-khandual@linux.vnet.ibm.com> <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com> <20170309150904.pnk6ejeug4mktxjv@suse.de> <2a2827d0-53d0-175b-8ed4-262629e01984@nvidia.com> <20170309221522.hwk4wyaqx2jonru6@suse.de>
+In-Reply-To: <20170309221522.hwk4wyaqx2jonru6@suse.de>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature";
+	boundary="------------enig230AB448C8C0DF2269928DE5"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Michal Hocko <mhocko@suse.com>, Stanislaw Gruszka <sgruszka@redhat.com>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Frederic Weisbecker <fweisbec@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Chris Wilson <chris@chris-wilson.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Alexander Potapenko <glider@google.com>, Pavel Machek <pavel@ucw.cz>, "H . Peter Anvin" <hpa@zytor.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jiri Olsa <jolsa@redhat.com>, zijun_hu <zijun_hu@htc.com>, Prarit Bhargava <prarit@redhat.com>, Andi Kleen <ak@linux.intel.com>, Len Brown <len.brown@intel.com>, Jonathan Corbet <corbet@lwn.net>, Michael Ellerman <mpe@ellerman.id.au>, Joerg Roedel <joro@8bytes.org>, X86 ML <x86@kernel.org>, "Luis R . Rodriguez" <mcgrof@kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Ingo Molnar <mingo@redhat.com>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, Borislav Petkov <bp@suse.de>, Fenghua Yu <fenghua.yu@intel.com>, Jiri Kosina <jikos@kernel.org>, Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>, He Chen <he.chen@linux.intel.com>, Brian Gerst <brgerst@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, lguest@lists.ozlabs.org, Andy Lutomirski <luto@kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Cooper <andrew.cooper3@citrix.com>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Peter Zijlstra <peterz@infradead.org>, Paolo Bonzini <pbonzini@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Nellans <dnellans@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 03/09/2017 05:31 PM, Thomas Garnier wrote:
-> On Thu, Mar 9, 2017 at 2:13 PM, Boris Ostrovsky
-> <boris.ostrovsky@oracle.com> wrote:
->>>> I don't have any experience with Xen so it would be great if virtme can test it.
->>> I am pretty sure I tested this series at some point but I'll test it again.
->>>
->>
->> Fails 32-bit build:
->>
->>
->> /home/build/linux-boris/arch/x86/kvm/vmx.c: In function a??segment_basea??:
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: a??host_gdta??
->> undeclared (first use in this function)
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: (Each undeclared
->> identifier is reported only once
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: for each
->> function it appears in.)
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: type defaults to
->> a??inta?? in declaration of a??type namea??
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: type defaults to
->> a??inta?? in declaration of a??type namea??
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: warning: initialization
->> from incompatible pointer type
->> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: warning: unused
->> variable a??gdta??
->>
->>
->> -boris
-> It seems that I forgot to remove line 2054 on the rebase. My 32-bit
-> build comes clean but I assume it is not good enough compare to the
-> full version I build for 64-bit KVM testing.
->
-> Remove just this line and it should build fine, I will fix this on the
-> next iteration.
->
-> Thanks for testing,
->
+--------------enig230AB448C8C0DF2269928DE5
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi Mel,
+
+Thanks for pointing out the problems in this patchset.
+
+It was my intern project done in NVIDIA last summer. I only used
+micro-benchmarks to demonstrate the big memory bandwidth utilization gap
+between base page migration and THP migration along with serialized page
+migration vs parallel page migration.
+
+Here are cross-socket serialized page migration results from calling
+move_pages() syscall:
+
+In x86_64, a Intel two-socket E5-2640v3 box,
+single 4KB base page migration takes 62.47 us, using 0.06 GB/s BW,
+single 2MB THP migration takes 658.54 us, using 2.97 GB/s BW,
+512 4KB base page migration takes 1987.38 us, using 0.98 GB/s BW.
+
+In ppc64, a two-socket Power8 box,
+single 64KB base page migration takes 49.3 us, using 1.24 GB/s BW,
+single 16MB THP migration takes 2202.17 us, using 7.10 GB/s BW,
+256 64KB base page migration takes 2543.65 us, using 6.14 GB/s BW.
+
+THP migration is not slow at all when compared to a group of equivalent
+base page migrations.
+
+For 1-thread vs 8-thread THP migration:
+In x86_64,
+1-thread 2MB THP migration takes 658.54 us, using 2.97 GB/s BW,
+8-thread 2MB THP migration takes 227.76 us, using 8.58 GB/s BW.
+
+In ppc64,
+1-thread 16MB THP migration takes 2202.17 us, using 7.10 GB/s BW,
+8-thread 16MB THP migration takes 1223.87 us, using 12.77 GB/s BW.
+
+This big increase on BW utilization is the motivation of pushing this
+patchset.
+
+>=20
+> So the key potential issue here in my mind is that THP migration is too=
+ slow
+> in some cases. What I object to is improving that using a high priority=
+
+> workqueue that potentially starves other CPUs and pollutes their cache
+> which is generally very expensive.
+
+I might not completely agree with this. Using a high priority workqueue
+can guarantee page migration work is done ASAP. Otherwise, we completely
+lose the speedup brought by parallel page migration, if data copy
+threads have to wait.
+
+I understand your concern on CPU utilization impact. I think checking
+CPU utilization and only using idle CPUs could potentially avoid this
+problem.
+
+>=20
+> Lets look at the core of what copy_huge_page does in mm/migrate.c which=
+
+> is the function that gets parallelised by the series in question. For
+> a !HIGHMEM system, it's woefully inefficient. Historically, it was an
+> implementation that would work generically which was fine but maybe not=
+
+> for future systems. It was also fine back when hugetlbfs was the only h=
+uge
+> page implementation and COW operations were incredibly rare on the grou=
+nds
+> due to the risk that they could terminate the process with prejudice.
+>=20
+> The function takes a huge page, splits it into PAGE_SIZE chunks, kmap_a=
+tomics
+> the source and destination for each PAGE_SIZE chunk and copies it. The
+> parallelised version does one kmap and copies it in chunks assuming the=
+
+> THP is fully mapped and accessible. Fundamentally, this is broken in th=
+e
+> generic sense as the kmap is not guaranteed to make the whole page nece=
+ssary
+> but it happens to work on !highmem systems.  What is more important to
+> note is that it's multiple preempt and pagefault enables and disables
+> on a per-page basis that happens 512 times (for THP on x86-64 at least)=
+,
+> all of which are expensive operations depending on the kernel config an=
+d
+> I suspect that the parallisation is actually masking that stupid overhe=
+ad.
+
+You are right on kmap, I think making this patchset depend on !HIGHMEM
+can avoid the problem. It might not make sense to kmap potentially 512
+base pages to migrate a THP in a system with highmem.
+
+>=20
+> At the very least, I would have expected an initial attempt of one patc=
+h that
+> optimised for !highmem systems to ignore kmap, simply disable preempt (=
+if
+> that is even necessary, I didn't check) and copy a pinned physical->phy=
+sical
+> page as a single copy without looping on a PAGE_SIZE basis and see how
+> much that gained. Do it initially for THP only and worry about gigantic=
+
+> pages when or if that is a problem.
+
+I can try this out to show how much improvement we can obtain from
+existing THP migration, which is shown in the data above.
+
+>=20
+> That would be patch 1 of a series.  Maybe that'll be enough, maybe not =
+but
+> I feel it's important to optimise the serialised case as much as possib=
+le
+> before considering parallelisation to highlight and justify why it's
+> necessary[1]. If nothing else, what if two CPUs both parallelise a migr=
+ation
+> at the same time and end up preempting each other? Between that and the=
+
+> workqueue setup, it's potentially much slower than an optimised serial =
+copy.
+>=20
+> It would be tempting to experiment but the test case was not even inclu=
+ded
+> with the series (maybe it's somewhere else)[2]. While it's obvious how
+> such a test case could be constructed, it feels unnecessary to construc=
+t
+> it when it should be in the changelog.
+
+Do you mean performing multiple parallel page migrations at the same
+time and show all the page migration time?
 
 
-So this, in fact, does break Xen in that the hypercall to set GDT fails.
+--=20
+Best Regards,
+Yan Zi
 
-I will have lo look at this tomorrow but I definitely at least built
-with v3 of this series. And I don't see why I wouldn't have tested it
-once I built it.
 
--boris
+--------------enig230AB448C8C0DF2269928DE5
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iQEcBAEBCAAGBQJYwelqAAoJEEGLLxGcTqbMpLgIAJ4laqF6RLuGU5pd1iq487Fk
+k3xsMdVFISchr8AIJUayaQfD/b074eyRk8s5kprclbLG4+QAeHRhdexlWwuONVus
+GQTUlFWm2ZuFu+A0tZRtWuln6rJ8h1po0o7Q9z4KW7GE4BVVyjNVPAvXtM4kjsF6
+hnQYfoknANRnTKAWb1D/wtvU0C+ftfxJkWpw7x3RMC1spUybbZBFEQFuFYIEBvHA
+kVH9BIlGwAhWpxTA5ONIyZfBIo+BOwTNHabG5gKzRszwk7hyuaRiu39dabOUky63
+3WHO59yeNXojSu7WuHq5f9qC97+GHUrrEt1xYh6xxnco54Gv/4ZYVdFeU1iO9bk=
+=yU1Q
+-----END PGP SIGNATURE-----
+
+--------------enig230AB448C8C0DF2269928DE5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
