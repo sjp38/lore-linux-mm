@@ -1,54 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 85A052808C6
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 07:55:36 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 126so88230391oig.2
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 04:55:36 -0800 (PST)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0100.outbound.protection.outlook.com. [104.47.2.100])
-        by mx.google.com with ESMTPS id e62si2929992otb.307.2017.03.09.04.55.34
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE2DC2808C6
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 08:02:44 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id x63so110454700pfx.7
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 05:02:44 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n73si6384479pfb.276.2017.03.09.05.02.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 09 Mar 2017 04:55:35 -0800 (PST)
-Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
-References: <20170302134851.101218-1-andreyknvl@google.com>
- <20170302134851.101218-7-andreyknvl@google.com>
- <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
- <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
- <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
- <CAAeHK+xnHx5fvhq158+oxMxieG7a+gG7i0MQS92DqxYGe0O=Ww@mail.gmail.com>
- <576aeb81-9408-13fa-041d-a6bd1e2cf895@virtuozzo.com>
- <CAAeHK+w087z_pEWN=ZBDZN=XqqQMFZ9eevX44LERFV-d=G3F8g@mail.gmail.com>
- <CAAeHK+xCo+JcFstGz+xhgX2qvkP1zpwOg9VD0N-oD4Q=YcSi7A@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <69679f30-e502-d2cf-8dee-4ee88f64f887@virtuozzo.com>
-Date: Thu, 9 Mar 2017 15:56:43 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 05:02:43 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v29CvM6d131753
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 08:02:43 -0500
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 292yce48yw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 09 Mar 2017 08:02:43 -0500
+Received: from localhost
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 9 Mar 2017 18:32:39 +0530
+Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
+	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v29D2bom13369510
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 18:32:37 +0530
+Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
+	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v29D2Z4l014670
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2017 18:32:36 +0530
+Subject: Re: [RFC PATCH 07/14] migrate: Add copy_page_lists_mthread()
+ function.
+References: <20170217150551.117028-1-zi.yan@sent.com>
+ <20170217150551.117028-8-zi.yan@sent.com>
+ <20170223085419.GA28246@hori1.linux.bs1.fc.nec.co.jp>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 9 Mar 2017 18:32:30 +0530
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+xCo+JcFstGz+xhgX2qvkP1zpwOg9VD0N-oD4Q=YcSi7A@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20170223085419.GA28246@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Message-Id: <051b8789-f88b-0fdb-f150-7ef389fddae1@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@sent.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "apopple@au1.ibm.com" <apopple@au1.ibm.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>
 
-On 03/06/2017 08:16 PM, Andrey Konovalov wrote:
+On 02/23/2017 02:24 PM, Naoya Horiguchi wrote:
+> On Fri, Feb 17, 2017 at 10:05:44AM -0500, Zi Yan wrote:
+>> From: Zi Yan <ziy@nvidia.com>
+>>
+>> It supports copying a list of pages via multi-threaded process.
+>> It evenly distributes a list of pages to a group of threads and
+>> uses the same subroutine as copy_page_mthread()
+> The new function has many duplicate lines with copy_page_mthread(),
+> so please consider factoring out them into a common routine.
+> That makes your code more readable/maintainable.
 
->>
->> What about
->>
->> Object at ffff880068388540 belongs to cache kmalloc-128 of size 128
->> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
->>
->> ?
-> 
-> Another alternative:
-> 
-> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
-> Object belongs to cache kmalloc-128 of size 128
-> 
+Though it looks very similar to each other. There are some
+subtle differences which makes it harder to factor them out
+in common functions.
 
-Is it something wrong with just printing offset at the end as I suggested earlier?
-It's more compact and also more clear IMO.
+int copy_pages_mthread(struct page *to, struct page *from, int nr_pages)
+
+* This takes a single source page and single destination
+  page and copies contiguous address data between these
+  two pages. The size of the copy can be a single page
+  for normal page or it can be multi pages if its a huge
+  page.
+
+* The work is split into PAGE_SIZE * nr_pages / threads and
+  assigned to individual threads which is decided based on
+  number of CPUs present on the target node. A single thread
+  takes a single work queue job and executes it.
+
+int copy_page_list_mt(struct page **to, struct page **from, int nr_pages)
+
+* This takes multiple source pages and multiple destination
+  pages and copies contiguous address data between two pages
+  in a single work queue job. The size of the copy is decided
+  based on type of page whether normal or huge.
+
+* Each job does a single copy of a source page to destination
+  page and we create as many jobs as number of pages though
+  they are assigned to number of thread based on the number
+  of CPUs present on the destination node. So one CPU can
+  get more than one page copy job scheduled.
+
+- Anshuman
+
+ 
+
+  
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
