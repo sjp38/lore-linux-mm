@@ -1,62 +1,40 @@
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: Do not use double negation for testing page flags
-Date: Tue, 7 Mar 2017 15:36:37 +0900
-Message-ID: <1488868597-32222-1-git-send-email-minchan@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
+Date: Thu, 9 Mar 2017 19:46:14 +0900
+Message-ID: <201703091946.GDC21885.OQFFOtJHSOFVML@I-love.SAKURA.ne.jp>
+References: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Mime-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
 Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Minchan Kim <minchan@kernel.org>, Vlastimil Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, david@fromorbit.com, apolyakov@beget.ru
 List-Id: linux-mm.kvack.org
 
-With the discussion[1], I found it seems there are every PageFlags
-functions return bool at this moment so we don't need double
-negation any more.
-Although it's not a problem to keep it, it makes future users
-confused to use dobule negation for them, too.
+Andrew, do you have any questions on this patch?
+I really need this patch for finding bugs which MM people overlook.
 
-Remove such possibility.
-
-[1] https://marc.info/?l=linux-kernel&m=148881578820434
-
-Frankly sepaking, I like every PageFlags return bool instead of int.
-It will make it clear. AFAIR, Chen Gang had tried it but don't know
-why it was not merged at that time.
-
-http://lkml.kernel.org/r/1469336184-1904-1-git-send-email-chengang@emindsoft.com.cn
-
-Cc: Vlastimil Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Chen Gang <gang.chen.5i5j@gmail.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/khugepaged.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 88e4b17..7cb9c88 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -548,7 +548,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 		 * The page must only be referenced by the scanned process
- 		 * and page swap cache.
- 		 */
--		if (page_count(page) != 1 + !!PageSwapCache(page)) {
-+		if (page_count(page) != 1 + PageSwapCache(page)) {
- 			unlock_page(page);
- 			result = SCAN_PAGE_COUNT;
- 			goto out;
-@@ -1181,7 +1181,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		 * The page must only be referenced by the scanned process
- 		 * and page swap cache.
- 		 */
--		if (page_count(page) != 1 + !!PageSwapCache(page)) {
-+		if (page_count(page) != 1 + PageSwapCache(page)) {
- 			result = SCAN_PAGE_COUNT;
- 			goto out_unmap;
- 		}
--- 
-2.7.4
+Tetsuo Handa wrote:
+> This patch adds a watchdog which periodically reports number of memory
+> allocating tasks, dying tasks and OOM victim tasks when some task is
+> spending too long time inside __alloc_pages_slowpath(). This patch also
+> serves as a hook for obtaining additional information using SystemTap
+> (e.g. examine other variables using printk(), capture a crash dump by
+> calling panic()) by triggering a callback only when a stall is detected.
+> Ability to take administrator-controlled actions based on some threshold
+> is a big advantage gained by introducing a state tracking.
+> 
+> Commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for
+> too long") was a great step for reducing possibility of silent hang up
+> problem caused by memory allocation stalls [1]. However, there are
+> reports of long stalls (e.g. [2] is over 30 minutes!) and lockups (e.g.
+> [3] is an "unable to invoke the OOM killer due to !__GFP_FS allocation"
+> lockup problem) where this patch is more useful than that commit, for
+> this patch can report possibly related tasks even if allocating tasks
+> are unexpectedly blocked for so long. Regarding premature OOM killer
+> invocation, tracepoints which can accumulate samples in short interval
+> would be useful. But regarding too late to report allocation stalls,
+> this patch which can capture all tasks (for reporting overall situation)
+> in longer interval and act as a trigger (for accumulating short interval
+> samples) would be useful.
