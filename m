@@ -1,72 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5256B041A
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 13:11:39 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id g10so22262618wrg.5
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 10:11:39 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 36si9654846wrp.148.2017.03.09.10.11.38
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 794272808C0
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 14:11:51 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id i50so101231186otd.3
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 11:11:51 -0800 (PST)
+Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
+        by mx.google.com with ESMTPS id d69si265062oig.248.2017.03.09.11.11.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 10:11:38 -0800 (PST)
-Date: Thu, 9 Mar 2017 13:05:40 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-Message-ID: <20170309180540.GA8678@cmpxchg.org>
-References: <20170307133057.26182-1-mhocko@kernel.org>
- <1488916356.6405.4.camel@redhat.com>
+        Thu, 09 Mar 2017 11:11:50 -0800 (PST)
+Received: by mail-oi0-x236.google.com with SMTP id 2so40962754oif.0
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 11:11:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1488916356.6405.4.camel@redhat.com>
+In-Reply-To: <20170309130616.51286-3-heiko.carstens@de.ibm.com>
+References: <20170309130616.51286-1-heiko.carstens@de.ibm.com> <20170309130616.51286-3-heiko.carstens@de.ibm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 9 Mar 2017 11:11:49 -0800
+Message-ID: <CAPcyv4homGf0HVTCYrmYiQobzvp3vSx2zznmgQCabeWmOm6aXA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] drivers core: remove assert_held_device_hotplug()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
-On Tue, Mar 07, 2017 at 02:52:36PM -0500, Rik van Riel wrote:
-> It only does this to some extent.  If reclaim made
-> no progress, for example due to immediately bailing
-> out because the number of already isolated pages is
-> too high (due to many parallel reclaimers), the code
-> could hit the "no_progress_loops > MAX_RECLAIM_RETRIES"
-> test without ever looking at the number of reclaimable
-> pages.
+On Thu, Mar 9, 2017 at 5:06 AM, Heiko Carstens
+<heiko.carstens@de.ibm.com> wrote:
+> The last caller of assert_held_device_hotplug() is gone, so remove it again.
+>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Ben Hutchings <ben@decadent.org.uk>
+> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>
+> Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Hm, there is no early return there, actually. We bump the loop counter
-every time it happens, but then *do* look at the reclaimable pages.
-
-> Could that create problems if we have many concurrent
-> reclaimers?
-
-With increased concurrency, the likelihood of OOM will go up if we
-remove the unlimited wait for isolated pages, that much is true.
-
-I'm not sure that's a bad thing, however, because we want the OOM
-killer to be predictable and timely. So a reasonable wait time in
-between 0 and forever before an allocating thread gives up under
-extreme concurrency makes sense to me.
-
-> It may be OK, I just do not understand all the implications.
-> 
-> I like the general direction your patch takes the code in,
-> but I would like to understand it better...
-
-I feel the same way. The throttling logic doesn't seem to be very well
-thought out at the moment, making it hard to reason about what happens
-in certain scenarios.
-
-In that sense, this patch isn't really an overall improvement to the
-way things work. It patches a hole that seems to be exploitable only
-from an artificial OOM torture test, at the risk of regressing high
-concurrency workloads that may or may not be artificial.
-
-Unless I'm mistaken, there doesn't seem to be a whole lot of urgency
-behind this patch. Can we think about a general model to deal with
-allocation concurrency? Unlimited parallel direct reclaim is kinda
-bonkers in the first place. How about checking for excessive isolation
-counts from the page allocator and putting allocations on a waitqueue?
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
