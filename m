@@ -1,91 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C452808C1
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:20:49 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id n11so20841178wma.5
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:20:49 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n26si4458927wmi.51.2017.03.09.06.20.47
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E93B2808C5
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:21:46 -0500 (EST)
+Received: by mail-yb0-f199.google.com with SMTP id d88so19466757ybi.3
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:21:46 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id e184si862557ywh.383.2017.03.09.06.21.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Mar 2017 06:20:47 -0800 (PST)
-Date: Thu, 9 Mar 2017 14:20:44 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/9] mm: fix 100% CPU kswapd busyloop on unreclaimable
- nodes
-Message-ID: <20170309142044.5ewlvus6ana6boqp@suse.de>
-References: <20170228214007.5621-1-hannes@cmpxchg.org>
- <20170228214007.5621-2-hannes@cmpxchg.org>
- <20170303012609.GA3394@bbox>
- <20170303075954.GA31499@dhcp22.suse.cz>
- <20170306013740.GA8779@bbox>
- <20170306162410.GB2090@cmpxchg.org>
- <20170307101702.GD28642@dhcp22.suse.cz>
- <20170307165631.GA21425@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 06:21:45 -0800 (PST)
+Date: Thu, 9 Mar 2017 09:21:37 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting
+ business
+Message-ID: <20170309142137.lz7cba4was3jfyyt@thunk.org>
+References: <20170305133535.6516-1-jlayton@redhat.com>
+ <1488724854.2925.6.camel@redhat.com>
+ <20170306230801.GA28111@linux.intel.com>
+ <20170307102622.GB2578@quack2.suse.cz>
+ <20170309025725.5wrszri462zipiix@thunk.org>
+ <20170309090449.GD15874@quack2.suse.cz>
+ <1489056471.2791.2.camel@redhat.com>
+ <20170309110225.GF15874@quack2.suse.cz>
+ <1489063392.2791.8.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170307165631.GA21425@cmpxchg.org>
+In-Reply-To: <1489063392.2791.8.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, NeilBrown <neilb@suse.com>
 
-On Tue, Mar 07, 2017 at 11:56:31AM -0500, Johannes Weiner wrote:
-> On Tue, Mar 07, 2017 at 11:17:02AM +0100, Michal Hocko wrote:
-> > On Mon 06-03-17 11:24:10, Johannes Weiner wrote:
-> > > @@ -3271,7 +3271,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
-> > >  		 * Raise priority if scanning rate is too low or there was no
-> > >  		 * progress in reclaiming pages
-> > >  		 */
-> > > -		if (raise_priority || !sc.nr_reclaimed)
-> > > +		nr_reclaimed = sc.nr_reclaimed - nr_reclaimed;
-> > > +		if (raise_priority || !nr_reclaimed)
-> > >  			sc.priority--;
-> > >  	} while (sc.priority >= 1);
-> > >  
-> > 
-> > I would rather not play with the sc state here. From a quick look at
-> > least 
-> > 	/*
-> > 	 * Fragmentation may mean that the system cannot be rebalanced for
-> > 	 * high-order allocations. If twice the allocation size has been
-> > 	 * reclaimed then recheck watermarks only at order-0 to prevent
-> > 	 * excessive reclaim. Assume that a process requested a high-order
-> > 	 * can direct reclaim/compact.
-> > 	 */
-> > 	if (sc->order && sc->nr_reclaimed >= compact_gap(sc->order))
-> > 		sc->order = 0;
-> > 
-> > does rely on the value. Wouldn't something like the following be safer?
+On Thu, Mar 09, 2017 at 07:43:12AM -0500, Jeff Layton wrote:
 > 
-> Well, what behavior is correct, though? This check looks like an
-> argument *against* resetting sc.nr_reclaimed.
-> 
-> If kswapd is woken up for a higher order, this check sets a reclaim
-> cutoff beyond which it should give up on the order and balance for 0.
-> 
-> That's on the scope of the kswapd invocation. Applying this threshold
-> to the outcome of just the preceeding priority seems like a mistake.
-> 
-> Mel? Vlastimil?
+> Maybe we need a systemwide (or fs-level) tunable that makes ENOSPC a
+> transient error? Just have it hang until we get enough space when that
+> tunable is enabled?
 
-I cannot say which is definitely the correct behaviour. The current
-behaviour is conservative due to the historical concerns about kswapd
-reclaiming the world. The hazard as I see it is that resetting it *may*
-lead to more aggressive reclaim for high-order allocations. That may be a
-welcome outcome to some that really want high-order pages and be unwelcome
-to others that prefer pages to remain resident.
+Or maybe we need a new kernel-internal errno (ala ERESTARSYS) which
+means it's a "soft ENOSPC"?  It would get translated to ENOSPC if it
+gets propagated to userspace, but that way for devices like dm-thin or
+other storage array with thin volumes, it could send back a soft
+ENOSPC, while for file systems where "ENOSPC means ENOSPC", we can
+treat those as a hard ENOSPC.
 
-However, in this case it's a tight window and problems would be tricky to
-detect. THP allocations won't trigger the behaviour and with vmalloc'd
-stack, I'd expect that only SLUB-intensive workloads using high-order
-pages would trigger any adverse behaviour. While I'm mildly concerned, I
-would be a little surprised if it actually caused runaway reclaim.
-
--- 
-Mel Gorman
-SUSE Labs
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
