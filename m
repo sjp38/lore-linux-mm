@@ -1,98 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A9F12808E3
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:27:52 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id a6so46977641lfa.1
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:27:52 -0800 (PST)
-Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with ESMTPS id u132si603453lff.356.2017.03.09.14.27.50
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 83AE92808E3
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:31:51 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id h10so79034886ith.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:31:51 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h79sor17667ita.29.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 Mar 2017 14:27:51 -0800 (PST)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH 1/2] mm: add private lock to serialize memory hotplug operations
-Date: Thu, 09 Mar 2017 23:22:31 +0100
-Message-ID: <19605238.M7OFe3HAv5@aspire.rjw.lan>
-In-Reply-To: <3207330.x0D3JT6f2l@aspire.rjw.lan>
-References: <20170309130616.51286-1-heiko.carstens@de.ibm.com> <CAPcyv4jXmxjVaR=sGfqjy2QP_Yq4ALfTQb9_QMZ3tk0ntxfTFA@mail.gmail.com> <3207330.x0D3JT6f2l@aspire.rjw.lan>
+        (Google Transport Security);
+        Thu, 09 Mar 2017 14:31:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <51c23e92-d1f0-427f-e069-c92fc4ed6226@oracle.com>
+References: <20170306220348.79702-1-thgarnie@google.com> <20170306220348.79702-2-thgarnie@google.com>
+ <CALCETrVXHc-EAhBtdhL9FXSW1G2VbohRY4UJuOtpRG1K0Q-Ogg@mail.gmail.com>
+ <17ffcc5b-1c9a-51b6-272a-5eaecf1bc0c4@citrix.com> <CALCETrWv-u7OdjWDY+5eF7p-ngPun-yYf0QegMzYc6MGVQd-4w@mail.gmail.com>
+ <CAJcbSZExVWA0jvAoxLLc+58Ag9cHchifrHP=fFfzU_onHo2PyA@mail.gmail.com>
+ <5cf31779-45c5-d37f-86bc-d5afb3fb7ab6@oracle.com> <51c23e92-d1f0-427f-e069-c92fc4ed6226@oracle.com>
+From: Thomas Garnier <thgarnie@google.com>
+Date: Thu, 9 Mar 2017 14:31:49 -0800
+Message-ID: <CAJcbSZEnUBfLHjf+bHqY0JQhQXD9urX45BXrQjx=1=A5gPpp_w@mail.gmail.com>
+Subject: Re: [Xen-devel] [PATCH v5 2/3] x86: Remap GDT tables in the Fixmap section
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Cooper <andrew.cooper3@citrix.com>, Michal Hocko <mhocko@suse.com>, Stanislaw Gruszka <sgruszka@redhat.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, Frederic Weisbecker <fweisbec@gmail.com>, X86 ML <x86@kernel.org>, Chris Wilson <chris@chris-wilson.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Alexander Potapenko <glider@google.com>, Pavel Machek <pavel@ucw.cz>, "H . Peter Anvin" <hpa@zytor.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jiri Olsa <jolsa@redhat.com>, zijun_hu <zijun_hu@htc.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, Jonathan Corbet <corbet@lwn.net>, Michael Ellerman <mpe@ellerman.id.au>, Joerg Roedel <joro@8bytes.org>, Prarit Bhargava <prarit@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Borislav Petkov <bp@suse.de>, Len Brown <len.brown@intel.com>, Rusty Russell <rusty@rustcorp.com.au>, Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>, He Chen <he.chen@linux.intel.com>, Brian Gerst <brgerst@gmail.com>, Jiri Kosina <jikos@kernel.org>, lguest@lists.ozlabs.org, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Lorenzo Stoakes <lstoakes@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tim Chen <tim.c.chen@linux.intel.com>
 
-On Thursday, March 09, 2017 11:15:47 PM Rafael J. Wysocki wrote:
-> On Thursday, March 09, 2017 10:10:31 AM Dan Williams wrote:
-> > On Thu, Mar 9, 2017 at 5:39 AM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> > > On Thursday, March 09, 2017 02:06:15 PM Heiko Carstens wrote:
-> > >> Commit bfc8c90139eb ("mem-hotplug: implement get/put_online_mems")
-> > >> introduced new functions get/put_online_mems() and
-> > >> mem_hotplug_begin/end() in order to allow similar semantics for memory
-> > >> hotplug like for cpu hotplug.
-> > >>
-> > >> The corresponding functions for cpu hotplug are get/put_online_cpus()
-> > >> and cpu_hotplug_begin/done() for cpu hotplug.
-> > >>
-> > >> The commit however missed to introduce functions that would serialize
-> > >> memory hotplug operations like they are done for cpu hotplug with
-> > >> cpu_maps_update_begin/done().
-> > >>
-> > >> This basically leaves mem_hotplug.active_writer unprotected and allows
-> > >> concurrent writers to modify it, which may lead to problems as
-> > >> outlined by commit f931ab479dd2 ("mm: fix devm_memremap_pages crash,
-> > >> use mem_hotplug_{begin, done}").
-> > >>
-> > >> That commit was extended again with commit b5d24fda9c3d ("mm,
-> > >> devm_memremap_pages: hold device_hotplug lock over mem_hotplug_{begin,
-> > >> done}") which serializes memory hotplug operations for some call
-> > >> sites by using the device_hotplug lock.
-> > >>
-> > >> In addition with commit 3fc21924100b ("mm: validate device_hotplug is
-> > >> held for memory hotplug") a sanity check was added to
-> > >> mem_hotplug_begin() to verify that the device_hotplug lock is held.
-> > >
-> > > Admittedly, I haven't looked at all of the code paths involved in detail yet,
-> > > but there's one concern regarding lock/unlock_device_hotplug().
-> > >
-> > > The actual main purpose of it is to ensure safe removal of devices in cases
-> > > when they cannot be removed separately, like when a whole CPU package
-> > > (including possibly an entire NUMA node with memory and all) is removed.
-> > >
-> > > One of the code paths doing that is acpi_scan_hot_remove() which first
-> > > tries to offline devices slated for removal and then finally removes them.
-> > >
-> > > The reason why this needs to be done in two stages is because the offlining
-> > > can fail, in which case we will fail the entire operation, while the final
-> > > removal step is, well, final (meaning that the devices are gone after it no
-> > > matter what).
-> > >
-> > > This is done under device_hotplug_lock, so that the devices that were taken
-> > > offline in stage 1 cannot be brought back online before stage 2 is carried
-> > > out entirely, which surely would be bad if it happened.
-> > >
-> > > Now, I'm not sure if removing lock/unlock_device_hotplug() from the code in
-> > > question actually affects this mechanism, but this in case it does, it is one
-> > > thing to double check before going ahead with this patch.
-> > >
-> > 
-> > I *think* we're ok in this case because unplugging the CPU package
-> > that contains a persistent memory device will trigger
-> > devm_memremap_pages() to call arch_remove_memory(). Removing a pmem
-> > device can't fail. It may be held off while pages are pinned for DMA
-> > memory, but it will eventually complete.
-> 
-> What about the offlining, though?  Is it guaranteed that no memory from those
-> ranges will go back online after the acpi_scan_try_to_offline() call in
-> acpi_scan_hot_remove()?
+On Thu, Mar 9, 2017 at 2:13 PM, Boris Ostrovsky
+<boris.ostrovsky@oracle.com> wrote:
+>
+>>> I don't have any experience with Xen so it would be great if virtme can=
+ test it.
+>>
+>> I am pretty sure I tested this series at some point but I'll test it aga=
+in.
+>>
+>
+>
+> Fails 32-bit build:
+>
+>
+> /home/build/linux-boris/arch/x86/kvm/vmx.c: In function =E2=80=98segment_=
+base=E2=80=99:
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: =E2=80=98host_gdt=
+=E2=80=99
+> undeclared (first use in this function)
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: (Each undeclared
+> identifier is reported only once
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: for each
+> function it appears in.)
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: type defaults to
+> =E2=80=98int=E2=80=99 in declaration of =E2=80=98type name=E2=80=99
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: type defaults to
+> =E2=80=98int=E2=80=99 in declaration of =E2=80=98type name=E2=80=99
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: warning: initialization
+> from incompatible pointer type
+> /home/build/linux-boris/arch/x86/kvm/vmx.c:2054: warning: unused
+> variable =E2=80=98gdt=E2=80=99
+>
+>
+> -boris
 
-My point is that after the acpi_evaluate_ej0() in acpi_scan_hot_remove() the
-hardware is physically gone, so if anything is still doing DMA to that memory at
-that point, then the user is going to be unhappy.
+It seems that I forgot to remove line 2054 on the rebase. My 32-bit
+build comes clean but I assume it is not good enough compare to the
+full version I build for 64-bit KVM testing.
 
-Thanks,
-Rafael
+Remove just this line and it should build fine, I will fix this on the
+next iteration.
+
+Thanks for testing,
+
+--=20
+Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
