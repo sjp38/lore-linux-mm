@@ -1,107 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 425EF2808E3
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:33:45 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id n84so106175757oih.1
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:33:45 -0800 (PST)
-Received: from mail-ot0-x231.google.com (mail-ot0-x231.google.com. [2607:f8b0:4003:c0f::231])
-        by mx.google.com with ESMTPS id s65si446682oig.281.2017.03.09.14.33.44
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9823A2808E3
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:35:53 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id x63so134330201pfx.7
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:35:53 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p91si7698509plb.87.2017.03.09.14.35.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 14:33:44 -0800 (PST)
-Received: by mail-ot0-x231.google.com with SMTP id o24so65961821otb.1
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:33:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <3207330.x0D3JT6f2l@aspire.rjw.lan>
-References: <20170309130616.51286-1-heiko.carstens@de.ibm.com>
- <1625096.urmnZ9bKn4@aspire.rjw.lan> <CAPcyv4jXmxjVaR=sGfqjy2QP_Yq4ALfTQb9_QMZ3tk0ntxfTFA@mail.gmail.com>
- <3207330.x0D3JT6f2l@aspire.rjw.lan>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 9 Mar 2017 14:33:43 -0800
-Message-ID: <CAPcyv4g7_E1JTCGq1_gC7W2JtS2JXmWGPuiHW5CMNpjWs2DXpg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: add private lock to serialize memory hotplug operations
-Content-Type: text/plain; charset=UTF-8
+        Thu, 09 Mar 2017 14:35:52 -0800 (PST)
+Date: Thu, 9 Mar 2017 14:35:51 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
+Message-Id: <20170309143551.1e59d6f104c7e7abb87c3bce@linux-foundation.org>
+In-Reply-To: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Chinner <david@fromorbit.com>, Alexander Polakov <apolyakov@beget.ru>
 
-On Thu, Mar 9, 2017 at 2:15 PM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> On Thursday, March 09, 2017 10:10:31 AM Dan Williams wrote:
->> On Thu, Mar 9, 2017 at 5:39 AM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
->> > On Thursday, March 09, 2017 02:06:15 PM Heiko Carstens wrote:
->> >> Commit bfc8c90139eb ("mem-hotplug: implement get/put_online_mems")
->> >> introduced new functions get/put_online_mems() and
->> >> mem_hotplug_begin/end() in order to allow similar semantics for memory
->> >> hotplug like for cpu hotplug.
->> >>
->> >> The corresponding functions for cpu hotplug are get/put_online_cpus()
->> >> and cpu_hotplug_begin/done() for cpu hotplug.
->> >>
->> >> The commit however missed to introduce functions that would serialize
->> >> memory hotplug operations like they are done for cpu hotplug with
->> >> cpu_maps_update_begin/done().
->> >>
->> >> This basically leaves mem_hotplug.active_writer unprotected and allows
->> >> concurrent writers to modify it, which may lead to problems as
->> >> outlined by commit f931ab479dd2 ("mm: fix devm_memremap_pages crash,
->> >> use mem_hotplug_{begin, done}").
->> >>
->> >> That commit was extended again with commit b5d24fda9c3d ("mm,
->> >> devm_memremap_pages: hold device_hotplug lock over mem_hotplug_{begin,
->> >> done}") which serializes memory hotplug operations for some call
->> >> sites by using the device_hotplug lock.
->> >>
->> >> In addition with commit 3fc21924100b ("mm: validate device_hotplug is
->> >> held for memory hotplug") a sanity check was added to
->> >> mem_hotplug_begin() to verify that the device_hotplug lock is held.
->> >
->> > Admittedly, I haven't looked at all of the code paths involved in detail yet,
->> > but there's one concern regarding lock/unlock_device_hotplug().
->> >
->> > The actual main purpose of it is to ensure safe removal of devices in cases
->> > when they cannot be removed separately, like when a whole CPU package
->> > (including possibly an entire NUMA node with memory and all) is removed.
->> >
->> > One of the code paths doing that is acpi_scan_hot_remove() which first
->> > tries to offline devices slated for removal and then finally removes them.
->> >
->> > The reason why this needs to be done in two stages is because the offlining
->> > can fail, in which case we will fail the entire operation, while the final
->> > removal step is, well, final (meaning that the devices are gone after it no
->> > matter what).
->> >
->> > This is done under device_hotplug_lock, so that the devices that were taken
->> > offline in stage 1 cannot be brought back online before stage 2 is carried
->> > out entirely, which surely would be bad if it happened.
->> >
->> > Now, I'm not sure if removing lock/unlock_device_hotplug() from the code in
->> > question actually affects this mechanism, but this in case it does, it is one
->> > thing to double check before going ahead with this patch.
->> >
->>
->> I *think* we're ok in this case because unplugging the CPU package
->> that contains a persistent memory device will trigger
->> devm_memremap_pages() to call arch_remove_memory(). Removing a pmem
->> device can't fail. It may be held off while pages are pinned for DMA
->> memory, but it will eventually complete.
+On Tue, 28 Feb 2017 10:21:48 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+
+> This patch adds a watchdog which periodically reports number of memory
+> allocating tasks, dying tasks and OOM victim tasks when some task is
+> spending too long time inside __alloc_pages_slowpath(). This patch also
+> serves as a hook for obtaining additional information using SystemTap
+> (e.g. examine other variables using printk(), capture a crash dump by
+> calling panic()) by triggering a callback only when a stall is detected.
+> Ability to take administrator-controlled actions based on some threshold
+> is a big advantage gained by introducing a state tracking.
+> 
+> Commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for
+> too long") was a great step for reducing possibility of silent hang up
+> problem caused by memory allocation stalls [1]. However, there are
+> reports of long stalls (e.g. [2] is over 30 minutes!) and lockups (e.g.
+> [3] is an "unable to invoke the OOM killer due to !__GFP_FS allocation"
+> lockup problem) where this patch is more useful than that commit, for
+> this patch can report possibly related tasks even if allocating tasks
+> are unexpectedly blocked for so long. Regarding premature OOM killer
+> invocation, tracepoints which can accumulate samples in short interval
+> would be useful. But regarding too late to report allocation stalls,
+> this patch which can capture all tasks (for reporting overall situation)
+> in longer interval and act as a trigger (for accumulating short interval
+> samples) would be useful.
+> 
+> ...
 >
-> What about the offlining, though?  Is it guaranteed that no memory from those
-> ranges will go back online after the acpi_scan_try_to_offline() call in
-> acpi_scan_hot_remove()?
+> +Build kernels with CONFIG_DETECT_HUNG_TASK=y and
+> +CONFIG_DETECT_MEMALLOC_STALL_TASK=y.
+> +
+> +Default scan interval is configured by CONFIG_DEFAULT_MEMALLOC_TASK_TIMEOUT.
+> +Scan interval can be changed at run time by writing timeout in seconds to
+> +/proc/sys/kernel/memalloc_task_warning_secs. Writing 0 disables this scan.
 
-The memory described by devm_memremap_pages() is never "onlined" to
-the core mm. We're only using arch_add_memory() to get a linear
-mapping and page structures. The rest of memory hotplug is skipped,
-and this ZONE_DEVICE memory is otherwise hidden from the core mm.
+"seconds" seems needlessly coarse.  Maybe milliseconds?
 
-Are ACPI devices disabled by this point? For example, If we have
-disabled the nfit bus device (_HID ACPI0012) then the associated child
-pmem device(s) will be gone and not coming back.
+> +Even if you disable this scan, information about last memory allocation
+> +request is kept. That is, you will get some hint for understanding
+> +last-minute behavior of the kernel when you analyze vmcore (or memory
+> +snapshot of a virtualized machine).
+> 
+> ...
+>
+> +struct memalloc_info {
+> +	/*
+> +	 * 0: not doing __GFP_RECLAIM allocation.
+> +	 * 1: doing non-recursive __GFP_RECLAIM allocation.
+> +	 * 2: doing recursive __GFP_RECLAIM allocation.
+> +	 */
+> +	u8 valid;
+> +	/*
+> +	 * bit 0: Will be reported as OOM victim.
+> +	 * bit 1: Will be reported as dying task.
+> +	 * bit 2: Will be reported as stalling task.
+> +	 * bit 3: Will be reported as exiting task.
+> +	 * bit 7: Will be reported unconditionally.
 
-Now, that said, the ACPI0012 bus device is global for the entire
-system. So we'd need more plumbing to target the pmem on a given
-socket without touching the others.
+Create enums for these rather than hard-coding magic numbers?
+
+These values don't seem to be used anyway - as far as I can tell this
+could be a simple boolean.
+
+> +	 */
+> +	u8 type;
+> +	/* Index used for memalloc_in_flight[] counter. */
+> +	u8 idx;
+> +	/* For progress monitoring. */
+> +	unsigned int sequence;
+> +	/* Started time in jiffies as of valid == 1. */
+> +	unsigned long start;
+> +	/* Requested order and gfp flags as of valid == 1. */
+> +	unsigned int order;
+> +	gfp_t gfp;
+> +};
+> 
+> ...
+>
+> +#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
+> +/*
+> + * Zero means infinite timeout - no checking done:
+> + */
+> +unsigned long __read_mostly sysctl_memalloc_task_warning_secs =
+> +	CONFIG_DEFAULT_MEMALLOC_TASK_TIMEOUT;
+> +static struct memalloc_info memalloc; /* Filled by is_stalling_task(). */
+
+What locking protects `memalloc' from concurrent modifications and
+holds it stable for readers?
+
+> 
+> ...
+>
+> +static noinline int check_memalloc_stalling_tasks(unsigned long timeout)
+> +{
+> +	char buf[256];
+> +	struct task_struct *g, *p;
+> +	unsigned long now;
+> +	unsigned long expire;
+> +	unsigned int sigkill_pending = 0;
+> +	unsigned int exiting_tasks = 0;
+> +	unsigned int memdie_pending = 0;
+> +	unsigned int stalling_tasks = 0;
+> +
+> 
+> ...
+>
+> +			goto restart_report;
+> +	}
+> +	rcu_read_unlock();
+> +	preempt_enable_no_resched();
+> +	cond_resched();
+
+All the cond_resched()s in this function seem a bit random.
+
+> +	/* Show memory information. (SysRq-m) */
+> +	show_mem(0, NULL);
+> +	/* Show workqueue state. */
+> +	show_workqueue_state();
+> +	/* Show lock information. (SysRq-d) */
+> +	debug_show_all_locks();
+> +	pr_warn("MemAlloc-Info: stalling=%u dying=%u exiting=%u victim=%u oom_count=%u\n",
+> +		stalling_tasks, sigkill_pending, exiting_tasks, memdie_pending,
+> +		out_of_memory_count);
+> +	return stalling_tasks;
+> +}
+> +#endif /* CONFIG_DETECT_MEMALLOC_STALL_TASK */
+> +
+>  static void check_hung_task(struct task_struct *t, unsigned long timeout)
+>  {
+>  	unsigned long switch_count = t->nvcsw + t->nivcsw;
+> @@ -228,20 +429,36 @@ void reset_hung_task_detector(void)
+>  static int watchdog(void *dummy)
+>  {
+>  	unsigned long hung_last_checked = jiffies;
+> +#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
+> +	unsigned long stall_last_checked = hung_last_checked;
+> +#endif
+>  
+>  	set_user_nice(current, 0);
+>  
+>  	for ( ; ; ) {
+>  		unsigned long timeout = sysctl_hung_task_timeout_secs;
+>  		long t = hung_timeout_jiffies(hung_last_checked, timeout);
+> -
+> +#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
+> +		unsigned long timeout2 = sysctl_memalloc_task_warning_secs;
+> +		long t2 = memalloc_timeout_jiffies(stall_last_checked,
+> +						   timeout2);
+
+Confused.  Shouldn't timeout2 be converted from seconds to jiffies
+before being passed to memalloc_timeout_jiffies()?
+
+> +		if (t2 <= 0) {
+> +			if (memalloc_maybe_stalling())
+> +				check_memalloc_stalling_tasks(timeout2);
+> +			stall_last_checked = jiffies;
+> +			continue;
+> +		}
+> +#else
+> +		long t2 = t;
+> +#endif
+> 
+> ...
+>
+> +bool memalloc_maybe_stalling(void)
+> +{
+> +	int cpu;
+> +	int sum = 0;
+> +	const u8 idx = memalloc_active_index ^ 1;
+> +
+> +	for_each_possible_cpu(cpu)
+
+Do we really need to do this for offlined and not-present CPUs?
+
+> +		sum += per_cpu(memalloc_in_flight[idx], cpu);
+> +	if (sum)
+> +		return true;
+> +	memalloc_active_index ^= 1;
+> +	return false;
+> +}
+> +
+> 
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
