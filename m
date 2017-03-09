@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 29E536B0408
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 05:00:10 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v190so19246646wme.0
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 02:00:10 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o26si8095299wro.51.2017.03.09.02.00.08
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2096B0409
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 05:00:41 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id a189so131300045qkc.4
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 02:00:41 -0800 (PST)
+Received: from mail-qk0-x22a.google.com (mail-qk0-x22a.google.com. [2607:f8b0:400d:c09::22a])
+        by mx.google.com with ESMTPS id d10si5285507qkj.240.2017.03.09.02.00.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Mar 2017 02:00:08 -0800 (PST)
-Date: Thu, 9 Mar 2017 11:00:07 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] staging, android: remove lowmemory killer from the tree
-Message-ID: <20170309100006.GF11592@dhcp22.suse.cz>
-References: <20170222120121.12601-1-mhocko@kernel.org>
- <20170309091513.GA11598@dhcp22.suse.cz>
- <20170309093028.GA12156@kroah.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 02:00:40 -0800 (PST)
+Received: by mail-qk0-x22a.google.com with SMTP id v125so108881386qkh.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 02:00:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170309093028.GA12156@kroah.com>
+In-Reply-To: <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+ <20170303132949.GC31582@dhcp22.suse.cz> <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+ <20170306074258.GA27953@dhcp22.suse.cz> <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
+ <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk> <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+From: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+Date: Thu, 9 Mar 2017 11:00:39 +0100
+Message-ID: <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of staging
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Martijn Coenen <maco@google.com>, Tim Murray <timmurray@google.com>, peter enderborg <peter.enderborg@sonymobile.com>, Rom Lemarchand <romlem@google.com>
+To: Mark Brown <broonie@kernel.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org
 
-On Thu 09-03-17 10:30:28, Greg KH wrote:
-> On Thu, Mar 09, 2017 at 10:15:13AM +0100, Michal Hocko wrote:
-> > Greg, do you see any obstacle to have this merged. The discussion so far
-> > shown that a) vendors are not using the code as is b) there seems to be
-> > an agreement that something else than we have in the kernel is really
-> > needed.
-> 
-> Well, some vendors are using the code as-is, just not Sony...
-> 
-> I think the ideas that Tim wrote about is the best way forward for this.
-> I'd prefer to leave the code in the kernel until that solution is
-> integrated, as dropping support entirely isn't very nice.
-> 
-> But, given that almost no Android system is running mainline at the
-> moment, I will queue this patch up for 4.12-rc1, which will give the
-> Google people a bit more of an incentive to get their solution
-> implemented and working and merged :)
-> 
-> Sound reasonable?
+2017-03-06 17:04 GMT+01:00 Daniel Vetter <daniel@ffwll.ch>:
+> On Mon, Mar 06, 2017 at 11:58:05AM +0100, Mark Brown wrote:
+>> On Mon, Mar 06, 2017 at 11:40:41AM +0100, Daniel Vetter wrote:
+>>
+>> > No one gave a thing about android in upstream, so Greg KH just dumped it
+>> > all into staging/android/. We've discussed ION a bunch of times, recorded
+>> > anything we'd like to fix in staging/android/TODO, and Laura's patch
+>> > series here addresses a big chunk of that.
+>>
+>> > This is pretty much the same approach we (gpu folks) used to de-stage the
+>> > syncpt stuff.
+>>
+>> Well, there's also the fact that quite a few people have issues with the
+>> design (like Laurent).  It seems like a lot of them have either got more
+>> comfortable with it over time, or at least not managed to come up with
+>> any better ideas in the meantime.
+>
+> See the TODO, it has everything a really big group (look at the patch for
+> the full Cc: list) figured needs to be improved at LPC 2015. We don't just
+> merge stuff because merging stuff is fun :-)
+>
+> Laurent was even in that group ...
+> -Daniel
 
-sounds good to me.
--- 
-Michal Hocko
-SUSE Labs
+For me those patches are going in the right direction.
+
+I still have few questions:
+- since alignment management has been remove from ion-core, should it
+be also removed from ioctl structure ?
+- can you we ride off ion_handle (at least in userland) and only
+export a dma-buf descriptor ?
+
+In the future how can we add new heaps ?
+Some platforms have very specific memory allocation
+requirements (just have a look in the number of gem custom allocator in drm)
+Do you plan to add heap type/mask for each ?
+
+Benjamin
+
+> --
+> Daniel Vetter
+> Software Engineer, Intel Corporation
+> http://blog.ffwll.ch
+
+
+Follow Linaro: Facebook | Twitter | Blog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
