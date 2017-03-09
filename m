@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E93B2808C5
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:21:46 -0500 (EST)
-Received: by mail-yb0-f199.google.com with SMTP id d88so19466757ybi.3
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:21:46 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id e184si862557ywh.383.2017.03.09.06.21.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 475D52808C5
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:24:33 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e5so113894048pgk.1
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:24:33 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id n87si6610984pfj.73.2017.03.09.06.24.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 06:21:45 -0800 (PST)
-Date: Thu, 9 Mar 2017 09:21:37 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH 0/3] mm/fs: get PG_error out of the writeback reporting
- business
-Message-ID: <20170309142137.lz7cba4was3jfyyt@thunk.org>
-References: <20170305133535.6516-1-jlayton@redhat.com>
- <1488724854.2925.6.camel@redhat.com>
- <20170306230801.GA28111@linux.intel.com>
- <20170307102622.GB2578@quack2.suse.cz>
- <20170309025725.5wrszri462zipiix@thunk.org>
- <20170309090449.GD15874@quack2.suse.cz>
- <1489056471.2791.2.camel@redhat.com>
- <20170309110225.GF15874@quack2.suse.cz>
- <1489063392.2791.8.camel@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1489063392.2791.8.camel@redhat.com>
+        Thu, 09 Mar 2017 06:24:32 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 1/7] x86/cpufeature: Add 5-level paging detection
+Date: Thu,  9 Mar 2017 17:24:02 +0300
+Message-Id: <20170309142408.2868-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170309142408.2868-1-kirill.shutemov@linux.intel.com>
+References: <20170309142408.2868-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, viro@zeniv.linux.org.uk, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, NeilBrown <neilb@suse.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Mar 09, 2017 at 07:43:12AM -0500, Jeff Layton wrote:
-> 
-> Maybe we need a systemwide (or fs-level) tunable that makes ENOSPC a
-> transient error? Just have it hang until we get enough space when that
-> tunable is enabled?
+Look for 'la57' in /proc/cpuinfo to see if your machine supports 5-level
+paging.
 
-Or maybe we need a new kernel-internal errno (ala ERESTARSYS) which
-means it's a "soft ENOSPC"?  It would get translated to ENOSPC if it
-gets propagated to userspace, but that way for devices like dm-thin or
-other storage array with thin volumes, it could send back a soft
-ENOSPC, while for file systems where "ENOSPC means ENOSPC", we can
-treat those as a hard ENOSPC.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ arch/x86/include/asm/cpufeatures.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-						- Ted
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index 4e7772387c6e..b04bb6dfed7f 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -289,7 +289,8 @@
+ #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
+ #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
+ #define X86_FEATURE_AVX512_VPOPCNTDQ (16*32+14) /* POPCNT for vectors of DW/QW */
+-#define X86_FEATURE_RDPID	(16*32+ 22) /* RDPID instruction */
++#define X86_FEATURE_LA57	(16*32+16) /* 5-level page tables */
++#define X86_FEATURE_RDPID	(16*32+22) /* RDPID instruction */
+ 
+ /* AMD-defined CPU features, CPUID level 0x80000007 (ebx), word 17 */
+ #define X86_FEATURE_OVERFLOW_RECOV (17*32+0) /* MCA overflow recovery support */
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
