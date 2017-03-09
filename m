@@ -1,123 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07C0F6B0410
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 12:38:04 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b2so121415939pgc.6
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 09:38:04 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id u79si394069pfa.27.2017.03.09.09.38.02
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FB7D2808C0
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 12:38:55 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id f191so124565325qka.7
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 09:38:55 -0800 (PST)
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
+        by mx.google.com with ESMTPS id t26si6125010qkl.223.2017.03.09.09.38.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 09:38:03 -0800 (PST)
-Subject: Re: [PATCH 0/6] Enable parallel page migration
-References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
- <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
- <20170309150904.pnk6ejeug4mktxjv@suse.de>
-From: David Nellans <dnellans@nvidia.com>
-Message-ID: <2a2827d0-53d0-175b-8ed4-262629e01984@nvidia.com>
-Date: Thu, 9 Mar 2017 11:38:00 -0600
+        Thu, 09 Mar 2017 09:38:54 -0800 (PST)
+Received: by mail-qk0-f181.google.com with SMTP id p64so130748106qke.1
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 09:38:54 -0800 (PST)
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+ <20170303132949.GC31582@dhcp22.suse.cz>
+ <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+ <20170306074258.GA27953@dhcp22.suse.cz>
+ <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
+ <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
+ <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+ <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
+Date: Thu, 9 Mar 2017 09:38:49 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170309150904.pnk6ejeug4mktxjv@suse.de>
-Content-Type: text/plain; charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Benjamin Gaignard <benjamin.gaignard@linaro.org>, Mark Brown <broonie@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, linux-mm@kvack.org
 
-On 03/09/2017 09:09 AM, Mel Gorman wrote:
-> I didn't look into the patches in detail except to get a general feel
-> for how it works and I'm not convinced that it's a good idea at all.
->
-> I accept that memory bandwidth utilisation may be higher as a result but
-> consider the impact. THP migrations are relatively rare and when they
-> occur, it's in the context of a single thread. To parallelise the copy,
-> an allocation, kmap and workqueue invocation are required. There may be a
-> long delay before the workqueue item can start which may exceed the time
-> to do a single copy if the CPUs on a node are saturated. Furthermore, a
-> single thread can preempt operations of other unrelated threads and incur
-> CPU cache pollution and future misses on unrelated CPUs. It's compounded by
-> the fact that a high priority system workqueue is used to do the operation,
-> one that is used for CPU hotplug operations and rolling back when a netdevice
-> fails to be registered. It treats a hugepage copy as an essential operation
-> that can preempt all other work which is very questionable.
->
-> The series leader has no details on a workload that is bottlenecked by
-> THP migrations and even if it is, the primary question should be *why*
-> THP migrations are so frequent and alleviating that instead of
-> preempting multiple CPUs to do the work.
->
->
-Mel - I sense on going frustration around some of the THP migration,
-migration acceleration, CDM, and other patches.  Here is a 10k foot
-description that I hope adds to what John & Anshuman have said in other
-threads.
+On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
+> 2017-03-06 17:04 GMT+01:00 Daniel Vetter <daniel@ffwll.ch>:
+>> On Mon, Mar 06, 2017 at 11:58:05AM +0100, Mark Brown wrote:
+>>> On Mon, Mar 06, 2017 at 11:40:41AM +0100, Daniel Vetter wrote:
+>>>
+>>>> No one gave a thing about android in upstream, so Greg KH just dumped it
+>>>> all into staging/android/. We've discussed ION a bunch of times, recorded
+>>>> anything we'd like to fix in staging/android/TODO, and Laura's patch
+>>>> series here addresses a big chunk of that.
+>>>
+>>>> This is pretty much the same approach we (gpu folks) used to de-stage the
+>>>> syncpt stuff.
+>>>
+>>> Well, there's also the fact that quite a few people have issues with the
+>>> design (like Laurent).  It seems like a lot of them have either got more
+>>> comfortable with it over time, or at least not managed to come up with
+>>> any better ideas in the meantime.
+>>
+>> See the TODO, it has everything a really big group (look at the patch for
+>> the full Cc: list) figured needs to be improved at LPC 2015. We don't just
+>> merge stuff because merging stuff is fun :-)
+>>
+>> Laurent was even in that group ...
+>> -Daniel
+> 
+> For me those patches are going in the right direction.
+> 
+> I still have few questions:
+> - since alignment management has been remove from ion-core, should it
+> be also removed from ioctl structure ?
 
-Vendors are currently providing systems that have both traditional
-DDR3/4 memory (lets call it 100GB/s) and high bandwidth memory (HBM)
-(lets call it 1TB/s) within a single system.  GPUs have been doing this
-with HBM on the GPU and DDR on the CPU complex, but they've been
-attached via PCIe and thus HBM has been GPU private memory.  The GPU has
-managed this memory by effectively mlocking pages on the CPU and copying
-the data into the GPU while its being computed on and then copying it
-back to the CPU when CPU faults on trying to touch it or the GPU is
-done.  Because HBM is limited in capacity (10's of GB max) versus DDR3
-(100's+ GB), runtimes like Nvidia's unified memory dynamically page
-memory in and out of the GPU to get the benefits of high bandwidth,
-while still allowing access a total footprint of system memory.  Its
-effectively page protection based CPU/GPU memory coherence.
+Yes, I think I'm going to go with the suggestion to fixup the ABI
+so we don't need the compat layer and as part of that I'm also
+dropping the align argument.
 
-PCIe attached GPUs+HBM are the bulk or whats out there today and will
-continue to be, so there are efforts to try and improve how GPUs (and
-other devices in the same PCIe boat) interact with -mm given the
-limitations of PCIe (see HMM).
+> - can you we ride off ion_handle (at least in userland) and only
+> export a dma-buf descriptor ?
 
-Jumping to what is essentially a different platform - there will be
-systems where that same GPU HBM memory is now part of the OS controlled
-memory (aka NUMA node) because these systems have a cache coherent link
-attaching them (could be NVLINK, QPI, CAPI, HT, or something else)  This
-HBM zone might have CPU cores in it, it might have GPU cores in it, or
-an FPGA, its not necessarily GPU specific.  NVIDIA has talked about
-systems that look like this, as has Intel (KNL with flat memory), and
-there are likely others. Systems like this can be thought of (just for
-exampke) as 2 NUMA node box where you've got 100GB/s of bandwidth on one
-node, 1TB/s on the other, connected via some cache coherent link. That
-link is probably order 100GB/s max too (maybe lower, but certainly not
-1TB/s yet).
+Yes, I think this is the right direction given we're breaking
+everything anyway. I was debating trying to keep the two but
+moving to only dma bufs is probably cleaner. The only reason
+I could see for keeping the handles is running out of file
+descriptors for dma-bufs but that seems unlikely.
+> 
+> In the future how can we add new heaps ?
+> Some platforms have very specific memory allocation
+> requirements (just have a look in the number of gem custom allocator in drm)
+> Do you plan to add heap type/mask for each ?
 
-Cores (CPU/GPU/FPGA) can access either NUMA node via the coherent link
-(just like a multi-socket CPU box) but you also want to be able to
-optimize page placement so that hot pages physically get migrated into
-the HBM node from the DDR node. The expectation is that on such systems
-either the user, a daemon, or kernel/autonuma is going to be migrating
-(TH)pages between the NUMA zones to optimize overall system
-bandwidth/throughput.  Because of the 10x discrepancy in memory
-bandwidth, despite the best paging policies to optimize for page
-locality in the HBM nodes, pages will often still be moving at a high
-rate between zones.  This differs from a traditional NUMA system where
-moving a page from one 100GB/s node to the other 100GB/s node has
-dubious value, like you say.
+Yes, that was my thinking. 
 
-To your specific question - what workloads benefit from this improved
-migration throughput and why THPs?  We have seen that there can be a
-1.7x improvement in GPU perf by improving NVLink page migration
-bandwidth from 6GB/s->32.5GB/s.  In comparison, 4KB page migration on
-x86 over QPI (today) gets < 100MB/s of throughput even though QPI and
-NVLink can provide 32GB/s+.  We couldn't cripple the link enough to get
-down to ~100MB/s, but obviously using small base page sizes at 100MB/s
-of migration throughput would kill performance.  So good THP
-functionality + good migration throughput appear critical to us (and
-maybe KNL too?).
+> 
+> Benjamin
+> 
 
-https://devblogs.nvidia.com/parallelforall/beyond-gpu-memory-limits-unified-memory-pascal/
-
-There's a laundry list of things to make it work well related to THPs,
-migration policy and eviction, numa zone isolation, etc.  We hope
-building functionality into mm + autonuma is useful for everyone so that
-less of it needs to live in proprietary runtimes.
-
-Hope that helps with 10k foot view and a specific use case on why at
-least NVIDIA is very interested in optimizing kernel NUMA+THP functionality.
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
