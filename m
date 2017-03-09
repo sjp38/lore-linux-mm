@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 475D52808C5
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:24:33 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id e5so113894048pgk.1
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:24:33 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id n87si6610984pfj.73.2017.03.09.06.24.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A6A62808C5
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:24:34 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id l66so113914965pfl.6
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:24:34 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id g27si6580841pgn.219.2017.03.09.06.24.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 06:24:32 -0800 (PST)
+        Thu, 09 Mar 2017 06:24:33 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 1/7] x86/cpufeature: Add 5-level paging detection
-Date: Thu,  9 Mar 2017 17:24:02 +0300
-Message-Id: <20170309142408.2868-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 3/7] asm-generic: introduce __ARCH_USE_5LEVEL_HACK
+Date: Thu,  9 Mar 2017 17:24:04 +0300
+Message-Id: <20170309142408.2868-4-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170309142408.2868-1-kirill.shutemov@linux.intel.com>
 References: <20170309142408.2868-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,29 +20,114 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Look for 'la57' in /proc/cpuinfo to see if your machine supports 5-level
-paging.
+We are going to introduce <asm-generic/pgtable-nop4d.h> to provide
+abstraction for properly (in opposite to 5level-fixup.h hack) folded
+p4d level. The new header will be included from pgtable-nopud.h.
+
+If an architecture uses <asm-generic/nop*d.h>, we cannot use
+5level-fixup.h directly to quickly convert the architecture to 5-level
+paging as it would conflict with pgtable-nop4d.h.
+
+With this patch an architecture can define __ARCH_USE_5LEVEL_HACK before
+inclusion <asm-genenric/nop*d.h> to use 5level-fixup.h.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/x86/include/asm/cpufeatures.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ include/asm-generic/pgtable-nop4d-hack.h | 62 ++++++++++++++++++++++++++++++++
+ include/asm-generic/pgtable-nopud.h      |  5 +++
+ 2 files changed, 67 insertions(+)
+ create mode 100644 include/asm-generic/pgtable-nop4d-hack.h
 
-diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
-index 4e7772387c6e..b04bb6dfed7f 100644
---- a/arch/x86/include/asm/cpufeatures.h
-+++ b/arch/x86/include/asm/cpufeatures.h
-@@ -289,7 +289,8 @@
- #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
- #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
- #define X86_FEATURE_AVX512_VPOPCNTDQ (16*32+14) /* POPCNT for vectors of DW/QW */
--#define X86_FEATURE_RDPID	(16*32+ 22) /* RDPID instruction */
-+#define X86_FEATURE_LA57	(16*32+16) /* 5-level page tables */
-+#define X86_FEATURE_RDPID	(16*32+22) /* RDPID instruction */
+diff --git a/include/asm-generic/pgtable-nop4d-hack.h b/include/asm-generic/pgtable-nop4d-hack.h
+new file mode 100644
+index 000000000000..752fb7511750
+--- /dev/null
++++ b/include/asm-generic/pgtable-nop4d-hack.h
+@@ -0,0 +1,62 @@
++#ifndef _PGTABLE_NOP4D_HACK_H
++#define _PGTABLE_NOP4D_HACK_H
++
++#ifndef __ASSEMBLY__
++#include <asm-generic/5level-fixup.h>
++
++#define __PAGETABLE_PUD_FOLDED
++
++/*
++ * Having the pud type consist of a pgd gets the size right, and allows
++ * us to conceptually access the pgd entry that this pud is folded into
++ * without casting.
++ */
++typedef struct { pgd_t pgd; } pud_t;
++
++#define PUD_SHIFT	PGDIR_SHIFT
++#define PTRS_PER_PUD	1
++#define PUD_SIZE	(1UL << PUD_SHIFT)
++#define PUD_MASK	(~(PUD_SIZE-1))
++
++/*
++ * The "pgd_xxx()" functions here are trivial for a folded two-level
++ * setup: the pud is never bad, and a pud always exists (as it's folded
++ * into the pgd entry)
++ */
++static inline int pgd_none(pgd_t pgd)		{ return 0; }
++static inline int pgd_bad(pgd_t pgd)		{ return 0; }
++static inline int pgd_present(pgd_t pgd)	{ return 1; }
++static inline void pgd_clear(pgd_t *pgd)	{ }
++#define pud_ERROR(pud)				(pgd_ERROR((pud).pgd))
++
++#define pgd_populate(mm, pgd, pud)		do { } while (0)
++/*
++ * (puds are folded into pgds so this doesn't get actually called,
++ * but the define is needed for a generic inline function.)
++ */
++#define set_pgd(pgdptr, pgdval)	set_pud((pud_t *)(pgdptr), (pud_t) { pgdval })
++
++static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
++{
++	return (pud_t *)pgd;
++}
++
++#define pud_val(x)				(pgd_val((x).pgd))
++#define __pud(x)				((pud_t) { __pgd(x) })
++
++#define pgd_page(pgd)				(pud_page((pud_t){ pgd }))
++#define pgd_page_vaddr(pgd)			(pud_page_vaddr((pud_t){ pgd }))
++
++/*
++ * allocating and freeing a pud is trivial: the 1-entry pud is
++ * inside the pgd, so has no extra memory associated with it.
++ */
++#define pud_alloc_one(mm, address)		NULL
++#define pud_free(mm, x)				do { } while (0)
++#define __pud_free_tlb(tlb, x, a)		do { } while (0)
++
++#undef  pud_addr_end
++#define pud_addr_end(addr, end)			(end)
++
++#endif /* __ASSEMBLY__ */
++#endif /* _PGTABLE_NOP4D_HACK_H */
+diff --git a/include/asm-generic/pgtable-nopud.h b/include/asm-generic/pgtable-nopud.h
+index 810431d8351b..5e49430a30a4 100644
+--- a/include/asm-generic/pgtable-nopud.h
++++ b/include/asm-generic/pgtable-nopud.h
+@@ -3,6 +3,10 @@
  
- /* AMD-defined CPU features, CPUID level 0x80000007 (ebx), word 17 */
- #define X86_FEATURE_OVERFLOW_RECOV (17*32+0) /* MCA overflow recovery support */
+ #ifndef __ASSEMBLY__
+ 
++#ifdef __ARCH_USE_5LEVEL_HACK
++#include <asm-generic/pgtable-nop4d-hack.h>
++#else
++
+ #define __PAGETABLE_PUD_FOLDED
+ 
+ /*
+@@ -58,4 +62,5 @@ static inline pud_t * pud_offset(pgd_t * pgd, unsigned long address)
+ #define pud_addr_end(addr, end)			(end)
+ 
+ #endif /* __ASSEMBLY__ */
++#endif /* !__ARCH_USE_5LEVEL_HACK */
+ #endif /* _PGTABLE_NOPUD_H */
 -- 
 2.11.0
 
