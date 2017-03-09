@@ -1,98 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 731DF2808E6
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:44:51 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v66so21660353wrc.4
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:44:51 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3426D2808E6
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:59:41 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id u9so21045841wme.6
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:59:41 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h66si4657295wmi.3.2017.03.09.06.44.49
+        by mx.google.com with ESMTPS id i4si4580293wme.78.2017.03.09.06.59.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Mar 2017 06:44:49 -0800 (PST)
-Date: Thu, 9 Mar 2017 15:44:48 +0100
+        Thu, 09 Mar 2017 06:59:39 -0800 (PST)
+Date: Thu, 9 Mar 2017 15:59:38 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: move pcp and lru-pcp drainging into single wq
-Message-ID: <20170309144448.GJ11592@dhcp22.suse.cz>
-References: <20170307131751.24936-1-mhocko@kernel.org>
- <20170309142602.nhuawsps3mdxqxjv@suse.de>
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+Message-ID: <20170309145937.GK11592@dhcp22.suse.cz>
+References: <20170307133057.26182-1-mhocko@kernel.org>
+ <1488916356.6405.4.camel@redhat.com>
+ <20170308092114.GB11028@dhcp22.suse.cz>
+ <1488988497.8850.23.camel@redhat.com>
+ <20170309091224.GC11592@dhcp22.suse.cz>
+ <1489068985.1906.1.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170309142602.nhuawsps3mdxqxjv@suse.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1489068985.1906.1.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 09-03-17 14:26:02, Mel Gorman wrote:
-> On Tue, Mar 07, 2017 at 02:17:51PM +0100, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
-> > vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
-> > per cpu lru caches. This seems more than necessary because both can run
-> > on a single WQ. Both do not block on locks requiring a memory allocation
-> > nor perform any allocations themselves. We will save one rescuer thread
-> > this way.
-> > 
-> > On the other hand drain_all_pages() queues work on the system wq which
-> > doesn't have rescuer and so this depend on memory allocation (when all
-> > workers are stuck allocating and new ones cannot be created). This is
-> > not critical as there should be somebody invoking the OOM killer (e.g.
-> > the forking worker) and get the situation unstuck and eventually
-> > performs the draining. Quite annoying though. This worker should be
-> > using WQ_RECLAIM as well. We can reuse the same one as for lru draining
-> > and vmstat.
-> > 
-> > Changes since v1
-> > - rename vmstat_wq to mm_percpu_wq - per Mel
-> > - make sure we are not trying to enqueue anything while the WQ hasn't
-> >   been intialized yet. This shouldn't happen because the initialization
-> >   is done from an init code but some init section might be triggering
-> >   those paths indirectly so just warn and skip the draining in that case
-> >   per Vlastimil
-> > - do not propagate error from setup_vmstat to keep the previous behavior
-> >   per Mel
-> > 
-> > Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Thu 09-03-17 09:16:25, Rik van Riel wrote:
+> On Thu, 2017-03-09 at 10:12 +0100, Michal Hocko wrote:
+> > On Wed 08-03-17 10:54:57, Rik van Riel wrote:
 > 
-> Acked-by: Mel Gorman <mgorman@suse.de>
-
-Thanks!
-
-> > +struct workqueue_struct *mm_percpu_wq;
-> > +
-> >  static int __init setup_vmstat(void)
-> >  {
-> > -#ifdef CONFIG_SMP
-> > -	int ret;
-> > +	int ret __maybe_unused;
-> >  
-> > +	mm_percpu_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
-> > +
-> > +#ifdef CONFIG_SMP
-> >  	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
-> >  					NULL, vmstat_cpu_dead);
-> >  	if (ret < 0)
+> > > In fact, false OOM kills with that kind of workload is
+> > > how we ended up getting the "too many isolated" logic
+> > > in the first place.
+> > Right, but the retry logic was considerably different than what we
+> > have these days. should_reclaim_retry considers amount of reclaimable
+> > memory. As I've said earlier if we see a report where the oom hits
+> > prematurely with many NR_ISOLATED* we know how to fix that.
 > 
-> Should the workqueue also have been renamed to mm_percpu_wq?
+> Would it be enough to simply reset no_progress_loops
+> in this check inside should_reclaim_retry, if we know
+> pageout IO is pending?
+> 
+>                         if (!did_some_progress) {
+>                                 unsigned long write_pending;
+> 
+>                                 write_pending = zone_page_state_snapshot(zone,
+>                                                         NR_ZONE_WRITE_PENDING);
+> 
+>                                 if (2 * write_pending > reclaimable) {
+>                                         congestion_wait(BLK_RW_ASYNC, HZ/10);
+>                                         return true;
+>                                 }
+>                         }
 
-Of course. Andrew, could you fold the following in
----
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index ff9c49c47f32..4bbc775f9d08 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1766,7 +1766,7 @@ static int __init setup_vmstat(void)
- {
- 	int ret __maybe_unused;
- 
--	mm_percpu_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
-+	mm_percpu_wq = alloc_workqueue("mm_percpu_wq", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
- 
- #ifdef CONFIG_SMP
- 	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
+I am not really sure what problem we are trying to solve right now to be
+honest. I would prefer to keep the logic simpler rather than over
+engeneer something that is even not needed.
+
 -- 
 Michal Hocko
 SUSE Labs
