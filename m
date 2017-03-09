@@ -1,79 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BA9DD831FE
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 01:42:27 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 77so93432422pgc.5
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 22:42:27 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id w7si5501274pgc.395.2017.03.08.22.42.26
-        for <linux-mm@kvack.org>;
-        Wed, 08 Mar 2017 22:42:27 -0800 (PST)
-Date: Thu, 9 Mar 2017 15:42:24 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: Do not use double negation for testing page flags
-Message-ID: <20170309064224.GD854@bbox>
-References: <1488868597-32222-1-git-send-email-minchan@kernel.org>
- <8b5c4679-484e-fe7f-844b-af5fd41b01e0@linux.vnet.ibm.com>
- <20170308052555.GB11206@bbox>
- <6f9274f7-6d2e-60a6-c36a-78f8f79004aa@suse.cz>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1657F831FE
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 01:46:49 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id x63so97520903pfx.7
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 22:46:49 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id t19si5526460plj.305.2017.03.08.22.46.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Mar 2017 22:46:48 -0800 (PST)
+Subject: Re: [RFC 08/11] mm: make ttu's return boolean
+References: <1488436765-32350-1-git-send-email-minchan@kernel.org>
+ <1488436765-32350-9-git-send-email-minchan@kernel.org>
+ <70f60783-e098-c1a9-11b4-544530bcd809@nvidia.com> <20170309063721.GC854@bbox>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <49da6c96-387f-5931-eddb-cb6414631877@nvidia.com>
+Date: Wed, 8 Mar 2017 22:46:40 -0800
 MIME-Version: 1.0
-In-Reply-To: <6f9274f7-6d2e-60a6-c36a-78f8f79004aa@suse.cz>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <20170309063721.GC854@bbox>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Hi Vlastimil,
+On 03/08/2017 10:37 PM, Minchan Kim wrote:
+ >[...]
+>
+> I think it's the matter of taste.
+>
+>         if (try_to_unmap(xxx))
+>                 something
+>         else
+>                 something
+>
+> It's perfectly understandable to me. IOW, if try_to_unmap returns true,
+> it means it did unmap successfully. Otherwise, failed.
+>
+> IMHO, SWAP_SUCCESS or TTU_RESULT_* seems to be an over-engineering.
+> If the user want it, user can do it by introducing right variable name
+> in his context. See below.
 
-On Wed, Mar 08, 2017 at 08:51:23AM +0100, Vlastimil Babka wrote:
-> On 03/08/2017 06:25 AM, Minchan Kim wrote:
-> > Hi Anshuman,
-> > 
-> > On Tue, Mar 07, 2017 at 09:31:18PM +0530, Anshuman Khandual wrote:
-> >> On 03/07/2017 12:06 PM, Minchan Kim wrote:
-> >>> With the discussion[1], I found it seems there are every PageFlags
-> >>> functions return bool at this moment so we don't need double
-> >>> negation any more.
-> >>> Although it's not a problem to keep it, it makes future users
-> >>> confused to use dobule negation for them, too.
-> >>>
-> >>> Remove such possibility.
-> >>
-> >> A quick search of '!!Page' in the source tree does not show any other
-> >> place having this double negation. So I guess this is all which need
-> >> to be fixed.
-> > 
-> > Yeb. That's the why my patch includes only khugepagd part but my
-> > concern is PageFlags returns int type not boolean so user might
-> > be confused easily and tempted to use dobule negation.
-> > 
-> > Other side is they who create new custom PageXXX(e.g., PageMovable)
-> > should keep it in mind that they should return 0 or 1 although
-> > fucntion prototype's return value is int type.
-> 
-> > It shouldn't be
-> > documented nowhere.
-> 
-> Was this double negation intentional? :P
+I'm OK with that approach. Just something to avoid the "what does !ret mean in this 
+function call" is what I was looking for...
 
-Nice catch!
-It seems you have a crystal ball. ;-)
 
-> 
-> > Although we can add a little description
-> > somewhere in page-flags.h, I believe changing to boolean is more
-> > clear/not-error-prone so Chen's work is enough worth, I think.
-> 
-> Agree, unless some arches benefit from the int by performance
-> for some reason (no idea if it's possible).
-> 
-> Anyway, to your original patch:
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>> [...]
+>>> 	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
+>>> -	kill_procs(&tokill, forcekill, trapno,
+>>> -		      ret != SWAP_SUCCESS, p, pfn, flags);
+>>> +	kill_procs(&tokill, forcekill, trapno, !ret , p, pfn, flags);
+>>
+>> The kill_procs() invocation was a little more readable before.
+>
+> Indeed but I think it's not a problem of try_to_unmap but ret variable name
+> isn't good any more. How about this?
+>
+>         bool unmap_success;
+>
+>         unmap_success = try_to_unmap(hpage, ttu);
+>
+>         ..
+>
+>         kill_procs(&tokill, forcekill, trapno, !unmap_success , p, pfn, flags);
+>
+>         ..
+>
+>         return unmap_success;
+>
+> My point is user can introduce whatever variable name depends on his
+> context. No need to make return variable complicated, IMHO.
 
-Thanks!
+Yes, the local variable basically achieves what I was hoping for, so sure, works for 
+me.
+
+>> [...]
+>>> -			case SWAP_FAIL:
+>>
+>> Again: the SWAP_FAIL makes it crystal clear which case we're in.
+>
+> To me, I don't feel it.
+> To me, below is perfectly understandable.
+>
+>         if (try_to_unmap())
+>                 do something
+>
+> That's why I think it's matter of taste. Okay, I admit I might be
+> biased, too so I will consider what you suggested if others votes
+> it.
+
+Yes, if it's really just a matter of taste, then not worth debating. Your change 
+above is fine I think.
+
+thanks
+john h
+
+>
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
