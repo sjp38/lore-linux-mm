@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA46831FE
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 02:03:40 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g2so98373475pge.7
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 23:03:40 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id h69si5579903pgc.108.2017.03.08.23.03.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 162E2831FE
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 02:11:31 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 67so97772395pfg.0
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 23:11:31 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id f7si5603194pfe.81.2017.03.08.23.11.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 23:03:40 -0800 (PST)
-Message-ID: <58C0FE98.3080903@intel.com>
-Date: Thu, 09 Mar 2017 15:04:56 +0800
+        Wed, 08 Mar 2017 23:11:30 -0800 (PST)
+Message-ID: <58C1006F.6080206@intel.com>
+Date: Thu, 09 Mar 2017 15:12:47 +0800
 From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v7 kernel 5/5] This patch contains two parts:
-References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com> <1488519630-89058-6-git-send-email-wei.w.wang@intel.com> <d66a8e86-0ead-90fd-b943-f69449e78349@redhat.com>
-In-Reply-To: <d66a8e86-0ead-90fd-b943-f69449e78349@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH v7 kernel 2/5] virtio-balloon: VIRTIO_BALLOON_F_CHUNK_TRANSFER
+References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com> <1488519630-89058-3-git-send-email-wei.w.wang@intel.com> <20170308060131-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170308060131-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Michael S . Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Liang Li <liliang.opensource@gmail.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang.opensource@gmail.com>
 
-On 03/06/2017 09:23 PM, David Hildenbrand wrote:Am 03.03.2017 um 06:40 
-schrieb Wei Wang:
+On 03/08/2017 12:01 PM, Michael S. Tsirkin wrote:
+> On Fri, Mar 03, 2017 at 01:40:27PM +0800, Wei Wang wrote:
 >> From: Liang Li <liang.z.li@intel.com>
-Sorry, I just saw the message due to an email issue.
-
-> I'd prefer to split this into two parts then and to create proper subjects.
-Agree, will do.
-
+>>
+>> Add a new feature bit, VIRTIO_BALLOON_F_CHUNK_TRANSFER. Please check
+>> the implementation patch commit for details about this feature.
 >
-> If I remember correctly, the general concept was accepted by most reviewers.
->
+> better squash into next patch.
 
-Yes, that's also what I was told.
+OK, will do.
 
 Best,
 Wei
