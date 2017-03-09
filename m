@@ -1,67 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 125498320D
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 18:11:43 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q126so83005868pga.0
-        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 15:11:43 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g5si510186pfj.241.2017.03.08.15.11.42
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BCA908320D
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2017 19:10:20 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id a189so117501536qkc.4
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 16:10:20 -0800 (PST)
+Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com. [209.85.220.176])
+        by mx.google.com with ESMTPS id q31si4354143qta.195.2017.03.08.16.10.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Mar 2017 15:11:42 -0800 (PST)
-Date: Wed, 8 Mar 2017 15:11:41 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] kasan: fix races in quarantine_remove_cache()
-Message-Id: <20170308151141.2ccdd5cb9e82a56cd25562cc@linux-foundation.org>
-In-Reply-To: <20170308151532.5070-1-dvyukov@google.com>
-References: <20170308151532.5070-1-dvyukov@google.com>
+        Wed, 08 Mar 2017 16:10:19 -0800 (PST)
+Received: by mail-qk0-f176.google.com with SMTP id v125so93773560qkh.2
+        for <linux-mm@kvack.org>; Wed, 08 Mar 2017 16:10:19 -0800 (PST)
+Message-ID: <1489018215.6107.4.camel@redhat.com>
+Subject: Re: [PATCH v2 3/9] mm: clear any AS_* errors when returning error
+ on any fsync or close
+From: Jeff Layton <jlayton@redhat.com>
+Date: Wed, 08 Mar 2017 19:10:15 -0500
+In-Reply-To: <8760jjv4ww.fsf@notabene.neil.brown.name>
+References: <20170308162934.21989-1-jlayton@redhat.com>
+	 <20170308162934.21989-4-jlayton@redhat.com>
+	 <8760jjv4ww.fsf@notabene.neil.brown.name>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: aryabinin@virtuozzo.com, linux-mm@kvack.org, kasan-dev@googlegroups.com, Greg Thelen <gthelen@google.com>
+To: NeilBrown <neilb@suse.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
+Cc: konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, ross.zwisler@linux.intel.com, jack@suse.cz, openosd@gmail.com, adilger@dilger.ca, James.Bottomley@HansenPartnership.com
 
-On Wed,  8 Mar 2017 16:15:32 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
+On Thu, 2017-03-09 at 08:23 +1100, NeilBrown wrote:
+> On Thu, Mar 09 2017, Jeff Layton wrote:
+> 
+> > Currently we don't clear the address space error when there is a -EIO
+> > error on fsynci, due to writeback initiation failure. If writes fail
+> > with -EIO and the mapping is flagged with an AS_EIO or AS_ENOSPC error,
+> > then we can end up returning errors on two fsync calls, even when a
+> > write between them succeeded (or there was no write).
+> > 
+> > Ensure that we also clear out any mapping errors when initiating
+> > writeback fails with -EIO in filemap_write_and_wait and
+> > filemap_write_and_wait_range.
+> 
+> This change appears to assume that filemap_write_and_wait* is only
+> called from fsync() (or similar) and the return status is always
+> checked.
+> 
+> A __must_check annotation might be helpful.
+> 
 
-> quarantine_remove_cache() frees all pending objects that belong to the
-> cache, before we destroy the cache itself. However there are currently
-> two possibilities how it can fail to do so.
-> 
-> First, another thread can hold some of the objects from the cache in
-> temp list in quarantine_put(). quarantine_put() has a windows of enabled
-> interrupts, and on_each_cpu() in quarantine_remove_cache() can finish
-> right in that window. These objects will be later freed into the
-> destroyed cache.
-> 
-> Then, quarantine_reduce() has the same problem. It grabs a batch of
-> objects from the global quarantine, then unlocks quarantine_lock and
-> then frees the batch. quarantine_remove_cache() can finish while some
-> objects from the cache are still in the local to_free list in
-> quarantine_reduce().
-> 
-> Fix the race with quarantine_put() by disabling interrupts for the
-> whole duration of quarantine_put(). In combination with on_each_cpu()
-> in quarantine_remove_cache() it ensures that quarantine_remove_cache()
-> either sees the objects in the per-cpu list or in the global list.
-> 
-> Fix the race with quarantine_reduce() by protecting quarantine_reduce()
-> with srcu critical section and then doing synchronize_srcu() at the end
-> of quarantine_remove_cache().
-> 
-> ...
->
-> I suspect that these races are the root cause of some GPFs that
-> I episodically hit. Previously I did not have any explanation for them.
+Yes, good idea.
 
-The changelog doesn't convey a sense of how serious this bug is, so I'm
-not in a good position to decide whether this fix should be backported.
-The patch looks fairly intrusive so I tentatively decided that it
-needn't be backported.  Perhaps that was wrong.
+> It would catch v9_fs_file_lock(), afs_setattr() and others.
+> 
 
-Please be more careful in describing the end-user visible impact of
-bugs when fixing them.
+Ouch -- good catch.
+
+Actually, those look like bugs in the code as it exists today. If some
+background page writeback fails, but no write initiation fails on that
+call, then those callers are discarding errors that should have been
+reported at fsync.
+
+> While I think your change is probably heading in the right direction,
+> there seem to be some loose ends still.
+> 
+
+Yes...I probably should be prefacing all of these patches with [RFC] at
+this point.
+
+I think I'm starting to grasp the problem (and its scope), but we might
+have to think about how to approach this more strategically. Given that
+we have this wrong in so many places, I think that probably means that
+the interfaces we have make it easy to do so. I need to consider how to
+correct that.
+
+> 
+> 
+> > 
+> > Suggested-by: Jan Kara <jack@suse.cz>
+> > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > ---
+> >  mm/filemap.c | 20 ++++++++++++++++++--
+> >  1 file changed, 18 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index 1694623a6289..fc123b9833e1 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -488,7 +488,7 @@ EXPORT_SYMBOL(filemap_fdatawait);
+> >  
+> >  int filemap_write_and_wait(struct address_space *mapping)
+> >  {
+> > -	int err = 0;
+> > +	int err;
+> >  
+> >  	if ((!dax_mapping(mapping) && mapping->nrpages) ||
+> >  	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+> > @@ -499,10 +499,18 @@ int filemap_write_and_wait(struct address_space *mapping)
+> >  		 * But the -EIO is special case, it may indicate the worst
+> >  		 * thing (e.g. bug) happened, so we avoid waiting for it.
+> >  		 */
+> > -		if (err != -EIO) {
+> > +		if (likely(err != -EIO)) {
+> >  			int err2 = filemap_fdatawait(mapping);
+> >  			if (!err)
+> >  				err = err2;
+> > +		} else {
+> > +			/*
+> > +			 * Clear the error in the address space since we're
+> > +			 * returning an error here. -EIO takes precedence over
+> > +			 * everything else though, so we can just discard
+> > +			 * the return here.
+> > +			 */
+> > +			filemap_check_errors(mapping);
+> >  		}
+> >  	} else {
+> >  		err = filemap_check_errors(mapping);
+> > @@ -537,6 +545,14 @@ int filemap_write_and_wait_range(struct address_space *mapping,
+> >  						lstart, lend);
+> >  			if (!err)
+> >  				err = err2;
+> > +		} else {
+> > +			/*
+> > +			 * Clear the error in the address space since we're
+> > +			 * returning an error here. -EIO takes precedence over
+> > +			 * everything else though, so we can just discard
+> > +			 * the return here.
+> > +			 */
+> > +			filemap_check_errors(mapping);
+> >  		}
+> >  	} else {
+> >  		err = filemap_check_errors(mapping);
+> > -- 
+> > 2.9.3
+
+-- 
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
