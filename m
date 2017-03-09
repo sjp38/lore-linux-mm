@@ -1,126 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6342808D6
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:25:04 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id l66so113932228pfl.6
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:25:04 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 90si6583840pfp.242.2017.03.09.06.25.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4801F2808D6
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 09:26:06 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id d66so20855990wmi.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 06:26:06 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d27si8926452wrb.106.2017.03.09.06.26.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 06:25:03 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 0/7] 5-level paging: prepare generic code
-Date: Thu,  9 Mar 2017 17:24:01 +0300
-Message-Id: <20170309142408.2868-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Mar 2017 06:26:05 -0800 (PST)
+Date: Thu, 9 Mar 2017 14:26:02 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: move pcp and lru-pcp drainging into single wq
+Message-ID: <20170309142602.nhuawsps3mdxqxjv@suse.de>
+References: <20170307131751.24936-1-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170307131751.24936-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Here's relatively low-risk part of 5-level paging patchset.
-Merging it now would make x86 5-level paging enabling in v4.12 easier.
+On Tue, Mar 07, 2017 at 02:17:51PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
+> vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
+> per cpu lru caches. This seems more than necessary because both can run
+> on a single WQ. Both do not block on locks requiring a memory allocation
+> nor perform any allocations themselves. We will save one rescuer thread
+> this way.
+> 
+> On the other hand drain_all_pages() queues work on the system wq which
+> doesn't have rescuer and so this depend on memory allocation (when all
+> workers are stuck allocating and new ones cannot be created). This is
+> not critical as there should be somebody invoking the OOM killer (e.g.
+> the forking worker) and get the situation unstuck and eventually
+> performs the draining. Quite annoying though. This worker should be
+> using WQ_RECLAIM as well. We can reuse the same one as for lru draining
+> and vmstat.
+> 
+> Changes since v1
+> - rename vmstat_wq to mm_percpu_wq - per Mel
+> - make sure we are not trying to enqueue anything while the WQ hasn't
+>   been intialized yet. This shouldn't happen because the initialization
+>   is done from an init code but some init section might be triggering
+>   those paths indirectly so just warn and skip the draining in that case
+>   per Vlastimil
+> - do not propagate error from setup_vmstat to keep the previous behavior
+>   per Mel
+> 
+> Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Linus, please consider applying.
+Acked-by: Mel Gorman <mgorman@suse.de>
+> +struct workqueue_struct *mm_percpu_wq;
+> +
+>  static int __init setup_vmstat(void)
+>  {
+> -#ifdef CONFIG_SMP
+> -	int ret;
+> +	int ret __maybe_unused;
+>  
+> +	mm_percpu_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+> +
+> +#ifdef CONFIG_SMP
+>  	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
+>  					NULL, vmstat_cpu_dead);
+>  	if (ret < 0)
 
-
-The first patch is actually x86-specific: detect 5-level paging support.
-It boils down to single define.
-
-The rest of patchset converts Linux MMU abstraction from 4- to 5-level
-paging.
-
-Enabling of new abstraction in most cases requires adding single line of
-code in arch-specific code. The rest is taken care by asm-generic/.
-
-Changes to mm/ code are mostly mechanical: add support for new page table
-level -- p4d_t -- where we deal with pud_t now.
-
-v2:
-  - fix build on microblaze (Michal);
-  - comment for __ARCH_HAS_5LEVEL_HACK in kasan_populate_zero_shadow();
-  - acks from Michal;
-
-Kirill A. Shutemov (7):
-  x86/cpufeature: Add 5-level paging detection
-  asm-generic: introduce 5level-fixup.h
-  asm-generic: introduce __ARCH_USE_5LEVEL_HACK
-  arch, mm: convert all architectures to use 5level-fixup.h
-  asm-generic: introduce <asm-generic/pgtable-nop4d.h>
-  mm: convert generic code to 5-level paging
-  mm: introduce __p4d_alloc()
-
- arch/arc/include/asm/hugepage.h                  |   1 +
- arch/arc/include/asm/pgtable.h                   |   1 +
- arch/arm/include/asm/pgtable.h                   |   1 +
- arch/arm64/include/asm/pgtable-types.h           |   4 +
- arch/avr32/include/asm/pgtable-2level.h          |   1 +
- arch/cris/include/asm/pgtable.h                  |   1 +
- arch/frv/include/asm/pgtable.h                   |   1 +
- arch/h8300/include/asm/pgtable.h                 |   1 +
- arch/hexagon/include/asm/pgtable.h               |   1 +
- arch/ia64/include/asm/pgtable.h                  |   2 +
- arch/metag/include/asm/pgtable.h                 |   1 +
- arch/microblaze/include/asm/page.h               |   3 +-
- arch/mips/include/asm/pgtable-32.h               |   1 +
- arch/mips/include/asm/pgtable-64.h               |   1 +
- arch/mn10300/include/asm/page.h                  |   1 +
- arch/nios2/include/asm/pgtable.h                 |   1 +
- arch/openrisc/include/asm/pgtable.h              |   1 +
- arch/powerpc/include/asm/book3s/32/pgtable.h     |   1 +
- arch/powerpc/include/asm/book3s/64/pgtable.h     |   3 +
- arch/powerpc/include/asm/nohash/32/pgtable.h     |   1 +
- arch/powerpc/include/asm/nohash/64/pgtable-4k.h  |   3 +
- arch/powerpc/include/asm/nohash/64/pgtable-64k.h |   1 +
- arch/s390/include/asm/pgtable.h                  |   1 +
- arch/score/include/asm/pgtable.h                 |   1 +
- arch/sh/include/asm/pgtable-2level.h             |   1 +
- arch/sh/include/asm/pgtable-3level.h             |   1 +
- arch/sparc/include/asm/pgtable_64.h              |   1 +
- arch/tile/include/asm/pgtable_32.h               |   1 +
- arch/tile/include/asm/pgtable_64.h               |   1 +
- arch/um/include/asm/pgtable-2level.h             |   1 +
- arch/um/include/asm/pgtable-3level.h             |   1 +
- arch/unicore32/include/asm/pgtable.h             |   1 +
- arch/x86/include/asm/cpufeatures.h               |   3 +-
- arch/x86/include/asm/pgtable_types.h             |   4 +
- arch/xtensa/include/asm/pgtable.h                |   1 +
- drivers/misc/sgi-gru/grufault.c                  |   9 +-
- fs/userfaultfd.c                                 |   6 +-
- include/asm-generic/4level-fixup.h               |   3 +-
- include/asm-generic/5level-fixup.h               |  41 ++++
- include/asm-generic/pgtable-nop4d-hack.h         |  62 ++++++
- include/asm-generic/pgtable-nop4d.h              |  56 ++++++
- include/asm-generic/pgtable-nopud.h              |  48 ++---
- include/asm-generic/pgtable.h                    |  48 ++++-
- include/asm-generic/tlb.h                        |  14 +-
- include/linux/hugetlb.h                          |   5 +-
- include/linux/kasan.h                            |   1 +
- include/linux/mm.h                               |  34 +++-
- lib/ioremap.c                                    |  39 +++-
- mm/gup.c                                         |  46 ++++-
- mm/huge_memory.c                                 |   7 +-
- mm/hugetlb.c                                     |  29 +--
- mm/kasan/kasan_init.c                            |  44 ++++-
- mm/memory.c                                      | 230 +++++++++++++++++++----
- mm/mlock.c                                       |   1 +
- mm/mprotect.c                                    |  26 ++-
- mm/mremap.c                                      |  13 +-
- mm/page_vma_mapped.c                             |   6 +-
- mm/pagewalk.c                                    |  32 +++-
- mm/pgtable-generic.c                             |   6 +
- mm/rmap.c                                        |   7 +-
- mm/sparse-vmemmap.c                              |  22 ++-
- mm/swapfile.c                                    |  26 ++-
- mm/userfaultfd.c                                 |  23 ++-
- mm/vmalloc.c                                     |  81 +++++---
- 64 files changed, 868 insertions(+), 147 deletions(-)
- create mode 100644 include/asm-generic/5level-fixup.h
- create mode 100644 include/asm-generic/pgtable-nop4d-hack.h
- create mode 100644 include/asm-generic/pgtable-nop4d.h
+Should the workqueue also have been renamed to mm_percpu_wq?
 
 -- 
-2.11.0
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
