@@ -1,116 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD14B2808E3
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:18:04 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id c85so159170128qkg.0
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:18:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q88si6651453qkh.92.2017.03.09.14.18.03
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B64B2808E3
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:21:08 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id h89so48037742lfi.6
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:21:08 -0800 (PST)
+Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with ESMTPS id t190si598707lfe.283.2017.03.09.14.21.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 14:18:04 -0800 (PST)
-Message-ID: <1489097880.1906.16.camel@redhat.com>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-From: Rik van Riel <riel@redhat.com>
-Date: Thu, 09 Mar 2017 17:18:00 -0500
-In-Reply-To: <20170309180540.GA8678@cmpxchg.org>
-References: <20170307133057.26182-1-mhocko@kernel.org>
-	 <1488916356.6405.4.camel@redhat.com> <20170309180540.GA8678@cmpxchg.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-64qKgzGHRcnpQtIViQFI"
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 09 Mar 2017 14:21:06 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH 1/2] mm: add private lock to serialize memory hotplug operations
+Date: Thu, 09 Mar 2017 23:15:47 +0100
+Message-ID: <3207330.x0D3JT6f2l@aspire.rjw.lan>
+In-Reply-To: <CAPcyv4jXmxjVaR=sGfqjy2QP_Yq4ALfTQb9_QMZ3tk0ntxfTFA@mail.gmail.com>
+References: <20170309130616.51286-1-heiko.carstens@de.ibm.com> <1625096.urmnZ9bKn4@aspire.rjw.lan> <CAPcyv4jXmxjVaR=sGfqjy2QP_Yq4ALfTQb9_QMZ3tk0ntxfTFA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
+On Thursday, March 09, 2017 10:10:31 AM Dan Williams wrote:
+> On Thu, Mar 9, 2017 at 5:39 AM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
+> > On Thursday, March 09, 2017 02:06:15 PM Heiko Carstens wrote:
+> >> Commit bfc8c90139eb ("mem-hotplug: implement get/put_online_mems")
+> >> introduced new functions get/put_online_mems() and
+> >> mem_hotplug_begin/end() in order to allow similar semantics for memory
+> >> hotplug like for cpu hotplug.
+> >>
+> >> The corresponding functions for cpu hotplug are get/put_online_cpus()
+> >> and cpu_hotplug_begin/done() for cpu hotplug.
+> >>
+> >> The commit however missed to introduce functions that would serialize
+> >> memory hotplug operations like they are done for cpu hotplug with
+> >> cpu_maps_update_begin/done().
+> >>
+> >> This basically leaves mem_hotplug.active_writer unprotected and allows
+> >> concurrent writers to modify it, which may lead to problems as
+> >> outlined by commit f931ab479dd2 ("mm: fix devm_memremap_pages crash,
+> >> use mem_hotplug_{begin, done}").
+> >>
+> >> That commit was extended again with commit b5d24fda9c3d ("mm,
+> >> devm_memremap_pages: hold device_hotplug lock over mem_hotplug_{begin,
+> >> done}") which serializes memory hotplug operations for some call
+> >> sites by using the device_hotplug lock.
+> >>
+> >> In addition with commit 3fc21924100b ("mm: validate device_hotplug is
+> >> held for memory hotplug") a sanity check was added to
+> >> mem_hotplug_begin() to verify that the device_hotplug lock is held.
+> >
+> > Admittedly, I haven't looked at all of the code paths involved in detail yet,
+> > but there's one concern regarding lock/unlock_device_hotplug().
+> >
+> > The actual main purpose of it is to ensure safe removal of devices in cases
+> > when they cannot be removed separately, like when a whole CPU package
+> > (including possibly an entire NUMA node with memory and all) is removed.
+> >
+> > One of the code paths doing that is acpi_scan_hot_remove() which first
+> > tries to offline devices slated for removal and then finally removes them.
+> >
+> > The reason why this needs to be done in two stages is because the offlining
+> > can fail, in which case we will fail the entire operation, while the final
+> > removal step is, well, final (meaning that the devices are gone after it no
+> > matter what).
+> >
+> > This is done under device_hotplug_lock, so that the devices that were taken
+> > offline in stage 1 cannot be brought back online before stage 2 is carried
+> > out entirely, which surely would be bad if it happened.
+> >
+> > Now, I'm not sure if removing lock/unlock_device_hotplug() from the code in
+> > question actually affects this mechanism, but this in case it does, it is one
+> > thing to double check before going ahead with this patch.
+> >
+> 
+> I *think* we're ok in this case because unplugging the CPU package
+> that contains a persistent memory device will trigger
+> devm_memremap_pages() to call arch_remove_memory(). Removing a pmem
+> device can't fail. It may be held off while pages are pinned for DMA
+> memory, but it will eventually complete.
 
---=-64qKgzGHRcnpQtIViQFI
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+What about the offlining, though?  Is it guaranteed that no memory from those
+ranges will go back online after the acpi_scan_try_to_offline() call in
+acpi_scan_hot_remove()?
 
-On Thu, 2017-03-09 at 13:05 -0500, Johannes Weiner wrote:
-> On Tue, Mar 07, 2017 at 02:52:36PM -0500, Rik van Riel wrote:
-> >=20
-> > It only does this to some extent. =C2=A0If reclaim made
-> > no progress, for example due to immediately bailing
-> > out because the number of already isolated pages is
-> > too high (due to many parallel reclaimers), the code
-> > could hit the "no_progress_loops > MAX_RECLAIM_RETRIES"
-> > test without ever looking at the number of reclaimable
-> > pages.
-> Hm, there is no early return there, actually. We bump the loop
-> counter
-> every time it happens, but then *do* look at the reclaimable pages.
-
-Am I looking at an old tree? =C2=A0I see this code
-before we look at the reclaimable pages.
-
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0* Make sure we conver=
-ge to OOM if we cannot make any progress
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0* several times in th=
-e row.
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0*/
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0if (*no_progress_loops > MA=
-X_RECLAIM_RETRIES) {
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0/* Before OOM, exhaust highatomic_reserve */
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0return unreserve_highatomic_pageblock(ac, true);
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0}
-
-> > Could that create problems if we have many concurrent
-> > reclaimers?
-> With increased concurrency, the likelihood of OOM will go up if we
-> remove the unlimited wait for isolated pages, that much is true.
->=20
-> I'm not sure that's a bad thing, however, because we want the OOM
-> killer to be predictable and timely. So a reasonable wait time in
-> between 0 and forever before an allocating thread gives up under
-> extreme concurrency makes sense to me.
-
-That is a fair point, a faster OOM kill is preferable
-to a system that is livelocked.
-
-> Unless I'm mistaken, there doesn't seem to be a whole lot of urgency
-> behind this patch. Can we think about a general model to deal with
-> allocation concurrency? Unlimited parallel direct reclaim is kinda
-> bonkers in the first place. How about checking for excessive
-> isolation
-> counts from the page allocator and putting allocations on a
-> waitqueue?
-
-The (limited) number of reclaimers can still do a
-relatively fast OOM kill, if none of them manage
-to make progress.
-
-That should avoid the potential issue you and I
-both pointed out, and, as a bonus, it might actually
-be faster than letting all the tasks in the system
-into the direct reclaim code simultaneously.
-
---=20
-All rights reversed
-
---=-64qKgzGHRcnpQtIViQFI
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJYwdSZAAoJEM553pKExN6DasQH/3sWPd/kNBkE1EM1WInU26F1
-pmD6DLP6oW+oacwyASj1P9q8RZ8RGTWlagG7mUK42ntbON2CO+4OOTgLRjU6EjSX
-19XQR44JLkmbXz/E05IJNiUwtvNfKFuwmKq6UH3Q3ftfBvsUMoRx+ACsGXaaITxQ
-hezAB2DKkKixZbvRlq1PxWCzNlIAm7xKeG+22dQq0ruiYApzi5gRwtWWYhUxKiCg
-dF16UxR93KkGK8tcU5/v1hNBpS9hWT2hm5FRUvtbM2o58Hm1wz4r2rBa9JWYerAv
-dwSBBBpGNKO9aQDf+H+GkmgtXZHQjHU/HJdJ4NineI27axB60t6iWowJnnRcpRw=
-=YxQ3
------END PGP SIGNATURE-----
-
---=-64qKgzGHRcnpQtIViQFI--
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
