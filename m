@@ -1,63 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 344E92808E3
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:14:51 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 67so132671628pfg.0
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:14:51 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id a1si939322pgf.360.2017.03.09.14.14.50
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 078422808E3
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 17:15:28 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id u108so23573505wrb.3
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 14:15:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 31si10311986wrp.270.2017.03.09.14.15.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 14:14:50 -0800 (PST)
-Subject: Re: [Xen-devel] [PATCH v5 2/3] x86: Remap GDT tables in the Fixmap
- section
-References: <20170306220348.79702-1-thgarnie@google.com>
- <20170306220348.79702-2-thgarnie@google.com>
- <CALCETrVXHc-EAhBtdhL9FXSW1G2VbohRY4UJuOtpRG1K0Q-Ogg@mail.gmail.com>
- <17ffcc5b-1c9a-51b6-272a-5eaecf1bc0c4@citrix.com>
- <CALCETrWv-u7OdjWDY+5eF7p-ngPun-yYf0QegMzYc6MGVQd-4w@mail.gmail.com>
- <CAJcbSZExVWA0jvAoxLLc+58Ag9cHchifrHP=fFfzU_onHo2PyA@mail.gmail.com>
- <5cf31779-45c5-d37f-86bc-d5afb3fb7ab6@oracle.com>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <51c23e92-d1f0-427f-e069-c92fc4ed6226@oracle.com>
-Date: Thu, 9 Mar 2017 17:13:40 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Mar 2017 14:15:26 -0800 (PST)
+Date: Thu, 9 Mar 2017 22:15:22 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/6] Enable parallel page migration
+Message-ID: <20170309221522.hwk4wyaqx2jonru6@suse.de>
+References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
+ <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
+ <20170309150904.pnk6ejeug4mktxjv@suse.de>
+ <2a2827d0-53d0-175b-8ed4-262629e01984@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <5cf31779-45c5-d37f-86bc-d5afb3fb7ab6@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <2a2827d0-53d0-175b-8ed4-262629e01984@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Cooper <andrew.cooper3@citrix.com>, Michal Hocko <mhocko@suse.com>, Stanislaw Gruszka <sgruszka@redhat.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, Frederic Weisbecker <fweisbec@gmail.com>, X86 ML <x86@kernel.org>, Chris Wilson <chris@chris-wilson.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Alexander Potapenko <glider@google.com>, Pavel Machek <pavel@ucw.cz>, "H . Peter Anvin" <hpa@zytor.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jiri Olsa <jolsa@redhat.com>, zijun_hu <zijun_hu@htc.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, Jonathan Corbet <corbet@lwn.net>, Michael Ellerman <mpe@ellerman.id.au>, Joerg Roedel <joro@8bytes.org>, Prarit Bhargava <prarit@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Borislav Petkov <bp@suse.de>, Len Brown <len.brown@intel.com>, Rusty Russell <rusty@rustcorp.com.au>, Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>, He Chen <he.chen@linux.intel.com>, Brian Gerst <brgerst@gmail.com>, Jiri Kosina <jikos@kernel.org>, lguest@lists.ozlabs.org, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Lorenzo Stoakes <lstoakes@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tim Chen <tim.c.chen@linux.intel.com>
+To: David Nellans <dnellans@nvidia.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-
->> I don't have any experience with Xen so it would be great if virtme can test it.
+On Thu, Mar 09, 2017 at 11:38:00AM -0600, David Nellans wrote:
+> On 03/09/2017 09:09 AM, Mel Gorman wrote:
+> > I didn't look into the patches in detail except to get a general feel
+> > for how it works and I'm not convinced that it's a good idea at all.
+> >
+> > I accept that memory bandwidth utilisation may be higher as a result but
+> > consider the impact. THP migrations are relatively rare and when they
+> > occur, it's in the context of a single thread. To parallelise the copy,
+> > an allocation, kmap and workqueue invocation are required. There may be a
+> > long delay before the workqueue item can start which may exceed the time
+> > to do a single copy if the CPUs on a node are saturated. Furthermore, a
+> > single thread can preempt operations of other unrelated threads and incur
+> > CPU cache pollution and future misses on unrelated CPUs. It's compounded by
+> > the fact that a high priority system workqueue is used to do the operation,
+> > one that is used for CPU hotplug operations and rolling back when a netdevice
+> > fails to be registered. It treats a hugepage copy as an essential operation
+> > that can preempt all other work which is very questionable.
+> >
+> > The series leader has no details on a workload that is bottlenecked by
+> > THP migrations and even if it is, the primary question should be *why*
+> > THP migrations are so frequent and alleviating that instead of
+> > preempting multiple CPUs to do the work.
+> >
+> >
 >
-> I am pretty sure I tested this series at some point but I'll test it again.
->
+> Mel - I sense on going frustration around some of the THP migration,
+> migration acceleration, CDM, and other patches.  Here is a 10k foot
+> description that I hope adds to what John & Anshuman have said in other
+> threads.
+> 
 
+Hi David,
 
-Fails 32-bit build:
+I recognise the motivation for some of these patches but disagree on the
+mechanisms used, more on this later.
 
+> Vendors are currently providing systems that have both traditional
+> DDR3/4 memory (lets call it 100GB/s) and high bandwidth memory (HBM)
+> (lets call it 1TB/s) within a single system.  GPUs have been doing this
+> with HBM on the GPU and DDR on the CPU complex, but they've been
+> attached via PCIe and thus HBM has been GPU private memory. 
 
-/home/build/linux-boris/arch/x86/kvm/vmx.c: In function a??segment_basea??:
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: a??host_gdta??
-undeclared (first use in this function)
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: (Each undeclared
-identifier is reported only once
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: for each
-function it appears in.)
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: type defaults to
-a??inta?? in declaration of a??type namea??
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: error: type defaults to
-a??inta?? in declaration of a??type namea??
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: warning: initialization
-from incompatible pointer type
-/home/build/linux-boris/arch/x86/kvm/vmx.c:2054: warning: unused
-variable a??gdta??
+I completely understand although I'd point out that HBM is slightly
+different in that it could be expressed in terms of a hierarchical node
+system whereby some nodes migrate to each other -- from faster to slower by
+a "migrate on LRU reclaim" and from slower to faster with automatic NUMA
+balancing using sampling. However, HBM is extremely specific and dealing
+with that is not necessarily compatible with devices that are not coherent.
 
+> <SNIP>
 
--boris
+Again, I understand the motivation and have no further comment to make.
+In the interest of trying to be helpful, I'll propose an alternative to
+this series and expand upon why I think it's problematic.
+
+> the HBM node from the DDR node. The expectation is that on such systems
+> either the user, a daemon, or kernel/autonuma is going to be migrating
+> (TH)pages between the NUMA zones to optimize overall system
+> bandwidth/throughput.  Because of the 10x discrepancy in memory
+> bandwidth, despite the best paging policies to optimize for page
+> locality in the HBM nodes, pages will often still be moving at a high
+> rate between zones.  This differs from a traditional NUMA system where
+> moving a page from one 100GB/s node to the other 100GB/s node has
+> dubious value, like you say.
+> 
+> To your specific question - what workloads benefit from this improved
+> migration throughput and why THPs? 
+
+So the key potential issue here in my mind is that THP migration is too slow
+in some cases. What I object to is improving that using a high priority
+workqueue that potentially starves other CPUs and pollutes their cache
+which is generally very expensive.
+
+Lets look at the core of what copy_huge_page does in mm/migrate.c which
+is the function that gets parallelised by the series in question. For
+a !HIGHMEM system, it's woefully inefficient. Historically, it was an
+implementation that would work generically which was fine but maybe not
+for future systems. It was also fine back when hugetlbfs was the only huge
+page implementation and COW operations were incredibly rare on the grounds
+due to the risk that they could terminate the process with prejudice.
+
+The function takes a huge page, splits it into PAGE_SIZE chunks, kmap_atomics
+the source and destination for each PAGE_SIZE chunk and copies it. The
+parallelised version does one kmap and copies it in chunks assuming the
+THP is fully mapped and accessible. Fundamentally, this is broken in the
+generic sense as the kmap is not guaranteed to make the whole page necessary
+but it happens to work on !highmem systems.  What is more important to
+note is that it's multiple preempt and pagefault enables and disables
+on a per-page basis that happens 512 times (for THP on x86-64 at least),
+all of which are expensive operations depending on the kernel config and
+I suspect that the parallisation is actually masking that stupid overhead.
+
+At the very least, I would have expected an initial attempt of one patch that
+optimised for !highmem systems to ignore kmap, simply disable preempt (if
+that is even necessary, I didn't check) and copy a pinned physical->physical
+page as a single copy without looping on a PAGE_SIZE basis and see how
+much that gained. Do it initially for THP only and worry about gigantic
+pages when or if that is a problem.
+
+That would be patch 1 of a series.  Maybe that'll be enough, maybe not but
+I feel it's important to optimise the serialised case as much as possible
+before considering parallelisation to highlight and justify why it's
+necessary[1]. If nothing else, what if two CPUs both parallelise a migration
+at the same time and end up preempting each other? Between that and the
+workqueue setup, it's potentially much slower than an optimised serial copy.
+
+It would be tempting to experiment but the test case was not even included
+with the series (maybe it's somewhere else)[2]. While it's obvious how
+such a test case could be constructed, it feels unnecessary to construct
+it when it should be in the changelog.
+
+To some extent, CDM suffered from the same pushback. Like this series,
+it introduced something new, complex and with high maintenance overhead
+without considering whether the existing mechanisms (cpuset, mempolicies
+or some combination of both) or out-of tree proposals such as HMM that
+could be added to and finalised[3].
+
+[1] If nothing else, it would make it clear to the reviewer that
+    additional complexity is 100% justified which is woefully missing in
+    this series.
+
+[2] For complex series that have an alleged performance improvement, it
+    should always be possible to supply a test case that can demonstrate
+    that. Granted, this does not always happen but at least for my own
+    series I have the test case in question automated and can point people
+    to the repository that stores the test case and if necessary, supply
+    instructions on how to reproduce the results.
+
+[3] Preferably with an in-tree user because the lack of such a user was
+    one of the major factors that gave HMM a kicking.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
