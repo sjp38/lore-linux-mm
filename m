@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A4F752808E6
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 10:08:21 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id j127so134190130qke.2
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 07:08:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 12si5823608qtm.252.2017.03.09.07.08.20
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9142808E6
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 10:09:09 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id w37so22570154wrc.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 07:09:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b207si4692645wme.143.2017.03.09.07.09.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 07:08:20 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1] userfaultfd: remove wrong comment from userfaultfd_ctx_get()
-Date: Thu,  9 Mar 2017 16:08:17 +0100
-Message-Id: <20170309150817.7510-1-david@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Mar 2017 07:09:08 -0800 (PST)
+Date: Thu, 9 Mar 2017 15:09:04 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/6] Enable parallel page migration
+Message-ID: <20170309150904.pnk6ejeug4mktxjv@suse.de>
+References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
+ <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, david@redhat.com, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-It's a void function, so there is no return value;
+On Wed, Mar 08, 2017 at 09:34:27PM +0530, Anshuman Khandual wrote:
+> > Any comments, suggestions are welcome.
+> 
+> Hello Vlastimil/Michal/Minchan/Mel/Dave,
+> 
+> Apart from the comments from Naoya on a different thread posted by Zi
+> Yan, I did not get any more review comments on this series. Could you
+> please kindly have a look on the over all design and its benefits from
+> page migration performance point of view and let me know your views.
+> Thank you.
+> 
 
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- fs/userfaultfd.c | 2 --
- 1 file changed, 2 deletions(-)
+I didn't look into the patches in detail except to get a general feel
+for how it works and I'm not convinced that it's a good idea at all.
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 9fd5e51..2bb1c72 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -138,8 +138,6 @@ static int userfaultfd_wake_function(wait_queue_t *wq, unsigned mode,
-  * userfaultfd_ctx_get - Acquires a reference to the internal userfaultfd
-  * context.
-  * @ctx: [in] Pointer to the userfaultfd context.
-- *
-- * Returns: In case of success, returns not zero.
-  */
- static void userfaultfd_ctx_get(struct userfaultfd_ctx *ctx)
- {
+I accept that memory bandwidth utilisation may be higher as a result but
+consider the impact. THP migrations are relatively rare and when they
+occur, it's in the context of a single thread. To parallelise the copy,
+an allocation, kmap and workqueue invocation are required. There may be a
+long delay before the workqueue item can start which may exceed the time
+to do a single copy if the CPUs on a node are saturated. Furthermore, a
+single thread can preempt operations of other unrelated threads and incur
+CPU cache pollution and future misses on unrelated CPUs. It's compounded by
+the fact that a high priority system workqueue is used to do the operation,
+one that is used for CPU hotplug operations and rolling back when a netdevice
+fails to be registered. It treats a hugepage copy as an essential operation
+that can preempt all other work which is very questionable.
+
+The series leader has no details on a workload that is bottlenecked by
+THP migrations and even if it is, the primary question should be *why*
+THP migrations are so frequent and alleviating that instead of
+preempting multiple CPUs to do the work.
+
 -- 
-2.9.3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
