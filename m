@@ -1,84 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2BD2808C6
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 06:47:21 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id v66so20565582wrc.4
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 03:47:21 -0800 (PST)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id j38si8435287wra.42.2017.03.09.03.47.20
+	by kanga.kvack.org (Postfix) with ESMTP id 267992808C6
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 07:20:34 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id u48so19527243wrc.0
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 04:20:34 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x19si8503692wrd.260.2017.03.09.04.20.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 03:47:20 -0800 (PST)
-Received: by mail-wr0-x242.google.com with SMTP id u48so7615220wrc.1
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 03:47:20 -0800 (PST)
-Date: Thu, 9 Mar 2017 14:47:16 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Mar 2017 04:20:32 -0800 (PST)
+Date: Thu, 9 Mar 2017 13:20:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 6/7] mm: convert generic code to 5-level paging
-Message-ID: <20170309114716.e6ll7tsykz5iimnn@node.shutemov.name>
+Message-ID: <20170309122030.GH11592@dhcp22.suse.cz>
 References: <20170306204514.1852-1-kirill.shutemov@linux.intel.com>
  <20170306204514.1852-7-kirill.shutemov@linux.intel.com>
  <20170308135734.GA11034@dhcp22.suse.cz>
  <20170308152129.sknp75d5usdu4vne@black.fi.intel.com>
  <20170309095415.GE11592@dhcp22.suse.cz>
+ <20170309114716.e6ll7tsykz5iimnn@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170309095415.GE11592@dhcp22.suse.cz>
+In-Reply-To: <20170309114716.e6ll7tsykz5iimnn@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 09, 2017 at 10:54:15AM +0100, Michal Hocko wrote:
-> On Wed 08-03-17 18:21:30, Kirill A. Shutemov wrote:
-> > On Wed, Mar 08, 2017 at 02:57:35PM +0100, Michal Hocko wrote:
-> > > On Mon 06-03-17 23:45:13, Kirill A. Shutemov wrote:
-> > > > Convert all non-architecture-specific code to 5-level paging.
-> > > > 
-> > > > It's mostly mechanical adding handling one more page table level in
-> > > > places where we deal with pud_t.
-> > > > 
-> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > 
-> > > OK, I haven't spotted anything major. I am just scratching my head about
-> > > the __ARCH_HAS_5LEVEL_HACK leak into kasan_init.c (see below). Why do we
-> > > need it?  It looks more than ugly but I am not familiar with kasan so
-> > > maybe this is really necessary.
+On Thu 09-03-17 14:47:16, Kirill A. Shutemov wrote:
+> On Thu, Mar 09, 2017 at 10:54:15AM +0100, Michal Hocko wrote:
+> > On Wed 08-03-17 18:21:30, Kirill A. Shutemov wrote:
+[...]
+> > > We can drop the hack once all architectures that support kasan would be
+> > > converted to pgtable-nop4d.h -- amd64 and x86 at the moment.
 > > 
-> > Yeah ugly.
+> > But those architectures even do not enable kasan
+> > $ git grep "select *HAVE_ARCH_KASAN"
+> > arch/arm64/Kconfig:     select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+> > arch/x86/Kconfig:       select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
 > > 
-> > kasan_zero_p4d is only defined if we have real page table level. It's okay
-> > if the page table level is folded properly -- using pgtable-nop4d.h -- in
-> > this case pgd_populate() is nop and we don't reference kasan_zero_p4d.
-> > 
-> > With 5level-fixup.h, pgd_populate() is not nop, so we would reference
-> > kasan_zero_p4d and build breaks. We don't need this as p4d_populate()
-> > would do what we really need in this case.
-> > 
-> > We can drop the hack once all architectures that support kasan would be
-> > converted to pgtable-nop4d.h -- amd64 and x86 at the moment.
+> > both arm64 and x86 (64b) do compile fine without the ifdef... So I guess
+> > we should be fine without it.
 > 
-> But those architectures even do not enable kasan
-> $ git grep "select *HAVE_ARCH_KASAN"
-> arch/arm64/Kconfig:     select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
-> arch/x86/Kconfig:       select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
+> Have you build the image to the final linking? lm_alias() hides the error
+> until later.
 > 
-> both arm64 and x86 (64b) do compile fine without the ifdef... So I guess
-> we should be fine without it.
+> x86-64 allmodconfig without the #ifndef:
+> 
+>   MODPOST vmlinux.o
+> mm/built-in.o: In function `kasan_populate_zero_shadow':
+> (.init.text+0xb72b): undefined reference to `kasan_zero_p4d'
+> Makefile:983: recipe for target 'vmlinux' failed
+> make: *** [vmlinux] Error 1
 
-Have you build the image to the final linking? lm_alias() hides the error
-until later.
+Interesting
+arm64 cross compile:
+$ grep CONFIG_KASAN .config
+CONFIG_KASAN=y
+CONFIG_KASAN_OUTLINE=y
+# CONFIG_KASAN_INLINE is not set
 
-x86-64 allmodconfig without the #ifndef:
+Compiling for arm64 with aarch64-linux using gcc 4.9.0
+[...]
+  LD      vmlinux.o
+  MODPOST vmlinux.o
+  KSYM    .tmp_kallsyms1.o
+  KSYM    .tmp_kallsyms2.o
+  LD      vmlinux
+  SORTEX  vmlinux
+  SYSMAP  System.map
 
+x86_64 crosscompile with the same version to rule out gcc version
+changes
+
+$ grep CONFIG_KASAN .config
+CONFIG_KASAN_SHADOW_OFFSET=0xdffffc0000000000
+CONFIG_KASAN=y
+CONFIG_KASAN_OUTLINE=y
+# CONFIG_KASAN_INLINE is not set
+
+[...]
+  LD      init/built-in.o
+  LD      vmlinux.o
   MODPOST vmlinux.o
 mm/built-in.o: In function `kasan_populate_zero_shadow':
-(.init.text+0xb72b): undefined reference to `kasan_zero_p4d'
+(.init.text+0x84e5): undefined reference to `kasan_zero_p4d'
 Makefile:983: recipe for target 'vmlinux' failed
-make: *** [vmlinux] Error 1
 
+no idea why arm64 build was OK.
+
+Anyway I am not insisting on removing this ifdef it is just too ugly to
+spread __ARCH_HAS_5LEVEL_HACK outside of the arch code. We have few more
+in the mm code but those look much more understandable. Maybe a short
+comment explaining the ifdef would be better.
+
+Thanks!
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
