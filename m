@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6F52808B4
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 04:24:38 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id i50so84619156otd.3
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 01:24:38 -0800 (PST)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0102.outbound.protection.outlook.com. [104.47.2.102])
-        by mx.google.com with ESMTPS id d69si2729318oig.248.2017.03.09.01.24.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E04A72808B4
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 04:30:38 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y17so102697149pgh.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 01:30:38 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o5si5918210pgg.169.2017.03.09.01.30.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 09 Mar 2017 01:24:37 -0800 (PST)
-Subject: Re: [PATCH] kasan: fix races in quarantine_remove_cache()
-References: <20170308151532.5070-1-dvyukov@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <1e8cde9e-919d-784c-298c-85efd6efd82c@virtuozzo.com>
-Date: Thu, 9 Mar 2017 12:25:45 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 01:30:38 -0800 (PST)
+Date: Thu, 9 Mar 2017 10:30:28 +0100
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] staging, android: remove lowmemory killer from the tree
+Message-ID: <20170309093028.GA12156@kroah.com>
+References: <20170222120121.12601-1-mhocko@kernel.org>
+ <20170309091513.GA11598@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170308151532.5070-1-dvyukov@google.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170309091513.GA11598@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: kasan-dev@googlegroups.com, Greg Thelen <gthelen@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Martijn Coenen <maco@google.com>, Tim Murray <timmurray@google.com>, peter enderborg <peter.enderborg@sonymobile.com>, Rom Lemarchand <romlem@google.com>
 
-On 03/08/2017 06:15 PM, Dmitry Vyukov wrote:
+On Thu, Mar 09, 2017 at 10:15:13AM +0100, Michal Hocko wrote:
+> Greg, do you see any obstacle to have this merged. The discussion so far
+> shown that a) vendors are not using the code as is b) there seems to be
+> an agreement that something else than we have in the kernel is really
+> needed.
 
-> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> index 6f1ed1630873..075422c3cee3 100644
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -27,6 +27,7 @@
->  #include <linux/slab.h>
->  #include <linux/string.h>
->  #include <linux/types.h>
-> +#include <linux/srcu.h>
->  
+Well, some vendors are using the code as-is, just not Sony...
 
-Nit: keep alphabetical order please.
+I think the ideas that Tim wrote about is the best way forward for this.
+I'd prefer to leave the code in the kernel until that solution is
+integrated, as dropping support entirely isn't very nice.
 
+But, given that almost no Android system is running mainline at the
+moment, I will queue this patch up for 4.12-rc1, which will give the
+Google people a bit more of an incentive to get their solution
+implemented and working and merged :)
 
->  
->  void quarantine_reduce(void)
->  {
->  	size_t total_size, new_quarantine_size, percpu_quarantines;
->  	unsigned long flags;
-> +	int srcu_idx;
->  	struct qlist_head to_free = QLIST_INIT;
->  
->  	if (likely(READ_ONCE(quarantine_size) <=
->  		   READ_ONCE(quarantine_max_size)))
->  		return;
->  
-> +	/*
-> +	 * srcu critical section ensures that quarantine_remove_cache()
-> +	 * will not miss objects belonging to the cache while they are in our
-> +	 * local to_free list. srcu is chosen because (1) it gives us private
-> +	 * grace period domain that does not interfere with anything else,
-> +	 * and (2) it allows synchronize_srcu() to return without waiting
-> +	 * if there are no pending read critical sections (which is the
-> +	 * expected case).
-> +	 */
-> +	srcu_idx = srcu_read_lock(&remove_cache_srcu);
+Sound reasonable?  I haven't started to go through my patch queue for
+4.12-rc1 stuff just yet, still digging through it for 4.11-final things
+at the moment.  Give me a week or so to catch up.
 
-I'm puzzled why is SRCU, why not RCU? Given that we take spin_lock in the next line
-we certainly don't need ability to sleep in read-side critical section.
+thanks,
 
->  	spin_lock_irqsave(&quarantine_lock, flags);
->  
->  	/*
-> @@ -237,6 +257,7 @@ void quarantine_reduce(void)
->  	spin_unlock_irqrestore(&quarantine_lock, flags);
->  
->  	qlist_free_all(&to_free, NULL);
-> +	srcu_read_unlock(&remove_cache_srcu, srcu_idx);
->  }
->  
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
