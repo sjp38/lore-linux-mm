@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B45A22808A2
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 03:50:57 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id u108so18859536wrb.3
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 00:50:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e63si3500230wma.43.2017.03.09.00.50.56
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AD5E2808AC
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 03:53:21 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id 72so76966578uaf.7
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 00:53:21 -0800 (PST)
+Received: from mail-ua0-x231.google.com (mail-ua0-x231.google.com. [2607:f8b0:400c:c08::231])
+        by mx.google.com with ESMTPS id f16si2668740uaa.233.2017.03.09.00.53.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Mar 2017 00:50:56 -0800 (PST)
-Date: Thu, 9 Mar 2017 09:50:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: "mm: fix lazyfree BUG_ON check in try_to_unmap_one()" build error
-Message-ID: <20170309085053.GA11592@dhcp22.suse.cz>
-References: <20170309042908.GA26702@jagdpanzerIV.localdomain>
- <20170309060226.GB854@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 00:53:20 -0800 (PST)
+Received: by mail-ua0-x231.google.com with SMTP id q7so58095246uaf.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 00:53:20 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170309060226.GB854@bbox>
+In-Reply-To: <20170308151141.2ccdd5cb9e82a56cd25562cc@linux-foundation.org>
+References: <20170308151532.5070-1-dvyukov@google.com> <20170308151141.2ccdd5cb9e82a56cd25562cc@linux-foundation.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 9 Mar 2017 09:52:59 +0100
+Message-ID: <CACT4Y+awf24iyh_nvn14bZzd95PK021Ohpr6FAkugNnhzkfHKA@mail.gmail.com>
+Subject: Re: [PATCH] kasan: fix races in quarantine_remove_cache()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, Greg Thelen <gthelen@google.com>
 
-On Thu 09-03-17 15:02:26, Minchan Kim wrote:
-[...]
-> >From 38b10e560d066c2cef8f9d028e14008cefdaa3e0 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Thu, 9 Mar 2017 14:58:23 +0900
-> Subject: [PATCH] mm: do not use VM_WARN_ON_ONCE as if condition
-> 
-> Sergey reported VM_WARN_ON_ONCE returns void with !CONFIG_DEBUG_VM
-> so we cannot use it as if's condition unlike WARN_ON.
+On Thu, Mar 9, 2017 at 12:11 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed,  8 Mar 2017 16:15:32 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
+>
+>> quarantine_remove_cache() frees all pending objects that belong to the
+>> cache, before we destroy the cache itself. However there are currently
+>> two possibilities how it can fail to do so.
+>>
+>> First, another thread can hold some of the objects from the cache in
+>> temp list in quarantine_put(). quarantine_put() has a windows of enabled
+>> interrupts, and on_each_cpu() in quarantine_remove_cache() can finish
+>> right in that window. These objects will be later freed into the
+>> destroyed cache.
+>>
+>> Then, quarantine_reduce() has the same problem. It grabs a batch of
+>> objects from the global quarantine, then unlocks quarantine_lock and
+>> then frees the batch. quarantine_remove_cache() can finish while some
+>> objects from the cache are still in the local to_free list in
+>> quarantine_reduce().
+>>
+>> Fix the race with quarantine_put() by disabling interrupts for the
+>> whole duration of quarantine_put(). In combination with on_each_cpu()
+>> in quarantine_remove_cache() it ensures that quarantine_remove_cache()
+>> either sees the objects in the per-cpu list or in the global list.
+>>
+>> Fix the race with quarantine_reduce() by protecting quarantine_reduce()
+>> with srcu critical section and then doing synchronize_srcu() at the end
+>> of quarantine_remove_cache().
+>>
+>> ...
+>>
+>> I suspect that these races are the root cause of some GPFs that
+>> I episodically hit. Previously I did not have any explanation for them.
+>
+> The changelog doesn't convey a sense of how serious this bug is, so I'm
+> not in a good position to decide whether this fix should be backported.
+> The patch looks fairly intrusive so I tentatively decided that it
+> needn't be backported.  Perhaps that was wrong.
+>
+> Please be more careful in describing the end-user visible impact of
+> bugs when fixing them.
 
-I would swear I've seen WARN_ON_ONCE there when looking at the previous
-patch! Btw. could have simply s@VM_@@ 
+Will try to do better next time. Thanks for the feedback.
 
-> This patch fixes it.
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+I am not sure myself about backporting. The back is quite hard to
+trigger, I've seen it few times during our massive continuous testing
+(however, it could be cause of some other episodic stray crashes as it
+leads to memory corruption...). If it is triggered, the consequences
+are very bad -- almost definite bad memory corruption. The fix is non
+trivial and has chances of introducing new bugs. I am also not sure
+how actively people use KASAN on older releases.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/rmap.c | 5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 1d82057144ba..7d24bb93445b 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1413,12 +1413,11 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  			 * Store the swap location in the pte.
->  			 * See handle_pte_fault() ...
->  			 */
-> -			if (VM_WARN_ON_ONCE(PageSwapBacked(page) !=
-> -						PageSwapCache(page))) {
-> +			if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
-> +				WARN_ON_ONCE(1);
->  				ret = SWAP_FAIL;
->  				page_vma_mapped_walk_done(&pvmw);
->  				break;
-> -
->  			}
->  
->  			/* MADV_FREE page check */
-> -- 
-> 2.7.4
-
--- 
-Michal Hocko
-SUSE Labs
+Can we flag it for backporting later if/when we see real need?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
