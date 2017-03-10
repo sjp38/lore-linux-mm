@@ -1,70 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FD31280903
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 20:13:49 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j5so140316799pfb.3
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 17:13:49 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w11si1351936pfd.17.2017.03.09.17.13.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 17:13:48 -0800 (PST)
-Date: Fri, 10 Mar 2017 09:12:39 +0800
-From: Ye Xiaolong <xiaolong.ye@intel.com>
-Subject: Re: [kbuild-all] [PATCH 6/6] sysctl: Add global tunable mt_page_copy
-Message-ID: <20170310011239.GF4705@yexl-desktop>
-References: <201702172358.xrHUyT1e%fengguang.wu@intel.com>
- <fa0c0260-9b98-42fc-9268-6f0b9c9ff592@linux.vnet.ibm.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E86CA6B0399
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 20:45:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 77so135721940pgc.5
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 17:45:03 -0800 (PST)
+Received: from cmccmta1.chinamobile.com (cmccmta1.chinamobile.com. [221.176.66.79])
+        by mx.google.com with ESMTP id i9si8103734plk.73.2017.03.09.17.45.01
+        for <linux-mm@kvack.org>;
+        Thu, 09 Mar 2017 17:45:02 -0800 (PST)
+Subject: Re: how to unmap pages in an anonymous mmap?
+References: <1487323472-20481-1-git-send-email-lixiubo@cmss.chinamobile.com>
+ <09891673-0d95-8b66-ddce-0ace7aea43d1@redhat.com>
+ <48b49493-4c82-3ed5-126f-2ea18c701242@cmss.chinamobile.com>
+ <21d93bec-a717-5157-8dcf-cc629611572f@redhat.com>
+ <85a41492-8aba-b752-c180-ec25f43d2a1a@cmss.chinamobile.com>
+ <dfafac31-b762-4939-14f6-8939e661dcd1@redhat.com>
+From: Xiubo Li <lixiubo@cmss.chinamobile.com>
+Message-ID: <4f1d4fe7-7615-6034-9a63-068535b79e42@cmss.chinamobile.com>
+Date: Fri, 10 Mar 2017 09:45:00 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <dfafac31-b762-4939-14f6-8939e661dcd1@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <fa0c0260-9b98-42fc-9268-6f0b9c9ff592@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: kbuild test robot <lkp@intel.com>, haren@linux.vnet.ibm.com, mhocko@suse.com, srikar@linux.vnet.ibm.com, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, vbabka@suse.cz, kbuild-all@01.org
+To: linux-mm@kvack.org
+Cc: Andy Grover <agrover@redhat.com>, nab@linux-iscsi.org, mchristi@redhat.com, shli@kernel.org, hch@lst.de, sheng@yasker.org, namei.unix@gmail.com, bart.vanassche@sandisk.com, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, linux-kernel@vger.kernel.org, Jianfei Hu <hujianfei@cmss.chinamobile.com>
 
-On 03/08, Anshuman Khandual wrote:
->On 02/17/2017 09:00 PM, kbuild test robot wrote:
->> Hi Zi,
->> 
->> [auto build test ERROR on linus/master]
->> [also build test ERROR on v4.10-rc8 next-20170217]
->> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->> 
->> url:    https://github.com/0day-ci/linux/commits/Anshuman-Khandual/Enable-parallel-page-migration/20170217-200523
->> config: i386-randconfig-a0-02131010 (attached as .config)
->> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
->
->Though I dont have the same compiler, I am unable to reproduce this
->build failure exactly. The build fails but for a different symbol.
 
-I think previous "undefined reference to `mt_page_copy'" error is due to kbuild
-bot didn't set CONFIG_MIGRATION (see attached config in original mail) since it
-is a randconfig test.
 
-Thanks,
-Xiaolong
+On 2017a1'02ae??28ae?JPY 03:32, Andy Grover wrote:
+> On 02/26/2017 09:59 PM, Xiubo Li wrote:
+>>> But, We likely don't want to release memory from the data area anyways
+>>> while active, in any case. How about if we set a timer when active
+>>> commands go to zero, and then reduce data area to some minimum if no new
+>>> cmds come in before timer expires?
+>> If I understand correctly: for example, we have 1G(as the minimum)
+>> data area and all blocks have been allocated and mapped to runner's
+>> vma, then we extern it to 1G + 256M as needed. When there have no
+>> active cmds and after the timer expires, will it reduce the data area
+>> back to 1G ? And then should it release the reduced 256M data area's
+>> memories ?
+>>
+>> If so, after kfree()ed the blocks' memories, it should also try to remove
+>> all the ptes which are mapping this page(like using the try_to_umap()),
+>> but something like try_to_umap() doesn't export for the modules.
+>>
+>> Without ummaping the kfree()ed pages' ptes mentioned above, then
+>> the reduced 256M vma space couldn't be reused again for the runner
+>> process, because the runner has already do the mapping for the reduced
+>> vma space to some old physical pages(won't trigger new page fault
+>> again). Then there will be a hole, and the hole will be bigger and bigger.
+>>
+>> Without ummaping the kfree()ed pages' ptes mentioned above, the
+>> pages' reference count (page_ref_dec(), which _inc()ed in page fault)
+>> couldn't be reduced back too.
+> Let's ask people who will know...
+>
+> Hi linux-mm,
+>
+> TCM-User (drivers/target/target_core_user.c) currently uses vmalloc()ed
+> memory to back a ring buffer that is mmaped by userspace.
+>
+> We want to move to dynamically mapping pages into this region, and also
+> we'd like to unmap/free pages when idle. What's the right way to unmap?
+> I see unmap_mapping_range() but that mentions an underlying file, which
+> TCMU doesn't have. Or maybe zap_page_range()? But it's not exported.
+Hi linux-mm
 
->I have the following gcc version but does it really make a
->difference with respect to finding the symbol etc ?
+For the TCMU case, the vm is not anonymous mapping. And still has
+device file desc:
+
+mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, dev->fd, 0);
+
+If using the unmap_mapping_range() to do the dynamically maping,
+is it okay ? Any other potential risks ?
+
+Or the mentioned 'underlying file' is must one desk file ?
+
+Thanks very much,
+
+BRs
+Xiubo
+
+
+
+> Any advice?
 >
->gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2
->
->
->mm/memory.c: In function a??copy_pmd_rangea??:
->mm/memory.c:1002:3: error: implicit declaration of function
->a??pmd_relateda?? [-Werror=implicit-function-declaration]
->   if (pmd_related(*src_pmd)) {
->   ^
->cc1: some warnings being treated as errors
->scripts/Makefile.build:294: recipe for target 'mm/memory.o' failed
->
->_______________________________________________
->kbuild-all mailing list
->kbuild-all@lists.01.org
->https://lists.01.org/mailman/listinfo/kbuild-all
+> Thanks in advance -- Regards -- Andy
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
