@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA65A28092C
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 16:18:38 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j5so183808545pfb.3
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 13:18:38 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 73si4033404pfz.297.2017.03.10.13.18.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 13:18:37 -0800 (PST)
-Date: Fri, 10 Mar 2017 13:18:25 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of
- VIRTIO_BALLOON_F_CHUNK_TRANSFER
-Message-ID: <20170310211825.GB16328@bombadil.infradead.org>
-References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com>
- <1488519630-89058-4-git-send-email-wei.w.wang@intel.com>
- <20170309141411.GZ16328@bombadil.infradead.org>
- <58C28FF8.5040403@intel.com>
- <20170310175349-mutt-send-email-mst@kernel.org>
- <20170310171143.GA16328@bombadil.infradead.org>
- <20170310211037-mutt-send-email-mst@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170310211037-mutt-send-email-mst@kernel.org>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D42BC28092C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 16:22:22 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id p78so63040703lfd.0
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 13:22:22 -0800 (PST)
+Received: from mail.ispras.ru (mail.ispras.ru. [83.149.199.45])
+        by mx.google.com with ESMTP id j185si2240667lfg.164.2017.03.10.13.22.21
+        for <linux-mm@kvack.org>;
+        Fri, 10 Mar 2017 13:22:21 -0800 (PST)
+From: Alexey Khoroshilov <khoroshilov@ispras.ru>
+Subject: z3fold: suspicious return with spinlock held
+Date: Sat, 11 Mar 2017 00:22:12 +0300
+Message-Id: <1489180932-13918-1-git-send-email-khoroshilov@ispras.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Alexey Khoroshilov <khoroshilov@ispras.ru>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ldv-project@linuxtesting.org
 
-On Fri, Mar 10, 2017 at 09:10:53PM +0200, Michael S. Tsirkin wrote:
-> > I completely agree with you that we should be able to pass a hugepage
-> > as a single chunk.  Also we shouldn't assume that host and guest have
-> > the same page size.  I think we can come up with a scheme that actually
-> > lets us encode that into a 64-bit word, something like this:
-> > 
-> > bit 0 clear => bits 1-11 encode a page count, bits 12-63 encode a PFN, page size 4k.
-> > bit 0 set, bit 1 clear => bits 2-12 encode a page count, bits 13-63 encode a PFN, page size 8k
-> > bits 0+1 set, bit 2 clear => bits 3-13 for page count, bits 14-63 for PFN, page size 16k.
-> > bits 0-2 set, bit 3 clear => bits 4-14 for page count, bits 15-63 for PFN, page size 32k
-> > bits 0-3 set, bit 4 clear => bits 5-15 for page count, bits 16-63 for PFN, page size 64k
-> 
-> huge page sizes go up to gigabytes.
+Hello!
 
-There was supposed to be a '...' there.  For a 16GB hugepage (largest
-size I know of today), that'd be:
+z3fold_reclaim_page() contains the only return that may
+leave the function with pool->lock spinlock held.
 
-bits 0-21 set, 22 clear, 23-33 page count, 34-63 PFN, page size 16G
+669 	spin_lock(&pool->lock);
+670 	if (kref_put(&zhdr->refcount, release_z3fold_page)) {
+671 		atomic64_dec(&pool->pages_nr);
+672 		return 0;
+673 	}
+
+May be we need spin_unlock(&pool->lock); just before return?
+
+
+Found by Linux Driver Verification project (linuxtesting.org).
+
+--
+Thank you,
+Alexey Khoroshilov
+Linux Verification Center, ISPRAS
+web: http://linuxtesting.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
