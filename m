@@ -1,87 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D5A45280911
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 05:20:13 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id h188so2472896wma.4
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 02:20:13 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EAFC280911
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 05:27:59 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id g10so27037816wrg.5
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 02:27:59 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s26si2295788wma.12.2017.03.10.02.20.12
+        by mx.google.com with ESMTPS id p201si2290750wme.108.2017.03.10.02.27.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 02:20:12 -0800 (PST)
-Date: Fri, 10 Mar 2017 11:20:10 +0100
+        Fri, 10 Mar 2017 02:27:57 -0800 (PST)
+Date: Fri, 10 Mar 2017 11:27:56 +0100
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-Message-ID: <20170310102010.GD3753@dhcp22.suse.cz>
+Message-ID: <20170310102756.GE3753@dhcp22.suse.cz>
 References: <20170307133057.26182-1-mhocko@kernel.org>
  <1488916356.6405.4.camel@redhat.com>
  <20170309180540.GA8678@cmpxchg.org>
+ <1489097880.1906.16.camel@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170309180540.GA8678@cmpxchg.org>
+In-Reply-To: <1489097880.1906.16.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 09-03-17 13:05:40, Johannes Weiner wrote:
-> On Tue, Mar 07, 2017 at 02:52:36PM -0500, Rik van Riel wrote:
-> > It only does this to some extent.  If reclaim made
-> > no progress, for example due to immediately bailing
-> > out because the number of already isolated pages is
-> > too high (due to many parallel reclaimers), the code
-> > could hit the "no_progress_loops > MAX_RECLAIM_RETRIES"
-> > test without ever looking at the number of reclaimable
-> > pages.
+On Thu 09-03-17 17:18:00, Rik van Riel wrote:
+> On Thu, 2017-03-09 at 13:05 -0500, Johannes Weiner wrote:
+> > On Tue, Mar 07, 2017 at 02:52:36PM -0500, Rik van Riel wrote:
+> > > 
+> > > It only does this to some extent.  If reclaim made
+> > > no progress, for example due to immediately bailing
+> > > out because the number of already isolated pages is
+> > > too high (due to many parallel reclaimers), the code
+> > > could hit the "no_progress_loops > MAX_RECLAIM_RETRIES"
+> > > test without ever looking at the number of reclaimable
+> > > pages.
+> > Hm, there is no early return there, actually. We bump the loop
+> > counter
+> > every time it happens, but then *do* look at the reclaimable pages.
 > 
-> Hm, there is no early return there, actually. We bump the loop counter
-> every time it happens, but then *do* look at the reclaimable pages.
+> Am I looking at an old tree?  I see this code
+> before we look at the reclaimable pages.
 > 
-> > Could that create problems if we have many concurrent
-> > reclaimers?
-> 
-> With increased concurrency, the likelihood of OOM will go up if we
-> remove the unlimited wait for isolated pages, that much is true.
-> 
-> I'm not sure that's a bad thing, however, because we want the OOM
-> killer to be predictable and timely. So a reasonable wait time in
-> between 0 and forever before an allocating thread gives up under
-> extreme concurrency makes sense to me.
-> 
-> > It may be OK, I just do not understand all the implications.
+>         /*
+>          * Make sure we converge to OOM if we cannot make any progress
+>          * several times in the row.
+>          */
+>         if (*no_progress_loops > MAX_RECLAIM_RETRIES) {
+>                 /* Before OOM, exhaust highatomic_reserve */
+>                 return unreserve_highatomic_pageblock(ac, true);
+>         }
+
+I believe that Johannes meant cases where we do not exhaust all the
+reclaim retries and fail early because there are no reclaimable pages
+during the watermark check.
+
+> > > Could that create problems if we have many concurrent
+> > > reclaimers?
+> > With increased concurrency, the likelihood of OOM will go up if we
+> > remove the unlimited wait for isolated pages, that much is true.
 > > 
-> > I like the general direction your patch takes the code in,
-> > but I would like to understand it better...
+> > I'm not sure that's a bad thing, however, because we want the OOM
+> > killer to be predictable and timely. So a reasonable wait time in
+> > between 0 and forever before an allocating thread gives up under
+> > extreme concurrency makes sense to me.
 > 
-> I feel the same way. The throttling logic doesn't seem to be very well
-> thought out at the moment, making it hard to reason about what happens
-> in certain scenarios.
+> That is a fair point, a faster OOM kill is preferable
+> to a system that is livelocked.
 > 
-> In that sense, this patch isn't really an overall improvement to the
-> way things work. It patches a hole that seems to be exploitable only
-> from an artificial OOM torture test, at the risk of regressing high
-> concurrency workloads that may or may not be artificial.
+> > Unless I'm mistaken, there doesn't seem to be a whole lot of urgency
+> > behind this patch. Can we think about a general model to deal with
+> > allocation concurrency? Unlimited parallel direct reclaim is kinda
+> > bonkers in the first place. How about checking for excessive
+> > isolation
+> > counts from the page allocator and putting allocations on a
+> > waitqueue?
 > 
-> Unless I'm mistaken, there doesn't seem to be a whole lot of urgency
-> behind this patch. Can we think about a general model to deal with
-> allocation concurrency? 
+> The (limited) number of reclaimers can still do a
+> relatively fast OOM kill, if none of them manage
+> to make progress.
 
-I am definitely not against. There is no reason to rush the patch in.
-My main point behind this patch was to reduce unbound loops from inside
-the reclaim path and push any throttling up the call chain to the
-page allocator path because I believe that it is easier to reason
-about them at that level. The direct reclaim should be as simple as
-possible without too many side effects otherwise we end up in a highly
-unpredictable behavior. This was a first step in that direction and my
-testing so far didn't show any regressions.
-
-> Unlimited parallel direct reclaim is kinda
-> bonkers in the first place. How about checking for excessive isolation
-> counts from the page allocator and putting allocations on a waitqueue?
-
-I would be interested in details here.
+well, we can estimate how much memory can those relatively few
+reclaimers isolate and try to reclaim. Even if we have hundreds of them which
+is more towards a large number to me then we are 100*SWAP_CLUSTER_MAX
+which is not all that much. And we are effectivelly OOM if there is no
+other reclaimable memory left. All we need is just to put some upper
+bound. We already have throttle_direct_reclaim but it doesn't really
+throttle the maximum number of reclaimers.
 -- 
 Michal Hocko
 SUSE Labs
