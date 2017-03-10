@@ -1,95 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E86CA6B0399
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 20:45:03 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 77so135721940pgc.5
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 17:45:03 -0800 (PST)
-Received: from cmccmta1.chinamobile.com (cmccmta1.chinamobile.com. [221.176.66.79])
-        by mx.google.com with ESMTP id i9si8103734plk.73.2017.03.09.17.45.01
-        for <linux-mm@kvack.org>;
-        Thu, 09 Mar 2017 17:45:02 -0800 (PST)
-Subject: Re: how to unmap pages in an anonymous mmap?
-References: <1487323472-20481-1-git-send-email-lixiubo@cmss.chinamobile.com>
- <09891673-0d95-8b66-ddce-0ace7aea43d1@redhat.com>
- <48b49493-4c82-3ed5-126f-2ea18c701242@cmss.chinamobile.com>
- <21d93bec-a717-5157-8dcf-cc629611572f@redhat.com>
- <85a41492-8aba-b752-c180-ec25f43d2a1a@cmss.chinamobile.com>
- <dfafac31-b762-4939-14f6-8939e661dcd1@redhat.com>
-From: Xiubo Li <lixiubo@cmss.chinamobile.com>
-Message-ID: <4f1d4fe7-7615-6034-9a63-068535b79e42@cmss.chinamobile.com>
-Date: Fri, 10 Mar 2017 09:45:00 +0800
-MIME-Version: 1.0
-In-Reply-To: <dfafac31-b762-4939-14f6-8939e661dcd1@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2FC2808A2
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 22:08:56 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id 9so165932606qkk.6
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 19:08:56 -0800 (PST)
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com. [209.85.220.171])
+        by mx.google.com with ESMTPS id r11si7118935qtc.213.2017.03.09.19.08.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 19:08:55 -0800 (PST)
+Received: by mail-qk0-f171.google.com with SMTP id 1so149752683qkl.3
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 19:08:54 -0800 (PST)
+Message-ID: <1489115329.15257.1.camel@redhat.com>
+Subject: Re: [PATCH v2 3/9] mm: clear any AS_* errors when returning error
+ on any fsync or close
+From: Jeff Layton <jlayton@redhat.com>
+Date: Thu, 09 Mar 2017 22:08:49 -0500
+In-Reply-To: <20170310000939.GC30285@linux.intel.com>
+References: <20170308162934.21989-1-jlayton@redhat.com>
+	 <20170308162934.21989-4-jlayton@redhat.com>
+	 <20170310000939.GC30285@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andy Grover <agrover@redhat.com>, nab@linux-iscsi.org, mchristi@redhat.com, shli@kernel.org, hch@lst.de, sheng@yasker.org, namei.unix@gmail.com, bart.vanassche@sandisk.com, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, linux-kernel@vger.kernel.org, Jianfei Hu <hujianfei@cmss.chinamobile.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: viro@zeniv.linux.org.uk, akpm@linux-foundation.org, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, jack@suse.cz, neilb@suse.com, openosd@gmail.com, adilger@dilger.ca, James.Bottomley@HansenPartnership.com
 
+On Thu, 2017-03-09 at 17:09 -0700, Ross Zwisler wrote:
+> On Wed, Mar 08, 2017 at 11:29:28AM -0500, Jeff Layton wrote:
+> > Currently we don't clear the address space error when there is a -EIO
+> > error on fsynci, due to writeback initiation failure. If writes fail
+> 
+> 	   fsync
+> 
+> > with -EIO and the mapping is flagged with an AS_EIO or AS_ENOSPC error,
+> > then we can end up returning errors on two fsync calls, even when a
+> > write between them succeeded (or there was no write).
+> > 
+> > Ensure that we also clear out any mapping errors when initiating
+> > writeback fails with -EIO in filemap_write_and_wait and
+> > filemap_write_and_wait_range.
+> > 
+> > Suggested-by: Jan Kara <jack@suse.cz>
+> > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > ---
+> >  mm/filemap.c | 20 ++++++++++++++++++--
+> >  1 file changed, 18 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index 1694623a6289..fc123b9833e1 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -488,7 +488,7 @@ EXPORT_SYMBOL(filemap_fdatawait);
+> >  
+> >  int filemap_write_and_wait(struct address_space *mapping)
+> >  {
+> > -	int err = 0;
+> > +	int err;
+> >  
+> >  	if ((!dax_mapping(mapping) && mapping->nrpages) ||
+> >  	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+> > @@ -499,10 +499,18 @@ int filemap_write_and_wait(struct address_space *mapping)
+> >  		 * But the -EIO is special case, it may indicate the worst
+> >  		 * thing (e.g. bug) happened, so we avoid waiting for it.
+> >  		 */
+> > -		if (err != -EIO) {
+> > +		if (likely(err != -EIO)) {
+> 
+> The above two cleanup changes were made only to filemap_write_and_wait(), but
+> should also probably be done to filemap_write_and_wait_range() to keep them as
+> consistent as possible?
 
+Thanks, I fixed that in the patch in my tree. Unfortunately, as Neil
+pointed out, there is a bigger problem here...
 
-On 2017a1'02ae??28ae?JPY 03:32, Andy Grover wrote:
-> On 02/26/2017 09:59 PM, Xiubo Li wrote:
->>> But, We likely don't want to release memory from the data area anyways
->>> while active, in any case. How about if we set a timer when active
->>> commands go to zero, and then reduce data area to some minimum if no new
->>> cmds come in before timer expires?
->> If I understand correctly: for example, we have 1G(as the minimum)
->> data area and all blocks have been allocated and mapped to runner's
->> vma, then we extern it to 1G + 256M as needed. When there have no
->> active cmds and after the timer expires, will it reduce the data area
->> back to 1G ? And then should it release the reduced 256M data area's
->> memories ?
->>
->> If so, after kfree()ed the blocks' memories, it should also try to remove
->> all the ptes which are mapping this page(like using the try_to_umap()),
->> but something like try_to_umap() doesn't export for the modules.
->>
->> Without ummaping the kfree()ed pages' ptes mentioned above, then
->> the reduced 256M vma space couldn't be reused again for the runner
->> process, because the runner has already do the mapping for the reduced
->> vma space to some old physical pages(won't trigger new page fault
->> again). Then there will be a hole, and the hole will be bigger and bigger.
->>
->> Without ummaping the kfree()ed pages' ptes mentioned above, the
->> pages' reference count (page_ref_dec(), which _inc()ed in page fault)
->> couldn't be reduced back too.
-> Let's ask people who will know...
->
-> Hi linux-mm,
->
-> TCM-User (drivers/target/target_core_user.c) currently uses vmalloc()ed
-> memory to back a ring buffer that is mmaped by userspace.
->
-> We want to move to dynamically mapping pages into this region, and also
-> we'd like to unmap/free pages when idle. What's the right way to unmap?
-> I see unmap_mapping_range() but that mentions an underlying file, which
-> TCMU doesn't have. Or maybe zap_page_range()? But it's not exported.
-Hi linux-mm
+There are a lot of callers of the filemap_write_and_wait* functions
+that never check the return code at all, and some others that call this
+from codepaths that where we can't report errors properly. Yet, the
+mapping error gets cleared out anyway, which means that fsync will
+probably never see it.
 
-For the TCMU case, the vm is not anonymous mapping. And still has
-device file desc:
+So while I doubt this patch will make anything worse,A I think we have
+to look at fixing those problems first. We need to ensure that when
+filemap_check_errors is called, that we're in a codepath where we can
+actually report the error to something that can interpret it properly.
+Basically, only in write, fsync, msync or close codepaths. For the
+others, we need to use something like filemap_fdatawait_keep_errors so
+that we don't end up dropping writeback errors onto the floor.
 
-mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, dev->fd, 0);
+I'm going to look at fixing that up first (maybe as a preliminary
+series to this one). There are a lot of callers though, and I don't see
+a way around having to go and review all of these callsites
+individually. Maybe it's be best to just lift the filemap_check_errors
+calls higher in the call stack to ensure that? Not sure...
 
-If using the unmap_mapping_range() to do the dynamically maping,
-is it okay ? Any other potential risks ?
-
-Or the mentioned 'underlying file' is must one desk file ?
-
-Thanks very much,
-
-BRs
-Xiubo
-
-
-
-> Any advice?
->
-> Thanks in advance -- Regards -- Andy
-
-
+Anyway...I'm first trying to collect a list of what I think needs
+fixing here, and figure out how to break all of this up into manageable
+pieces and order it sanely.
+-- 
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
