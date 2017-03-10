@@ -1,109 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4356B28092C
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 11:46:19 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id 9so189611191qkk.6
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:46:19 -0800 (PST)
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
-        by mx.google.com with ESMTPS id 90si8455050qtf.105.2017.03.10.08.46.18
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 421BB28092C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 12:11:53 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id o126so174194408pfb.2
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:11:53 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id r188si3494433pfr.232.2017.03.10.09.11.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 08:46:18 -0800 (PST)
-Received: by mail-qk0-f181.google.com with SMTP id p64so176213702qke.1
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:46:18 -0800 (PST)
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-References: <20170303132949.GC31582@dhcp22.suse.cz>
- <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
- <20170306074258.GA27953@dhcp22.suse.cz>
- <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
- <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
- <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
- <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
- <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
- <20170310103112.GA15945@e106950-lin.cambridge.arm.com>
- <2e295c28-04d6-a071-cf16-164d02d679c5@arm.com>
- <20170310142709.GB15945@e106950-lin.cambridge.arm.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <24938e5e-db2b-f06a-2006-ae9b96e8cc9e@redhat.com>
-Date: Fri, 10 Mar 2017 08:46:12 -0800
+        Fri, 10 Mar 2017 09:11:52 -0800 (PST)
+Date: Fri, 10 Mar 2017 09:11:44 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of
+ VIRTIO_BALLOON_F_CHUNK_TRANSFER
+Message-ID: <20170310171143.GA16328@bombadil.infradead.org>
+References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com>
+ <1488519630-89058-4-git-send-email-wei.w.wang@intel.com>
+ <20170309141411.GZ16328@bombadil.infradead.org>
+ <58C28FF8.5040403@intel.com>
+ <20170310175349-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20170310142709.GB15945@e106950-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170310175349-mutt-send-email-mst@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Starkey <brian.starkey@arm.com>, Robin Murphy <robin.murphy@arm.com>
-Cc: devel@driverdev.osuosl.org, Rom Lemarchand <romlem@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Riley Andrews <riandrews@android.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, linux-mm@kvack.org, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Vetter <daniel.vetter@intel.com>, Sumit Semwal <sumit.semwal@linaro.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
 
-On 03/10/2017 06:27 AM, Brian Starkey wrote:
-> On Fri, Mar 10, 2017 at 11:46:42AM +0000, Robin Murphy wrote:
->> On 10/03/17 10:31, Brian Starkey wrote:
->>> Hi,
->>>
->>> On Thu, Mar 09, 2017 at 09:38:49AM -0800, Laura Abbott wrote:
->>>> On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
->>>
->>> [snip]
->>>
->>>>>
->>>>> For me those patches are going in the right direction.
->>>>>
->>>>> I still have few questions:
->>>>> - since alignment management has been remove from ion-core, should it
->>>>> be also removed from ioctl structure ?
->>>>
->>>> Yes, I think I'm going to go with the suggestion to fixup the ABI
->>>> so we don't need the compat layer and as part of that I'm also
->>>> dropping the align argument.
->>>>
->>>
->>> Is the only motivation for removing the alignment parameter that
->>> no-one got around to using it for something useful yet?
->>> The original comment was true - different devices do have different
->>> alignment requirements.
->>>
->>> Better alignment can help SMMUs use larger blocks when mapping,
->>> reducing TLB pressure and the chance of a page table walk causing
->>> display underruns.
->>
->> For that use-case, though, alignment alone doesn't necessarily help -
->> you need the whole allocation granularity to match your block size (i.e.
->> given a 1MB block size, asking for 17KB and getting back 17KB starting
->> at a 1MB boundary doesn't help much - that whole 1MB needs to be
->> allocated and everyone needs to know it to ensure that the whole lot can
->> be mapped safely). Now, whether it's down to the callers or the heap
->> implementations to decide and enforce that granularity is another
->> question, but provided allocations are at least naturally aligned to
->> whatever the granularity is (which is a reasonable assumption to bake
->> in) then it's all good.
->>
->> Robin.
-> 
-> Agreed, alignment alone isn't enough. But lets assume that an app
-> knows what a "good" granularity is, and always asks for allocation
-> sizes which are suitably rounded to allow blocks to be used. Currently
-> it looks like a "standard" ION_HEAP_TYPE_CARVEOUT heap would give me
-> back just a PAGE_SIZE aligned buffer. So even *if* the caller knows
-> its desired block size, there's no way for it to get guaranteed better
-> alignment, which wouldn't be a bad feature to have.
-> 
-> Anyway as Daniel and Rob say, if the interface is designed properly
-> this kind of extension would be possible later, or you can have a
-> special heap with a larger granule.
-> 
-> I suppose it makes sense to remove it while there's no-one actually
-> implementing it, in case an alternate method proves more usable.
-> 
-> -Brian
+On Fri, Mar 10, 2017 at 05:58:28PM +0200, Michael S. Tsirkin wrote:
+> One of the issues of current balloon is the 4k page size
+> assumption. For example if you free a huge page you
+> have to split it up and pass 4k chunks to host.
+> Quite often host can't free these 4k chunks at all (e.g.
+> when it's using huge tlb fs).
+> It's even sillier for architectures with base page size >4k.
 
-Part of the reason I want to remove it is to avoid confusion over
-callers thinking it will do anything on most heaps. I agree being
-able to specify a larger granularity would be beneficial but I
-don't think a dedicated field in the ABI is the right approach.
+I completely agree with you that we should be able to pass a hugepage
+as a single chunk.  Also we shouldn't assume that host and guest have
+the same page size.  I think we can come up with a scheme that actually
+lets us encode that into a 64-bit word, something like this:
 
-Thanks,
-Laura
+bit 0 clear => bits 1-11 encode a page count, bits 12-63 encode a PFN, page size 4k.
+bit 0 set, bit 1 clear => bits 2-12 encode a page count, bits 13-63 encode a PFN, page size 8k
+bits 0+1 set, bit 2 clear => bits 3-13 for page count, bits 14-63 for PFN, page size 16k.
+bits 0-2 set, bit 3 clear => bits 4-14 for page count, bits 15-63 for PFN, page size 32k
+bits 0-3 set, bit 4 clear => bits 5-15 for page count, bits 16-63 for PFN, page size 64k
+
+That means we can always pass 2048 pages (of whatever page size) in a single chunk.  And
+we support arbitrary power of two page sizes.  I suggest something like this:
+
+u64 page_to_chunk(struct page *page)
+{
+	u64 chunk = page_to_pfn(page) << PAGE_SHIFT;
+	chunk |= (1UL << compound_order(page)) - 1;
+}
+
+(note this is a single page of order N, so we leave the page count bits
+set to 0, meaning one page).
+
+> Two things to consider:
+> - host should pass its base page size to guest
+>   this can be a separate patch and for now we can fall back on 12 bit if not there
+
+With this encoding scheme, I don't think we need to do this?  As long as
+it's *at least* 12 bit, then we're fine.
+
+> - guest should pass full huge pages to host
+>   this should be done correctly to avoid breaking up huge pages
+>   I would say yes let's use a single format but drop the "normal chunk"
+>   and always use the extended one.
+>   Also, size is in units of 4k, right? Please document that low 12 bit
+>   are reserved, they will be handy as e.g. flags.
+
+What per-chunk flags are you thinking would be useful?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
