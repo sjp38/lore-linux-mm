@@ -1,139 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 84E7A280911
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:53:07 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y51so28119488wry.6
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:53:07 -0800 (PST)
-Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id t68si2564282wmt.14.2017.03.10.03.53.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 95D542808A9
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:11:25 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id o126so161795496pfb.2
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 04:11:25 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id x3si2795722pfx.74.2017.03.10.04.11.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 03:53:06 -0800 (PST)
-Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+        Fri, 10 Mar 2017 04:11:24 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2AC9DLM094019
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:11:24 -0500
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com [125.16.236.4])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2937e74njy-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:11:24 -0500
+Received: from localhost
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 10 Mar 2017 17:41:21 +0530
+Received: from d28av08.in.ibm.com (d28av08.in.ibm.com [9.184.220.148])
+	by d28relay09.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v2ACBIRN14483702
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 17:41:18 +0530
+Received: from d28av08.in.ibm.com (localhost [127.0.0.1])
+	by d28av08.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v2ACBGbu011454
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 17:41:17 +0530
+Subject: Re: [kbuild-all] [PATCH 6/6] sysctl: Add global tunable mt_page_copy
+References: <201702172358.xrHUyT1e%fengguang.wu@intel.com>
+ <fa0c0260-9b98-42fc-9268-6f0b9c9ff592@linux.vnet.ibm.com>
+ <20170310011239.GF4705@yexl-desktop>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 10 Mar 2017 17:41:14 +0530
 MIME-Version: 1.0
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Fri, 10 Mar 2017 11:46:10 +0000
-Message-ID: <lsq.1489146370.641549860@decadent.org.uk>
-Subject: [PATCH 3.2 035/199] hotplug: Make register and unregister
- notifier API symmetric
-In-Reply-To: <lsq.1489146368.630732676@decadent.org.uk>
+In-Reply-To: <20170310011239.GF4705@yexl-desktop>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <d1cea9bd-feab-86f0-d76c-8df812848c0a@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: akpm@linux-foundation.org, Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>
+To: Ye Xiaolong <xiaolong.ye@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: kbuild test robot <lkp@intel.com>, haren@linux.vnet.ibm.com, mhocko@suse.com, srikar@linux.vnet.ibm.com, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, vbabka@suse.cz, kbuild-all@01.org
 
-3.2.87-rc1 review patch.  If anyone has any objections, please let me know.
+On 03/10/2017 06:42 AM, Ye Xiaolong wrote:
+> On 03/08, Anshuman Khandual wrote:
+>> On 02/17/2017 09:00 PM, kbuild test robot wrote:
+>>> Hi Zi,
+>>>
+>>> [auto build test ERROR on linus/master]
+>>> [also build test ERROR on v4.10-rc8 next-20170217]
+>>> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+>>>
+>>> url:    https://github.com/0day-ci/linux/commits/Anshuman-Khandual/Enable-parallel-page-migration/20170217-200523
+>>> config: i386-randconfig-a0-02131010 (attached as .config)
+>>> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+>> Though I dont have the same compiler, I am unable to reproduce this
+>> build failure exactly. The build fails but for a different symbol.
+> I think previous "undefined reference to `mt_page_copy'" error is due to kbuild
+> bot didn't set CONFIG_MIGRATION (see attached config in original mail) since it
+> is a randconfig test.
 
-------------------
-
-From: Michal Hocko <mhocko@suse.com>
-
-commit 777c6e0daebb3fcefbbd6f620410a946b07ef6d0 upstream.
-
-Yu Zhao has noticed that __unregister_cpu_notifier only unregisters its
-notifiers when HOTPLUG_CPU=y while the registration might succeed even
-when HOTPLUG_CPU=n if MODULE is enabled. This means that e.g. zswap
-might keep a stale notifier on the list on the manual clean up during
-the pool tear down and thus corrupt the list. Resulting in the following
-
-[  144.964346] BUG: unable to handle kernel paging request at ffff880658a2be78
-[  144.971337] IP: [<ffffffffa290b00b>] raw_notifier_chain_register+0x1b/0x40
-<snipped>
-[  145.122628] Call Trace:
-[  145.125086]  [<ffffffffa28e5cf8>] __register_cpu_notifier+0x18/0x20
-[  145.131350]  [<ffffffffa2a5dd73>] zswap_pool_create+0x273/0x400
-[  145.137268]  [<ffffffffa2a5e0fc>] __zswap_param_set+0x1fc/0x300
-[  145.143188]  [<ffffffffa2944c1d>] ? trace_hardirqs_on+0xd/0x10
-[  145.149018]  [<ffffffffa2908798>] ? kernel_param_lock+0x28/0x30
-[  145.154940]  [<ffffffffa2a3e8cf>] ? __might_fault+0x4f/0xa0
-[  145.160511]  [<ffffffffa2a5e237>] zswap_compressor_param_set+0x17/0x20
-[  145.167035]  [<ffffffffa2908d3c>] param_attr_store+0x5c/0xb0
-[  145.172694]  [<ffffffffa290848d>] module_attr_store+0x1d/0x30
-[  145.178443]  [<ffffffffa2b2b41f>] sysfs_kf_write+0x4f/0x70
-[  145.183925]  [<ffffffffa2b2a5b9>] kernfs_fop_write+0x149/0x180
-[  145.189761]  [<ffffffffa2a99248>] __vfs_write+0x18/0x40
-[  145.194982]  [<ffffffffa2a9a412>] vfs_write+0xb2/0x1a0
-[  145.200122]  [<ffffffffa2a9a732>] SyS_write+0x52/0xa0
-[  145.205177]  [<ffffffffa2ff4d97>] entry_SYSCALL_64_fastpath+0x12/0x17
-
-This can be even triggered manually by changing
-/sys/module/zswap/parameters/compressor multiple times.
-
-Fix this issue by making unregister APIs symmetric to the register so
-there are no surprises.
-
-Fixes: 47e627bc8c9a ("[PATCH] hotplug: Allow modules to use the cpu hotplug notifiers even if !CONFIG_HOTPLUG_CPU")
-Reported-and-tested-by: Yu Zhao <yuzhao@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>
-Link: http://lkml.kernel.org/r/20161207135438.4310-1-mhocko@kernel.org
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-[bwh: Backported to 3.2:
- - The lockless (__-prefixed) variants don't exist
- - Keep definition of cpu_notify_nofail() conditional on CONFIG_HOTPLUG_CPU]
-Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
----
---- a/include/linux/cpu.h
-+++ b/include/linux/cpu.h
-@@ -112,22 +112,16 @@ enum {
- 		{ .notifier_call = fn, .priority = pri };	\
- 	register_cpu_notifier(&fn##_nb);			\
- }
--#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
--#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
--#endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
--#ifdef CONFIG_HOTPLUG_CPU
- extern int register_cpu_notifier(struct notifier_block *nb);
- extern void unregister_cpu_notifier(struct notifier_block *nb);
--#else
- 
--#ifndef MODULE
--extern int register_cpu_notifier(struct notifier_block *nb);
--#else
-+#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
-+#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-+
- static inline int register_cpu_notifier(struct notifier_block *nb)
- {
- 	return 0;
- }
--#endif
- 
- static inline void unregister_cpu_notifier(struct notifier_block *nb)
- {
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -176,12 +176,6 @@ static int cpu_notify(unsigned long val,
- 	return __cpu_notify(val, v, -1, NULL);
- }
- 
--#ifdef CONFIG_HOTPLUG_CPU
--
--static void cpu_notify_nofail(unsigned long val, void *v)
--{
--	BUG_ON(cpu_notify(val, v));
--}
- EXPORT_SYMBOL(register_cpu_notifier);
- 
- void __ref unregister_cpu_notifier(struct notifier_block *nb)
-@@ -192,6 +186,13 @@ void __ref unregister_cpu_notifier(struc
- }
- EXPORT_SYMBOL(unregister_cpu_notifier);
- 
-+#ifdef CONFIG_HOTPLUG_CPU
-+
-+static void cpu_notify_nofail(unsigned long val, void *v)
-+{
-+	BUG_ON(cpu_notify(val, v));
-+}
-+
- static inline void check_for_tasks(int cpu)
- {
- 	struct task_struct *p;
+If CONFIG_MIGRATION is not set then mm/migrate.c never gets compiled
+and the symbol 'mt_page_copy' is never exported for kernel/sysctl.c
+based extern variable to use. Sure, will fix it by keeping all the
+code in kernel/sysctl.c within CONFIG_MIGRATION config. Thanks for
+pointing it out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
