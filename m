@@ -1,90 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D3603280903
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 19:58:05 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 2so105993143oif.7
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:58:05 -0800 (PST)
-Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
-        by mx.google.com with ESMTPS id o129si577105oif.84.2017.03.09.16.58.04
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FD31280903
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 20:13:49 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id j5so140316799pfb.3
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 17:13:49 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id w11si1351936pfd.17.2017.03.09.17.13.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 16:58:04 -0800 (PST)
-Received: by mail-oi0-x22f.google.com with SMTP id 62so45019582oih.2
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:58:04 -0800 (PST)
+        Thu, 09 Mar 2017 17:13:48 -0800 (PST)
+Date: Fri, 10 Mar 2017 09:12:39 +0800
+From: Ye Xiaolong <xiaolong.ye@intel.com>
+Subject: Re: [kbuild-all] [PATCH 6/6] sysctl: Add global tunable mt_page_copy
+Message-ID: <20170310011239.GF4705@yexl-desktop>
+References: <201702172358.xrHUyT1e%fengguang.wu@intel.com>
+ <fa0c0260-9b98-42fc-9268-6f0b9c9ff592@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <7ce861c2-0eff-9b60-e009-06b1fddf7b73@virtuozzo.com>
-References: <20170215205826.13356-1-nicstange@gmail.com> <CAPcyv4iwhkW+cLbsT1Ns4=DhnfvZvdhbEVmj0zZcS+PRP6GMpA@mail.gmail.com>
- <7ce861c2-0eff-9b60-e009-06b1fddf7b73@virtuozzo.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 9 Mar 2017 16:58:04 -0800
-Message-ID: <CAPcyv4gFH5_FmuNodvoJiBm1_Swpn3Kmyo7Fg1k2XYzU4DF0xA@mail.gmail.com>
-Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64 ("mm: convert
- kmalloc_section_memmap() to populate_section_memmap()") and Kasan
- initialization on
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <fa0c0260-9b98-42fc-9268-6f0b9c9ff592@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Nicolai Stange <nicstange@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: kbuild test robot <lkp@intel.com>, haren@linux.vnet.ibm.com, mhocko@suse.com, srikar@linux.vnet.ibm.com, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, vbabka@suse.cz, kbuild-all@01.org
 
-On Fri, Mar 3, 2017 at 8:08 AM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> On 02/25/2017 10:03 PM, Dan Williams wrote:
->> [ adding kasan folks ]
->>
->> On Wed, Feb 15, 2017 at 12:58 PM, Nicolai Stange <nicstange@gmail.com> wrote:
->>> Hi Dan,
->>>
->>> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
->>> populate_section_memmap()") seems to cause some issues with respect to
->>> Kasan initialization on x86.
->>>
->>> This is because Kasan's initialization (ab)uses the arch provided
->>> vmemmap_populate().
->>>
->>> The first one is a boot failure, see [1/3]. The commit before the
->>> aforementioned one works fine.
->>>
->>> The second one, i.e. [2/3], is something that hit my eye while browsing
->>> the source and I verified that this is indeed an issue by printk'ing and
->>> dumping the page tables.
->>>
->>> The third one are excessive warnings from vmemmap_verify() due to Kasan's
->>> NUMA_NO_NODE page populations.
->>>
->>>
->>> I'll be travelling the next two days and certainly not be able to respond
->>> or polish these patches any further. Furthermore, the next merge window is
->>> close. So please, take these three patches as bug reports only, meant to
->>> illustrate the issues. Feel free to use, change and adopt them however
->>> you deemed best.
->>>
->>> That being said,
->>> - [2/3] will break arm64 due to the current lack of a pmd_large().
->>> - Maybe it's easier and better to restore former behaviour by letting
->>>   Kasan's shadow initialization on x86 use vmemmap_populate_hugepages()
->>>   directly rather than vmemmap_populate(). This would require x86_64
->>>   implying X86_FEATURE_PSE though. I'm not sure whether this holds,
->>>   in particular not since the vmemmap_populate() from
->>>   arch/x86/mm/init_64.c checks for it.
->>
->> I think your intuition is correct here, and yes, it is a safe
->> assumption that x86_64 implies X86_FEATURE_PSE. The following patch
->> works for me. If there's no objections I'll roll it into the series
->> and resubmit the sub-section hotplug support after testing on top of
->> 4.11-rc1.
->>
+On 03/08, Anshuman Khandual wrote:
+>On 02/17/2017 09:00 PM, kbuild test robot wrote:
+>> Hi Zi,
+>> 
+>> [auto build test ERROR on linus/master]
+>> [also build test ERROR on v4.10-rc8 next-20170217]
+>> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+>> 
+>> url:    https://github.com/0day-ci/linux/commits/Anshuman-Khandual/Enable-parallel-page-migration/20170217-200523
+>> config: i386-randconfig-a0-02131010 (attached as .config)
+>> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
 >
-> Perhaps it would be better to get rid of vmemmap in kasan code at all
-> and have a separate function that populates kasan shadow.
-> kasan is abusing API designed for something else. We already had bugs on arm64 (see 2776e0e8ef683)
-> because of that and now this one on x86_64.
-> I can cook patches and send them on the next week.
->
+>Though I dont have the same compiler, I am unable to reproduce this
+>build failure exactly. The build fails but for a different symbol.
 
-Any concerns with proceeding with the conversion to explicit
-vmemmap_populate_hugepages() calls in the meantime? That allows me to
-unblock the sub-section hotplug patches and kasan can move away from
-vemmap_populate() on its own schedule.
+I think previous "undefined reference to `mt_page_copy'" error is due to kbuild
+bot didn't set CONFIG_MIGRATION (see attached config in original mail) since it
+is a randconfig test.
+
+Thanks,
+Xiaolong
+
+>I have the following gcc version but does it really make a
+>difference with respect to finding the symbol etc ?
+>
+>gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2
+>
+>
+>mm/memory.c: In function a??copy_pmd_rangea??:
+>mm/memory.c:1002:3: error: implicit declaration of function
+>a??pmd_relateda?? [-Werror=implicit-function-declaration]
+>   if (pmd_related(*src_pmd)) {
+>   ^
+>cc1: some warnings being treated as errors
+>scripts/Makefile.build:294: recipe for target 'mm/memory.o' failed
+>
+>_______________________________________________
+>kbuild-all mailing list
+>kbuild-all@lists.01.org
+>https://lists.01.org/mailman/listinfo/kbuild-all
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
