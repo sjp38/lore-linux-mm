@@ -1,79 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 421BB28092C
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 12:11:53 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id o126so174194408pfb.2
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:11:53 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id r188si3494433pfr.232.2017.03.10.09.11.52
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5306B046C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 12:39:31 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id o135so189577475qke.3
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:39:31 -0800 (PST)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id h50si8577247qtb.110.2017.03.10.09.39.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 09:11:52 -0800 (PST)
-Date: Fri, 10 Mar 2017 09:11:44 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of
- VIRTIO_BALLOON_F_CHUNK_TRANSFER
-Message-ID: <20170310171143.GA16328@bombadil.infradead.org>
-References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com>
- <1488519630-89058-4-git-send-email-wei.w.wang@intel.com>
- <20170309141411.GZ16328@bombadil.infradead.org>
- <58C28FF8.5040403@intel.com>
- <20170310175349-mutt-send-email-mst@kernel.org>
+        Fri, 10 Mar 2017 09:39:29 -0800 (PST)
+Received: by mail-qk0-x243.google.com with SMTP id v125so28732732qkh.1
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:39:29 -0800 (PST)
+Subject: Re: WTH is going on with memory hotplug sysf interface
+References: <20170227154304.GK26504@dhcp22.suse.cz>
+ <1488462828-174523-1-git-send-email-imammedo@redhat.com>
+ <20170302142816.GK1404@dhcp22.suse.cz>
+ <20170302180315.78975d4b@nial.brq.redhat.com>
+ <20170303082723.GB31499@dhcp22.suse.cz>
+ <20170303183422.6358ee8f@nial.brq.redhat.com>
+ <20170306145417.GG27953@dhcp22.suse.cz>
+ <20170307134004.58343e14@nial.brq.redhat.com>
+ <20170309125400.GI11592@dhcp22.suse.cz>
+ <20170310135807.GI3753@dhcp22.suse.cz>
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Message-ID: <75ee9d3f-7027-782a-9cde-5192396a4a8c@gmail.com>
+Date: Fri, 10 Mar 2017 12:39:27 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170310175349-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170310135807.GI3753@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, Igor Mammedov <imammedo@redhat.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Fri, Mar 10, 2017 at 05:58:28PM +0200, Michael S. Tsirkin wrote:
-> One of the issues of current balloon is the 4k page size
-> assumption. For example if you free a huge page you
-> have to split it up and pass 4k chunks to host.
-> Quite often host can't free these 4k chunks at all (e.g.
-> when it's using huge tlb fs).
-> It's even sillier for architectures with base page size >4k.
 
-I completely agree with you that we should be able to pass a hugepage
-as a single chunk.  Also we shouldn't assume that host and guest have
-the same page size.  I think we can come up with a scheme that actually
-lets us encode that into a 64-bit word, something like this:
 
-bit 0 clear => bits 1-11 encode a page count, bits 12-63 encode a PFN, page size 4k.
-bit 0 set, bit 1 clear => bits 2-12 encode a page count, bits 13-63 encode a PFN, page size 8k
-bits 0+1 set, bit 2 clear => bits 3-13 for page count, bits 14-63 for PFN, page size 16k.
-bits 0-2 set, bit 3 clear => bits 4-14 for page count, bits 15-63 for PFN, page size 32k
-bits 0-3 set, bit 4 clear => bits 5-15 for page count, bits 16-63 for PFN, page size 64k
+On 03/10/2017 08:58 AM, Michal Hocko wrote:
+> Let's CC people touching this logic. A short summary is that onlining
+> memory via udev is currently unusable for online_movable because blocks
+> are added from lower addresses while movable blocks are allowed from
+> last blocks. More below.
+>
+> On Thu 09-03-17 13:54:00, Michal Hocko wrote:
+>> On Tue 07-03-17 13:40:04, Igor Mammedov wrote:
+>>> On Mon, 6 Mar 2017 15:54:17 +0100
+>>> Michal Hocko <mhocko@kernel.org> wrote:
+>>>
+>>>> On Fri 03-03-17 18:34:22, Igor Mammedov wrote:
+>> [...]
+>>>>> in current mainline kernel it triggers following code path:
+>>>>>
+>>>>> online_pages()
+>>>>>   ...
+>>>>>        if (online_type == MMOP_ONLINE_KERNEL) {
+>>>>>                 if (!zone_can_shift(pfn, nr_pages, ZONE_NORMAL, &zone_shift))
+>>>>>                         return -EINVAL;
+>>>>
+>>>> Are you sure? I would expect MMOP_ONLINE_MOVABLE here
+>>> pretty much, reproducer is above so try and see for yourself
+>>
+>> I will play with this...
+>
+> OK so I did with -m 2G,slots=4,maxmem=4G -numa node,mem=1G -numa node,mem=1G which generated
+> [...]
+> [    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x0009ffff]
+> [    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00100000-0x3fffffff]
+> [    0.000000] ACPI: SRAT: Node 1 PXM 1 [mem 0x40000000-0x7fffffff]
+> [    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x100000000-0x27fffffff] hotplug
+> [    0.000000] NUMA: Node 0 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0x3fffffff] -> [mem 0x00000000-0x3fffffff]
+> [    0.000000] NODE_DATA(0) allocated [mem 0x3fffc000-0x3fffffff]
+> [    0.000000] NODE_DATA(1) allocated [mem 0x7ffdc000-0x7ffdffff]
+> [    0.000000] Zone ranges:
+> [    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+> [    0.000000]   DMA32    [mem 0x0000000001000000-0x000000007ffdffff]
+> [    0.000000]   Normal   empty
+> [    0.000000] Movable zone start for each node
+> [    0.000000] Early memory node ranges
+> [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+> [    0.000000]   node   0: [mem 0x0000000000100000-0x000000003fffffff]
+> [    0.000000]   node   1: [mem 0x0000000040000000-0x000000007ffdffff]
+>
+> so there is neither any normal zone nor movable one at the boot time.
+> Then I hotplugged 1G slot
+> (qemu) object_add memory-backend-ram,id=mem1,size=1G
+> (qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+>
+> unfortunatelly the memory didn't show up automatically and I got
+> [  116.375781] acpi PNP0C80:00: Enumeration failure
+>
+> so I had to probe it manually (prbably the BIOS my qemu uses doesn't
+> support auto probing - I haven't really dug further). Anyway the SRAT
+> table printed during the boot told that we should start at 0x100000000
+>
+> # echo 0x100000000 > /sys/devices/system/memory/probe
+> # grep . /sys/devices/system/memory/memory32/valid_zones
+> Normal Movable
+>
+> which looks reasonably right? Both Normal and Movable zones are allowed
+>
+> # echo $((0x100000000+(128<<20))) > /sys/devices/system/memory/probe
+> # grep . /sys/devices/system/memory/memory3?/valid_zones
+> /sys/devices/system/memory/memory32/valid_zones:Normal
+> /sys/devices/system/memory/memory33/valid_zones:Normal Movable
+>
+> Huh, so our valid_zones have changed under our feet...
+>
+> # echo $((0x100000000+2*(128<<20))) > /sys/devices/system/memory/probe
+> # grep . /sys/devices/system/memory/memory3?/valid_zones
+> /sys/devices/system/memory/memory32/valid_zones:Normal
+> /sys/devices/system/memory/memory33/valid_zones:Normal
+> /sys/devices/system/memory/memory34/valid_zones:Normal Movable
+>
+> and again. So only the last memblock is considered movable. Let's try to
+> online them now.
+>
+> # echo online_movable > /sys/devices/system/memory/memory34/state
+> # grep . /sys/devices/system/memory/memory3?/valid_zones
+> /sys/devices/system/memory/memory32/valid_zones:Normal
+> /sys/devices/system/memory/memory33/valid_zones:Normal Movable
+> /sys/devices/system/memory/memory34/valid_zones:Movable Normal
+>
 
-That means we can always pass 2048 pages (of whatever page size) in a single chunk.  And
-we support arbitrary power of two page sizes.  I suggest something like this:
+I think there is no strong reason which kernel has the restriction.
+By setting the restrictions, it seems to have made management of
+these zone structs simple.
 
-u64 page_to_chunk(struct page *page)
-{
-	u64 chunk = page_to_pfn(page) << PAGE_SHIFT;
-	chunk |= (1UL << compound_order(page)) - 1;
-}
+Thanks,
+Yasuaki Ishimatsu
 
-(note this is a single page of order N, so we leave the page count bits
-set to 0, meaning one page).
-
-> Two things to consider:
-> - host should pass its base page size to guest
->   this can be a separate patch and for now we can fall back on 12 bit if not there
-
-With this encoding scheme, I don't think we need to do this?  As long as
-it's *at least* 12 bit, then we're fine.
-
-> - guest should pass full huge pages to host
->   this should be done correctly to avoid breaking up huge pages
->   I would say yes let's use a single format but drop the "normal chunk"
->   and always use the extended one.
->   Also, size is in units of 4k, right? Please document that low 12 bit
->   are reserved, they will be handy as e.g. flags.
-
-What per-chunk flags are you thinking would be useful?
+> This would explain why onlining from the last block actually works but
+> to me this sounds like a completely crappy behavior. All we need to
+> guarantee AFAICS is that Normal and Movable zones do not overlap. I
+> believe there is even no real requirement about ordering of the physical
+> memory in Normal vs. Movable zones as long as they do not overlap. But
+> let's keep it simple for the start and always enforce the current status
+> quo that Normal zone is physically preceeding Movable zone.
+> Can somebody explain why we cannot have a simple rule for Normal vs.
+> Movable which would be:
+> 	- block [pfn, pfn+block_size] can be Normal if
+> 	  !zone_populated(MOVABLE) || pfn+block_size < ZONE_MOVABLE->zone_start_pfn
+> 	- block [pfn, pfn+block_size] can be Movable if
+> 	  !zone_populated(NORMAL) || ZONE_NORMAL->zone_end_pfn < pfn
+>
+> I haven't fully grokked all the restrictions on the movable zone size
+> based on the kernel parameters (find_zone_movable_pfns_for_nodes) but
+> this shouldn't really make the situation really much more complicated I
+> believe because those parameters should be mostly about static
+> initialization rather than hotplug but I might be easily missing
+> something.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
