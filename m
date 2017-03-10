@@ -1,39 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A811C280903
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 19:21:08 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 77so133047359pgc.5
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:21:08 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id b185si1205444pfg.247.2017.03.09.16.21.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Mar 2017 16:21:07 -0800 (PST)
-Date: Thu, 9 Mar 2017 17:21:06 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 5/9] dax: set error in mapping when writeback fails
-Message-ID: <20170310002106.GD30285@linux.intel.com>
-References: <20170308162934.21989-1-jlayton@redhat.com>
- <20170308162934.21989-6-jlayton@redhat.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C439280903
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 19:45:25 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id o126so139482164pfb.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:45:25 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id z21si1246450pgc.419.2017.03.09.16.45.23
+        for <linux-mm@kvack.org>;
+        Thu, 09 Mar 2017 16:45:24 -0800 (PST)
+Date: Fri, 10 Mar 2017 09:45:22 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: "mm: fix lazyfree BUG_ON check in try_to_unmap_one()" build error
+Message-ID: <20170310004522.GA12267@bbox>
+References: <20170309042908.GA26702@jagdpanzerIV.localdomain>
+ <20170309060226.GB854@bbox>
+ <20170309132706.1cb4fc7d2e846923eedf788c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170308162934.21989-6-jlayton@redhat.com>
+In-Reply-To: <20170309132706.1cb4fc7d2e846923eedf788c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: viro@zeniv.linux.org.uk, akpm@linux-foundation.org, konishi.ryusuke@lab.ntt.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nilfs@vger.kernel.org, ross.zwisler@linux.intel.com, jack@suse.cz, neilb@suse.com, openosd@gmail.com, adilger@dilger.ca, James.Bottomley@HansenPartnership.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Mar 08, 2017 at 11:29:30AM -0500, Jeff Layton wrote:
-> In order to get proper error codes from fsync, we must set an error in
-> the mapping range when writeback fails.
+Hi Andrew,
+
+On Thu, Mar 09, 2017 at 01:27:06PM -0800, Andrew Morton wrote:
+> On Thu, 9 Mar 2017 15:02:26 +0900 Minchan Kim <minchan@kernel.org> wrote:
 > 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > Sergey reported VM_WARN_ON_ONCE returns void with !CONFIG_DEBUG_VM
+> > so we cannot use it as if's condition unlike WARN_ON.
+> 
+> Can we instead fix VM_WARN_ON_ONCE()?
 
-Yep, paired with the changes to filmap_write_and_wait() and
-filemap_write_and_wait_range(), this seems fine.
+I thought the direction but the reason to decide WARN_ON_ONCE in this case
+is losing of benefit with using CONFIG_DEBU_VM if we go that way.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+I think the benefit with VM_WARN_ON friends is that it should be completely
+out from the binary in !CONFIG_DEBUG_VM. However, if we fix VM_WARN_ON
+like WARN_ON to !!condition, at least, compiler should generate condition
+check and return so it's not what CONFIG_DEBUG_VM want, IMHO.
+However, if guys believe it's okay to add some instructions to debug VM
+although we disable CONFIG_DEBUG_VM, we can go that way.
+It's a just policy matter. ;-)
+
+Anyway, Even though we fix VM_WARN_ON_ONCE, in my case, WARN_ON_ONCE is
+better because we should do !!condition regardless of CONFIG_DEBUG_VM
+and if so, WARN_ON is more wide coverage than VM_WARN_ON which only works
+with CONFIG_DEBUG_VM.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
