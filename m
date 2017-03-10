@@ -1,142 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0B8280901
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:07:22 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y51so28949327wry.6
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:07:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f17si13021759wra.165.2017.03.10.06.07.20
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 06:07:20 -0800 (PST)
-Date: Fri, 10 Mar 2017 14:07:16 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/6] Enable parallel page migration
-Message-ID: <20170310140715.z6ostiatqx5oiu2i@suse.de>
-References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
- <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
- <20170309150904.pnk6ejeug4mktxjv@suse.de>
- <2a2827d0-53d0-175b-8ed4-262629e01984@nvidia.com>
- <20170309221522.hwk4wyaqx2jonru6@suse.de>
- <58C1E948.9020306@cs.rutgers.edu>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CB3D6B0459
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:27:16 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id y17so166340467pgh.2
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:27:16 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i85si3124824pfi.35.2017.03.10.06.27.15
+        for <linux-mm@kvack.org>;
+        Fri, 10 Mar 2017 06:27:15 -0800 (PST)
+Date: Fri, 10 Mar 2017 14:27:09 +0000
+From: Brian Starkey <brian.starkey@arm.com>
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+Message-ID: <20170310142709.GB15945@e106950-lin.cambridge.arm.com>
+References: <20170303132949.GC31582@dhcp22.suse.cz>
+ <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+ <20170306074258.GA27953@dhcp22.suse.cz>
+ <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
+ <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
+ <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+ <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+ <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
+ <20170310103112.GA15945@e106950-lin.cambridge.arm.com>
+ <2e295c28-04d6-a071-cf16-164d02d679c5@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <58C1E948.9020306@cs.rutgers.edu>
+In-Reply-To: <2e295c28-04d6-a071-cf16-164d02d679c5@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: David Nellans <dnellans@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, devel@driverdev.osuosl.org, Rom Lemarchand <romlem@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Riley Andrews <riandrews@android.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, linux-mm@kvack.org, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Vetter <daniel.vetter@intel.com>, Sumit Semwal <sumit.semwal@linaro.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Thu, Mar 09, 2017 at 05:46:16PM -0600, Zi Yan wrote:
-> Hi Mel,
-> 
-> Thanks for pointing out the problems in this patchset.
-> 
-> It was my intern project done in NVIDIA last summer. I only used
-> micro-benchmarks to demonstrate the big memory bandwidth utilization gap
-> between base page migration and THP migration along with serialized page
-> migration vs parallel page migration.
-> 
+On Fri, Mar 10, 2017 at 11:46:42AM +0000, Robin Murphy wrote:
+>On 10/03/17 10:31, Brian Starkey wrote:
+>> Hi,
+>>
+>> On Thu, Mar 09, 2017 at 09:38:49AM -0800, Laura Abbott wrote:
+>>> On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
+>>
+>> [snip]
+>>
+>>>>
+>>>> For me those patches are going in the right direction.
+>>>>
+>>>> I still have few questions:
+>>>> - since alignment management has been remove from ion-core, should it
+>>>> be also removed from ioctl structure ?
+>>>
+>>> Yes, I think I'm going to go with the suggestion to fixup the ABI
+>>> so we don't need the compat layer and as part of that I'm also
+>>> dropping the align argument.
+>>>
+>>
+>> Is the only motivation for removing the alignment parameter that
+>> no-one got around to using it for something useful yet?
+>> The original comment was true - different devices do have different
+>> alignment requirements.
+>>
+>> Better alignment can help SMMUs use larger blocks when mapping,
+>> reducing TLB pressure and the chance of a page table walk causing
+>> display underruns.
+>
+>For that use-case, though, alignment alone doesn't necessarily help -
+>you need the whole allocation granularity to match your block size (i.e.
+>given a 1MB block size, asking for 17KB and getting back 17KB starting
+>at a 1MB boundary doesn't help much - that whole 1MB needs to be
+>allocated and everyone needs to know it to ensure that the whole lot can
+>be mapped safely). Now, whether it's down to the callers or the heap
+>implementations to decide and enforce that granularity is another
+>question, but provided allocations are at least naturally aligned to
+>whatever the granularity is (which is a reasonable assumption to bake
+>in) then it's all good.
+>
+>Robin.
 
-The measurement itself is not a problem. It clearly shows why you were
-doing it and indicates that it's possible.
+Agreed, alignment alone isn't enough. But lets assume that an app
+knows what a "good" granularity is, and always asks for allocation
+sizes which are suitably rounded to allow blocks to be used. Currently
+it looks like a "standard" ION_HEAP_TYPE_CARVEOUT heap would give me
+back just a PAGE_SIZE aligned buffer. So even *if* the caller knows
+its desired block size, there's no way for it to get guaranteed better
+alignment, which wouldn't be a bad feature to have.
 
-> <SNIP>
-> This big increase on BW utilization is the motivation of pushing this
-> patchset.
-> 
+Anyway as Daniel and Rob say, if the interface is designed properly
+this kind of extension would be possible later, or you can have a
+special heap with a larger granule.
 
-As before, I have no problem with the motivation, my problem is with the
-approach and in particular that the serialised case was not optimised first.
+I suppose it makes sense to remove it while there's no-one actually
+implementing it, in case an alternate method proves more usable.
 
-> > 
-> > So the key potential issue here in my mind is that THP migration is too slow
-> > in some cases. What I object to is improving that using a high priority
-> > workqueue that potentially starves other CPUs and pollutes their cache
-> > which is generally very expensive.
-> 
-> I might not completely agree with this. Using a high priority workqueue
-> can guarantee page migration work is done ASAP.
+-Brian
 
-Yes, but at the cost of stalling other operations that are happening at
-the same tiime. The series assumes that the migration is definitely the
-most important operation going on at the moment.
-
-> Otherwise, we completely
-> lose the speedup brought by parallel page migration, if data copy
-> threads have to wait.
-> 
-
-And conversely, if important threads were running on the other CPUs at
-the time the migration started then they might be equally unhappy.
-
-> I understand your concern on CPU utilization impact. I think checking
-> CPU utilization and only using idle CPUs could potentially avoid this
-> problem.
-> 
-
-That will be costly to detect actually. It would require poking into the
-scheduler core and incurring a number of cache misses for a race-prone
-operation that may not succeed. Even if you do it, it'll still be
-brought up that the serialised case should be optimised first.
-
-> > The function takes a huge page, splits it into PAGE_SIZE chunks, kmap_atomics
-> > the source and destination for each PAGE_SIZE chunk and copies it. The
-> > parallelised version does one kmap and copies it in chunks assuming the
-> > THP is fully mapped and accessible. Fundamentally, this is broken in the
-> > generic sense as the kmap is not guaranteed to make the whole page necessary
-> > but it happens to work on !highmem systems.  What is more important to
-> > note is that it's multiple preempt and pagefault enables and disables
-> > on a per-page basis that happens 512 times (for THP on x86-64 at least),
-> > all of which are expensive operations depending on the kernel config and
-> > I suspect that the parallisation is actually masking that stupid overhead.
-> 
-> You are right on kmap, I think making this patchset depend on !HIGHMEM
-> can avoid the problem. It might not make sense to kmap potentially 512
-> base pages to migrate a THP in a system with highmem.
-> 
-
-One concern I have is that the series benefitted the most by simply batching
-all those operations even if it was not intended.
-
-> > At the very least, I would have expected an initial attempt of one patch that
-> > optimised for !highmem systems to ignore kmap, simply disable preempt (if
-> > that is even necessary, I didn't check) and copy a pinned physical->physical
-> > page as a single copy without looping on a PAGE_SIZE basis and see how
-> > much that gained. Do it initially for THP only and worry about gigantic
-> > pages when or if that is a problem.
-> 
-> I can try this out to show how much improvement we can obtain from
-> existing THP migration, which is shown in the data above.
-> 
-
-It would be important to do so. There would need to be absolute proof
-that parallelisation is required and even then the concerns about
-interfering with workloads on other CPUs is not going to be easy to
-handle.
-
-> > That would be patch 1 of a series.  Maybe that'll be enough, maybe not but
-> > I feel it's important to optimise the serialised case as much as possible
-> > before considering parallelisation to highlight and justify why it's
-> > necessary[1]. If nothing else, what if two CPUs both parallelise a migration
-> > at the same time and end up preempting each other? Between that and the
-> > workqueue setup, it's potentially much slower than an optimised serial copy.
-> > 
-> > It would be tempting to experiment but the test case was not even included
-> > with the series (maybe it's somewhere else)[2]. While it's obvious how
-> > such a test case could be constructed, it feels unnecessary to construct
-> > it when it should be in the changelog.
-> 
-> Do you mean performing multiple parallel page migrations at the same
-> time and show all the page migration time?
-
-I mean that the test case that was used to generate the bandwidth
-utilisation figures should be included.
-
--- 
-Mel Gorman
-SUSE Labs
+>
+>>
+>> -Brian
+>>
+>> _______________________________________________
+>> linux-arm-kernel mailing list
+>> linux-arm-kernel@lists.infradead.org
+>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
