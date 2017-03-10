@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B42B6B04C2
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:45:02 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id z13so58563380iof.7
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 00:45:02 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0130.outbound.protection.outlook.com. [104.47.1.130])
-        by mx.google.com with ESMTPS id z203si1531352itf.2.2017.03.10.00.45.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48C696B04C4
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:54:15 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id d66so2043397wmi.2
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 00:54:15 -0800 (PST)
+Received: from mail-wr0-x234.google.com (mail-wr0-x234.google.com. [2a00:1450:400c:c0c::234])
+        by mx.google.com with ESMTPS id f12si12014400wrf.325.2017.03.10.00.54.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 00:45:00 -0800 (PST)
-Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64 ("mm: convert
- kmalloc_section_memmap() to populate_section_memmap()") and Kasan
- initialization on
-References: <20170215205826.13356-1-nicstange@gmail.com>
- <CAPcyv4iwhkW+cLbsT1Ns4=DhnfvZvdhbEVmj0zZcS+PRP6GMpA@mail.gmail.com>
- <7ce861c2-0eff-9b60-e009-06b1fddf7b73@virtuozzo.com>
- <CAPcyv4gFH5_FmuNodvoJiBm1_Swpn3Kmyo7Fg1k2XYzU4DF0xA@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <1d294137-7d81-f9e3-bbb7-d66c20b0e36e@virtuozzo.com>
-Date: Fri, 10 Mar 2017 11:46:07 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Mar 2017 00:54:14 -0800 (PST)
+Received: by mail-wr0-x234.google.com with SMTP id l37so60535033wrc.1
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 00:54:13 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4gFH5_FmuNodvoJiBm1_Swpn3Kmyo7Fg1k2XYzU4DF0xA@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1488491084-17252-9-git-send-email-labbott@redhat.com>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com> <1488491084-17252-9-git-send-email-labbott@redhat.com>
+From: Sumit Semwal <sumit.semwal@linaro.org>
+Date: Fri, 10 Mar 2017 14:23:53 +0530
+Message-ID: <CAO_48GEHxuMMwZO71ytaVhRkapMYaAWBWd1gW+ktspnQg=b8Sw@mail.gmail.com>
+Subject: Re: [RFC PATCH 08/12] cma: Store a name in the cma structure
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Nicolai Stange <nicstange@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Riley Andrews <riandrews@android.com>, =?UTF-8?B?QXJ2ZSBIau+/vW5uZXbvv71n?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, Linaro MM SIG <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/10/2017 03:58 AM, Dan Williams wrote:
-> On Fri, Mar 3, 2017 at 8:08 AM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->> On 02/25/2017 10:03 PM, Dan Williams wrote:
->>> [ adding kasan folks ]
->>>
->>> On Wed, Feb 15, 2017 at 12:58 PM, Nicolai Stange <nicstange@gmail.com> wrote:
->>>> Hi Dan,
->>>>
->>>> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
->>>> populate_section_memmap()") seems to cause some issues with respect to
->>>> Kasan initialization on x86.
->>>>
->>>> This is because Kasan's initialization (ab)uses the arch provided
->>>> vmemmap_populate().
->>>>
->>>> The first one is a boot failure, see [1/3]. The commit before the
->>>> aforementioned one works fine.
->>>>
->>>> The second one, i.e. [2/3], is something that hit my eye while browsing
->>>> the source and I verified that this is indeed an issue by printk'ing and
->>>> dumping the page tables.
->>>>
->>>> The third one are excessive warnings from vmemmap_verify() due to Kasan's
->>>> NUMA_NO_NODE page populations.
->>>>
->>>>
->>>> I'll be travelling the next two days and certainly not be able to respond
->>>> or polish these patches any further. Furthermore, the next merge window is
->>>> close. So please, take these three patches as bug reports only, meant to
->>>> illustrate the issues. Feel free to use, change and adopt them however
->>>> you deemed best.
->>>>
->>>> That being said,
->>>> - [2/3] will break arm64 due to the current lack of a pmd_large().
->>>> - Maybe it's easier and better to restore former behaviour by letting
->>>>   Kasan's shadow initialization on x86 use vmemmap_populate_hugepages()
->>>>   directly rather than vmemmap_populate(). This would require x86_64
->>>>   implying X86_FEATURE_PSE though. I'm not sure whether this holds,
->>>>   in particular not since the vmemmap_populate() from
->>>>   arch/x86/mm/init_64.c checks for it.
->>>
->>> I think your intuition is correct here, and yes, it is a safe
->>> assumption that x86_64 implies X86_FEATURE_PSE. The following patch
->>> works for me. If there's no objections I'll roll it into the series
->>> and resubmit the sub-section hotplug support after testing on top of
->>> 4.11-rc1.
->>>
->>
->> Perhaps it would be better to get rid of vmemmap in kasan code at all
->> and have a separate function that populates kasan shadow.
->> kasan is abusing API designed for something else. We already had bugs on arm64 (see 2776e0e8ef683)
->> because of that and now this one on x86_64.
->> I can cook patches and send them on the next week.
->>
-> 
-> Any concerns with proceeding with the conversion to explicit
-> vmemmap_populate_hugepages() calls in the meantime? That allows me to
-> unblock the sub-section hotplug patches and kasan can move away from
-> vemmap_populate() on its own schedule.
+Hi Laura,
 
-No objections.
-vmemmap_populate_hugepages() seems like the best way to go for now given that
-my patches will cause additional conflict with 5-level page tables.
+Thanks for the patch.
+
+On 3 March 2017 at 03:14, Laura Abbott <labbott@redhat.com> wrote:
+>
+> Frameworks that may want to enumerate CMA heaps (e.g. Ion) will find it
+> useful to have an explicit name attached to each region. Store the name
+> in each CMA structure.
+>
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> ---
+>  drivers/base/dma-contiguous.c |  5 +++--
+>  include/linux/cma.h           |  4 +++-
+>  mm/cma.c                      | 11 +++++++++--
+>  mm/cma.h                      |  1 +
+>  mm/cma_debug.c                |  2 +-
+>  5 files changed, 17 insertions(+), 6 deletions(-)
+>
+<snip>
+> +const char *cma_get_name(const struct cma *cma)
+> +{
+> +       return cma->name ? cma->name : "(undefined)";
+> +}
+> +
+Would it make sense to perhaps have the idx stored as the name,
+instead of 'undefined'? That would make sure that the various cma
+names are still unique.
+
+>  static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
+>                                              int align_order)
+>  {
+> @@ -168,6 +173,7 @@ core_initcall(cma_init_reserved_areas);
+>   */
+>  int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
+>                                  unsigned int order_per_bit,
+> +                                const char *name,
+>                                  struct cma **res_cma)
+>  {
+
+Best regards,
+Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
