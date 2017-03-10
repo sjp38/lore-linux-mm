@@ -1,56 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C439280903
-	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 19:45:25 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id o126so139482164pfb.2
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:45:25 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id z21si1246450pgc.419.2017.03.09.16.45.23
-        for <linux-mm@kvack.org>;
-        Thu, 09 Mar 2017 16:45:24 -0800 (PST)
-Date: Fri, 10 Mar 2017 09:45:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: "mm: fix lazyfree BUG_ON check in try_to_unmap_one()" build error
-Message-ID: <20170310004522.GA12267@bbox>
-References: <20170309042908.GA26702@jagdpanzerIV.localdomain>
- <20170309060226.GB854@bbox>
- <20170309132706.1cb4fc7d2e846923eedf788c@linux-foundation.org>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D3603280903
+	for <linux-mm@kvack.org>; Thu,  9 Mar 2017 19:58:05 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 2so105993143oif.7
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:58:05 -0800 (PST)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id o129si577105oif.84.2017.03.09.16.58.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Mar 2017 16:58:04 -0800 (PST)
+Received: by mail-oi0-x22f.google.com with SMTP id 62so45019582oih.2
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2017 16:58:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170309132706.1cb4fc7d2e846923eedf788c@linux-foundation.org>
+In-Reply-To: <7ce861c2-0eff-9b60-e009-06b1fddf7b73@virtuozzo.com>
+References: <20170215205826.13356-1-nicstange@gmail.com> <CAPcyv4iwhkW+cLbsT1Ns4=DhnfvZvdhbEVmj0zZcS+PRP6GMpA@mail.gmail.com>
+ <7ce861c2-0eff-9b60-e009-06b1fddf7b73@virtuozzo.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 9 Mar 2017 16:58:04 -0800
+Message-ID: <CAPcyv4gFH5_FmuNodvoJiBm1_Swpn3Kmyo7Fg1k2XYzU4DF0xA@mail.gmail.com>
+Subject: Re: [RFC 0/3] Regressions due to 7b79d10a2d64 ("mm: convert
+ kmalloc_section_memmap() to populate_section_memmap()") and Kasan
+ initialization on
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Nicolai Stange <nicstange@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
 
-Hi Andrew,
+On Fri, Mar 3, 2017 at 8:08 AM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> On 02/25/2017 10:03 PM, Dan Williams wrote:
+>> [ adding kasan folks ]
+>>
+>> On Wed, Feb 15, 2017 at 12:58 PM, Nicolai Stange <nicstange@gmail.com> wrote:
+>>> Hi Dan,
+>>>
+>>> your recent commit 7b79d10a2d64 ("mm: convert kmalloc_section_memmap() to
+>>> populate_section_memmap()") seems to cause some issues with respect to
+>>> Kasan initialization on x86.
+>>>
+>>> This is because Kasan's initialization (ab)uses the arch provided
+>>> vmemmap_populate().
+>>>
+>>> The first one is a boot failure, see [1/3]. The commit before the
+>>> aforementioned one works fine.
+>>>
+>>> The second one, i.e. [2/3], is something that hit my eye while browsing
+>>> the source and I verified that this is indeed an issue by printk'ing and
+>>> dumping the page tables.
+>>>
+>>> The third one are excessive warnings from vmemmap_verify() due to Kasan's
+>>> NUMA_NO_NODE page populations.
+>>>
+>>>
+>>> I'll be travelling the next two days and certainly not be able to respond
+>>> or polish these patches any further. Furthermore, the next merge window is
+>>> close. So please, take these three patches as bug reports only, meant to
+>>> illustrate the issues. Feel free to use, change and adopt them however
+>>> you deemed best.
+>>>
+>>> That being said,
+>>> - [2/3] will break arm64 due to the current lack of a pmd_large().
+>>> - Maybe it's easier and better to restore former behaviour by letting
+>>>   Kasan's shadow initialization on x86 use vmemmap_populate_hugepages()
+>>>   directly rather than vmemmap_populate(). This would require x86_64
+>>>   implying X86_FEATURE_PSE though. I'm not sure whether this holds,
+>>>   in particular not since the vmemmap_populate() from
+>>>   arch/x86/mm/init_64.c checks for it.
+>>
+>> I think your intuition is correct here, and yes, it is a safe
+>> assumption that x86_64 implies X86_FEATURE_PSE. The following patch
+>> works for me. If there's no objections I'll roll it into the series
+>> and resubmit the sub-section hotplug support after testing on top of
+>> 4.11-rc1.
+>>
+>
+> Perhaps it would be better to get rid of vmemmap in kasan code at all
+> and have a separate function that populates kasan shadow.
+> kasan is abusing API designed for something else. We already had bugs on arm64 (see 2776e0e8ef683)
+> because of that and now this one on x86_64.
+> I can cook patches and send them on the next week.
+>
 
-On Thu, Mar 09, 2017 at 01:27:06PM -0800, Andrew Morton wrote:
-> On Thu, 9 Mar 2017 15:02:26 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > Sergey reported VM_WARN_ON_ONCE returns void with !CONFIG_DEBUG_VM
-> > so we cannot use it as if's condition unlike WARN_ON.
-> 
-> Can we instead fix VM_WARN_ON_ONCE()?
-
-I thought the direction but the reason to decide WARN_ON_ONCE in this case
-is losing of benefit with using CONFIG_DEBU_VM if we go that way.
-
-I think the benefit with VM_WARN_ON friends is that it should be completely
-out from the binary in !CONFIG_DEBUG_VM. However, if we fix VM_WARN_ON
-like WARN_ON to !!condition, at least, compiler should generate condition
-check and return so it's not what CONFIG_DEBUG_VM want, IMHO.
-However, if guys believe it's okay to add some instructions to debug VM
-although we disable CONFIG_DEBUG_VM, we can go that way.
-It's a just policy matter. ;-)
-
-Anyway, Even though we fix VM_WARN_ON_ONCE, in my case, WARN_ON_ONCE is
-better because we should do !!condition regardless of CONFIG_DEBUG_VM
-and if so, WARN_ON is more wide coverage than VM_WARN_ON which only works
-with CONFIG_DEBUG_VM.
-
-Thanks.
+Any concerns with proceeding with the conversion to explicit
+vmemmap_populate_hugepages() calls in the meantime? That allows me to
+unblock the sub-section hotplug patches and kasan can move away from
+vemmap_populate() on its own schedule.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
