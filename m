@@ -1,85 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E9BD228092C
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 14:46:27 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id y17so179791694pgh.2
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 11:46:27 -0800 (PST)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id l65si3827671pge.396.2017.03.10.11.46.26
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA65A28092C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 16:18:38 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id j5so183808545pfb.3
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 13:18:38 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 73si4033404pfz.297.2017.03.10.13.18.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 11:46:26 -0800 (PST)
-Received: by mail-pg0-x22c.google.com with SMTP id g2so24971333pge.3
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 11:46:26 -0800 (PST)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH] mm: fix condition for throttle_direct_reclaim
-Date: Fri, 10 Mar 2017 11:46:20 -0800
-Message-Id: <20170310194620.5021-1-shakeelb@google.com>
+        Fri, 10 Mar 2017 13:18:37 -0800 (PST)
+Date: Fri, 10 Mar 2017 13:18:25 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of
+ VIRTIO_BALLOON_F_CHUNK_TRANSFER
+Message-ID: <20170310211825.GB16328@bombadil.infradead.org>
+References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com>
+ <1488519630-89058-4-git-send-email-wei.w.wang@intel.com>
+ <20170309141411.GZ16328@bombadil.infradead.org>
+ <58C28FF8.5040403@intel.com>
+ <20170310175349-mutt-send-email-mst@kernel.org>
+ <20170310171143.GA16328@bombadil.infradead.org>
+ <20170310211037-mutt-send-email-mst@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170310211037-mutt-send-email-mst@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jia He <hejianet@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
 
-Recently kswapd has been modified to give up after MAX_RECLAIM_RETRIES
-number of unsucessful iterations. Before going to sleep, kswapd thread
-will unconditionally wakeup all threads sleeping on pfmemalloc_wait.
-However the awoken threads will recheck the watermarks and wake the
-kswapd thread and sleep again on pfmemalloc_wait. There is a chance
-of continuous back and forth between kswapd and direct reclaiming
-threads if the kswapd keep failing and thus defeat the purpose of
-adding backoff mechanism to kswapd. So, add kswapd_failures check
-on the throttle_direct_reclaim condition.
+On Fri, Mar 10, 2017 at 09:10:53PM +0200, Michael S. Tsirkin wrote:
+> > I completely agree with you that we should be able to pass a hugepage
+> > as a single chunk.  Also we shouldn't assume that host and guest have
+> > the same page size.  I think we can come up with a scheme that actually
+> > lets us encode that into a 64-bit word, something like this:
+> > 
+> > bit 0 clear => bits 1-11 encode a page count, bits 12-63 encode a PFN, page size 4k.
+> > bit 0 set, bit 1 clear => bits 2-12 encode a page count, bits 13-63 encode a PFN, page size 8k
+> > bits 0+1 set, bit 2 clear => bits 3-13 for page count, bits 14-63 for PFN, page size 16k.
+> > bits 0-2 set, bit 3 clear => bits 4-14 for page count, bits 15-63 for PFN, page size 32k
+> > bits 0-3 set, bit 4 clear => bits 5-15 for page count, bits 16-63 for PFN, page size 64k
+> 
+> huge page sizes go up to gigabytes.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- mm/vmscan.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+There was supposed to be a '...' there.  For a 16GB hugepage (largest
+size I know of today), that'd be:
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bae698484e8e..b2d24cc7a161 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2819,6 +2819,12 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
- 	return wmark_ok;
- }
- 
-+static bool should_throttle_direct_reclaim(pg_data_t *pgdat)
-+{
-+	return (pgdat->kswapd_failures < MAX_RECLAIM_RETRIES &&
-+		!pfmemalloc_watermark_ok(pgdat));
-+}
-+
- /*
-  * Throttle direct reclaimers if backing storage is backed by the network
-  * and the PFMEMALLOC reserve for the preferred node is getting dangerously
-@@ -2873,7 +2879,7 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- 
- 		/* Throttle based on the first usable node */
- 		pgdat = zone->zone_pgdat;
--		if (pfmemalloc_watermark_ok(pgdat))
-+		if (!should_throttle_direct_reclaim(pgdat))
- 			goto out;
- 		break;
- 	}
-@@ -2895,14 +2901,14 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- 	 */
- 	if (!(gfp_mask & __GFP_FS)) {
- 		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
--			pfmemalloc_watermark_ok(pgdat), HZ);
-+			!should_throttle_direct_reclaim(pgdat), HZ);
- 
- 		goto check_pending;
- 	}
- 
- 	/* Throttle until kswapd wakes the process */
- 	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
--		pfmemalloc_watermark_ok(pgdat));
-+		!should_throttle_direct_reclaim(pgdat));
- 
- check_pending:
- 	if (fatal_signal_pending(current))
--- 
-2.12.0.246.ga2ecc84866-goog
+bits 0-21 set, 22 clear, 23-33 page count, 34-63 PFN, page size 16G
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
