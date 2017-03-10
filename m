@@ -1,197 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A1A28093C
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 17:42:08 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id b2so185903997pgc.6
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 14:42:08 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0074.outbound.protection.outlook.com. [104.47.41.74])
-        by mx.google.com with ESMTPS id 102si10926926plb.131.2017.03.10.14.42.06
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 30BBF28093C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 18:31:58 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id 72so103895733uaf.7
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 15:31:58 -0800 (PST)
+Received: from mail-ua0-x243.google.com (mail-ua0-x243.google.com. [2607:f8b0:400c:c08::243])
+        by mx.google.com with ESMTPS id u187si4301858vkf.86.2017.03.10.15.31.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 14:42:07 -0800 (PST)
-From: Brijesh Singh <brijesh.singh@amd.com>
-Subject: Re: [RFC PATCH v2 14/32] x86: mm: Provide support to use memblock
- when spliting large pages
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846771545.2349.9373586041426414252.stgit@brijesh-build-machine>
- <20170310110657.hophlog2juw5hpzz@pd.tnic>
-Message-ID: <cb6a9a56-2c52-d98d-3ff6-3b61d0e5875e@amd.com>
-Date: Fri, 10 Mar 2017 16:41:56 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Mar 2017 15:31:57 -0800 (PST)
+Received: by mail-ua0-x243.google.com with SMTP id u30so16117645uau.2
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 15:31:56 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170310110657.hophlog2juw5hpzz@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170307131751.24936-1-mhocko@kernel.org>
+References: <20170307131751.24936-1-mhocko@kernel.org>
+From: Yang Li <pku.leo@gmail.com>
+Date: Fri, 10 Mar 2017 17:31:56 -0600
+Message-ID: <CADRPPNT9zyc_0sg0eoZEMbTQ+mCHAkmzmHW93zHaOuzpALtzrg@mail.gmail.com>
+Subject: Re: [PATCH] mm: move pcp and lru-pcp drainging into single wq
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, Paolo Bonzini <pbonzini@redhat.com>
-Cc: brijesh.singh@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Li Yang <leoyang.li@nxp.com>
 
-Hi Boris,
+On Tue, Mar 7, 2017 at 7:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
+> vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
+> per cpu lru caches. This seems more than necessary because both can run
+> on a single WQ. Both do not block on locks requiring a memory allocation
+> nor perform any allocations themselves. We will save one rescuer thread
+> this way.
+>
+> On the other hand drain_all_pages() queues work on the system wq which
+> doesn't have rescuer and so this depend on memory allocation (when all
+> workers are stuck allocating and new ones cannot be created). This is
+> not critical as there should be somebody invoking the OOM killer (e.g.
+> the forking worker) and get the situation unstuck and eventually
+> performs the draining. Quite annoying though. This worker should be
+> using WQ_RECLAIM as well. We can reuse the same one as for lru draining
+> and vmstat.
+>
+> Changes since v1
+> - rename vmstat_wq to mm_percpu_wq - per Mel
+> - make sure we are not trying to enqueue anything while the WQ hasn't
+>   been intialized yet. This shouldn't happen because the initialization
+>   is done from an init code but some init section might be triggering
+>   those paths indirectly so just warn and skip the draining in that case
+>   per Vlastimil
 
-On 03/10/2017 05:06 AM, Borislav Petkov wrote:
-> On Thu, Mar 02, 2017 at 10:15:15AM -0500, Brijesh Singh wrote:
->> If kernel_maps_pages_in_pgd is called early in boot process to change the
->
-> kernel_map_pages_in_pgd()
->
->> memory attributes then it fails to allocate memory when spliting large
->> pages. The patch extends the cpa_data to provide the support to use
->> memblock_alloc when slab allocator is not available.
->>
->> The feature will be used in Secure Encrypted Virtualization (SEV) mode,
->> where we may need to change the memory region attributes in early boot
->> process.
->>
->> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
->> ---
->>  arch/x86/mm/pageattr.c |   51 ++++++++++++++++++++++++++++++++++++++++--------
->>  1 file changed, 42 insertions(+), 9 deletions(-)
->>
->> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
->> index 46cc89d..9e4ab3b 100644
->> --- a/arch/x86/mm/pageattr.c
->> +++ b/arch/x86/mm/pageattr.c
->> @@ -14,6 +14,7 @@
->>  #include <linux/gfp.h>
->>  #include <linux/pci.h>
->>  #include <linux/vmalloc.h>
->> +#include <linux/memblock.h>
->>
->>  #include <asm/e820/api.h>
->>  #include <asm/processor.h>
->> @@ -37,6 +38,7 @@ struct cpa_data {
->>  	int		flags;
->>  	unsigned long	pfn;
->>  	unsigned	force_split : 1;
->> +	unsigned	force_memblock :1;
->>  	int		curpage;
->>  	struct page	**pages;
->>  };
->> @@ -627,9 +629,8 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
->>
->>  static int
->>  __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->> -		   struct page *base)
->> +		  pte_t *pbase, unsigned long new_pfn)
->>  {
->> -	pte_t *pbase = (pte_t *)page_address(base);
->>  	unsigned long ref_pfn, pfn, pfninc = 1;
->>  	unsigned int i, level;
->>  	pte_t *tmp;
->> @@ -646,7 +647,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->>  		return 1;
->>  	}
->>
->> -	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
->> +	paravirt_alloc_pte(&init_mm, new_pfn);
->>
->>  	switch (level) {
->>  	case PG_LEVEL_2M:
->> @@ -707,7 +708,8 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->>  	 * pagetable protections, the actual ptes set above control the
->>  	 * primary protection behavior:
->>  	 */
->> -	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
->> +	__set_pmd_pte(kpte, address,
->> +		native_make_pte((new_pfn << PAGE_SHIFT) + _KERNPG_TABLE));
->>
->>  	/*
->>  	 * Intel Atom errata AAH41 workaround.
->> @@ -723,21 +725,50 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->>  	return 0;
->>  }
->>
->> +static pte_t *try_alloc_pte(struct cpa_data *cpa, unsigned long *pfn)
->> +{
->> +	unsigned long phys;
->> +	struct page *base;
->> +
->> +	if (cpa->force_memblock) {
->> +		phys = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
->
-> Maybe there's a reason this fires:
->
-> WARNING: modpost: Found 2 section mismatch(es).
-> To see full details build your kernel with:
-> 'make CONFIG_DEBUG_SECTION_MISMATCH=y'
->
-> WARNING: vmlinux.o(.text+0x48edc): Section mismatch in reference from the function __change_page_attr() to the function .init.text:memblock_alloc()
-> The function __change_page_attr() references
-> the function __init memblock_alloc().
-> This is often because __change_page_attr lacks a __init
-> annotation or the annotation of memblock_alloc is wrong.
->
-> WARNING: vmlinux.o(.text+0x491d1): Section mismatch in reference from the function __change_page_attr() to the function .meminit.text:memblock_free()
-> The function __change_page_attr() references
-> the function __meminit memblock_free().
-> This is often because __change_page_attr lacks a __meminit
-> annotation or the annotation of memblock_free is wrong.
->
+So what's the plan if this really happens?  Shall we put the
+initialization of the mm_percpu_wq earlier?  Or if it is really
+harmless we can probably remove the warnings.
 
-I can take a look at fixing those warning. In my initial attempt was to create
-a new function to clear encryption bit but it ended up looking very similar to
-__change_page_attr_set_clr() hence decided to extend the exiting function to
-use memblock_alloc().
+I'm seeing this on arm64 with a linux-next tree:
+
+[    0.276449] WARNING: CPU: 2 PID: 1 at mm/page_alloc.c:2423
+drain_all_pages+0x244/0x25c
+[    0.276537] Modules linked in:
+
+[    0.276594] CPU: 2 PID: 1 Comm: swapper/0 Not tainted
+4.11.0-rc1-next-20170310-00027-g64dfbc5 #127
+[    0.276693] Hardware name: Freescale Layerscape 2088A RDB Board (DT)
+[    0.276764] task: ffffffc07c4a6d00 task.stack: ffffffc07c4a8000
+[    0.276831] PC is at drain_all_pages+0x244/0x25c
+[    0.276886] LR is at start_isolate_page_range+0x14c/0x1f0
+[    0.276946] pc : [<ffffff80081636bc>] lr : [<ffffff80081c675c>]
+pstate: 80000045
+[    0.277028] sp : ffffffc07c4abb10
+[    0.277066] x29: ffffffc07c4abb10 x28: 00000000000ff000
+[    0.277128] x27: 0000000000000004 x26: 0000000000000000
+[    0.277190] x25: 00000000000ff400 x24: 0000000000000040
+[    0.277252] x23: ffffff8008ab0000 x22: ffffff8008c46000
+[    0.277313] x21: ffffff8008c2b700 x20: ffffff8008c2b200
+[    0.277374] x19: ffffff8008c2b200 x18: ffffff80088b5068
+[    0.277436] x17: 000000000000000e x16: 0000000000000007
+[    0.277497] x15: 0000000000000001 x14: ffffffffffffffff
+[    0.277559] x13: 0000000000000068 x12: 0000000000000001
+[    0.277620] x11: ffffff8008c2b6e0 x10: 0000000000010000
+[    0.277682] x9 : ffffff8008c2b6e0 x8 : 00000000000000cd
+[    0.277743] x7 : ffffffc07c4abb70 x6 : ffffff8008c2b868
+[    0.277804] x5 : ffffff8008b84b4e x4 : 0000000000000000
+[    0.277866] x3 : 0000000000000c00 x2 : 0000000000000311
+[    0.277927] x1 : 0000000000000001 x0 : ffffff8008bc8000
+
+[    0.278008] ---[ end trace 905d0cf24acf61bb ]---
+[    0.278060] Call trace:
+[    0.278089] Exception stack(0xffffffc07c4ab940 to 0xffffffc07c4aba70)
+[    0.278162] b940: ffffff8008c2b200 0000008000000000
+ffffffc07c4abb10 ffffff80081636bc
+[    0.278249] b960: ffffff8008ba8dd0 ffffff8008ba8c80
+ffffff8008c2c580 ffffff8008bc5f08
+[    0.278336] b980: ffffffbebffdafff ffffffbebffdb000
+ffffff8008c797d8 ffffffbebffdafff
+[    0.278423] b9a0: ffffffbebffdb000 ffffffc07c667000
+ffffffc07c4ab9c0 ffffff800817ff7c
+[    0.278510] b9c0: ffffffc07c4aba40 ffffff8008180618
+00000000000003d0 0000000000000f60
+[    0.278597] b9e0: ffffff8008bc8000 0000000000000001
+0000000000000311 0000000000000c00
+[    0.278684] ba00: 0000000000000000 ffffff8008b84b4e
+ffffff8008c2b868 ffffffc07c4abb70
+[    0.278771] ba20: 00000000000000cd ffffff8008c2b6e0
+0000000000010000 ffffff8008c2b6e0
+[    0.278858] ba40: 0000000000000001 0000000000000068
+ffffffffffffffff 0000000000000001
+[    0.278945] ba60: 0000000000000007 000000000000000e
+[    0.279000] [<ffffff80081636bc>] drain_all_pages+0x244/0x25c
+[    0.279065] [<ffffff80081c675c>] start_isolate_page_range+0x14c/0x1f0
+[    0.279137] [<ffffff8008166a48>] alloc_contig_range+0xec/0x354
+[    0.279203] [<ffffff80081c6c5c>] cma_alloc+0x100/0x1fc
+[    0.279263] [<ffffff8008481714>] dma_alloc_from_contiguous+0x3c/0x44
+[    0.279336] [<ffffff8008b25720>] atomic_pool_init+0x7c/0x208
+[    0.279399] [<ffffff8008b258f0>] arm64_dma_init+0x44/0x4c
+[    0.279461] [<ffffff8008083144>] do_one_initcall+0x38/0x128
+[    0.279525] [<ffffff8008b20d30>] kernel_init_freeable+0x1a0/0x240
+[    0.279596] [<ffffff8008807778>] kernel_init+0x10/0xfc
+[    0.279654] [<ffffff8008082b70>] ret_from_fork+0x10/0x20
 
 
-> Why do we need this whole early mapping? For the guest? I don't like
-> that memblock thing at all.
-
-Early in boot process, guest kernel allocates some structure (its either
-statically allocated or dynamic allocated via memblock_alloc). And shares the physical
-address of these structure with hypervisor. Since entire guest memory area is mapped
-as encrypted hence those structure's are mapped as encrypted memory range. We need
-a method to clear the encryption bit. Sometime these structure maybe part of 2M pages
-and need to split into smaller pages.
-
->
-> So I think the approach with the .data..percpu..hv_shared section is
-> fine and we should consider SEV-ES
->
-> http://support.amd.com/TechDocs/Protecting%20VM%20Register%20State%20with%20SEV-ES.pdf
->
-> and do this right from the get-go so that when SEV-ES comes along, we
-> should simply be ready and extend that mechanism to put the whole Guest
-> Hypervisor Communication Block in there.
->
-
-> But then the fact that you're mapping those decrypted in init_mm.pgd
-> makes me think you don't need that early mapping thing at all. Those are
-> the decrypted mappings of the hypervisor. And that you can do late.
->
-
-In most cases, guest and hypervisor communication starts as soon as guest provides
-the physical address to hypervisor. So we must map the pages as decrypted before
-sharing the physical address to hypervisor.
-
-> Now, what would be better, IMHO (and I have no idea about virtualization
-> design so take with a grain of salt) is if the guest would allocate
-> enough memory for the GHCB and mark it decrypted from the very
-> beginning. It will be the communication vehicle with the hypervisor
-> anyway.
->
-> And we already do similar things in sme_map_bootdata() for the baremetal
-> kernel to map boot_data, initrd, EFI, ... and so on things decrypted.
->
-
-I will take a look at sme_map_bootdata but I believe the main difference is,
-in case of SME those memory regions were allocated by bios or bootloader as
-decrypted and sme_map_bootdata clears the encryptions bit.
-
-In case of guest, memory maybe dynamically allocated at boot time and may not have same
-attribute as early mapping.
-
-> And we should extend that mechanism to map the GHCB in the guest too and
-> then we can get rid of all that need for ->force_memblock which makes
-> the crazy mess in pageattr.c even crazier. And it would be lovely if we
-> can do it without it.
->
-> But maybe Paolo might have an even better idea...
->
-
-I am sure he will have better idea :)
-
--Brijesh
+Regards,
+Leo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
