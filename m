@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B8BE280911
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:51:44 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id b140so2926133wme.3
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:51:44 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 84E7A280911
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:53:07 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y51so28119488wry.6
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:53:07 -0800 (PST)
 Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id o125si2550716wmg.18.2017.03.10.03.51.42
+        by mx.google.com with ESMTPS id t68si2564282wmt.14.2017.03.10.03.53.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 03:51:43 -0800 (PST)
+        Fri, 10 Mar 2017 03:53:06 -0800 (PST)
 Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
 From: Ben Hutchings <ben@decadent.org.uk>
-Date: Fri, 10 Mar 2017 11:46:22 +0000
-Message-ID: <lsq.1489146382.803002161@decadent.org.uk>
-Subject: [PATCH 3.16 082/370] hotplug: Make register and unregister
+Date: Fri, 10 Mar 2017 11:46:10 +0000
+Message-ID: <lsq.1489146370.641549860@decadent.org.uk>
+Subject: [PATCH 3.2 035/199] hotplug: Make register and unregister
  notifier API symmetric
-In-Reply-To: <lsq.1489146380.780052105@decadent.org.uk>
+In-Reply-To: <lsq.1489146368.630732676@decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: akpm@linux-foundation.org, Dan Streetman <ddstreet@ieee.org>, Michal Hocko <mhocko@suse.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>
 
-3.16.42-rc1 review patch.  If anyone has any objections, please let me know.
+3.2.87-rc1 review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -72,40 +72,32 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dan Streetman <ddstreet@ieee.org>
 Link: http://lkml.kernel.org/r/20161207135438.4310-1-mhocko@kernel.org
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-[bwh: Backported to 3.16: keep definition of cpu_notify_nofail() conditional
- on CONFIG_HOTPLUG_CPU]
+[bwh: Backported to 3.2:
+ - The lockless (__-prefixed) variants don't exist
+ - Keep definition of cpu_notify_nofail() conditional on CONFIG_HOTPLUG_CPU]
 Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
 ---
 --- a/include/linux/cpu.h
 +++ b/include/linux/cpu.h
-@@ -122,22 +122,16 @@ enum {
+@@ -112,22 +112,16 @@ enum {
  		{ .notifier_call = fn, .priority = pri };	\
- 	__register_cpu_notifier(&fn##_nb);			\
+ 	register_cpu_notifier(&fn##_nb);			\
  }
 -#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
 -#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
--#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
 -#endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
- 
 -#ifdef CONFIG_HOTPLUG_CPU
  extern int register_cpu_notifier(struct notifier_block *nb);
- extern int __register_cpu_notifier(struct notifier_block *nb);
  extern void unregister_cpu_notifier(struct notifier_block *nb);
- extern void __unregister_cpu_notifier(struct notifier_block *nb);
 -#else
  
 -#ifndef MODULE
 -extern int register_cpu_notifier(struct notifier_block *nb);
--extern int __register_cpu_notifier(struct notifier_block *nb);
 -#else
 +#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
 +#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-+#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
 +
  static inline int register_cpu_notifier(struct notifier_block *nb)
- {
- 	return 0;
-@@ -147,7 +141,6 @@ static inline int __register_cpu_notifie
  {
  	return 0;
  }
@@ -115,7 +107,7 @@ Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
  {
 --- a/kernel/cpu.c
 +++ b/kernel/cpu.c
-@@ -210,12 +210,6 @@ static int cpu_notify(unsigned long val,
+@@ -176,12 +176,6 @@ static int cpu_notify(unsigned long val,
  	return __cpu_notify(val, v, -1, NULL);
  }
  
@@ -126,11 +118,11 @@ Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
 -	BUG_ON(cpu_notify(val, v));
 -}
  EXPORT_SYMBOL(register_cpu_notifier);
- EXPORT_SYMBOL(__register_cpu_notifier);
  
-@@ -233,6 +227,13 @@ void __ref __unregister_cpu_notifier(str
+ void __ref unregister_cpu_notifier(struct notifier_block *nb)
+@@ -192,6 +186,13 @@ void __ref unregister_cpu_notifier(struc
  }
- EXPORT_SYMBOL(__unregister_cpu_notifier);
+ EXPORT_SYMBOL(unregister_cpu_notifier);
  
 +#ifdef CONFIG_HOTPLUG_CPU
 +
@@ -139,9 +131,9 @@ Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
 +	BUG_ON(cpu_notify(val, v));
 +}
 +
- /**
-  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
-  * @cpu: a CPU id
+ static inline void check_for_tasks(int cpu)
+ {
+ 	struct task_struct *p;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
