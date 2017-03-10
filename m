@@ -1,105 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6315628092A
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 10:37:46 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id v125so171796013qkh.5
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:37:46 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 35si8328366qtx.99.2017.03.10.07.37.45
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 06D1E28092A
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 10:53:38 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y51so29630135wry.6
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:53:37 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r3si13376235wra.194.2017.03.10.07.53.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 07:37:45 -0800 (PST)
-Date: Fri, 10 Mar 2017 17:37:38 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [virtio-dev] Re: [PATCH v7 kernel 3/5] virtio-balloon:
- implementation of VIRTIO_BALLOON_F_CHUNK_TRANSFER
-Message-ID: <20170310173602-mutt-send-email-mst@kernel.org>
-References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com>
- <1488519630-89058-4-git-send-email-wei.w.wang@intel.com>
- <20170308054813-mutt-send-email-mst@kernel.org>
- <58C279B7.2060106@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Mar 2017 07:53:36 -0800 (PST)
+Date: Fri, 10 Mar 2017 16:53:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: WTH is going on with memory hotplug sysf interface (was: Re:
+ [RFC PATCH] mm, hotplug: get rid of auto_online_blocks)
+Message-ID: <20170310155333.GN3753@dhcp22.suse.cz>
+References: <20170227154304.GK26504@dhcp22.suse.cz>
+ <1488462828-174523-1-git-send-email-imammedo@redhat.com>
+ <20170302142816.GK1404@dhcp22.suse.cz>
+ <20170302180315.78975d4b@nial.brq.redhat.com>
+ <20170303082723.GB31499@dhcp22.suse.cz>
+ <20170303183422.6358ee8f@nial.brq.redhat.com>
+ <20170306145417.GG27953@dhcp22.suse.cz>
+ <20170307134004.58343e14@nial.brq.redhat.com>
+ <20170309125400.GI11592@dhcp22.suse.cz>
+ <20170310135807.GI3753@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <58C279B7.2060106@intel.com>
+In-Reply-To: <20170310135807.GI3753@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Fri, Mar 10, 2017 at 06:02:31PM +0800, Wei Wang wrote:
-> On 03/08/2017 12:01 PM, Michael S. Tsirkin wrote:
-> > On Fri, Mar 03, 2017 at 01:40:28PM +0800, Wei Wang wrote:
-> > > From: Liang Li <liang.z.li@intel.com>
-> > > 
-> > > The implementation of the current virtio-balloon is not very
-> > > efficient, because the pages are transferred to the host one by one.
-> > > Here is the breakdown of the time in percentage spent on each
-> > > step of the balloon inflating process (inflating 7GB of an 8GB
-> > > idle guest).
-> > > 
-> > > 1) allocating pages (6.5%)
-> > > 2) sending PFNs to host (68.3%)
-> > > 3) address translation (6.1%)
-> > > 4) madvise (19%)
-> > > 
-> > > It takes about 4126ms for the inflating process to complete.
-> > > The above profiling shows that the bottlenecks are stage 2)
-> > > and stage 4).
-> > > 
-> > > This patch optimizes step 2) by transfering pages to the host in
-> > > chunks. A chunk consists of guest physically continuous pages, and
-> > > it is offered to the host via a base PFN (i.e. the start PFN of
-> > > those physically continuous pages) and the size (i.e. the total
-> > > number of the pages). A normal chunk is formated as below:
-> > > -----------------------------------------------
-> > > |  Base (52 bit)               | Size (12 bit)|
-> > > -----------------------------------------------
-> > > For large size chunks, an extended chunk format is used:
-> > > -----------------------------------------------
-> > > |                 Base (64 bit)               |
-> > > -----------------------------------------------
-> > > -----------------------------------------------
-> > > |                 Size (64 bit)               |
-> > > -----------------------------------------------
-> > > 
-> > > By doing so, step 4) can also be optimized by doing address
-> > > translation and madvise() in chunks rather than page by page.
-> > > 
-> > > This optimization requires the negotation of a new feature bit,
-> > > VIRTIO_BALLOON_F_CHUNK_TRANSFER.
-> > > 
-> > > With this new feature, the above ballooning process takes ~590ms
-> > > resulting in an improvement of ~85%.
-> > > 
-> > > TODO: optimize stage 1) by allocating/freeing a chunk of pages
-> > > instead of a single page each time.
-> > > 
-> > > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > > Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-> > > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > > Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
-> > > Cc: Amit Shah <amit.shah@redhat.com>
-> > > Cc: Dave Hansen <dave.hansen@intel.com>
-> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > > Cc: David Hildenbrand <david@redhat.com>
-> > > Cc: Liang Li <liliang324@gmail.com>
-> > > Cc: Wei Wang <wei.w.wang@intel.com>
-> > Does this pass sparse? I see some endian-ness issues here.
-> 
-> "pass sparse"- what does that mean?
-> I didn't see any complaints from "make" on my machine.
+On Fri 10-03-17 14:58:07, Michal Hocko wrote:
+[...]
+> This would explain why onlining from the last block actually works but
+> to me this sounds like a completely crappy behavior. All we need to
+> guarantee AFAICS is that Normal and Movable zones do not overlap. I
+> believe there is even no real requirement about ordering of the physical
+> memory in Normal vs. Movable zones as long as they do not overlap. But
+> let's keep it simple for the start and always enforce the current status
+> quo that Normal zone is physically preceeding Movable zone.
+> Can somebody explain why we cannot have a simple rule for Normal vs.
+> Movable which would be:
+> 	- block [pfn, pfn+block_size] can be Normal if
+> 	  !zone_populated(MOVABLE) || pfn+block_size < ZONE_MOVABLE->zone_start_pfn
+> 	- block [pfn, pfn+block_size] can be Movable if
+> 	  !zone_populated(NORMAL) || ZONE_NORMAL->zone_end_pfn < pfn
 
-
-Run with make C=1 (or C=2 to check all source).
-
-Generally there's a ton of useful info you will find
-if you run make help.
-
+OK, so while I was playing with this setup some more I probably got why
+this is done this way. All new memblocks are added to the zone Normal
+where they are accounted as spanned but not present. When we do
+online_movable we just cut from the end of the Normal zone and move it
+to Movable zone. This sounds really awkward. What was the reason to go
+this way? Why cannot we simply add those pages to the zone at the online
+time?
 -- 
-MST
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
