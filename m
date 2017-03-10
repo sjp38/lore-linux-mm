@@ -1,62 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F31C5280911
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:36:11 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 190so82772089pgg.3
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:36:11 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id d198si2708450pga.192.2017.03.10.03.36.11
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 22D54280911
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:45:31 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id e12so61488790ioj.0
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:45:31 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a21si1855467itc.80.2017.03.10.03.45.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 03:36:11 -0800 (PST)
-Message-ID: <58C28FF8.5040403@intel.com>
-Date: Fri, 10 Mar 2017 19:37:28 +0800
-From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of VIRTIO_BALLOON_F_CHUNK_TRANSFER
-References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com> <1488519630-89058-4-git-send-email-wei.w.wang@intel.com> <20170309141411.GZ16328@bombadil.infradead.org>
-In-Reply-To: <20170309141411.GZ16328@bombadil.infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Mar 2017 03:45:30 -0800 (PST)
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170307133057.26182-1-mhocko@kernel.org>
+	<1488916356.6405.4.camel@redhat.com>
+	<20170309180540.GA8678@cmpxchg.org>
+	<20170310102010.GD3753@dhcp22.suse.cz>
+In-Reply-To: <20170310102010.GD3753@dhcp22.suse.cz>
+Message-Id: <201703102044.DBJ04626.FLVMFOQOJtOFHS@I-love.SAKURA.ne.jp>
+Date: Fri, 10 Mar 2017 20:44:38 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, "Michael S . Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
+To: mhocko@kernel.org, hannes@cmpxchg.org
+Cc: riel@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/09/2017 10:14 PM, Matthew Wilcox wrote:
-> On Fri, Mar 03, 2017 at 01:40:28PM +0800, Wei Wang wrote:
->> From: Liang Li <liang.z.li@intel.com>
->> 1) allocating pages (6.5%)
->> 2) sending PFNs to host (68.3%)
->> 3) address translation (6.1%)
->> 4) madvise (19%)
->>
->> This patch optimizes step 2) by transfering pages to the host in
->> chunks. A chunk consists of guest physically continuous pages, and
->> it is offered to the host via a base PFN (i.e. the start PFN of
->> those physically continuous pages) and the size (i.e. the total
->> number of the pages). A normal chunk is formated as below:
->> -----------------------------------------------
->> |  Base (52 bit)               | Size (12 bit)|
->> -----------------------------------------------
->> For large size chunks, an extended chunk format is used:
->> -----------------------------------------------
->> |                 Base (64 bit)               |
->> -----------------------------------------------
->> -----------------------------------------------
->> |                 Size (64 bit)               |
->> -----------------------------------------------
-> What's the advantage to extended chunks?  IOW, why is the added complexity
-> of having two chunk formats worth it?  You already reduced the overhead by
-> a factor of 4096 with normal chunks ... how often are extended chunks used
-> and how much more efficient are they than having several normal chunks?
->
+Michal Hocko wrote:
+> On Thu 09-03-17 13:05:40, Johannes Weiner wrote:
+> > On Tue, Mar 07, 2017 at 02:52:36PM -0500, Rik van Riel wrote:
+> > > It only does this to some extent.  If reclaim made
+> > > no progress, for example due to immediately bailing
+> > > out because the number of already isolated pages is
+> > > too high (due to many parallel reclaimers), the code
+> > > could hit the "no_progress_loops > MAX_RECLAIM_RETRIES"
+> > > test without ever looking at the number of reclaimable
+> > > pages.
+> > 
+> > Hm, there is no early return there, actually. We bump the loop counter
+> > every time it happens, but then *do* look at the reclaimable pages.
+> > 
+> > > Could that create problems if we have many concurrent
+> > > reclaimers?
+> > 
+> > With increased concurrency, the likelihood of OOM will go up if we
+> > remove the unlimited wait for isolated pages, that much is true.
+> > 
+> > I'm not sure that's a bad thing, however, because we want the OOM
+> > killer to be predictable and timely. So a reasonable wait time in
+> > between 0 and forever before an allocating thread gives up under
+> > extreme concurrency makes sense to me.
+> > 
+> > > It may be OK, I just do not understand all the implications.
+> > > 
+> > > I like the general direction your patch takes the code in,
+> > > but I would like to understand it better...
+> > 
+> > I feel the same way. The throttling logic doesn't seem to be very well
+> > thought out at the moment, making it hard to reason about what happens
+> > in certain scenarios.
+> > 
+> > In that sense, this patch isn't really an overall improvement to the
+> > way things work. It patches a hole that seems to be exploitable only
+> > from an artificial OOM torture test, at the risk of regressing high
+> > concurrency workloads that may or may not be artificial.
+> > 
+> > Unless I'm mistaken, there doesn't seem to be a whole lot of urgency
+> > behind this patch. Can we think about a general model to deal with
+> > allocation concurrency? 
+> 
+> I am definitely not against. There is no reason to rush the patch in.
 
-Right, chunk_ext may be rarely used, thanks. I will remove chunk_ext if 
-there is no objection from others.
+I don't hurry if we can check using watchdog whether this problem is occurring
+in the real world. I have to test corner cases because watchdog is missing.
 
-Best,
-Wei
+> My main point behind this patch was to reduce unbound loops from inside
+> the reclaim path and push any throttling up the call chain to the
+> page allocator path because I believe that it is easier to reason
+> about them at that level. The direct reclaim should be as simple as
+> possible without too many side effects otherwise we end up in a highly
+> unpredictable behavior. This was a first step in that direction and my
+> testing so far didn't show any regressions.
+> 
+> > Unlimited parallel direct reclaim is kinda
+> > bonkers in the first place. How about checking for excessive isolation
+> > counts from the page allocator and putting allocations on a waitqueue?
+> 
+> I would be interested in details here.
+
+That will help implementing __GFP_KILLABLE.
+https://bugzilla.kernel.org/show_bug.cgi?id=192981#c15
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
