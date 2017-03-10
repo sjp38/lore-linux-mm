@@ -1,143 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 193F02808AC
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:58:13 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c143so3594554wmd.1
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 05:58:13 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0B8280901
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 09:07:22 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y51so28949327wry.6
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:07:22 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h63si2934856wme.168.2017.03.10.05.58.11
+        by mx.google.com with ESMTPS id f17si13021759wra.165.2017.03.10.06.07.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 05:58:11 -0800 (PST)
-Date: Fri, 10 Mar 2017 14:58:07 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: WTH is going on with memory hotplug sysf interface (was: Re: [RFC
- PATCH] mm, hotplug: get rid of auto_online_blocks)
-Message-ID: <20170310135807.GI3753@dhcp22.suse.cz>
-References: <20170227154304.GK26504@dhcp22.suse.cz>
- <1488462828-174523-1-git-send-email-imammedo@redhat.com>
- <20170302142816.GK1404@dhcp22.suse.cz>
- <20170302180315.78975d4b@nial.brq.redhat.com>
- <20170303082723.GB31499@dhcp22.suse.cz>
- <20170303183422.6358ee8f@nial.brq.redhat.com>
- <20170306145417.GG27953@dhcp22.suse.cz>
- <20170307134004.58343e14@nial.brq.redhat.com>
- <20170309125400.GI11592@dhcp22.suse.cz>
+        Fri, 10 Mar 2017 06:07:20 -0800 (PST)
+Date: Fri, 10 Mar 2017 14:07:16 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/6] Enable parallel page migration
+Message-ID: <20170310140715.z6ostiatqx5oiu2i@suse.de>
+References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
+ <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
+ <20170309150904.pnk6ejeug4mktxjv@suse.de>
+ <2a2827d0-53d0-175b-8ed4-262629e01984@nvidia.com>
+ <20170309221522.hwk4wyaqx2jonru6@suse.de>
+ <58C1E948.9020306@cs.rutgers.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170309125400.GI11592@dhcp22.suse.cz>
+In-Reply-To: <58C1E948.9020306@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Mammedov <imammedo@redhat.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: David Nellans <dnellans@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Let's CC people touching this logic. A short summary is that onlining
-memory via udev is currently unusable for online_movable because blocks
-are added from lower addresses while movable blocks are allowed from
-last blocks. More below.
-
-On Thu 09-03-17 13:54:00, Michal Hocko wrote:
-> On Tue 07-03-17 13:40:04, Igor Mammedov wrote:
-> > On Mon, 6 Mar 2017 15:54:17 +0100
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> > 
-> > > On Fri 03-03-17 18:34:22, Igor Mammedov wrote:
-> [...]
-> > > > in current mainline kernel it triggers following code path:
-> > > > 
-> > > > online_pages()
-> > > >   ...
-> > > >        if (online_type == MMOP_ONLINE_KERNEL) {                                 
-> > > >                 if (!zone_can_shift(pfn, nr_pages, ZONE_NORMAL, &zone_shift))    
-> > > >                         return -EINVAL;  
-> > > 
-> > > Are you sure? I would expect MMOP_ONLINE_MOVABLE here
-> > pretty much, reproducer is above so try and see for yourself
+On Thu, Mar 09, 2017 at 05:46:16PM -0600, Zi Yan wrote:
+> Hi Mel,
 > 
-> I will play with this...
+> Thanks for pointing out the problems in this patchset.
+> 
+> It was my intern project done in NVIDIA last summer. I only used
+> micro-benchmarks to demonstrate the big memory bandwidth utilization gap
+> between base page migration and THP migration along with serialized page
+> migration vs parallel page migration.
+> 
 
-OK so I did with -m 2G,slots=4,maxmem=4G -numa node,mem=1G -numa node,mem=1G which generated
-[...]
-[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x0009ffff]
-[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00100000-0x3fffffff]
-[    0.000000] ACPI: SRAT: Node 1 PXM 1 [mem 0x40000000-0x7fffffff]
-[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x100000000-0x27fffffff] hotplug
-[    0.000000] NUMA: Node 0 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0x3fffffff] -> [mem 0x00000000-0x3fffffff]
-[    0.000000] NODE_DATA(0) allocated [mem 0x3fffc000-0x3fffffff]
-[    0.000000] NODE_DATA(1) allocated [mem 0x7ffdc000-0x7ffdffff]
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
-[    0.000000]   DMA32    [mem 0x0000000001000000-0x000000007ffdffff]
-[    0.000000]   Normal   empty
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
-[    0.000000]   node   0: [mem 0x0000000000100000-0x000000003fffffff]
-[    0.000000]   node   1: [mem 0x0000000040000000-0x000000007ffdffff]
+The measurement itself is not a problem. It clearly shows why you were
+doing it and indicates that it's possible.
 
-so there is neither any normal zone nor movable one at the boot time.
-Then I hotplugged 1G slot
-(qemu) object_add memory-backend-ram,id=mem1,size=1G
-(qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+> <SNIP>
+> This big increase on BW utilization is the motivation of pushing this
+> patchset.
+> 
 
-unfortunatelly the memory didn't show up automatically and I got
-[  116.375781] acpi PNP0C80:00: Enumeration failure
+As before, I have no problem with the motivation, my problem is with the
+approach and in particular that the serialised case was not optimised first.
 
-so I had to probe it manually (prbably the BIOS my qemu uses doesn't
-support auto probing - I haven't really dug further). Anyway the SRAT
-table printed during the boot told that we should start at 0x100000000
+> > 
+> > So the key potential issue here in my mind is that THP migration is too slow
+> > in some cases. What I object to is improving that using a high priority
+> > workqueue that potentially starves other CPUs and pollutes their cache
+> > which is generally very expensive.
+> 
+> I might not completely agree with this. Using a high priority workqueue
+> can guarantee page migration work is done ASAP.
 
-# echo 0x100000000 > /sys/devices/system/memory/probe
-# grep . /sys/devices/system/memory/memory32/valid_zones
-Normal Movable
+Yes, but at the cost of stalling other operations that are happening at
+the same tiime. The series assumes that the migration is definitely the
+most important operation going on at the moment.
 
-which looks reasonably right? Both Normal and Movable zones are allowed
+> Otherwise, we completely
+> lose the speedup brought by parallel page migration, if data copy
+> threads have to wait.
+> 
 
-# echo $((0x100000000+(128<<20))) > /sys/devices/system/memory/probe
-# grep . /sys/devices/system/memory/memory3?/valid_zones
-/sys/devices/system/memory/memory32/valid_zones:Normal
-/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+And conversely, if important threads were running on the other CPUs at
+the time the migration started then they might be equally unhappy.
 
-Huh, so our valid_zones have changed under our feet...
+> I understand your concern on CPU utilization impact. I think checking
+> CPU utilization and only using idle CPUs could potentially avoid this
+> problem.
+> 
 
-# echo $((0x100000000+2*(128<<20))) > /sys/devices/system/memory/probe
-# grep . /sys/devices/system/memory/memory3?/valid_zones
-/sys/devices/system/memory/memory32/valid_zones:Normal
-/sys/devices/system/memory/memory33/valid_zones:Normal
-/sys/devices/system/memory/memory34/valid_zones:Normal Movable
+That will be costly to detect actually. It would require poking into the
+scheduler core and incurring a number of cache misses for a race-prone
+operation that may not succeed. Even if you do it, it'll still be
+brought up that the serialised case should be optimised first.
 
-and again. So only the last memblock is considered movable. Let's try to
-online them now.
+> > The function takes a huge page, splits it into PAGE_SIZE chunks, kmap_atomics
+> > the source and destination for each PAGE_SIZE chunk and copies it. The
+> > parallelised version does one kmap and copies it in chunks assuming the
+> > THP is fully mapped and accessible. Fundamentally, this is broken in the
+> > generic sense as the kmap is not guaranteed to make the whole page necessary
+> > but it happens to work on !highmem systems.  What is more important to
+> > note is that it's multiple preempt and pagefault enables and disables
+> > on a per-page basis that happens 512 times (for THP on x86-64 at least),
+> > all of which are expensive operations depending on the kernel config and
+> > I suspect that the parallisation is actually masking that stupid overhead.
+> 
+> You are right on kmap, I think making this patchset depend on !HIGHMEM
+> can avoid the problem. It might not make sense to kmap potentially 512
+> base pages to migrate a THP in a system with highmem.
+> 
 
-# echo online_movable > /sys/devices/system/memory/memory34/state
-# grep . /sys/devices/system/memory/memory3?/valid_zones
-/sys/devices/system/memory/memory32/valid_zones:Normal
-/sys/devices/system/memory/memory33/valid_zones:Normal Movable
-/sys/devices/system/memory/memory34/valid_zones:Movable Normal
+One concern I have is that the series benefitted the most by simply batching
+all those operations even if it was not intended.
 
-This would explain why onlining from the last block actually works but
-to me this sounds like a completely crappy behavior. All we need to
-guarantee AFAICS is that Normal and Movable zones do not overlap. I
-believe there is even no real requirement about ordering of the physical
-memory in Normal vs. Movable zones as long as they do not overlap. But
-let's keep it simple for the start and always enforce the current status
-quo that Normal zone is physically preceeding Movable zone.
-Can somebody explain why we cannot have a simple rule for Normal vs.
-Movable which would be:
-	- block [pfn, pfn+block_size] can be Normal if
-	  !zone_populated(MOVABLE) || pfn+block_size < ZONE_MOVABLE->zone_start_pfn
-	- block [pfn, pfn+block_size] can be Movable if
-	  !zone_populated(NORMAL) || ZONE_NORMAL->zone_end_pfn < pfn
+> > At the very least, I would have expected an initial attempt of one patch that
+> > optimised for !highmem systems to ignore kmap, simply disable preempt (if
+> > that is even necessary, I didn't check) and copy a pinned physical->physical
+> > page as a single copy without looping on a PAGE_SIZE basis and see how
+> > much that gained. Do it initially for THP only and worry about gigantic
+> > pages when or if that is a problem.
+> 
+> I can try this out to show how much improvement we can obtain from
+> existing THP migration, which is shown in the data above.
+> 
 
-I haven't fully grokked all the restrictions on the movable zone size
-based on the kernel parameters (find_zone_movable_pfns_for_nodes) but
-this shouldn't really make the situation really much more complicated I
-believe because those parameters should be mostly about static
-initialization rather than hotplug but I might be easily missing
-something.
+It would be important to do so. There would need to be absolute proof
+that parallelisation is required and even then the concerns about
+interfering with workloads on other CPUs is not going to be easy to
+handle.
+
+> > That would be patch 1 of a series.  Maybe that'll be enough, maybe not but
+> > I feel it's important to optimise the serialised case as much as possible
+> > before considering parallelisation to highlight and justify why it's
+> > necessary[1]. If nothing else, what if two CPUs both parallelise a migration
+> > at the same time and end up preempting each other? Between that and the
+> > workqueue setup, it's potentially much slower than an optimised serial copy.
+> > 
+> > It would be tempting to experiment but the test case was not even included
+> > with the series (maybe it's somewhere else)[2]. While it's obvious how
+> > such a test case could be constructed, it feels unnecessary to construct
+> > it when it should be in the changelog.
+> 
+> Do you mean performing multiple parallel page migrations at the same
+> time and show all the page migration time?
+
+I mean that the test case that was used to generate the bandwidth
+utilisation figures should be included.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
