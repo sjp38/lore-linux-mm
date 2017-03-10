@@ -1,103 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9302928092C
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 11:35:45 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 67so170723162pfg.0
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:35:45 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0081.outbound.protection.outlook.com. [104.47.34.81])
-        by mx.google.com with ESMTPS id q87si3409727pfk.243.2017.03.10.08.35.44
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4356B28092C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 11:46:19 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id 9so189611191qkk.6
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:46:19 -0800 (PST)
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
+        by mx.google.com with ESMTPS id 90si8455050qtf.105.2017.03.10.08.46.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 08:35:44 -0800 (PST)
-Subject: Re: [RFC PATCH v2 12/32] x86: Add early boot support when running
- with SEV active
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846768878.2349.15757532025749214650.stgit@brijesh-build-machine>
- <20170309140748.tg67yo2jmc5ahck3@pd.tnic>
- <5d62b16f-16ef-1bd7-1551-f0c4c43573f4@redhat.com>
- <20170309162942.jwtb3l33632zhbaz@pd.tnic>
-From: Brijesh Singh <brijesh.singh@amd.com>
-Message-ID: <1fe1e177-f588-fe5a-dc13-e9fde00e8958@amd.com>
-Date: Fri, 10 Mar 2017 10:35:30 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Mar 2017 08:46:18 -0800 (PST)
+Received: by mail-qk0-f181.google.com with SMTP id p64so176213702qke.1
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:46:18 -0800 (PST)
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+References: <20170303132949.GC31582@dhcp22.suse.cz>
+ <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+ <20170306074258.GA27953@dhcp22.suse.cz>
+ <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
+ <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
+ <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+ <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+ <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
+ <20170310103112.GA15945@e106950-lin.cambridge.arm.com>
+ <2e295c28-04d6-a071-cf16-164d02d679c5@arm.com>
+ <20170310142709.GB15945@e106950-lin.cambridge.arm.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <24938e5e-db2b-f06a-2006-ae9b96e8cc9e@redhat.com>
+Date: Fri, 10 Mar 2017 08:46:12 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170309162942.jwtb3l33632zhbaz@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170310142709.GB15945@e106950-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, Paolo Bonzini <pbonzini@redhat.com>
-Cc: brijesh.singh@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: Brian Starkey <brian.starkey@arm.com>, Robin Murphy <robin.murphy@arm.com>
+Cc: devel@driverdev.osuosl.org, Rom Lemarchand <romlem@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Riley Andrews <riandrews@android.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, linux-mm@kvack.org, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Vetter <daniel.vetter@intel.com>, Sumit Semwal <sumit.semwal@linaro.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-Hi Boris and Paolo,
-
-On 03/09/2017 10:29 AM, Borislav Petkov wrote:
-> On Thu, Mar 09, 2017 at 05:13:33PM +0100, Paolo Bonzini wrote:
->> This is not how you check if running under a hypervisor; you should
->> check the HYPERVISOR bit, i.e. bit 31 of cpuid(1).ecx.  This in turn
->> tells you if leaf 0x40000000 is valid.
->
-> Ah, good point, I already do that in the microcode loader :)
->
->         /*
->          * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
->          * completely accurate as xen pv guests don't see that CPUID bit set but
->          * that's good enough as they don't land on the BSP path anyway.
->          */
->         if (native_cpuid_ecx(1) & BIT(31))
->                 return *res;
->
->> That said, the main issue with this function is that it hardcodes the
->> behavior for KVM.  It is possible that another hypervisor defines its
->> 0x40000001 leaf in such a way that KVM_FEATURE_SEV has a different meaning.
+On 03/10/2017 06:27 AM, Brian Starkey wrote:
+> On Fri, Mar 10, 2017 at 11:46:42AM +0000, Robin Murphy wrote:
+>> On 10/03/17 10:31, Brian Starkey wrote:
+>>> Hi,
+>>>
+>>> On Thu, Mar 09, 2017 at 09:38:49AM -0800, Laura Abbott wrote:
+>>>> On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
+>>>
+>>> [snip]
+>>>
+>>>>>
+>>>>> For me those patches are going in the right direction.
+>>>>>
+>>>>> I still have few questions:
+>>>>> - since alignment management has been remove from ion-core, should it
+>>>>> be also removed from ioctl structure ?
+>>>>
+>>>> Yes, I think I'm going to go with the suggestion to fixup the ABI
+>>>> so we don't need the compat layer and as part of that I'm also
+>>>> dropping the align argument.
+>>>>
+>>>
+>>> Is the only motivation for removing the alignment parameter that
+>>> no-one got around to using it for something useful yet?
+>>> The original comment was true - different devices do have different
+>>> alignment requirements.
+>>>
+>>> Better alignment can help SMMUs use larger blocks when mapping,
+>>> reducing TLB pressure and the chance of a page table walk causing
+>>> display underruns.
 >>
->> Instead, AMD should define a "well-known" bit in its own space (i.e.
->> 0x800000xx) that is only used by hypervisors that support SEV.  This is
->> similar to how Intel defined one bit in leaf 1 to say "is leaf
->> 0x40000000 valid".
+>> For that use-case, though, alignment alone doesn't necessarily help -
+>> you need the whole allocation granularity to match your block size (i.e.
+>> given a 1MB block size, asking for 17KB and getting back 17KB starting
+>> at a 1MB boundary doesn't help much - that whole 1MB needs to be
+>> allocated and everyone needs to know it to ensure that the whole lot can
+>> be mapped safely). Now, whether it's down to the callers or the heap
+>> implementations to decide and enforce that granularity is another
+>> question, but provided allocations are at least naturally aligned to
+>> whatever the granularity is (which is a reasonable assumption to bake
+>> in) then it's all good.
 >>
->>> +	if (eax > 0x40000000) {
->>> +		eax = 0x40000001;
->>> +		ecx = 0;
->>> +		native_cpuid(&eax, &ebx, &ecx, &edx);
->>> +		if (!(eax & BIT(KVM_FEATURE_SEV)))
->>> +			goto out;
->>> +
->>> +		eax = 0x8000001f;
->>> +		ecx = 0;
->>> +		native_cpuid(&eax, &ebx, &ecx, &edx);
->>> +		if (!(eax & 1))
->
-> Right, so this is testing CPUID_0x8000001f_ECX(0)[0], SME. Why not
-> simply set that bit for the guest too, in kvm?
->
+>> Robin.
+> 
+> Agreed, alignment alone isn't enough. But lets assume that an app
+> knows what a "good" granularity is, and always asks for allocation
+> sizes which are suitably rounded to allow blocks to be used. Currently
+> it looks like a "standard" ION_HEAP_TYPE_CARVEOUT heap would give me
+> back just a PAGE_SIZE aligned buffer. So even *if* the caller knows
+> its desired block size, there's no way for it to get guaranteed better
+> alignment, which wouldn't be a bad feature to have.
+> 
+> Anyway as Daniel and Rob say, if the interface is designed properly
+> this kind of extension would be possible later, or you can have a
+> special heap with a larger granule.
+> 
+> I suppose it makes sense to remove it while there's no-one actually
+> implementing it, in case an alternate method proves more usable.
+> 
+> -Brian
 
-CPUID_8000_001F[EAX] indicates whether the feature is supported.
-CPUID_0x8000001F[EAX]:
-  * Bit 0 - SME supported
-  * Bit 1 - SEV supported
-  * Bit 3 - SEV-ES supported
+Part of the reason I want to remove it is to avoid confusion over
+callers thinking it will do anything on most heaps. I agree being
+able to specify a larger granularity would be beneficial but I
+don't think a dedicated field in the ABI is the right approach.
 
-We can use MSR_K8_SYSCFG[MemEncryptionModeEnc] to check if memory encryption is enabled.
-Currently, KVM returns zero when guest OS read MSR_K8_SYSCFG. I can update my patch sets
-to set this bit for SEV enabled guests.
-
-We could update this patch to use the below logic:
-
-  * CPUID(0) - Check for AuthenticAMD
-  * CPID(1) - Check if under hypervisor
-  * CPUID(0x80000000) - Check for highest supported leaf
-  * CPUID(0x8000001F).EAX - Check for SME and SEV support
-  * rdmsr (MSR_K8_SYSCFG)[MemEncryptionModeEnc] - Check if SMEE is set
-
-
-Paolo,
-
-One question, do we need "AuthenticAMD" check when we are running under hypervisor ?
-I was looking at qemu code and found that qemu exposes parameters to change the CPU
-vendor id. The above check will fail if user changes the vendor id while launching
-the SEV guest.
-
--Brijesh
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
