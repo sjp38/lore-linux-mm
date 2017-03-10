@@ -1,92 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 395C128092A
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 10:58:44 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id f191so162776394qka.7
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:58:44 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 127si8368250qkd.115.2017.03.10.07.58.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9302928092C
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 11:35:45 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 67so170723162pfg.0
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:35:45 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0081.outbound.protection.outlook.com. [104.47.34.81])
+        by mx.google.com with ESMTPS id q87si3409727pfk.243.2017.03.10.08.35.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 07:58:43 -0800 (PST)
-Date: Fri, 10 Mar 2017 17:58:28 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of
- VIRTIO_BALLOON_F_CHUNK_TRANSFER
-Message-ID: <20170310175349-mutt-send-email-mst@kernel.org>
-References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com>
- <1488519630-89058-4-git-send-email-wei.w.wang@intel.com>
- <20170309141411.GZ16328@bombadil.infradead.org>
- <58C28FF8.5040403@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 10 Mar 2017 08:35:44 -0800 (PST)
+Subject: Re: [RFC PATCH v2 12/32] x86: Add early boot support when running
+ with SEV active
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846768878.2349.15757532025749214650.stgit@brijesh-build-machine>
+ <20170309140748.tg67yo2jmc5ahck3@pd.tnic>
+ <5d62b16f-16ef-1bd7-1551-f0c4c43573f4@redhat.com>
+ <20170309162942.jwtb3l33632zhbaz@pd.tnic>
+From: Brijesh Singh <brijesh.singh@amd.com>
+Message-ID: <1fe1e177-f588-fe5a-dc13-e9fde00e8958@amd.com>
+Date: Fri, 10 Mar 2017 10:35:30 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58C28FF8.5040403@intel.com>
+In-Reply-To: <20170309162942.jwtb3l33632zhbaz@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
+To: Borislav Petkov <bp@suse.de>, Paolo Bonzini <pbonzini@redhat.com>
+Cc: brijesh.singh@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
 
-On Fri, Mar 10, 2017 at 07:37:28PM +0800, Wei Wang wrote:
-> On 03/09/2017 10:14 PM, Matthew Wilcox wrote:
-> > On Fri, Mar 03, 2017 at 01:40:28PM +0800, Wei Wang wrote:
-> > > From: Liang Li <liang.z.li@intel.com>
-> > > 1) allocating pages (6.5%)
-> > > 2) sending PFNs to host (68.3%)
-> > > 3) address translation (6.1%)
-> > > 4) madvise (19%)
-> > > 
-> > > This patch optimizes step 2) by transfering pages to the host in
-> > > chunks. A chunk consists of guest physically continuous pages, and
-> > > it is offered to the host via a base PFN (i.e. the start PFN of
-> > > those physically continuous pages) and the size (i.e. the total
-> > > number of the pages). A normal chunk is formated as below:
-> > > -----------------------------------------------
-> > > |  Base (52 bit)               | Size (12 bit)|
-> > > -----------------------------------------------
-> > > For large size chunks, an extended chunk format is used:
-> > > -----------------------------------------------
-> > > |                 Base (64 bit)               |
-> > > -----------------------------------------------
-> > > -----------------------------------------------
-> > > |                 Size (64 bit)               |
-> > > -----------------------------------------------
-> > What's the advantage to extended chunks?  IOW, why is the added complexity
-> > of having two chunk formats worth it?  You already reduced the overhead by
-> > a factor of 4096 with normal chunks ... how often are extended chunks used
-> > and how much more efficient are they than having several normal chunks?
-> > 
-> 
-> Right, chunk_ext may be rarely used, thanks. I will remove chunk_ext if
-> there is no objection from others.
-> 
-> Best,
-> Wei
+Hi Boris and Paolo,
 
-I don't think we can drop this, this isn't an optimization.
+On 03/09/2017 10:29 AM, Borislav Petkov wrote:
+> On Thu, Mar 09, 2017 at 05:13:33PM +0100, Paolo Bonzini wrote:
+>> This is not how you check if running under a hypervisor; you should
+>> check the HYPERVISOR bit, i.e. bit 31 of cpuid(1).ecx.  This in turn
+>> tells you if leaf 0x40000000 is valid.
+>
+> Ah, good point, I already do that in the microcode loader :)
+>
+>         /*
+>          * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
+>          * completely accurate as xen pv guests don't see that CPUID bit set but
+>          * that's good enough as they don't land on the BSP path anyway.
+>          */
+>         if (native_cpuid_ecx(1) & BIT(31))
+>                 return *res;
+>
+>> That said, the main issue with this function is that it hardcodes the
+>> behavior for KVM.  It is possible that another hypervisor defines its
+>> 0x40000001 leaf in such a way that KVM_FEATURE_SEV has a different meaning.
+>>
+>> Instead, AMD should define a "well-known" bit in its own space (i.e.
+>> 0x800000xx) that is only used by hypervisors that support SEV.  This is
+>> similar to how Intel defined one bit in leaf 1 to say "is leaf
+>> 0x40000000 valid".
+>>
+>>> +	if (eax > 0x40000000) {
+>>> +		eax = 0x40000001;
+>>> +		ecx = 0;
+>>> +		native_cpuid(&eax, &ebx, &ecx, &edx);
+>>> +		if (!(eax & BIT(KVM_FEATURE_SEV)))
+>>> +			goto out;
+>>> +
+>>> +		eax = 0x8000001f;
+>>> +		ecx = 0;
+>>> +		native_cpuid(&eax, &ebx, &ecx, &edx);
+>>> +		if (!(eax & 1))
+>
+> Right, so this is testing CPUID_0x8000001f_ECX(0)[0], SME. Why not
+> simply set that bit for the guest too, in kvm?
+>
+
+CPUID_8000_001F[EAX] indicates whether the feature is supported.
+CPUID_0x8000001F[EAX]:
+  * Bit 0 - SME supported
+  * Bit 1 - SEV supported
+  * Bit 3 - SEV-ES supported
+
+We can use MSR_K8_SYSCFG[MemEncryptionModeEnc] to check if memory encryption is enabled.
+Currently, KVM returns zero when guest OS read MSR_K8_SYSCFG. I can update my patch sets
+to set this bit for SEV enabled guests.
+
+We could update this patch to use the below logic:
+
+  * CPUID(0) - Check for AuthenticAMD
+  * CPID(1) - Check if under hypervisor
+  * CPUID(0x80000000) - Check for highest supported leaf
+  * CPUID(0x8000001F).EAX - Check for SME and SEV support
+  * rdmsr (MSR_K8_SYSCFG)[MemEncryptionModeEnc] - Check if SMEE is set
 
 
-One of the issues of current balloon is the 4k page size
-assumption. For example if you free a huge page you
-have to split it up and pass 4k chunks to host.
-Quite often host can't free these 4k chunks at all (e.g.
-when it's using huge tlb fs).
-It's even sillier for architectures with base page size >4k.
+Paolo,
 
-So as long as we are changing things, let's not hard-code
-the 12 shift thing everywhere.
+One question, do we need "AuthenticAMD" check when we are running under hypervisor ?
+I was looking at qemu code and found that qemu exposes parameters to change the CPU
+vendor id. The above check will fail if user changes the vendor id while launching
+the SEV guest.
 
-
-Two things to consider:
-- host should pass its base page size to guest
-  this can be a separate patch and for now we can fall back on 12 bit if not there
-
-- guest should pass full huge pages to host
-  this should be done correctly to avoid breaking up huge pages
-  I would say yes let's use a single format but drop the "normal chunk"
-  and always use the extended one.
-  Also, size is in units of 4k, right? Please document that low 12 bit
-  are reserved, they will be handy as e.g. flags.
+-Brijesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
