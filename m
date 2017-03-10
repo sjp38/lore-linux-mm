@@ -1,169 +1,307 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E96280911
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:07:26 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y90so28566054wrb.1
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:07:26 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o136si2427184wmd.27.2017.03.10.03.07.24
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 007FB280911
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 06:13:05 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id r141so7742777ita.6
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 03:13:04 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z132si2682114iod.184.2017.03.10.03.13.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Mar 2017 03:07:24 -0800 (PST)
-Date: Fri, 10 Mar 2017 12:06:57 +0100
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC PATCH v2 14/32] x86: mm: Provide support to use memblock
- when spliting large pages
-Message-ID: <20170310110657.hophlog2juw5hpzz@pd.tnic>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846771545.2349.9373586041426414252.stgit@brijesh-build-machine>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <148846771545.2349.9373586041426414252.stgit@brijesh-build-machine>
+        Fri, 10 Mar 2017 03:13:03 -0800 (PST)
+Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170309143551.1e59d6f104c7e7abb87c3bce@linux-foundation.org>
+In-Reply-To: <20170309143551.1e59d6f104c7e7abb87c3bce@linux-foundation.org>
+Message-Id: <201703102012.JDG69214.FVMFHJOOtSLQOF@I-love.SAKURA.ne.jp>
+Date: Fri, 10 Mar 2017 20:12:37 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brijesh Singh <brijesh.singh@amd.com>, Paolo Bonzini <pbonzini@redhat.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, david@fromorbit.com, apolyakov@beget.ru
 
-On Thu, Mar 02, 2017 at 10:15:15AM -0500, Brijesh Singh wrote:
-> If kernel_maps_pages_in_pgd is called early in boot process to change the
-
-kernel_map_pages_in_pgd()
-
-> memory attributes then it fails to allocate memory when spliting large
-> pages. The patch extends the cpa_data to provide the support to use
-> memblock_alloc when slab allocator is not available.
+Andrew Morton wrote:
+> On Tue, 28 Feb 2017 10:21:48 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 > 
-> The feature will be used in Secure Encrypted Virtualization (SEV) mode,
-> where we may need to change the memory region attributes in early boot
-> process.
+> > This patch adds a watchdog which periodically reports number of memory
+> > allocating tasks, dying tasks and OOM victim tasks when some task is
+> > spending too long time inside __alloc_pages_slowpath(). This patch also
+> > serves as a hook for obtaining additional information using SystemTap
+> > (e.g. examine other variables using printk(), capture a crash dump by
+> > calling panic()) by triggering a callback only when a stall is detected.
+> > Ability to take administrator-controlled actions based on some threshold
+> > is a big advantage gained by introducing a state tracking.
+> > 
+> > Commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for
+> > too long") was a great step for reducing possibility of silent hang up
+> > problem caused by memory allocation stalls [1]. However, there are
+> > reports of long stalls (e.g. [2] is over 30 minutes!) and lockups (e.g.
+> > [3] is an "unable to invoke the OOM killer due to !__GFP_FS allocation"
+> > lockup problem) where this patch is more useful than that commit, for
+> > this patch can report possibly related tasks even if allocating tasks
+> > are unexpectedly blocked for so long. Regarding premature OOM killer
+> > invocation, tracepoints which can accumulate samples in short interval
+> > would be useful. But regarding too late to report allocation stalls,
+> > this patch which can capture all tasks (for reporting overall situation)
+> > in longer interval and act as a trigger (for accumulating short interval
+> > samples) would be useful.
+> > 
+> > ...
+> >
+> > +Build kernels with CONFIG_DETECT_HUNG_TASK=y and
+> > +CONFIG_DETECT_MEMALLOC_STALL_TASK=y.
+> > +
+> > +Default scan interval is configured by CONFIG_DEFAULT_MEMALLOC_TASK_TIMEOUT.
+> > +Scan interval can be changed at run time by writing timeout in seconds to
+> > +/proc/sys/kernel/memalloc_task_warning_secs. Writing 0 disables this scan.
 > 
-> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
-> ---
->  arch/x86/mm/pageattr.c |   51 ++++++++++++++++++++++++++++++++++++++++--------
->  1 file changed, 42 insertions(+), 9 deletions(-)
+> "seconds" seems needlessly coarse.  Maybe milliseconds?
+
+I can change it to milliseconds although I don't think someone wants to
+set e.g. 3500 milliseconds. This timeout is "more than ... seconds" and
+actual alert takes longer than this timeout, as with check_hung_task().
+
 > 
-> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> index 46cc89d..9e4ab3b 100644
-> --- a/arch/x86/mm/pageattr.c
-> +++ b/arch/x86/mm/pageattr.c
-> @@ -14,6 +14,7 @@
->  #include <linux/gfp.h>
->  #include <linux/pci.h>
->  #include <linux/vmalloc.h>
-> +#include <linux/memblock.h>
->  
->  #include <asm/e820/api.h>
->  #include <asm/processor.h>
-> @@ -37,6 +38,7 @@ struct cpa_data {
->  	int		flags;
->  	unsigned long	pfn;
->  	unsigned	force_split : 1;
-> +	unsigned	force_memblock :1;
->  	int		curpage;
->  	struct page	**pages;
->  };
-> @@ -627,9 +629,8 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
->  
->  static int
->  __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
-> -		   struct page *base)
-> +		  pte_t *pbase, unsigned long new_pfn)
->  {
-> -	pte_t *pbase = (pte_t *)page_address(base);
->  	unsigned long ref_pfn, pfn, pfninc = 1;
->  	unsigned int i, level;
->  	pte_t *tmp;
-> @@ -646,7 +647,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->  		return 1;
->  	}
->  
-> -	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
-> +	paravirt_alloc_pte(&init_mm, new_pfn);
->  
->  	switch (level) {
->  	case PG_LEVEL_2M:
-> @@ -707,7 +708,8 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->  	 * pagetable protections, the actual ptes set above control the
->  	 * primary protection behavior:
->  	 */
-> -	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
-> +	__set_pmd_pte(kpte, address,
-> +		native_make_pte((new_pfn << PAGE_SHIFT) + _KERNPG_TABLE));
->  
->  	/*
->  	 * Intel Atom errata AAH41 workaround.
-> @@ -723,21 +725,50 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
->  	return 0;
->  }
->  
-> +static pte_t *try_alloc_pte(struct cpa_data *cpa, unsigned long *pfn)
-> +{
-> +	unsigned long phys;
-> +	struct page *base;
-> +
-> +	if (cpa->force_memblock) {
-> +		phys = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+> > +Even if you disable this scan, information about last memory allocation
+> > +request is kept. That is, you will get some hint for understanding
+> > +last-minute behavior of the kernel when you analyze vmcore (or memory
+> > +snapshot of a virtualized machine).
+> > 
+> > ...
+> >
+> > +struct memalloc_info {
+> > +	/*
+> > +	 * 0: not doing __GFP_RECLAIM allocation.
+> > +	 * 1: doing non-recursive __GFP_RECLAIM allocation.
+> > +	 * 2: doing recursive __GFP_RECLAIM allocation.
+> > +	 */
+> > +	u8 valid;
+> > +	/*
+> > +	 * bit 0: Will be reported as OOM victim.
+> > +	 * bit 1: Will be reported as dying task.
+> > +	 * bit 2: Will be reported as stalling task.
+> > +	 * bit 3: Will be reported as exiting task.
+> > +	 * bit 7: Will be reported unconditionally.
+> 
+> Create enums for these rather than hard-coding magic numbers?
 
-Maybe there's a reason this fires:
+Sure.
 
-WARNING: modpost: Found 2 section mismatch(es).
-To see full details build your kernel with:
-'make CONFIG_DEBUG_SECTION_MISMATCH=y'
+> 
+> These values don't seem to be used anyway - as far as I can tell this
+> could be a simple boolean.
 
-WARNING: vmlinux.o(.text+0x48edc): Section mismatch in reference from the function __change_page_attr() to the function .init.text:memblock_alloc()
-The function __change_page_attr() references
-the function __init memblock_alloc().
-This is often because __change_page_attr lacks a __init
-annotation or the annotation of memblock_alloc is wrong.
+These values are used in the following switch.
 
-WARNING: vmlinux.o(.text+0x491d1): Section mismatch in reference from the function __change_page_attr() to the function .meminit.text:memblock_free()
-The function __change_page_attr() references
-the function __meminit memblock_free().
-This is often because __change_page_attr lacks a __meminit
-annotation or the annotation of memblock_free is wrong.
++		u8 type = 0;
++
++		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
++			type |= 1;
++			memdie_pending++;
++		}
++		if (fatal_signal_pending(p)) {
++			type |= 2;
++			sigkill_pending++;
++		}
++		if ((p->flags & PF_EXITING) && p->state != TASK_DEAD) {
++			type |= 8;
++			exiting_tasks++;
++		}
++		if (is_stalling_task(p, expire)) {
++			type |= 4;
++			stalling_tasks++;
++		}
++		if (p->flags & PF_KSWAPD)
++			type |= 128;
++		p->memalloc.type = type;
 
-Why do we need this whole early mapping? For the guest? I don't like
-that memblock thing at all.
+Since writing logs to consoles stored by printk() is a slow operation,
+we will need to add some delays for avoiding logs being dropped. But
+we can't sleep while we are traversing the tasklist whereas tasks used
+as a cursor can go away while we are sleeping with rcu_lock_break().
+Thus, kmallocwd marks whether and how each thread should be reported
+in the first round without sleeping, and reports threads which should be
+reported in the second round. The second round sleeps and can complete
+without duplicates/skips because p->memalloc.type remembers whether p
+should be reported.
 
-So I think the approach with the .data..percpu..hv_shared section is
-fine and we should consider SEV-ES
+This approach can be as well used for check_hung_uninterruptible_tasks()
+for avoiding RCU stall warnings, avoiding hung tasks being skipped due to
+"goto unlock;" and eliminating the need to call touch_nmi_watchdog().
+We can mark whether each thread should be reported as hung in the first
+round, and report threads which should be reported as hung in the second
+round. Such changes are outside of this patch's scope.
 
-http://support.amd.com/TechDocs/Protecting%20VM%20Register%20State%20with%20SEV-ES.pdf
+> 
+> > +	 */
+> > +	u8 type;
+> > +	/* Index used for memalloc_in_flight[] counter. */
+> > +	u8 idx;
+> > +	/* For progress monitoring. */
+> > +	unsigned int sequence;
+> > +	/* Started time in jiffies as of valid == 1. */
+> > +	unsigned long start;
+> > +	/* Requested order and gfp flags as of valid == 1. */
+> > +	unsigned int order;
+> > +	gfp_t gfp;
+> > +};
+> > 
+> > ...
+> >
+> > +#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
+> > +/*
+> > + * Zero means infinite timeout - no checking done:
+> > + */
+> > +unsigned long __read_mostly sysctl_memalloc_task_warning_secs =
+> > +	CONFIG_DEFAULT_MEMALLOC_TASK_TIMEOUT;
+> > +static struct memalloc_info memalloc; /* Filled by is_stalling_task(). */
+> 
+> What locking protects `memalloc' from concurrent modifications and
+> holds it stable for readers?
 
-and do this right from the get-go so that when SEV-ES comes along, we
-should simply be ready and extend that mechanism to put the whole Guest
-Hypervisor Communication Block in there.
+No locking is needed because only khungtaskd kernel thread accesses
+this variable.
 
-But then the fact that you're mapping those decrypted in init_mm.pgd
-makes me think you don't need that early mapping thing at all. Those are
-the decrypted mappings of the hypervisor. And that you can do late.
+> 
+> > 
+> > ...
+> >
+> > +static noinline int check_memalloc_stalling_tasks(unsigned long timeout)
+> > +{
+> > +	char buf[256];
+> > +	struct task_struct *g, *p;
+> > +	unsigned long now;
+> > +	unsigned long expire;
+> > +	unsigned int sigkill_pending = 0;
+> > +	unsigned int exiting_tasks = 0;
+> > +	unsigned int memdie_pending = 0;
+> > +	unsigned int stalling_tasks = 0;
+> > +
+> > 
+> > ...
+> >
+> > +			goto restart_report;
+> > +	}
+> > +	rcu_read_unlock();
+> > +	preempt_enable_no_resched();
+> > +	cond_resched();
+> 
+> All the cond_resched()s in this function seem a bit random.
 
-Now, what would be better, IMHO (and I have no idea about virtualization
-design so take with a grain of salt) is if the guest would allocate
-enough memory for the GHCB and mark it decrypted from the very
-beginning. It will be the communication vehicle with the hypervisor
-anyway.
+This function is trying to be as safe as possible; try to yield CPU time
+whenever possible because printing stall warnings is not so urgent enough
+to block other high priority threads. Since khungtaskd kernel thread is
+not SCHED_IDLE priority, we can expect that stall warnings will be
+printed eventually (unless a runaway by realtime threads occurs).
 
-And we already do similar things in sme_map_bootdata() for the baremetal
-kernel to map boot_data, initrd, EFI, ... and so on things decrypted.
+> 
+> > +	/* Show memory information. (SysRq-m) */
+> > +	show_mem(0, NULL);
+> > +	/* Show workqueue state. */
+> > +	show_workqueue_state();
+> > +	/* Show lock information. (SysRq-d) */
+> > +	debug_show_all_locks();
+> > +	pr_warn("MemAlloc-Info: stalling=%u dying=%u exiting=%u victim=%u oom_count=%u\n",
+> > +		stalling_tasks, sigkill_pending, exiting_tasks, memdie_pending,
+> > +		out_of_memory_count);
+> > +	return stalling_tasks;
+> > +}
+> > +#endif /* CONFIG_DETECT_MEMALLOC_STALL_TASK */
+> > +
+> >  static void check_hung_task(struct task_struct *t, unsigned long timeout)
+> >  {
+> >  	unsigned long switch_count = t->nvcsw + t->nivcsw;
+> > @@ -228,20 +429,36 @@ void reset_hung_task_detector(void)
+> >  static int watchdog(void *dummy)
+> >  {
+> >  	unsigned long hung_last_checked = jiffies;
+> > +#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
+> > +	unsigned long stall_last_checked = hung_last_checked;
+> > +#endif
+> >  
+> >  	set_user_nice(current, 0);
+> >  
+> >  	for ( ; ; ) {
+> >  		unsigned long timeout = sysctl_hung_task_timeout_secs;
+> >  		long t = hung_timeout_jiffies(hung_last_checked, timeout);
+> > -
+> > +#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
+> > +		unsigned long timeout2 = sysctl_memalloc_task_warning_secs;
+> > +		long t2 = memalloc_timeout_jiffies(stall_last_checked,
+> > +						   timeout2);
+> 
+> Confused.  Shouldn't timeout2 be converted from seconds to jiffies
+> before being passed to memalloc_timeout_jiffies()?
 
-And we should extend that mechanism to map the GHCB in the guest too and
-then we can get rid of all that need for ->force_memblock which makes
-the crazy mess in pageattr.c even crazier. And it would be lovely if we
-can do it without it.
+timeout2 is converted from seconds to jiffies by memalloc_timeout_jiffies()
+as with timeout is converted from seconds to jiffies by hung_timeout_jiffies().
 
-But maybe Paolo might have an even better idea...
++static long memalloc_timeout_jiffies(unsigned long last_checked, long timeout)
++{
++	/* timeout of 0 will disable the watchdog */
++	return timeout ? last_checked - jiffies + timeout * HZ :
++		MAX_SCHEDULE_TIMEOUT;
++}
 
-Thanks.
+static long hung_timeout_jiffies(unsigned long last_checked,
+                                 unsigned long timeout)
+{
+	/* timeout of 0 will disable the watchdog */
+	return timeout ? last_checked - jiffies + timeout * HZ :
+		MAX_SCHEDULE_TIMEOUT;
+}
 
--- 
-Regards/Gruss,
-    Boris.
+We can rename and share hung_timeout_jiffies() for both timeouts
+if kmallocwd is acceptable.
 
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+> 
+> > +		if (t2 <= 0) {
+> > +			if (memalloc_maybe_stalling())
+> > +				check_memalloc_stalling_tasks(timeout2);
+> > +			stall_last_checked = jiffies;
+> > +			continue;
+> > +		}
+> > +#else
+> > +		long t2 = t;
+> > +#endif
+> > 
+> > ...
+> >
+> > +bool memalloc_maybe_stalling(void)
+> > +{
+> > +	int cpu;
+> > +	int sum = 0;
+> > +	const u8 idx = memalloc_active_index ^ 1;
+> > +
+> > +	for_each_possible_cpu(cpu)
+> 
+> Do we really need to do this for offlined and not-present CPUs?
+
+I just did not want to touch other files within this patch because
+I'm not familiar with CPU online/offline handling and want to split
+non-essential parts to followup patches.
+
+I assume that a CPU can become offline when someone entered into
+__alloc_pages_slowpath() using that CPU. We can update kmallocwd
+not to check offlined and not-present CPUs by adding hooks for
+resetting memalloc_in_flight counter of a CPU going offline.
+
+> 
+> > +		sum += per_cpu(memalloc_in_flight[idx], cpu);
+> > +	if (sum)
+> > +		return true;
+> > +	memalloc_active_index ^= 1;
+> > +	return false;
+> > +}
+> > +
+> > 
+> > ...
+> >
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
