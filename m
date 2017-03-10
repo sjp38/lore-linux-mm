@@ -1,83 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AC538280910
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 07:40:49 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c143so3170409wmd.1
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 04:40:49 -0800 (PST)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id v63si2708142wma.38.2017.03.10.04.40.47
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E60B280910
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2017 08:05:31 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n11so3307898wma.5
+        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 05:05:31 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l78si2788658wmg.72.2017.03.10.05.05.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Mar 2017 04:40:47 -0800 (PST)
-Received: by mail-wr0-x244.google.com with SMTP id g10so11467557wrg.0
-        for <linux-mm@kvack.org>; Fri, 10 Mar 2017 04:40:47 -0800 (PST)
-Date: Fri, 10 Mar 2017 13:40:43 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-Message-ID: <20170310124043.45hdu64wd4acf4it@phenom.ffwll.local>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <20170303132949.GC31582@dhcp22.suse.cz>
- <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
- <20170306074258.GA27953@dhcp22.suse.cz>
- <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
- <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
- <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
- <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
- <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
- <20170310103112.GA15945@e106950-lin.cambridge.arm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Mar 2017 05:05:29 -0800 (PST)
+Date: Fri, 10 Mar 2017 14:05:26 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6] Enable parallel page migration
+Message-ID: <20170310130525.GG3753@dhcp22.suse.cz>
+References: <20170217112453.307-1-khandual@linux.vnet.ibm.com>
+ <ef5efef8-a8c5-a4e7-ffc7-44176abec65c@linux.vnet.ibm.com>
+ <20170309150904.pnk6ejeug4mktxjv@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170310103112.GA15945@e106950-lin.cambridge.arm.com>
+In-Reply-To: <20170309150904.pnk6ejeug4mktxjv@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Starkey <brian.starkey@arm.com>
-Cc: Laura Abbott <labbott@redhat.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Mark Brown <broonie@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Fri, Mar 10, 2017 at 10:31:13AM +0000, Brian Starkey wrote:
-> Hi,
-> 
-> On Thu, Mar 09, 2017 at 09:38:49AM -0800, Laura Abbott wrote:
-> > On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
-> 
-> [snip]
-> 
-> > > 
-> > > For me those patches are going in the right direction.
-> > > 
-> > > I still have few questions:
-> > > - since alignment management has been remove from ion-core, should it
-> > > be also removed from ioctl structure ?
+On Thu 09-03-17 15:09:04, Mel Gorman wrote:
+> On Wed, Mar 08, 2017 at 09:34:27PM +0530, Anshuman Khandual wrote:
+> > > Any comments, suggestions are welcome.
 > > 
-> > Yes, I think I'm going to go with the suggestion to fixup the ABI
-> > so we don't need the compat layer and as part of that I'm also
-> > dropping the align argument.
+> > Hello Vlastimil/Michal/Minchan/Mel/Dave,
+> > 
+> > Apart from the comments from Naoya on a different thread posted by Zi
+> > Yan, I did not get any more review comments on this series. Could you
+> > please kindly have a look on the over all design and its benefits from
+> > page migration performance point of view and let me know your views.
+> > Thank you.
 > > 
 > 
-> Is the only motivation for removing the alignment parameter that
-> no-one got around to using it for something useful yet?
-> The original comment was true - different devices do have different
-> alignment requirements.
+> I didn't look into the patches in detail except to get a general feel
+> for how it works and I'm not convinced that it's a good idea at all.
 > 
-> Better alignment can help SMMUs use larger blocks when mapping,
-> reducing TLB pressure and the chance of a page table walk causing
-> display underruns.
+> I accept that memory bandwidth utilisation may be higher as a result but
+> consider the impact. THP migrations are relatively rare and when they
+> occur, it's in the context of a single thread. To parallelise the copy,
+> an allocation, kmap and workqueue invocation are required. There may be a
+> long delay before the workqueue item can start which may exceed the time
+> to do a single copy if the CPUs on a node are saturated. Furthermore, a
+> single thread can preempt operations of other unrelated threads and incur
+> CPU cache pollution and future misses on unrelated CPUs. It's compounded by
+> the fact that a high priority system workqueue is used to do the operation,
+> one that is used for CPU hotplug operations and rolling back when a netdevice
+> fails to be registered. It treats a hugepage copy as an essential operation
+> that can preempt all other work which is very questionable.
+> 
+> The series leader has no details on a workload that is bottlenecked by
+> THP migrations and even if it is, the primary question should be *why*
+> THP migrations are so frequent and alleviating that instead of
+> preempting multiple CPUs to do the work.
 
-Extending ioctl uapi is easy, trying to get rid of bad uapi is much
-harder. Given that right now we don't have an ion allocator that does
-alignment I think removing it makes sense. And if we go with lots of
-heaps, we might as well have an ion heap per alignment that your hw needs,
-so there's different ways to implement this in the future.
-
-At least from the unix device memory allocator pov it's probably simpler
-to encode stuff like this into the heap name, instead of having to pass
-heap + list of additional properties/constraints.
--Daniel
+FWIW I very much agree here and the follow up reply. Making migration
+itself parallel is a hard task. You should start simple and optimize the
+current code first and each step accompany with numbers. Parallel
+migration should be the very last step - if it is needed at all of
+course. I am quite skeptical that a reasonable parallel load balancing
+is achievable without a large maintenance cost and/or predictable
+behavior. 
 -- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
