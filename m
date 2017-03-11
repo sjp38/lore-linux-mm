@@ -1,78 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E984280910
-	for <linux-mm@kvack.org>; Sat, 11 Mar 2017 04:53:26 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 20so82612885iod.2
-        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 01:53:26 -0800 (PST)
-Received: from smtpbg325.qq.com (smtpbg325.qq.com. [14.17.32.36])
-        by mx.google.com with SMTP id q124si2041813itd.30.2017.03.11.01.53.23
-        for <linux-mm@kvack.org>;
-        Sat, 11 Mar 2017 01:53:25 -0800 (PST)
-From: Yisheng Xie <ysxie@foxmail.com>
-Subject: Re: [PATCH RFC] mm/vmscan: donot retry shrink zones when memcg is
- disabled
-References: <1489198798-6632-1-git-send-email-ysxie@foxmail.com>
- <CALvZod5X3sLQT-We2VNCiAN9zi9MJvdk4fVGERVpw=GQGrGHEg@mail.gmail.com>
-Message-ID: <58C3C648.2020209@foxmail.com>
-Date: Sat, 11 Mar 2017 17:41:28 +0800
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5942C280943
+	for <linux-mm@kvack.org>; Sat, 11 Mar 2017 06:58:14 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id v190so207865852pfb.5
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 03:58:14 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id m127si6005031pfm.38.2017.03.11.03.58.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 11 Mar 2017 03:58:13 -0800 (PST)
+Message-ID: <58C3E6A3.1000000@intel.com>
+Date: Sat, 11 Mar 2017 19:59:31 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod5X3sLQT-We2VNCiAN9zi9MJvdk4fVGERVpw=GQGrGHEg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v7 kernel 3/5] virtio-balloon: implementation of VIRTIO_BALLOON_F_CHUNK_TRANSFER
+References: <1488519630-89058-1-git-send-email-wei.w.wang@intel.com> <1488519630-89058-4-git-send-email-wei.w.wang@intel.com> <20170309141411.GZ16328@bombadil.infradead.org> <58C28FF8.5040403@intel.com> <20170310175349-mutt-send-email-mst@kernel.org> <20170310171143.GA16328@bombadil.infradead.org>
+In-Reply-To: <20170310171143.GA16328@bombadil.infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, riel@redhat.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, xieyisheng1@huawei.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Liang Li <liang.z.li@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Liang Li <liliang324@gmail.com>
 
-Hi Shakeel,
+On 03/11/2017 01:11 AM, Matthew Wilcox wrote:
+> On Fri, Mar 10, 2017 at 05:58:28PM +0200, Michael S. Tsirkin wrote:
+>> One of the issues of current balloon is the 4k page size
+>> assumption. For example if you free a huge page you
+>> have to split it up and pass 4k chunks to host.
+>> Quite often host can't free these 4k chunks at all (e.g.
+>> when it's using huge tlb fs).
+>> It's even sillier for architectures with base page size >4k.
+> I completely agree with you that we should be able to pass a hugepage
+> as a single chunk.  Also we shouldn't assume that host and guest have
+> the same page size.  I think we can come up with a scheme that actually
+> lets us encode that into a 64-bit word, something like this:
+>
+> bit 0 clear => bits 1-11 encode a page count, bits 12-63 encode a PFN, page size 4k.
+> bit 0 set, bit 1 clear => bits 2-12 encode a page count, bits 13-63 encode a PFN, page size 8k
+> bits 0+1 set, bit 2 clear => bits 3-13 for page count, bits 14-63 for PFN, page size 16k.
+> bits 0-2 set, bit 3 clear => bits 4-14 for page count, bits 15-63 for PFN, page size 32k
+> bits 0-3 set, bit 4 clear => bits 5-15 for page count, bits 16-63 for PFN, page size 64k
+>
+> That means we can always pass 2048 pages (of whatever page size) in a single chunk.  And
+> we support arbitrary power of two page sizes.  I suggest something like this:
+>
+> u64 page_to_chunk(struct page *page)
+> {
+> 	u64 chunk = page_to_pfn(page) << PAGE_SHIFT;
+> 	chunk |= (1UL << compound_order(page)) - 1;
+> }
+>
+> (note this is a single page of order N, so we leave the page count bits
+> set to 0, meaning one page).
+>
 
-Thanks for reviewing.
+I'm thinking what if the guest needs to transfer these much physically 
+continuous
+memory to host: 1GB+2MB+64KB+32KB+16KB+4KB.
+Is it going to use Six 64-bit chunks? Would it be simpler if we just
+use the 128-bit chunk format (we can drop the previous normal 64-bit 
+format)?
 
-On 03/11/2017 11:40 AM, Shakeel Butt wrote:
-> On Fri, Mar 10, 2017 at 6:19 PM, Yisheng Xie <ysxie@foxmail.com> wrote:
->> From: Yisheng Xie <xieyisheng1@huawei.com>
->>
->> When we enter do_try_to_free_pages, the may_thrash is always clear, and
->> it will retry shrink zones to tap cgroup's reserves memory by setting
->> may_thrash when the former shrink_zones reclaim nothing.
->>
->> However, if CONFIG_MEMCG=n, it should not do this useless retry at all,
->> for we do not have any cgroup's reserves memory to tap, and we have
->> already done hard work and made no progress.
->>
->> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
->> ---
->>  mm/vmscan.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index bc8031e..b03ccc1 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -2808,7 +2808,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->>                 return 1;
->>
->>         /* Untapped cgroup reserves?  Don't OOM, retry. */
->> -       if (!sc->may_thrash) {
->> +       if (!sc->may_thrash && IS_ENABLED(CONFIG_MEMCG)) {
-> In my opinion it should be even more restrictive (restricting
-> cgroup_disabled=memory boot option and cgroup legacy hierarchy). So,
-> instead of IS_ENABLED(CONFIG_MEMCG), the check should be something
-> like (cgroup_subsys_enabled(memory_cgrp_subsys) &&
-> cgroup_subsys_on_dfl(memory_cgrp_subsys)).
-Righti 1/4 ?  I will send another version soon.
-
-Thanks
-Yisheng Xie.
-
->>                 sc->priority = initial_priority;
->>                 sc->may_thrash = 1;
->>                 goto retry;
->> --
->> 1.9.1
->>
->>
->>
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
