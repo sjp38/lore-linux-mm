@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B523E6B0462
-	for <linux-mm@kvack.org>; Sat, 11 Mar 2017 08:45:25 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f21so212623966pgi.4
-        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 05:45:25 -0800 (PST)
-Received: from smtpbg11.qq.com (SMTPBG11.QQ.COM. [183.60.61.232])
-        by mx.google.com with ESMTPS id l1si12913748plb.136.2017.03.11.05.45.24
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 278E36B0464
+	for <linux-mm@kvack.org>; Sat, 11 Mar 2017 08:52:03 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id w189so209506247pfb.4
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 05:52:03 -0800 (PST)
+Received: from smtpbg124.qq.com (smtpbg124.qq.com. [183.60.2.40])
+        by mx.google.com with ESMTPS id v1si12940026plk.19.2017.03.11.05.52.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 11 Mar 2017 05:45:24 -0800 (PST)
+        Sat, 11 Mar 2017 05:52:02 -0800 (PST)
 From: Yisheng Xie <ysxie@foxmail.com>
 Subject: [PATCH v2 RFC] mm/vmscan: more restrictive condition for retry in do_try_to_free_pages
-Date: Sat, 11 Mar 2017 21:36:42 +0800
-Message-Id: <1489239402-957-1-git-send-email-ysxie@foxmail.com>
+Date: Sat, 11 Mar 2017 21:51:04 +0800
+Message-Id: <1489240264-3290-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, shakeelb@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, hanjunguo@huawei.com, qiuxishi@huawei.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
 From: Yisheng Xie <xieyisheng1@huawei.com>
 
