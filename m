@@ -1,118 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 22915280947
-	for <linux-mm@kvack.org>; Sat, 11 Mar 2017 12:52:18 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id l66so221561075pfl.6
-        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 09:52:18 -0800 (PST)
-Received: from mail-pg0-x233.google.com (mail-pg0-x233.google.com. [2607:f8b0:400e:c05::233])
-        by mx.google.com with ESMTPS id s196si6757364pfs.153.2017.03.11.09.52.17
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C7A26280947
+	for <linux-mm@kvack.org>; Sat, 11 Mar 2017 16:22:51 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id p78so72899522lfd.0
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 13:22:51 -0800 (PST)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id y18si7179842lja.11.2017.03.11.13.22.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 11 Mar 2017 09:52:17 -0800 (PST)
-Received: by mail-pg0-x233.google.com with SMTP id 25so49812332pgy.0
-        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 09:52:17 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1489240264-3290-1-git-send-email-ysxie@foxmail.com>
-References: <1489240264-3290-1-git-send-email-ysxie@foxmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Sat, 11 Mar 2017 09:52:15 -0800
-Message-ID: <CALvZod6dptidW33mpvSkQfMBM=xsfSPEEJzB+3u4ekr8m3bSOA@mail.gmail.com>
-Subject: Re: [PATCH v2 RFC] mm/vmscan: more restrictive condition for retry in do_try_to_free_pages
-Content-Type: text/plain; charset=UTF-8
+        Sat, 11 Mar 2017 13:22:50 -0800 (PST)
+Received: by mail-lf0-x244.google.com with SMTP id v2so9247775lfi.2
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2017 13:22:50 -0800 (PST)
+Date: Sat, 11 Mar 2017 22:22:39 +0100
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH] z3fold: fix spinlock unlocking in page reclaim
+Message-Id: <20170311222239.7b83d8e7ef1914e05497649f@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <ysxie@foxmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, riel@redhat.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, xieyisheng1@huawei.com, guohanjun@huawei.com, Xishi Qiu <qiuxishi@huawei.com>
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Alexey Khoroshilov <khoroshilov@ispras.ru>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
 
-On Sat, Mar 11, 2017 at 5:51 AM, Yisheng Xie <ysxie@foxmail.com> wrote:
-> From: Yisheng Xie <xieyisheng1@huawei.com>
->
-> When we enter do_try_to_free_pages, the may_thrash is always clear, and
-> it will retry shrink zones to tap cgroup's reserves memory by setting
-> may_thrash when the former shrink_zones reclaim nothing.
->
-> However, when memcg is disabled or on legacy hierarchy, it should not do
-> this useless retry at all, for we do not have any cgroup's reserves
-> memory to tap, and we have already done hard work but made no progress.
->
-> To avoid this time costly and useless retrying, add a stub function
-> may_thrash and return true when memcg is disabled or on legacy
-> hierarchy.
->
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> Suggested-by: Shakeel Butt <shakeelb@google.com>
-> ---
-> v2:
->  - more restrictive condition for retry of shrink_zones (restricting
->    cgroup_disabled=memory boot option and cgroup legacy hierarchy) - Shakeel
->
->  - add a stub function may_thrash() to avoid compile error or warning.
->
->  - rename subject from "donot retry shrink zones when memcg is disable"
->    to "more restrictive condition for retry in do_try_to_free_pages"
->
-> Any comment is more than welcome!
->
-> Thanks
-> Yisheng Xie
->
->  mm/vmscan.c | 20 +++++++++++++++++++-
->  1 file changed, 19 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bc8031e..415f800 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -184,6 +184,19 @@ static bool sane_reclaim(struct scan_control *sc)
->  #endif
->         return false;
->  }
-> +
-> +static bool may_thrash(struct scan_control *sc)
-> +{
-> +       /*
-> +        * When memcg is disabled or on legacy hierarchy, there is no cgroup
-> +        * reserves memory to tap.
-> +        */
-> +       if (!cgroup_subsys_enabled(memory_cgrp_subsys) ||
-> +           !cgroup_subsys_on_dfl(memory_cgrp_subsys))
-> +               return true;
-> +
-> +       return sc->may_thrash;
-> +}
->  #else
->  static bool global_reclaim(struct scan_control *sc)
->  {
-> @@ -194,6 +207,11 @@ static bool sane_reclaim(struct scan_control *sc)
->  {
->         return true;
->  }
-> +
-> +static bool may_thrash(struct scan_control *sc)
-> +{
-> +       return true;
-> +}
->  #endif
->
->  /*
-> @@ -2808,7 +2826,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->                 return 1;
->
->         /* Untapped cgroup reserves?  Don't OOM, retry. */
-> -       if (!sc->may_thrash) {
-> +       if (!may_thrash(sc)) {
+The patch "z3fold: add kref refcounting" introduced a bug in
+z3fold_reclaim_page() with function exit that may leave pool->lock
+spinlock held. Here comes the trivial fix.
 
-Thanks Yisheng. The name of the function may_thrash() is confusing in
-the sense that it is returning exactly the opposite of what its name
-implies. How about reversing the condition of may_thrash() function
-and change the scan_control's field may_thrash to thrashed?
+Reported-by: Alexey Khoroshilov <khoroshilov@ispras.ru>
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/z3fold.c | 1 +
+ 1 file changed, 1 insertion(+)
 
->                 sc->priority = initial_priority;
->                 sc->may_thrash = 1;
->                 goto retry;
-> --
-> 1.9.1
->
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 8970a2f..f9492bc 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -667,6 +667,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 			z3fold_page_unlock(zhdr);
+ 			spin_lock(&pool->lock);
+ 			if (kref_put(&zhdr->refcount, release_z3fold_page)) {
++				spin_unlock(&pool->lock);
+ 				atomic64_dec(&pool->pages_nr);
+ 				return 0;
+ 			}
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
