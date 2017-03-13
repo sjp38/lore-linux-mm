@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA2A280956
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CA0D280954
 	for <linux-mm@kvack.org>; Sun, 12 Mar 2017 20:36:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w189so271234170pfb.4
+Received: by mail-pf0-f199.google.com with SMTP id j5so275756534pfb.3
         for <linux-mm@kvack.org>; Sun, 12 Mar 2017 17:36:01 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id p19si9838156pgk.165.2017.03.12.17.35.59
+        by mx.google.com with ESMTP id 71si9870954pfh.141.2017.03.12.17.35.59
         for <linux-mm@kvack.org>;
         Sun, 12 Mar 2017 17:36:00 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 00/10] make try_to_unmap simple
-Date: Mon, 13 Mar 2017 09:35:43 +0900
-Message-ID: <1489365353-28205-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 02/10] mm: remove SWAP_DIRTY in ttu
+Date: Mon, 13 Mar 2017 09:35:45 +0900
+Message-ID: <1489365353-28205-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1489365353-28205-1-git-send-email-minchan@kernel.org>
+References: <1489365353-28205-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -19,43 +21,77 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>
 
-Currently, try_to_unmap returns various return value(SWAP_SUCCESS,
-SWAP_FAIL, SWAP_AGAIN, SWAP_DIRTY and SWAP_MLOCK). When I look into
-that, it's unncessary complicated so this patch aims for cleaning
-it up. Change ttu to boolean function so we can remove SWAP_AGAIN,
-SWAP_DIRTY, SWAP_MLOCK.
+If we found lazyfree page is dirty, try_to_unmap_one can just
+SetPageSwapBakced in there like PG_mlocked page and just return
+with SWAP_FAIL which is very natural because the page is not
+swappable right now so that vmscan can activate it.
+There is no point to introduce new return value SWAP_DIRTY
+in ttu at the moment.
 
-* from RFC
-- http://lkml.kernel.org/r/1488436765-32350-1-git-send-email-minchan@kernel.org
-  * Remove RFC tag
-  * add acked-by to some patches
-  * some of minor fixes
-  * based on mmotm-2017-03-09-16-19.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ include/linux/rmap.h | 1 -
+ mm/rmap.c            | 6 +++---
+ mm/vmscan.c          | 3 ---
+ 3 files changed, 3 insertions(+), 7 deletions(-)
 
-Minchan Kim (10):
-  mm: remove unncessary ret in page_referenced
-  mm: remove SWAP_DIRTY in ttu
-  mm: remove SWAP_MLOCK check for SWAP_SUCCESS in ttu
-  mm: make the try_to_munlock void function
-  mm: remove SWAP_MLOCK in ttu
-  mm: remove SWAP_AGAIN in ttu
-  mm: make ttu's return boolean
-  mm: make rmap_walk void function
-  mm: make rmap_one boolean function
-  mm: remove SWAP_[SUCCESS|AGAIN|FAIL]
-
- include/linux/ksm.h  |   5 ++-
- include/linux/rmap.h |  21 ++++-------
- mm/huge_memory.c     |   6 ++--
- mm/ksm.c             |  16 ++++-----
- mm/memory-failure.c  |  26 +++++++-------
- mm/migrate.c         |   4 +--
- mm/mlock.c           |   6 ++--
- mm/page_idle.c       |   4 +--
- mm/rmap.c            | 100 ++++++++++++++++++++-------------------------------
- mm/vmscan.c          |  32 +++++------------
- 10 files changed, 82 insertions(+), 138 deletions(-)
-
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index fee10d7..b556eef 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -298,6 +298,5 @@ static inline int page_mkclean(struct page *page)
+ #define SWAP_AGAIN	1
+ #define SWAP_FAIL	2
+ #define SWAP_MLOCK	3
+-#define SWAP_DIRTY	4
+ 
+ #endif	/* _LINUX_RMAP_H */
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 9dbfa6f..d47af09 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1414,7 +1414,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			 */
+ 			if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
+ 				WARN_ON_ONCE(1);
+-				ret = SWAP_FAIL;
++				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+ 				break;
+ 			}
+@@ -1431,7 +1431,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				 * discarded. Remap the page to page table.
+ 				 */
+ 				set_pte_at(mm, address, pvmw.pte, pteval);
+-				ret = SWAP_DIRTY;
++				SetPageSwapBacked(page);
++				ret = SWAP_FAIL;
+ 				page_vma_mapped_walk_done(&pvmw);
+ 				break;
+ 			}
+@@ -1501,7 +1502,6 @@ static int page_mapcount_is_zero(struct page *page)
+  * SWAP_AGAIN	- we missed a mapping, try again later
+  * SWAP_FAIL	- the page is unswappable
+  * SWAP_MLOCK	- page is mlocked.
+- * SWAP_DIRTY	- page is dirty MADV_FREE page
+  */
+ int try_to_unmap(struct page *page, enum ttu_flags flags)
+ {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a3656f9..b8fd656 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1142,9 +1142,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (page_mapped(page)) {
+ 			switch (ret = try_to_unmap(page,
+ 				ttu_flags | TTU_BATCH_FLUSH)) {
+-			case SWAP_DIRTY:
+-				SetPageSwapBacked(page);
+-				/* fall through */
+ 			case SWAP_FAIL:
+ 				nr_unmap_fail++;
+ 				goto activate_locked;
 -- 
 2.7.4
 
