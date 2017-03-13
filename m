@@ -1,196 +1,342 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B50826B0406
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 01:50:36 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id e5so284128868pgk.1
-        for <linux-mm@kvack.org>; Sun, 12 Mar 2017 22:50:36 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id e3si10487362pgn.333.2017.03.12.22.50.35
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0D96B0407
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 01:50:37 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id e5so284129278pgk.1
+        for <linux-mm@kvack.org>; Sun, 12 Mar 2017 22:50:37 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id l3si10474533pgl.298.2017.03.12.22.50.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 12 Mar 2017 22:50:35 -0700 (PDT)
+        Sun, 12 Mar 2017 22:50:36 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 09/26] x86/mm/pat: handle additional page table
-Date: Mon, 13 Mar 2017 08:50:03 +0300
-Message-Id: <20170313055020.69655-10-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 11/26] x86/xen: convert __xen_pgd_walk() and xen_cleanmfnmap() to support p4d
+Date: Mon, 13 Mar 2017 08:50:05 +0300
+Message-Id: <20170313055020.69655-12-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
 References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Xiong Zhang <xiong.y.zhang@intel.com>
 
-Straight-forward extension of existing code to support additional page
-table level.
+Split these helpers few per-level functions and add p4d support.
 
+Signed-off-by: Xiong Zhang <xiong.y.zhang@intel.com>
+[kirill.shutemov@linux.intel.com: split off into separate patch]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/pageattr.c | 56 ++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 41 insertions(+), 15 deletions(-)
+ arch/x86/xen/mmu.c | 245 ++++++++++++++++++++++++++++++++---------------------
+ arch/x86/xen/mmu.h |   1 +
+ 2 files changed, 150 insertions(+), 96 deletions(-)
 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 28d42130243c..eb0ad12cdfde 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -346,6 +346,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
- pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
- 			     unsigned int *level)
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index 37cb5aad71de..c49e165fde60 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -593,6 +593,64 @@ static void xen_set_pgd(pgd_t *ptr, pgd_t val)
+ }
+ #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
+ 
++static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
++		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
++		bool last, unsigned long limit)
++{
++	int i, nr, flush = 0;
++
++	nr = last ? pmd_index(limit) + 1 : PTRS_PER_PMD;
++	for (i = 0; i < nr; i++) {
++		if (!pmd_none(pmd[i]))
++			flush |= (*func)(mm, pmd_page(pmd[i]), PT_PTE);
++	}
++	return flush;
++}
++
++static int xen_pud_walk(struct mm_struct *mm, pud_t *pud,
++		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
++		bool last, unsigned long limit)
++{
++	int i, nr, flush = 0;
++
++	nr = last ? pud_index(limit) + 1 : PTRS_PER_PUD;
++	for (i = 0; i < nr; i++) {
++		pmd_t *pmd;
++
++		if (pud_none(pud[i]))
++			continue;
++
++		pmd = pmd_offset(&pud[i], 0);
++		if (PTRS_PER_PMD > 1)
++			flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
++		flush |= xen_pmd_walk(mm, pmd, func,
++				last && i == nr - 1, limit);
++	}
++	return flush;
++}
++
++static int xen_p4d_walk(struct mm_struct *mm, p4d_t *p4d,
++		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
++		bool last, unsigned long limit)
++{
++	int i, nr, flush = 0;
++
++	nr = last ? p4d_index(limit) + 1 : PTRS_PER_P4D;
++	for (i = 0; i < nr; i++) {
++		pud_t *pud;
++
++		if (p4d_none(p4d[i]))
++			continue;
++
++		pud = pud_offset(&p4d[i], 0);
++		if (PTRS_PER_PUD > 1)
++			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
++		flush |= xen_pud_walk(mm, pud, func,
++				last && i == nr - 1, limit);
++	}
++	return flush;
++}
++
+ /*
+  * (Yet another) pagetable walker.  This one is intended for pinning a
+  * pagetable.  This means that it walks a pagetable and calls the
+@@ -613,10 +671,8 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+ 				      enum pt_level),
+ 			  unsigned long limit)
  {
-+	p4d_t *p4d;
- 	pud_t *pud;
- 	pmd_t *pmd;
+-	int flush = 0;
++	int i, nr, flush = 0;
+ 	unsigned hole_low, hole_high;
+-	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
+-	unsigned pgdidx, pudidx, pmdidx;
  
-@@ -354,7 +355,15 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
- 	if (pgd_none(*pgd))
- 		return NULL;
+ 	/* The limit is the last byte to be touched */
+ 	limit--;
+@@ -633,65 +689,22 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+ 	hole_low = pgd_index(USER_LIMIT);
+ 	hole_high = pgd_index(PAGE_OFFSET);
  
--	pud = pud_offset(pgd, address);
-+	p4d = p4d_offset(pgd, address);
-+	if (p4d_none(*p4d))
-+		return NULL;
-+
-+	*level = PG_LEVEL_512G;
-+	if (p4d_large(*p4d) || !p4d_present(*p4d))
-+		return (pte_t *)p4d;
-+
-+	pud = pud_offset(p4d, address);
- 	if (pud_none(*pud))
- 		return NULL;
+-	pgdidx_limit = pgd_index(limit);
+-#if PTRS_PER_PUD > 1
+-	pudidx_limit = pud_index(limit);
+-#else
+-	pudidx_limit = 0;
+-#endif
+-#if PTRS_PER_PMD > 1
+-	pmdidx_limit = pmd_index(limit);
+-#else
+-	pmdidx_limit = 0;
+-#endif
+-
+-	for (pgdidx = 0; pgdidx <= pgdidx_limit; pgdidx++) {
+-		pud_t *pud;
++	nr = pgd_index(limit) + 1;
++	for (i = 0; i < nr; i++) {
++		p4d_t *p4d;
  
-@@ -406,13 +415,18 @@ static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
- pmd_t *lookup_pmd_address(unsigned long address)
- {
- 	pgd_t *pgd;
-+	p4d_t *p4d;
- 	pud_t *pud;
+-		if (pgdidx >= hole_low && pgdidx < hole_high)
++		if (i >= hole_low && i < hole_high)
+ 			continue;
  
- 	pgd = pgd_offset_k(address);
- 	if (pgd_none(*pgd))
- 		return NULL;
+-		if (!pgd_val(pgd[pgdidx]))
++		if (pgd_none(pgd[i]))
+ 			continue;
  
--	pud = pud_offset(pgd, address);
-+	p4d = p4d_offset(pgd, address);
-+	if (p4d_none(*p4d) || p4d_large(*p4d) || !p4d_present(*p4d))
-+		return NULL;
-+
-+	pud = pud_offset(p4d, address);
- 	if (pud_none(*pud) || pud_large(*pud) || !pud_present(*pud))
- 		return NULL;
+-		pud = pud_offset(&pgd[pgdidx], 0);
+-
+-		if (PTRS_PER_PUD > 1) /* not folded */
+-			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
+-
+-		for (pudidx = 0; pudidx < PTRS_PER_PUD; pudidx++) {
+-			pmd_t *pmd;
+-
+-			if (pgdidx == pgdidx_limit &&
+-			    pudidx > pudidx_limit)
+-				goto out;
+-
+-			if (pud_none(pud[pudidx]))
+-				continue;
+-
+-			pmd = pmd_offset(&pud[pudidx], 0);
+-
+-			if (PTRS_PER_PMD > 1) /* not folded */
+-				flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
+-
+-			for (pmdidx = 0; pmdidx < PTRS_PER_PMD; pmdidx++) {
+-				struct page *pte;
+-
+-				if (pgdidx == pgdidx_limit &&
+-				    pudidx == pudidx_limit &&
+-				    pmdidx > pmdidx_limit)
+-					goto out;
+-
+-				if (pmd_none(pmd[pmdidx]))
+-					continue;
+-
+-				pte = pmd_page(pmd[pmdidx]);
+-				flush |= (*func)(mm, pte, PT_PTE);
+-			}
+-		}
++		p4d = p4d_offset(&pgd[i], 0);
++		if (PTRS_PER_P4D > 1)
++			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
++		flush |= xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
+ 	}
  
-@@ -477,11 +491,13 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
- 
- 		list_for_each_entry(page, &pgd_list, lru) {
- 			pgd_t *pgd;
-+			p4d_t *p4d;
- 			pud_t *pud;
- 			pmd_t *pmd;
- 
- 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
--			pud = pud_offset(pgd, address);
-+			p4d = p4d_offset(pgd, address);
-+			pud = pud_offset(p4d, address);
- 			pmd = pmd_offset(pud, address);
- 			set_pte_atomic((pte_t *)pmd, pte);
- 		}
-@@ -836,9 +852,9 @@ static void unmap_pmd_range(pud_t *pud, unsigned long start, unsigned long end)
- 			pud_clear(pud);
+-out:
+ 	/* Do the top level last, so that the callbacks can use it as
+ 	   a cue to do final things like tlb flushes. */
+ 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
+@@ -1150,57 +1163,97 @@ static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl, bool unpin)
+ 	xen_free_ro_pages(pa, PAGE_SIZE);
  }
  
--static void unmap_pud_range(pgd_t *pgd, unsigned long start, unsigned long end)
-+static void unmap_pud_range(p4d_t *p4d, unsigned long start, unsigned long end)
- {
--	pud_t *pud = pud_offset(pgd, start);
-+	pud_t *pud = pud_offset(p4d, start);
- 
- 	/*
- 	 * Not on a GB page boundary?
-@@ -1004,8 +1020,8 @@ static long populate_pmd(struct cpa_data *cpa,
- 	return num_pages;
- }
- 
--static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
--			 pgprot_t pgprot)
-+static int populate_pud(struct cpa_data *cpa, unsigned long start, p4d_t *p4d,
-+			pgprot_t pgprot)
- {
- 	pud_t *pud;
- 	unsigned long end;
-@@ -1026,7 +1042,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
- 		cur_pages = (pre_end - start) >> PAGE_SHIFT;
- 		cur_pages = min_t(int, (int)cpa->numpages, cur_pages);
- 
--		pud = pud_offset(pgd, start);
-+		pud = pud_offset(p4d, start);
- 
- 		/*
- 		 * Need a PMD page?
-@@ -1047,7 +1063,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
- 	if (cpa->numpages == cur_pages)
- 		return cur_pages;
- 
--	pud = pud_offset(pgd, start);
-+	pud = pud_offset(p4d, start);
- 	pud_pgprot = pgprot_4k_2_large(pgprot);
- 
- 	/*
-@@ -1067,7 +1083,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
- 	if (start < end) {
- 		long tmp;
- 
--		pud = pud_offset(pgd, start);
-+		pud = pud_offset(p4d, start);
- 		if (pud_none(*pud))
- 			if (alloc_pmd_page(pud))
- 				return -1;
-@@ -1090,33 +1106,43 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
- {
- 	pgprot_t pgprot = __pgprot(_KERNPG_TABLE);
- 	pud_t *pud = NULL;	/* shut up gcc */
-+	p4d_t *p4d;
- 	pgd_t *pgd_entry;
- 	long ret;
- 
- 	pgd_entry = cpa->pgd + pgd_index(addr);
- 
-+	if (pgd_none(*pgd_entry)) {
-+		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
-+		if (!p4d)
-+			return -1;
++static void __init xen_cleanmfnmap_pmd(pmd_t *pmd, bool unpin)
++{
++	unsigned long pa;
++	pte_t *pte_tbl;
++	int i;
 +
-+		set_pgd(pgd_entry, __pgd(__pa(p4d) | _KERNPG_TABLE));
++	if (pmd_large(*pmd)) {
++		pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
++		xen_free_ro_pages(pa, PMD_SIZE);
++		return;
 +	}
 +
- 	/*
--	 * Allocate a PUD page and hand it down for mapping.
-+	 * Allocate a P4D page and hand it down for mapping.
- 	 */
--	if (pgd_none(*pgd_entry)) {
-+	p4d = p4d_offset(pgd_entry, addr);
-+	if (p4d_none(*p4d)) {
- 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
- 		if (!pud)
- 			return -1;
++	pte_tbl = pte_offset_kernel(pmd, 0);
++	for (i = 0; i < PTRS_PER_PTE; i++) {
++		if (pte_none(pte_tbl[i]))
++			continue;
++		pa = pte_pfn(pte_tbl[i]) << PAGE_SHIFT;
++		xen_free_ro_pages(pa, PAGE_SIZE);
++	}
++	set_pmd(pmd, __pmd(0));
++	xen_cleanmfnmap_free_pgtbl(pte_tbl, unpin);
++}
++
++static void __init xen_cleanmfnmap_pud(pud_t *pud, bool unpin)
++{
++	unsigned long pa;
++	pmd_t *pmd_tbl;
++	int i;
++
++	if (pud_large(*pud)) {
++		pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
++		xen_free_ro_pages(pa, PUD_SIZE);
++		return;
++	}
++
++	pmd_tbl = pmd_offset(pud, 0);
++	for (i = 0; i < PTRS_PER_PMD; i++) {
++		if (pmd_none(pmd_tbl[i]))
++			continue;
++		xen_cleanmfnmap_pmd(pmd_tbl + i, unpin);
++	}
++	set_pud(pud, __pud(0));
++	xen_cleanmfnmap_free_pgtbl(pmd_tbl, unpin);
++}
++
++static void __init xen_cleanmfnmap_p4d(p4d_t *p4d, bool unpin)
++{
++	unsigned long pa;
++	pud_t *pud_tbl;
++	int i;
++
++	if (p4d_large(*p4d)) {
++		pa = p4d_val(*p4d) & PHYSICAL_PAGE_MASK;
++		xen_free_ro_pages(pa, P4D_SIZE);
++		return;
++	}
++
++	pud_tbl = pud_offset(p4d, 0);
++	for (i = 0; i < PTRS_PER_PUD; i++) {
++		if (pud_none(pud_tbl[i]))
++			continue;
++		xen_cleanmfnmap_pud(pud_tbl + i, unpin);
++	}
++	set_p4d(p4d, __p4d(0));
++	xen_cleanmfnmap_free_pgtbl(pud_tbl, unpin);
++}
++
+ /*
+  * Since it is well isolated we can (and since it is perhaps large we should)
+  * also free the page tables mapping the initial P->M table.
+  */
+ static void __init xen_cleanmfnmap(unsigned long vaddr)
+ {
+-	unsigned long va = vaddr & PMD_MASK;
+-	unsigned long pa;
+-	pgd_t *pgd = pgd_offset_k(va);
+-	pud_t *pud_page = pud_offset(pgd, 0);
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	pte_t *pte;
++	pgd_t *pgd;
++	p4d_t *p4d;
+ 	unsigned int i;
+ 	bool unpin;
  
--		set_pgd(pgd_entry, __pgd(__pa(pud) | _KERNPG_TABLE));
-+		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
- 	}
+ 	unpin = (vaddr == 2 * PGDIR_SIZE);
+-	set_pgd(pgd, __pgd(0));
+-	do {
+-		pud = pud_page + pud_index(va);
+-		if (pud_none(*pud)) {
+-			va += PUD_SIZE;
+-		} else if (pud_large(*pud)) {
+-			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
+-			xen_free_ro_pages(pa, PUD_SIZE);
+-			va += PUD_SIZE;
+-		} else {
+-			pmd = pmd_offset(pud, va);
+-			if (pmd_large(*pmd)) {
+-				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
+-				xen_free_ro_pages(pa, PMD_SIZE);
+-			} else if (!pmd_none(*pmd)) {
+-				pte = pte_offset_kernel(pmd, va);
+-				set_pmd(pmd, __pmd(0));
+-				for (i = 0; i < PTRS_PER_PTE; ++i) {
+-					if (pte_none(pte[i]))
+-						break;
+-					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
+-					xen_free_ro_pages(pa, PAGE_SIZE);
+-				}
+-				xen_cleanmfnmap_free_pgtbl(pte, unpin);
+-			}
+-			va += PMD_SIZE;
+-			if (pmd_index(va))
+-				continue;
+-			set_pud(pud, __pud(0));
+-			xen_cleanmfnmap_free_pgtbl(pmd, unpin);
+-		}
+-
+-	} while (pud_index(va) || pmd_index(va));
+-	xen_cleanmfnmap_free_pgtbl(pud_page, unpin);
++	vaddr &= PMD_MASK;
++	pgd = pgd_offset_k(vaddr);
++	p4d = p4d_offset(pgd, 0);
++	for (i = 0; i < PTRS_PER_P4D; i++) {
++		if (p4d_none(p4d[i]))
++			continue;
++		xen_cleanmfnmap_p4d(p4d + i, unpin);
++	}
++	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++		set_pgd(pgd, __pgd(0));
++		xen_cleanmfnmap_free_pgtbl(p4d, unpin);
++	}
+ }
  
- 	pgprot_val(pgprot) &= ~pgprot_val(cpa->mask_clr);
- 	pgprot_val(pgprot) |=  pgprot_val(cpa->mask_set);
+ static void __init xen_pagetable_p2m_free(void)
+diff --git a/arch/x86/xen/mmu.h b/arch/x86/xen/mmu.h
+index 73809bb951b4..3fe2b3292915 100644
+--- a/arch/x86/xen/mmu.h
++++ b/arch/x86/xen/mmu.h
+@@ -5,6 +5,7 @@
  
--	ret = populate_pud(cpa, addr, pgd_entry, pgprot);
-+	ret = populate_pud(cpa, addr, p4d, pgprot);
- 	if (ret < 0) {
- 		/*
- 		 * Leave the PUD page in place in case some other CPU or thread
- 		 * already found it, but remove any useless entries we just
- 		 * added to it.
- 		 */
--		unmap_pud_range(pgd_entry, addr,
-+		unmap_pud_range(p4d, addr,
- 				addr + (cpa->numpages << PAGE_SHIFT));
- 		return ret;
- 	}
+ enum pt_level {
+ 	PT_PGD,
++	PT_P4D,
+ 	PT_PUD,
+ 	PT_PMD,
+ 	PT_PTE
 -- 
 2.11.0
 
