@@ -1,249 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B22528095D
-	for <linux-mm@kvack.org>; Sun, 12 Mar 2017 20:36:08 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q126so275317879pga.0
-        for <linux-mm@kvack.org>; Sun, 12 Mar 2017 17:36:08 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id y3si9868510pff.122.2017.03.12.17.36.00
-        for <linux-mm@kvack.org>;
-        Sun, 12 Mar 2017 17:36:01 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 08/10] mm: make rmap_walk void function
-Date: Mon, 13 Mar 2017 09:35:51 +0900
-Message-ID: <1489365353-28205-9-git-send-email-minchan@kernel.org>
-In-Reply-To: <1489365353-28205-1-git-send-email-minchan@kernel.org>
-References: <1489365353-28205-1-git-send-email-minchan@kernel.org>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DCDBF2808C0
+	for <linux-mm@kvack.org>; Sun, 12 Mar 2017 22:19:56 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id h89so82850945lfi.6
+        for <linux-mm@kvack.org>; Sun, 12 Mar 2017 19:19:56 -0700 (PDT)
+Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
+        by mx.google.com with ESMTPS id f23si5614957lfa.239.2017.03.12.19.19.53
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 12 Mar 2017 19:19:54 -0700 (PDT)
+Subject: Re: [RFC v2 10/10] mm, page_alloc: introduce MIGRATE_MIXED
+ migratetype
+References: <20170210172343.30283-1-vbabka@suse.cz>
+ <20170210172343.30283-11-vbabka@suse.cz>
+ <2743b3d4-743a-33db-fdbd-fa95edd35611@huawei.com>
+ <0a7c2eb0-e01b-10b0-7419-e6e5b1fa0e0b@suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <296cb740-f04d-6e2b-6480-4a426d2e57ce@huawei.com>
+Date: Mon, 13 Mar 2017 10:16:18 +0800
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <0a7c2eb0-e01b-10b0-7419-e6e5b1fa0e0b@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Hanjun Guo <guohanjun@huawei.com>
 
-There is no user of return value from rmap_walk friend so this
-patch makes them void function.
+Hi, Vlastimil,
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/ksm.h  |  5 ++---
- include/linux/rmap.h |  4 ++--
- mm/ksm.c             | 16 ++++++----------
- mm/rmap.c            | 32 +++++++++++++-------------------
- 4 files changed, 23 insertions(+), 34 deletions(-)
+On 2017/3/8 15:07, Vlastimil Babka wrote:
+> On 03/08/2017 03:16 AM, Yisheng Xie wrote:
+>> Hi Vlastimil ,
+>>
+>> On 2017/2/11 1:23, Vlastimil Babka wrote:
+>>> @@ -1977,7 +1978,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+>>>  	unsigned int current_order = page_order(page);
+>>>  	struct free_area *area;
+>>>  	int free_pages, good_pages;
+>>> -	int old_block_type;
+>>> +	int old_block_type, new_block_type;
+>>>  
+>>>  	/* Take ownership for orders >= pageblock_order */
+>>>  	if (current_order >= pageblock_order) {
+>>> @@ -1991,11 +1992,27 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+>>>  	if (!whole_block) {
+>>>  		area = &zone->free_area[current_order];
+>>>  		list_move(&page->lru, &area->free_list[start_type]);
+>>> -		return;
+>>> +		free_pages = 1 << current_order;
+>>> +		/* TODO: We didn't scan the block, so be pessimistic */
+>>> +		good_pages = 0;
+>>> +	} else {
+>>> +		free_pages = move_freepages_block(zone, page, start_type,
+>>> +							&good_pages);
+>>> +		/*
+>>> +		 * good_pages is now the number of movable pages, but if we
+>>> +		 * want UNMOVABLE or RECLAIMABLE, we consider all non-movable
+>>> +		 * as good (but we can't fully distinguish them)
+>>> +		 */
+>>> +		if (start_type != MIGRATE_MOVABLE)
+>>> +			good_pages = pageblock_nr_pages - free_pages -
+>>> +								good_pages;
+>>>  	}
+>>>  
+>>>  	free_pages = move_freepages_block(zone, page, start_type,
+>>>  						&good_pages);
+>> It seems this move_freepages_block() should be removed, if we can steal whole block
+>> then just  do it. If not we can check whether we can set it as mixed mt, right?
+>> Please let me know if I miss something..
+> 
+> Right. My results suggested this patch was buggy, so this might be the
+> bug (or one of the bugs), thanks for pointing it out. I've reposted v3
+> without the RFC patches 9 and 10 and will return to them later.
+Yes, I also have test about this patch on v4.1, but can not get better perf.
+And it would be much appreciative if you can Cc me when send patchs about 9,10 later.
 
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index e1cfda4..78b44a0 100644
---- a/include/linux/ksm.h
-+++ b/include/linux/ksm.h
-@@ -61,7 +61,7 @@ static inline void set_page_stable_node(struct page *page,
- struct page *ksm_might_need_to_copy(struct page *page,
- 			struct vm_area_struct *vma, unsigned long address);
- 
--int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
-+void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
- void ksm_migrate_page(struct page *newpage, struct page *oldpage);
- 
- #else  /* !CONFIG_KSM */
-@@ -94,10 +94,9 @@ static inline int page_referenced_ksm(struct page *page,
- 	return 0;
- }
- 
--static inline int rmap_walk_ksm(struct page *page,
-+static inline void rmap_walk_ksm(struct page *page,
- 			struct rmap_walk_control *rwc)
- {
--	return 0;
- }
- 
- static inline void ksm_migrate_page(struct page *newpage, struct page *oldpage)
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 6028c38..1d7d457c 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -264,8 +264,8 @@ struct rmap_walk_control {
- 	bool (*invalid_vma)(struct vm_area_struct *vma, void *arg);
- };
- 
--int rmap_walk(struct page *page, struct rmap_walk_control *rwc);
--int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
-+void rmap_walk(struct page *page, struct rmap_walk_control *rwc);
-+void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
- 
- #else	/* !CONFIG_MMU */
- 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 19b4f2d..6edffb9 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1933,11 +1933,10 @@ struct page *ksm_might_need_to_copy(struct page *page,
- 	return new_page;
- }
- 
--int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
-+void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- {
- 	struct stable_node *stable_node;
- 	struct rmap_item *rmap_item;
--	int ret = SWAP_AGAIN;
- 	int search_new_forks = 0;
- 
- 	VM_BUG_ON_PAGE(!PageKsm(page), page);
-@@ -1950,7 +1949,7 @@ int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- 
- 	stable_node = page_stable_node(page);
- 	if (!stable_node)
--		return ret;
-+		return;
- again:
- 	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
- 		struct anon_vma *anon_vma = rmap_item->anon_vma;
-@@ -1978,23 +1977,20 @@ int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- 			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
- 				continue;
- 
--			ret = rwc->rmap_one(page, vma,
--					rmap_item->address, rwc->arg);
--			if (ret != SWAP_AGAIN) {
-+			if (SWAP_AGAIN != rwc->rmap_one(page, vma,
-+					rmap_item->address, rwc->arg)) {
- 				anon_vma_unlock_read(anon_vma);
--				goto out;
-+				return;
- 			}
- 			if (rwc->done && rwc->done(page)) {
- 				anon_vma_unlock_read(anon_vma);
--				goto out;
-+				return;
- 			}
- 		}
- 		anon_vma_unlock_read(anon_vma);
- 	}
- 	if (!search_new_forks++)
- 		goto again;
--out:
--	return ret;
- }
- 
- #ifdef CONFIG_MIGRATION
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 50c2851..fbffc5a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1603,13 +1603,12 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
-  * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
-  * LOCKED.
-  */
--static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
-+static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
- 		bool locked)
- {
- 	struct anon_vma *anon_vma;
- 	pgoff_t pgoff_start, pgoff_end;
- 	struct anon_vma_chain *avc;
--	int ret = SWAP_AGAIN;
- 
- 	if (locked) {
- 		anon_vma = page_anon_vma(page);
-@@ -1619,7 +1618,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
- 		anon_vma = rmap_walk_anon_lock(page, rwc);
- 	}
- 	if (!anon_vma)
--		return ret;
-+		return;
- 
- 	pgoff_start = page_to_pgoff(page);
- 	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
-@@ -1633,8 +1632,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
- 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
- 			continue;
- 
--		ret = rwc->rmap_one(page, vma, address, rwc->arg);
--		if (ret != SWAP_AGAIN)
-+		if (SWAP_AGAIN != rwc->rmap_one(page, vma, address, rwc->arg))
- 			break;
- 		if (rwc->done && rwc->done(page))
- 			break;
-@@ -1642,7 +1640,6 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
- 
- 	if (!locked)
- 		anon_vma_unlock_read(anon_vma);
--	return ret;
- }
- 
- /*
-@@ -1658,13 +1655,12 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
-  * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
-  * LOCKED.
-  */
--static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
-+static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- 		bool locked)
- {
- 	struct address_space *mapping = page_mapping(page);
- 	pgoff_t pgoff_start, pgoff_end;
- 	struct vm_area_struct *vma;
--	int ret = SWAP_AGAIN;
- 
- 	/*
- 	 * The page lock not only makes sure that page->mapping cannot
-@@ -1675,7 +1671,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 
- 	if (!mapping)
--		return ret;
-+		return;
- 
- 	pgoff_start = page_to_pgoff(page);
- 	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
-@@ -1690,8 +1686,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
- 			continue;
- 
--		ret = rwc->rmap_one(page, vma, address, rwc->arg);
--		if (ret != SWAP_AGAIN)
-+		if (SWAP_AGAIN != rwc->rmap_one(page, vma, address, rwc->arg))
- 			goto done;
- 		if (rwc->done && rwc->done(page))
- 			goto done;
-@@ -1700,28 +1695,27 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- done:
- 	if (!locked)
- 		i_mmap_unlock_read(mapping);
--	return ret;
- }
- 
--int rmap_walk(struct page *page, struct rmap_walk_control *rwc)
-+void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
- {
- 	if (unlikely(PageKsm(page)))
--		return rmap_walk_ksm(page, rwc);
-+		rmap_walk_ksm(page, rwc);
- 	else if (PageAnon(page))
--		return rmap_walk_anon(page, rwc, false);
-+		rmap_walk_anon(page, rwc, false);
- 	else
--		return rmap_walk_file(page, rwc, false);
-+		rmap_walk_file(page, rwc, false);
- }
- 
- /* Like rmap_walk, but caller holds relevant rmap lock */
--int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
-+void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
- {
- 	/* no ksm support for now */
- 	VM_BUG_ON_PAGE(PageKsm(page), page);
- 	if (PageAnon(page))
--		return rmap_walk_anon(page, rwc, true);
-+		rmap_walk_anon(page, rwc, true);
- 	else
--		return rmap_walk_file(page, rwc, true);
-+		rmap_walk_file(page, rwc, true);
- }
- 
- #ifdef CONFIG_HUGETLB_PAGE
--- 
-2.7.4
+Thanks
+Yisheng Xie.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
