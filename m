@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90CE16B0402
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AB11B6B0403
 	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 01:50:32 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y17so283719881pgh.2
+Received: by mail-pg0-f71.google.com with SMTP id f21so283688017pgi.4
         for <linux-mm@kvack.org>; Sun, 12 Mar 2017 22:50:32 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id l3si10474533pgl.298.2017.03.12.22.50.31
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id e3si10487362pgn.333.2017.03.12.22.50.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sun, 12 Mar 2017 22:50:31 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 08/26] x86/efi: handle p4d in EFI pagetables
-Date: Mon, 13 Mar 2017 08:50:02 +0300
-Message-Id: <20170313055020.69655-9-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 07/26] x86/kexec: support p4d_t
+Date: Mon, 13 Mar 2017 08:50:01 +0300
+Message-Id: <20170313055020.69655-8-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
 References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,93 +20,93 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Allocate additional page table level and change efi_sync_low_kernel_mappings()
-to make syncing logic work with additional page table level.
+Handle additional page table level in kexec code.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
 ---
- arch/x86/platform/efi/efi_64.c | 33 +++++++++++++++++++++++----------
- 1 file changed, 23 insertions(+), 10 deletions(-)
+ arch/x86/include/asm/kexec.h       |  1 +
+ arch/x86/kernel/machine_kexec_32.c |  4 +++-
+ arch/x86/kernel/machine_kexec_64.c | 14 ++++++++++++--
+ 3 files changed, 16 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
-index 8544dae3d1b4..34d019f75239 100644
---- a/arch/x86/platform/efi/efi_64.c
-+++ b/arch/x86/platform/efi/efi_64.c
-@@ -135,6 +135,7 @@ static pgd_t *efi_pgd;
- int __init efi_alloc_page_tables(void)
- {
- 	pgd_t *pgd;
+diff --git a/arch/x86/include/asm/kexec.h b/arch/x86/include/asm/kexec.h
+index 282630e4c6ea..70ef205489f0 100644
+--- a/arch/x86/include/asm/kexec.h
++++ b/arch/x86/include/asm/kexec.h
+@@ -164,6 +164,7 @@ struct kimage_arch {
+ };
+ #else
+ struct kimage_arch {
 +	p4d_t *p4d;
  	pud_t *pud;
- 	gfp_t gfp_mask;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+diff --git a/arch/x86/kernel/machine_kexec_32.c b/arch/x86/kernel/machine_kexec_32.c
+index 469b23d6acc2..5f43cec296c5 100644
+--- a/arch/x86/kernel/machine_kexec_32.c
++++ b/arch/x86/kernel/machine_kexec_32.c
+@@ -103,6 +103,7 @@ static void machine_kexec_page_table_set_one(
+ 	pgd_t *pgd, pmd_t *pmd, pte_t *pte,
+ 	unsigned long vaddr, unsigned long paddr)
+ {
++	p4d_t *p4d;
+ 	pud_t *pud;
  
-@@ -147,15 +148,20 @@ int __init efi_alloc_page_tables(void)
- 		return -ENOMEM;
+ 	pgd += pgd_index(vaddr);
+@@ -110,7 +111,8 @@ static void machine_kexec_page_table_set_one(
+ 	if (!(pgd_val(*pgd) & _PAGE_PRESENT))
+ 		set_pgd(pgd, __pgd(__pa(pmd) | _PAGE_PRESENT));
+ #endif
+-	pud = pud_offset(pgd, vaddr);
++	p4d = p4d_offset(pgd, vaddr);
++	pud = pud_offset(p4d, vaddr);
+ 	pmd = pmd_offset(pud, vaddr);
+ 	if (!(pmd_val(*pmd) & _PAGE_PRESENT))
+ 		set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
+diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+index 857cdbd02867..085c3b300d32 100644
+--- a/arch/x86/kernel/machine_kexec_64.c
++++ b/arch/x86/kernel/machine_kexec_64.c
+@@ -36,6 +36,7 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
  
- 	pgd = efi_pgd + pgd_index(EFI_VA_END);
-+	p4d = p4d_alloc(&init_mm, pgd, EFI_VA_END);
-+	if (!p4d) {
-+		free_page((unsigned long)efi_pgd);
-+		return -ENOMEM;
+ static void free_transition_pgtable(struct kimage *image)
+ {
++	free_page((unsigned long)image->arch.p4d);
+ 	free_page((unsigned long)image->arch.pud);
+ 	free_page((unsigned long)image->arch.pmd);
+ 	free_page((unsigned long)image->arch.pte);
+@@ -43,6 +44,7 @@ static void free_transition_pgtable(struct kimage *image)
+ 
+ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+ {
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+@@ -53,13 +55,21 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+ 	paddr = __pa(page_address(image->control_code_page)+PAGE_SIZE);
+ 	pgd += pgd_index(vaddr);
+ 	if (!pgd_present(*pgd)) {
++		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL);
++		if (!p4d)
++			goto err;
++		image->arch.p4d = p4d;
++		set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE));
 +	}
- 
--	pud = pud_alloc_one(NULL, 0);
-+	pud = pud_alloc(&init_mm, p4d, EFI_VA_END);
- 	if (!pud) {
-+		if (CONFIG_PGTABLE_LEVELS > 4)
-+			free_page((unsigned long) pgd_page_vaddr(*pgd));
- 		free_page((unsigned long)efi_pgd);
- 		return -ENOMEM;
++	p4d = p4d_offset(pgd, vaddr);
++	if (!p4d_present(*p4d)) {
+ 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL);
+ 		if (!pud)
+ 			goto err;
+ 		image->arch.pud = pud;
+-		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
++		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
  	}
- 
--	pgd_populate(NULL, pgd, pud);
--
- 	return 0;
- }
- 
-@@ -190,6 +196,18 @@ void efi_sync_low_kernel_mappings(void)
- 	num_entries = pgd_index(EFI_VA_END) - pgd_index(PAGE_OFFSET);
- 	memcpy(pgd_efi, pgd_k, sizeof(pgd_t) * num_entries);
- 
-+	/* The same story as with PGD entries */
-+	BUILD_BUG_ON(p4d_index(EFI_VA_END) != p4d_index(MODULES_END));
-+	BUILD_BUG_ON((EFI_VA_START & P4D_MASK) != (EFI_VA_END & P4D_MASK));
-+
-+	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
-+	pgd_k = pgd_offset_k(EFI_VA_END);
-+	p4d_efi = p4d_offset(pgd_efi, 0);
-+	p4d_k = p4d_offset(pgd_k, 0);
-+
-+	num_entries = p4d_index(EFI_VA_END);
-+	memcpy(p4d_efi, p4d_k, sizeof(p4d_t) * num_entries);
-+
- 	/*
- 	 * We share all the PUD entries apart from those that map the
- 	 * EFI regions. Copy around them.
-@@ -197,20 +215,15 @@ void efi_sync_low_kernel_mappings(void)
- 	BUILD_BUG_ON((EFI_VA_START & ~PUD_MASK) != 0);
- 	BUILD_BUG_ON((EFI_VA_END & ~PUD_MASK) != 0);
- 
--	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
--	p4d_efi = p4d_offset(pgd_efi, 0);
-+	p4d_efi = p4d_offset(pgd_efi, EFI_VA_END);
-+	p4d_k = p4d_offset(pgd_k, EFI_VA_END);
- 	pud_efi = pud_offset(p4d_efi, 0);
--
--	pgd_k = pgd_offset_k(EFI_VA_END);
--	p4d_k = p4d_offset(pgd_k, 0);
- 	pud_k = pud_offset(p4d_k, 0);
- 
- 	num_entries = pud_index(EFI_VA_END);
- 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
- 
--	p4d_efi = p4d_offset(pgd_efi, EFI_VA_START);
- 	pud_efi = pud_offset(p4d_efi, EFI_VA_START);
--	p4d_k = p4d_offset(pgd_k, EFI_VA_START);
- 	pud_k = pud_offset(p4d_k, EFI_VA_START);
- 
- 	num_entries = PTRS_PER_PUD - pud_index(EFI_VA_START);
+-	pud = pud_offset(pgd, vaddr);
++	pud = pud_offset(p4d, vaddr);
+ 	if (!pud_present(*pud)) {
+ 		pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+ 		if (!pmd)
 -- 
 2.11.0
 
