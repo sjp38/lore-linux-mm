@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C95DB6B038D
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 10:33:33 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 190so224076085pgg.3
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 07:33:33 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 16si11613097pfc.284.2017.03.13.07.33.32
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B7B2C6B038E
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 10:33:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e129so298429707pfh.1
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 07:33:36 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id u29si11555856pgn.418.2017.03.13.07.33.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 07:33:33 -0700 (PDT)
+        Mon, 13 Mar 2017 07:33:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 3/6] x86/gup: Add 5-level paging support
-Date: Mon, 13 Mar 2017 17:33:06 +0300
-Message-Id: <20170313143309.16020-4-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/6] x86/ident_map: Add 5-level paging support
+Date: Mon, 13 Mar 2017 17:33:07 +0300
+Message-Id: <20170313143309.16020-5-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
 References: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,91 +20,100 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-get_user_pages_fast() has to handle additional page table level.
+Add additional page table level handing. It's mostly mechanical.
+
+The only quirk is that with p4d folded, 'pgd' is equal to 'p4d' in
+kernel_ident_mapping_init(). pgd entry has to point pud page table in
+this case.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/gup.c | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
+ arch/x86/mm/ident_map.c | 51 ++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 44 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 1f3b6ef105cd..456dfdfd2249 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -76,9 +76,9 @@ static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
+diff --git a/arch/x86/mm/ident_map.c b/arch/x86/mm/ident_map.c
+index 4473cb4f8b90..1c3f166bd8c3 100644
+--- a/arch/x86/mm/ident_map.c
++++ b/arch/x86/mm/ident_map.c
+@@ -45,6 +45,34 @@ static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
+ 	return 0;
  }
  
- /*
-- * 'pteval' can come from a pte, pmd or pud.  We only check
-+ * 'pteval' can come from a pte, pmd, pud or p4d.  We only check
-  * _PAGE_PRESENT, _PAGE_USER, and _PAGE_RW in here which are the
-- * same value on all 3 types.
-+ * same value on all 4 types.
-  */
- static inline int pte_allows_gup(unsigned long pteval, int write)
- {
-@@ -295,13 +295,13 @@ static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
- 	return 1;
- }
- 
--static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
-+static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
- 			int write, struct page **pages, int *nr)
- {
- 	unsigned long next;
- 	pud_t *pudp;
- 
--	pudp = pud_offset(&pgd, addr);
-+	pudp = pud_offset(&p4d, addr);
- 	do {
- 		pud_t pud = *pudp;
- 
-@@ -320,6 +320,27 @@ static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
- 	return 1;
- }
- 
-+static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
-+			int write, struct page **pages, int *nr)
++static int ident_p4d_init(struct x86_mapping_info *info, p4d_t *p4d_page,
++			  unsigned long addr, unsigned long end)
 +{
 +	unsigned long next;
-+	p4d_t *p4dp;
 +
-+	p4dp = p4d_offset(&pgd, addr);
-+	do {
-+		p4d_t p4d = *p4dp;
++	for (; addr < end; addr = next) {
++		p4d_t *p4d = p4d_page + p4d_index(addr);
++		pud_t *pud;
 +
-+		next = p4d_addr_end(addr, end);
-+		if (p4d_none(p4d))
-+			return 0;
-+		BUILD_BUG_ON(p4d_large(p4d));
-+		if (!gup_pud_range(p4d, addr, next, write, pages, nr))
-+			return 0;
-+	} while (p4dp++, addr = next, addr != end);
++		next = (addr & P4D_MASK) + P4D_SIZE;
++		if (next > end)
++			next = end;
 +
-+	return 1;
++		if (p4d_present(*p4d)) {
++			pud = pud_offset(p4d, 0);
++			ident_pud_init(info, pud, addr, next);
++			continue;
++		}
++		pud = (pud_t *)info->alloc_pgt_page(info->context);
++		if (!pud)
++			return -ENOMEM;
++		ident_pud_init(info, pud, addr, next);
++		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
++	}
++
++	return 0;
 +}
 +
- /*
-  * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
-  * back to the regular GUP.
-@@ -368,7 +389,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none(pgd))
- 			break;
--		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
-+		if (!gup_p4d_range(pgd, addr, next, write, pages, &nr))
- 			break;
- 	} while (pgdp++, addr = next, addr != end);
- 	local_irq_restore(flags);
-@@ -440,7 +461,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none(pgd))
- 			goto slow;
--		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
-+		if (!gup_p4d_range(pgd, addr, next, write, pages, &nr))
- 			goto slow;
- 	} while (pgdp++, addr = next, addr != end);
- 	local_irq_enable();
+ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
+ 			      unsigned long pstart, unsigned long pend)
+ {
+@@ -55,27 +83,36 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
+ 
+ 	for (; addr < end; addr = next) {
+ 		pgd_t *pgd = pgd_page + pgd_index(addr);
+-		pud_t *pud;
++		p4d_t *p4d;
+ 
+ 		next = (addr & PGDIR_MASK) + PGDIR_SIZE;
+ 		if (next > end)
+ 			next = end;
+ 
+ 		if (pgd_present(*pgd)) {
+-			pud = pud_offset(pgd, 0);
+-			result = ident_pud_init(info, pud, addr, next);
++			p4d = p4d_offset(pgd, 0);
++			result = ident_p4d_init(info, p4d, addr, next);
+ 			if (result)
+ 				return result;
+ 			continue;
+ 		}
+ 
+-		pud = (pud_t *)info->alloc_pgt_page(info->context);
+-		if (!pud)
++		p4d = (p4d_t *)info->alloc_pgt_page(info->context);
++		if (!p4d)
+ 			return -ENOMEM;
+-		result = ident_pud_init(info, pud, addr, next);
++		result = ident_p4d_init(info, p4d, addr, next);
+ 		if (result)
+ 			return result;
+-		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
++		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++			set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE));
++		} else {
++			/*
++			 * With p4d folded, pgd is equal to p4d.
++			 * pgd entry has to point pud page table in this case.
++			 */
++			pud_t *pud = pud_offset(p4d, 0);
++			set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
++		}
+ 	}
+ 
+ 	return 0;
 -- 
 2.11.0
 
