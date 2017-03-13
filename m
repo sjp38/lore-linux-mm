@@ -1,104 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B5F76B038A
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:17:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w189so299209108pfb.4
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:17:58 -0700 (PDT)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id j10si11712199pfa.40.2017.03.13.08.17.57
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E47E6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:30:15 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id u81so124741233uau.6
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:30:15 -0700 (PDT)
+Received: from mail-vk0-x234.google.com (mail-vk0-x234.google.com. [2607:f8b0:400c:c05::234])
+        by mx.google.com with ESMTPS id g30si226978uab.157.2017.03.13.08.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 08:17:57 -0700 (PDT)
-Received: by mail-pf0-x235.google.com with SMTP id j5so70480167pfb.2
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:17:57 -0700 (PDT)
+        Mon, 13 Mar 2017 08:30:14 -0700 (PDT)
+Received: by mail-vk0-x234.google.com with SMTP id d188so36926532vka.0
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:30:14 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170313083314.GA31518@dhcp22.suse.cz>
-References: <1489316770-25362-1-git-send-email-ysxie@foxmail.com> <20170313083314.GA31518@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 13 Mar 2017 08:17:56 -0700
-Message-ID: <CALvZod4NDM5i9ukWpNpnOLHKdOiPxSVmJmifT1cZ7vaazcJ89A@mail.gmail.com>
-Subject: Re: [PATCH v3 RFC] mm/vmscan: more restrictive condition for retry of shrink_zones
+In-Reply-To: <alpine.DEB.2.20.1703131446410.3558@nanos>
+References: <20170306141721.9188-1-dsafonov@virtuozzo.com> <20170306141721.9188-5-dsafonov@virtuozzo.com>
+ <alpine.DEB.2.20.1703131035020.3558@nanos> <35a16a2c-c799-fe0c-2689-bf105b508663@virtuozzo.com>
+ <alpine.DEB.2.20.1703131446410.3558@nanos>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 13 Mar 2017 08:29:53 -0700
+Message-ID: <CALCETrXzUXa9i_9ZoMMhH27U+V2pQZE4cM7L7n0wNsTzmWHW3Q@mail.gmail.com>
+Subject: Re: [PATCHv6 4/5] x86/mm: check in_compat_syscall() instead
+ TIF_ADDR32 for mmap(MAP_32BIT)
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Yisheng Xie <ysxie@foxmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, riel@redhat.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, xieyisheng1@huawei.com, guohanjun@huawei.com, Xishi Qiu <qiuxishi@huawei.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Mar 13, 2017 at 1:33 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> Please do not post new version after a single feedback and try to wait
-> for more review to accumulate. This is in the 3rd version and it is not
-> clear why it is still an RFC.
->
-> On Sun 12-03-17 19:06:10, Yisheng Xie wrote:
->> From: Yisheng Xie <xieyisheng1@huawei.com>
+On Mon, Mar 13, 2017 at 6:47 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Mon, 13 Mar 2017, Dmitry Safonov wrote:
+>> On 03/13/2017 12:39 PM, Thomas Gleixner wrote:
+>> > On Mon, 6 Mar 2017, Dmitry Safonov wrote:
+>> >
+>> > > Result of mmap() calls with MAP_32BIT flag at this moment depends
+>> > > on thread flag TIF_ADDR32, which is set during exec() for 32-bit apps.
+>> > > It's broken as the behavior of mmap() shouldn't depend on exec-ed
+>> > > application's bitness. Instead, it should check the bitness of mmap()
+>> > > syscall.
+>> > > How it worked before:
+>> > > o for 32-bit compatible binaries it is completely ignored. Which was
+>> > > fine when there were one mmap_base, computed for 32-bit syscalls.
+>> > > After introducing mmap_compat_base 64-bit syscalls do use computed
+>> > > for 64-bit syscalls mmap_base, which means that we can allocate 64-bit
+>> > > address with 64-bit syscall in application launched from 32-bit
+>> > > compatible binary. And ignoring this flag is not expected behavior.
+>> >
+>> > Well, the real question here is, whether we should allow 32bit applications
+>> > to obtain 64bit mappings at all. We can very well force 32bit applications
+>> > into the 4GB address space as it was before your mmap base splitup and be
+>> > done with it.
 >>
->> When we enter do_try_to_free_pages, the may_thrash is always clear, and
->> it will retry shrink zones to tap cgroup's reserves memory by setting
->> may_thrash when the former shrink_zones reclaim nothing.
+>> Hmm, yes, we could restrict 32bit applications to 32bit mappings only.
+>> But the approach which I tried to follow in the patches set, it was do
+>> not base the logic on the bitness of launched applications
+>> (native/compat) - only base on bitness of the performing syscall.
+>> The idea was suggested by Andy and I made mmap() logic here independent
+>> from original application's bitness.
 >>
->> However, when memcg is disabled or on legacy hierarchy, it should not do
->> this useless retry at all, for we do not have any cgroup's reserves
->> memory to tap, and we have already done hard work but made no progress.
->>
->> To avoid this time costly and useless retrying, add a stub function
->> mem_cgroup_thrashed() and return true when memcg is disabled or on
->> legacy hierarchy.
->
-> Have you actually seen this as a bad behavior? On which workload? Or
-> have spotted this by the code review?
->
-> Please note that more than _what_ it is more interesting _why_ the patch
-> has been prepared.
->
-> I agree the current additional round of reclaim is just lame because we
-> are trying hard to control the retry logic from the page allocator which
-> is a sufficient justification to fix this IMO. But I really hate the
-> name. At this point we do not have any idea that the memcg is trashing
-> as the name of the function suggests.
->
-> All of them simply might not have any reclaimable pages. So I would
-> suggest either a better name e.g. memcg_allow_lowmem_reclaim() or,
-> preferably, fix this properly. E.g. something like the following.
-> ---
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bae698484e8e..989ba9761921 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -99,6 +99,9 @@ struct scan_control {
->         /* Can cgroups be reclaimed below their normal consumption range? */
->         unsigned int may_thrash:1;
->
-> +       /* Did we have any memcg protected by the low limit */
-> +       unsigned int memcg_low_protection:1;
-> +
->         unsigned int hibernation_mode:1;
->
->         /* One of the zones is ready for compaction */
-> @@ -2513,6 +2516,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->                         if (mem_cgroup_low(root, memcg)) {
->                                 if (!sc->may_thrash)
->                                         continue;
-> +                               sc->memcg_low_protection = true;
+>> It also seems to me simpler:
+>> if 32-bit application wants to allocate 64-bit mapping, it should
+>> long-jump with 64-bit segment descriptor and do `syscall` instruction
+>> for 64-bit syscall entry path. So, in my point of view after this dance
+>> the application does not differ much from native 64-bit binary and can
+>> have 64-bit address mapping.
 
-I think you wanted to put this statement before the continue otherwise
-it will just disable the sc->may_thrash (second reclaim pass)
-altogether.
+I agree.
 
->                                 mem_cgroup_events(memcg, MEMCG_LOW, 1);
->                         }
 >
-> @@ -2774,7 +2778,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->                 return 1;
+> Works for me, but it lacks documentation .....
 >
->         /* Untapped cgroup reserves?  Don't OOM, retry. */
-> -       if (!sc->may_thrash) {
-> +       if ( sc->memcg_low_protection && !sc->may_thrash) {
->                 sc->priority = initial_priority;
->                 sc->may_thrash = 1;
->                 goto retry;
-> --
-> Michal Hocko
-> SUSE Labs
+> Thanks,
+>
+>         tglx
+
+
+
+-- 
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
