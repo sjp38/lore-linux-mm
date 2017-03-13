@@ -1,151 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A5916B0038
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:54:43 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g2so293783599pge.7
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 03:54:43 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w7si11102938pgw.107.2017.03.13.03.54.42
-        for <linux-mm@kvack.org>;
-        Mon, 13 Mar 2017 03:54:42 -0700 (PDT)
-Date: Mon, 13 Mar 2017 10:54:33 +0000
-From: Brian Starkey <brian.starkey@arm.com>
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-Message-ID: <20170313105433.GA12980@e106950-lin.cambridge.arm.com>
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <20170303132949.GC31582@dhcp22.suse.cz>
- <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
- <20170306074258.GA27953@dhcp22.suse.cz>
- <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
- <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
- <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
- <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
- <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
- <CA+M3ks6R=n4n54wofK7pYcWoQKUhzyWQytBO90+pRDRrAhi3ww@mail.gmail.com>
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ABBC86B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:56:02 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a189so236650877qkc.4
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 03:56:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r3si128646qkb.46.2017.03.13.03.56.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Mar 2017 03:56:01 -0700 (PDT)
+Date: Mon, 13 Mar 2017 11:55:54 +0100
+From: Igor Mammedov <imammedo@redhat.com>
+Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
+Message-ID: <20170313115554.41d16b1f@nial.brq.redhat.com>
+In-Reply-To: <20170309125400.GI11592@dhcp22.suse.cz>
+References: <20170227154304.GK26504@dhcp22.suse.cz>
+	<1488462828-174523-1-git-send-email-imammedo@redhat.com>
+	<20170302142816.GK1404@dhcp22.suse.cz>
+	<20170302180315.78975d4b@nial.brq.redhat.com>
+	<20170303082723.GB31499@dhcp22.suse.cz>
+	<20170303183422.6358ee8f@nial.brq.redhat.com>
+	<20170306145417.GG27953@dhcp22.suse.cz>
+	<20170307134004.58343e14@nial.brq.redhat.com>
+	<20170309125400.GI11592@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <CA+M3ks6R=n4n54wofK7pYcWoQKUhzyWQytBO90+pRDRrAhi3ww@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Cc: Laura Abbott <labbott@redhat.com>, Mark Brown <broonie@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Daniel Vetter <daniel.vetter@intel.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y.
+ Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz
 
-On Sun, Mar 12, 2017 at 02:34:14PM +0100, Benjamin Gaignard wrote:
->2017-03-09 18:38 GMT+01:00 Laura Abbott <labbott@redhat.com>:
->> On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
->>> 2017-03-06 17:04 GMT+01:00 Daniel Vetter <daniel@ffwll.ch>:
->>>> On Mon, Mar 06, 2017 at 11:58:05AM +0100, Mark Brown wrote:
->>>>> On Mon, Mar 06, 2017 at 11:40:41AM +0100, Daniel Vetter wrote:
->>>>>
->>>>>> No one gave a thing about android in upstream, so Greg KH just dumped it
->>>>>> all into staging/android/. We've discussed ION a bunch of times, recorded
->>>>>> anything we'd like to fix in staging/android/TODO, and Laura's patch
->>>>>> series here addresses a big chunk of that.
->>>>>
->>>>>> This is pretty much the same approach we (gpu folks) used to de-stage the
->>>>>> syncpt stuff.
->>>>>
->>>>> Well, there's also the fact that quite a few people have issues with the
->>>>> design (like Laurent).  It seems like a lot of them have either got more
->>>>> comfortable with it over time, or at least not managed to come up with
->>>>> any better ideas in the meantime.
->>>>
->>>> See the TODO, it has everything a really big group (look at the patch for
->>>> the full Cc: list) figured needs to be improved at LPC 2015. We don't just
->>>> merge stuff because merging stuff is fun :-)
->>>>
->>>> Laurent was even in that group ...
->>>> -Daniel
->>>
->>> For me those patches are going in the right direction.
->>>
->>> I still have few questions:
->>> - since alignment management has been remove from ion-core, should it
->>> be also removed from ioctl structure ?
->>
->> Yes, I think I'm going to go with the suggestion to fixup the ABI
->> so we don't need the compat layer and as part of that I'm also
->> dropping the align argument.
->>
->>> - can you we ride off ion_handle (at least in userland) and only
->>> export a dma-buf descriptor ?
->>
->> Yes, I think this is the right direction given we're breaking
->> everything anyway. I was debating trying to keep the two but
->> moving to only dma bufs is probably cleaner. The only reason
->> I could see for keeping the handles is running out of file
->> descriptors for dma-bufs but that seems unlikely.
->>>
->>> In the future how can we add new heaps ?
->>> Some platforms have very specific memory allocation
->>> requirements (just have a look in the number of gem custom allocator in drm)
->>> Do you plan to add heap type/mask for each ?
->>
->> Yes, that was my thinking.
->
->My concern is about the policy to adding heaps, will you accept
->"customs" heap per
->platforms ? per devices ? or only generic ones ?
->If you are too strict, we will have lot of out-of-tree heaps and if
->you accept of of them
->it will be a nightmare to maintain....
->
+On Thu, 9 Mar 2017 13:54:00 +0100
+Michal Hocko <mhocko@kernel.org> wrote:
 
-Are you concerned about actual heaps (e.g. a carveout at 0x80000000 vs
-a carveout at 0x60000000) or heap types?
+[...]
+> > It's major regression if you remove auto online in kernels that
+> > run on top of x86 kvm/vmware hypervisors, making API cleanups
+> > while breaking useful functionality doesn't make sense.
+> > 
+> > I would ACK config option removal if auto online keeps working
+> > for all x86 hypervisors (hyperv/xen isn't the only who needs it)
+> > and keep kernel CLI option to override default.
+> > 
+> > That doesn't mean that others will agree with flipping default,
+> > that's why config option has been added.
+> > 
+> > Now to sum up what's been discussed on this thread, there were 2
+> > different issues discussed:
+> >   1) memory hotplug: remove in kernel auto online for all
+> >                      except of hyperv/xen
+> > 
+> >        - suggested RFC is not acceptable from virt point of view
+> >          as it regresses guests on top of x86 kvm/vmware which
+> >          both use ACPI based memory hotplug.
+> > 
+> >        - udev/userspace solution doesn't work in practice as it's
+> >          too slow and unreliable when system is under load which
+> >          is quite common in virt usecase. That's why auto online
+> >          has been introduced in the first place.  
+> 
+> Please try to be more specific why "too slow" is a problem. Also how
+> much slower are we talking about?
+In virt case on host with lots VMs, userspace handler
+processing could be scheduled late enough to trigger a race
+between (guest memory going away/OOM handler) and memory
+coming online.
 
-For heap types, I think the policy can be strict - if it's generally
-useful then it should live in-tree in ion. Otherwise, it would be
-out-of-tree. I'd expect most "custom" heaps to be parameterisable to
-the point of being generally useful.
+>  
+> >   2) memory unplug: online memory as movable
+> > 
+> >        - doesn't work currently with udev rule due to kernel
+> >          issues https://bugzilla.redhat.com/show_bug.cgi?id=1314306#c7  
+> 
+> These should be fixed
+>  
+> >        - could be fixed both for in kernel auto online and udev
+> >          with following patch:
+> >          https://bugzilla.redhat.com/attachment.cgi?id=1146332
+> >          but fixing it this way exposes zone disbalance issues,
+> >          which are not present in current kernel as blocks are
+> >          onlined in Zone Normal. So this is area to work and
+> >          improve on.
+> > 
+> >        - currently if one wants to use online_movable,
+> >          one has to either
+> >            * disable auto online in kernel OR  
+> 
+> which might not just work because an unmovable allocation could have
+> made the memblock pinned.
+With memhp_default_state=offline on kernel CLI there won't be any
+unmovable allocation as hotplugged memory won't be onlined and
+user can online it manually. So it works for non default usecase
+of playing with memory hot-unplug.
+ 
+> >            * remove udev rule that distro ships
+> >          AND write custom daemon that will be able to online
+> >          block in right zone/order. So currently whole
+> >          online_movable thing isn't working by default
+> >          regardless of who onlines memory.  
+> 
+> my epxperience with onlining full nodes as movable shows this works just
+> fine (with all the limitations of the movable zones but that is a
+> separate thing). I haven't played with configurations where movable
+> zones are sharing the node with other zones.
+I don't have access to a such baremetal configuration to play
+with anymore.
 
-For actual heap instances, I would expect them to be communicated via
-reserved-memory regions or something similar, and so the maintenance
-burden is pretty low.
 
-The existing query ioctl can allow heap IDs to get assigned
-dynamically at runtime, so there's no need to reserve "bit 6" for
-"CUSTOM_ACME_HEAP_1"
-
->Another point is how can we put secure rules (like selinux policy) on
->heaps since all the allocations
->go to the same device (/dev/ion) ? For example, until now, in Android
->we have to give the same
->access rights to all the process that use ION.
->It will become problem when we will add secure heaps because we won't
->be able to distinguish secure
->processes to standard ones or set specific policy per heaps.
->Maybe I'm wrong here but I have never see selinux policy checking an
->ioctl field but if that
->exist it could be a solution.
->
-
-I might be thinking of a different type of "secure", but...
-
-Should the security of secure heaps be enforced by OS-level
-permissions? I don't know about other architectures, but at least on
-arm/arm64 this is enforced in hardware; it doesn't matter who has
-access to the ion heap, because only secure devices (or the CPU
-running a secure process) is physically able to access the memory
-backing the buffer.
-
-In fact, in the use-cases I know of, the process asking for the ion
-allocation is not a secure process, and so we wouldn't *want* to
-restrict the secure heap to be allocated from only by secure
-processes.
-
--Brian
-
->>
->>>
->>> Benjamin
->>>
->>
->> Thanks,
->> Laura
->>
+> >          I'm in favor of implementing that in kernel as it keeps
+> >          kernel internals inside kernel and doesn't need
+> >          kernel API to be involved (memory blocks in sysfs,
+> >          online_kernel, online_movable)
+> >          There would be no need in userspace which would have to
+> >          deal with kernel zoo and maintain that as well.  
+> 
+> The kernel is supposed to provide a proper API and that is sysfs
+> currently. I am not entirely happy about it either but pulling a lot of
+> code into the kernel is not the rigth thing to do. Especially when
+> different usecases require different treatment.
+If it could be done from kernel side alone, it looks like a better way
+to me not to involve userspace at all. And for ACPI based x86/ARM it's
+possible to implement without adding a lot of kernel code.
+That's one more of a reason to keep CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
+so we could continue on improving kernel only auto-onlining
+and fixing current memory hot(un)plug issues without affecting
+other platforms/users that are no interested in it.
+(PS: I don't care much about sysfs knob for setting auto-onlining,
+as kernel CLI override with memhp_default_state seems
+sufficient to me)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
