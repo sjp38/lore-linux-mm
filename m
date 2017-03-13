@@ -1,83 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E47E6B0038
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:30:15 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id u81so124741233uau.6
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:30:15 -0700 (PDT)
-Received: from mail-vk0-x234.google.com (mail-vk0-x234.google.com. [2607:f8b0:400c:c05::234])
-        by mx.google.com with ESMTPS id g30si226978uab.157.2017.03.13.08.30.14
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 232BC6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:46:17 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id j30so41347088qta.2
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:46:17 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id d10si687485qkj.240.2017.03.13.08.46.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 08:30:14 -0700 (PDT)
-Received: by mail-vk0-x234.google.com with SMTP id d188so36926532vka.0
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:30:14 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1703131446410.3558@nanos>
-References: <20170306141721.9188-1-dsafonov@virtuozzo.com> <20170306141721.9188-5-dsafonov@virtuozzo.com>
- <alpine.DEB.2.20.1703131035020.3558@nanos> <35a16a2c-c799-fe0c-2689-bf105b508663@virtuozzo.com>
- <alpine.DEB.2.20.1703131446410.3558@nanos>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 13 Mar 2017 08:29:53 -0700
-Message-ID: <CALCETrXzUXa9i_9ZoMMhH27U+V2pQZE4cM7L7n0wNsTzmWHW3Q@mail.gmail.com>
-Subject: Re: [PATCHv6 4/5] x86/mm: check in_compat_syscall() instead
- TIF_ADDR32 for mmap(MAP_32BIT)
-Content-Type: text/plain; charset=UTF-8
+        Mon, 13 Mar 2017 08:46:15 -0700 (PDT)
+From: Zi Yan <zi.yan@sent.com>
+Subject: [PATCH v4 00/11] mm: page migration enhancement for thp
+Date: Mon, 13 Mar 2017 11:44:56 -0400
+Message-Id: <20170313154507.3647-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
 
-On Mon, Mar 13, 2017 at 6:47 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> On Mon, 13 Mar 2017, Dmitry Safonov wrote:
->> On 03/13/2017 12:39 PM, Thomas Gleixner wrote:
->> > On Mon, 6 Mar 2017, Dmitry Safonov wrote:
->> >
->> > > Result of mmap() calls with MAP_32BIT flag at this moment depends
->> > > on thread flag TIF_ADDR32, which is set during exec() for 32-bit apps.
->> > > It's broken as the behavior of mmap() shouldn't depend on exec-ed
->> > > application's bitness. Instead, it should check the bitness of mmap()
->> > > syscall.
->> > > How it worked before:
->> > > o for 32-bit compatible binaries it is completely ignored. Which was
->> > > fine when there were one mmap_base, computed for 32-bit syscalls.
->> > > After introducing mmap_compat_base 64-bit syscalls do use computed
->> > > for 64-bit syscalls mmap_base, which means that we can allocate 64-bit
->> > > address with 64-bit syscall in application launched from 32-bit
->> > > compatible binary. And ignoring this flag is not expected behavior.
->> >
->> > Well, the real question here is, whether we should allow 32bit applications
->> > to obtain 64bit mappings at all. We can very well force 32bit applications
->> > into the 4GB address space as it was before your mmap base splitup and be
->> > done with it.
->>
->> Hmm, yes, we could restrict 32bit applications to 32bit mappings only.
->> But the approach which I tried to follow in the patches set, it was do
->> not base the logic on the bitness of launched applications
->> (native/compat) - only base on bitness of the performing syscall.
->> The idea was suggested by Andy and I made mmap() logic here independent
->> from original application's bitness.
->>
->> It also seems to me simpler:
->> if 32-bit application wants to allocate 64-bit mapping, it should
->> long-jump with 64-bit segment descriptor and do `syscall` instruction
->> for 64-bit syscall entry path. So, in my point of view after this dance
->> the application does not differ much from native 64-bit binary and can
->> have 64-bit address mapping.
+From: Zi Yan <zi.yan@cs.rutgers.edu>
 
-I agree.
+Hi all,
 
->
-> Works for me, but it lacks documentation .....
->
-> Thanks,
->
->         tglx
+The patches are rebased on mmotm-2017-03-09-16-19 with the feedbacks from
+v3 patches. Please give comments and consider merging it.
+
+Hi Kirill, could you take a look at [05/11], which uses and modifies your
+page_vma_mapped_walk()?
 
 
+Motivations
+===========================================
+1. THP migration becomes important in the upcoming heterogeneous memory systems.
+
+As David Nellans from NVIDIA pointed out from other threads
+(http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1349227.html),
+future GPUs or other accelerators will have their memory managed by operating
+systems. Moving data into and out of these memory nodes efficiently is critical
+to applications that use GPUs or other accelerators. Existing page migration
+only supports base pages, which has a very low memory bandwidth utilization.
+My experiments (see below) show THP migration can migrate pages more efficiently.
+
+2. Base page migration vs THP migration throughput.
+
+Here are cross-socket page migration results from calling
+move_pages() syscall:
+
+In x86_64, a Intel two-socket E5-2640v3 box,
+single 4KB base page migration takes 62.47 us, using 0.06 GB/s BW,
+single 2MB THP migration takes 658.54 us, using 2.97 GB/s BW,
+512 4KB base page migration takes 1987.38 us, using 0.98 GB/s BW.
+
+In ppc64, a two-socket Power8 box,
+single 64KB base page migration takes 49.3 us, using 1.24 GB/s BW,
+single 16MB THP migration takes 2202.17 us, using 7.10 GB/s BW,
+256 64KB base page migration takes 2543.65 us, using 6.14 GB/s BW.
+
+THP migration can give us 3x and 1.15x throughput over base page migration
+in x86_64 and ppc64 respectivley.
+
+You can test it out by using the code here:
+https://github.com/x-y-z/thp-migration-bench
+
+3. Existing page migration splits THP before migration and cannot guarantee
+the migrated pages are still contiguous. Contiguity is always what GPUs and
+accelerators look for. Without THP migration, khugepaged needs to do extra work
+to reassemble the migrated pages back to THPs.
+
+ChangeLog
+===========================================
+
+Changes since v3:
+
+  * I dropped my fix on zap_pmd_range() since THP migration will not trigger
+    it and Kirill has posted patches to fix the bug triggered by MADV_DONTNEED.
+
+  * In Patch 9, I used !pmd_present() instead of is_pmd_migration_entry()
+    in pmd_none_or_trans_huge_or_clear_bad() to avoid moving the function to
+    linux/swapops.h. Currently, !pmd_present() is equivalent to 
+    is_pmd_migration_entry(). Any suggestion is welcome to this change.
+
+Changes since v2:
+
+  * I fix a bug in zap_pmd_range() and include the fixes in Patches 1-3.
+    The racy check in zap_pmd_range() can miss pmd_protnone and pmd_migration_entry,
+    which leads to PTE page table not freed.
+
+  * In Patch 4, I move _PAGE_SWP_SOFT_DIRTY to bit 1. Because bit 6 (used in v2)
+    can be set by some CPUs by mistake and the new swap entry format does not use
+    bit 1-4.
+
+  * I also adjust two core migration functions, set_pmd_migration_entry() and
+    remove_migration_pmd(), to use Kirill A. Shutemov's page_vma_mapped_walk()
+    function. Patch 8 needs Kirill's comments, since I also add changes
+    to his page_vma_mapped_walk() function with pmd_migration_entry handling.
+
+  * In Patch 8, I replace pmdp_huge_get_and_clear() with pmdp_huge_clear_flush()
+    in set_pmd_migration_entry() to avoid data corruption after page migration.
+
+  * In Patch 9, I include is_pmd_migration_entry() in pmd_none_or_trans_huge_or_clear_bad().
+    Otherwise, a pmd_migration_entry is treated as pmd_bad and cleared, which
+    leads to deposited PTE page table not freed.
+
+  * I personally use this patchset with my customized kernel to test frequent
+    page migrations by replacing page reclaim with page migration.
+    The bugs fixed in Patches 1-3 and 8 was discovered while I am testing my kernel.
+    I did a 16-hour stress test that has ~7 billion total page migrations.
+    No error or data corruption was found. 
+
+General description
+===========================================
+
+This patchset enhances page migration functionality to handle thp migration
+for various page migration's callers:
+ - mbind(2)
+ - move_pages(2)
+ - migrate_pages(2)
+ - cgroup/cpuset migration
+ - memory hotremove
+ - soft offline
+
+The main benefit is that we can avoid unnecessary thp splits, which helps us
+avoid performance decrease when your applications handles NUMA optimization on
+their own.
+
+The implementation is similar to that of normal page migration, the key point
+is that we modify a pmd to a pmd migration entry in swap-entry like format.
+
+Any comments or advices are welcomed.
+
+Best Regards,
+Yan Zi
+
+Naoya Horiguchi (11):
+  mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to bit 1
+  mm: mempolicy: add queue_pages_node_check()
+  mm: thp: introduce separate TTU flag for thp freezing
+  mm: thp: introduce CONFIG_ARCH_ENABLE_THP_MIGRATION
+  mm: thp: enable thp migration in generic path
+  mm: thp: check pmd migration entry in common path
+  mm: soft-dirty: keep soft-dirty bits over thp migration
+  mm: hwpoison: soft offline supports thp migration
+  mm: mempolicy: mbind and migrate_pages support thp migration
+  mm: migrate: move_pages() supports thp migration
+  mm: memory_hotplug: memory hotremove supports thp migration
+
+ arch/x86/Kconfig                     |   4 +
+ arch/x86/include/asm/pgtable.h       |  17 +++
+ arch/x86/include/asm/pgtable_64.h    |  14 ++-
+ arch/x86/include/asm/pgtable_types.h |  10 +-
+ arch/x86/mm/gup.c                    |   4 +-
+ fs/proc/task_mmu.c                   |  49 +++++---
+ include/asm-generic/pgtable.h        |  37 +++++-
+ include/linux/huge_mm.h              |  32 ++++-
+ include/linux/rmap.h                 |   3 +-
+ include/linux/swapops.h              |  72 ++++++++++-
+ mm/Kconfig                           |   3 +
+ mm/gup.c                             |  22 +++-
+ mm/huge_memory.c                     | 237 +++++++++++++++++++++++++++++++----
+ mm/madvise.c                         |   2 +
+ mm/memcontrol.c                      |   2 +
+ mm/memory-failure.c                  |  31 ++---
+ mm/memory.c                          |   9 +-
+ mm/memory_hotplug.c                  |  17 ++-
+ mm/mempolicy.c                       | 124 +++++++++++++-----
+ mm/migrate.c                         |  66 ++++++++--
+ mm/mprotect.c                        |   6 +-
+ mm/mremap.c                          |   2 +-
+ mm/page_vma_mapped.c                 |  13 +-
+ mm/pgtable-generic.c                 |   3 +-
+ mm/rmap.c                            |  16 ++-
+ 25 files changed, 655 insertions(+), 140 deletions(-)
 
 -- 
-Andy Lutomirski
-AMA Capital Management, LLC
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
