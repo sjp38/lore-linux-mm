@@ -1,87 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA4966B0389
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 07:04:40 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id i50so221069723otd.3
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 04:04:40 -0700 (PDT)
-Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
-        by mx.google.com with ESMTPS id u42si4441286oth.195.2017.03.13.04.04.38
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E87FE6B0389
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 07:19:49 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w37so45632297wrc.2
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 04:19:49 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id r126si10450497wmb.109.2017.03.13.04.19.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 04:04:39 -0700 (PDT)
-Message-ID: <58C67A2E.9020201@huawei.com>
-Date: Mon, 13 Mar 2017 18:53:34 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
+        Mon, 13 Mar 2017 04:19:48 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 3423598BB2
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:19:48 +0000 (UTC)
+Date: Mon, 13 Mar 2017 11:19:47 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
 Subject: Re: [PATCH] mm, page_alloc: fix the duplicate save/ressave irq
-References: <1489392174-11794-1-git-send-email-zhongjiang@huawei.com> <7fe42f09-27cc-db21-58d5-affa4aff2849@suse.cz> <43acc363-45ac-db63-b7a0-14eeb8dfcfab@suse.cz>
-In-Reply-To: <43acc363-45ac-db63-b7a0-14eeb8dfcfab@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20170313111947.rdydbpblymc6a73x@techsingularity.net>
+References: <1489392174-11794-1-git-send-email-zhongjiang@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1489392174-11794-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: mgorman@techsingularity.net, akpm@linux-foundation.org, linux-mm@kvack.org
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org
 
-On 2017/3/13 18:08, Vlastimil Babka wrote:
-> On 03/13/2017 09:31 AM, Vlastimil Babka wrote:
->> On 03/13/2017 09:02 AM, zhongjiang wrote:
->>> From: zhong jiang <zhongjiang@huawei.com>
->>>
->>> when commit 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
->>> introduced to the mainline, free_pcppages_bulk irq_save/resave to protect
->>> the IRQ context. but drain_pages_zone fails to clear away the irq. because
->>> preempt_disable have take effect. so it safely remove the code.
->>>
->>> Fixes: 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
->>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>> ---
->>>  mm/page_alloc.c | 3 ---
->>>  1 file changed, 3 deletions(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 05c3956..7b16095 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -2294,11 +2294,9 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
->>>   */
->>>  static void drain_pages_zone(unsigned int cpu, struct zone *zone)
->>>  {
->>> -	unsigned long flags;
->>>  	struct per_cpu_pageset *pset;
->>>  	struct per_cpu_pages *pcp;
->>>  
->>> -	local_irq_save(flags);
->>>  	pset = per_cpu_ptr(zone->pageset, cpu);
->> NAK. we have to make sure that pset corresponds to the cpu we are
->> running on.
-> Sorry, I was thinking about other callers, such as drain_local_pages(),
-> but seems like all have the cpu pinned prerequisity.
->
-> But do we know that there can't be an interrupt updating pcp->count
-> between the moment we read it and we call free_pcppages_bulk? This
-> should be also discussed in the changelog. Also the "Fixes:" tag is not
-> necessary for a performance optimization.
- The title is misunderstanding. it is just for performence optimization.
- I will resent it in v2.
+On Mon, Mar 13, 2017 at 04:02:54PM +0800, zhongjiang wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> 
+> when commit 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
+> introduced to the mainline, free_pcppages_bulk irq_save/resave to protect
+> the IRQ context. but drain_pages_zone fails to clear away the irq. because
+> preempt_disable have take effect. so it safely remove the code.
+> 
+> Fixes: 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 
- Thanks
- zhongjiang
->>>  
->>>  	pcp = &pset->pcp;
->>> @@ -2306,7 +2304,6 @@ static void drain_pages_zone(unsigned int cpu, struct zone *zone)
->>>  		free_pcppages_bulk(zone, pcp->count, pcp);
->>>  		pcp->count = 0;
->>>  	}
->>> -	local_irq_restore(flags);
->>>  }
->>>  
->>>  /*
->>>
->
-> .
->
+It's not really a fix but is this even measurable?
 
+The reason the IRQ saving was preserved was for callers that are removing
+the CPU where it's not 100% clear if the CPU is protected from IPIs at
+the time the pcpu drain takes place. It may be ok but the changelog
+should include an indication that it has been considered and is known to
+be fine versus CPU hotplug.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
