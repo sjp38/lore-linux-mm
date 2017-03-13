@@ -1,74 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 03E476B0389
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:03:24 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u48so43490235wrc.0
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 05:03:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r10si10621683wmg.86.2017.03.13.05.03.22
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D45C66B0389
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:16:59 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 77so287784794pgc.5
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 05:16:59 -0700 (PDT)
+Received: from dggrg01-dlp.huawei.com ([45.249.212.187])
+        by mx.google.com with ESMTPS id x19si11279834pgj.283.2017.03.13.05.16.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 05:03:22 -0700 (PDT)
-Date: Mon, 13 Mar 2017 13:03:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: don't warn when vmalloc() fails due to a fatal signal
-Message-ID: <20170313120320.GN31518@dhcp22.suse.cz>
-References: <20170313114425.72724-1-dvyukov@google.com>
+        Mon, 13 Mar 2017 05:16:58 -0700 (PDT)
+Subject: Re: [RFC] mm/compaction: ignore block suitable after check large free
+ page
+References: <1489119648-59583-1-git-send-email-xieyisheng1@huawei.com>
+ <eb3bbece-77ea-b88f-d4bf-dbf9bdf7f413@suse.cz>
+ <9104271f-c90f-772c-26b2-410fa8bdfdb0@huawei.com>
+ <129003b1-bf1e-db03-6117-59657d2ae0b1@suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <b1e2b1a2-936b-8f73-1094-296ac40cc053@huawei.com>
+Date: Mon, 13 Mar 2017 20:16:30 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170313114425.72724-1-dvyukov@google.com>
+In-Reply-To: <129003b1-bf1e-db03-6117-59657d2ae0b1@suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: aryabinin@virtuozzo.com, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mgorman@techsingularity.net, iamjoonsoo.kim@lge.com, rientjes@google.com, minchan@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, qiuxishi@huawei.com, liubo95@huawei.com
 
-On Mon 13-03-17 12:44:25, Dmitry Vyukov wrote:
-> When vmalloc() fails it prints a very lengthy message with all the
-> details about memory consumption assuming that it happened due to OOM.
-> However, vmalloc() can also fail due to fatal signal pending.
-> In such case the message is quite confusing because it suggests that
-> it is OOM but the numbers suggest otherwise. The messages can also
-> pollute console considerably.
+Hi Vlastimil,
+
+Thanks for comment.
+On 2017/3/13 17:51, Vlastimil Babka wrote:
+> On 03/10/2017 10:53 AM, Yisheng Xie wrote:
+>> Hi Vlastimil,
+>>
+>> Thanks for comment.
+>> On 2017/3/10 15:30, Vlastimil Babka wrote:
+>>> On 03/10/2017 05:20 AM, Yisheng Xie wrote:
+>>>> If the migrate target is a large free page and we ignore suitable,
+>>>> it may not good for defrag. So move the ignore block suitable after
+>>>> check large free page.
+>>>
+>>> Right. But in practice I expect close to no impact, because direct
+>>> compaction shouldn't have to be called if there's a >=pageblock_order
+>>> page already available.
+>>>
+>> Maybe you are right and this change is just based on logical analyses.
 > 
-> Don't warn when vmalloc() fails due to fatal signal pending.
+> I'm not opposing the change, it might be better for future-proofing the
+> function, just pointing out that it most likely won't have any visible
+> effect right now.
+Get it, maybe I should put these in the change log :)
+
 > 
-> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-> Cc: linux-mm@kvack.org
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/vmalloc.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>> Presently, only in direct compaction, we increase the compaction priority,
+>> and ignore suitable at MIN_COMPACT_PRIORITY. I have a silly question, can
+>> we do the similar thing in kcompactd? maybe by doing most work in kcompactd,
+>> we can get better perf of slow path.
 > 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index edf15f49831e..68eb0028004b 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1683,7 +1683,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->  
->  		if (fatal_signal_pending(current)) {
->  			area->nr_pages = i;
-> -			goto fail;
-> +			goto fail_no_warn;
->  		}
->  
->  		if (node == NUMA_NO_NODE)
-> @@ -1709,6 +1709,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->  	warn_alloc(gfp_mask, NULL,
->  			  "vmalloc: allocation failure, allocated %ld of %ld bytes",
->  			  (area->nr_pages*PAGE_SIZE), area->size);
-> +fail_no_warn:
->  	vfree(area->addr);
->  	return NULL;
->  }
-> -- 
-> 2.12.0.246.ga2ecc84866-goog
+> That would need a very good evaluation at the very least. Migrating
+> pages into pageblocks other than movable ones brings the danger of later
+> unmovable/reclaimable allocations having to fallback to movable
+> pageblocks and causing permanent fragmentation. For direct compaction we
+> decided that it's better to risk permanent fragmentation than a
+> premature OOM, but for kcompactd there doesn't seem to be such
+> compelling reason.
+Thanks for kindly explain.
 
--- 
-Michal Hocko
-SUSE Labs
+> 
+>> Thanks
+>> Yisheng Xie
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
