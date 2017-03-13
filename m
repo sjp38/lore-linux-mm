@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F0AD36B0415
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 01:50:44 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j5so284438366pfb.3
-        for <linux-mm@kvack.org>; Sun, 12 Mar 2017 22:50:44 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id e3si10487362pgn.333.2017.03.12.22.50.44
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1910E6B0417
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 01:50:45 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y17so283724979pgh.2
+        for <linux-mm@kvack.org>; Sun, 12 Mar 2017 22:50:45 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 44si17218211pla.51.2017.03.12.22.50.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sun, 12 Mar 2017 22:50:44 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 20/26] x86/espfix: support 5-level paging
-Date: Mon, 13 Mar 2017 08:50:14 +0300
-Message-Id: <20170313055020.69655-21-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 22/26] x86/mm: add sync_global_pgds() for configuration with 5-level paging
+Date: Mon, 13 Mar 2017 08:50:16 +0300
+Message-Id: <20170313055020.69655-23-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
 References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,49 +20,71 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We don't need extra virtual address space for ESPFIX, so it stays within
-one PUD page table for both 4- and 5-level paging.
+This basically restores slightly modified version of original
+sync_global_pgds() which we had before foldedl p4d was introduced.
+
+The only modification is protection against 'address' overflow.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/kernel/espfix_64.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ arch/x86/mm/init_64.c | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
 
-diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
-index 04f89caef9c4..8e598a1ad986 100644
---- a/arch/x86/kernel/espfix_64.c
-+++ b/arch/x86/kernel/espfix_64.c
-@@ -50,11 +50,11 @@
- #define ESPFIX_STACKS_PER_PAGE	(PAGE_SIZE/ESPFIX_STACK_SIZE)
- 
- /* There is address space for how many espfix pages? */
--#define ESPFIX_PAGE_SPACE	(1UL << (PGDIR_SHIFT-PAGE_SHIFT-16))
-+#define ESPFIX_PAGE_SPACE	(1UL << (P4D_SHIFT-PAGE_SHIFT-16))
- 
- #define ESPFIX_MAX_CPUS		(ESPFIX_STACKS_PER_PAGE * ESPFIX_PAGE_SPACE)
- #if CONFIG_NR_CPUS > ESPFIX_MAX_CPUS
--# error "Need more than one PGD for the ESPFIX hack"
-+# error "Need more virtual address space for the ESPFIX hack"
- #endif
- 
- #define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-@@ -121,11 +121,13 @@ static void init_espfix_random(void)
- 
- void __init init_espfix_bsp(void)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 7bdda6f1d135..5ba99090dc3c 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -92,6 +92,42 @@ __setup("noexec32=", nonx32_setup);
+  * When memory was added make sure all the processes MM have
+  * suitable PGD entries in the local PGD level page.
+  */
++#ifdef CONFIG_X86_5LEVEL
++void sync_global_pgds(unsigned long start, unsigned long end)
++{
++	unsigned long address;
++
++	for (address = start; address <= end && address >= start;
++			address += PGDIR_SIZE) {
++		const pgd_t *pgd_ref = pgd_offset_k(address);
++		struct page *page;
++
++		if (pgd_none(*pgd_ref))
++			continue;
++
++		spin_lock(&pgd_lock);
++		list_for_each_entry(page, &pgd_list, lru) {
++			pgd_t *pgd;
++			spinlock_t *pgt_lock;
++
++			pgd = (pgd_t *)page_address(page) + pgd_index(address);
++			/* the pgt_lock only for Xen */
++			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
++			spin_lock(pgt_lock);
++
++			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
++				BUG_ON(pgd_page_vaddr(*pgd)
++						!= pgd_page_vaddr(*pgd_ref));
++
++			if (pgd_none(*pgd))
++				set_pgd(pgd, *pgd_ref);
++
++			spin_unlock(pgt_lock);
++		}
++		spin_unlock(&pgd_lock);
++	}
++}
++#else
+ void sync_global_pgds(unsigned long start, unsigned long end)
  {
--	pgd_t *pgd_p;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
+ 	unsigned long address;
+@@ -135,6 +171,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+ 		spin_unlock(&pgd_lock);
+ 	}
+ }
++#endif
  
- 	/* Install the espfix pud into the kernel page directory */
--	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
--	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
-+	pgd = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
-+	p4d = p4d_alloc(&init_mm, pgd, ESPFIX_BASE_ADDR);
-+	p4d_populate(&init_mm, p4d, espfix_pud_page);
- 
- 	/* Randomize the locations */
- 	init_espfix_random();
+ /*
+  * NOTE: This function is marked __ref because it calls __init function
 -- 
 2.11.0
 
