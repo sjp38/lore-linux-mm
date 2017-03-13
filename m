@@ -1,119 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AEBAA831CE
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:46:19 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n141so238941146qke.1
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:46:19 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id p89si703695qtd.31.2017.03.13.08.46.18
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CF193831CF
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:46:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g10so45225587wrg.5
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:46:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d64si11358994wmh.24.2017.03.13.08.46.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 08:46:18 -0700 (PDT)
-From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH v4 11/11] mm: memory_hotplug: memory hotremove supports thp migration
-Date: Mon, 13 Mar 2017 11:45:07 -0400
-Message-Id: <20170313154507.3647-12-zi.yan@sent.com>
-In-Reply-To: <20170313154507.3647-1-zi.yan@sent.com>
-References: <20170313154507.3647-1-zi.yan@sent.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 13 Mar 2017 08:46:30 -0700 (PDT)
+Date: Mon, 13 Mar 2017 16:46:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: fix condition for throttle_direct_reclaim
+Message-ID: <20170313154627.GU31518@dhcp22.suse.cz>
+References: <20170310194620.5021-1-shakeelb@google.com>
+ <20170313090206.GC31518@dhcp22.suse.cz>
+ <CALvZod4sxxhj4f8pmg1s+07c2pJfHwD2T7wh7vP9sD5PRcme-A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod4sxxhj4f8pmg1s+07c2pJfHwD2T7wh7vP9sD5PRcme-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On Mon 13-03-17 08:07:15, Shakeel Butt wrote:
+> On Mon, Mar 13, 2017 at 2:02 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Fri 10-03-17 11:46:20, Shakeel Butt wrote:
+> >> Recently kswapd has been modified to give up after MAX_RECLAIM_RETRIES
+> >> number of unsucessful iterations. Before going to sleep, kswapd thread
+> >> will unconditionally wakeup all threads sleeping on pfmemalloc_wait.
+> >> However the awoken threads will recheck the watermarks and wake the
+> >> kswapd thread and sleep again on pfmemalloc_wait. There is a chance
+> >> of continuous back and forth between kswapd and direct reclaiming
+> >> threads if the kswapd keep failing and thus defeat the purpose of
+> >> adding backoff mechanism to kswapd. So, add kswapd_failures check
+> >> on the throttle_direct_reclaim condition.
+> >
+> > I have to say I really do not like this. kswapd_failures shouldn't
+> > really be checked outside of the kswapd context. The
+> > pfmemalloc_watermark_ok/throttle_direct_reclaim is quite complex even
+> > without putting another variable into it. I wish we rather replace this
+> > throttling by something else. Johannes had an idea to throttle by the
+> > number of reclaimers.
+> >
+>
+> Do you suspect race in accessing kswapd_failures in non-kswapd
+> context?
 
-This patch enables thp migration for memory hotremove.
+No, this is not about race conditions. It is more about the logic of the
+code. kswapd_failures is the private thing to the kswapd daemon. Direct
+reclaimers shouldn't have any business in it - well except resetting it.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
-ChangeLog v1->v2:
-- base code switched from alloc_migrate_target to new_node_page()
----
- include/linux/huge_mm.h |  8 ++++++++
- mm/memory_hotplug.c     | 17 ++++++++++++++---
- 2 files changed, 22 insertions(+), 3 deletions(-)
+> Please do let me know more about replacing this throttling.
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6f44a2352597..92c2161704c3 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -189,6 +189,13 @@ static inline int hpage_nr_pages(struct page *page)
- 	return 1;
- }
+The idea behind a different throttling would be to not allow too many
+direct reclaimers on the same set of nodes/zones. Johannes would tell
+you more.
+
+> > Anyway, I am wondering whether we can hit this issue in
+> > practice? Have you seen it happening or is this a result of the code
+> > review? I would assume that that !zone_reclaimable_pages check in
+> > pfmemalloc_watermark_ok should help to some degree.
+> >
+> Yes, I have seen this issue going on for more than one hour on my
+> test. It was a simple test where the number of processes, in the
+> presence of swap, try to allocate memory more than RAM.
+
+this is an anonymous memory, right?
+
+> The number of
+> processes are equal to the number of cores and are pinned to each
+> individual core. I am suspecting that !zone_reclaimable_pages() check
+> did not help.
+
+Hmm, interesting! I would expect the OOM killer triggering but I guess
+I see what is going on. kswapd couldn't reclaim a single page and ran
+out of its kswapd_failures attempts while no direct reclaimers could
+reclaim a single page either until we reached the throttling point when
+we are basically livelocked because neither kswapd nor _all_ direct
+reclaimers can make a forward progress. Although this sounds quite
+unlikely I think it is quite possible to happen. So we cannot really
+throttle _all_ direct reclaimers when the kswapd is out of game which I
+haven't fully realized when reviewing "mm: fix 100% CPU kswapd busyloop
+on unreclaimable nodes".
+
+The simplest thing to do would be something like you have proposed and
+do not throttle if kswapd is out of game.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bae698484e8e..d34b1afc781a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2791,6 +2791,9 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+ 	int i;
+ 	bool wmark_ok;
  
-+static inline int hpage_order(struct page *page)
-+{
-+	if (unlikely(PageTransHuge(page)))
-+		return HPAGE_PMD_ORDER;
-+	return 0;
-+}
++	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
++		return true;
 +
- struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 		pmd_t *pmd, int flags);
- struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
-@@ -233,6 +240,7 @@ static inline bool thp_migration_supported(void)
- #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
- 
- #define hpage_nr_pages(x) 1
-+#define hpage_order(x) 0
- 
- #define transparent_hugepage_enabled(__vma) 0
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6fb6bd2df787..2b014017a217 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1566,6 +1566,7 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 	int nid = page_to_nid(page);
- 	nodemask_t nmask = node_states[N_MEMORY];
- 	struct page *new_page = NULL;
-+	unsigned int order = 0;
- 
- 	/*
- 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-@@ -1576,6 +1577,11 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		return alloc_huge_page_node(page_hstate(compound_head(page)),
- 					next_node_in(nid, nmask));
- 
-+	if (thp_migration_supported() && PageTransHuge(page)) {
-+		order = hpage_order(page);
-+		gfp_mask |= GFP_TRANSHUGE;
-+	}
-+
- 	node_clear(nid, nmask);
- 
- 	if (PageHighMem(page)
-@@ -1583,12 +1589,15 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		gfp_mask |= __GFP_HIGHMEM;
- 
- 	if (!nodes_empty(nmask))
--		new_page = __alloc_pages_nodemask(gfp_mask, 0,
-+		new_page = __alloc_pages_nodemask(gfp_mask, order,
- 					node_zonelist(nid, gfp_mask), &nmask);
- 	if (!new_page)
--		new_page = __alloc_pages(gfp_mask, 0,
-+		new_page = __alloc_pages(gfp_mask, order,
- 					node_zonelist(nid, gfp_mask));
- 
-+	if (new_page && order == hpage_order(page))
-+		prep_transhuge_page(new_page);
-+
- 	return new_page;
- }
- 
-@@ -1618,7 +1627,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			if (isolate_huge_page(page, &source))
- 				move_pages -= 1 << compound_order(head);
- 			continue;
--		}
-+		} else if (thp_migration_supported() && PageTransHuge(page))
-+			pfn = page_to_pfn(compound_head(page))
-+				+ hpage_nr_pages(page) - 1;
- 
- 		if (!get_page_unless_zero(page))
- 			continue;
+ 	for (i = 0; i <= ZONE_NORMAL; i++) {
+ 		zone = &pgdat->node_zones[i];
+ 		if (!managed_zone(zone))
+
+I do not like this as I've already said but it would allow to merge
+"mm: fix 100% CPU kswapd busyloop on unreclaimable nodes" without too
+many additional changes.
+
+Another option would be to cap the waiting time same as we do for
+GFP_NOFS. Not ideal either because I suspect we would just get herds
+of direct reclaimers that way.
+
+The best option would be to rethink the throttling and move it out of
+the direct reclaim path somehow.
+
+Thanks and sorry for not spotting the potential lockup previously.
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
