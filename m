@@ -1,65 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A62E6B0038
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 09:45:22 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id y136so122480306iof.3
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:45:22 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r23si10978152ioi.218.2017.03.13.06.45.20
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D745E6B0389
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 09:47:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u9so13956513wme.6
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:47:26 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id i23si731943wrc.50.2017.03.13.06.47.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 06:45:21 -0700 (PDT)
-Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170310104047.GF3753@dhcp22.suse.cz>
-	<201703102019.JHJ58283.MQHtVFOOFOLFJS@I-love.SAKURA.ne.jp>
-	<20170310152611.GM3753@dhcp22.suse.cz>
-	<201703111046.FBB87020.OVOOQFMHFSJLtF@I-love.SAKURA.ne.jp>
-	<20170313094504.GH31518@dhcp22.suse.cz>
-In-Reply-To: <20170313094504.GH31518@dhcp22.suse.cz>
-Message-Id: <201703132245.FBC17698.VtLSFMFOOFOJQH@I-love.SAKURA.ne.jp>
-Date: Mon, 13 Mar 2017 22:45:05 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 13 Mar 2017 06:47:25 -0700 (PDT)
+Date: Mon, 13 Mar 2017 14:47:14 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv6 4/5] x86/mm: check in_compat_syscall() instead TIF_ADDR32
+ for mmap(MAP_32BIT)
+In-Reply-To: <35a16a2c-c799-fe0c-2689-bf105b508663@virtuozzo.com>
+Message-ID: <alpine.DEB.2.20.1703131446410.3558@nanos>
+References: <20170306141721.9188-1-dsafonov@virtuozzo.com> <20170306141721.9188-5-dsafonov@virtuozzo.com> <alpine.DEB.2.20.1703131035020.3558@nanos> <35a16a2c-c799-fe0c-2689-bf105b508663@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, david@fromorbit.com, apolyakov@beget.ru
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Michal Hocko wrote:
-> On Sat 11-03-17 10:46:58, Tetsuo Handa wrote:
-> > In most cases, administrators can't capture even SysRq-t; let alone vmcore.
-> > Therefore, automatic watchdog is highly appreciated. Have you considered this aspect?
+On Mon, 13 Mar 2017, Dmitry Safonov wrote:
+> On 03/13/2017 12:39 PM, Thomas Gleixner wrote:
+> > On Mon, 6 Mar 2017, Dmitry Safonov wrote:
+> > 
+> > > Result of mmap() calls with MAP_32BIT flag at this moment depends
+> > > on thread flag TIF_ADDR32, which is set during exec() for 32-bit apps.
+> > > It's broken as the behavior of mmap() shouldn't depend on exec-ed
+> > > application's bitness. Instead, it should check the bitness of mmap()
+> > > syscall.
+> > > How it worked before:
+> > > o for 32-bit compatible binaries it is completely ignored. Which was
+> > > fine when there were one mmap_base, computed for 32-bit syscalls.
+> > > After introducing mmap_compat_base 64-bit syscalls do use computed
+> > > for 64-bit syscalls mmap_base, which means that we can allocate 64-bit
+> > > address with 64-bit syscall in application launched from 32-bit
+> > > compatible binary. And ignoring this flag is not expected behavior.
+> > 
+> > Well, the real question here is, whether we should allow 32bit applications
+> > to obtain 64bit mappings at all. We can very well force 32bit applications
+> > into the 4GB address space as it was before your mmap base splitup and be
+> > done with it.
 > 
-> yes I have. I tend to work with our SUSE L3 and enterprise customer a
-> lot last 10 years. And what I claim is that adding more watchdog doesn't
-> necessarily mean we will get better bug reports. I do not have any exact
-> statistics but my perception is that allocation lockups tends to be less
-> than 1% of reported bugs. You seem to make a huge issue from this
-> particular class of issues basing your argumentation on "unknown
-> issues which might have been allocation lockups etc." I am not feeling
-> comfortable with this kind of arguing and making any decision on them.
-
-Allocation lockups might be less than 1% of _reported_ bugs.
-What I'm talking about is that there will be _unreported_ (and therefore
-unrecognized/unsolved) bugs caused by memory allocation behavior.
-You are refusing to make an attempt to prove/verify/handle it.
-
+> Hmm, yes, we could restrict 32bit applications to 32bit mappings only.
+> But the approach which I tried to follow in the patches set, it was do
+> not base the logic on the bitness of launched applications
+> (native/compat) - only base on bitness of the performing syscall.
+> The idea was suggested by Andy and I made mmap() logic here independent
+> from original application's bitness.
 > 
-> So let me repeat (for the last time). I find your watchdog interesting
-> for stress testing but I am not convinced this is generally useful for
-> real workloads and the maintenance burden is worth it. I _might_ be
-> wrong here and that is why this is _no_ a NAK from me but I feel
-> uncomfortable how hard you are pushing this.
+> It also seems to me simpler:
+> if 32-bit application wants to allocate 64-bit mapping, it should
+> long-jump with 64-bit segment descriptor and do `syscall` instruction
+> for 64-bit syscall entry path. So, in my point of view after this dance
+> the application does not differ much from native 64-bit binary and can
+> have 64-bit address mapping.
 
-If you worry about false positives and/or side effects of watchdog, you can
-disable it in your distribution (i.e. SUSE). There are developers/users/customers
-who will be helped by it.
+Works for me, but it lacks documentation .....
 
-> 
-> I expect this is my last word on this.
+Thanks,
 
-After all, there is no real objection. Andrew, what do you think?
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
