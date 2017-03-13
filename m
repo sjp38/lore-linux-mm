@@ -1,52 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 823AF6B038A
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 05:40:11 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u48so42902494wrc.0
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 02:40:11 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id t129si8283576wmb.163.2017.03.13.02.40.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 99A6C6B038D
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 05:45:08 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g8so12977588wmg.7
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 02:45:08 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s43si23852968wrc.28.2017.03.13.02.45.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 02:40:10 -0700 (PDT)
-Date: Mon, 13 Mar 2017 10:39:57 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv6 4/5] x86/mm: check in_compat_syscall() instead TIF_ADDR32
- for mmap(MAP_32BIT)
-In-Reply-To: <20170306141721.9188-5-dsafonov@virtuozzo.com>
-Message-ID: <alpine.DEB.2.20.1703131035020.3558@nanos>
-References: <20170306141721.9188-1-dsafonov@virtuozzo.com> <20170306141721.9188-5-dsafonov@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 13 Mar 2017 02:45:07 -0700 (PDT)
+Date: Mon, 13 Mar 2017 10:45:04 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
+Message-ID: <20170313094504.GH31518@dhcp22.suse.cz>
+References: <201703091946.GDC21885.OQFFOtJHSOFVML@I-love.SAKURA.ne.jp>
+ <20170309143751.05bddcbad82672384947de5f@linux-foundation.org>
+ <20170310104047.GF3753@dhcp22.suse.cz>
+ <201703102019.JHJ58283.MQHtVFOOFOLFJS@I-love.SAKURA.ne.jp>
+ <20170310152611.GM3753@dhcp22.suse.cz>
+ <201703111046.FBB87020.OVOOQFMHFSJLtF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201703111046.FBB87020.OVOOQFMHFSJLtF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, david@fromorbit.com, apolyakov@beget.ru
 
-On Mon, 6 Mar 2017, Dmitry Safonov wrote:
+On Sat 11-03-17 10:46:58, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > So, we have means to debug these issues. Some of them are rather coarse
+> > and your watchdog can collect much more and maybe give us a clue much
+> > quicker but we still have to judge whether all this is really needed
+> > because it doesn't come for free. Have you considered this aspect?
+> 
+> Sigh... You are ultimately ignoring the reality. Educating everybody to master
+> debugging tools does not come for free. If I liken your argumentation to
+> security modules, it looks like the following.
+> 
+>   "There is already SELinux. SELinux can do everything. Thus, AppArmor is not needed.
+>    I don't care about users/customers who cannot administrate SELinux."
+> 
+> The reality is different. We need tools which users/customers can afford using.
+> You had better getting away from existing debug tools which kernel developers
+> are using.
+> 
+> First of all, SysRq is an emergency tool and therefore it requires administrator's
+> intervention. Your argumentation sounds to me that "Give up debugging unless you
+> can sit on in front of console of Linux systems 24-7" which is already impossible.
 
-> Result of mmap() calls with MAP_32BIT flag at this moment depends
-> on thread flag TIF_ADDR32, which is set during exec() for 32-bit apps.
-> It's broken as the behavior of mmap() shouldn't depend on exec-ed
-> application's bitness. Instead, it should check the bitness of mmap()
-> syscall.
-> How it worked before:
-> o for 32-bit compatible binaries it is completely ignored. Which was
-> fine when there were one mmap_base, computed for 32-bit syscalls.
-> After introducing mmap_compat_base 64-bit syscalls do use computed
-> for 64-bit syscalls mmap_base, which means that we can allocate 64-bit
-> address with 64-bit syscall in application launched from 32-bit
-> compatible binary. And ignoring this flag is not expected behavior.
+My experience also tells me that different soft/hard lockups tend to
+generate quite non-trivial number of false positives and those are
+reported as bugs. We simply tend to underestimate how easy it is to trigger
+paths without scheduling or how easy it is to trigger hardlockups on
+large machines just due to lock bouncing etc...
 
-Well, the real question here is, whether we should allow 32bit applications
-to obtain 64bit mappings at all. We can very well force 32bit applications
-into the 4GB address space as it was before your mmap base splitup and be
-done with it.
+> SysRq-t cannot print seq= and delay= fields because information of in-flight allocation
+> request is not accessible from "struct task_struct", making extremely difficult to
+> judge whether progress is made when several SysRq-t snapshots are taken.
+> 
+> Also, year by year it is getting difficult to use vmcore for analysis because vmcore
+> might include sensitive data (even after filtering out user pages). I saw cases where
+> vmcore cannot be sent to support centers due to e.g. organization's information
+> control rules. Sometimes we have to analyze from only kernel messages. Some pieces of
+> information extracted by running scripts against /usr/bin/crash on cutomer's side
+> might be available, but in general we can't assume that the whole memory image which
+> includes whatever information is available.
+> 
+> In most cases, administrators can't capture even SysRq-t; let alone vmcore.
+> Therefore, automatic watchdog is highly appreciated. Have you considered this aspect?
 
-Thanks,
+yes I have. I tend to work with our SUSE L3 and enterprise customer a
+lot last 10 years. And what I claim is that adding more watchdog doesn't
+necessarily mean we will get better bug reports. I do not have any exact
+statistics but my perception is that allocation lockups tends to be less
+than 1% of reported bugs. You seem to make a huge issue from this
+particular class of issues basing your argumentation on "unknown
+issues which might have been allocation lockups etc." I am not feeling
+comfortable with this kind of arguing and making any decision on them.
 
-	tglx
+So let me repeat (for the last time). I find your watchdog interesting
+for stress testing but I am not convinced this is generally useful for
+real workloads and the maintenance burden is worth it. I _might_ be
+wrong here and that is why this is _no_ a NAK from me but I feel
+uncomfortable how hard you are pushing this.
 
+I expect this is my last word on this.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
