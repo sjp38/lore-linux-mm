@@ -1,79 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D134E6B038A
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 17:48:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id g2so325919556pge.7
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 14:48:17 -0700 (PDT)
-Received: from mail-pg0-x235.google.com (mail-pg0-x235.google.com. [2607:f8b0:400e:c05::235])
-        by mx.google.com with ESMTPS id s22si1600634plk.156.2017.03.13.14.48.17
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A47D26B038A
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 17:59:28 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id o135so251033358qke.3
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 14:59:28 -0700 (PDT)
+Received: from mail-qt0-f181.google.com (mail-qt0-f181.google.com. [209.85.216.181])
+        by mx.google.com with ESMTPS id m49si1486225qtb.168.2017.03.13.14.59.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 14:48:17 -0700 (PDT)
-Received: by mail-pg0-x235.google.com with SMTP id b129so70872203pgc.2
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 14:48:17 -0700 (PDT)
+        Mon, 13 Mar 2017 14:59:27 -0700 (PDT)
+Received: by mail-qt0-f181.google.com with SMTP id i34so43025338qtc.0
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 14:59:27 -0700 (PDT)
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+ <20170303132949.GC31582@dhcp22.suse.cz>
+ <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+ <20170306074258.GA27953@dhcp22.suse.cz>
+ <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
+ <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
+ <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+ <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+ <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
+ <CA+M3ks6R=n4n54wofK7pYcWoQKUhzyWQytBO90+pRDRrAhi3ww@mail.gmail.com>
+ <CAKMK7uH9NemeM2z-tQvge_B=kABop6O7UQFK3PirpJminMCPqw@mail.gmail.com>
+ <6d3d52ba-29a9-701f-2948-00ce28282975@redhat.com>
+ <CAF6AEGvs0qVr_=pSp5FYoxM4XNaKLtYB-uhBmDheYcgxgv1_2g@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <ef8ae526-d0e8-83dd-c2d8-656d356ebd91@redhat.com>
+Date: Mon, 13 Mar 2017 14:59:23 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170313195833.GA25454@cmpxchg.org>
-References: <20170310194620.5021-1-shakeelb@google.com> <20170313195833.GA25454@cmpxchg.org>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 13 Mar 2017 14:48:16 -0700
-Message-ID: <CALvZod43N16hz-prYvshbZ26HdSzBx2j76ETb12cjKLqr4MGZw@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix condition for throttle_direct_reclaim
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAF6AEGvs0qVr_=pSp5FYoxM4XNaKLtYB-uhBmDheYcgxgv1_2g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jia He <hejianet@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rob Clark <robdclark@gmail.com>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, devel@driverdev.osuosl.org, Rom Lemarchand <romlem@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Riley Andrews <riandrews@android.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Linux MM <linux-mm@kvack.org>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Mark Brown <broonie@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Vetter <daniel.vetter@intel.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Mon, Mar 13, 2017 at 12:58 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> Hi Shakeel,
->
-> On Fri, Mar 10, 2017 at 11:46:20AM -0800, Shakeel Butt wrote:
->> Recently kswapd has been modified to give up after MAX_RECLAIM_RETRIES
->> number of unsucessful iterations. Before going to sleep, kswapd thread
->> will unconditionally wakeup all threads sleeping on pfmemalloc_wait.
->> However the awoken threads will recheck the watermarks and wake the
->> kswapd thread and sleep again on pfmemalloc_wait. There is a chance
->> of continuous back and forth between kswapd and direct reclaiming
->> threads if the kswapd keep failing and thus defeat the purpose of
->> adding backoff mechanism to kswapd. So, add kswapd_failures check
->> on the throttle_direct_reclaim condition.
+On 03/13/2017 02:29 PM, Rob Clark wrote:
+> On Mon, Mar 13, 2017 at 5:09 PM, Laura Abbott <labbott@redhat.com> wrote:
+>>> Hm, we might want to expose all the heaps as individual
+>>> /dev/ion_$heapname nodes? Should we do this from the start, since
+>>> we're massively revamping the uapi anyway (imo not needed, current
+>>> state seems to work too)?
+>>> -Daniel
+>>>
 >>
->> Signed-off-by: Shakeel Butt <shakeelb@google.com>
->
-> You're right, the way it works right now is kind of lame. Did you
-> observe continued kswapd spinning because of the wakeup ping-pong?
->
+>> I thought about that. One advantage with separate /dev/ion_$heap
+>> is that we don't have to worry about a limit of 32 possible
+>> heaps per system (32-bit heap id allocation field). But dealing
+>> with an ioctl seems easier than names. Userspace might be less
+>> likely to hardcode random id numbers vs. names as well.
+> 
+> 
+> other advantage, I think, is selinux (brought up elsewhere on this
+> thread).. heaps at known fixed PAs are useful for certain sorts of
+> attacks so being able to restrict access more easily seems like a good
+> thing
+> 
+> BR,
+> -R
+> 
 
-Yes, I did observe kswapd spinning for more than an hour.
+Some other kind of filtering (BPF/LSM/???) might work as well
+(http://kernsec.org/files/lss2015/vanderstoep.pdf ?)
 
->> +static bool should_throttle_direct_reclaim(pg_data_t *pgdat)
->> +{
->> +     return (pgdat->kswapd_failures < MAX_RECLAIM_RETRIES &&
->> +             !pfmemalloc_watermark_ok(pgdat));
->> +}
->> +
->>  /*
->>   * Throttle direct reclaimers if backing storage is backed by the network
->>   * and the PFMEMALLOC reserve for the preferred node is getting dangerously
->> @@ -2873,7 +2879,7 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
->>
->>               /* Throttle based on the first usable node */
->>               pgdat = zone->zone_pgdat;
->> -             if (pfmemalloc_watermark_ok(pgdat))
->> +             if (!should_throttle_direct_reclaim(pgdat))
->>                       goto out;
->
-> Instead of a second helper function, could you rename
-> pfmemalloc_watermark_ok() and add the kswapd_failure check at the very
-> beginning of that function?
->
+The fixed PA issue is a larger problem. We're never going to
+be able to get away from "this heap must exist at address X"
+problems but the location of CMA in general should be
+randomized. I haven't actually come up with a good proposal
+to this though.
 
-Sure, Michal also suggested the same.
+I'd like for Ion to be a framework for memory allocation and
+not security exploits. Hopefully this isn't a pipe dream.
 
-> Because that check fits nicely with the comment about kswapd having to
-> be awake, too. We need kswapd operational when throttling reclaimers.
->
-> Thanks
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
