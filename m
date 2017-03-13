@@ -1,120 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D9D6B038C
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:48:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c143so14538328wmd.1
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:48:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 17si11304278wmu.159.2017.03.13.08.48.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 19C976B038C
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 11:57:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id f21so304792520pgi.4
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 08:57:58 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id h5si814375pln.273.2017.03.13.08.57.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 08:48:25 -0700 (PDT)
-Date: Mon, 13 Mar 2017 16:48:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 RFC] mm/vmscan: more restrictive condition for retry
- of shrink_zones
-Message-ID: <20170313154822.GV31518@dhcp22.suse.cz>
-References: <1489316770-25362-1-git-send-email-ysxie@foxmail.com>
- <20170313083314.GA31518@dhcp22.suse.cz>
- <CALvZod4NDM5i9ukWpNpnOLHKdOiPxSVmJmifT1cZ7vaazcJ89A@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Mar 2017 08:57:57 -0700 (PDT)
+Subject: Re: arch/x86/include/asm/pgtable.h:888:2: error: implicit declaration
+ of function 'native_pud_clear'
+References: <201703120656.zGxXeJer%fengguang.wu@intel.com>
+From: Dave Jiang <dave.jiang@intel.com>
+Message-ID: <9d16b438-0b64-2292-7de3-1b8daebe621e@intel.com>
+Date: Mon, 13 Mar 2017 08:57:54 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod4NDM5i9ukWpNpnOLHKdOiPxSVmJmifT1cZ7vaazcJ89A@mail.gmail.com>
+In-Reply-To: <201703120656.zGxXeJer%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Yisheng Xie <ysxie@foxmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, riel@redhat.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, xieyisheng1@huawei.com, guohanjun@huawei.com, Xishi Qiu <qiuxishi@huawei.com>
+To: kbuild test robot <fengguang.wu@intel.com>, Matthew Wilcox <willy@linux.intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon 13-03-17 08:17:56, Shakeel Butt wrote:
-> On Mon, Mar 13, 2017 at 1:33 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > Please do not post new version after a single feedback and try to wait
-> > for more review to accumulate. This is in the 3rd version and it is not
-> > clear why it is still an RFC.
-> >
-> > On Sun 12-03-17 19:06:10, Yisheng Xie wrote:
-> >> From: Yisheng Xie <xieyisheng1@huawei.com>
-> >>
-> >> When we enter do_try_to_free_pages, the may_thrash is always clear, and
-> >> it will retry shrink zones to tap cgroup's reserves memory by setting
-> >> may_thrash when the former shrink_zones reclaim nothing.
-> >>
-> >> However, when memcg is disabled or on legacy hierarchy, it should not do
-> >> this useless retry at all, for we do not have any cgroup's reserves
-> >> memory to tap, and we have already done hard work but made no progress.
-> >>
-> >> To avoid this time costly and useless retrying, add a stub function
-> >> mem_cgroup_thrashed() and return true when memcg is disabled or on
-> >> legacy hierarchy.
-> >
-> > Have you actually seen this as a bad behavior? On which workload? Or
-> > have spotted this by the code review?
-> >
-> > Please note that more than _what_ it is more interesting _why_ the patch
-> > has been prepared.
-> >
-> > I agree the current additional round of reclaim is just lame because we
-> > are trying hard to control the retry logic from the page allocator which
-> > is a sufficient justification to fix this IMO. But I really hate the
-> > name. At this point we do not have any idea that the memcg is trashing
-> > as the name of the function suggests.
-> >
-> > All of them simply might not have any reclaimable pages. So I would
-> > suggest either a better name e.g. memcg_allow_lowmem_reclaim() or,
-> > preferably, fix this properly. E.g. something like the following.
-> > ---
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index bae698484e8e..989ba9761921 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -99,6 +99,9 @@ struct scan_control {
-> >         /* Can cgroups be reclaimed below their normal consumption range? */
-> >         unsigned int may_thrash:1;
-> >
-> > +       /* Did we have any memcg protected by the low limit */
-> > +       unsigned int memcg_low_protection:1;
-> > +
-> >         unsigned int hibernation_mode:1;
-> >
-> >         /* One of the zones is ready for compaction */
-> > @@ -2513,6 +2516,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
-> >                         if (mem_cgroup_low(root, memcg)) {
-> >                                 if (!sc->may_thrash)
-> >                                         continue;
-> > +                               sc->memcg_low_protection = true;
+Fengguang,
+I don't believe Andrew has picked up this patch yet:
+http://marc.info/?l=linux-mm&m=148883870428812&w=2
+
+Unless you are seeing issues with that patch.
+
+On 03/11/2017 03:55 PM, kbuild test robot wrote:
+> Hi Matthew,
 > 
-> I think you wanted to put this statement before the continue otherwise
-> it will just disable the sc->may_thrash (second reclaim pass)
-> altogether.
-
-yes, of course, just a quick and dirty hack to show my point.
-Sorry about the confusion.
- 
-> >                                 mem_cgroup_events(memcg, MEMCG_LOW, 1);
-> >                         }
-> >
-> > @@ -2774,7 +2778,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
-> >                 return 1;
-> >
-> >         /* Untapped cgroup reserves?  Don't OOM, retry. */
-> > -       if (!sc->may_thrash) {
-> > +       if ( sc->memcg_low_protection && !sc->may_thrash) {
-> >                 sc->priority = initial_priority;
-> >                 sc->may_thrash = 1;
-> >                 goto retry;
-> > --
-> > Michal Hocko
-> > SUSE Labs
+> FYI, the error/warning still remains.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   84c37c168c0e49a412d7021cda3183a72adac0d0
+> commit: a00cc7d9dd93d66a3fb83fc52aa57a4bec51c517 mm, x86: add support for PUD-sized transparent hugepages
+> date:   2 weeks ago
+> config: i386-randconfig-a0-201711 (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         git checkout a00cc7d9dd93d66a3fb83fc52aa57a4bec51c517
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    In file included from include/linux/mm.h:68:0,
+>                     from include/linux/suspend.h:8,
+>                     from arch/x86/kernel/asm-offsets.c:12:
+>    arch/x86/include/asm/pgtable.h: In function 'native_local_pudp_get_and_clear':
+>>> arch/x86/include/asm/pgtable.h:888:2: error: implicit declaration of function 'native_pud_clear' [-Werror=implicit-function-declaration]
+>      native_pud_clear(pudp);
+>      ^~~~~~~~~~~~~~~~
+>    cc1: some warnings being treated as errors
+>    make[2]: *** [arch/x86/kernel/asm-offsets.s] Error 1
+>    make[2]: Target '__build' not remade because of errors.
+>    make[1]: *** [prepare0] Error 2
+>    make[1]: Target 'prepare' not remade because of errors.
+>    make: *** [sub-make] Error 2
+> 
+> vim +/native_pud_clear +888 arch/x86/include/asm/pgtable.h
+> 
+>    882	}
+>    883	
+>    884	static inline pud_t native_local_pudp_get_and_clear(pud_t *pudp)
+>    885	{
+>    886		pud_t res = *pudp;
+>    887	
+>  > 888		native_pud_clear(pudp);
+>    889		return res;
+>    890	}
+>    891	
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
