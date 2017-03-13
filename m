@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B8BED6B0038
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 15:44:26 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id x37so235040326ota.6
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:44:26 -0700 (PDT)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id x79si4965835oia.292.2017.03.13.12.44.25
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7456B038A
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 15:45:02 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id y17so316595177pgh.2
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:45:02 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q77si12325744pfi.41.2017.03.13.12.45.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 12:44:25 -0700 (PDT)
-Received: by mail-oi0-x233.google.com with SMTP id 126so82957982oig.3
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:44:25 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170313185710.GA3422@osiris>
-References: <20170309130616.51286-1-heiko.carstens@de.ibm.com>
- <3207330.x0D3JT6f2l@aspire.rjw.lan> <CAPcyv4g7_E1JTCGq1_gC7W2JtS2JXmWGPuiHW5CMNpjWs2DXpg@mail.gmail.com>
- <2552966.WcQWnf8t6b@aspire.rjw.lan> <20170313185710.GA3422@osiris>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 13 Mar 2017 12:44:25 -0700
-Message-ID: <CAPcyv4i1phF5rZL--g6ojguHScKetNA3gfsZRpHhVw3VbgqmFg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: add private lock to serialize memory hotplug operations
-Content-Type: text/plain; charset=UTF-8
+        Mon, 13 Mar 2017 12:45:01 -0700 (PDT)
+Date: Mon, 13 Mar 2017 12:45:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1 09/10] mm: make rmap_one boolean function
+Message-Id: <20170313124500.ffc91fa4d4077719928e3274@linux-foundation.org>
+In-Reply-To: <1489365353-28205-10-git-send-email-minchan@kernel.org>
+References: <1489365353-28205-1-git-send-email-minchan@kernel.org>
+	<1489365353-28205-10-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-On Mon, Mar 13, 2017 at 11:57 AM, Heiko Carstens
-<heiko.carstens@de.ibm.com> wrote:
-> On Thu, Mar 09, 2017 at 11:34:44PM +0100, Rafael J. Wysocki wrote:
->> > The memory described by devm_memremap_pages() is never "onlined" to
->> > the core mm. We're only using arch_add_memory() to get a linear
->> > mapping and page structures. The rest of memory hotplug is skipped,
->> > and this ZONE_DEVICE memory is otherwise hidden from the core mm.
->>
->> OK, that should be fine then.
->
-> So, does that mean that the patch is ok as it is? If so, it would be good
-> to get an Ack from both, you and Dan, please.
+On Mon, 13 Mar 2017 09:35:52 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-Acked-by: Dan Williams <dan.j.williams@intel.com>
+> rmap_one's return value controls whether rmap_work should contine to
+> scan other ptes or not so it's target for changing to boolean.
+> Return true if the scan should be continued. Otherwise, return false
+> to stop the scanning.
+> 
+> This patch makes rmap_one's return value to boolean.
+
+"SWAP_AGAIN" conveys meaning to the reader, whereas the meaning of
+"true" is unclear.  So it would be better to document the return value
+of these functions.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
