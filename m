@@ -1,108 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 54FDB6B0038
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 09:42:45 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a189so239820374qkc.4
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:42:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y184si442209qkc.101.2017.03.13.06.42.43
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A62E6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 09:45:22 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id y136so122480306iof.3
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:45:22 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r23si10978152ioi.218.2017.03.13.06.45.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 06:42:44 -0700 (PDT)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
-References: <20170302142816.GK1404@dhcp22.suse.cz>
-	<20170302180315.78975d4b@nial.brq.redhat.com>
-	<20170303082723.GB31499@dhcp22.suse.cz>
-	<20170303183422.6358ee8f@nial.brq.redhat.com>
-	<20170306145417.GG27953@dhcp22.suse.cz>
-	<20170307134004.58343e14@nial.brq.redhat.com>
-	<20170309125400.GI11592@dhcp22.suse.cz>
-	<20170313115554.41d16b1f@nial.brq.redhat.com>
-	<20170313122825.GO31518@dhcp22.suse.cz>
-	<87a88pgwv0.fsf@vitty.brq.redhat.com>
-	<20170313131924.GP31518@dhcp22.suse.cz>
-Date: Mon, 13 Mar 2017 14:42:37 +0100
-In-Reply-To: <20170313131924.GP31518@dhcp22.suse.cz> (Michal Hocko's message
-	of "Mon, 13 Mar 2017 14:19:25 +0100")
-Message-ID: <87pohlfg36.fsf@vitty.brq.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 13 Mar 2017 06:45:21 -0700 (PDT)
+Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170310104047.GF3753@dhcp22.suse.cz>
+	<201703102019.JHJ58283.MQHtVFOOFOLFJS@I-love.SAKURA.ne.jp>
+	<20170310152611.GM3753@dhcp22.suse.cz>
+	<201703111046.FBB87020.OVOOQFMHFSJLtF@I-love.SAKURA.ne.jp>
+	<20170313094504.GH31518@dhcp22.suse.cz>
+In-Reply-To: <20170313094504.GH31518@dhcp22.suse.cz>
+Message-Id: <201703132245.FBC17698.VtLSFMFOOFOJQH@I-love.SAKURA.ne.jp>
+Date: Mon, 13 Mar 2017 22:45:05 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Igor Mammedov <imammedo@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, david@fromorbit.com, apolyakov@beget.ru
 
-Michal Hocko <mhocko@kernel.org> writes:
+Michal Hocko wrote:
+> On Sat 11-03-17 10:46:58, Tetsuo Handa wrote:
+> > In most cases, administrators can't capture even SysRq-t; let alone vmcore.
+> > Therefore, automatic watchdog is highly appreciated. Have you considered this aspect?
+> 
+> yes I have. I tend to work with our SUSE L3 and enterprise customer a
+> lot last 10 years. And what I claim is that adding more watchdog doesn't
+> necessarily mean we will get better bug reports. I do not have any exact
+> statistics but my perception is that allocation lockups tends to be less
+> than 1% of reported bugs. You seem to make a huge issue from this
+> particular class of issues basing your argumentation on "unknown
+> issues which might have been allocation lockups etc." I am not feeling
+> comfortable with this kind of arguing and making any decision on them.
 
-> On Mon 13-03-17 13:54:59, Vitaly Kuznetsov wrote:
->> Michal Hocko <mhocko@kernel.org> writes:
->> 
->> > On Mon 13-03-17 11:55:54, Igor Mammedov wrote:
->> >> > > 
->> >> > >        - suggested RFC is not acceptable from virt point of view
->> >> > >          as it regresses guests on top of x86 kvm/vmware which
->> >> > >          both use ACPI based memory hotplug.
->> >> > > 
->> >> > >        - udev/userspace solution doesn't work in practice as it's
->> >> > >          too slow and unreliable when system is under load which
->> >> > >          is quite common in virt usecase. That's why auto online
->> >> > >          has been introduced in the first place.  
->> >> > 
->> >> > Please try to be more specific why "too slow" is a problem. Also how
->> >> > much slower are we talking about?
->> >>
->> >> In virt case on host with lots VMs, userspace handler
->> >> processing could be scheduled late enough to trigger a race
->> >> between (guest memory going away/OOM handler) and memory
->> >> coming online.
->> >
->> > Either you are mixing two things together or this doesn't really make
->> > much sense. So is this a balloning based on memory hotplug (aka active
->> > memory hotadd initiated between guest and host automatically) or a guest
->> > asking for additional memory by other means (pay more for memory etc.)?
->> > Because if this is an administrative operation then I seriously question
->> > this reasoning.
->> 
->> I'm probably repeating myself but it seems this point was lost:
->> 
->> This is not really a 'ballooning', it is just a pure memory
->> hotplug. People may have any tools monitoring their VM memory usage and
->> when a VM is running low on memory they may want to hotplug more memory
->> to it.
->
-> What is the API those guests ask for the memory? And who is actually
-> responsible to ask for that memory? Is it a kernel or userspace
-> solution?
+Allocation lockups might be less than 1% of _reported_ bugs.
+What I'm talking about is that there will be _unreported_ (and therefore
+unrecognized/unsolved) bugs caused by memory allocation behavior.
+You are refusing to make an attempt to prove/verify/handle it.
 
-Whatever, this can even be a system administrator running
-'free'. Hyper-V driver sends si_mem_available() and
-vm_memory_committed() metrics to the host every second and this can be
-later queried by any tool (e.g. powershell script).
+> 
+> So let me repeat (for the last time). I find your watchdog interesting
+> for stress testing but I am not convinced this is generally useful for
+> real workloads and the maintenance burden is worth it. I _might_ be
+> wrong here and that is why this is _no_ a NAK from me but I feel
+> uncomfortable how hard you are pushing this.
 
->
->> With udev-style memory onlining they should be aware of page
->> tables and other in-kernel structures which require allocation so they
->> need to add memory slowly and gradually or they risk running into OOM
->> (at least getting some processes killed and these processes may be
->> important). With in-kernel memory hotplug everything happens
->> synchronously and no 'slowly and gradually' algorithm is required in
->> all tools which may trigger memory hotplug.
->
-> What prevents those APIs being used reasonably and only asks so much
-> memory as they can afford? I mean 1.5% available memory necessary for
-> the hotplug is not all that much. Or more precisely what prevents to ask
-> for this additional memory in a synchronous way?
+If you worry about false positives and/or side effects of watchdog, you can
+disable it in your distribution (i.e. SUSE). There are developers/users/customers
+who will be helped by it.
 
-The knowledge about the fact that we need to add memory slowly and
-wait till it gets onlined is not obvious. AFAIR when you hotplug memory
-to Windows VMs there is no such thing as 'onlining', and no brain is
-required, a simple script 'low memory -> add mory memory' always
-works. Asking all these script writers to think twice before issuing a
-memory add command memory sounds like too much (to me).
+> 
+> I expect this is my last word on this.
 
--- 
-  Vitaly
+After all, there is no real objection. Andrew, what do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
