@@ -1,69 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D40CB6B038A
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 10:26:38 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v66so45587995wrc.4
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 07:26:38 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id z46si836204wrz.204.2017.03.13.07.26.37
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D91906B038C
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 10:32:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id n11so14155585wma.5
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 07:32:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 138si11113440wmk.28.2017.03.13.07.32.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 07:26:37 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 3E6FE98D7C
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 14:26:37 +0000 (UTC)
-Date: Mon, 13 Mar 2017 14:26:36 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm, page_alloc: fix the duplicate save/ressave irq
-Message-ID: <20170313142636.ghschfm2sff7j7oh@techsingularity.net>
-References: <1489392174-11794-1-git-send-email-zhongjiang@huawei.com>
- <20170313111947.rdydbpblymc6a73x@techsingularity.net>
- <58C6A5C5.9070301@huawei.com>
+        Mon, 13 Mar 2017 07:32:12 -0700 (PDT)
+Date: Mon, 13 Mar 2017 15:32:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, hotplug: get rid of auto_online_blocks
+Message-ID: <20170313143206.GQ31518@dhcp22.suse.cz>
+References: <20170303082723.GB31499@dhcp22.suse.cz>
+ <20170303183422.6358ee8f@nial.brq.redhat.com>
+ <20170306145417.GG27953@dhcp22.suse.cz>
+ <20170307134004.58343e14@nial.brq.redhat.com>
+ <20170309125400.GI11592@dhcp22.suse.cz>
+ <20170313115554.41d16b1f@nial.brq.redhat.com>
+ <20170313122825.GO31518@dhcp22.suse.cz>
+ <87a88pgwv0.fsf@vitty.brq.redhat.com>
+ <20170313131924.GP31518@dhcp22.suse.cz>
+ <87pohlfg36.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <58C6A5C5.9070301@huawei.com>
+In-Reply-To: <87pohlfg36.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Igor Mammedov <imammedo@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz
 
-On Mon, Mar 13, 2017 at 09:59:33PM +0800, zhong jiang wrote:
-> On 2017/3/13 19:19, Mel Gorman wrote:
-> > On Mon, Mar 13, 2017 at 04:02:54PM +0800, zhongjiang wrote:
-> >> From: zhong jiang <zhongjiang@huawei.com>
-> >>
-> >> when commit 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
-> >> introduced to the mainline, free_pcppages_bulk irq_save/resave to protect
-> >> the IRQ context. but drain_pages_zone fails to clear away the irq. because
-> >> preempt_disable have take effect. so it safely remove the code.
-> >>
-> >> Fixes: 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
-> >> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> > It's not really a fix but is this even measurable?
-> >
-> > The reason the IRQ saving was preserved was for callers that are removing
-> > the CPU where it's not 100% clear if the CPU is protected from IPIs at
-> > the time the pcpu drain takes place. It may be ok but the changelog
-> > should include an indication that it has been considered and is known to
-> > be fine versus CPU hotplug.
-> >
-> you mean the removing cpu maybe  handle the IRQ, it will result in the incorrect pcpu->count ?
+On Mon 13-03-17 14:42:37, Vitaly Kuznetsov wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
 > 
-
-Yes, if it hasn't had interrupts disabled yet at the time of the drain.
-I didn't check, it probably is called from a context that disables
-interrupts but the fact you're not sure makes me automatically wary of
-the patch particularly given how little difference it makes for the common
-case where direct reclaim failed triggering a drain.
-
-> but I don't sure that dying cpu remain handle the IRQ.
+> > On Mon 13-03-17 13:54:59, Vitaly Kuznetsov wrote:
+> >> Michal Hocko <mhocko@kernel.org> writes:
+> >> 
+> >> > On Mon 13-03-17 11:55:54, Igor Mammedov wrote:
+> >> >> > > 
+> >> >> > >        - suggested RFC is not acceptable from virt point of view
+> >> >> > >          as it regresses guests on top of x86 kvm/vmware which
+> >> >> > >          both use ACPI based memory hotplug.
+> >> >> > > 
+> >> >> > >        - udev/userspace solution doesn't work in practice as it's
+> >> >> > >          too slow and unreliable when system is under load which
+> >> >> > >          is quite common in virt usecase. That's why auto online
+> >> >> > >          has been introduced in the first place.  
+> >> >> > 
+> >> >> > Please try to be more specific why "too slow" is a problem. Also how
+> >> >> > much slower are we talking about?
+> >> >>
+> >> >> In virt case on host with lots VMs, userspace handler
+> >> >> processing could be scheduled late enough to trigger a race
+> >> >> between (guest memory going away/OOM handler) and memory
+> >> >> coming online.
+> >> >
+> >> > Either you are mixing two things together or this doesn't really make
+> >> > much sense. So is this a balloning based on memory hotplug (aka active
+> >> > memory hotadd initiated between guest and host automatically) or a guest
+> >> > asking for additional memory by other means (pay more for memory etc.)?
+> >> > Because if this is an administrative operation then I seriously question
+> >> > this reasoning.
+> >> 
+> >> I'm probably repeating myself but it seems this point was lost:
+> >> 
+> >> This is not really a 'ballooning', it is just a pure memory
+> >> hotplug. People may have any tools monitoring their VM memory usage and
+> >> when a VM is running low on memory they may want to hotplug more memory
+> >> to it.
+> >
+> > What is the API those guests ask for the memory? And who is actually
+> > responsible to ask for that memory? Is it a kernel or userspace
+> > solution?
 > 
+> Whatever, this can even be a system administrator running
+> 'free'.
 
-You'd need to be certain to justify the patch.
+I am pretty sure that 'free' will not give you additional memory but
+let's be serious here... If this is solely about monitoring from
+userspace and requesting more memory from the userspace then I would
+consider arguing about timely hotplug operation as void because there is
+absolutely no guarantee to do the request itself in a timely fashion.
 
+> Hyper-V driver sends si_mem_available() and
+> vm_memory_committed() metrics to the host every second and this can be
+> later queried by any tool (e.g. powershell script).
+
+And how exactly is this related to the acpi hotplug which you were
+arguing needs the timely handling as well?
+ 
+> >> With udev-style memory onlining they should be aware of page
+> >> tables and other in-kernel structures which require allocation so they
+> >> need to add memory slowly and gradually or they risk running into OOM
+> >> (at least getting some processes killed and these processes may be
+> >> important). With in-kernel memory hotplug everything happens
+> >> synchronously and no 'slowly and gradually' algorithm is required in
+> >> all tools which may trigger memory hotplug.
+> >
+> > What prevents those APIs being used reasonably and only asks so much
+> > memory as they can afford? I mean 1.5% available memory necessary for
+> > the hotplug is not all that much. Or more precisely what prevents to ask
+> > for this additional memory in a synchronous way?
+> 
+> The knowledge about the fact that we need to add memory slowly and
+> wait till it gets onlined is not obvious.
+
+yes it is and we cannot afford to give a better experience with the
+implementation that requires to have memory to online a memory.
+
+> AFAIR when you hotplug memory
+> to Windows VMs there is no such thing as 'onlining', and no brain is
+> required, a simple script 'low memory -> add mory memory' always
+> works. Asking all these script writers to think twice before issuing a
+> memory add command memory sounds like too much (to me).
+
+Pardon me, but not requiring a brain while doing something on Windows
+VMs is not really an argument...
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
