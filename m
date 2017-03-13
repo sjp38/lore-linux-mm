@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 35E126B03F8
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 03:18:15 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c143so12500482wmd.1
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 00:18:15 -0700 (PDT)
-Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
-        by mx.google.com with ESMTPS id a128si9771620wmc.82.2017.03.13.00.18.13
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 685606B03EB
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 03:22:32 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w37so44695709wrc.2
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 00:22:32 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id r205si9787823wma.48.2017.03.13.00.22.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 00:18:13 -0700 (PDT)
-Received: by mail-wr0-x243.google.com with SMTP id u48so18923708wrc.1
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 00:18:13 -0700 (PDT)
-Date: Mon, 13 Mar 2017 08:18:10 +0100
+        Mon, 13 Mar 2017 00:22:30 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id n11so8284106wma.0
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 00:22:30 -0700 (PDT)
+Date: Mon, 13 Mar 2017 08:22:27 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 21/26] x86/mm: add support of additional page table level
- during early boot
-Message-ID: <20170313071810.GA28726@gmail.com>
+Subject: Re: [PATCH 22/26] x86/mm: add sync_global_pgds() for configuration
+ with 5-level paging
+Message-ID: <20170313072227.GB28726@gmail.com>
 References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
- <20170313055020.69655-22-kirill.shutemov@linux.intel.com>
+ <20170313055020.69655-23-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170313055020.69655-22-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170313055020.69655-23-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -30,32 +30,43 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-fo
 
 * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
-> This patch adds support for 5-level paging during early boot.
-> It generalizes boot for 4- and 5-level paging on 64-bit systems with
-> compile-time switch between them.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/boot/compressed/head_64.S          | 23 +++++++++--
->  arch/x86/include/asm/pgtable.h              |  2 +-
->  arch/x86/include/asm/pgtable_64.h           |  6 ++-
->  arch/x86/include/uapi/asm/processor-flags.h |  2 +
->  arch/x86/kernel/espfix_64.c                 |  2 +-
->  arch/x86/kernel/head64.c                    | 40 +++++++++++++-----
->  arch/x86/kernel/head_64.S                   | 63 +++++++++++++++++++++--------
+> This basically restores slightly modified version of original
+> sync_global_pgds() which we had before foldedl p4d was introduced.
 
-Ok, here I'd like to have a C version instead of further complicating an already 
-complex assembly version...
+Please read your changelogs, I saw several typos/grammar mistakes in earlier 
+patches. The one here is:
 
-I.e. the existing setup code should be converted to C in one patch, and then 
-another patch should add 5-level paging support to the C code.
+	s/foldedl/folded
 
-See how this was done for the 32-bit setup code already:
+> +	for (address = start; address <= end && address >= start;
+> +			address += PGDIR_SIZE) {
 
-  5a7670ee23f2 x86/boot/32: Convert the 32-bit pgtable setup code from assembly to C
+Please don't address col80 checkpatch warnings by breaking the line in such an 
+ugly way! Find another method, or just leave it slightly longer than 80 cols.
 
-Also, please split it up into per boot path and topic, i.e. have a sparate patch 
-for the Xen bits, the KASAN bits, the kexec extension, etc.
+This one could probably be solved by:
+
+	s/address/addr
+
+... which is the canonical variable name for such iterations anyway.
+
+> +			/* the pgt_lock only for Xen */
+
+Please use whole sentences in comments, and please capitalize them properly.
+
+I.e. here:
+
+
+			/* We acquire the pgt_lock only for Xen: */
+
+> +				BUG_ON(pgd_page_vaddr(*pgd)
+> +						!= pgd_page_vaddr(*pgd_ref));
+
+Ugly col80 artifact ...
+
+Please review the rest of the series for similar patterns as well, and please only 
+post 5-10 patches in the next submission - we'll review and apply them step by 
+step.
 
 Thanks,
 
