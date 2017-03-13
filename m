@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A7456B038A
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 15:45:02 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y17so316595177pgh.2
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:45:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q77si12325744pfi.41.2017.03.13.12.45.01
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BE7D26B038C
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 15:46:27 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id e136so54754558itc.0
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:46:27 -0700 (PDT)
+Received: from mail-it0-x231.google.com (mail-it0-x231.google.com. [2607:f8b0:4001:c0b::231])
+        by mx.google.com with ESMTPS id n76si8295846itn.46.2017.03.13.12.46.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 12:45:01 -0700 (PDT)
-Date: Mon, 13 Mar 2017 12:45:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v1 09/10] mm: make rmap_one boolean function
-Message-Id: <20170313124500.ffc91fa4d4077719928e3274@linux-foundation.org>
-In-Reply-To: <1489365353-28205-10-git-send-email-minchan@kernel.org>
-References: <1489365353-28205-1-git-send-email-minchan@kernel.org>
-	<1489365353-28205-10-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 13 Mar 2017 12:46:27 -0700 (PDT)
+Received: by mail-it0-x231.google.com with SMTP id g138so38672711itb.0
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:46:27 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
+References: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 13 Mar 2017 12:46:26 -0700
+Message-ID: <CA+55aFzo95ZYAW-M1uPp0Q0CJUVbc-FTCZuJQ-TtjL6S+E7hKg@mail.gmail.com>
+Subject: Re: [PATCH 0/6] x86: 5-level paging enabling for v4.12, Part 1
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, 13 Mar 2017 09:35:52 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Mon, Mar 13, 2017 at 7:33 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> Here's the first bunch of patches of 5-level patchset. Let's see if I'm on
+> right track addressing Ingo's feedback. :)
 
-> rmap_one's return value controls whether rmap_work should contine to
-> scan other ptes or not so it's target for changing to boolean.
-> Return true if the scan should be continued. Otherwise, return false
-> to stop the scanning.
-> 
-> This patch makes rmap_one's return value to boolean.
+Considering the bug we just had with the HAVE_GENERIC_RCU_GUP code,
+I'm wondering if people would be willing to look at what it would take
+to make x86 use the generic version?
 
-"SWAP_AGAIN" conveys meaning to the reader, whereas the meaning of
-"true" is unclear.  So it would be better to document the return value
-of these functions.
+The x86 version of __get_user_pages_fast() seems to be quite similar
+to the generic one. And it would be lovely if all the main
+architectures shared the same core gup code.
 
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
