@@ -1,69 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D745E6B0389
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 09:47:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u9so13956513wme.6
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:47:26 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id i23si731943wrc.50.2017.03.13.06.47.25
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E42056B0389
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 09:57:21 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id o135so239893935qke.3
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 06:57:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i10si472479qke.82.2017.03.13.06.57.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Mar 2017 06:47:25 -0700 (PDT)
-Date: Mon, 13 Mar 2017 14:47:14 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv6 4/5] x86/mm: check in_compat_syscall() instead TIF_ADDR32
- for mmap(MAP_32BIT)
-In-Reply-To: <35a16a2c-c799-fe0c-2689-bf105b508663@virtuozzo.com>
-Message-ID: <alpine.DEB.2.20.1703131446410.3558@nanos>
-References: <20170306141721.9188-1-dsafonov@virtuozzo.com> <20170306141721.9188-5-dsafonov@virtuozzo.com> <alpine.DEB.2.20.1703131035020.3558@nanos> <35a16a2c-c799-fe0c-2689-bf105b508663@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Mar 2017 06:57:21 -0700 (PDT)
+Date: Mon, 13 Mar 2017 14:57:12 +0100
+From: Igor Mammedov <imammedo@redhat.com>
+Subject: Re: WTH is going on with memory hotplug sysf interface (was: Re:
+ [RFC PATCH] mm, hotplug: get rid of auto_online_blocks)
+Message-ID: <20170313145712.49a2d346@nial.brq.redhat.com>
+In-Reply-To: <20170313104302.GK31518@dhcp22.suse.cz>
+References: <1488462828-174523-1-git-send-email-imammedo@redhat.com>
+	<20170302142816.GK1404@dhcp22.suse.cz>
+	<20170302180315.78975d4b@nial.brq.redhat.com>
+	<20170303082723.GB31499@dhcp22.suse.cz>
+	<20170303183422.6358ee8f@nial.brq.redhat.com>
+	<20170306145417.GG27953@dhcp22.suse.cz>
+	<20170307134004.58343e14@nial.brq.redhat.com>
+	<20170309125400.GI11592@dhcp22.suse.cz>
+	<20170310135807.GI3753@dhcp22.suse.cz>
+	<20170313113110.6a9636a1@nial.brq.redhat.com>
+	<20170313104302.GK31518@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y.
+ Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Mon, 13 Mar 2017, Dmitry Safonov wrote:
-> On 03/13/2017 12:39 PM, Thomas Gleixner wrote:
-> > On Mon, 6 Mar 2017, Dmitry Safonov wrote:
+On Mon, 13 Mar 2017 11:43:02 +0100
+Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Mon 13-03-17 11:31:10, Igor Mammedov wrote:
+> > On Fri, 10 Mar 2017 14:58:07 +0100  
+> [...]
+> > > [    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x0009ffff]
+> > > [    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00100000-0x3fffffff]
+> > > [    0.000000] ACPI: SRAT: Node 1 PXM 1 [mem 0x40000000-0x7fffffff]
+> > > [    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x100000000-0x27fffffff] hotplug
+> > > [    0.000000] NUMA: Node 0 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0x3fffffff] -> [mem 0x00000000-0x3fffffff]
+> > > [    0.000000] NODE_DATA(0) allocated [mem 0x3fffc000-0x3fffffff]
+> > > [    0.000000] NODE_DATA(1) allocated [mem 0x7ffdc000-0x7ffdffff]
+> > > [    0.000000] Zone ranges:
+> > > [    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+> > > [    0.000000]   DMA32    [mem 0x0000000001000000-0x000000007ffdffff]
+> > > [    0.000000]   Normal   empty
+> > > [    0.000000] Movable zone start for each node
+> > > [    0.000000] Early memory node ranges
+> > > [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+> > > [    0.000000]   node   0: [mem 0x0000000000100000-0x000000003fffffff]
+> > > [    0.000000]   node   1: [mem 0x0000000040000000-0x000000007ffdffff]
+> > > 
+> > > so there is neither any normal zone nor movable one at the boot time.  
+> > it could be if hotpluggable memory were present at boot time in E802 table
+> > (if I remember right when running on hyperv there is movable zone at boot time),
 > > 
-> > > Result of mmap() calls with MAP_32BIT flag at this moment depends
-> > > on thread flag TIF_ADDR32, which is set during exec() for 32-bit apps.
-> > > It's broken as the behavior of mmap() shouldn't depend on exec-ed
-> > > application's bitness. Instead, it should check the bitness of mmap()
-> > > syscall.
-> > > How it worked before:
-> > > o for 32-bit compatible binaries it is completely ignored. Which was
-> > > fine when there were one mmap_base, computed for 32-bit syscalls.
-> > > After introducing mmap_compat_base 64-bit syscalls do use computed
-> > > for 64-bit syscalls mmap_base, which means that we can allocate 64-bit
-> > > address with 64-bit syscall in application launched from 32-bit
-> > > compatible binary. And ignoring this flag is not expected behavior.
+> > but in qemu hotpluggable memory isn't put into E820,
+> > so zone is allocated later when memory is enumerated
+> > by ACPI subsystem and onlined.
+> > It causes less issues wrt movable zone and works for
+> > different versions of linux/windows as well.
 > > 
-> > Well, the real question here is, whether we should allow 32bit applications
-> > to obtain 64bit mappings at all. We can very well force 32bit applications
-> > into the 4GB address space as it was before your mmap base splitup and be
-> > done with it.
+> > That's where in kernel auto-onlining could be also useful,
+> > since user would be able to start-up with with small
+> > non removable memory plus several removable DIMMs
+> > and have all the memory onlined/available by the time
+> > initrd is loaded. (missing piece here is onling
+> > removable memory as movable by default).  
 > 
-> Hmm, yes, we could restrict 32bit applications to 32bit mappings only.
-> But the approach which I tried to follow in the patches set, it was do
-> not base the logic on the bitness of launched applications
-> (native/compat) - only base on bitness of the performing syscall.
-> The idea was suggested by Andy and I made mmap() logic here independent
-> from original application's bitness.
-> 
-> It also seems to me simpler:
-> if 32-bit application wants to allocate 64-bit mapping, it should
-> long-jump with 64-bit segment descriptor and do `syscall` instruction
-> for 64-bit syscall entry path. So, in my point of view after this dance
-> the application does not differ much from native 64-bit binary and can
-> have 64-bit address mapping.
+> Why we should even care to online that memory that early rather than
+> making it available via e820?
 
-Works for me, but it lacks documentation .....
+It's not forbidden by spec and has less complications
+when it comes to removable memory. Declaring it in E820
+would add following limitations/drawbacks:
+ - firmware should be able to exclude removable memory
+   from its usage (currently SeaBIOS nor EFI have to
+   know/care about it) => less qemu-guest ABI to maintain.
+ - OS should be taught to avoid/move (early) nonmovable
+   allocations from removable address ranges.
+   There were patches targeting that in recent kernels,
+   but it won't work with older kernels that don't have it.
+   So limiting a range of OSes that could run on QEMU
+   and do memory removal.
 
-Thanks,
+E820 less approach works reasonably well with wide range
+of guest OSes and less complex that if removable memory
+were present it E820. Hence I don't have a compelling
+reason to introduce removable memory in E820 as it
+only adds to hot(un)plug issues.
 
-	tglx
+I have an off-tree QEMU hack that puts hotremovable
+memory added with "-device pc-dimm" on CLI into E820
+to experiment with. It could be useful to play
+with zone layouts at boot time, so if you are
+interested I can rebase it on top of current master
+and post it here to play with.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
