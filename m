@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB856B0038
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 15:24:23 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id n76so129841096ioe.1
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:24:23 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c93sor1019833ioa.17.1969.12.31.16.00.00
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B8BED6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 15:44:26 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id x37so235040326ota.6
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:44:26 -0700 (PDT)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id x79si4965835oia.292.2017.03.13.12.44.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 13 Mar 2017 12:24:22 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Mar 2017 12:44:25 -0700 (PDT)
+Received: by mail-oi0-x233.google.com with SMTP id 126so82957982oig.3
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 12:44:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <f2230734-a13f-6c0d-8a01-15fd4408e799@oracle.com>
-References: <20170306220348.79702-1-thgarnie@google.com> <20170306220348.79702-2-thgarnie@google.com>
- <CALCETrVXHc-EAhBtdhL9FXSW1G2VbohRY4UJuOtpRG1K0Q-Ogg@mail.gmail.com>
- <17ffcc5b-1c9a-51b6-272a-5eaecf1bc0c4@citrix.com> <CALCETrWv-u7OdjWDY+5eF7p-ngPun-yYf0QegMzYc6MGVQd-4w@mail.gmail.com>
- <CAJcbSZExVWA0jvAoxLLc+58Ag9cHchifrHP=fFfzU_onHo2PyA@mail.gmail.com>
- <5cf31779-45c5-d37f-86bc-d5afb3fb7ab6@oracle.com> <51c23e92-d1f0-427f-e069-c92fc4ed6226@oracle.com>
- <CAJcbSZEnUBfLHjf+bHqY0JQhQXD9urX45BXrQjx=1=A5gPpp_w@mail.gmail.com>
- <36579cc4-05e7-a448-767c-b9ad940362fc@oracle.com> <f2230734-a13f-6c0d-8a01-15fd4408e799@oracle.com>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Mon, 13 Mar 2017 12:24:21 -0700
-Message-ID: <CAJcbSZG75_cHxWp2eJ+XPiKZMbf2NNGwoS+8qkmXQ=rH2FURCQ@mail.gmail.com>
-Subject: Re: [Xen-devel] [PATCH v5 2/3] x86: Remap GDT tables in the Fixmap section
+In-Reply-To: <20170313185710.GA3422@osiris>
+References: <20170309130616.51286-1-heiko.carstens@de.ibm.com>
+ <3207330.x0D3JT6f2l@aspire.rjw.lan> <CAPcyv4g7_E1JTCGq1_gC7W2JtS2JXmWGPuiHW5CMNpjWs2DXpg@mail.gmail.com>
+ <2552966.WcQWnf8t6b@aspire.rjw.lan> <20170313185710.GA3422@osiris>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 13 Mar 2017 12:44:25 -0700
+Message-ID: <CAPcyv4i1phF5rZL--g6ojguHScKetNA3gfsZRpHhVw3VbgqmFg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: add private lock to serialize memory hotplug operations
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Michal Hocko <mhocko@suse.com>, Stanislaw Gruszka <sgruszka@redhat.com>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Frederic Weisbecker <fweisbec@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Chris Wilson <chris@chris-wilson.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Alexander Potapenko <glider@google.com>, Pavel Machek <pavel@ucw.cz>, "H . Peter Anvin" <hpa@zytor.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jiri Olsa <jolsa@redhat.com>, zijun_hu <zijun_hu@htc.com>, Prarit Bhargava <prarit@redhat.com>, Andi Kleen <ak@linux.intel.com>, Len Brown <len.brown@intel.com>, Jonathan Corbet <corbet@lwn.net>, Michael Ellerman <mpe@ellerman.id.au>, Joerg Roedel <joro@8bytes.org>, X86 ML <x86@kernel.org>, "Luis R . Rodriguez" <mcgrof@kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Ingo Molnar <mingo@redhat.com>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, Borislav Petkov <bp@suse.de>, Fenghua Yu <fenghua.yu@intel.com>, Jiri Kosina <jikos@kernel.org>, Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>, He Chen <he.chen@linux.intel.com>, Brian Gerst <brgerst@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, lguest@lists.ozlabs.org, Andy Lutomirski <luto@kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Cooper <andrew.cooper3@citrix.com>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Peter Zijlstra <peterz@infradead.org>, Paolo Bonzini <pbonzini@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
-On Mon, Mar 13, 2017 at 11:32 AM, Boris Ostrovsky
-<boris.ostrovsky@oracle.com> wrote:
-> There are a couple of problems for Xen PV guests that need to be addressed:
-> 1. Xen's set_fixmap op needs non-default handling for
-> FIX_GDT_REMAP_BEGIN range
-> 2. GDT remapping for PV guests needs to be RO for both 64 and 32-bit guests.
+On Mon, Mar 13, 2017 at 11:57 AM, Heiko Carstens
+<heiko.carstens@de.ibm.com> wrote:
+> On Thu, Mar 09, 2017 at 11:34:44PM +0100, Rafael J. Wysocki wrote:
+>> > The memory described by devm_memremap_pages() is never "onlined" to
+>> > the core mm. We're only using arch_add_memory() to get a linear
+>> > mapping and page structures. The rest of memory hotplug is skipped,
+>> > and this ZONE_DEVICE memory is otherwise hidden from the core mm.
+>>
+>> OK, that should be fine then.
 >
-> I don't know how you prefer to deal with (2), patch below is one
-> suggestion. With it all my boot tests (Xen and bare-metal) passed.
->
+> So, does that mean that the patch is ok as it is? If so, it would be good
+> to get an Ack from both, you and Dan, please.
 
-Good suggestion, I think I will use most of it. Thanks!
-
-> One problem with applying it directly is that kernel becomes
-> not-bisectable (Xen-wise) between patches 2 and 3 so perhaps you might
-> pull some of the changes from patch 3 to patch 2.
->
-
-Yes that make sense, I will have to add the global variable on patch 2
-and rebase 3 correctly.
-
--- 
-Thomas
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
