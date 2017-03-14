@@ -1,58 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 483D66B038C
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:19:01 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y51so51635864wry.6
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:19:01 -0700 (PDT)
-From: Till Smejkal <till.smejkal@googlemail.com>
-Date: Tue, 14 Mar 2017 09:18:55 -0700
-Subject: Re: [RFC PATCH 07/13] kernel/fork: Split and export 'mm_alloc' and
- 'mm_init'
-Message-ID: <20170314161855.2g2gc3ff4ifj2lqt@arch-dev>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BACC76B0389
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:20:09 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c143so601097wmd.1
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:20:09 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 124si389915wmc.106.2017.03.14.09.20.08
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 14 Mar 2017 09:20:08 -0700 (PDT)
+Date: Tue, 14 Mar 2017 17:20:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: WTH is going on with memory hotplug sysf interface
+Message-ID: <20170314162003.GD7772@dhcp22.suse.cz>
+References: <20170302180315.78975d4b@nial.brq.redhat.com>
+ <20170303082723.GB31499@dhcp22.suse.cz>
+ <20170303183422.6358ee8f@nial.brq.redhat.com>
+ <20170306145417.GG27953@dhcp22.suse.cz>
+ <20170307134004.58343e14@nial.brq.redhat.com>
+ <20170309125400.GI11592@dhcp22.suse.cz>
+ <20170310135807.GI3753@dhcp22.suse.cz>
+ <75ee9d3f-7027-782a-9cde-5192396a4a8c@gmail.com>
+ <20170313091907.GF31518@dhcp22.suse.cz>
+ <99f14975-f89f-4484-6ae1-296b242d4bf9@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DCFFB03F4@AcuExch.aculab.com>
+In-Reply-To: <99f14975-f89f-4484-6ae1-296b242d4bf9@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: 'Till Smejkal' <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Andy Lutomirski <luto@amacapital.net>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>, "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-aio@kvack.org" <linux-aio@kvack.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-hexagon@vger.kernel.org" <linux-hexagon@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, "adi-buildroot-devel@lists.sourceforge.net" <adi-buildroot-devel@lists.sourceforge.net>, "linux-metag@vger.kernel.org" <linux-metag@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, "linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
+To: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Cc: Igor Mammedov <imammedo@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Reza Arbab <arbab@linux.vnet.ibm.com>
 
-On Tue, 14 Mar 2017, David Laight wrote:
-> From: Linuxppc-dev Till Smejkal
-> > Sent: 13 March 2017 22:14
-> > The only way until now to create a new memory map was via the exported
-> > function 'mm_alloc'. Unfortunately, this function not only allocates a new
-> > memory map, but also completely initializes it. However, with the
-> > introduction of first class virtual address spaces, some initialization
-> > steps done in 'mm_alloc' are not applicable to the memory maps needed for
-> > this feature and hence would lead to errors in the kernel code.
-> > 
-> > Instead of introducing a new function that can allocate and initialize
-> > memory maps for first class virtual address spaces and potentially
-> > duplicate some code, I decided to split the mm_alloc function as well as
-> > the 'mm_init' function that it uses.
-> > 
-> > Now there are four functions exported instead of only one. The new
-> > 'mm_alloc' function only allocates a new mm_struct and zeros it out. If one
-> > want to have the old behavior of mm_alloc one can use the newly introduced
-> > function 'mm_alloc_and_setup' which not only allocates a new mm_struct but
-> > also fully initializes it.
-> ...
+On Tue 14-03-17 12:05:59, YASUAKI ISHIMATSU wrote:
 > 
-> That looks like bugs waiting to happen.
-> You need unchanged code to fail to compile.
+> 
+> On 03/13/2017 05:19 AM, Michal Hocko wrote:
+> >On Fri 10-03-17 12:39:27, Yasuaki Ishimatsu wrote:
+> >>On 03/10/2017 08:58 AM, Michal Hocko wrote:
+[...]
+> >>># echo online_movable > /sys/devices/system/memory/memory34/state
+> >>># grep . /sys/devices/system/memory/memory3?/valid_zones
+> >>>/sys/devices/system/memory/memory32/valid_zones:Normal
+> >>>/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+> >>>/sys/devices/system/memory/memory34/valid_zones:Movable Normal
+> >>>
+> >>
+> >>I think there is no strong reason which kernel has the restriction.
+> >>By setting the restrictions, it seems to have made management of
+> >>these zone structs simple.
+> >
+> >Could you be more specific please? How could this make management any
+> >easier when udev is basically racing with the physical hotplug and the
+> >result is basically undefined?
+> >
+> 
+> When changing zone from NORMAL(N) to MOVALBE(M), we must resize both zones,
+> zone->zone_start_pfn and zone->spanned_pages. Currently there is the
+> restriction.
+> 
+> So we just simply change:
+>   zone(N)->spanned_pages -= nr_pages
+>   zone(M)->zone_start_pfn -= nr_pages
 
-Thank you for this hint. I can give the new mm_alloc function a different name so
-that code that uses the *old* mm_alloc function will fail to compile. I just reused
-the old name when I wrote the code, because mm_alloc was only used in very few
-locations in the kernel (2 times in the whole kernel source) which made identifying
-and changing them very easy. I also don't think that there will be many users in the
-kernel for mm_alloc in the future because it is a relatively low level data
-structure. But if it is better to use a different name for the new function, I am
-very happy to change this.
+Yes I understand how this made the implementation simpler. I was
+questioning how this made user management any easier. Changing
+valid zones which races with the hotplug consumer (e.g. udev) sounds
+like a terrible idea to me.
 
-Till
+Anyway, it seems that the initial assumption/restriction that all
+pages have to start on the zone Normal is not really needed. I have a
+preliminary patch which removes that and associates newly added pages
+with a zone at the online time and it seems to be working reasonably
+well. I have to iron out some corners before I post it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
