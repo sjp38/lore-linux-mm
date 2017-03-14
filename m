@@ -1,72 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE3DA6B0388
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:37:49 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id r136so40084935vke.6
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 22:37:49 -0700 (PDT)
-Received: from mail-ua0-x230.google.com (mail-ua0-x230.google.com. [2607:f8b0:400c:c08::230])
-        by mx.google.com with ESMTPS id d21si908939vkf.68.2017.03.13.22.37.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Mar 2017 22:37:48 -0700 (PDT)
-Received: by mail-ua0-x230.google.com with SMTP id f54so159480894uaa.1
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 22:37:48 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AE7836B0038
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 03:35:03 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id g2so360584805pge.7
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 00:35:03 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id z13si13965224pfj.93.2017.03.14.00.35.01
+        for <linux-mm@kvack.org>;
+        Tue, 14 Mar 2017 00:35:02 -0700 (PDT)
+Date: Tue, 14 Mar 2017 16:34:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v1 02/10] mm: remove SWAP_DIRTY in ttu
+Message-ID: <20170314073416.GA29720@bbox>
+References: <1489365353-28205-1-git-send-email-minchan@kernel.org>
+ <1489365353-28205-3-git-send-email-minchan@kernel.org>
+ <099201d29bc3$e3ab2d60$ab018820$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20170314020709.vxeglus54k76i7rn@arch-dev>
-References: <CALCETrWe8uOi3m8qXUbMA4017+rxbi1C8hzZ0bwjVHmfdE4FnQ@mail.gmail.com>
- <20170314020709.vxeglus54k76i7rn@arch-dev>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 13 Mar 2017 22:37:27 -0700
-Message-ID: <CALCETrXKvNWv1OtoSo_HWf5ZHSvyGS1NsuQod6Zt+tEg3MT5Sg@mail.gmail.com>
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <099201d29bc3$e3ab2d60$ab018820$@alibaba-inc.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Till Smejkal <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
-
-On Mon, Mar 13, 2017 at 7:07 PM, Till Smejkal
-<till.smejkal@googlemail.com> wrote:
-> On Mon, 13 Mar 2017, Andy Lutomirski wrote:
->> This sounds rather complicated.  Getting TLB flushing right seems
->> tricky.  Why not just map the same thing into multiple mms?
->
-> This is exactly what happens at the end. The memory region that is descri=
-bed by the
-> VAS segment will be mapped in the ASes that use the segment.
-
-So why is this kernel feature better than just doing MAP_SHARED
-manually in userspace?
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Michal Hocko' <mhocko@suse.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Anshuman Khandual' <khandual@linux.vnet.ibm.com>
 
 
->> Ick.  Please don't do this.  Can we please keep an mm as just an mm
->> and not make it look magically different depending on which process
->> maps it?  If you need a trampoline (which you do, of course), just
->> write a trampoline in regular user code and map it manually.
->
-> Did I understand you correctly that you are proposing that the switching =
-thread
-> should make sure by itself that its code, stack, =E2=80=A6 memory regions=
- are properly setup
-> in the new AS before/after switching into it? I think, this would make us=
-ing first
-> class virtual address spaces much more difficult for user applications to=
- the extend
-> that I am not even sure if they can be used at all. At the moment, switch=
-ing into a
-> VAS is a very simple operation for an application because the kernel will=
- just simply
-> do the right thing.
+Hello Hillf,
 
-Yes.  I think that having the same mm_struct look different from
-different tasks is problematic.  Getting it right in the arch code is
-going to be nasty.  The heuristics of what to share are also tough --
-why would text + data + stack or whatever you're doing be adequate?
-What if you're in a thread?  What if two tasks have their stacks in
-the same place?
+On Mon, Mar 13, 2017 at 02:34:37PM +0800, Hillf Danton wrote:
+> 
+> On March 13, 2017 8:36 AM Minchan Kim wrote: 
+> > 
+> > If we found lazyfree page is dirty, try_to_unmap_one can just
+> > SetPageSwapBakced in there like PG_mlocked page and just return
+> > with SWAP_FAIL which is very natural because the page is not
+> > swappable right now so that vmscan can activate it.
+> > There is no point to introduce new return value SWAP_DIRTY
+> > in ttu at the moment.
+> > 
+> > Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> 
+> >  include/linux/rmap.h | 1 -
+> >  mm/rmap.c            | 6 +++---
+> >  mm/vmscan.c          | 3 ---
+> >  3 files changed, 3 insertions(+), 7 deletions(-)
+> > 
+> > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> > index fee10d7..b556eef 100644
+> > --- a/include/linux/rmap.h
+> > +++ b/include/linux/rmap.h
+> > @@ -298,6 +298,5 @@ static inline int page_mkclean(struct page *page)
+> >  #define SWAP_AGAIN	1
+> >  #define SWAP_FAIL	2
+> >  #define SWAP_MLOCK	3
+> > -#define SWAP_DIRTY	4
+> > 
+> >  #endif	/* _LINUX_RMAP_H */
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index 9dbfa6f..d47af09 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1414,7 +1414,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> >  			 */
+> >  			if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
+> >  				WARN_ON_ONCE(1);
+> > -				ret = SWAP_FAIL;
+> > +				ret = false;
+> Nit:
+> Hm looks like stray merge.
+> Not sure it's really needed. 
 
-I could imagine something like a sigaltstack() mode that lets you set
-a signal up to also switch mm could be useful.
+rebase fail ;-O
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
