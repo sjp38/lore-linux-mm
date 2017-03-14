@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0E56B038E
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8D06B038F
 	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:26:26 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 77so340540535pgc.5
+Received: by mail-pg0-f72.google.com with SMTP id 77so340540596pgc.5
         for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:26:26 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id t17si14050601pgi.197.2017.03.14.01.26.19
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id l3si14020580pgl.298.2017.03.14.01.26.19
         for <linux-mm@kvack.org>;
         Tue, 14 Mar 2017 01:26:20 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v6 07/15] lockdep: Avoid adding redundant direct links of crosslocks
-Date: Tue, 14 Mar 2017 17:18:54 +0900
-Message-ID: <1489479542-27030-8-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v6 06/15] lockdep: Handle non(or multi)-acquisition of a crosslock
+Date: Tue, 14 Mar 2017 17:18:53 +0900
+Message-ID: <1489479542-27030-7-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
@@ -21,71 +21,191 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On my machine (QEMU x86_64, 4 core, mem 512M, enable-kvm), this patch
-does not make different between before/after in lockdep_stats. So this
-patch looks unnecessary. However, I wonder if it's still true in other
-systems. Could anybody check lockdep_stats in your system?
+No acquisition might be in progress on commit of a crosslock. Completion
+operations enabling crossrelease are the case like:
 
-Before (apply all crossrelease patches except this patch):
+   CONTEXT X                         CONTEXT Y
+   ---------                         ---------
+   trigger completion context
+                                     complete AX
+                                        commit AX
+   wait_for_complete AX
+      acquire AX
+      wait
 
- lock-classes:                          988 [max: 8191]
- direct dependencies:                  5814 [max: 32768]
- indirect dependencies:               18915
- all direct dependencies:            119802
- dependency chains:                    6350 [max: 65536]
- dependency chain hlocks:             20771 [max: 327680]
- in-hardirq chains:                      52
- in-softirq chains:                     361
- in-process chains:                    5937
- stack-trace entries:                 80396 [max: 524288]
- combined max dependencies:       113926468
- hardirq-safe locks:                     42
- hardirq-unsafe locks:                  644
- softirq-safe locks:                    129
- softirq-unsafe locks:                  561
- irq-safe locks:                        135
- irq-unsafe locks:                      644
- hardirq-read-safe locks:                 2
- hardirq-read-unsafe locks:             127
- softirq-read-safe locks:                11
- softirq-read-unsafe locks:             119
- irq-read-safe locks:                    12
- irq-read-unsafe locks:                 127
- uncategorized locks:                   165
- unused locks:                            1
- max locking depth:                      14
- max bfs queue depth:                   168
- debug_locks:                             1
+   where AX is a crosslock.
 
-After (apply all crossrelease patches without exception):
+When no acquisition is in progress, we should not perform commit because
+the lock does not exist, which might cause incorrect memory access. So
+we have to track the number of acquisitions of a crosslock to handle it.
 
- lock-classes:                          980 [max: 8191]
- direct dependencies:                  5604 [max: 32768]
- indirect dependencies:               18517
- all direct dependencies:            112620
- dependency chains:                    6215 [max: 65536]
- dependency chain hlocks:             20401 [max: 327680]
- in-hardirq chains:                      51
- in-softirq chains:                     298
- in-process chains:                    5866
- stack-trace entries:                 78707 [max: 524288]
- combined max dependencies:        91220116
- hardirq-safe locks:                     42
- hardirq-unsafe locks:                  637
- softirq-safe locks:                    117
- softirq-unsafe locks:                  561
- irq-safe locks:                        126
- irq-unsafe locks:                      637
- hardirq-read-safe locks:                 2
- hardirq-read-unsafe locks:             127
- softirq-read-safe locks:                10
- softirq-read-unsafe locks:             119
- irq-read-safe locks:                    11
- irq-read-unsafe locks:                 127
- uncategorized locks:                   165
- unused locks:                            1
- max locking depth:                      15
- max bfs queue depth:                   168
- debug_locks:                             1
+Moreover, in case that more than one acquisition of a crosslock are
+overlapped like:
 
------8<-----
+   CONTEXT W        CONTEXT X        CONTEXT Y        CONTEXT Z
+   ---------        ---------        ---------        ---------
+   acquire AX (gen_id: 1)
+                                     acquire A
+                    acquire AX (gen_id: 10)
+                                     acquire B
+                                     commit AX
+                                                      acquire C
+                                                      commit AX
+
+   where A, B and C are typical locks and AX is a crosslock.
+
+Current crossrelease code performs commits in Y and Z with gen_id = 10.
+However, we can use gen_id = 1 to do it, since not only 'acquire AX in X'
+but 'acquire AX in W' also depends on each acquisition in Y and Z until
+their commits. So make it use gen_id = 1 instead of 10 on their commits,
+which adds an additional dependency 'AX -> A' in the example above.
+
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+---
+ include/linux/lockdep.h  | 22 +++++++++++++++++++-
+ kernel/locking/lockdep.c | 52 ++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 62 insertions(+), 12 deletions(-)
+
+diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
+index 9902b2a..5356f71 100644
+--- a/include/linux/lockdep.h
++++ b/include/linux/lockdep.h
+@@ -312,6 +312,19 @@ struct hist_lock {
+  */
+ struct cross_lock {
+ 	/*
++	 * When more than one acquisition of crosslocks are overlapped,
++	 * we have to perform commit for them based on cross_gen_id of
++	 * the first acquisition, which allows us to add more true
++	 * dependencies.
++	 *
++	 * Moreover, when no acquisition of a crosslock is in progress,
++	 * we should not perform commit because the lock might not exist
++	 * any more, which might cause incorrect memory access. So we
++	 * have to track the number of acquisitions of a crosslock.
++	 */
++	int nr_acquire;
++
++	/*
+ 	 * Seperate hlock instance. This will be used at commit step.
+ 	 *
+ 	 * TODO: Use a smaller data structure containing only necessary
+@@ -510,9 +523,16 @@ extern void lockdep_init_map_crosslock(struct lockdep_map *lock,
+ 				       int subclass);
+ extern void lock_commit_crosslock(struct lockdep_map *lock);
+ 
++/*
++ * What we essencially have to initialize is 'nr_acquire'. Other members
++ * will be initialized in add_xlock().
++ */
++#define STATIC_CROSS_LOCK_INIT() \
++	{ .nr_acquire = 0,}
++
+ #define STATIC_CROSS_LOCKDEP_MAP_INIT(_name, _key) \
+ 	{ .map.name = (_name), .map.key = (void *)(_key), \
+-	  .map.cross = 1, }
++	  .map.cross = 1, .xlock = STATIC_CROSS_LOCK_INIT(), }
+ 
+ /*
+  * To initialize a lockdep_map statically use this macro.
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index db15fce..ec4f6af 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -4780,11 +4780,28 @@ static int add_xlock(struct held_lock *hlock)
+ 
+ 	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
+ 
++	/*
++	 * When acquisitions for a crosslock are overlapped, we use
++	 * nr_acquire to perform commit for them, based on cross_gen_id
++	 * of the first acquisition, which allows to add additional
++	 * dependencies.
++	 *
++	 * Moreover, when no acquisition of a crosslock is in progress,
++	 * we should not perform commit because the lock might not exist
++	 * any more, which might cause incorrect memory access. So we
++	 * have to track the number of acquisitions of a crosslock.
++	 *
++	 * depend_after() is necessary to initialize only the first
++	 * valid xlock so that the xlock can be used on its commit.
++	 */
++	if (xlock->nr_acquire++ && depend_after(&xlock->hlock))
++		goto unlock;
++
+ 	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
+ 	xlock->hlock = *hlock;
+ 	xlock->hlock.gen_id = gen_id;
++unlock:
+ 	graph_unlock();
+-
+ 	return 1;
+ }
+ 
+@@ -4874,18 +4891,20 @@ static int commit_xhlocks(struct cross_lock *xlock)
+ 	if (!graph_lock())
+ 		return 0;
+ 
+-	for (i = cur - 1; !xhlock_same(i, cur); i--) {
+-		struct hist_lock *xhlock = &xhlock(i);
++	if (xlock->nr_acquire) {
++		for (i = cur - 1; !xhlock_same(i, cur); i--) {
++			struct hist_lock *xhlock = &xhlock(i);
+ 
+-		if (!xhlock_used(xhlock))
+-			break;
++			if (!xhlock_used(xhlock))
++				break;
+ 
+-		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
+-			break;
++			if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
++				break;
+ 
+-		if (same_context_xhlock(xhlock) &&
+-		    !commit_xhlock(xlock, xhlock))
+-			return 0;
++			if (same_context_xhlock(xhlock) &&
++			    !commit_xhlock(xlock, xhlock))
++				return 0;
++		}
+ 	}
+ 
+ 	graph_unlock();
+@@ -4923,16 +4942,27 @@ void lock_commit_crosslock(struct lockdep_map *lock)
+ EXPORT_SYMBOL_GPL(lock_commit_crosslock);
+ 
+ /*
++ * return 0: Stop. Failed to acquire graph_lock.
+  * return 1: Done. No more release ops is needed.
+  * return 2: Need to do normal release operation.
+  */
+ static int lock_release_crosslock(struct lockdep_map *lock)
+ {
+-	return cross_lock(lock) ? 1 : 2;
++	if (cross_lock(lock)) {
++		if (!graph_lock())
++			return 0;
++		((struct lockdep_map_cross *)lock)->xlock.nr_acquire--;
++		graph_unlock();
++		return 1;
++	}
++	return 2;
+ }
+ 
+ static void cross_init(struct lockdep_map *lock, int cross)
+ {
++	if (cross)
++		((struct lockdep_map_cross *)lock)->xlock.nr_acquire = 0;
++
+ 	lock->cross = cross;
+ 
+ 	/*
+-- 
+1.9.1
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
