@@ -1,72 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A38A6B038B
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 20:39:41 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u108so47157232wrb.3
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 17:39:41 -0700 (PDT)
-From: Till Smejkal <till.smejkal@googlemail.com>
-Date: Mon, 13 Mar 2017 17:39:35 -0700
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-Message-ID: <20170314003935.2jwycgajo7eojmvm@arch-dev>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5584B6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 20:56:39 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id b2so336701593pgc.6
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 17:56:39 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e10si12930837pgf.266.2017.03.13.17.56.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Mar 2017 17:56:38 -0700 (PDT)
+Date: Tue, 14 Mar 2017 08:56:34 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: arch/x86/include/asm/pgtable.h:888:2: error: implicit
+ declaration of function 'native_pud_clear'
+Message-ID: <20170314005634.27c5uggi3zb6i6z5@wfg-t540p.sh.intel.com>
+References: <201703120656.zGxXeJer%fengguang.wu@intel.com>
+ <9d16b438-0b64-2292-7de3-1b8daebe621e@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <73f62aca-d442-9e4b-3e2c-6269e2632e68@twiddle.net>
+In-Reply-To: <9d16b438-0b64-2292-7de3-1b8daebe621e@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Henderson <rth@twiddle.net>
-Cc: Till Smejkal <till.smejkal@googlemail.com>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andy Lutomirski <luto@amacapital.net>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, linux-kernel@vger.kernel.org, linux-alpha@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-media@vger.kernel.org, linux-mtd@lists.infradead.org, linux-usb@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, alsa-devel@alsa-project.org
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, 14 Mar 2017, Richard Henderson wrote:
-> On 03/14/2017 08:14 AM, Till Smejkal wrote:
-> > At the current state of the development, first class virtual address spaces
-> > have one limitation, that we haven't been able to solve so far. The feature
-> > allows, that different threads of the same process can execute in different
-> > AS at the same time. This is possible, because the VAS-switch operation
-> > only changes the active mm_struct for the task_struct of the calling
-> > thread. However, when a thread switches into a first class virtual address
-> > space, some parts of its original AS are duplicated into the new one to
-> > allow the thread to continue its execution at its current state.
-> > Accordingly, parts of the processes AS (e.g. the code section, data
-> > section, heap section and stack sections) exist in multiple AS if the
-> > process has a VAS attached to it. Changes to these shared memory regions
-> > are synchronized between the address spaces whenever a thread switches
-> > between two of them. Unfortunately, in some scenarios the kernel is not
-> > able to properly synchronize all these shared memory regions because of
-> > conflicting changes. One such example happens if there are two threads, one
-> > executing in an attached first class virtual address space, the other in
-> > the tasks original address space. If both threads make changes to the heap
-> > section that cause expansion of the underlying vm_area_struct, the kernel
-> > cannot correctly synchronize these changes, because that would cause parts
-> > of the virtual address space to be overwritten with unrelated data. In the
-> > current implementation such conflicts are only detected but not resolved
-> > and result in an error code being returned by the kernel during the VAS
-> > switch operation. Unfortunately, that means for the particular thread that
-> > tried to make the switch, that it cannot do this anymore in the future and
-> > accordingly has to be killed.
-> 
-> This sounds like a fairly fundamental problem to me.
+Hi Dave,
 
-Yes I agree. This is a significant limitation of first class virtual address spaces.
-However, conflict like this can be mitigated by being careful in the application
-that uses multiple first class virtual address spaces. If all threads make sure that
-they never resize shared memory regions when executing inside a VAS such conflicts do
-not occur. Another possibility that I investigated but not yet finished is that such
-resizes of shared memory regions have to be synchronized more frequently than just at
-every switch between VASes. If one for example "forward" memory region resizes to all
-AS that share this particular memory region during the resize operation, one can
-completely eliminate this problem. Unfortunately, this introduces a significant cost
-and introduces a difficult to handle race condition.
+On Mon, Mar 13, 2017 at 08:57:54AM -0700, Dave Jiang wrote:
+>Fengguang,
+>I don't believe Andrew has picked up this patch yet:
+>http://marc.info/?l=linux-mm&m=148883870428812&w=2
+>
+>Unless you are seeing issues with that patch.
 
-> Is this an indication that full virtual address spaces are useless?  It
-> would seem like if you only use virtual address segments then you avoid all
-> of the problems with executing code, active stacks, and brk.
+It looks the patch is not in mainline or linux-next yet:
 
-What do you mean with *virtual address segments*? The nice part of first class
-virtual address spaces is that one can share/reuse collections of address space
-segments easily.
+% git show linus/master:arch/x86/include/asm/pgtable-3level.h |grep -C3 CONFIG_PARAVIRT
+}
 
-Till
+#if !defined(CONFIG_SMP) || (defined(CONFIG_HIGHMEM64G) && \
+                defined(CONFIG_PARAVIRT))
+static inline void native_pud_clear(pud_t *pudp)
+{
+}
+
+% git show linux-next/master:arch/x86/include/asm/pgtable-3level.h |grep -C3 CONFIG_PARAVIRT
+}
+
+#if !defined(CONFIG_SMP) || (defined(CONFIG_HIGHMEM64G) && \
+                defined(CONFIG_PARAVIRT))
+static inline void native_pud_clear(pud_t *pudp)
+{
+}
+
+Thanks,
+Fengguang
+
+>On 03/11/2017 03:55 PM, kbuild test robot wrote:
+>> Hi Matthew,
+>>
+>> FYI, the error/warning still remains.
+>>
+>> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+>> head:   84c37c168c0e49a412d7021cda3183a72adac0d0
+>> commit: a00cc7d9dd93d66a3fb83fc52aa57a4bec51c517 mm, x86: add support for PUD-sized transparent hugepages
+>> date:   2 weeks ago
+>> config: i386-randconfig-a0-201711 (attached as .config)
+>> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+>> reproduce:
+>>         git checkout a00cc7d9dd93d66a3fb83fc52aa57a4bec51c517
+>>         # save the attached .config to linux build tree
+>>         make ARCH=i386
+>>
+>> All errors (new ones prefixed by >>):
+>>
+>>    In file included from include/linux/mm.h:68:0,
+>>                     from include/linux/suspend.h:8,
+>>                     from arch/x86/kernel/asm-offsets.c:12:
+>>    arch/x86/include/asm/pgtable.h: In function 'native_local_pudp_get_and_clear':
+>>>> arch/x86/include/asm/pgtable.h:888:2: error: implicit declaration of function 'native_pud_clear' [-Werror=implicit-function-declaration]
+>>      native_pud_clear(pudp);
+>>      ^~~~~~~~~~~~~~~~
+>>    cc1: some warnings being treated as errors
+>>    make[2]: *** [arch/x86/kernel/asm-offsets.s] Error 1
+>>    make[2]: Target '__build' not remade because of errors.
+>>    make[1]: *** [prepare0] Error 2
+>>    make[1]: Target 'prepare' not remade because of errors.
+>>    make: *** [sub-make] Error 2
+>>
+>> vim +/native_pud_clear +888 arch/x86/include/asm/pgtable.h
+>>
+>>    882	}
+>>    883	
+>>    884	static inline pud_t native_local_pudp_get_and_clear(pud_t *pudp)
+>>    885	{
+>>    886		pud_t res = *pudp;
+>>    887	
+>>  > 888		native_pud_clear(pudp);
+>>    889		return res;
+>>    890	}
+>>    891	
+>>
+>> ---
+>> 0-DAY kernel test infrastructure                Open Source Technology Center
+>> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
