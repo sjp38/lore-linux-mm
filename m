@@ -1,117 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 72F416B038A
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:33:13 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r141so73194483ita.6
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 06:33:13 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 64si3834481ply.256.2017.03.14.06.33.12
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F133E6B038C
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:51:34 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l37so49753733wrc.7
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 06:51:34 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id q14si5188635wrc.151.2017.03.14.06.51.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 06:33:12 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2EDJm43057216
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:33:12 -0400
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2960h05y2b-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:33:11 -0400
-Received: from localhost
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 14 Mar 2017 19:03:08 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v2EDX1st11927558
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 19:03:01 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v2EDX4Ts026279
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 19:03:05 +0530
-Subject: Re: [PATCH 1/2] mm: Change generic FALLBACK zonelist creation process
-References: <1d67f38b-548f-26a2-23f5-240d6747f286@linux.vnet.ibm.com>
- <20170308092146.5264-1-khandual@linux.vnet.ibm.com>
- <0f787fb7-e299-9afb-8c87-4afdb937fdbb@nvidia.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 14 Mar 2017 19:03:04 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 14 Mar 2017 06:51:33 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 5274021010B
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 13:51:33 +0000 (UTC)
+Date: Tue, 14 Mar 2017 13:51:32 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, page_alloc: fix the duplicate save/ressave irq
+Message-ID: <20170314135132.6nfsr7f5xevpss6n@techsingularity.net>
+References: <1489392174-11794-1-git-send-email-zhongjiang@huawei.com>
+ <20170313111947.rdydbpblymc6a73x@techsingularity.net>
+ <58C6A5C5.9070301@huawei.com>
+ <20170313142636.ghschfm2sff7j7oh@techsingularity.net>
+ <58C7DCCA.6080603@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <0f787fb7-e299-9afb-8c87-4afdb937fdbb@nvidia.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <13c1a501-0ab9-898c-f749-efecca787661@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <58C7DCCA.6080603@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org
 
-On 03/08/2017 04:37 PM, John Hubbard wrote:
-> On 03/08/2017 01:21 AM, Anshuman Khandual wrote:
->> Kernel allocation to CDM node has already been prevented by putting it's
->> entire memory in ZONE_MOVABLE. But the CDM nodes must also be isolated
->> from implicit allocations happening on the system.
->>
->> Any isolation seeking CDM node requires isolation from implicit memory
->> allocations from user space but at the same time there should also have
->> an explicit way to do the memory allocation.
->>
->> Platform node's both zonelists are fundamental to where the memory comes
->> from when there is an allocation request. In order to achieve these two
->> objectives as stated above, zonelists building process has to change as
->> both zonelists (i.e FALLBACK and NOFALLBACK) gives access to the node's
->> memory zones during any kind of memory allocation. The following changes
->> are implemented in this regard.
->>
->> * CDM node's zones are not part of any other node's FALLBACK zonelist
->> * CDM node's FALLBACK list contains it's own memory zones followed by
->>   all system RAM zones in regular order as before
-
-
+On Tue, Mar 14, 2017 at 08:06:34PM +0800, zhong jiang wrote:
+> >> you mean the removing cpu maybe  handle the IRQ, it will result in the incorrect pcpu->count ?
+> >>
+> > Yes, if it hasn't had interrupts disabled yet at the time of the drain.
+> > I didn't check, it probably is called from a context that disables
+> > interrupts but the fact you're not sure makes me automatically wary of
+> > the patch particularly given how little difference it makes for the common
+> > case where direct reclaim failed triggering a drain.
+> >
+> >> but I don't sure that dying cpu remain handle the IRQ.
+> >>
+> > You'd need to be certain to justify the patch.
+> >
+>  Hi,  Mel
+>    
+>     by code review,  I see the cpu hotplug will only register the notfier to callback the function without
+>   interrupt come.  is it right ??
 > 
-> There was a discussion, on an earlier version of this patchset, in which
-> someone pointed out that a slight over-allocation on a device that has
-> much more memory than the CPU has, could use up system memory. Your
-> latest approach here does not address this.
 
-Hmm, I dont remember this. Could you please be more specific and point
-me to the discussion on this.
+That sentence is impossible to parse meaningfully. The patch was
+posted without verifying it made any performance difference (it almost
+certainly won't) and without checking all the callers are actually safe
+(which you're still not sure of).
 
-> 
-> I'm thinking that, until oversubscription between NUMA nodes is more
-> fully implemented in a way that can be properly controlled, you'd
+Consider the patch NAK'd on both grounds (marginal, if any improvement
+with no checking that the patch is safe).
 
-I did not get you. What does over subscription mean in this context ?
-FALLBACK zonelist on each node has memory from every node including
-it's own. Hence the allocation request targeted towards any node is
-symmetrical with respect to from where the memory will be allocated.
-
-> probably better just not fallback to system memory. In other words, a
-> CDM node really is *isolated* from other nodes--no automatic use in
-> either direction.
-
-That is debatable. With this proposed solution the CDM FALLBACK
-zonelist contains system RAM zones as fallback option which will
-be used in case CDM memory is depleted. IMHO, I think thats the
-right thing to do as it still maintains the symmetry to some
-extent.
-
-> 
-> Also, naming and purpose: maybe this is a "Limited NUMA Node", rather
-> than a Coherent Device Memory node. Because: the real point of this
-> thing is to limit the normal operation of NUMA, just enough to work with
-> what I am *told* is memory-that-is-too-fragile-for-kernel-use (I remain
-> soemwhat on the fence, there, even though you did talk me into it
-> earlier, heh).
-
-:) Naming can be debated later after we all agree on the proposal
-in principle. We have already discussed about kernel memory on CDM
-in detail.
-
-> 
-> On process: it would probably help if you gathered up previous
-> discussion points and carefully, concisely addressed each one,
-> somewhere, (maybe in a cover letter). Because otherwise, it's too easy
-> for earlier, important problems to be forgotten. And reviewers don't
-> want to have to repeat themselves, of course.
-
-Will do.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
