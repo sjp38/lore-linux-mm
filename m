@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA55831CC
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:23:05 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q126so362393229pga.0
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:23:05 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id y4si14003856pgo.240.2017.03.14.01.23.03
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A58B5831CC
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:23:07 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b2so361183695pgc.6
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:23:07 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id i8si3088239pli.121.2017.03.14.01.23.04
         for <linux-mm@kvack.org>;
-        Tue, 14 Mar 2017 01:23:04 -0700 (PDT)
+        Tue, 14 Mar 2017 01:23:05 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v6 12/15] lockdep: Apply crossrelease to PG_locked locks
-Date: Tue, 14 Mar 2017 17:18:59 +0900
-Message-ID: <1489479542-27030-13-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v6 15/15] lockdep: Crossrelease feature documentation
+Date: Tue, 14 Mar 2017 17:19:02 +0900
+Message-ID: <1489479542-27030-16-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
@@ -21,255 +21,894 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Although lock_page() and its family can cause deadlock, the lock
-correctness validator could not be applied to them until now, becasue
-things like unlock_page() might be called in a different context from
-the acquisition context, which violates lockdep's assumption.
-
-Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
-detector to page locks. Applied it.
+This document describes the concept of crossrelease feature.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/mm_types.h |   8 ++++
- include/linux/pagemap.h  | 101 ++++++++++++++++++++++++++++++++++++++++++++---
- lib/Kconfig.debug        |   8 ++++
- mm/filemap.c             |   4 +-
- mm/page_alloc.c          |   3 ++
- 5 files changed, 116 insertions(+), 8 deletions(-)
+ Documentation/locking/crossrelease.txt | 874 +++++++++++++++++++++++++++++++++
+ 1 file changed, 874 insertions(+)
+ create mode 100644 Documentation/locking/crossrelease.txt
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 4a8aced..06adfa2 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -16,6 +16,10 @@
- #include <asm/page.h>
- #include <asm/mmu.h>
- 
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#include <linux/lockdep.h>
-+#endif
+diff --git a/Documentation/locking/crossrelease.txt b/Documentation/locking/crossrelease.txt
+new file mode 100644
+index 0000000..bdf1423
+--- /dev/null
++++ b/Documentation/locking/crossrelease.txt
+@@ -0,0 +1,874 @@
++Crossrelease
++============
 +
- #ifndef AT_VECTOR_SIZE_ARCH
- #define AT_VECTOR_SIZE_ARCH 0
- #endif
-@@ -221,6 +225,10 @@ struct page {
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- 	int _last_cpupid;
- #endif
++Started by Byungchul Park <byungchul.park@lge.com>
 +
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+	struct lockdep_map_cross map;
-+#endif
- }
- /*
-  * The struct page can be forced to be double word aligned so that atomic ops
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index a8ee59a..b72be29 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -14,6 +14,9 @@
- #include <linux/bitops.h>
- #include <linux/hardirq.h> /* for in_interrupt() */
- #include <linux/hugetlb_inline.h>
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#include <linux/lockdep.h>
-+#endif
- 
- /*
-  * Bits in mapping->flags.
-@@ -432,26 +435,91 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- 	return pgoff;
- }
- 
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#define lock_page_init(p)						\
-+do {									\
-+	static struct lock_class_key __key;				\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(p)->map,	\
-+			"(PG_locked)" #p, &__key, 0);			\
-+} while (0)
++Contents:
 +
-+static inline void lock_page_acquire(struct page *page, int try)
-+{
-+	page = compound_head(page);
-+	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0,
-+			       try, NULL, _RET_IP_);
-+}
++ (*) Background
 +
-+static inline void lock_page_release(struct page *page)
-+{
-+	page = compound_head(page);
-+	/*
-+	 * lock_commit_crosslock() is necessary for crosslocks.
-+	 */
-+	lock_commit_crosslock((struct lockdep_map *)&page->map);
-+	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
-+}
-+#else
-+static inline void lock_page_init(struct page *page) {}
-+static inline void lock_page_free(struct page *page) {}
-+static inline void lock_page_acquire(struct page *page, int try) {}
-+static inline void lock_page_release(struct page *page) {}
-+#endif
++     - What causes deadlock
++     - How lockdep works
 +
- extern void __lock_page(struct page *page);
- extern int __lock_page_killable(struct page *page);
- extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 				unsigned int flags);
--extern void unlock_page(struct page *page);
-+extern void do_raw_unlock_page(struct page *page);
- 
--static inline int trylock_page(struct page *page)
-+static inline void unlock_page(struct page *page)
-+{
-+	lock_page_release(page);
-+	do_raw_unlock_page(page);
-+}
++ (*) Limitation
 +
-+static inline int do_raw_trylock_page(struct page *page)
- {
- 	page = compound_head(page);
- 	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
- }
- 
-+static inline int trylock_page(struct page *page)
-+{
-+	if (do_raw_trylock_page(page)) {
-+		lock_page_acquire(page, 1);
-+		return 1;
-+	}
-+	return 0;
-+}
++     - Limit lockdep
++     - Pros from the limitation
++     - Cons from the limitation
++     - Relax the limitation
 +
- /*
-  * lock_page may only be called if we have the page's inode pinned.
-  */
- static inline void lock_page(struct page *page)
- {
- 	might_sleep();
--	if (!trylock_page(page))
++ (*) Crossrelease
 +
-+	if (!do_raw_trylock_page(page))
- 		__lock_page(page);
-+	/*
-+	 * acquire() must be after actual lock operation for crosslocks.
-+	 * This way a crosslock and current lock can be ordered like:
-+	 *
-+	 *	CONTEXT 1		CONTEXT 2
-+	 *	---------		---------
-+	 *	lock A (cross)
-+	 *	acquire A
-+	 *	  X = atomic_inc_return(&cross_gen_id)
-+	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-+	 *				acquire B
-+	 *				  Y = atomic_read_acquire(&cross_gen_id)
-+	 *				lock B
-+	 *
-+	 * so that 'lock A and then lock B' can be seen globally,
-+	 * if X <= Y.
-+	 */
-+	lock_page_acquire(page, 0);
- }
- 
- /*
-@@ -461,9 +529,20 @@ static inline void lock_page(struct page *page)
-  */
- static inline int lock_page_killable(struct page *page)
- {
-+	int ret;
++     - Introduce crossrelease
++     - Introduce commit
 +
- 	might_sleep();
--	if (!trylock_page(page))
--		return __lock_page_killable(page);
++ (*) Implementation
 +
-+	if (!do_raw_trylock_page(page)) {
-+		ret = __lock_page_killable(page);
-+		if (ret)
-+			return ret;
-+	}
-+	/*
-+	 * acquire() must be after actual lock operation for crosslocks.
-+	 * This way a crosslock and other locks can be ordered.
-+	 */
-+	lock_page_acquire(page, 0);
- 	return 0;
- }
- 
-@@ -478,7 +557,17 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 				     unsigned int flags)
- {
- 	might_sleep();
--	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
++     - Data structures
++     - How crossrelease works
 +
-+	if (do_raw_trylock_page(page) || __lock_page_or_retry(page, mm, flags)) {
-+		/*
-+		 * acquire() must be after actual lock operation for crosslocks.
-+		 * This way a crosslock and other locks can be ordered.
-+		 */
-+		lock_page_acquire(page, 0);
-+		return 1;
-+	}
++ (*) Optimizations
 +
-+	return 0;
- }
- 
- /*
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 9171e51..dab1de5 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1062,6 +1062,14 @@ config LOCKDEP_COMPLETE
- 	 A deadlock caused by wait_for_completion() and complete() can be
- 	 detected by lockdep using crossrelease feature.
- 
-+config LOCKDEP_PAGELOCK
-+	bool "Lock debugging: allow PG_locked lock to use deadlock detector"
-+	select LOCKDEP_CROSSRELEASE
-+	default n
-+	help
-+	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
-+	 PG_locked lock can work with runtime deadlock detector.
++     - Avoid duplication
++     - Lockless for hot paths
 +
- config PROVE_LOCKING
- 	bool "Lock debugging: prove locking correctness"
- 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 50b52fe..d439cc7 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -858,7 +858,7 @@ void add_page_wait_queue(struct page *page, wait_queue_t *waiter)
-  * The mb is necessary to enforce ordering between the clear_bit and the read
-  * of the waitqueue (to avoid SMP races with a parallel wait_on_page_locked()).
-  */
--void unlock_page(struct page *page)
-+void do_raw_unlock_page(struct page *page)
- {
- 	page = compound_head(page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-@@ -866,7 +866,7 @@ void unlock_page(struct page *page)
- 	smp_mb__after_atomic();
- 	wake_up_page(page, PG_locked);
- }
--EXPORT_SYMBOL(unlock_page);
-+EXPORT_SYMBOL(do_raw_unlock_page);
- 
- /**
-  * end_page_writeback - end writeback against a page
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6de9440..36d5f9e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5063,6 +5063,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		} else {
- 			__init_single_pfn(pfn, zone, nid);
- 		}
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+		lock_page_init(pfn_to_page(pfn));
-+#endif
- 	}
- }
- 
++ (*) APPENDIX A: What lockdep does to work aggresively
++
++ (*) APPENDIX B: How to avoid adding false dependencies
++
++
++==========
++Background
++==========
++
++What causes deadlock
++--------------------
++
++A deadlock occurs when a context is waiting for an event to happen,
++which is impossible because another (or the) context who can trigger the
++event is also waiting for another (or the) event to happen, which is
++also impossible due to the same reason.
++
++For example:
++
++   A context going to trigger event C is waiting for event A to happen.
++   A context going to trigger event A is waiting for event B to happen.
++   A context going to trigger event B is waiting for event C to happen.
++
++A deadlock occurs when these three wait operations run at the same time,
++because event C cannot be triggered if event A does not happen, which in
++turn cannot be triggered if event B does not happen, which in turn
++cannot be triggered if event C does not happen. After all, no event can
++be triggered since any of them never meets its condition to wake up.
++
++A dependency might exist between two waiters and a deadlock might happen
++due to an incorrect releationship between dependencies. Thus, we must
++define what a dependency is first. A dependency exists between them if:
++
++   1. There are two waiters waiting for each event at a given time.
++   2. The only way to wake up each waiter is to trigger its event.
++   3. Whether one can be woken up depends on whether the other can.
++
++Each wait in the example creates its dependency like:
++
++   Event C depends on event A.
++   Event A depends on event B.
++   Event B depends on event C.
++
++   NOTE: Precisely speaking, a dependency is one between whether a
++   waiter for an event can be woken up and whether another waiter for
++   another event can be woken up. However from now on, we will describe
++   a dependency as if it's one between an event and another event for
++   simplicity.
++
++And they form circular dependencies like:
++
++    -> C -> A -> B -
++   /                \
++   \                /
++    ----------------
++
++   where 'A -> B' means that event A depends on event B.
++
++Such circular dependencies lead to a deadlock since no waiter can meet
++its condition to wake up as described.
++
++CONCLUSION
++
++Circular dependencies cause a deadlock.
++
++
++How lockdep works
++-----------------
++
++Lockdep tries to detect a deadlock by checking dependencies created by
++lock operations, acquire and release. Waiting for a lock corresponds to
++waiting for an event, and releasing a lock corresponds to triggering an
++event in the previous section.
++
++In short, lockdep does:
++
++   1. Detect a new dependency.
++   2. Add the dependency into a global graph.
++   3. Check if that makes dependencies circular.
++   4. Report a deadlock or its possibility if so.
++
++For example, consider a graph built by lockdep that looks like:
++
++   A -> B -
++           \
++            -> E
++           /
++   C -> D -
++
++   where A, B,..., E are different lock classes.
++
++Lockdep will add a dependency into the graph on detection of a new
++dependency. For example, it will add a dependency 'E -> C' when a new
++dependency between lock E and lock C is detected. Then the graph will be:
++
++       A -> B -
++               \
++                -> E -
++               /      \
++    -> C -> D -        \
++   /                   /
++   \                  /
++    ------------------
++
++   where A, B,..., E are different lock classes.
++
++This graph contains a subgraph which demonstrates circular dependencies:
++
++                -> E -
++               /      \
++    -> C -> D -        \
++   /                   /
++   \                  /
++    ------------------
++
++   where C, D and E are different lock classes.
++
++This is the condition under which a deadlock might occur. Lockdep
++reports it on detection after adding a new dependency. This is the way
++how lockdep works.
++
++CONCLUSION
++
++Lockdep detects a deadlock or its possibility by checking if circular
++dependencies were created after adding each new dependency.
++
++
++==========
++Limitation
++==========
++
++Limit lockdep
++-------------
++
++Limiting lockdep to work on only typical locks e.g. spin locks and
++mutexes, which are released within the acquire context, the
++implementation becomes simple but its capacity for detection becomes
++limited. Let's check pros and cons in next section.
++
++
++Pros from the limitation
++------------------------
++
++Given the limitation, when acquiring a lock, locks in a held_locks
++cannot be released if the context cannot acquire it so has to wait to
++acquire it, which means all waiters for the locks in the held_locks are
++stuck. It's an exact case to create dependencies between each lock in
++the held_locks and the lock to acquire.
++
++For example:
++
++   CONTEXT X
++   ---------
++   acquire A
++   acquire B /* Add a dependency 'A -> B' */
++   release B
++   release A
++
++   where A and B are different lock classes.
++
++When acquiring lock A, the held_locks of CONTEXT X is empty thus no
++dependency is added. But when acquiring lock B, lockdep detects and adds
++a new dependency 'A -> B' between lock A in the held_locks and lock B.
++They can be simply added whenever acquiring each lock.
++
++And data required by lockdep exists in a local structure, held_locks
++embedded in task_struct. Forcing to access the data within the context,
++lockdep can avoid racy problems without explicit locks while handling
++the local data.
++
++Lastly, lockdep only needs to keep locks currently being held, to build
++a dependency graph. However, relaxing the limitation, it needs to keep
++even locks already released, because a decision whether they created
++dependencies might be long-deferred.
++
++To sum up, we can expect several advantages from the limitation:
++
++   1. Lockdep can easily identify a dependency when acquiring a lock.
++   2. Races are avoidable while accessing local locks in a held_locks.
++   3. Lockdep only needs to keep locks currently being held.
++
++CONCLUSION
++
++Given the limitation, the implementation becomes simple and efficient.
++
++
++Cons from the limitation
++------------------------
++
++Given the limitation, lockdep is applicable only to typical locks. For
++example, page locks for page access or completions for synchronization
++cannot work with lockdep.
++
++Can we detect deadlocks below, under the limitation?
++
++Example 1:
++
++   CONTEXT X	   CONTEXT Y	   CONTEXT Z
++   ---------	   ---------	   ----------
++		   mutex_lock A
++   lock_page B
++		   lock_page B
++				   mutex_lock A /* DEADLOCK */
++				   unlock_page B held by X
++		   unlock_page B
++		   mutex_unlock A
++				   mutex_unlock A
++
++   where A and B are different lock classes.
++
++No, we cannot.
++
++Example 2:
++
++   CONTEXT X		   CONTEXT Y
++   ---------		   ---------
++			   mutex_lock A
++   mutex_lock A
++			   wait_for_complete B /* DEADLOCK */
++   complete B
++			   mutex_unlock A
++   mutex_unlock A
++
++   where A is a lock class and B is a completion variable.
++
++No, we cannot.
++
++CONCLUSION
++
++Given the limitation, lockdep cannot detect a deadlock or its
++possibility caused by page locks or completions.
++
++
++Relax the limitation
++--------------------
++
++Under the limitation, things to create dependencies are limited to
++typical locks. However, synchronization primitives like page locks and
++completions, which are allowed to be released in any context, also
++create dependencies and can cause a deadlock. So lockdep should track
++these locks to do a better job. We have to relax the limitation for
++these locks to work with lockdep.
++
++Detecting dependencies is very important for lockdep to work because
++adding a dependency means adding an opportunity to check whether it
++causes a deadlock. The more lockdep adds dependencies, the more it
++thoroughly works. Thus Lockdep has to do its best to detect and add as
++many true dependencies into a graph as possible.
++
++For example, considering only typical locks, lockdep builds a graph like:
++
++   A -> B -
++           \
++            -> E
++           /
++   C -> D -
++
++   where A, B,..., E are different lock classes.
++
++On the other hand, under the relaxation, additional dependencies might
++be created and added. Assuming additional 'FX -> C' and 'E -> GX' are
++added thanks to the relaxation, the graph will be:
++
++         A -> B -
++                 \
++                  -> E -> GX
++                 /
++   FX -> C -> D -
++
++   where A, B,..., E, FX and GX are different lock classes, and a suffix
++   'X' is added on non-typical locks.
++
++The latter graph gives us more chances to check circular dependencies
++than the former. However, it might suffer performance degradation since
++relaxing the limitation, with which design and implementation of lockdep
++can be efficient, might introduce inefficiency inevitably. So lockdep
++should provide two options, strong detection and efficient detection.
++
++Choosing efficient detection:
++
++   Lockdep works with only locks restricted to be released within the
++   acquire context. However, lockdep works efficiently.
++
++Choosing strong detection:
++
++   Lockdep works with all synchronization primitives. However, lockdep
++   suffers performance degradation.
++
++CONCLUSION
++
++Relaxing the limitation, lockdep can add additional dependencies giving
++additional opportunities to check circular dependencies.
++
++
++============
++Crossrelease
++============
++
++Introduce crossrelease
++----------------------
++
++In order to allow lockdep to handle additional dependencies by what
++might be released in any context, namely 'crosslock', we have to be able
++to identify those created by crosslocks. The proposed 'crossrelease'
++feature provoides a way to do that.
++
++Crossrelease feature has to do:
++
++   1. Identify dependencies created by crosslocks.
++   2. Add the dependencies into a dependency graph.
++
++That's all. Once a meaningful dependency is added into graph, then
++lockdep would work with the graph as it did. The most important thing
++crossrelease feature has to do is to correctly identify and add true
++dependencies into the global graph.
++
++A dependency e.g. 'A -> B' can be identified only in the A's release
++context because a decision required to identify the dependency can be
++made only in the release context. That is to decide whether A can be
++released so that a waiter for A can be woken up. It cannot be made in
++other than the A's release context.
++
++It's no matter for typical locks because each acquire context is same as
++its release context, thus lockdep can decide whether a lock can be
++released in the acquire context. However for crosslocks, lockdep cannot
++make the decision in the acquire context but has to wait until the
++release context is identified.
++
++Therefore, deadlocks by crosslocks cannot be detected just when it
++happens, because those cannot be identified until the crosslocks are
++released. However, deadlock possibilities can be detected and it's very
++worth. See 'APPENDIX A' section to check why.
++
++CONCLUSION
++
++Using crossrelease feature, lockdep can work with what might be released
++in any context, namely crosslock.
++
++
++Introduce commit
++----------------
++
++Since crossrelease defers the work adding true dependencies of
++crosslocks until they are actually released, crossrelease has to queue
++all acquisitions which might create dependencies with the crosslocks.
++Then it identifies dependencies using the queued data in batches at a
++proper time. We call it 'commit'.
++
++There are four types of dependencies:
++
++1. TT type: 'typical lock A -> typical lock B'
++
++   Just when acquiring B, lockdep can see it's in the A's release
++   context. So the dependency between A and B can be identified
++   immediately. Commit is unnecessary.
++
++2. TC type: 'typical lock A -> crosslock BX'
++
++   Just when acquiring BX, lockdep can see it's in the A's release
++   context. So the dependency between A and BX can be identified
++   immediately. Commit is unnecessary, too.
++
++3. CT type: 'crosslock AX -> typical lock B'
++
++   When acquiring B, lockdep cannot identify the dependency because
++   there's no way to know if it's in the AX's release context. It has
++   to wait until the decision can be made. Commit is necessary.
++
++4. CC type: 'crosslock AX -> crosslock BX'
++
++   When acquiring BX, lockdep cannot identify the dependency because
++   there's no way to know if it's in the AX's release context. It has
++   to wait until the decision can be made. Commit is necessary.
++   But, handling CC type is not implemented yet. It's a future work.
++
++Lockdep can work without commit for typical locks, but commit step is
++necessary once crosslocks are involved. Introducing commit, lockdep
++performs three steps. What lockdep does in each step is:
++
++1. Acquisition: For typical locks, lockdep does what it originally did
++   and queues the lock so that CT type dependencies can be checked using
++   it at the commit step. For crosslocks, it saves data which will be
++   used at the commit step and increases a reference count for it.
++
++2. Commit: No action is reauired for typical locks. For crosslocks,
++   lockdep adds CT type dependencies using the data saved at the
++   acquisition step.
++
++3. Release: No changes are required for typical locks. When a crosslock
++   is released, it decreases a reference count for it.
++
++CONCLUSION
++
++Crossrelease introduces commit step to handle dependencies of crosslocks
++in batches at a proper time.
++
++
++==============
++Implementation
++==============
++
++Data structures
++---------------
++
++Crossrelease introduces two main data structures.
++
++1. hist_lock
++
++   This is an array embedded in task_struct, for keeping lock history so
++   that dependencies can be added using them at the commit step. Since
++   it's local data, it can be accessed locklessly in the owner context.
++   The array is filled at the acquisition step and consumed at the
++   commit step. And it's managed in circular manner.
++
++2. cross_lock
++
++   One per lockdep_map exists. This is for keeping data of crosslocks
++   and used at the commit step.
++
++
++How crossrelease works
++----------------------
++
++It's the key of how crossrelease works, to defer necessary works to an
++appropriate point in time and perform in at once at the commit step.
++Let's take a look with examples step by step, starting from how lockdep
++works without crossrelease for typical locks.
++
++   acquire A /* Push A onto held_locks */
++   acquire B /* Push B onto held_locks and add 'A -> B' */
++   acquire C /* Push C onto held_locks and add 'B -> C' */
++   release C /* Pop C from held_locks */
++   release B /* Pop B from held_locks */
++   release A /* Pop A from held_locks */
++
++   where A, B and C are different lock classes.
++
++   NOTE: This document assumes that readers already understand how
++   lockdep works without crossrelease thus omits details. But there's
++   one thing to note. Lockdep pretends to pop a lock from held_locks
++   when releasing it. But it's subtly different from the original pop
++   operation because lockdep allows other than the top to be poped.
++
++In this case, lockdep adds 'the top of held_locks -> the lock to acquire'
++dependency every time acquiring a lock.
++
++After adding 'A -> B', a dependency graph will be:
++
++   A -> B
++
++   where A and B are different lock classes.
++
++And after adding 'B -> C', the graph will be:
++
++   A -> B -> C
++
++   where A, B and C are different lock classes.
++
++Let's performs commit step even for typical locks to add dependencies.
++Of course, commit step is not necessary for them, however, it would work
++well because this is a more general way.
++
++   acquire A
++   /*
++    * Queue A into hist_locks
++    *
++    * In hist_locks: A
++    * In graph: Empty
++    */
++
++   acquire B
++   /*
++    * Queue B into hist_locks
++    *
++    * In hist_locks: A, B
++    * In graph: Empty
++    */
++
++   acquire C
++   /*
++    * Queue C into hist_locks
++    *
++    * In hist_locks: A, B, C
++    * In graph: Empty
++    */
++
++   commit C
++   /*
++    * Add 'C -> ?'
++    * Answer the following to decide '?'
++    * What has been queued since acquire C: Nothing
++    *
++    * In hist_locks: A, B, C
++    * In graph: Empty
++    */
++
++   release C
++
++   commit B
++   /*
++    * Add 'B -> ?'
++    * Answer the following to decide '?'
++    * What has been queued since acquire B: C
++    *
++    * In hist_locks: A, B, C
++    * In graph: 'B -> C'
++    */
++
++   release B
++
++   commit A
++   /*
++    * Add 'A -> ?'
++    * Answer the following to decide '?'
++    * What has been queued since acquire A: B, C
++    *
++    * In hist_locks: A, B, C
++    * In graph: 'B -> C', 'A -> B', 'A -> C'
++    */
++
++   release A
++
++   where A, B and C are different lock classes.
++
++In this case, dependencies are added at the commit step as described.
++
++After commits for A, B and C, the graph will be:
++
++   A -> B -> C
++
++   where A, B and C are different lock classes.
++
++   NOTE: A dependency 'A -> C' is optimized out.
++
++We can see the former graph built without commit step is same as the
++latter graph built using commit steps. Of course the former way leads to
++earlier finish for building the graph, which means we can detect a
++deadlock or its possibility sooner. So the former way would be prefered
++when possible. But we cannot avoid using the latter way for crosslocks.
++
++Let's look at how commit steps work for crosslocks. In this case, the
++commit step is performed only on crosslock AX as real. And it assumes
++that the AX release context is different from the AX acquire context.
++
++   BX RELEASE CONTEXT		   BX ACQUIRE CONTEXT
++   ------------------		   ------------------
++				   acquire A
++				   /*
++				    * Push A onto held_locks
++				    * Queue A into hist_locks
++				    *
++				    * In held_locks: A
++				    * In hist_locks: A
++				    * In graph: Empty
++				    */
++
++				   acquire BX
++				   /*
++				    * Add 'the top of held_locks -> BX'
++				    *
++				    * In held_locks: A
++				    * In hist_locks: A
++				    * In graph: 'A -> BX'
++				    */
++
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++   It must be guaranteed that the following operations are seen after
++   acquiring BX globally. It can be done by things like barrier.
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++
++   acquire C
++   /*
++    * Push C onto held_locks
++    * Queue C into hist_locks
++    *
++    * In held_locks: C
++    * In hist_locks: C
++    * In graph: 'A -> BX'
++    */
++
++   release C
++   /*
++    * Pop C from held_locks
++    *
++    * In held_locks: Empty
++    * In hist_locks: C
++    * In graph: 'A -> BX'
++    */
++				   acquire D
++				   /*
++				    * Push D onto held_locks
++				    * Queue D into hist_locks
++				    * Add 'the top of held_locks -> D'
++				    *
++				    * In held_locks: A, D
++				    * In hist_locks: A, D
++				    * In graph: 'A -> BX', 'A -> D'
++				    */
++   acquire E
++   /*
++    * Push E onto held_locks
++    * Queue E into hist_locks
++    *
++    * In held_locks: E
++    * In hist_locks: C, E
++    * In graph: 'A -> BX', 'A -> D'
++    */
++
++   release E
++   /*
++    * Pop E from held_locks
++    *
++    * In held_locks: Empty
++    * In hist_locks: D, E
++    * In graph: 'A -> BX', 'A -> D'
++    */
++				   release D
++				   /*
++				    * Pop D from held_locks
++				    *
++				    * In held_locks: A
++				    * In hist_locks: A, D
++				    * In graph: 'A -> BX', 'A -> D'
++				    */
++   commit BX
++   /*
++    * Add 'BX -> ?'
++    * What has been queued since acquire BX: C, E
++    *
++    * In held_locks: Empty
++    * In hist_locks: D, E
++    * In graph: 'A -> BX', 'A -> D',
++    *           'BX -> C', 'BX -> E'
++    */
++
++   release BX
++   /*
++    * In held_locks: Empty
++    * In hist_locks: D, E
++    * In graph: 'A -> BX', 'A -> D',
++    *           'BX -> C', 'BX -> E'
++    */
++				   release A
++				   /*
++				    * Pop A from held_locks
++				    *
++				    * In held_locks: Empty
++				    * In hist_locks: A, D
++				    * In graph: 'A -> BX', 'A -> D',
++				    *           'BX -> C', 'BX -> E'
++				    */
++
++   where A, BX, C,..., E are different lock classes, and a suffix 'X' is
++   added on crosslocks.
++
++Crossrelease considers all acquisitions after acqiuring BX are
++candidates which might create dependencies with BX. True dependencies
++will be determined when identifying the release context of BX. Meanwhile,
++all typical locks are queued so that they can be used at the commit step.
++And then two dependencies 'BX -> C' and 'BX -> E' are added at the
++commit step when identifying the release context.
++
++The final graph will be, with crossrelease:
++
++               -> C
++              /
++       -> BX -
++      /       \
++   A -         -> E
++      \
++       -> D
++
++   where A, BX, C,..., E are different lock classes, and a suffix 'X' is
++   added on crosslocks.
++
++However, the final graph will be, without crossrelease:
++
++   A -> D
++
++   where A and D are different lock classes.
++
++The former graph has three more dependencies, 'A -> BX', 'BX -> C' and
++'BX -> E' giving additional opportunities to check if they cause
++deadlocks. This way lockdep can detect a deadlock or its possibility
++caused by crosslocks.
++
++CONCLUSION
++
++We checked how crossrelease works with several examples.
++
++
++=============
++Optimizations
++=============
++
++Avoid duplication
++-----------------
++
++Crossrelease feature uses a cache like what lockdep already uses for
++dependency chains, but this time it's for caching CT type dependencies.
++Once that dependency is cached, the same will never be added again.
++
++
++Lockless for hot paths
++----------------------
++
++To keep all locks for later use at the commit step, crossrelease adopts
++a local array embedded in task_struct, which makes access to the data
++lockless by forcing it to happen only within the owner context. It's
++like how lockdep handles held_locks. Lockless implmentation is important
++since typical locks are very frequently acquired and released.
++
++
++=================================================
++APPENDIX A: What lockdep does to work aggresively
++=================================================
++
++A deadlock actually occurs when all wait operations creating circular
++dependencies run at the same time. Even though they don't, a potential
++deadlock exists if the problematic dependencies exist. Thus it's
++meaningful to detect not only an actual deadlock but also its potential
++possibility. The latter is rather valuable. When a deadlock occurs
++actually, we can identify what happens in the system by some means or
++other even without lockdep. However, there's no way to detect possiblity
++without lockdep unless the whole code is parsed in head. It's terrible.
++Lockdep does the both, and crossrelease only focuses on the latter.
++
++Whether or not a deadlock actually occurs depends on several factors.
++For example, what order contexts are switched in is a factor. Assuming
++circular dependencies exist, a deadlock would occur when contexts are
++switched so that all wait operations creating the dependencies run
++simultaneously. Thus to detect a deadlock possibility even in the case
++that it has not occured yet, lockdep should consider all possible
++combinations of dependencies, trying to:
++
++1. Use a global dependency graph.
++
++   Lockdep combines all dependencies into one global graph and uses them,
++   regardless of which context generates them or what order contexts are
++   switched in. Aggregated dependencies are only considered so they are
++   prone to be circular if a problem exists.
++
++2. Check dependencies between classes instead of instances.
++
++   What actually causes a deadlock are instances of lock. However,
++   lockdep checks dependencies between classes instead of instances.
++   This way lockdep can detect a deadlock which has not happened but
++   might happen in future by others but the same class.
++
++3. Assume all acquisitions lead to waiting.
++
++   Although locks might be acquired without waiting which is essential
++   to create dependencies, lockdep assumes all acquisitions lead to
++   waiting since it might be true some time or another.
++
++CONCLUSION
++
++Lockdep detects not only an actual deadlock but also its possibility,
++and the latter is more valuable.
++
++
++==================================================
++APPENDIX B: How to avoid adding false dependencies
++==================================================
++
++Remind what a dependency is. A dependency exists if:
++
++   1. There are two waiters waiting for each event at a given time.
++   2. The only way to wake up each waiter is to trigger its event.
++   3. Whether one can be woken up depends on whether the other can.
++
++For example:
++
++   acquire A
++   acquire B /* A dependency 'A -> B' exists */
++   release B
++   release A
++
++   where A and B are different lock classes.
++
++A depedency 'A -> B' exists since:
++
++   1. A waiter for A and a waiter for B might exist when acquiring B.
++   2. Only way to wake up each is to release what it waits for.
++   3. Whether the waiter for A can be woken up depends on whether the
++      other can. IOW, TASK X cannot release A if it fails to acquire B.
++
++For another example:
++
++   TASK X			   TASK Y
++   ------			   ------
++				   acquire AX
++   acquire B /* A dependency 'AX -> B' exists */
++   release B
++   release AX held by Y
++
++   where AX and B are different lock classes, and a suffix 'X' is added
++   on crosslocks.
++
++Even in this case involving crosslocks, the same rule can be applied. A
++depedency 'AX -> B' exists since:
++
++   1. A waiter for AX and a waiter for B might exist when acquiring B.
++   2. Only way to wake up each is to release what it waits for.
++   3. Whether the waiter for AX can be woken up depends on whether the
++      other can. IOW, TASK X cannot release AX if it fails to acquire B.
++
++Let's take a look at more complicated example:
++
++   TASK X			   TASK Y
++   ------			   ------
++   acquire B
++   release B
++   fork Y
++				   acquire AX
++   acquire C /* A dependency 'AX -> C' exists */
++   release C
++   release AX held by Y
++
++   where AX, B and C are different lock classes, and a suffix 'X' is
++   added on crosslocks.
++
++Does a dependency 'AX -> B' exist? Nope.
++
++Two waiters are essential to create a dependency. However, waiters for
++AX and B to create 'AX -> B' cannot exist at the same time in this
++example. Thus the dependency 'AX -> B' cannot be created.
++
++It would be ideal if the full set of true ones can be considered. But
++we can ensure nothing but what actually happened. Relying on what
++actually happens at runtime, we can anyway add only true ones, though
++they might be a subset of true ones. It's similar to how lockdep works
++for typical locks. There might be more true dependencies than what
++lockdep has detected in runtime. Lockdep has no choice but to rely on
++what actually happens. Crossrelease also relies on it.
++
++CONCLUSION
++
++Relying on what actually happens, lockdep can avoid adding false
++dependencies.
 -- 
 1.9.1
 
