@@ -1,72 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EB4B76B038B
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 03:39:28 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f21so359900709pgi.4
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 00:39:28 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 2si2988220plb.41.2017.03.14.00.39.24
-        for <linux-mm@kvack.org>;
-        Tue, 14 Mar 2017 00:39:25 -0700 (PDT)
-Date: Tue, 14 Mar 2017 16:36:30 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 06/13] lockdep: Implement crossrelease feature
-Message-ID: <20170314073630.GG11100@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-7-git-send-email-byungchul.park@lge.com>
- <20170228181547.GM5680@worktop>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B59126B038A
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 03:47:33 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v66so49260300wrc.4
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 00:47:33 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id z46si3968029wrz.204.2017.03.14.00.47.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Mar 2017 00:47:32 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id v190so13394780wme.3
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 00:47:32 -0700 (PDT)
+Date: Tue, 14 Mar 2017 08:47:29 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/6] x86: 5-level paging enabling for v4.12, Part 1
+Message-ID: <20170314074729.GA23151@gmail.com>
+References: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170228181547.GM5680@worktop>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com, kernel-team@lge.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 28, 2017 at 07:15:47PM +0100, Peter Zijlstra wrote:
-> On Wed, Jan 18, 2017 at 10:17:32PM +0900, Byungchul Park wrote:
-> > +	/*
-> > +	 * Each work of workqueue might run in a different context,
-> > +	 * thanks to concurrency support of workqueue. So we have to
-> > +	 * distinguish each work to avoid false positive.
-> > +	 *
-> > +	 * TODO: We can also add dependencies between two acquisitions
-> > +	 * of different work_id, if they don't cause a sleep so make
-> > +	 * the worker stalled.
-> > +	 */
-> > +	unsigned int		work_id;
-> 
-> > +/*
-> > + * Crossrelease needs to distinguish each work of workqueues.
-> > + * Caller is supposed to be a worker.
-> > + */
-> > +void crossrelease_work_start(void)
-> > +{
-> > +	if (current->xhlocks)
-> > +		current->work_id++;
-> > +}
-> 
-> So what you're trying to do with that 'work_id' thing is basically wipe
-> the entire history when we're at the bottom of a context.
-> 
-> Which is a useful operation, but should arguably also be done on the
-> return to userspace path. Any historical lock from before the current
-> syscall is irrelevant.
 
-Yes. I agree with that each syscall is irrelevant to others. But should
-we do that? Is it a problem if we don't distinguish between each syscall
-context in crossrelease check? IMHO, it's ok to perform commit if the
-target crosslock can be seen when releasing it. No? (As you know, in case
-of work queue, each work should be distinguished. See the comment in code.)
+* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
-If we have to do it.. do you mean to modify architecture code for syscall
-entry? Or is there architecture independent code where we can be aware of
-the entry? It would be appriciated if you answer them.
-
+> Here's the first bunch of patches of 5-level patchset. Let's see if I'm on
+> right track addressing Ingo's feedback. :)
 > 
-> (And we should not be returning to userspace with locks held anyway --
-> lockdep already has a check for that).
+> These patches prepare x86 code to be switched from <asm-generic/5level-fixup>
+> to <asm-generic/pgtable-nop4d.h>. It's a stepping stone for adding 5-level
+> paging support.
+> 
+> Please review and consider applying.
+> 
+> Kirill A. Shutemov (6):
+>   x86/mm: Extend headers with basic definitions to support 5-level
+>     paging
+>   x86/mm: Convert trivial cases of page table walk to 5-level paging
+>   x86/gup: Add 5-level paging support
+>   x86/ident_map: Add 5-level paging support
+>   x86/vmalloc: Add 5-level paging support
+>   x86/power: Add 5-level paging support
+> 
+>  arch/x86/include/asm/pgtable-2level_types.h |  1 +
+>  arch/x86/include/asm/pgtable-3level_types.h |  1 +
+>  arch/x86/include/asm/pgtable.h              | 26 +++++++++---
+>  arch/x86/include/asm/pgtable_64_types.h     |  1 +
+>  arch/x86/include/asm/pgtable_types.h        | 30 ++++++++++++-
+>  arch/x86/kernel/tboot.c                     |  6 ++-
+>  arch/x86/kernel/vm86_32.c                   |  6 ++-
+>  arch/x86/mm/fault.c                         | 66 +++++++++++++++++++++++++----
+>  arch/x86/mm/gup.c                           | 33 ++++++++++++---
+>  arch/x86/mm/ident_map.c                     | 51 +++++++++++++++++++---
+>  arch/x86/mm/init_32.c                       | 22 +++++++---
+>  arch/x86/mm/ioremap.c                       |  3 +-
+>  arch/x86/mm/pgtable.c                       |  4 +-
+>  arch/x86/mm/pgtable_32.c                    |  8 +++-
+>  arch/x86/platform/efi/efi_64.c              | 13 ++++--
+>  arch/x86/power/hibernate_32.c               |  7 ++-
+>  arch/x86/power/hibernate_64.c               | 50 ++++++++++++++++------
+>  17 files changed, 269 insertions(+), 59 deletions(-)
+
+Much better!
+
+I've applied them, with (very) minor readability edits here and there, and will 
+push them out into tip:x86/mm and tip:master after some testing - you can use that 
+as a base for the remaining submissions.
+
+I've also applied the GUP patch, with the assumption that you'll address Linus's 
+request to switch x86 over to the generic version.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
