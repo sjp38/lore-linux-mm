@@ -1,72 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DFB546B038C
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 14:07:51 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e129so311613708pfh.1
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:07:51 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id v5si15386714pgv.254.2017.03.14.11.07.50
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F566B0389
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 14:33:03 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id e5so393069059pgk.1
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:33:03 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id g11si4493978pln.0.2017.03.14.11.33.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 11:07:50 -0700 (PDT)
-Date: Tue, 14 Mar 2017 11:07:38 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v2] xfs: remove kmem_zalloc_greedy
-Message-ID: <20170314180738.GV5280@birch.djwong.org>
-References: <20170308003528.GK5280@birch.djwong.org>
- <20170314165745.GB28800@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170314165745.GB28800@wotan.suse.de>
+        Tue, 14 Mar 2017 11:33:02 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id w189so73974325pfb.0
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:33:02 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH v3] mm: fix condition for throttle_direct_reclaim
+Date: Tue, 14 Mar 2017 11:32:28 -0700
+Message-Id: <20170314183228.20152-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>, sebastian.parschauer@suse.com, AlNovak@suse.com, jack@suse.cz
+To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jia He <hejianet@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Tue, Mar 14, 2017 at 05:57:45PM +0100, Luis R. Rodriguez wrote:
-> On Tue, Mar 07, 2017 at 04:35:28PM -0800, Darrick J. Wong wrote:
-> > The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
-> > it to grab 1-4 pages for staging of inobt records.  The infinite loop in
-> > the greedy allocation function is causing hangs[1] in generic/269, so
-> > just get rid of the greedy allocator in favor of kmem_zalloc_large.
-> > This makes bulkstat somewhat more likely to ENOMEM if there's really no
-> > pages to spare, but eliminates a source of hangs.
-> > 
-> > [1] http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
-> > 
-> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > ---
-> > v2: remove single-page fallback
-> > ---
-> 
-> Since this fixes a hang how about *at the very least* a respective Fixes tag ?
-> This fixes an existing hang so what are the stable considerations here ? I
-> realize the answer is not easy but figured its worth asking.
+Since "mm: fix 100% CPU kswapd busyloop on unreclaimable nodes" kswapd
+has been modified to give up after MAX_RECLAIM_RETRIES number of
+unsucessful iterations. Before going to sleep, kswapd thread will
+unconditionally wakeup all threads sleeping on pfmemalloc_wait.
+However the awoken threads will recheck the watermarks and wake the
+kswapd thread and sleep again on pfmemalloc_wait. There is a chance
+that the system might end up in livelock between unsuccessful kswapd
+and direct reclaimers because all direct reclaimer might end up in
+throttle_direct_reclaim and there is nobody to make a forward
+progress. So, add kswapd_failures check on the throttle_direct_reclaim
+condition.
 
-I didn't think it was appropriate to "Fixes: 77e4635ae1917" since we're
-not fixing _greedy so much as we are killing it.  The patch fixes an
-infinite retry hang when bulkstat tries a memory allocation that cannot
-be satisfied; and having done that, realizes there are no remaining
-callers of _greedy and garbage collects it.  The code that was there
-before also seems capable of sleeping forever, I think.
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Suggested-by: Michal Hocko <mhocko@suse.com>
+Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+v3:
+Commit message updated.
 
-So the minimally invasive fix is to apply the allocation conversion in
-bulkstat, and if there aren't any other callers of _greedy then you can
-get rid of it too.
+v2:
+Instead of separate helper function for checking kswapd_failures,
+added the check into pfmemalloc_watermark_ok() and renamed that
+function.
 
-> FWIW I trace kmem_zalloc_greedy()'s introduction back to 2006 77e4635ae1917
-> ("[XFS] Add a greedy allocation interface, allocating within a min/max size
-> range.") through v2.6.19 days...
+ mm/vmscan.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
 
---D
-
-> 
->   Luis
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bae698484e8e..afa5b20ab6d8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2783,7 +2783,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	return 0;
+ }
+ 
+-static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
++static bool allow_direct_reclaim(pg_data_t *pgdat)
+ {
+ 	struct zone *zone;
+ 	unsigned long pfmemalloc_reserve = 0;
+@@ -2791,6 +2791,9 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+ 	int i;
+ 	bool wmark_ok;
+ 
++	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
++		return true;
++
+ 	for (i = 0; i <= ZONE_NORMAL; i++) {
+ 		zone = &pgdat->node_zones[i];
+ 		if (!managed_zone(zone))
+@@ -2873,7 +2876,7 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 
+ 		/* Throttle based on the first usable node */
+ 		pgdat = zone->zone_pgdat;
+-		if (pfmemalloc_watermark_ok(pgdat))
++		if (allow_direct_reclaim(pgdat))
+ 			goto out;
+ 		break;
+ 	}
+@@ -2895,14 +2898,14 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 	 */
+ 	if (!(gfp_mask & __GFP_FS)) {
+ 		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
+-			pfmemalloc_watermark_ok(pgdat), HZ);
++			allow_direct_reclaim(pgdat), HZ);
+ 
+ 		goto check_pending;
+ 	}
+ 
+ 	/* Throttle until kswapd wakes the process */
+ 	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
+-		pfmemalloc_watermark_ok(pgdat));
++		allow_direct_reclaim(pgdat));
+ 
+ check_pending:
+ 	if (fatal_signal_pending(current))
+@@ -3102,7 +3105,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ {
+ 	/*
+ 	 * The throttled processes are normally woken up in balance_pgdat() as
+-	 * soon as pfmemalloc_watermark_ok() is true. But there is a potential
++	 * soon as allow_direct_reclaim() is true. But there is a potential
+ 	 * race between when kswapd checks the watermarks and a process gets
+ 	 * throttled. There is also a potential race if processes get
+ 	 * throttled, kswapd wakes, a large process exits thereby balancing the
+@@ -3271,7 +3274,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		 * able to safely make forward progress. Wake them
+ 		 */
+ 		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
+-				pfmemalloc_watermark_ok(pgdat))
++				allow_direct_reclaim(pgdat))
+ 			wake_up_all(&pgdat->pfmemalloc_wait);
+ 
+ 		/* Check if kswapd should be suspending */
+-- 
+2.12.0.367.g23dc2f6d3c-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
