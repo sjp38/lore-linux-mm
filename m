@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B01D96B038C
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B11396B038D
 	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:26:25 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y17so361267782pgh.2
+Received: by mail-pg0-f71.google.com with SMTP id b2so361332416pgc.6
         for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:26:25 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id x185si14004374pgd.414.2017.03.14.01.26.22
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id r185si14091111pfr.34.2017.03.14.01.26.23
         for <linux-mm@kvack.org>;
         Tue, 14 Mar 2017 01:26:23 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v6 11/15] pagemap.h: Remove trailing white space
-Date: Tue, 14 Mar 2017 17:18:58 +0900
-Message-ID: <1489479542-27030-12-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v6 13/15] lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
+Date: Tue, 14 Mar 2017 17:19:00 +0900
+Message-ID: <1489479542-27030-14-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
@@ -21,36 +21,68 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Trailing white space is not accepted in kernel coding style. Remove
-them.
+Usually PG_locked bit is updated by lock_page() or unlock_page().
+However, it can be also updated through __SetPageLocked() or
+__ClearPageLockded(). They have to be considered, to get paired between
+acquire and release.
+
+Furthermore, e.g. __SetPageLocked() in add_to_page_cache_lru() is called
+frequently. We might miss many chances to check deadlock if we ignore it.
+Make __Set(__Clear)PageLockded considered as well.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/pagemap.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/linux/page-flags.h | 30 +++++++++++++++++++++++++++++-
+ 1 file changed, 29 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 7dbe914..a8ee59a 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -504,7 +504,7 @@ static inline void wake_up_page(struct page *page, int bit)
- 	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
- }
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 74e4dda..9d5f79d 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -252,7 +252,6 @@ static __always_inline int PageCompound(struct page *page)
+ #define TESTSCFLAG_FALSE(uname)						\
+ 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
  
--/* 
-+/*
-  * Wait for a page to be unlocked.
-  *
-  * This must be called with the caller "holding" the page,
-@@ -517,7 +517,7 @@ static inline void wait_on_page_locked(struct page *page)
- 		wait_on_page_bit(compound_head(page), PG_locked);
- }
+-__PAGEFLAG(Locked, locked, PF_NO_TAIL)
+ PAGEFLAG(Error, error, PF_NO_COMPOUND) TESTCLEARFLAG(Error, error, PF_NO_COMPOUND)
+ PAGEFLAG(Referenced, referenced, PF_HEAD)
+ 	TESTCLEARFLAG(Referenced, referenced, PF_HEAD)
+@@ -354,6 +353,35 @@ static __always_inline int PageCompound(struct page *page)
+ PAGEFLAG(Idle, idle, PF_ANY)
+ #endif
  
--/* 
-+/*
-  * Wait for a page to complete writeback
-  */
- static inline void wait_on_page_writeback(struct page *page)
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#include <linux/lockdep.h>
++
++TESTPAGEFLAG(Locked, locked, PF_NO_TAIL)
++
++static __always_inline void __SetPageLocked(struct page *page)
++{
++	__set_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
++
++	page = compound_head(page);
++	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0, 1, NULL, _RET_IP_);
++}
++
++static __always_inline void __ClearPageLocked(struct page *page)
++{
++	__clear_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
++
++	page = compound_head(page);
++	/*
++	 * lock_commit_crosslock() is necessary for crosslock
++	 * when the lock is released, before lock_release().
++	 */
++	lock_commit_crosslock((struct lockdep_map *)&page->map);
++	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
++}
++#else
++__PAGEFLAG(Locked, locked, PF_NO_TAIL)
++#endif
++
+ /*
+  * On an anonymous page mapped into a user virtual memory area,
+  * page->mapping points to its anon_vma, not to a struct address_space;
 -- 
 1.9.1
 
