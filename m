@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8D06B038F
+	by kanga.kvack.org (Postfix) with ESMTP id E3A4C831D0
 	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:26:26 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 77so340540596pgc.5
+Received: by mail-pg0-f72.google.com with SMTP id q126so362543240pga.0
         for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:26:26 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id l3si14020580pgl.298.2017.03.14.01.26.19
+        by mx.google.com with ESMTP id y6si14013633pgc.350.2017.03.14.01.26.24
         for <linux-mm@kvack.org>;
-        Tue, 14 Mar 2017 01:26:20 -0700 (PDT)
+        Tue, 14 Mar 2017 01:26:25 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v6 06/15] lockdep: Handle non(or multi)-acquisition of a crosslock
-Date: Tue, 14 Mar 2017 17:18:53 +0900
-Message-ID: <1489479542-27030-7-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v6 14/15] lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
+Date: Tue, 14 Mar 2017 17:19:01 +0900
+Message-ID: <1489479542-27030-15-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
@@ -21,186 +21,300 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-No acquisition might be in progress on commit of a crosslock. Completion
-operations enabling crossrelease are the case like:
-
-   CONTEXT X                         CONTEXT Y
-   ---------                         ---------
-   trigger completion context
-                                     complete AX
-                                        commit AX
-   wait_for_complete AX
-      acquire AX
-      wait
-
-   where AX is a crosslock.
-
-When no acquisition is in progress, we should not perform commit because
-the lock does not exist, which might cause incorrect memory access. So
-we have to track the number of acquisitions of a crosslock to handle it.
-
-Moreover, in case that more than one acquisition of a crosslock are
-overlapped like:
-
-   CONTEXT W        CONTEXT X        CONTEXT Y        CONTEXT Z
-   ---------        ---------        ---------        ---------
-   acquire AX (gen_id: 1)
-                                     acquire A
-                    acquire AX (gen_id: 10)
-                                     acquire B
-                                     commit AX
-                                                      acquire C
-                                                      commit AX
-
-   where A, B and C are typical locks and AX is a crosslock.
-
-Current crossrelease code performs commits in Y and Z with gen_id = 10.
-However, we can use gen_id = 1 to do it, since not only 'acquire AX in X'
-but 'acquire AX in W' also depends on each acquisition in Y and Z until
-their commits. So make it use gen_id = 1 instead of 10 on their commits,
-which adds an additional dependency 'AX -> A' in the example above.
+CONFIG_LOCKDEP_PAGELOCK needs to keep lockdep_map_cross per page. Since
+it's a debug feature, it's preferred to keep it in struct page_ext than
+struct page. Move it to struct page_ext.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/lockdep.h  | 22 +++++++++++++++++++-
- kernel/locking/lockdep.c | 52 ++++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 62 insertions(+), 12 deletions(-)
+ include/linux/mm_types.h   |  4 ---
+ include/linux/page-flags.h | 19 +++++++++++--
+ include/linux/page_ext.h   |  4 +++
+ include/linux/pagemap.h    | 28 ++++++++++++++++---
+ lib/Kconfig.debug          |  1 +
+ mm/filemap.c               | 69 ++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c            |  3 --
+ mm/page_ext.c              |  4 +++
+ 8 files changed, 118 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index 9902b2a..5356f71 100644
---- a/include/linux/lockdep.h
-+++ b/include/linux/lockdep.h
-@@ -312,6 +312,19 @@ struct hist_lock {
-  */
- struct cross_lock {
- 	/*
-+	 * When more than one acquisition of crosslocks are overlapped,
-+	 * we have to perform commit for them based on cross_gen_id of
-+	 * the first acquisition, which allows us to add more true
-+	 * dependencies.
-+	 *
-+	 * Moreover, when no acquisition of a crosslock is in progress,
-+	 * we should not perform commit because the lock might not exist
-+	 * any more, which might cause incorrect memory access. So we
-+	 * have to track the number of acquisitions of a crosslock.
-+	 */
-+	int nr_acquire;
-+
-+	/*
- 	 * Seperate hlock instance. This will be used at commit step.
- 	 *
- 	 * TODO: Use a smaller data structure containing only necessary
-@@ -510,9 +523,16 @@ extern void lockdep_init_map_crosslock(struct lockdep_map *lock,
- 				       int subclass);
- extern void lock_commit_crosslock(struct lockdep_map *lock);
- 
-+/*
-+ * What we essencially have to initialize is 'nr_acquire'. Other members
-+ * will be initialized in add_xlock().
-+ */
-+#define STATIC_CROSS_LOCK_INIT() \
-+	{ .nr_acquire = 0,}
-+
- #define STATIC_CROSS_LOCKDEP_MAP_INIT(_name, _key) \
- 	{ .map.name = (_name), .map.key = (void *)(_key), \
--	  .map.cross = 1, }
-+	  .map.cross = 1, .xlock = STATIC_CROSS_LOCK_INIT(), }
- 
- /*
-  * To initialize a lockdep_map statically use this macro.
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index db15fce..ec4f6af 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -4780,11 +4780,28 @@ static int add_xlock(struct held_lock *hlock)
- 
- 	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
- 
-+	/*
-+	 * When acquisitions for a crosslock are overlapped, we use
-+	 * nr_acquire to perform commit for them, based on cross_gen_id
-+	 * of the first acquisition, which allows to add additional
-+	 * dependencies.
-+	 *
-+	 * Moreover, when no acquisition of a crosslock is in progress,
-+	 * we should not perform commit because the lock might not exist
-+	 * any more, which might cause incorrect memory access. So we
-+	 * have to track the number of acquisitions of a crosslock.
-+	 *
-+	 * depend_after() is necessary to initialize only the first
-+	 * valid xlock so that the xlock can be used on its commit.
-+	 */
-+	if (xlock->nr_acquire++ && depend_after(&xlock->hlock))
-+		goto unlock;
-+
- 	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
- 	xlock->hlock = *hlock;
- 	xlock->hlock.gen_id = gen_id;
-+unlock:
- 	graph_unlock();
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 06adfa2..a6c7133 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -225,10 +225,6 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
 -
- 	return 1;
+-#ifdef CONFIG_LOCKDEP_PAGELOCK
+-	struct lockdep_map_cross map;
+-#endif
+ }
+ /*
+  * The struct page can be forced to be double word aligned so that atomic ops
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 9d5f79d..cca33f5 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -355,28 +355,41 @@ static __always_inline int PageCompound(struct page *page)
+ 
+ #ifdef CONFIG_LOCKDEP_PAGELOCK
+ #include <linux/lockdep.h>
++#include <linux/page_ext.h>
+ 
+ TESTPAGEFLAG(Locked, locked, PF_NO_TAIL)
+ 
+ static __always_inline void __SetPageLocked(struct page *page)
+ {
++	struct page_ext *e;
++
+ 	__set_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
+ 
+ 	page = compound_head(page);
+-	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0, 1, NULL, _RET_IP_);
++	e = lookup_page_ext(page);
++	if (unlikely(!e))
++		return;
++
++	lock_acquire_exclusive((struct lockdep_map *)&e->map, 0, 1, NULL, _RET_IP_);
  }
  
-@@ -4874,18 +4891,20 @@ static int commit_xhlocks(struct cross_lock *xlock)
- 	if (!graph_lock())
- 		return 0;
+ static __always_inline void __ClearPageLocked(struct page *page)
+ {
++	struct page_ext *e;
++
+ 	__clear_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
  
--	for (i = cur - 1; !xhlock_same(i, cur); i--) {
--		struct hist_lock *xhlock = &xhlock(i);
-+	if (xlock->nr_acquire) {
-+		for (i = cur - 1; !xhlock_same(i, cur); i--) {
-+			struct hist_lock *xhlock = &xhlock(i);
+ 	page = compound_head(page);
++	e = lookup_page_ext(page);
++	if (unlikely(!e))
++		return;
++
+ 	/*
+ 	 * lock_commit_crosslock() is necessary for crosslock
+ 	 * when the lock is released, before lock_release().
+ 	 */
+-	lock_commit_crosslock((struct lockdep_map *)&page->map);
+-	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
++	lock_commit_crosslock((struct lockdep_map *)&e->map);
++	lock_release((struct lockdep_map *)&e->map, 0, _RET_IP_);
+ }
+ #else
+ __PAGEFLAG(Locked, locked, PF_NO_TAIL)
+diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
+index 9298c39..d1c52c8c 100644
+--- a/include/linux/page_ext.h
++++ b/include/linux/page_ext.h
+@@ -44,6 +44,10 @@ enum page_ext_flags {
+  */
+ struct page_ext {
+ 	unsigned long flags;
++
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++	struct lockdep_map_cross map;
++#endif
+ };
  
--		if (!xhlock_used(xhlock))
--			break;
-+			if (!xhlock_used(xhlock))
-+				break;
- 
--		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
--			break;
-+			if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
-+				break;
- 
--		if (same_context_xhlock(xhlock) &&
--		    !commit_xhlock(xlock, xhlock))
--			return 0;
-+			if (same_context_xhlock(xhlock) &&
-+			    !commit_xhlock(xlock, xhlock))
-+				return 0;
-+		}
- 	}
- 
- 	graph_unlock();
-@@ -4923,16 +4942,27 @@ void lock_commit_crosslock(struct lockdep_map *lock)
- EXPORT_SYMBOL_GPL(lock_commit_crosslock);
+ extern void pgdat_page_ext_init(struct pglist_data *pgdat);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index b72be29..1be753d 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -16,6 +16,7 @@
+ #include <linux/hugetlb_inline.h>
+ #ifdef CONFIG_LOCKDEP_PAGELOCK
+ #include <linux/lockdep.h>
++#include <linux/page_ext.h>
+ #endif
  
  /*
-+ * return 0: Stop. Failed to acquire graph_lock.
-  * return 1: Done. No more release ops is needed.
-  * return 2: Need to do normal release operation.
-  */
- static int lock_release_crosslock(struct lockdep_map *lock)
- {
--	return cross_lock(lock) ? 1 : 2;
-+	if (cross_lock(lock)) {
-+		if (!graph_lock())
-+			return 0;
-+		((struct lockdep_map_cross *)lock)->xlock.nr_acquire--;
-+		graph_unlock();
-+		return 1;
-+	}
-+	return 2;
+@@ -436,28 +437,47 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
  }
  
- static void cross_init(struct lockdep_map *lock, int cross)
- {
-+	if (cross)
-+		((struct lockdep_map_cross *)lock)->xlock.nr_acquire = 0;
+ #ifdef CONFIG_LOCKDEP_PAGELOCK
++extern struct page_ext_operations lockdep_pagelock_ops;
 +
- 	lock->cross = cross;
+ #define lock_page_init(p)						\
+ do {									\
+ 	static struct lock_class_key __key;				\
+-	lockdep_init_map_crosslock((struct lockdep_map *)&(p)->map,	\
++	struct page_ext *e = lookup_page_ext(p);		\
++								\
++	if (unlikely(!e))					\
++		break;						\
++								\
++	lockdep_init_map_crosslock((struct lockdep_map *)&(e)->map,	\
+ 			"(PG_locked)" #p, &__key, 0);			\
+ } while (0)
  
+ static inline void lock_page_acquire(struct page *page, int try)
+ {
++	struct page_ext *e;
++
+ 	page = compound_head(page);
+-	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0,
++	e = lookup_page_ext(page);
++	if (unlikely(!e))
++		return;
++
++	lock_acquire_exclusive((struct lockdep_map *)&e->map, 0,
+ 			       try, NULL, _RET_IP_);
+ }
+ 
+ static inline void lock_page_release(struct page *page)
+ {
++	struct page_ext *e;
++
+ 	page = compound_head(page);
++	e = lookup_page_ext(page);
++	if (unlikely(!e))
++		return;
++
  	/*
+ 	 * lock_commit_crosslock() is necessary for crosslocks.
+ 	 */
+-	lock_commit_crosslock((struct lockdep_map *)&page->map);
+-	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
++	lock_commit_crosslock((struct lockdep_map *)&e->map);
++	lock_release((struct lockdep_map *)&e->map, 0, _RET_IP_);
+ }
+ #else
+ static inline void lock_page_init(struct page *page) {}
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index dab1de5..2ad9e57 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1065,6 +1065,7 @@ config LOCKDEP_COMPLETE
+ config LOCKDEP_PAGELOCK
+ 	bool "Lock debugging: allow PG_locked lock to use deadlock detector"
+ 	select LOCKDEP_CROSSRELEASE
++	select PAGE_EXTENSION
+ 	default n
+ 	help
+ 	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index d439cc7..afca751 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -35,6 +35,9 @@
+ #include <linux/memcontrol.h>
+ #include <linux/cleancache.h>
+ #include <linux/rmap.h>
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#include <linux/page_ext.h>
++#endif
+ #include "internal.h"
+ 
+ #define CREATE_TRACE_POINTS
+@@ -986,6 +989,72 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ 	}
+ }
+ 
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++static bool need_lockdep_pagelock(void) { return true; }
++
++static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
++{
++	struct page *page;
++	struct page_ext *page_ext;
++	unsigned long pfn = zone->zone_start_pfn;
++	unsigned long end_pfn = pfn + zone->spanned_pages;
++	unsigned long count = 0;
++
++	for (; pfn < end_pfn; pfn++) {
++		if (!pfn_valid(pfn)) {
++			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
++			continue;
++		}
++
++		if (!pfn_valid_within(pfn))
++			continue;
++
++		page = pfn_to_page(pfn);
++
++		if (page_zone(page) != zone)
++			continue;
++
++		page_ext = lookup_page_ext(page);
++		if (unlikely(!page_ext))
++			continue;
++
++		lock_page_init(page);
++		count++;
++	}
++
++	pr_info("Node %d, zone %8s: lockdep pagelock found early allocated %lu pages\n",
++		pgdat->node_id, zone->name, count);
++}
++
++static void init_zones_in_node(pg_data_t *pgdat)
++{
++	struct zone *zone;
++	struct zone *node_zones = pgdat->node_zones;
++	unsigned long flags;
++
++	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
++		if (!populated_zone(zone))
++			continue;
++
++		spin_lock_irqsave(&zone->lock, flags);
++		init_pages_in_zone(pgdat, zone);
++		spin_unlock_irqrestore(&zone->lock, flags);
++	}
++}
++
++static void init_lockdep_pagelock(void)
++{
++	pg_data_t *pgdat;
++	for_each_online_pgdat(pgdat)
++		init_zones_in_node(pgdat);
++}
++
++struct page_ext_operations lockdep_pagelock_ops = {
++	.need = need_lockdep_pagelock,
++	.init = init_lockdep_pagelock,
++};
++#endif
++
+ /**
+  * page_cache_next_hole - find the next hole (not-present entry)
+  * @mapping: mapping
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 36d5f9e..6de9440 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5063,9 +5063,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		} else {
+ 			__init_single_pfn(pfn, zone, nid);
+ 		}
+-#ifdef CONFIG_LOCKDEP_PAGELOCK
+-		lock_page_init(pfn_to_page(pfn));
+-#endif
+ 	}
+ }
+ 
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index 121dcff..023ac65 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -7,6 +7,7 @@
+ #include <linux/kmemleak.h>
+ #include <linux/page_owner.h>
+ #include <linux/page_idle.h>
++#include <linux/pagemap.h>
+ 
+ /*
+  * struct page extension
+@@ -68,6 +69,9 @@
+ #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+ 	&page_idle_ops,
+ #endif
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++	&lockdep_pagelock_ops,
++#endif
+ };
+ 
+ static unsigned long total_usage;
 -- 
 1.9.1
 
