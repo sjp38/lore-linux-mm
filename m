@@ -1,322 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E3A4C831D0
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:26:26 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id q126so362543240pga.0
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:26:26 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id y6si14013633pgc.350.2017.03.14.01.26.24
-        for <linux-mm@kvack.org>;
-        Tue, 14 Mar 2017 01:26:25 -0700 (PDT)
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v6 14/15] lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
-Date: Tue, 14 Mar 2017 17:19:01 +0900
-Message-ID: <1489479542-27030-15-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26FA96B0388
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:34:19 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g8so17758779wmg.7
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:34:19 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id u199si14340512wmu.140.2017.03.14.01.34.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 14 Mar 2017 01:34:17 -0700 (PDT)
+Date: Tue, 14 Mar 2017 09:33:20 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 0/6] x86: 5-level paging enabling for v4.12, Part 1
+In-Reply-To: <20170314082409.gjhefteglqbfb2gy@node.shutemov.name>
+Message-ID: <alpine.DEB.2.20.1703140932310.3619@nanos>
+References: <20170313143309.16020-1-kirill.shutemov@linux.intel.com> <20170314074729.GA23151@gmail.com> <20170314082409.gjhefteglqbfb2gy@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org
-Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-CONFIG_LOCKDEP_PAGELOCK needs to keep lockdep_map_cross per page. Since
-it's a debug feature, it's preferred to keep it in struct page_ext than
-struct page. Move it to struct page_ext.
+On Tue, 14 Mar 2017, Kirill A. Shutemov wrote:
+> On Tue, Mar 14, 2017 at 08:47:29AM +0100, Ingo Molnar wrote:
+> > I've also applied the GUP patch, with the assumption that you'll address Linus's 
+> > request to switch x86 over to the generic version.
+> 
+> Okay, I'll do this.
+> 
+> I just want to make priorities clear here: is it okay to finish with the
+> rest of 5-level paging patches first before moving to GUP_fast switch?
 
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
----
- include/linux/mm_types.h   |  4 ---
- include/linux/page-flags.h | 19 +++++++++++--
- include/linux/page_ext.h   |  4 +++
- include/linux/pagemap.h    | 28 ++++++++++++++++---
- lib/Kconfig.debug          |  1 +
- mm/filemap.c               | 69 ++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c            |  3 --
- mm/page_ext.c              |  4 +++
- 8 files changed, 118 insertions(+), 14 deletions(-)
+I think moving it first is the preferred way to do it.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 06adfa2..a6c7133 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -225,10 +225,6 @@ struct page {
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- 	int _last_cpupid;
- #endif
--
--#ifdef CONFIG_LOCKDEP_PAGELOCK
--	struct lockdep_map_cross map;
--#endif
- }
- /*
-  * The struct page can be forced to be double word aligned so that atomic ops
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 9d5f79d..cca33f5 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -355,28 +355,41 @@ static __always_inline int PageCompound(struct page *page)
- 
- #ifdef CONFIG_LOCKDEP_PAGELOCK
- #include <linux/lockdep.h>
-+#include <linux/page_ext.h>
- 
- TESTPAGEFLAG(Locked, locked, PF_NO_TAIL)
- 
- static __always_inline void __SetPageLocked(struct page *page)
- {
-+	struct page_ext *e;
-+
- 	__set_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
- 
- 	page = compound_head(page);
--	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0, 1, NULL, _RET_IP_);
-+	e = lookup_page_ext(page);
-+	if (unlikely(!e))
-+		return;
-+
-+	lock_acquire_exclusive((struct lockdep_map *)&e->map, 0, 1, NULL, _RET_IP_);
- }
- 
- static __always_inline void __ClearPageLocked(struct page *page)
- {
-+	struct page_ext *e;
-+
- 	__clear_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
- 
- 	page = compound_head(page);
-+	e = lookup_page_ext(page);
-+	if (unlikely(!e))
-+		return;
-+
- 	/*
- 	 * lock_commit_crosslock() is necessary for crosslock
- 	 * when the lock is released, before lock_release().
- 	 */
--	lock_commit_crosslock((struct lockdep_map *)&page->map);
--	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
-+	lock_commit_crosslock((struct lockdep_map *)&e->map);
-+	lock_release((struct lockdep_map *)&e->map, 0, _RET_IP_);
- }
- #else
- __PAGEFLAG(Locked, locked, PF_NO_TAIL)
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index 9298c39..d1c52c8c 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -44,6 +44,10 @@ enum page_ext_flags {
-  */
- struct page_ext {
- 	unsigned long flags;
-+
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+	struct lockdep_map_cross map;
-+#endif
- };
- 
- extern void pgdat_page_ext_init(struct pglist_data *pgdat);
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index b72be29..1be753d 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -16,6 +16,7 @@
- #include <linux/hugetlb_inline.h>
- #ifdef CONFIG_LOCKDEP_PAGELOCK
- #include <linux/lockdep.h>
-+#include <linux/page_ext.h>
- #endif
- 
- /*
-@@ -436,28 +437,47 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- }
- 
- #ifdef CONFIG_LOCKDEP_PAGELOCK
-+extern struct page_ext_operations lockdep_pagelock_ops;
-+
- #define lock_page_init(p)						\
- do {									\
- 	static struct lock_class_key __key;				\
--	lockdep_init_map_crosslock((struct lockdep_map *)&(p)->map,	\
-+	struct page_ext *e = lookup_page_ext(p);		\
-+								\
-+	if (unlikely(!e))					\
-+		break;						\
-+								\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(e)->map,	\
- 			"(PG_locked)" #p, &__key, 0);			\
- } while (0)
- 
- static inline void lock_page_acquire(struct page *page, int try)
- {
-+	struct page_ext *e;
-+
- 	page = compound_head(page);
--	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0,
-+	e = lookup_page_ext(page);
-+	if (unlikely(!e))
-+		return;
-+
-+	lock_acquire_exclusive((struct lockdep_map *)&e->map, 0,
- 			       try, NULL, _RET_IP_);
- }
- 
- static inline void lock_page_release(struct page *page)
- {
-+	struct page_ext *e;
-+
- 	page = compound_head(page);
-+	e = lookup_page_ext(page);
-+	if (unlikely(!e))
-+		return;
-+
- 	/*
- 	 * lock_commit_crosslock() is necessary for crosslocks.
- 	 */
--	lock_commit_crosslock((struct lockdep_map *)&page->map);
--	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
-+	lock_commit_crosslock((struct lockdep_map *)&e->map);
-+	lock_release((struct lockdep_map *)&e->map, 0, _RET_IP_);
- }
- #else
- static inline void lock_page_init(struct page *page) {}
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index dab1de5..2ad9e57 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1065,6 +1065,7 @@ config LOCKDEP_COMPLETE
- config LOCKDEP_PAGELOCK
- 	bool "Lock debugging: allow PG_locked lock to use deadlock detector"
- 	select LOCKDEP_CROSSRELEASE
-+	select PAGE_EXTENSION
- 	default n
- 	help
- 	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
-diff --git a/mm/filemap.c b/mm/filemap.c
-index d439cc7..afca751 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -35,6 +35,9 @@
- #include <linux/memcontrol.h>
- #include <linux/cleancache.h>
- #include <linux/rmap.h>
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#include <linux/page_ext.h>
-+#endif
- #include "internal.h"
- 
- #define CREATE_TRACE_POINTS
-@@ -986,6 +989,72 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 	}
- }
- 
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+static bool need_lockdep_pagelock(void) { return true; }
-+
-+static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
-+{
-+	struct page *page;
-+	struct page_ext *page_ext;
-+	unsigned long pfn = zone->zone_start_pfn;
-+	unsigned long end_pfn = pfn + zone->spanned_pages;
-+	unsigned long count = 0;
-+
-+	for (; pfn < end_pfn; pfn++) {
-+		if (!pfn_valid(pfn)) {
-+			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
-+			continue;
-+		}
-+
-+		if (!pfn_valid_within(pfn))
-+			continue;
-+
-+		page = pfn_to_page(pfn);
-+
-+		if (page_zone(page) != zone)
-+			continue;
-+
-+		page_ext = lookup_page_ext(page);
-+		if (unlikely(!page_ext))
-+			continue;
-+
-+		lock_page_init(page);
-+		count++;
-+	}
-+
-+	pr_info("Node %d, zone %8s: lockdep pagelock found early allocated %lu pages\n",
-+		pgdat->node_id, zone->name, count);
-+}
-+
-+static void init_zones_in_node(pg_data_t *pgdat)
-+{
-+	struct zone *zone;
-+	struct zone *node_zones = pgdat->node_zones;
-+	unsigned long flags;
-+
-+	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-+		if (!populated_zone(zone))
-+			continue;
-+
-+		spin_lock_irqsave(&zone->lock, flags);
-+		init_pages_in_zone(pgdat, zone);
-+		spin_unlock_irqrestore(&zone->lock, flags);
-+	}
-+}
-+
-+static void init_lockdep_pagelock(void)
-+{
-+	pg_data_t *pgdat;
-+	for_each_online_pgdat(pgdat)
-+		init_zones_in_node(pgdat);
-+}
-+
-+struct page_ext_operations lockdep_pagelock_ops = {
-+	.need = need_lockdep_pagelock,
-+	.init = init_lockdep_pagelock,
-+};
-+#endif
-+
- /**
-  * page_cache_next_hole - find the next hole (not-present entry)
-  * @mapping: mapping
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 36d5f9e..6de9440 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5063,9 +5063,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		} else {
- 			__init_single_pfn(pfn, zone, nid);
- 		}
--#ifdef CONFIG_LOCKDEP_PAGELOCK
--		lock_page_init(pfn_to_page(pfn));
--#endif
- 	}
- }
- 
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index 121dcff..023ac65 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -7,6 +7,7 @@
- #include <linux/kmemleak.h>
- #include <linux/page_owner.h>
- #include <linux/page_idle.h>
-+#include <linux/pagemap.h>
- 
- /*
-  * struct page extension
-@@ -68,6 +69,9 @@
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
- 	&page_idle_ops,
- #endif
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+	&lockdep_pagelock_ops,
-+#endif
- };
- 
- static unsigned long total_usage;
--- 
-1.9.1
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
