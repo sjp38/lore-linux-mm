@@ -1,40 +1,55 @@
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: Re: [PATCH v7] mm: Add memory allocation watchdog kernel thread.
-Date: Thu, 9 Mar 2017 19:46:14 +0900
-Message-ID: <201703091946.GDC21885.OQFFOtJHSOFVML@I-love.SAKURA.ne.jp>
-References: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [RFC PATCH 07/13] kernel/fork: Split and export 'mm_alloc' and
+ 'mm_init'
+Date: Tue, 14 Mar 2017 10:18:03 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6DCFFB03F4@AcuExch.aculab.com>
+References: <20170313221415.9375-1-till.smejkal@gmail.com>
+ <20170313221415.9375-8-till.smejkal@gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <1488244908-57586-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, david@fromorbit.com, apolyakov@beget.ru
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+Return-path: <owner-linux-aio@kvack.org>
+In-Reply-To: <20170313221415.9375-8-till.smejkal@gmail.com>
+Content-Language: en-US
+Sender: owner-linux-aio@kvack.org
+To: 'Till Smejkal' <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will
+ Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@>
+Cc: "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>, "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-aio@kvack.org" <linux-aio@kvack.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-hexagon@vger.kernel.org" <linux-hexagon@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, "adi-buildroot-devel@lists.sourceforge.net" <adi-build>
 List-Id: linux-mm.kvack.org
 
-Andrew, do you have any questions on this patch?
-I really need this patch for finding bugs which MM people overlook.
+From: Linuxppc-dev Till Smejkal
+> Sent: 13 March 2017 22:14
+> The only way until now to create a new memory map was via the exported
+> function 'mm_alloc'. Unfortunately, this function not only allocates a ne=
+w
+> memory map, but also completely initializes it. However, with the
+> introduction of first class virtual address spaces, some initialization
+> steps done in 'mm_alloc' are not applicable to the memory maps needed for
+> this feature and hence would lead to errors in the kernel code.
+>=20
+> Instead of introducing a new function that can allocate and initialize
+> memory maps for first class virtual address spaces and potentially
+> duplicate some code, I decided to split the mm_alloc function as well as
+> the 'mm_init' function that it uses.
+>=20
+> Now there are four functions exported instead of only one. The new
+> 'mm_alloc' function only allocates a new mm_struct and zeros it out. If o=
+ne
+> want to have the old behavior of mm_alloc one can use the newly introduce=
+d
+> function 'mm_alloc_and_setup' which not only allocates a new mm_struct bu=
+t
+> also fully initializes it.
+...
 
-Tetsuo Handa wrote:
-> This patch adds a watchdog which periodically reports number of memory
-> allocating tasks, dying tasks and OOM victim tasks when some task is
-> spending too long time inside __alloc_pages_slowpath(). This patch also
-> serves as a hook for obtaining additional information using SystemTap
-> (e.g. examine other variables using printk(), capture a crash dump by
-> calling panic()) by triggering a callback only when a stall is detected.
-> Ability to take administrator-controlled actions based on some threshold
-> is a big advantage gained by introducing a state tracking.
-> 
-> Commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for
-> too long") was a great step for reducing possibility of silent hang up
-> problem caused by memory allocation stalls [1]. However, there are
-> reports of long stalls (e.g. [2] is over 30 minutes!) and lockups (e.g.
-> [3] is an "unable to invoke the OOM killer due to !__GFP_FS allocation"
-> lockup problem) where this patch is more useful than that commit, for
-> this patch can report possibly related tasks even if allocating tasks
-> are unexpectedly blocked for so long. Regarding premature OOM killer
-> invocation, tracepoints which can accumulate samples in short interval
-> would be useful. But regarding too late to report allocation stalls,
-> this patch which can capture all tasks (for reporting overall situation)
-> in longer interval and act as a trigger (for accumulating short interval
-> samples) would be useful.
+That looks like bugs waiting to happen.
+You need unchanged code to fail to compile.
+
+	David
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-aio' in
+the body to majordomo@kvack.org.  For more info on Linux AIO,
+see: http://www.kvack.org/aio/
+Don't email: <a href=mailto:"aart@kvack.org">aart@kvack.org</a>
