@@ -1,90 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 30FAE6B0388
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:24:13 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id n11so17718313wma.5
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:24:13 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id d7si4065710wrc.336.2017.03.14.01.24.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 01:24:11 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id n11so13524921wma.0
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:24:11 -0700 (PDT)
-Date: Tue, 14 Mar 2017 11:24:09 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/6] x86: 5-level paging enabling for v4.12, Part 1
-Message-ID: <20170314082409.gjhefteglqbfb2gy@node.shutemov.name>
-References: <20170313143309.16020-1-kirill.shutemov@linux.intel.com>
- <20170314074729.GA23151@gmail.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EF2396B0388
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 04:26:08 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 190so282797880pgg.3
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 01:26:08 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id b85si14081185pfk.118.2017.03.14.01.26.06
+        for <linux-mm@kvack.org>;
+        Tue, 14 Mar 2017 01:26:07 -0700 (PDT)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [PATCH v6 00/15] lockdep: Implement crossrelease feature
+Date: Tue, 14 Mar 2017 17:18:47 +0900
+Message-ID: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170314074729.GA23151@gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Tue, Mar 14, 2017 at 08:47:29AM +0100, Ingo Molnar wrote:
-> 
-> * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > Here's the first bunch of patches of 5-level patchset. Let's see if I'm on
-> > right track addressing Ingo's feedback. :)
-> > 
-> > These patches prepare x86 code to be switched from <asm-generic/5level-fixup>
-> > to <asm-generic/pgtable-nop4d.h>. It's a stepping stone for adding 5-level
-> > paging support.
-> > 
-> > Please review and consider applying.
-> > 
-> > Kirill A. Shutemov (6):
-> >   x86/mm: Extend headers with basic definitions to support 5-level
-> >     paging
-> >   x86/mm: Convert trivial cases of page table walk to 5-level paging
-> >   x86/gup: Add 5-level paging support
-> >   x86/ident_map: Add 5-level paging support
-> >   x86/vmalloc: Add 5-level paging support
-> >   x86/power: Add 5-level paging support
-> > 
-> >  arch/x86/include/asm/pgtable-2level_types.h |  1 +
-> >  arch/x86/include/asm/pgtable-3level_types.h |  1 +
-> >  arch/x86/include/asm/pgtable.h              | 26 +++++++++---
-> >  arch/x86/include/asm/pgtable_64_types.h     |  1 +
-> >  arch/x86/include/asm/pgtable_types.h        | 30 ++++++++++++-
-> >  arch/x86/kernel/tboot.c                     |  6 ++-
-> >  arch/x86/kernel/vm86_32.c                   |  6 ++-
-> >  arch/x86/mm/fault.c                         | 66 +++++++++++++++++++++++++----
-> >  arch/x86/mm/gup.c                           | 33 ++++++++++++---
-> >  arch/x86/mm/ident_map.c                     | 51 +++++++++++++++++++---
-> >  arch/x86/mm/init_32.c                       | 22 +++++++---
-> >  arch/x86/mm/ioremap.c                       |  3 +-
-> >  arch/x86/mm/pgtable.c                       |  4 +-
-> >  arch/x86/mm/pgtable_32.c                    |  8 +++-
-> >  arch/x86/platform/efi/efi_64.c              | 13 ++++--
-> >  arch/x86/power/hibernate_32.c               |  7 ++-
-> >  arch/x86/power/hibernate_64.c               | 50 ++++++++++++++++------
-> >  17 files changed, 269 insertions(+), 59 deletions(-)
-> 
-> Much better!
-> 
-> I've applied them, with (very) minor readability edits here and there, and will 
-> push them out into tip:x86/mm and tip:master after some testing - you can use that 
-> as a base for the remaining submissions.
+I checked if crossrelease feature works well on my qemu-i386 machine.
+There's no problem at all to work on mine. But I wonder if it's still
+true on other machines. Especially, on large system. Could you let me
+know if it doesn't work on yours or if crossrelease feature is useful?
 
-Thanks.
+-----8<-----
 
-> I've also applied the GUP patch, with the assumption that you'll address Linus's 
-> request to switch x86 over to the generic version.
+Change from v5
+	- force XHLOCKS_SIZE to be power of 2 and simplify code
+	- remove nmi check
+	- separate an optimization using prev_gen_id with a full changelog
+	- separate non(multi)-acquisition handling with a full changelog
+	- replace vmalloc with kmallock(GFP_KERNEL) for xhlocks
+	- select PROVE_LOCKING when choosing CROSSRELEASE
+	- clean serveral code (e.g. loose some ifdefferies)
+	- enhance several comments and changelogs
 
-Okay, I'll do this.
+Change from v4
+	- rebase on vanilla v4.9 tag
+	- re-name pend_lock(plock) to hist_lock(xhlock)
+	- allow overwriting ring buffer for hist_lock
+	- unwind ring buffer instead of tagging id for each irq
+	- introduce lockdep_map_cross embedding cross_lock
+	- make each work of workqueue distinguishable
+	- enhance comments
+	(I will update the document at the next spin.)
 
-I just want to make priorities clear here: is it okay to finish with the
-rest of 5-level paging patches first before moving to GUP_fast switch?
+Change from v3
+	- reviced document
+
+Change from v2
+	- rebase on vanilla v4.7 tag
+	- move lockdep data for page lock from struct page to page_ext
+	- allocate plocks buffer via vmalloc instead of in struct task
+	- enhanced comments and document
+	- optimize performance
+	- make reporting function crossrelease-aware
+
+Change from v1
+	- enhanced the document
+	- removed save_stack_trace() optimizing patch
+	- made this based on the seperated save_stack_trace patchset
+	  https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1182242.html
+
+Can we detect deadlocks below with original lockdep?
+
+Example 1)
+
+	PROCESS X	PROCESS Y
+	--------------	--------------
+	mutext_lock A
+			lock_page B
+	lock_page B
+			mutext_lock A // DEADLOCK
+	unlock_page B
+			mutext_unlock A
+	mutex_unlock A
+			unlock_page B
+
+where A and B are different lock classes.
+
+No, we cannot.
+
+Example 2)
+
+	PROCESS X	PROCESS Y	PROCESS Z
+	--------------	--------------	--------------
+			mutex_lock A
+	lock_page B
+			lock_page B
+					mutext_lock A // DEADLOCK
+					mutext_unlock A
+					unlock_page B
+					(B was held by PROCESS X)
+			unlock_page B
+			mutex_unlock A
+
+where A and B are different lock classes.
+
+No, we cannot.
+
+Example 3)
+
+	PROCESS X	PROCESS Y
+	--------------	--------------
+			mutex_lock A
+	mutex_lock A
+			wait_for_complete B // DEADLOCK
+	mutex_unlock A
+	complete B
+			mutex_unlock A
+
+where A is a lock class and B is a completion variable.
+
+No, we cannot.
+
+Not only lock operations, but also any operations causing to wait or
+spin for something can cause deadlock unless it's eventually *released*
+by someone. The important point here is that the waiting or spinning
+must be *released* by someone.
+
+Using crossrelease feature, we can check dependency and detect deadlock
+possibility not only for typical lock, but also for lock_page(),
+wait_for_xxx() and so on, which might be released in any context.
+
+See the last patch including the document for more information.
+
+Byungchul Park (15):
+  lockdep: Refactor lookup_chain_cache()
+  lockdep: Add a function building a chain between two classes
+  lockdep: Change the meaning of check_prev_add()'s return value
+  lockdep: Make check_prev_add() able to handle external stack_trace
+  lockdep: Implement crossrelease feature
+  lockdep: Handle non(or multi)-acquisition of a crosslock
+  lockdep: Avoid adding redundant direct links of crosslocks
+  lockdep: Fix incorrect condition to print bug msgs for
+    MAX_LOCKDEP_CHAIN_HLOCKS
+  lockdep: Make print_circular_bug() aware of crossrelease
+  lockdep: Apply crossrelease to completions
+  pagemap.h: Remove trailing white space
+  lockdep: Apply crossrelease to PG_locked locks
+  lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
+  lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
+  lockdep: Crossrelease feature documentation
+
+ Documentation/locking/crossrelease.txt | 874 +++++++++++++++++++++++++++++++++
+ include/linux/completion.h             | 118 ++++-
+ include/linux/irqflags.h               |  24 +-
+ include/linux/lockdep.h                | 147 +++++-
+ include/linux/mm_types.h               |   4 +
+ include/linux/page-flags.h             |  43 +-
+ include/linux/page_ext.h               |   4 +
+ include/linux/pagemap.h                | 125 ++++-
+ include/linux/sched.h                  |   8 +
+ kernel/exit.c                          |   1 +
+ kernel/fork.c                          |   3 +
+ kernel/locking/lockdep.c               | 789 +++++++++++++++++++++++++----
+ kernel/sched/completion.c              |  54 +-
+ kernel/workqueue.c                     |   1 +
+ lib/Kconfig.debug                      |  29 ++
+ mm/filemap.c                           |  73 ++-
+ mm/page_ext.c                          |   4 +
+ 17 files changed, 2149 insertions(+), 152 deletions(-)
+ create mode 100644 Documentation/locking/crossrelease.txt
 
 -- 
- Kirill A. Shutemov
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
