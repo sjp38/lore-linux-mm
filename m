@@ -1,67 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 268786B0388
-	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 22:34:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g10so47582519wrg.5
-        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 19:34:32 -0700 (PDT)
-From: Till Smejkal <till.smejkal@googlemail.com>
-Date: Mon, 13 Mar 2017 19:34:27 -0700
-Subject: Re: [RFC PATCH 10/13] mm: Introduce first class virtual address
- spaces
-Message-ID: <20170314023427.3p4a5qxtl5eh5epi@arch-dev>
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B5726B0038
+	for <linux-mm@kvack.org>; Mon, 13 Mar 2017 22:56:45 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id a189so256603491qkc.4
+        for <linux-mm@kvack.org>; Mon, 13 Mar 2017 19:56:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y88si2012714qtd.8.2017.03.13.19.56.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Mar 2017 19:56:44 -0700 (PDT)
+Date: Tue, 14 Mar 2017 10:56:42 +0800
+From: Xiong Zhou <xzhou@redhat.com>
+Subject: fsx tests on DAX started to fail with msync failure on 0307 -next
+ tree
+Message-ID: <20170314025642.nwpf7zxbc6655gum@XZHOUW.usersys.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cd1adda8-bf6a-47ad-bff3-5bc6626ac100@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Till Smejkal <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J.  Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@synopsys.COM>, linux-kernel@vger.kernel.org, linux-alpha@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-media@vger.kernel.org, linux-mtd@lists.infradead.org, linux-usb@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, alsa-devel@alsa-project.org, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@amacapital.net>
+To: linux-nvdimm@ml01.01.org
+Cc: linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Vineet,
+Hi,
 
-On Mon, 13 Mar 2017, Vineet Gupta wrote:
-> I've not looked at the patches closely (or read the references paper fully yet),
-> but at first glance it seems on ARC architecture, we can can potentially
-> use/leverage this mechanism to implement the shared TLB entries. Before anyone
-> shouts these are not same as the IA64/x86 protection keys which allow TLB entries
-> with different protection bits across processes etc. These TLB entries are
-> actually *shared* by processes.
-> 
-> Conceptually there's shared address spaces, independent of processes. e.g. ldso
-> code is shared address space #1, libc (code) #2 .... System can support a limited
-> number of shared addr spaces (say 64, enough for typical embedded sys).
-> 
-> While Normal TLB entries are tagged with ASID (Addr space ID) to keep them unique
-> across processes, Shared TLB entries are tagged with Shared address space ID.
-> 
-> A process MMU context consists of ASID (a single number) and a SASID bitmap (to
-> allow "subscription" to multiple Shared spaces. The subscriptions are set up bu
-> userspace ld.so which knows about the libs process wants to map.
-> 
-> The restriction ofcourse is that the spaces are mapped at *same* vaddr is all
-> participating processes. I know this goes against whole security, address space
-> randomization - but it gives much better real time performance. Why does each
-> process need to take a MMU exception for libc code...
-> 
-> So long story short - it seems there can be multiple uses of this infrastructure !
+xfstests cases:
+generic/075 generic/112 generic/127 generic/231 generic/263
 
-During the development of this code, we also looked at shared TLB entries, but
-the other way around. We wanted to use them to prevent flushing of TLB entries of
-shared memory regions when switching between multiple ASes. Unfortunately, we never
-finished this part of the code.
+fail with DAX, pass without it. Both xfs and ext4.
 
-However, we also investigated into a different use-case for first class virtual
-address spaces that is related to what you propose if I didn't understand something
-wrong. The idea is to move shared libraries into their own first class virtual
-address space and only load some small trampoline code in the application AS. This
-trampoline code performs the VAS switch in the libraries AS and execute the requested
-function there. If we combine this architecture with tagged TLB entries to prevent
-TLB flushes during the switch operation, it can also reach an acceptable performance.
-A side effect of moving the shared library into its own AS is that it can not be used
-by ROP-attacks because it is not accessible in the application's AS.
+It was okay on 0306 -next tree.
 
-Till
++ ./check generic/075
+FSTYP         -- xfs (non-debug)
+PLATFORM      -- Linux/x86_64 hp-dl360g9-12 4.11.0-rc1-linux-next-5be4921-next-20170310
+MKFS_OPTIONS  -- -f -bsize=4096 /dev/pmem0p2
+MOUNT_OPTIONS -- -o dax -o context=system_u:object_r:nfs_t:s0 /dev/pmem0p2 /daxsch
+
+generic/075 4s ... [failed, exit status 1] - output mismatch (see /root/xfstests/results//generic/075.out.bad)
+    --- tests/generic/075.out	2016-12-13 14:38:25.984557426 +0800
+    +++ /root/xfstests/results//generic/075.out.bad	2017-03-14 10:40:23.083052839 +0800
+    @@ -4,15 +4,4 @@
+     -----------------------------------------------
+     fsx.0 : -d -N numops -S 0
+     -----------------------------------------------
+    -
+    ------------------------------------------------
+    -fsx.1 : -d -N numops -S 0 -x
+    ------------------------------------------------
+    ...
+    (Run 'diff -u tests/generic/075.out /root/xfstests/results//generic/075.out.bad'  to see the entire diff)
+..
+
+$ diff -u xfstests/tests/generic/075.out /root/xfstests/results//generic/075.out.bad
+--- xfstests/tests/generic/075.out	2016-12-13 14:38:25.984557426 +0800
++++ /root/xfstests/results//generic/075.out.bad	2017-03-14 10:40:23.083052839 +0800
+@@ -4,15 +4,4 @@
+ -----------------------------------------------
+ fsx.0 : -d -N numops -S 0
+ -----------------------------------------------
+-
+------------------------------------------------
+-fsx.1 : -d -N numops -S 0 -x
+------------------------------------------------
+-
+------------------------------------------------
+-fsx.2 : -d -N numops -l filelen -S 0
+------------------------------------------------
+-
+------------------------------------------------
+-fsx.3 : -d -N numops -l filelen -S 0 -x
+------------------------------------------------
++    fsx (-d -N 1000 -S 0) failed, 0 - compare /root/xfstests/results//generic/075.0.{good,bad,fsxlog}
+
+$ diff -u /root/xfstests/results//generic/075.0.{good,fsxlog} | tail -20
+-03cb30 f903 da03 1103 7503 5403 8903 9f03 6b03
+-03cb40 bb03 fb03 5603 7e03 c503 ca03 0103 9603
+-03cb50 7f03 7c03 0c03 5103 ed03 dc03 a403 5c03
+-03cb60 5403 b903 4403 3c03 4b03 a903 2303 1a03
+-03cb70 2b03 5f03 fd03 ee03 1303 9703 2903 d303
+-03cb80 4e03 9903 f903 8003 b803 2503 2203 c903
+-03cb90 6803 7a03 0f03 6303 de03 ba03 6e03 6503
+-03cba0 db03
+-03cba2
++skipping zero size read
++skipping insert range behind EOF
++3 mapwrite	0x2e836 thru	0x3cba1	(0xe36c bytes)
++domapwrite: msync: Invalid argument
++LOG DUMP (3 total operations):
++1(  1 mod 256): SKIPPED (no operation)
++2(  2 mod 256): SKIPPED (no operation)
++3(  3 mod 256): MAPWRITE 0x2e836 thru 0x3cba1	(0xe36c bytes)
++Log of operations saved to "075.0.fsxops"; replay with --replay-ops
++Correct content saved for comparison
++(maybe hexdump "075.0" vs "075.0.fsxgood")
+
+https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git/tree/tests/generic/075
+https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git/tree/ltp/fsx.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
