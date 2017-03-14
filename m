@@ -1,157 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DB5456B0396
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 15:45:07 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n141so270020078qke.1
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:45:07 -0700 (PDT)
-Received: from mail-qt0-f169.google.com (mail-qt0-f169.google.com. [209.85.216.169])
-        by mx.google.com with ESMTPS id 64si3789172qks.68.2017.03.14.12.45.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 12:45:06 -0700 (PDT)
-Received: by mail-qt0-f169.google.com with SMTP id i34so64200818qtc.0
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:45:06 -0700 (PDT)
-Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
- staging
-References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
- <20170303132949.GC31582@dhcp22.suse.cz>
- <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
- <20170306074258.GA27953@dhcp22.suse.cz>
- <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
- <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
- <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
- <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
- <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
- <CA+M3ks6R=n4n54wofK7pYcWoQKUhzyWQytBO90+pRDRrAhi3ww@mail.gmail.com>
- <CAKMK7uH9NemeM2z-tQvge_B=kABop6O7UQFK3PirpJminMCPqw@mail.gmail.com>
- <6d3d52ba-29a9-701f-2948-00ce28282975@redhat.com>
- <CA+M3ks5AyVN1hn=FCRx7sy-3B=VujEBL4G4tWy6opifkKTD8=w@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <38d38ae5-d897-1c98-4d36-c3b16a92bfee@redhat.com>
-Date: Tue, 14 Mar 2017 12:45:02 -0700
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 17CF86B0396
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 15:54:13 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 77so367561870pgc.5
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:54:13 -0700 (PDT)
+Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
+References: <20170314161229.tl6hsmian2gdep47@arch-dev>
+From: Chris Metcalf <cmetcalf@mellanox.com>
+Message-ID: <8d9333d6-2f81-a9de-484e-e1d655e1d3c3@mellanox.com>
+Date: Tue, 14 Mar 2017 15:53:44 -0400
 MIME-Version: 1.0
-In-Reply-To: <CA+M3ks5AyVN1hn=FCRx7sy-3B=VujEBL4G4tWy6opifkKTD8=w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170314161229.tl6hsmian2gdep47@arch-dev>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Mark Brown <broonie@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Linux MM <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Till Smejkal <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J.
+ Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
 
-On 03/14/2017 07:47 AM, Benjamin Gaignard wrote:
-> 2017-03-13 22:09 GMT+01:00 Laura Abbott <labbott@redhat.com>:
->> On 03/12/2017 12:05 PM, Daniel Vetter wrote:
->>> On Sun, Mar 12, 2017 at 2:34 PM, Benjamin Gaignard
->>> <benjamin.gaignard@linaro.org> wrote:
->>>> 2017-03-09 18:38 GMT+01:00 Laura Abbott <labbott@redhat.com>:
->>>>> On 03/09/2017 02:00 AM, Benjamin Gaignard wrote:
->>>>>> 2017-03-06 17:04 GMT+01:00 Daniel Vetter <daniel@ffwll.ch>:
->>>>>>> On Mon, Mar 06, 2017 at 11:58:05AM +0100, Mark Brown wrote:
->>>>>>>> On Mon, Mar 06, 2017 at 11:40:41AM +0100, Daniel Vetter wrote:
->>>>>>>>
->>>>>>>>> No one gave a thing about android in upstream, so Greg KH just dumped it
->>>>>>>>> all into staging/android/. We've discussed ION a bunch of times, recorded
->>>>>>>>> anything we'd like to fix in staging/android/TODO, and Laura's patch
->>>>>>>>> series here addresses a big chunk of that.
->>>>>>>>
->>>>>>>>> This is pretty much the same approach we (gpu folks) used to de-stage the
->>>>>>>>> syncpt stuff.
->>>>>>>>
->>>>>>>> Well, there's also the fact that quite a few people have issues with the
->>>>>>>> design (like Laurent).  It seems like a lot of them have either got more
->>>>>>>> comfortable with it over time, or at least not managed to come up with
->>>>>>>> any better ideas in the meantime.
->>>>>>>
->>>>>>> See the TODO, it has everything a really big group (look at the patch for
->>>>>>> the full Cc: list) figured needs to be improved at LPC 2015. We don't just
->>>>>>> merge stuff because merging stuff is fun :-)
->>>>>>>
->>>>>>> Laurent was even in that group ...
->>>>>>> -Daniel
->>>>>>
->>>>>> For me those patches are going in the right direction.
->>>>>>
->>>>>> I still have few questions:
->>>>>> - since alignment management has been remove from ion-core, should it
->>>>>> be also removed from ioctl structure ?
->>>>>
->>>>> Yes, I think I'm going to go with the suggestion to fixup the ABI
->>>>> so we don't need the compat layer and as part of that I'm also
->>>>> dropping the align argument.
->>>>>
->>>>>> - can you we ride off ion_handle (at least in userland) and only
->>>>>> export a dma-buf descriptor ?
->>>>>
->>>>> Yes, I think this is the right direction given we're breaking
->>>>> everything anyway. I was debating trying to keep the two but
->>>>> moving to only dma bufs is probably cleaner. The only reason
->>>>> I could see for keeping the handles is running out of file
->>>>> descriptors for dma-bufs but that seems unlikely.
->>>>>>
->>>>>> In the future how can we add new heaps ?
->>>>>> Some platforms have very specific memory allocation
->>>>>> requirements (just have a look in the number of gem custom allocator in drm)
->>>>>> Do you plan to add heap type/mask for each ?
->>>>>
->>>>> Yes, that was my thinking.
->>>>
->>>> My concern is about the policy to adding heaps, will you accept
->>>> "customs" heap per
->>>> platforms ? per devices ? or only generic ones ?
->>>> If you are too strict, we will have lot of out-of-tree heaps and if
->>>> you accept of of them
->>>> it will be a nightmare to maintain....
->>>
->>> I think ion should expose any heap that's also directly accessible to
->>> devices using dma_alloc(_coherent). That should leave very few things
->>> left, like your SMA heap.
->>>
->>>> Another point is how can we put secure rules (like selinux policy) on
->>>> heaps since all the allocations
->>>> go to the same device (/dev/ion) ? For example, until now, in Android
->>>> we have to give the same
->>>> access rights to all the process that use ION.
->>>> It will become problem when we will add secure heaps because we won't
->>>> be able to distinguish secure
->>>> processes to standard ones or set specific policy per heaps.
->>>> Maybe I'm wrong here but I have never see selinux policy checking an
->>>> ioctl field but if that
->>>> exist it could be a solution.
->>>
->>> Hm, we might want to expose all the heaps as individual
->>> /dev/ion_$heapname nodes? Should we do this from the start, since
->>> we're massively revamping the uapi anyway (imo not needed, current
->>> state seems to work too)?
->>> -Daniel
->>>
->>
->> I thought about that. One advantage with separate /dev/ion_$heap
-> 
-> Should we use /devi/ion/$heap instead of /dev/ion_$heap ?
-> I think it would be easier for user to look into one directory rather
-> then in whole /dev to find the heaps
-> 
+On 3/14/2017 12:12 PM, Till Smejkal wrote:
+> On Mon, 13 Mar 2017, Andy Lutomirski wrote:
+>> On Mon, Mar 13, 2017 at 7:07 PM, Till Smejkal
+>> <till.smejkal@googlemail.com> wrote:
+>>> On Mon, 13 Mar 2017, Andy Lutomirski wrote:
+>>>> This sounds rather complicated.  Getting TLB flushing right seems
+>>>> tricky.  Why not just map the same thing into multiple mms?
+>>> This is exactly what happens at the end. The memory region that is described by the
+>>> VAS segment will be mapped in the ASes that use the segment.
+>> So why is this kernel feature better than just doing MAP_SHARED
+>> manually in userspace?
+> One advantage of VAS segments is that they can be globally queried by user programs
+> which means that VAS segments can be shared by applications that not necessarily have
+> to be related. If I am not mistaken, MAP_SHARED of pure in memory data will only work
+> if the tasks that share the memory region are related (aka. have a common parent that
+> initialized the shared mapping). Otherwise, the shared mapping have to be backed by a
+> file.
 
-If we decide to move away from /dev/ion we can consider it.
+True, but why is this bad?  The shared mapping will be memory resident
+regardless, even if backed by a file (unless swapped out under heavy
+memory pressure, but arguably that's a feature anyway).  More importantly,
+having a file name is a simple and consistent way of identifying such
+shared memory segments.
 
->> is that we don't have to worry about a limit of 32 possible
->> heaps per system (32-bit heap id allocation field). But dealing
->> with an ioctl seems easier than names. Userspace might be less
->> likely to hardcode random id numbers vs. names as well.
-> 
-> In the futur I think that heap type will be replaced by a "get caps"
-> ioctl which will
-> describe heap capabilities. At least that is my understanding of kernel part
-> of "unix memory allocator" project
-> 
+With a little work, you can also arrange to map such files into memory
+at a fixed address in all participating processes, thus making internal
+pointers work correctly.
 
-I don't think it will be completely replaced. A heap can have multiple
-capabilities so I suspect there will need to be some cap -> allocation
-instance translation. Of course all this is wild speculation since
-much of the unix memory allocator isn't well defined yet.
+> VAS segments on the other side allow sharing of pure in memory data by
+> arbitrary related tasks without the need of a file. This becomes especially
+> interesting if one combines VAS segments with non-volatile memory since one can keep
+> data structures in the NVM and still be able to share them between multiple tasks.
 
-Thanks,
-Laura
+I am not fully up to speed on NV/pmem stuff, but isn't that exactly what
+the DAX mode is supposed to allow you to do?  If so, isn't sharing a
+mapped file on a DAX filesystem on top of pmem equivalent to what
+you're proposing?
+
+-- 
+Chris Metcalf, Mellanox Technologies
+http://www.mellanox.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
