@@ -1,120 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FC356B0388
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 14:37:10 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id r45so68503553qte.6
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:37:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f7si3648778qtf.104.2017.03.14.11.37.08
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B061F6B0388
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 14:56:59 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l37so51128788wrc.7
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:56:59 -0700 (PDT)
+Received: from gloria.sntech.de (gloria.sntech.de. [95.129.55.99])
+        by mx.google.com with ESMTPS id g38si6153348wrg.312.2017.03.14.11.56.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 11:37:09 -0700 (PDT)
-Date: Tue, 14 Mar 2017 19:37:06 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [LSF/MM TOPIC][LSF/MM,ATTEND] shared TLB, hugetlb reservations
-Message-ID: <20170314183706.GO27056@redhat.com>
-References: <cad15568-221e-82b7-a387-f23567a0bc76@oracle.com>
- <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 14 Mar 2017 11:56:58 -0700 (PDT)
+From: Heiko =?ISO-8859-1?Q?St=FCbner?= <heiko@sntech.de>
+Subject: Re: [PATCHv2,6/7] mm: convert generic code to 5-level paging
+Date: Tue, 14 Mar 2017 19:55:07 +0100
+Message-ID: <15847703.KEZMYLnFVy@diego>
+In-Reply-To: <20170314170625.gwlfjlxooij3elsd@node.shutemov.name>
+References: <20170309142408.2868-7-kirill.shutemov@linux.intel.com> <2565467.lozgIVsiVn@diego> <20170314170625.gwlfjlxooij3elsd@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, qemu-devel@nongnu.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-Hello,
+Am Dienstag, 14. M=E4rz 2017, 20:06:25 CET schrieb Kirill A. Shutemov:
+> On Tue, Mar 14, 2017 at 05:14:22PM +0100, Heiko St=FCbner wrote:
+> > [added arm64 maintainers and arm list to recipients]
+> >=20
+> > Hi,
+> >=20
+> > Am Donnerstag, 9. M=E4rz 2017, 17:24:07 CET schrieb Kirill A. Shutemov:
+> > > Convert all non-architecture-specific code to 5-level paging.
+> > >=20
+> > > It's mostly mechanical adding handling one more page table level in
+> > > places where we deal with pud_t.
+> > >=20
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Acked-by: Michal Hocko <mhocko@suse.com>
+> >=20
+> > This breaks (at least) arm64 Rockchip platforms it seems.
+> >=20
+> > 4.11-rc1 worked just fine, while 4.11-rc2 kills the systems and I've
+> > bisected it down to this one commit.
+>=20
+> Have you tried current Linus' tree? There is important fix:
+>=20
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit=
+/?i
+> d=3Dce70df089143c49385b4f32f39d41fb50fbf6a7c
 
-On Wed, Mar 08, 2017 at 05:30:55PM -0800, Mike Kravetz wrote:
-> On 01/10/2017 03:02 PM, Mike Kravetz wrote:
-> > Another more concrete topic is hugetlb reservations.  Michal Hocko
-> > proposed the topic "mm patches review bandwidth", and brought up the
-> > related subject of areas in need of attention from an architectural
-> > POV.  I suggested that hugetlb reservations was one such area.  I'm
-> > guessing it was introduced to solve a rather concrete problem.  However,
-> > over time additional hugetlb functionality was added and the
-> > capabilities of the reservation code was stretched to accommodate.
-> > It would be good to step back and take a look at the design of this
-> > code to determine if a rewrite/redesign is necessary.  Michal suggested
-> > documenting the current design/code as a first step.  If people think
-> > this is worth discussion at the summit, I could put together such a
-> > design before the gathering.
-> 
-> I attempted to put together a design/overview of how hugetlb reservations
-> currently work.  Hopefully, this will be useful.
+thanks for the pointer ... my arm64 board seem to boot now again.
 
-Another area of hugetlbfs that is not clear is the status of
-MADV_REMOVE and the behavior of fallocate punch hole that deviates
-from more standard shmem semantics. That might also be a topic of
-interest related to your hugetlbfs topic and marginally related to
-userfaultfd.
+While I did look for responses to the original series [0] + [1], where ther=
+e=20
+weren't any, I didn't think to just look into Linus' tree if there was some=
+=20
+fixup already.=20
 
-The current status for anon, shmem and hugetlbfs like this:
+So sorry for the noise and all seems well now
+Heiko
 
-MADV_DONTNEED works: anon, !VM_SHARED shmem
-MADV_DONTNEED doesn't work: hugetlbfs VM_SHARED, hugetlbfs !VM_SHARED
-MADV_DONTNEED works but not guaranteed to fault: shmem VM_SHARED
 
-MADV_REMOVE works: shmem VM_SHARED, hugetlbfs VM_SHARED
-MADV_REMOVE doesn't work: anon, shmem !VM_SHARED, hugetlbfs !VM_SHARED
-
-fallocate punch hole works: hugetlbfs VM_SHARED, hugetlbfs !VM_SHARED,
-	  	     	    shmem VM_SHARED
-fallocate punch hole doesn't work: anon, shmem !VM_SHARED
-
-So what happens in qemu is:
-
-anon			-> MADV_DONTNEED
-
-shmem !VM_SHARED	-> MADV_DONTNEED (fallocate punch hole wouldn't zap
-			   private pages, but it does on hugetlbfs)
-
-shmem VM_SHARED		-> fallocate punch hole (MADV_REMOVE would
-      			   work too)
-
-hugetlbfs !VM_SHARED	-> fallocate punch hole (works for hugetlbfs
-			   but not for shmem !VM_SHARED)
-
-hugetlbfs VM_SHARED	-> fallocate punch hole (MADV_REMOVE would work too)
-
-This means qemu has to carry around information on the type of memory
-it got from the initial memblock setup, so at live migration time it
-can zap the memory with the right call. (NOTE: such memory is not
-generated by userfaultfd UFFDIO_COPY, but it was allocated and mapped
-and it must be zapped well before calling userfaultfd the first time).
-
-To do this qemu uses fstatfs and finds out which kind of memory it's
-dealing with to use the right call depending on which memory.
-
-In short it'd be better to have something like a generic MADV_REMOVE
-that guarantees a non-present fault after it succeeds, no matter what
-kind of memory is mapped in the virtual range that has to be
-zapped. The above is far from ideal from a userland developer
-prospective.
-
-Overall fallocate punch hole covers the most cases so to keep the code
-simpler ironically MADV_REMOVE ends up being never used despite it
-provides a more friendly API than fallocate to qemu. The files are
-always mapped and the older code only dealt with virtual addresses
-(before hugetlbfs and shmem entered thee equation). Ideally qemu wants
-to call the same madvise regardles if the memory is anon shmem or
-hugetlbfs without having to carry around file descriptor, file offsets
-and superblock types.
-
-It's also not clear why MADV_DONTNEED doesn't work for hugetlbfs
-!VM_SHARED mappings and why fallocate punch hole is also zapping
-private cow-like pages from !VM_SHARED mappings (although if it
-didn't, it would be impossible to zap those... so it's good luck it
-does).
-
-Thanks,
-Andrea
-
-PS. CC'ed also qemu-devel in case it may help clarify why things are
-implemented they way they are in the postcopy live migration
-hugetlbfs/shmem support and in the future patches for shmem/hugetlbfs
-share=on.
+[0] https://lkml.org/lkml/2017/3/9/442
+[1] https://patchwork.kernel.org/patch/9613445/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
