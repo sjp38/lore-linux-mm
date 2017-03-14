@@ -1,78 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7434A6B038C
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 18:45:22 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id k13so1406206ywk.2
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 15:45:22 -0700 (PDT)
-Received: from mail.zytor.com ([2001:1868:a000:17::138])
-        by mx.google.com with ESMTPS id g81si13729ywe.195.2017.03.14.15.45.21
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AAC386B0388
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 19:07:40 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id u81so166672uau.6
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 16:07:40 -0700 (PDT)
+Received: from mail-ua0-x244.google.com (mail-ua0-x244.google.com. [2607:f8b0:400c:c08::244])
+        by mx.google.com with ESMTPS id l192si32927vka.165.2017.03.14.16.07.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 15:45:21 -0700 (PDT)
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-Id: <201703142243.v2EMh8Nn010676@mail.zytor.com>
-Date: Tue, 14 Mar 2017 15:43:01 -0700
-In-Reply-To: <CAJcbSZG7ds+q76dHtzOkYtMkkTXWwG3e7MAxKJi0=SmdmqA6tA@mail.gmail.com>
-References: <20170314170508.100882-1-thgarnie@google.com> <20170314170508.100882-3-thgarnie@google.com> <20170314210424.GA5023@amd> <CAJcbSZG7ds+q76dHtzOkYtMkkTXWwG3e7MAxKJi0=SmdmqA6tA@mail.gmail.com>
+        Tue, 14 Mar 2017 16:07:39 -0700 (PDT)
+Received: by mail-ua0-x244.google.com with SMTP id f54so63881uaa.0
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 16:07:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH v7 3/3] x86: Make the GDT remapping read-only on 64-bit
+In-Reply-To: <20170313095836.GI31518@dhcp22.suse.cz>
+References: <20170307131751.24936-1-mhocko@kernel.org> <CADRPPNT9zyc_0sg0eoZEMbTQ+mCHAkmzmHW93zHaOuzpALtzrg@mail.gmail.com>
+ <20170313095836.GI31518@dhcp22.suse.cz>
+From: Yang Li <pku.leo@gmail.com>
+Date: Tue, 14 Mar 2017 18:07:38 -0500
+Message-ID: <CADRPPNRE_fEKjdNmSAqEJBAFJ_xDmiJQJk=Hnc16ymC2z_z8jQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: move pcp and lru-pcp drainging into single wq
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>, Pavel Machek <pavel@ucw.cz>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Kees Cook <keescook@chromium.org>, Juergen Gross <jgross@suse.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andy Lutomirski <luto@amacapital.net>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Jiri Kosina <jikos@kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Rusty Russell <rusty@rustcorp.com.au>, Paolo Bonzini <pbonzini@redhat.com>, Borislav Petkov <bp@suse.de>, Christian Borntraeger <borntraeger@de.ibm.com>, Frederic.Weisbecker@zytor.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Li Yang <leoyang.li@nxp.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-<fweisbec@gmail.com>,"Luis R . Rodriguez" <mcgrof@kernel.org>,Stanislaw Gruszka <sgruszka@redhat.com>,Peter Zijlstra <peterz@infradead.org>,Josh Poimboeuf <jpoimboe@redhat.com>,Vitaly Kuznetsov <vkuznets@redhat.com>,Tim Chen <tim.c.chen@linux.intel.com>,Joerg Roedel <joro@8bytes.org>,=?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,the arch/x86 maintainers <x86@kernel.org>,LKML <linux-kernel@vger.kernel.org>,linux-doc@vger.kernel.org,kasan-dev <kasan-dev@googlegroups.com>,Linux-MM <linux-mm@kvack.org>,Linux PM list <linux-pm@vger.kernel.org>,linux-efi@vger.kernel.org,xen-devel@lists.xenproject.org,lguest@lists.ozlabs.org,kvm list <kvm@vger.kernel.org>,Kernel Hardening <kernel-hardening@lists.openwall.com>
-From: hpa@zytor.com
-Message-ID: <550F6209-025A-45E2-84E2-F00A3771C0B1@zytor.com>
-
-On March 14, 2017 2:20:19 PM PDT, Thomas Garnier <thgarnie@google=2Ecom> wr=
-ote:
->On Tue, Mar 14, 2017 at 2:04 PM, Pavel Machek <pavel@ucw=2Ecz> wrote:
->> On Tue 2017-03-14 10:05:08, Thomas Garnier wrote:
->>> This patch makes the GDT remapped pages read-only to prevent
->corruption=2E
->>> This change is done only on 64-bit=2E
->>>
->>> The native_load_tr_desc function was adapted to correctly handle a
->>> read-only GDT=2E The LTR instruction always writes to the GDT TSS
->entry=2E
->>> This generates a page fault if the GDT is read-only=2E This change
->checks
->>> if the current GDT is a remap and swap GDTs as needed=2E This function
->was
->>> tested by booting multiple machines and checking hibernation works
->>> properly=2E
->>>
->>> KVM SVM and VMX were adapted to use the writeable GDT=2E On VMX, the
->>> per-cpu variable was removed for functions to fetch the original
->GDT=2E
->>> Instead of reloading the previous GDT, VMX will reload the fixmap
->GDT as
->>> expected=2E For testing, VMs were started and restored on multiple
->>> configurations=2E
->>>
->>> Signed-off-by: Thomas Garnier <thgarnie@google=2Ecom>
+On Mon, Mar 13, 2017 at 4:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 10-03-17 17:31:56, Yang Li wrote:
+>> On Tue, Mar 7, 2017 at 7:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>> > From: Michal Hocko <mhocko@suse.com>
+>> >
+>> > We currently have 2 specific WQ_RECLAIM workqueues in the mm code.
+>> > vmstat_wq for updating pcp stats and lru_add_drain_wq dedicated to drain
+>> > per cpu lru caches. This seems more than necessary because both can run
+>> > on a single WQ. Both do not block on locks requiring a memory allocation
+>> > nor perform any allocations themselves. We will save one rescuer thread
+>> > this way.
+>> >
+>> > On the other hand drain_all_pages() queues work on the system wq which
+>> > doesn't have rescuer and so this depend on memory allocation (when all
+>> > workers are stuck allocating and new ones cannot be created). This is
+>> > not critical as there should be somebody invoking the OOM killer (e.g.
+>> > the forking worker) and get the situation unstuck and eventually
+>> > performs the draining. Quite annoying though. This worker should be
+>> > using WQ_RECLAIM as well. We can reuse the same one as for lru draining
+>> > and vmstat.
+>> >
+>> > Changes since v1
+>> > - rename vmstat_wq to mm_percpu_wq - per Mel
+>> > - make sure we are not trying to enqueue anything while the WQ hasn't
+>> >   been intialized yet. This shouldn't happen because the initialization
+>> >   is done from an init code but some init section might be triggering
+>> >   those paths indirectly so just warn and skip the draining in that case
+>> >   per Vlastimil
 >>
->> Can we get the same change for 32-bit, too? Growing differences
->> between 32 and 64 bit are a bit of a problem=2E=2E=2E
->>                                                                 Pavel
+>> So what's the plan if this really happens?  Shall we put the
+>> initialization of the mm_percpu_wq earlier?
 >
->It was discussed on previous versions that 32-bit read-only support
->would create issues that why it was favor for 64-bit only right now=2E
+> yes
+>
+>> Or if it is really harmless we can probably remove the warnings.
+>
+> Yeah, it is harmless but if we can move it earlier then it would be
+> prefferable to fix this.
 >
 >>
->> --
->> (english) http://www=2Elivejournal=2Ecom/~pavelmachek
->> (cesky, pictures)
->http://atrey=2Ekarlin=2Emff=2Ecuni=2Ecz/~pavel/picture/horses/blog=2Ehtml
+>> I'm seeing this on arm64 with a linux-next tree:
+> [...]
+>> [    0.279000] [<ffffff80081636bc>] drain_all_pages+0x244/0x25c
+>> [    0.279065] [<ffffff80081c675c>] start_isolate_page_range+0x14c/0x1f0
+>> [    0.279137] [<ffffff8008166a48>] alloc_contig_range+0xec/0x354
+>> [    0.279203] [<ffffff80081c6c5c>] cma_alloc+0x100/0x1fc
+>> [    0.279263] [<ffffff8008481714>] dma_alloc_from_contiguous+0x3c/0x44
+>> [    0.279336] [<ffffff8008b25720>] atomic_pool_init+0x7c/0x208
+>> [    0.279399] [<ffffff8008b258f0>] arm64_dma_init+0x44/0x4c
+>> [    0.279461] [<ffffff8008083144>] do_one_initcall+0x38/0x128
+>> [    0.279525] [<ffffff8008b20d30>] kernel_init_freeable+0x1a0/0x240
+>> [    0.279596] [<ffffff8008807778>] kernel_init+0x10/0xfc
+>> [    0.279654] [<ffffff8008082b70>] ret_from_fork+0x10/0x20
+>
+> The following should address this. I didn't get to test it yet though.
+> ---
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 21ee5503c702..8362dca071cb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -32,6 +32,8 @@ struct user_struct;
+>  struct writeback_control;
+>  struct bdi_writeback;
+>
+> +void init_mm_internals(void);
+> +
+>  #ifndef CONFIG_NEED_MULTIPLE_NODES     /* Don't use mapnrs, do it properly */
+>  extern unsigned long max_mapnr;
+>
+> diff --git a/init/main.c b/init/main.c
+> index 51aa8f336819..c72d35250e84 100644
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -1023,6 +1023,8 @@ static noinline void __init kernel_init_freeable(void)
+>
+>         workqueue_init();
+>
+> +       init_mm_internals();
+> +
+>         do_pre_smp_initcalls();
+>         lockup_detector_init();
+>
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 4bbc775f9d08..d0871fc1aeca 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1762,7 +1762,7 @@ static int vmstat_cpu_dead(unsigned int cpu)
+>
+>  struct workqueue_struct *mm_percpu_wq;
+>
+> -static int __init setup_vmstat(void)
+> +void __init init_mm_internals(void)
+>  {
+>         int ret __maybe_unused;
+>
+> @@ -1792,9 +1792,7 @@ static int __init setup_vmstat(void)
+>         proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+>         proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+>  #endif
+> -       return 0;
+>  }
+> -module_init(setup_vmstat)
+>
+>  #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
 
-We can't make the GDT read-only on 32 bits since we use task switches for =
-last-resort recovery=2E  64 bits has IST instead=2E
---=20
-Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
+I did a test on arm64.  This do fix the warnings.
+
+Regards,
+Leo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
