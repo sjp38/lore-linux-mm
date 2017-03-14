@@ -1,65 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 17CF86B0396
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 15:54:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 77so367561870pgc.5
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:54:13 -0700 (PDT)
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-References: <20170314161229.tl6hsmian2gdep47@arch-dev>
-From: Chris Metcalf <cmetcalf@mellanox.com>
-Message-ID: <8d9333d6-2f81-a9de-484e-e1d655e1d3c3@mellanox.com>
-Date: Tue, 14 Mar 2017 15:53:44 -0400
-MIME-Version: 1.0
-In-Reply-To: <20170314161229.tl6hsmian2gdep47@arch-dev>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AB5D6B0392
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 16:28:06 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 68so9829462ioh.4
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 13:28:06 -0700 (PDT)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id d130si11558810itg.35.2017.03.14.13.28.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Mar 2017 13:28:05 -0700 (PDT)
+Received: by mail-io0-x234.google.com with SMTP id z13so7470020iof.2
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 13:28:05 -0700 (PDT)
+Message-ID: <1489523282.28116.10.camel@ndufresne.ca>
+Subject: Re: [RFC PATCH 00/12] Ion cleanup in preparation for moving out of
+ staging
+From: Nicolas Dufresne <nicolas@ndufresne.ca>
+Date: Tue, 14 Mar 2017 16:28:02 -0400
+In-Reply-To: <CA+M3ks5AyVN1hn=FCRx7sy-3B=VujEBL4G4tWy6opifkKTD8=w@mail.gmail.com>
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+	 <20170303132949.GC31582@dhcp22.suse.cz>
+	 <cf383b9b-3cbc-0092-a071-f120874c053c@redhat.com>
+	 <20170306074258.GA27953@dhcp22.suse.cz>
+	 <20170306104041.zghsicrnadoap7lp@phenom.ffwll.local>
+	 <20170306105805.jsq44kfxhsvazkm6@sirena.org.uk>
+	 <20170306160437.sf7bksorlnw7u372@phenom.ffwll.local>
+	 <CA+M3ks77Am3Fx-ZNmgeM5tCqdM7SzV7rby4Es-p2F2aOhUco9g@mail.gmail.com>
+	 <26bc57ae-d88f-4ea0-d666-2c1a02bf866f@redhat.com>
+	 <CA+M3ks6R=n4n54wofK7pYcWoQKUhzyWQytBO90+pRDRrAhi3ww@mail.gmail.com>
+	 <CAKMK7uH9NemeM2z-tQvge_B=kABop6O7UQFK3PirpJminMCPqw@mail.gmail.com>
+	 <6d3d52ba-29a9-701f-2948-00ce28282975@redhat.com>
+	 <CA+M3ks5AyVN1hn=FCRx7sy-3B=VujEBL4G4tWy6opifkKTD8=w@mail.gmail.com>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-4yF7GXm+/h6FVvfyggOu"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Till Smejkal <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J.
- Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
+To: Benjamin Gaignard <benjamin.gaignard@linaro.org>, Laura Abbott <labbott@redhat.com>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Mark Brown <broonie@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, Arve =?ISO-8859-1?Q?Hj=F8nnev=E5g?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Linux MM <linux-mm@kvack.org>
 
-On 3/14/2017 12:12 PM, Till Smejkal wrote:
-> On Mon, 13 Mar 2017, Andy Lutomirski wrote:
->> On Mon, Mar 13, 2017 at 7:07 PM, Till Smejkal
->> <till.smejkal@googlemail.com> wrote:
->>> On Mon, 13 Mar 2017, Andy Lutomirski wrote:
->>>> This sounds rather complicated.  Getting TLB flushing right seems
->>>> tricky.  Why not just map the same thing into multiple mms?
->>> This is exactly what happens at the end. The memory region that is described by the
->>> VAS segment will be mapped in the ASes that use the segment.
->> So why is this kernel feature better than just doing MAP_SHARED
->> manually in userspace?
-> One advantage of VAS segments is that they can be globally queried by user programs
-> which means that VAS segments can be shared by applications that not necessarily have
-> to be related. If I am not mistaken, MAP_SHARED of pure in memory data will only work
-> if the tasks that share the memory region are related (aka. have a common parent that
-> initialized the shared mapping). Otherwise, the shared mapping have to be backed by a
-> file.
 
-True, but why is this bad?  The shared mapping will be memory resident
-regardless, even if backed by a file (unless swapped out under heavy
-memory pressure, but arguably that's a feature anyway).  More importantly,
-having a file name is a simple and consistent way of identifying such
-shared memory segments.
+--=-4yF7GXm+/h6FVvfyggOu
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-With a little work, you can also arrange to map such files into memory
-at a fixed address in all participating processes, thus making internal
-pointers work correctly.
+Le mardi 14 mars 2017 =C3=A0 15:47 +0100, Benjamin Gaignard a =C3=A9crit=C2=
+=A0:
+> Should we use /devi/ion/$heap instead of /dev/ion_$heap ?
+> I think it would be easier for user to look into one directory rather
+> then in whole /dev to find the heaps
+>=20
+> > is that we don't have to worry about a limit of 32 possible
+> > heaps per system (32-bit heap id allocation field). But dealing
+> > with an ioctl seems easier than names. Userspace might be less
+> > likely to hardcode random id numbers vs. names as well.
+>=20
+> In the futur I think that heap type will be replaced by a "get caps"
+> ioctl which will
+> describe heap capabilities. At least that is my understanding of
+> kernel part
+> of "unix memory allocator" project
 
-> VAS segments on the other side allow sharing of pure in memory data by
-> arbitrary related tasks without the need of a file. This becomes especially
-> interesting if one combines VAS segments with non-volatile memory since one can keep
-> data structures in the NVM and still be able to share them between multiple tasks.
+I think what we really need from userspace point of view, is the
+ability to find a compatible heap for a set of drivers. And this
+without specific knowledge of the drivers.
 
-I am not fully up to speed on NV/pmem stuff, but isn't that exactly what
-the DAX mode is supposed to allow you to do?  If so, isn't sharing a
-mapped file on a DAX filesystem on top of pmem equivalent to what
-you're proposing?
+Nicolas
+--=-4yF7GXm+/h6FVvfyggOu
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
--- 
-Chris Metcalf, Mellanox Technologies
-http://www.mellanox.com
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iEYEABECAAYFAljIUlIACgkQcVMCLawGqBw6ogCgysy19SbY1BaDre6iIXHMkz5R
+SPkAoJIx3dzdLVwHCLbVpFbqLZQL+M+K
+=tmAm
+-----END PGP SIGNATURE-----
+
+--=-4yF7GXm+/h6FVvfyggOu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
