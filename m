@@ -1,56 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0A16B0038
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 14:37:00 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id g138so6063426itb.4
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:37:00 -0700 (PDT)
-Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
-        by mx.google.com with ESMTPS id j90si702677ioi.119.2017.03.14.11.36.59
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FC356B0388
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 14:37:10 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id r45so68503553qte.6
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:37:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f7si3648778qtf.104.2017.03.14.11.37.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 11:36:59 -0700 (PDT)
-Received: by mail-io0-x241.google.com with SMTP id f84so815806ioj.0
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:36:59 -0700 (PDT)
+        Tue, 14 Mar 2017 11:37:09 -0700 (PDT)
+Date: Tue, 14 Mar 2017 19:37:06 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [LSF/MM TOPIC][LSF/MM,ATTEND] shared TLB, hugetlb reservations
+Message-ID: <20170314183706.GO27056@redhat.com>
+References: <cad15568-221e-82b7-a387-f23567a0bc76@oracle.com>
+ <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20170313052213.11411-1-kirill.shutemov@linux.intel.com>
-References: <20170313052213.11411-1-kirill.shutemov@linux.intel.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Tue, 14 Mar 2017 19:36:58 +0100
-Message-ID: <CAMuHMdVu-ZZz-JtuMn4eqpwBgEp3NduFkCQXQ-3GNFzu0fBcig@mail.gmail.com>
-Subject: Re: [PATCH] mm, gup: fix typo in gup_p4d_range()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Linux-Arch <linux-arch@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-Renesas <linux-renesas-soc@vger.kernel.org>, Simon Horman <horms@verge.net.au>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, qemu-devel@nongnu.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Hi Kirill,
+Hello,
 
-On Mon, Mar 13, 2017 at 6:22 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> gup_p4d_range() should call gup_pud_range(), not itself.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Chris Packham <chris.packham@alliedtelesis.co.nz>
-> Fixes: c2febafc6773 ("mm: convert generic code to 5-level paging")
+On Wed, Mar 08, 2017 at 05:30:55PM -0800, Mike Kravetz wrote:
+> On 01/10/2017 03:02 PM, Mike Kravetz wrote:
+> > Another more concrete topic is hugetlb reservations.  Michal Hocko
+> > proposed the topic "mm patches review bandwidth", and brought up the
+> > related subject of areas in need of attention from an architectural
+> > POV.  I suggested that hugetlb reservations was one such area.  I'm
+> > guessing it was introduced to solve a rather concrete problem.  However,
+> > over time additional hugetlb functionality was added and the
+> > capabilities of the reservation code was stretched to accommodate.
+> > It would be good to step back and take a look at the design of this
+> > code to determine if a rewrite/redesign is necessary.  Michal suggested
+> > documenting the current design/code as a first step.  If people think
+> > this is worth discussion at the summit, I could put together such a
+> > design before the gathering.
+> 
+> I attempted to put together a design/overview of how hugetlb reservations
+> currently work.  Hopefully, this will be useful.
 
-FTR, this (now commit ce70df089143c493) fixes the strange crashes I saw
-with plain v4.11-rc2 and renesas-devel-20170313-v4.11-rc2 during shutdown on
-Renesas R-Car Gen2 (arm) and R-Car Gen3 (arm64) (but not on older
-SH/R-Mobile), and that I bisected to commit c2febafc6773.
+Another area of hugetlbfs that is not clear is the status of
+MADV_REMOVE and the behavior of fallocate punch hole that deviates
+from more standard shmem semantics. That might also be a topic of
+interest related to your hugetlbfs topic and marginally related to
+userfaultfd.
 
-Tested-by: Geert Uytterhoeven <geert+renesas@glider.be>
+The current status for anon, shmem and hugetlbfs like this:
 
-Gr{oetje,eeting}s,
+MADV_DONTNEED works: anon, !VM_SHARED shmem
+MADV_DONTNEED doesn't work: hugetlbfs VM_SHARED, hugetlbfs !VM_SHARED
+MADV_DONTNEED works but not guaranteed to fault: shmem VM_SHARED
 
-                        Geert
+MADV_REMOVE works: shmem VM_SHARED, hugetlbfs VM_SHARED
+MADV_REMOVE doesn't work: anon, shmem !VM_SHARED, hugetlbfs !VM_SHARED
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+fallocate punch hole works: hugetlbfs VM_SHARED, hugetlbfs !VM_SHARED,
+	  	     	    shmem VM_SHARED
+fallocate punch hole doesn't work: anon, shmem !VM_SHARED
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+So what happens in qemu is:
+
+anon			-> MADV_DONTNEED
+
+shmem !VM_SHARED	-> MADV_DONTNEED (fallocate punch hole wouldn't zap
+			   private pages, but it does on hugetlbfs)
+
+shmem VM_SHARED		-> fallocate punch hole (MADV_REMOVE would
+      			   work too)
+
+hugetlbfs !VM_SHARED	-> fallocate punch hole (works for hugetlbfs
+			   but not for shmem !VM_SHARED)
+
+hugetlbfs VM_SHARED	-> fallocate punch hole (MADV_REMOVE would work too)
+
+This means qemu has to carry around information on the type of memory
+it got from the initial memblock setup, so at live migration time it
+can zap the memory with the right call. (NOTE: such memory is not
+generated by userfaultfd UFFDIO_COPY, but it was allocated and mapped
+and it must be zapped well before calling userfaultfd the first time).
+
+To do this qemu uses fstatfs and finds out which kind of memory it's
+dealing with to use the right call depending on which memory.
+
+In short it'd be better to have something like a generic MADV_REMOVE
+that guarantees a non-present fault after it succeeds, no matter what
+kind of memory is mapped in the virtual range that has to be
+zapped. The above is far from ideal from a userland developer
+prospective.
+
+Overall fallocate punch hole covers the most cases so to keep the code
+simpler ironically MADV_REMOVE ends up being never used despite it
+provides a more friendly API than fallocate to qemu. The files are
+always mapped and the older code only dealt with virtual addresses
+(before hugetlbfs and shmem entered thee equation). Ideally qemu wants
+to call the same madvise regardles if the memory is anon shmem or
+hugetlbfs without having to carry around file descriptor, file offsets
+and superblock types.
+
+It's also not clear why MADV_DONTNEED doesn't work for hugetlbfs
+!VM_SHARED mappings and why fallocate punch hole is also zapping
+private cow-like pages from !VM_SHARED mappings (although if it
+didn't, it would be impossible to zap those... so it's good luck it
+does).
+
+Thanks,
+Andrea
+
+PS. CC'ed also qemu-devel in case it may help clarify why things are
+implemented they way they are in the postcopy live migration
+hugetlbfs/shmem support and in the future patches for shmem/hugetlbfs
+share=on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
