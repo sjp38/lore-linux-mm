@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BACC76B0389
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:20:09 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id c143so601097wmd.1
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:20:09 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F2FC96B0038
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 12:57:48 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v66so51777342wrc.4
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 09:57:48 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 124si389915wmc.106.2017.03.14.09.20.08
+        by mx.google.com with ESMTPS id z41si5794388wrb.48.2017.03.14.09.57.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Mar 2017 09:20:08 -0700 (PDT)
-Date: Tue, 14 Mar 2017 17:20:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: WTH is going on with memory hotplug sysf interface
-Message-ID: <20170314162003.GD7772@dhcp22.suse.cz>
-References: <20170302180315.78975d4b@nial.brq.redhat.com>
- <20170303082723.GB31499@dhcp22.suse.cz>
- <20170303183422.6358ee8f@nial.brq.redhat.com>
- <20170306145417.GG27953@dhcp22.suse.cz>
- <20170307134004.58343e14@nial.brq.redhat.com>
- <20170309125400.GI11592@dhcp22.suse.cz>
- <20170310135807.GI3753@dhcp22.suse.cz>
- <75ee9d3f-7027-782a-9cde-5192396a4a8c@gmail.com>
- <20170313091907.GF31518@dhcp22.suse.cz>
- <99f14975-f89f-4484-6ae1-296b242d4bf9@gmail.com>
+        Tue, 14 Mar 2017 09:57:47 -0700 (PDT)
+Date: Tue, 14 Mar 2017 17:57:45 +0100
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: Re: [PATCH v2] xfs: remove kmem_zalloc_greedy
+Message-ID: <20170314165745.GB28800@wotan.suse.de>
+References: <20170308003528.GK5280@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <99f14975-f89f-4484-6ae1-296b242d4bf9@gmail.com>
+In-Reply-To: <20170308003528.GK5280@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-Cc: Igor Mammedov <imammedo@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-api@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, linux-acpi@vger.kernel.org, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, Reza Arbab <arbab@linux.vnet.ibm.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>, sebastian.parschauer@suse.com, AlNovak@suse.com, jack@suse.cz
 
-On Tue 14-03-17 12:05:59, YASUAKI ISHIMATSU wrote:
+On Tue, Mar 07, 2017 at 04:35:28PM -0800, Darrick J. Wong wrote:
+> The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
+> it to grab 1-4 pages for staging of inobt records.  The infinite loop in
+> the greedy allocation function is causing hangs[1] in generic/269, so
+> just get rid of the greedy allocator in favor of kmem_zalloc_large.
+> This makes bulkstat somewhat more likely to ENOMEM if there's really no
+> pages to spare, but eliminates a source of hangs.
 > 
+> [1] http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
 > 
-> On 03/13/2017 05:19 AM, Michal Hocko wrote:
-> >On Fri 10-03-17 12:39:27, Yasuaki Ishimatsu wrote:
-> >>On 03/10/2017 08:58 AM, Michal Hocko wrote:
-[...]
-> >>># echo online_movable > /sys/devices/system/memory/memory34/state
-> >>># grep . /sys/devices/system/memory/memory3?/valid_zones
-> >>>/sys/devices/system/memory/memory32/valid_zones:Normal
-> >>>/sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> >>>/sys/devices/system/memory/memory34/valid_zones:Movable Normal
-> >>>
-> >>
-> >>I think there is no strong reason which kernel has the restriction.
-> >>By setting the restrictions, it seems to have made management of
-> >>these zone structs simple.
-> >
-> >Could you be more specific please? How could this make management any
-> >easier when udev is basically racing with the physical hotplug and the
-> >result is basically undefined?
-> >
-> 
-> When changing zone from NORMAL(N) to MOVALBE(M), we must resize both zones,
-> zone->zone_start_pfn and zone->spanned_pages. Currently there is the
-> restriction.
-> 
-> So we just simply change:
->   zone(N)->spanned_pages -= nr_pages
->   zone(M)->zone_start_pfn -= nr_pages
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> ---
+> v2: remove single-page fallback
+> ---
 
-Yes I understand how this made the implementation simpler. I was
-questioning how this made user management any easier. Changing
-valid zones which races with the hotplug consumer (e.g. udev) sounds
-like a terrible idea to me.
+Since this fixes a hang how about *at the very least* a respective Fixes tag ?
+This fixes an existing hang so what are the stable considerations here ? I
+realize the answer is not easy but figured its worth asking.
 
-Anyway, it seems that the initial assumption/restriction that all
-pages have to start on the zone Normal is not really needed. I have a
-preliminary patch which removes that and associates newly added pages
-with a zone at the online time and it seems to be working reasonably
-well. I have to iron out some corners before I post it.
--- 
-Michal Hocko
-SUSE Labs
+FWIW I trace kmem_zalloc_greedy()'s introduction back to 2006 77e4635ae1917
+("[XFS] Add a greedy allocation interface, allocating within a min/max size
+range.") through v2.6.19 days...
+
+  Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
