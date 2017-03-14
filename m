@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 003486B038A
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:32:00 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id n135so1596383itb.2
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 08:31:59 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id v7si205672iov.201.2017.03.14.08.31.59
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D9CF86B038C
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 11:32:43 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 76so1709260itj.0
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 08:32:43 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id x6si4094333plm.259.2017.03.14.08.32.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 08:31:59 -0700 (PDT)
-Date: Tue, 14 Mar 2017 16:31:47 +0100
+        Tue, 14 Mar 2017 08:32:43 -0700 (PDT)
+Date: Tue, 14 Mar 2017 16:32:30 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH] x86, kasan: add KASAN checks to atomic operations
-Message-ID: <20170314153146.GQ5680@worktop>
+Message-ID: <20170314153230.GR5680@worktop>
 References: <CACT4Y+YmpTMdJca-rE2nXR-qa=wn_bCqQXaRghtg1uC65-pKyA@mail.gmail.com>
  <20170306125851.GL6500@twins.programming.kicks-ass.net>
  <20170306130107.GK6536@twins.programming.kicks-ass.net>
@@ -33,20 +33,15 @@ To: Dmitry Vyukov <dvyukov@google.com>
 Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
 
 On Tue, Mar 14, 2017 at 04:22:52PM +0100, Dmitry Vyukov wrote:
-> Any other suggestions?
+> -static __always_inline int atomic_read(const atomic_t *v)
+> +static __always_inline int arch_atomic_read(const atomic_t *v)
+>  {
+> -	return READ_ONCE((v)->counter);
+> +	return READ_ONCE_NOCHECK((v)->counter);
 
-> -	return i + xadd(&v->counter, i);
-> +	return i + arch_xadd(&v->counter, i);
+Should NOCHEKC come with a comment, because i've no idea why this is so.
 
-> +#define xadd(ptr, v)					\
-> +({							\
-> +	__typeof__(ptr) ____ptr = (ptr);		\
-> +	kasan_check_write(____ptr, sizeof(*____ptr));	\
-> +	arch_xadd(____ptr, (v));			\
-> +})
-
-xadd() isn't a generic thing, it only exists inside x86 as a helper to
-implement atomic bits.
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
