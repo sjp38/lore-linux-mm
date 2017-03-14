@@ -1,68 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4550E6B0388
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 08:08:11 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q126so375498277pga.0
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 05:08:11 -0700 (PDT)
-Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
-        by mx.google.com with ESMTPS id v39si3652646plb.128.2017.03.14.05.08.09
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A8B9D6B0038
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 08:52:38 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 68so149978263ioh.4
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 05:52:38 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v26si14747700pfa.151.2017.03.14.05.52.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Mar 2017 05:08:10 -0700 (PDT)
-Message-ID: <58C7DCCA.6080603@huawei.com>
-Date: Tue, 14 Mar 2017 20:06:34 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm, page_alloc: fix the duplicate save/ressave irq
-References: <1489392174-11794-1-git-send-email-zhongjiang@huawei.com> <20170313111947.rdydbpblymc6a73x@techsingularity.net> <58C6A5C5.9070301@huawei.com> <20170313142636.ghschfm2sff7j7oh@techsingularity.net>
-In-Reply-To: <20170313142636.ghschfm2sff7j7oh@techsingularity.net>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Mar 2017 05:52:38 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2ECi76Y051467
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 08:52:36 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 295vx7f6ns-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 08:52:36 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Tue, 14 Mar 2017 12:52:34 -0000
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [PATCHv2 0/2] mm: add private lock to serialize memory hotplug operations
+Date: Tue, 14 Mar 2017 13:52:24 +0100
+Message-Id: <20170314125226.16779-1-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ben Hutchings <ben@decadent.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On 2017/3/13 22:26, Mel Gorman wrote:
-> On Mon, Mar 13, 2017 at 09:59:33PM +0800, zhong jiang wrote:
->> On 2017/3/13 19:19, Mel Gorman wrote:
->>> On Mon, Mar 13, 2017 at 04:02:54PM +0800, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> when commit 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
->>>> introduced to the mainline, free_pcppages_bulk irq_save/resave to protect
->>>> the IRQ context. but drain_pages_zone fails to clear away the irq. because
->>>> preempt_disable have take effect. so it safely remove the code.
->>>>
->>>> Fixes: 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
->>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>> It's not really a fix but is this even measurable?
->>>
->>> The reason the IRQ saving was preserved was for callers that are removing
->>> the CPU where it's not 100% clear if the CPU is protected from IPIs at
->>> the time the pcpu drain takes place. It may be ok but the changelog
->>> should include an indication that it has been considered and is known to
->>> be fine versus CPU hotplug.
->>>
->> you mean the removing cpu maybe  handle the IRQ, it will result in the incorrect pcpu->count ?
->>
-> Yes, if it hasn't had interrupts disabled yet at the time of the drain.
-> I didn't check, it probably is called from a context that disables
-> interrupts but the fact you're not sure makes me automatically wary of
-> the patch particularly given how little difference it makes for the common
-> case where direct reclaim failed triggering a drain.
->
->> but I don't sure that dying cpu remain handle the IRQ.
->>
-> You'd need to be certain to justify the patch.
->
- Hi,  Mel
-   
-    by code review,  I see the cpu hotplug will only register the notfier to callback the function without
-  interrupt come.  is it right ??
+v1->v2:
+Add Acks from Dan and Raphael. Otherwise the patches are identical to v1.
 
-Thanks
-zhongjiang
+v1:
+These two patches are supposed to hopefully fix a memory hotplug
+problem reported by Sebastian Ott.
+
+Heiko Carstens (2):
+  mm: add private lock to serialize memory hotplug operations
+  drivers core: remove assert_held_device_hotplug()
+
+ drivers/base/core.c    | 5 -----
+ include/linux/device.h | 1 -
+ kernel/memremap.c      | 4 ----
+ mm/memory_hotplug.c    | 6 +++++-
+ 4 files changed, 5 insertions(+), 11 deletions(-)
+
+-- 
+2.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
