@@ -1,82 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0AC6B0038
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 12:01:02 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 68so29291643ioh.4
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 09:01:02 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0123.outbound.protection.outlook.com. [104.47.37.123])
-        by mx.google.com with ESMTPS id u44si936510oth.112.2017.03.15.09.00.56
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 642796B0038
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 12:28:48 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g10so3905294wrg.5
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 09:28:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l187si1048620wml.150.2017.03.15.09.28.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 15 Mar 2017 09:00:56 -0700 (PDT)
-From: Zi Yan <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH v4 05/11] mm: thp: enable thp migration in generic path
-Date: Wed, 15 Mar 2017 11:00:52 -0500
-Message-ID: <84C15843-6697-42AD-B590-DBB72E672632@cs.rutgers.edu>
-In-Reply-To: <CAMuHMdXQqdZpvtv9un8AoNu-9D5Aq+ZdoPjTrCqka1afi5RQsA@mail.gmail.com>
-References: <201703150534.RFh2ClRg%fengguang.wu@intel.com>
- <58C866B6.4040800@cs.rutgers.edu>
- <CAMuHMdXQqdZpvtv9un8AoNu-9D5Aq+ZdoPjTrCqka1afi5RQsA@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Mar 2017 09:28:47 -0700 (PDT)
+Date: Wed, 15 Mar 2017 17:28:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+Message-ID: <20170315162843.GA27197@dhcp22.suse.cz>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <20170315141813.GB32626@dhcp22.suse.cz>
+ <20170315154406.GF2442@aaronlu.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-	boundary="=_MailMate_35421DC6-9F93-4FE9-8CEB-4E393BAC88D3_=";
-	micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170315154406.GF2442@aaronlu.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, dnellans@nvidia.com
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
---=_MailMate_35421DC6-9F93-4FE9-8CEB-4E393BAC88D3_=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Wed 15-03-17 23:44:07, Aaron Lu wrote:
+> On Wed, Mar 15, 2017 at 03:18:14PM +0100, Michal Hocko wrote:
+> > On Wed 15-03-17 16:59:59, Aaron Lu wrote:
+> > [...]
+> > > The proposed parallel free did this: if the process has many pages to be
+> > > freed, accumulate them in these struct mmu_gather_batch(es) one after
+> > > another till 256K pages are accumulated. Then take this singly linked
+> > > list starting from tlb->local.next off struct mmu_gather *tlb and free
+> > > them in a worker thread. The main thread can return to continue zap
+> > > other pages(after freeing pages pointed by tlb->local.pages).
+> > 
+> > I didn't have a look at the implementation yet but there are two
+> > concerns that raise up from this description. Firstly how are we going
+> > to tune the number of workers. I assume there will be some upper bound
+> > (one of the patch subject mentions debugfs for tuning) and secondly
+> 
+> The workers are put in a dedicated workqueue which is introduced in
+> patch 3/5 and the number of workers can be tuned through that workqueue's
+> sysfs interface: max_active.
 
-On 15 Mar 2017, at 4:01, Geert Uytterhoeven wrote:
+I suspect we cannot expect users to tune this. What do you consider a
+reasonable default?
 
-> On Tue, Mar 14, 2017 at 10:55 PM, Zi Yan <zi.yan@cs.rutgers.edu> wrote:=
+Moreover, and this is a more generic question, is this functionality
+useful in general purpose workloads? After all the amount of the work to
+be done is the same we just risk more lock contentions, unexpected CPU
+usage etc. Which workloads will benefit from having exit path faster?
+ 
+> > if we offload the page freeing to the worker then the original context
+> > can consume much more cpu cycles than it was configured via cpu
 
->>>>> include/linux/swapops.h:223:2: warning: missing braces around initi=
-alizer [-Wmissing-braces]
->>>      return (pmd_t){ 0 };
->>>      ^
->>>    include/linux/swapops.h:223:2: warning: (near initialization for '=
-(anonymous).pmd') [-Wmissing-braces]
->>
->> I do not have any warning with gcc 6.3.0. This seems to be a GCC bug
->> (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=3D53119).
->
-> I guess you need
->
->     return (pmd_t) { { 0, }};
->
-> to kill the warning.
+I was not precise here. I meant to say more cpu cycles per time unit
+that it was allowed.
 
-Yeah, that should work. I find the same solution from StackOverflow.
+> > controller. How are we going to handle that? Or is this considered
+> > acceptable?
+> 
+> I'll need to think about and take a look at this subject(not familiar
+> with cpu controller).
 
-Thanks.
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_35421DC6-9F93-4FE9-8CEB-4E393BAC88D3_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJYyWU0AAoJEEGLLxGcTqbM3ngIAImIhggnRA9M/OXwo4slVc2V
-8iDC1krL5hGgMg2dVRtYzeDjfcGhMDWXAG/3sECdf1g+3a89bQUeL1vbmjElMALW
-DxiYo1SUXuYASKd5F8WOh8xKH5FFCCun2JjjHKmVzaUx2zDSENRcJ35KIPdJLppp
-RYWTcc3NIcJ5lezVAIh+Jj9fHjMNnNoXB8rVAMVS0hg0J65SNHO9AvV4F3GSBWDr
-YpfKv4Q7aui8tdLOBb7HxNTWG/1MGp8sZ9twjzv94XmeKb/OeOd5oIPmKqKIczbJ
-eJrOZGZ41c1oH8qi3bBW9kehmHTBo3iFREMJnBOyGmM3OSFCeDaDigP4bT9ZkCE=
-=JAwp
------END PGP SIGNATURE-----
-
---=_MailMate_35421DC6-9F93-4FE9-8CEB-4E393BAC88D3_=--
+the main problem is that kworkers will not belong to the same cpu group
+and so they will not be throttled properly.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
