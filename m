@@ -1,74 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D516B0388
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 04:35:32 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id h188so3676023wma.4
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 01:35:32 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y67si1738920wmd.34.2017.03.15.01.35.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DF386B0038
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:00:00 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c23so18978413pfj.0
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:00:00 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id n16si1050996pfk.309.2017.03.15.01.59.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Mar 2017 01:35:31 -0700 (PDT)
-Date: Wed, 15 Mar 2017 09:35:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] xfs: remove kmem_zalloc_greedy
-Message-ID: <20170315083529.GD32620@dhcp22.suse.cz>
-References: <20170308003528.GK5280@birch.djwong.org>
- <20170314165745.GB28800@wotan.suse.de>
- <20170314180738.GV5280@birch.djwong.org>
- <20170315001427.GI28800@wotan.suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Mar 2017 01:59:59 -0700 (PDT)
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [PATCH v2 0/5] mm: support parallel free of memory
+Date: Wed, 15 Mar 2017 16:59:59 +0800
+Message-Id: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170315001427.GI28800@wotan.suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Brian Foster <bfoster@redhat.com>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, sebastian.parschauer@suse.com, AlNovak@suse.com, jack@suse.cz, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-On Wed 15-03-17 01:14:27, Luis R. Rodriguez wrote:
-> On Tue, Mar 14, 2017 at 11:07:38AM -0700, Darrick J. Wong wrote:
-> > On Tue, Mar 14, 2017 at 05:57:45PM +0100, Luis R. Rodriguez wrote:
-> > > On Tue, Mar 07, 2017 at 04:35:28PM -0800, Darrick J. Wong wrote:
-> > > > The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
-> > > > it to grab 1-4 pages for staging of inobt records.  The infinite loop in
-> > > > the greedy allocation function is causing hangs[1] in generic/269, so
-> > > > just get rid of the greedy allocator in favor of kmem_zalloc_large.
-> > > > This makes bulkstat somewhat more likely to ENOMEM if there's really no
-> > > > pages to spare, but eliminates a source of hangs.
-> > > > 
-> > > > [1] http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
-> > > > 
-> > > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > > > ---
-> > > > v2: remove single-page fallback
-> > > > ---
-> > > 
-> > > Since this fixes a hang how about *at the very least* a respective Fixes tag ?
-> > > This fixes an existing hang so what are the stable considerations here ? I
-> > > realize the answer is not easy but figured its worth asking.
-> > 
-> > I didn't think it was appropriate to "Fixes: 77e4635ae1917" since we're
-> > not fixing _greedy so much as we are killing it.  The patch fixes an
-> > infinite retry hang when bulkstat tries a memory allocation that cannot
-> > be satisfied; and having done that, realizes there are no remaining
-> > callers of _greedy and garbage collects it.  The code that was there
-> > before also seems capable of sleeping forever, I think.
-> > 
-> > So the minimally invasive fix is to apply the allocation conversion in
-> > bulkstat, and if there aren't any other callers of _greedy then you can
-> > get rid of it too.
-> 
-> For the stake of stable XFS users then why not do the less invasive change
-> first, Cc stable, and then move on to the less backward portable solution ?
+For regular processes, the time taken in its exit() path to free its
+used memory is not a problem. But there are heavy ones that consume
+several Terabytes memory and the time taken to free its memory in its
+exit() path could last more than ten minutes if THP is not used.
 
-The thing is that the permanent failures for vmalloc were so unlikely
-prior to 5d17a73a2ebe ("vmalloc: back off when the current task is
-killed") that this was basically a non-issue before this (4.11) merge
-window.
+As Dave Hansen explained why do this in kernel:
+"
+One of the places we saw this happen was when an app crashed and was
+exit()'ing under duress without cleaning up nicely.  The time that it
+takes to unmap a few TB of 4k pages is pretty excessive.
+"
+
+To optimize this use case, a parallel free method is proposed here and
+it is based on the current gather batch free(the following description
+is taken from patch 2/5's changelog).
+
+The current gather batch free works like this:
+For each struct mmu_gather *tlb, there is a static buffer to store those
+to-be-freed page pointers. The size is MMU_GATHER_BUNDLE, which is
+defined to be 8. So if a tlb tear down doesn't free more than 8 pages,
+that is all we need. If 8+ pages are to be freed, new pages will need
+to be allocated to store those to-be-freed page pointers.
+
+The structure used to describe the saved page pointers is called
+struct mmu_gather_batch and tlb->local is of this type. tlb->local is
+different than other struct mmu_gather_batch(es) in that the page
+pointer array used by tlb->local points to the previouslly described
+static buffer while the other struct mmu_gather_batch(es) page pointer
+array points to the dynamically allocated pages.
+
+These batches will form a singly linked list, starting from &tlb->local.
+
+tlb->local.pages  => tlb->pages(8 pointers)
+      \|/
+      next => batch1->pages => about 510 pointers
+                \|/
+                next => batch2->pages => about 510 pointers
+                          \|/
+                          next => batch3->pages => about 510 pointers
+                                    ... ...
+
+The proposed parallel free did this: if the process has many pages to be
+freed, accumulate them in these struct mmu_gather_batch(es) one after
+another till 256K pages are accumulated. Then take this singly linked
+list starting from tlb->local.next off struct mmu_gather *tlb and free
+them in a worker thread. The main thread can return to continue zap
+other pages(after freeing pages pointed by tlb->local.pages).
+
+A test program that did a single malloc() of 320G memory is used to see
+how useful the proposed parallel free solution is, the time calculated
+is for the free() call. Test machine is a Haswell EX which has
+4nodes/72cores/144threads with 512G memory. All tests are done with THP
+disabled.
+
+kernel                             time
+v4.10                              10.8s  A+-2.8%
+this patch(with default setting)   5.795s A+-5.8%
+
+Patch 3/5 introduced a dedicated workqueue for the free workers and
+here are more results when setting different values for max_active of
+this workqueue:
+
+max_active:   time
+1             8.9s   A+-0.5%
+2             5.65s  A+-5.5%
+4             4.84s  A+-0.16%
+8             4.77s  A+-0.97%
+16            4.85s  A+-0.77%
+32            6.21s  A+-0.46%
+
+Comments are welcome and appreciated.
+
+v2 changes: Nothing major, only minor ones.
+ - rebased on top of v4.11-rc2-mmotm-2017-03-14-15-41;
+ - use list_add_tail instead of list_add to add worker to tlb's worker
+   list so that when doing flush, the first queued worker gets flushed
+   first(based on the comsumption that the first queued worker has a
+   better chance of finishing its job than those later queued workers);
+ - use bool instead of int for variable free_batch_page in function
+   tlb_flush_mmu_free_batches;
+ - style change according to ./scripts/checkpatch;
+ - reword some of the changelogs to make it more readable.
+
+v1 is here:
+https://lkml.org/lkml/2017/2/24/245
+
+Aaron Lu (5):
+  mm: add tlb_flush_mmu_free_batches
+  mm: parallel free pages
+  mm: use a dedicated workqueue for the free workers
+  mm: add force_free_pages in zap_pte_range
+  mm: add debugfs interface for parallel free tuning
+
+ include/asm-generic/tlb.h |  15 ++---
+ mm/memory.c               | 141 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 128 insertions(+), 28 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
