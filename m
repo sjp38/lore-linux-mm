@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5571A6B0389
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 10:09:30 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id u138so55507836ywg.0
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 07:09:30 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id t6si654333ybf.65.2017.03.15.07.09.28
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EBAFE6B0389
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 10:18:16 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g10so3249566wrg.5
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 07:18:16 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g29si630183wmi.145.2017.03.15.07.18.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 07:09:29 -0700 (PDT)
-Date: Wed, 15 Mar 2017 10:09:27 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [RFC PATCH] mm: retry writepages() on ENOMEM when doing an data
- integrity writeback
-Message-ID: <20170315140927.g5ylzcbxrvjqune3@thunk.org>
-References: <20170309090449.GD15874@quack2.suse.cz>
- <20170315050743.5539-1-tytso@mit.edu>
- <20170315115933.GF12989@quack2.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Mar 2017 07:18:15 -0700 (PDT)
+Date: Wed, 15 Mar 2017 15:18:14 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+Message-ID: <20170315141813.GB32626@dhcp22.suse.cz>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170315115933.GF12989@quack2.suse.cz>
+In-Reply-To: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Wed, Mar 15, 2017 at 12:59:33PM +0100, Jan Kara wrote:
-> > +	while (1) {
-> > +		if (mapping->a_ops->writepages)
-> > +			ret = mapping->a_ops->writepages(mapping, wbc);
-> > +		else
-> > +			ret = generic_writepages(mapping, wbc);
-> > +		if ((ret != ENOMEM) || (wbc->sync_mode != WB_SYNC_ALL))
-> 
-> -ENOMEM I guess...
+On Wed 15-03-17 16:59:59, Aaron Lu wrote:
+[...]
+> The proposed parallel free did this: if the process has many pages to be
+> freed, accumulate them in these struct mmu_gather_batch(es) one after
+> another till 256K pages are accumulated. Then take this singly linked
+> list starting from tlb->local.next off struct mmu_gather *tlb and free
+> them in a worker thread. The main thread can return to continue zap
+> other pages(after freeing pages pointed by tlb->local.pages).
 
-Oops.  Thanks for noticing!
+I didn't have a look at the implementation yet but there are two
+concerns that raise up from this description. Firstly how are we going
+to tune the number of workers. I assume there will be some upper bound
+(one of the patch subject mentions debugfs for tuning) and secondly
+if we offload the page freeing to the worker then the original context
+can consume much more cpu cycles than it was configured via cpu
+controller. How are we going to handle that? Or is this considered
+acceptable?
+-- 
+Michal Hocko
+SUSE Labs
 
-Unless anyone has any objections I plan to carry this in the ext4
-tree.
-
-						- Ted
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
