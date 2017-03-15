@@ -1,96 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ED696B0389
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 12:37:34 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id v127so17184493qkb.5
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 09:37:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l65si1792199qkf.193.2017.03.15.09.37.32
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 658916B038B
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 12:40:33 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d66so5904033wmi.2
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 09:40:33 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id i23si3234330wrc.50.2017.03.15.09.40.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 09:37:33 -0700 (PDT)
-Date: Wed, 15 Mar 2017 17:37:29 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: ZONE_NORMAL vs. ZONE_MOVABLE
-Message-ID: <20170315163729.GR27056@redhat.com>
-References: <20170315091347.GA32626@dhcp22.suse.cz>
- <87shmedddm.fsf@vitty.brq.redhat.com>
- <20170315122914.GG32620@dhcp22.suse.cz>
- <87k27qd7m2.fsf@vitty.brq.redhat.com>
- <20170315131139.GK32620@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170315131139.GK32620@dhcp22.suse.cz>
+        Wed, 15 Mar 2017 09:40:32 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id z63so5581468wmg.2
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 09:40:31 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm: move mm_percpu_wq initialization earlier
+Date: Wed, 15 Mar 2017 17:40:21 +0100
+Message-Id: <20170315164021.28532-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Andi Kleen <ak@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Li Yang <pku.leo@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, Michal Hocko <mhocko@suse.com>
 
-On Wed, Mar 15, 2017 at 02:11:40PM +0100, Michal Hocko wrote:
-> OK, I see now. I am afraid there is quite a lot of code which expects
-> that zones do not overlap. We can have holes in zones but not different
-> zones interleaving. Probably something which could be addressed but far
-> from trivial IMHO.
-> 
-> All that being said, I do not want to discourage you from experiments in
-> those areas. Just be prepared all those are far from trivial and
-> something for a long project ;)
+From: Michal Hocko <mhocko@suse.com>
 
-This constraint was known for quite some time, so when I talked about
-this very constraint with Mel at least year LSF/MM he suggested sticky
-pageblocks would be superior to the current movable zone.
+Yang Li has reported that drain_all_pages triggers a WARN_ON which means
+that this function is called earlier than the mm_percpu_wq is
+initialized on arm64 with CMA configured:
 
-So instead of having a Movable zone, we could use the pageblocks but
-make it sticky-movable so they're only going to accept __GFP_MOVABLE
-allocations into them. It would be still a quite large change indeed
-but it looks simpler and with fewer drawbacks than trying to make the
-zone overlap.
+[    0.276449] WARNING: CPU: 2 PID: 1 at mm/page_alloc.c:2423 drain_all_pages+0x244/0x25c
+[    0.276537] Modules linked in:
+[    0.276594] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.11.0-rc1-next-20170310-00027-g64dfbc5 #127
+[    0.276693] Hardware name: Freescale Layerscape 2088A RDB Board (DT)
+[    0.276764] task: ffffffc07c4a6d00 task.stack: ffffffc07c4a8000
+[    0.276831] PC is at drain_all_pages+0x244/0x25c
+[    0.276886] LR is at start_isolate_page_range+0x14c/0x1f0
+[...]
+[    0.279000] [<ffffff80081636bc>] drain_all_pages+0x244/0x25c
+[    0.279065] [<ffffff80081c675c>] start_isolate_page_range+0x14c/0x1f0
+[    0.279137] [<ffffff8008166a48>] alloc_contig_range+0xec/0x354
+[    0.279203] [<ffffff80081c6c5c>] cma_alloc+0x100/0x1fc
+[    0.279263] [<ffffff8008481714>] dma_alloc_from_contiguous+0x3c/0x44
+[    0.279336] [<ffffff8008b25720>] atomic_pool_init+0x7c/0x208
+[    0.279399] [<ffffff8008b258f0>] arm64_dma_init+0x44/0x4c
+[    0.279461] [<ffffff8008083144>] do_one_initcall+0x38/0x128
+[    0.279525] [<ffffff8008b20d30>] kernel_init_freeable+0x1a0/0x240
+[    0.279596] [<ffffff8008807778>] kernel_init+0x10/0xfc
+[    0.279654] [<ffffff8008082b70>] ret_from_fork+0x10/0x20
 
-Currently when you online memory as movable you're patching down the
-movable zone not just onlining the memory and that complexity you've
-to deal with, would go away with sticky movable pageblocks.
+Fix this by moving the whole setup_vmstat which is an initcall right now
+to init_mm_internals which will be called right after the WQ subsystem
+is initialized.
 
-One other option could be to boot like with _DEFAULT_ONLINE=n and of
-course without udev rule. Then after booting with the base memory run
-one of the two echo below:
+Reported-and-tested-by: Yang Li <pku.leo@gmail.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/mm.h | 2 ++
+ init/main.c        | 2 ++
+ mm/vmstat.c        | 4 +---
+ 3 files changed, 5 insertions(+), 3 deletions(-)
 
-    $ cat /sys/devices/system/memory/removable_hotplug_default
-    [disabled] online online_movable
-    $ echo online > /sys/devices/system/memory/removable_hotplug_default
-    $ echo online_movable > /sys/devices/system/memory/removable_hotplug_default
-
-Then the "echo online/online_movable" would activate the in-kernel
-hotplug mechanism that is faster and more reliable than udev and it
-won't risk to run into the movable zone shift "constraint". After the
-"echo" the kernel would behave like if it booted with _DEFAULT_ONLINE=y.
-
-If you still want to do it by hand and leave it disabled or even
-trying to fix udev movable shift constraints, sticky pageblocks and
-lack of synchronicity (and deal with the resulting slower
-performance compared to in-kernel onlining), you could.
-
-The in-kernel onlining would use the exact same code of
-_DEFAULT_ONLINE=y, but it would be configured with a file like
-/etc/sysctl.conf. And then to switch it to the _movable model you
-would just need to edit the file like you've to edit the udev rule
-(the one that if you edit it with online_movable currently breaks).
-
->From usability prospective it would be like udev, but without all
-drawbacks of doing the onlining in userland.
-
-Checking if the memory should become movable or not depending on
-acpi_has_method(handle, "_EJ0") isn't flexible enough I think, on bare
-metal especially we couldn't change the ACPI like we can do with the
-hypervisor, but the admin has still to decide freely if he wants to
-risk early OOM and movable zone imbalance or if he prefers not being
-able to hotunplug the memory ever again. So it would need to become a
-grub boot option which is probably less friendly than editing
-sysctl.conf or something like that (especially given grub-mkconfig
-output..).
-
-Thanks,
-Andrea
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 21ee5503c702..8362dca071cb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -32,6 +32,8 @@ struct user_struct;
+ struct writeback_control;
+ struct bdi_writeback;
+ 
++void init_mm_internals(void);
++
+ #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */
+ extern unsigned long max_mapnr;
+ 
+diff --git a/init/main.c b/init/main.c
+index 51aa8f336819..c72d35250e84 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -1023,6 +1023,8 @@ static noinline void __init kernel_init_freeable(void)
+ 
+ 	workqueue_init();
+ 
++	init_mm_internals();
++
+ 	do_pre_smp_initcalls();
+ 	lockup_detector_init();
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 4bbc775f9d08..d0871fc1aeca 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1762,7 +1762,7 @@ static int vmstat_cpu_dead(unsigned int cpu)
+ 
+ struct workqueue_struct *mm_percpu_wq;
+ 
+-static int __init setup_vmstat(void)
++void __init init_mm_internals(void)
+ {
+ 	int ret __maybe_unused;
+ 
+@@ -1792,9 +1792,7 @@ static int __init setup_vmstat(void)
+ 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+ 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+ #endif
+-	return 0;
+ }
+-module_init(setup_vmstat)
+ 
+ #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
