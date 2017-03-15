@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C4F6B038C
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:00:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e129so21331050pfh.1
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:00:01 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC3B6B038E
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:00:03 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c23so18980503pfj.0
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:00:03 -0700 (PDT)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id n16si1050996pfk.309.2017.03.15.02.00.00
+        by mx.google.com with ESMTPS id n16si1050996pfk.309.2017.03.15.02.00.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 02:00:00 -0700 (PDT)
+        Wed, 15 Mar 2017 02:00:02 -0700 (PDT)
 From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
-Date: Wed, 15 Mar 2017 17:00:02 +0800
-Message-Id: <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
+Subject: [PATCH v2 4/5] mm: add force_free_pages in zap_pte_range
+Date: Wed, 15 Mar 2017 17:00:03 +0800
+Message-Id: <1489568404-7817-5-git-send-email-aaron.lu@intel.com>
 In-Reply-To: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,53 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-Introduce a workqueue for all the free workers so that user can fine
-tune how many workers can be active through sysfs interface: max_active.
-More workers will normally lead to better performance, but too many can
-cause severe lock contention.
+force_flush in zap_pte_range is set in the following 2 conditions:
+1 When no more batches can be allocated (either due to no memory or
+  MAX_GATHER_BATCH_COUNT has reached) to store those to-be-freed page
+  pointers;
+2 When a TLB_only flush is needed before dropping the PTE lock to avoid
+  a race condition as explained in commit 1cf35d47712d ("mm: split
+  'tlb_flush_mmu()' into tlb flushing and memory freeing parts").
 
-Note that since the zone lock is global, the workqueue is also global
-for all processes, i.e. if we set 8 to max_active, we will have at most
-8 workers active for all processes that are doing munmap()/exit()/etc.
+Once force_flush is set, the pages accumulated thus far will all be
+freed. Since there is no need to do page free for condition 2, add a new
+variable named force_free_pages to decide if page free should be done
+and it will only be set in condition 1.
+
+With this change, the page accumulation will not be interrupted by
+condition 2 anymore. In the meantime, rename force_flush to
+force_flush_tlb for condition 2.
 
 Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 ---
- mm/memory.c | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ mm/memory.c | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index 001c7720d773..19b25bb5f45b 100644
+index 19b25bb5f45b..83b38823aaba 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -253,6 +253,19 @@ static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
- 	__tlb_reset_range(tlb);
- }
- 
-+static struct workqueue_struct *batch_free_wq;
-+static int __init batch_free_wq_init(void)
-+{
-+	batch_free_wq = alloc_workqueue("batch_free_wq",
-+					WQ_UNBOUND | WQ_SYSFS, 0);
-+	if (!batch_free_wq) {
-+		pr_warn("failed to create workqueue batch_free_wq\n");
-+		return -ENOMEM;
-+	}
-+	return 0;
-+}
-+subsys_initcall(batch_free_wq_init);
-+
- static void tlb_flush_mmu_free_batches(struct mmu_gather_batch *batch_start,
- 				       bool free_batch_page)
+@@ -1199,7 +1199,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 				struct zap_details *details)
  {
-@@ -306,7 +319,7 @@ static void tlb_flush_mmu_free(struct mmu_gather *tlb)
- 		batch_free->batch_start = tlb->local.next;
- 		INIT_WORK(&batch_free->work, batch_free_work);
- 		list_add_tail(&batch_free->list, &tlb->worker_list);
--		queue_work(system_unbound_wq, &batch_free->work);
-+		queue_work(batch_free_wq, &batch_free->work);
+ 	struct mm_struct *mm = tlb->mm;
+-	int force_flush = 0;
++	int force_flush_tlb = 0, force_free_pages = 0;
+ 	int rss[NR_MM_COUNTERS];
+ 	spinlock_t *ptl;
+ 	pte_t *start_pte;
+@@ -1239,7 +1239,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
  
- 		tlb->batch_count = 0;
- 		tlb->local.next = NULL;
+ 			if (!PageAnon(page)) {
+ 				if (pte_dirty(ptent)) {
+-					force_flush = 1;
++					force_flush_tlb = 1;
+ 					set_page_dirty(page);
+ 				}
+ 				if (pte_young(ptent) &&
+@@ -1251,7 +1251,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 			if (unlikely(page_mapcount(page) < 0))
+ 				print_bad_pte(vma, addr, ptent, page);
+ 			if (unlikely(__tlb_remove_page(tlb, page))) {
+-				force_flush = 1;
++				force_free_pages = 1;
+ 				addr += PAGE_SIZE;
+ 				break;
+ 			}
+@@ -1279,18 +1279,14 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 	arch_leave_lazy_mmu_mode();
+ 
+ 	/* Do the actual TLB flush before dropping ptl */
+-	if (force_flush)
++	if (force_flush_tlb) {
++		force_flush_tlb = 0;
+ 		tlb_flush_mmu_tlbonly(tlb);
++	}
+ 	pte_unmap_unlock(start_pte, ptl);
+ 
+-	/*
+-	 * If we forced a TLB flush (either due to running out of
+-	 * batch buffers or because we needed to flush dirty TLB
+-	 * entries before releasing the ptl), free the batched
+-	 * memory too. Restart if we didn't do everything.
+-	 */
+-	if (force_flush) {
+-		force_flush = 0;
++	if (force_free_pages) {
++		force_free_pages = 0;
+ 		tlb_flush_mmu_free(tlb);
+ 		if (addr != end)
+ 			goto again;
 -- 
 2.7.4
 
