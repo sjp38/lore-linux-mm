@@ -1,54 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EDB26B0038
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:42:47 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t143so23743145pgb.5
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:42:47 -0700 (PDT)
-Received: from out0-136.mail.aliyun.com (out0-136.mail.aliyun.com. [140.205.0.136])
-        by mx.google.com with ESMTP id m3si1598970pld.162.2017.03.15.02.42.46
-        for <linux-mm@kvack.org>;
-        Wed, 15 Mar 2017 02:42:46 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com> <1489568404-7817-3-git-send-email-aaron.lu@intel.com>
-In-Reply-To: <1489568404-7817-3-git-send-email-aaron.lu@intel.com>
-Subject: Re: [PATCH v2 2/5] mm: parallel free pages
-Date: Wed, 15 Mar 2017 17:42:42 +0800
-Message-ID: <0a2501d29d70$7eb0f530$7c12df90$@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 28C466B0388
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:56:38 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 190so24353416pgg.3
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:56:38 -0700 (PDT)
+Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
+        by mx.google.com with ESMTPS id e22si1628714pli.167.2017.03.15.02.56.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Mar 2017 02:56:37 -0700 (PDT)
+Received: by mail-pg0-x229.google.com with SMTP id b129so6974110pgc.2
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:56:37 -0700 (PDT)
+From: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Subject: [PATCH v33 01/14] memblock: add memblock_clear_nomap()
+Date: Wed, 15 Mar 2017 18:59:00 +0900
+Message-Id: <20170315095901.25063-1-takahiro.akashi@linaro.org>
+In-Reply-To: <20170315095656.24992-1-takahiro.akashi@linaro.org>
+References: <20170315095656.24992-1-takahiro.akashi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Aaron Lu' <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: 'Dave Hansen' <dave.hansen@intel.com>, 'Tim Chen' <tim.c.chen@intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Ying Huang' <ying.huang@intel.com>
+To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
+Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
 
+This function, with a combination of memblock_mark_nomap(), will be used
+in a later kdump patch for arm64 when it temporarily isolates some range
+of memory from the other memory blocks in order to create a specific
+kernel mapping at boot time.
 
-On March 15, 2017 5:00 PM Aaron Lu wrote: 
->  void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
->  {
-> +	struct batch_free_struct *batch_free, *n;
-> +
-s/*n/*next/
+Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+---
+ include/linux/memblock.h |  1 +
+ mm/memblock.c            | 12 ++++++++++++
+ 2 files changed, 13 insertions(+)
 
->  	tlb_flush_mmu(tlb);
-> 
->  	/* keep the page table cache within bounds */
->  	check_pgt_cache();
-> 
-> +	list_for_each_entry_safe(batch_free, n, &tlb->worker_list, list) {
-> +		flush_work(&batch_free->work);
-
-Not sure, list_del before free?
-
-> +		kfree(batch_free);
-> +	}
-> +
->  	tlb_flush_mmu_free_batches(tlb->local.next, true);
->  	tlb->local.next = NULL;
->  }
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index bdfc65af4152..e82daffcfc44 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -93,6 +93,7 @@ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
++int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
+ ulong choose_memblock_flags(void);
+ 
+ /* Low level functions */
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 696f06d17c4e..2f4ca8104ea4 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -805,6 +805,18 @@ int __init_memblock memblock_mark_nomap(phys_addr_t base, phys_addr_t size)
+ }
+ 
+ /**
++ * memblock_clear_nomap - Clear flag MEMBLOCK_NOMAP for a specified region.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * Return 0 on success, -errno on failure.
++ */
++int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t size)
++{
++	return memblock_setclr_flag(base, size, 0, MEMBLOCK_NOMAP);
++}
++
++/**
+  * __next_reserved_mem_region - next function for for_each_reserved_region()
+  * @idx: pointer to u64 loop variable
+  * @out_start: ptr to phys_addr_t for start address of the region, can be %NULL
+-- 
+2.11.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
