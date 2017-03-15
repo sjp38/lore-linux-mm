@@ -1,78 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 30BAD6B0038
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 11:43:31 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g10so3666192wrg.5
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 08:43:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i25si908998wmb.89.2017.03.15.08.43.29
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A5406B0388
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 11:44:01 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t143so39231090pgb.5
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 08:44:01 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id a125si2444286pgc.9.2017.03.15.08.44.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Mar 2017 08:43:29 -0700 (PDT)
-Date: Wed, 15 Mar 2017 16:43:27 +0100
-From: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Subject: Re: [PATCH v2] xfs: remove kmem_zalloc_greedy
-Message-ID: <20170315154327.GL28800@wotan.suse.de>
-References: <20170308003528.GK5280@birch.djwong.org>
- <20170314165745.GB28800@wotan.suse.de>
- <20170314180738.GV5280@birch.djwong.org>
- <20170315001427.GI28800@wotan.suse.de>
- <20170315083529.GD32620@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Mar 2017 08:44:00 -0700 (PDT)
+Date: Wed, 15 Mar 2017 23:44:07 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+Message-ID: <20170315154406.GF2442@aaronlu.sh.intel.com>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <20170315141813.GB32626@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170315083529.GD32620@dhcp22.suse.cz>
+In-Reply-To: <20170315141813.GB32626@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Brian Foster <bfoster@redhat.com>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, sebastian.parschauer@suse.com, AlNovak@suse.com, jack@suse.cz, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Wed, Mar 15, 2017 at 09:35:29AM +0100, Michal Hocko wrote:
-> On Wed 15-03-17 01:14:27, Luis R. Rodriguez wrote:
-> > On Tue, Mar 14, 2017 at 11:07:38AM -0700, Darrick J. Wong wrote:
-> > > On Tue, Mar 14, 2017 at 05:57:45PM +0100, Luis R. Rodriguez wrote:
-> > > > On Tue, Mar 07, 2017 at 04:35:28PM -0800, Darrick J. Wong wrote:
-> > > > > The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
-> > > > > it to grab 1-4 pages for staging of inobt records.  The infinite loop in
-> > > > > the greedy allocation function is causing hangs[1] in generic/269, so
-> > > > > just get rid of the greedy allocator in favor of kmem_zalloc_large.
-> > > > > This makes bulkstat somewhat more likely to ENOMEM if there's really no
-> > > > > pages to spare, but eliminates a source of hangs.
-> > > > > 
-> > > > > [1] http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
-> > > > > 
-> > > > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > > > > ---
-> > > > > v2: remove single-page fallback
-> > > > > ---
-> > > > 
-> > > > Since this fixes a hang how about *at the very least* a respective Fixes tag ?
-> > > > This fixes an existing hang so what are the stable considerations here ? I
-> > > > realize the answer is not easy but figured its worth asking.
-> > > 
-> > > I didn't think it was appropriate to "Fixes: 77e4635ae1917" since we're
-> > > not fixing _greedy so much as we are killing it.  The patch fixes an
-> > > infinite retry hang when bulkstat tries a memory allocation that cannot
-> > > be satisfied; and having done that, realizes there are no remaining
-> > > callers of _greedy and garbage collects it.  The code that was there
-> > > before also seems capable of sleeping forever, I think.
-> > > 
-> > > So the minimally invasive fix is to apply the allocation conversion in
-> > > bulkstat, and if there aren't any other callers of _greedy then you can
-> > > get rid of it too.
-> > 
-> > For the stake of stable XFS users then why not do the less invasive change
-> > first, Cc stable, and then move on to the less backward portable solution ?
+On Wed, Mar 15, 2017 at 03:18:14PM +0100, Michal Hocko wrote:
+> On Wed 15-03-17 16:59:59, Aaron Lu wrote:
+> [...]
+> > The proposed parallel free did this: if the process has many pages to be
+> > freed, accumulate them in these struct mmu_gather_batch(es) one after
+> > another till 256K pages are accumulated. Then take this singly linked
+> > list starting from tlb->local.next off struct mmu_gather *tlb and free
+> > them in a worker thread. The main thread can return to continue zap
+> > other pages(after freeing pages pointed by tlb->local.pages).
 > 
-> The thing is that the permanent failures for vmalloc were so unlikely
-> prior to 5d17a73a2ebe ("vmalloc: back off when the current task is
-> killed") that this was basically a non-issue before this (4.11) merge
-> window.
+> I didn't have a look at the implementation yet but there are two
+> concerns that raise up from this description. Firstly how are we going
+> to tune the number of workers. I assume there will be some upper bound
+> (one of the patch subject mentions debugfs for tuning) and secondly
 
-I see, this seems like critical information to add to the commit log.
-Also, will this be at least pushed to v4.11 ?
+The workers are put in a dedicated workqueue which is introduced in
+patch 3/5 and the number of workers can be tuned through that workqueue's
+sysfs interface: max_active.
 
-  Luis
+> if we offload the page freeing to the worker then the original context
+> can consume much more cpu cycles than it was configured via cpu
+> controller. How are we going to handle that? Or is this considered
+> acceptable?
+
+I'll need to think about and take a look at this subject(not familiar
+with cpu controller).
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
