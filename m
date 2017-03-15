@@ -1,107 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9032C6B0390
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:00:05 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o126so21520070pfb.2
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:00:05 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id n16si1050996pfk.309.2017.03.15.02.00.04
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 988C56B0038
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 05:01:10 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id z13so21168926iof.7
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:01:10 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id w75si13039537itc.32.2017.03.15.02.01.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 02:00:04 -0700 (PDT)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v2 5/5] mm: add debugfs interface for parallel free tuning
-Date: Wed, 15 Mar 2017 17:00:04 +0800
-Message-Id: <1489568404-7817-6-git-send-email-aaron.lu@intel.com>
-In-Reply-To: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+        Wed, 15 Mar 2017 02:01:09 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id r141so2472362ita.1
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 02:01:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <58C866B6.4040800@cs.rutgers.edu>
+References: <201703150534.RFh2ClRg%fengguang.wu@intel.com> <58C866B6.4040800@cs.rutgers.edu>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Wed, 15 Mar 2017 10:01:08 +0100
+Message-ID: <CAMuHMdXQqdZpvtv9un8AoNu-9D5Aq+ZdoPjTrCqka1afi5RQsA@mail.gmail.com>
+Subject: Re: [PATCH v4 05/11] mm: thp: enable thp migration in generic path
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, dnellans@nvidia.com
 
-Make it possible to set different values for async_free_threshold and
-max_gather_batch_count through debugfs.
+On Tue, Mar 14, 2017 at 10:55 PM, Zi Yan <zi.yan@cs.rutgers.edu> wrote:
+>>>> include/linux/swapops.h:223:2: warning: missing braces around initializer [-Wmissing-braces]
+>>      return (pmd_t){ 0 };
+>>      ^
+>>    include/linux/swapops.h:223:2: warning: (near initialization for '(anonymous).pmd') [-Wmissing-braces]
+>
+> I do not have any warning with gcc 6.3.0. This seems to be a GCC bug
+> (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119).
 
-With this, we can do tests for different purposes:
-1 Restore vanilla kernel bahaviour for performance comparison.
-  Set max_gather_batch_count to a value like 20 to effectively restore
-  the behaviour of vanilla kernel since this will make page gathered
-  always smaller than async_free_threshold(effectively disable parallel
-  free);
-2 Debug purpose.
-  Set async_free_threshold to a very small value(like 128) to trigger
-  parallel free even on ordinary processes, ideal for debug purpose with
-  a virtual machine that doesn't have much memory assigned to it;
-3 Performance tuning.
-  Use a different value for async_free_threshold and max_gather_batch_count
-  other than the default to test if parallel free performs better or worse.
+I guess you need
 
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/memory.c | 33 +++++++++++++++++++++++++++++++--
- 1 file changed, 31 insertions(+), 2 deletions(-)
+    return (pmd_t) { { 0, }};
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 83b38823aaba..3a971cc1fc3b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -183,6 +183,35 @@ static void check_sync_rss_stat(struct task_struct *task)
- 
- #ifdef HAVE_GENERIC_MMU_GATHER
- 
-+static unsigned long async_free_threshold = ASYNC_FREE_THRESHOLD;
-+static unsigned long max_gather_batch_count = MAX_GATHER_BATCH_COUNT;
-+
-+#ifdef CONFIG_DEBUG_FS
-+static int __init tlb_mmu_parallel_free_debugfs(void)
-+{
-+	umode_t mode = 0644;
-+	struct dentry *dir;
-+
-+	dir = debugfs_create_dir("parallel_free", NULL);
-+	if (!dir)
-+		return -ENOMEM;
-+
-+	if (!debugfs_create_ulong("async_free_threshold", mode, dir,
-+				&async_free_threshold))
-+		goto fail;
-+	if (!debugfs_create_ulong("max_gather_batch_count", mode, dir,
-+				&max_gather_batch_count))
-+		goto fail;
-+
-+	return 0;
-+
-+fail:
-+	debugfs_remove_recursive(dir);
-+	return -ENOMEM;
-+}
-+late_initcall(tlb_mmu_parallel_free_debugfs);
-+#endif
-+
- static bool tlb_next_batch(struct mmu_gather *tlb)
- {
- 	struct mmu_gather_batch *batch;
-@@ -193,7 +222,7 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
- 		return true;
- 	}
- 
--	if (tlb->batch_count == MAX_GATHER_BATCH_COUNT)
-+	if (tlb->batch_count == max_gather_batch_count)
- 		return false;
- 
- 	batch = (void *)__get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
-@@ -307,7 +336,7 @@ static void tlb_flush_mmu_free(struct mmu_gather *tlb)
- {
- 	struct batch_free_struct *batch_free = NULL;
- 
--	if (tlb->page_nr >= ASYNC_FREE_THRESHOLD)
-+	if (tlb->page_nr >= async_free_threshold)
- 		batch_free = kmalloc(sizeof(*batch_free),
- 				     GFP_NOWAIT | __GFP_NOWARN);
- 
--- 
-2.7.4
+to kill the warning.
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
