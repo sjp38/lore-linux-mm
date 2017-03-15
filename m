@@ -1,99 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E76D6B0038
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 21:19:31 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b2so6736468pgc.6
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 18:19:31 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w127si253463pfw.347.2017.03.14.18.19.30
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B83E6B0038
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 00:11:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j5so12099223pfb.3
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 21:11:00 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id g7si723782plk.69.2017.03.14.21.10.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 18:19:30 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v6 3/9] mm, THP, swap: Add swap cluster allocate/free functions
-References: <20170308072613.17634-1-ying.huang@intel.com>
-	<20170308072613.17634-4-ying.huang@intel.com>
-	<1489533213.2733.33.camel@linux.intel.com>
-Date: Wed, 15 Mar 2017 09:19:27 +0800
-In-Reply-To: <1489533213.2733.33.camel@linux.intel.com> (Tim Chen's message of
-	"Tue, 14 Mar 2017 16:13:33 -0700")
-Message-ID: <87wpbrcp5s.fsf@yhuang-dev.intel.com>
+        Tue, 14 Mar 2017 21:10:59 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: Change generic FALLBACK zonelist creation process
+References: <1d67f38b-548f-26a2-23f5-240d6747f286@linux.vnet.ibm.com>
+ <20170308092146.5264-1-khandual@linux.vnet.ibm.com>
+ <0f787fb7-e299-9afb-8c87-4afdb937fdbb@nvidia.com>
+ <13c1a501-0ab9-898c-f749-efecca787661@linux.vnet.ibm.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <aa0233a3-ccea-2a08-7937-6d762cfdab57@nvidia.com>
+Date: Tue, 14 Mar 2017 21:10:58 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <13c1a501-0ab9-898c-f749-efecca787661@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu
 
-Tim Chen <tim.c.chen@linux.intel.com> writes:
-
-> On Wed, 2017-03-08 at 15:26 +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> The swap cluster allocation/free functions are added based on the
->> existing swap cluster management mechanism for SSD.A A These functions
->> don't work for the rotating hard disks because the existing swap cluster
->> management mechanism doesn't work for them.A A The hard disks support may
->> be added if someone really need it.A A But that needn't be included in
->> this patchset.
->> 
->> This will be used for the THP (Transparent Huge Page) swap support.
->> Where one swap cluster will hold the contents of each THP swapped out.
->> 
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Shaohua Li <shli@kernel.org>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Rik van Riel <riel@redhat.com>
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> ---
->> A mm/swapfile.c | 217 +++++++++++++++++++++++++++++++++++++++++-----------------
->> A 1 file changed, 156 insertions(+), 61 deletions(-)
->> 
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index a744604384ff..91876c33114b 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -378,6 +378,14 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
->> A 	schedule_work(&si->discard_work);
->> A }
->> A 
->> +static void __free_cluster(struct swap_info_struct *si, unsigned long idx)
->> +{
->> +	struct swap_cluster_info *ci = si->cluster_info;
->> +
->> +	cluster_set_flag(ci + idx, CLUSTER_FLAG_FREE);
->> +	cluster_list_add_tail(&si->free_clusters, ci, idx);
->> +}
->> +
->> A /*
->> A  * Doing discard actually. After a cluster discard is finished, the cluster
->> A  * will be added to free cluster list. caller should hold si->lock.
->> @@ -398,10 +406,7 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
->> A 
->> A 		spin_lock(&si->lock);
->> A 		ci = lock_cluster(si, idx * SWAPFILE_CLUSTER);
->> -		cluster_set_flag(ci, CLUSTER_FLAG_FREE);
->> -		unlock_cluster(ci);
->> -		cluster_list_add_tail(&si->free_clusters, info, idx);
->> -		ci = lock_cluster(si, idx * SWAPFILE_CLUSTER);
->> +		__free_cluster(si, idx);
->> A 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
->> A 				0, SWAPFILE_CLUSTER);
->> A 		unlock_cluster(ci);
+On 03/14/2017 06:33 AM, Anshuman Khandual wrote:
+> On 03/08/2017 04:37 PM, John Hubbard wrote:
+[...]
+>> There was a discussion, on an earlier version of this patchset, in which
+>> someone pointed out that a slight over-allocation on a device that has
+>> much more memory than the CPU has, could use up system memory. Your
+>> latest approach here does not address this.
 >
-> The __free_cluster definition and the above change to eliminate
-> the extra unlock_cluster and lock_cluster can perhaps be broken up
-> as a separate patch. A It can be independent of THP changes.
+> Hmm, I dont remember this. Could you please be more specific and point
+> me to the discussion on this.
 
-I think the change may have no value by itself without THP changes.
-There will be only 1 user of __free_cluster() and the lock change is
-trivial too.  So I think it may be better just to keep it as that?
+That idea came from Dave Hansen, who was commenting on your RFC V2 patch:
 
-Best Regards,
-Huang, Ying
+https://lkml.org/lkml/2017/1/30/894
+
+..."A device who got its memory usage off by 1% could start to starve the rest of the system..."
+
+>
+>>
+>> I'm thinking that, until oversubscription between NUMA nodes is more
+>> fully implemented in a way that can be properly controlled, you'd
+>
+> I did not get you. What does over subscription mean in this context ?
+> FALLBACK zonelist on each node has memory from every node including
+> it's own. Hence the allocation request targeted towards any node is
+> symmetrical with respect to from where the memory will be allocated.
+>
+
+Here, I was referring to the lack of support in the kernel today, for allocating X+N bytes on a NUMA 
+node, when that node only has X bytes associated with it. Currently, the system uses a fallback node 
+list to try to allocate on other nodes, in that case, but that's not idea. If it NUMA allocation 
+instead supported "oversubscription", it could allow the allocation to succeed, and then fault and 
+evict (to other nodes) to support a working set that is larger than the physical memory that the 
+node has.
+
+This is what GPUs do today, in order to handle work loads that are too large for GPU memory. This 
+enables a whole other level of applications that the user can run.
+
+Maybe there are other ways to get the same result, so if others have ideas, please chime in. I'm 
+assuming for now that this sort of thing will just be required in the coming months.
+
+>> probably better just not fallback to system memory. In other words, a
+>> CDM node really is *isolated* from other nodes--no automatic use in
+>> either direction.
+>
+> That is debatable. With this proposed solution the CDM FALLBACK
+> zonelist contains system RAM zones as fallback option which will
+> be used in case CDM memory is depleted. IMHO, I think thats the
+> right thing to do as it still maintains the symmetry to some
+> extent.
+>
+
+Yes, it's worth discussing. Again, Dave's note applies here.
+
+>>
+>> Also, naming and purpose: maybe this is a "Limited NUMA Node", rather
+>> than a Coherent Device Memory node. Because: the real point of this
+>> thing is to limit the normal operation of NUMA, just enough to work with
+>> what I am *told* is memory-that-is-too-fragile-for-kernel-use (I remain
+>> soemwhat on the fence, there, even though you did talk me into it
+>> earlier, heh).
+>
+> :) Naming can be debated later after we all agree on the proposal
+> in principle. We have already discussed about kernel memory on CDM
+> in detail.
+
+OK.
+
+thanks,
+John Hubbard
+NVIDIA
+
+>
+>>
+>> On process: it would probably help if you gathered up previous
+>> discussion points and carefully, concisely addressed each one,
+>> somewhere, (maybe in a cover letter). Because otherwise, it's too easy
+>> for earlier, important problems to be forgotten. And reviewers don't
+>> want to have to repeat themselves, of course.
+>
+> Will do.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
