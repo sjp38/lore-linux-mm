@@ -1,70 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 455CB6B038A
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 17:30:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g10so5179664wrg.5
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 14:30:49 -0700 (PDT)
-From: Till Smejkal <till.smejkal@googlemail.com>
-Date: Wed, 15 Mar 2017 14:30:43 -0700
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-Message-ID: <20170315213042.e5q6daqkqoam2iun@arch-dev>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170315194723.GJ1693@brightrain.aerifal.cx>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 042876B038A
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 17:38:37 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t143so55175444pgb.5
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 14:38:36 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id l19si2259798pfa.177.2017.03.15.14.38.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Mar 2017 14:38:36 -0700 (PDT)
+Message-ID: <1489613914.2733.96.camel@linux.intel.com>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Wed, 15 Mar 2017 14:38:34 -0700
+In-Reply-To: <20170315162843.GA27197@dhcp22.suse.cz>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+	 <20170315141813.GB32626@dhcp22.suse.cz>
+	 <20170315154406.GF2442@aaronlu.sh.intel.com>
+	 <20170315162843.GA27197@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rich Felker <dalias@libc.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Till Smejkal <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
+To: Michal Hocko <mhocko@kernel.org>, Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Wed, 15 Mar 2017, Rich Felker wrote:
-> On Wed, Mar 15, 2017 at 12:44:47PM -0700, Till Smejkal wrote:
-> > On Wed, 15 Mar 2017, Andy Lutomirski wrote:
-> > > > One advantage of VAS segments is that they can be globally queried by user programs
-> > > > which means that VAS segments can be shared by applications that not necessarily have
-> > > > to be related. If I am not mistaken, MAP_SHARED of pure in memory data will only work
-> > > > if the tasks that share the memory region are related (aka. have a common parent that
-> > > > initialized the shared mapping). Otherwise, the shared mapping have to be backed by a
-> > > > file.
-> > > 
-> > > What's wrong with memfd_create()?
-> > > 
-> > > > VAS segments on the other side allow sharing of pure in memory data by
-> > > > arbitrary related tasks without the need of a file. This becomes especially
-> > > > interesting if one combines VAS segments with non-volatile memory since one can keep
-> > > > data structures in the NVM and still be able to share them between multiple tasks.
-> > > 
-> > > What's wrong with regular mmap?
+On Wed, 2017-03-15 at 17:28 +0100, Michal Hocko wrote:
+> On Wed 15-03-17 23:44:07, Aaron Lu wrote:
 > > 
-> > I never wanted to say that there is something wrong with regular mmap. We just
-> > figured that with VAS segments you could remove the need to mmap your shared data but
-> > instead can keep everything purely in memory.
+> > On Wed, Mar 15, 2017 at 03:18:14PM +0100, Michal Hocko wrote:
+> > > 
+> > > On Wed 15-03-17 16:59:59, Aaron Lu wrote:
+> > > [...]
+> > > > 
+> > > > The proposed parallel free did this: if the process has many pages to be
+> > > > freed, accumulate them in these struct mmu_gather_batch(es) one after
+> > > > another till 256K pages are accumulated. Then take this singly linked
+> > > > list starting from tlb->local.next off struct mmu_gather *tlb and free
+> > > > them in a worker thread. The main thread can return to continue zap
+> > > > other pages(after freeing pages pointed by tlb->local.pages).
+> > > I didn't have a look at the implementation yet but there are two
+> > > concerns that raise up from this description. Firstly how are we going
+> > > to tune the number of workers. I assume there will be some upper bound
+> > > (one of the patch subject mentions debugfs for tuning) and secondly
+> > The workers are put in a dedicated workqueue which is introduced in
+> > patch 3/5 and the number of workers can be tuned through that workqueue's
+> > sysfs interface: max_active.
+> I suspect we cannot expect users to tune this. What do you consider a
+> reasonable default?
+
+>From Aaron's data, it seems like 4 is a reasonable value for max_active:
+
+max_active:A A A time
+1A A A A A A A A A A A A A 8.9sA A A A+-0.5%
+2A A A A A A A A A A A A A 5.65sA A A+-5.5%
+4A A A A A A A A A A A A A 4.84sA A A+-0.16%
+8A A A A A A A A A A A A A 4.77sA A A+-0.97%
+16A A A A A A A A A A A A 4.85sA A A+-0.77%
+32A A A A A A A A A A A A 6.21sA A A+-0.46%
+
+
+> Moreover, and this is a more generic question, is this functionality
+> useful in general purpose workloads? 
+
+If we are running consecutive batch jobs, this optimization
+should help start the next job sooner.
+
+> After all the amount of the work to
+> be done is the same we just risk more lock contentions, unexpected CPU
+> usage etc. Which workloads will benefit from having exit path faster?
+> A 
 > > 
-> > Unfortunately, I am not at full speed with memfds. Is my understanding correct that
-> > if the last user of such a file descriptor closes it, the corresponding memory is
-> > freed? Accordingly, memfd cannot be used to keep data in memory while no program is
-> > currently using it, can it? To be able to do this you need again some representation
+> > > 
+> > > if we offload the page freeing to the worker then the original context
+> > > can consume much more cpu cycles than it was configured via cpu
+> I was not precise here. I meant to say more cpu cycles per time unit
+> that it was allowed.
 > 
-> I have a name for application-allocated kernel resources that persist
-> without a process holding a reference to them or a node in the
-> filesystem: a bug. See: sysvipc.
+> > 
+> > > 
+> > > controller. How are we going to handle that? Or is this considered
+> > > acceptable?
+> > I'll need to think about and take a look at this subject(not familiar
+> > with cpu controller).
+> the main problem is that kworkers will not belong to the same cpu group
+> and so they will not be throttled properly.
 
-VAS segments are first class citizens of the OS similar to processes. Accordingly, I
-would not see this behavior as a bug. VAS segments are a kernel handle to
-"persistent" memory (in the sense that they are independent of the lifetime of the
-application that created them). That means the memory that is described by VAS
-segments can be reused by other applications even if the VAS segment was not used by
-any application in between. It is very much like a pure in-memory file. An
-application creates a VAS segment, fills it with content and if it does not delete it
-again, can reuse/open it again later. This also means, that if you know that you
-never want to use this memory again you have to remove it explicitly, like you have
-to remove a file, if you don't want to use it anymore.
+You do have a point that this page freeing activities should strive to
+affect other threads not in the same cgroup minimally.
 
-I think it really might be better to implement VAS segments (if I should keep this
-feature at all) with a special purpose filesystem. The way I've designed it seams to
-be very misleading.
+On the other hand, we also don't do this throttling of kworkersA 
+today (e.g. pdflush) according to the cgroup it is doing work for.
 
-Till
+
+Thanks.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
