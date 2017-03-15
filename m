@@ -1,129 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4416A6B0038
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 06:48:45 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id a189so9187562qkc.4
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 03:48:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 10si1122945qts.304.2017.03.15.03.48.43
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3436B0038
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 07:48:33 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id g138so20607379itb.4
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 04:48:33 -0700 (PDT)
+Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
+        by mx.google.com with ESMTPS id s80si2752294ioi.211.2017.03.15.04.48.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 03:48:44 -0700 (PDT)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [RFC PATCH] rework memory hotplug onlining
-References: <20170315091347.GA32626@dhcp22.suse.cz>
-Date: Wed, 15 Mar 2017 11:48:37 +0100
-In-Reply-To: <20170315091347.GA32626@dhcp22.suse.cz> (Michal Hocko's message
-	of "Wed, 15 Mar 2017 10:13:48 +0100")
-Message-ID: <87shmedddm.fsf@vitty.brq.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Mar 2017 04:48:32 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH v4] mm/vmscan: more restrictive condition for retry in do_try_to_free_pages
+Date: Wed, 15 Mar 2017 19:36:48 +0800
+Message-ID: <1489577808-19228-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Andi Kleen <ak@linux.intel.com>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, shakeelb@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, qiuxishi@huawei.com
 
-Michal Hocko <mhocko@kernel.org> writes:
+By reviewing code, I find that when enter do_try_to_free_pages, the
+may_thrash is always clear, and it will retry shrink zones to tap
+cgroup's reserves memory by setting may_thrash when the former
+shrink_zones reclaim nothing.
 
-> Hi,
-> this is a follow up for [1]. In short the current semantic of the memory
-> hotplug is awkward and hard/impossible to use from the udev to online
-> memory as movable. The main problem is that only the last memblock or
-> the adjacent to highest movable memblock can be onlined as movable:
-> : Let's simulate memory hot online manually
-> : # echo 0x100000000 > /sys/devices/system/memory/probe
-> : # grep . /sys/devices/system/memory/memory32/valid_zones
-> : Normal Movable
-> : 
-> : which looks reasonably right? Both Normal and Movable zones are allowed
-> : 
-> : # echo $((0x100000000+(128<<20))) > /sys/devices/system/memory/probe
-> : # grep . /sys/devices/system/memory/memory3?/valid_zones
-> : /sys/devices/system/memory/memory32/valid_zones:Normal
-> : /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> : 
-> : Huh, so our valid_zones have changed under our feet...
-> : 
-> : # echo $((0x100000000+2*(128<<20))) > /sys/devices/system/memory/probe
-> : # grep . /sys/devices/system/memory/memory3?/valid_zones
-> : /sys/devices/system/memory/memory32/valid_zones:Normal
-> : /sys/devices/system/memory/memory33/valid_zones:Normal
-> : /sys/devices/system/memory/memory34/valid_zones:Normal Movable
-> : 
-> : and again. So only the last memblock is considered movable. Let's try to
-> : online them now.
-> : 
-> : # echo online_movable > /sys/devices/system/memory/memory34/state
-> : # grep . /sys/devices/system/memory/memory3?/valid_zones
-> : /sys/devices/system/memory/memory32/valid_zones:Normal
-> : /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> : /sys/devices/system/memory/memory34/valid_zones:Movable Normal
->
-> Now consider that the userspace gets the notification when the memblock
-> is added. If the udev context tries to online it it will a) race with
-> new memblocks showing up which leads to undeterministic behavior and
-> b) it will see memblocks ordered in growing physical addresses while
-> the only reliable way to online blocks as movable is exactly from other
-> directions. This is just plain wrong!
->
-> It seems that all this is just started by the semantic introduced by
-> 9d99aaa31f59 ("[PATCH] x86_64: Support memory hotadd without sparsemem")
-> quite some time ago. When the movable onlinining has been introduced it
-> just built on top of this. It seems that the requirement to have
-> freshly probed memory associated with the zone normal is no longer
-> necessary. HOTPLUG depends on CONFIG_SPARSEMEM these days.
->
-> The following blob [2] simply removes all the zone specific operations
-> from __add_pages (aka arch_add_memory) path.  Instead we do page->zone
-> association from move_pfn_range which is called from online_pages. The
-> criterion for movable/normal zone association is really simple now. We
-> just have to guarantee that zone Normal is always lower than zone
-> Movable. It would be actually sufficient to guarantee they do not
-> overlap and that is indeed trivial to implement now. I didn't do that
-> yet for simplicity of this change though.
->
-> I have lightly tested the patch and nothing really jumped at me. I
-> assume there will be some rough edges but it should be sufficient to
-> start the discussion at least. Please note the diffstat. We have added
-> a lot of code to tweak on top of the previous semantic which is just
-> sad. Instead of developing a robust solution the memory hotplug is full
-> of tweaks to satisfy particular usecase without longer term plans.
->
-> Please note that this is just for x86 now but I will address other
-> arches once there is an agreement this is the right approach.
->
-> Thoughts, objections?
->
+However, when memcg is disabled or on legacy hierarchy, or there do not
+have any memcg protected by low limit, it should not do this useless retry
+at all, for we do not have any cgroup's reserves memory to tap, and we
+have already done hard work but made no progress.
 
-Speaking about long term approach,
+To avoid this unneeded retrying, add a new field in scan_control named
+memcg_low_protection, set it if there is any memcg protected by low limit
+and only do the retry when memcg_low_protection is set while may_thrash
+is clear.
 
-(I'm not really familiar with the history of memory zones code so please
-bear with me if my questions are stupid)
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Suggested-by: Shakeel Butt <shakeelb@google.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+---
+v4:
+ - add a new field in scan_control named memcg_low_protection to check whether
+   there have any memcg protected by low limit. - Michal
 
-Currently when we online memory blocks we need to know where to put the
-boundary between NORMAL and MOVABLE and this is a very hard decision to
-make, no matter if we do this from kernel or from userspace. In theory,
-we just want to avoid redundant limitations with future unplug but we
-don't really know how much memory we'll need for kernel allocations in
-future.
+v3:
+ - rename function may_thrash() to mem_cgroup_thrashed() to avoid confusing.
 
-What actually stops us from having the following approach:
-1) Everything is added to MOVABLE
-2) When we're out of memory for kernel allocations in NORMAL we 'harvest'
-the first MOVABLE block and 'convert' it to NORMAL. It may happen that
-there is no free pages in this block but it was MOVABLE which means we
-can move all allocations somewhere else.
-3) Freeing the whole 128mb memblock takes time but we don't need to wait
-till it finishes, we just need to satisfy the currently pending
-allocation and we can continue moving everything else in the background.
+v2:
+ - more restrictive condition for retry of shrink_zones (restricting
+   cgroup_disabled=memory boot option and cgroup legacy hierarchy) - Shakeel
 
-An alternative approach would be to have lists of memblocks which
-constitute ZONE_NORMAL and ZONE_MOVABLE instead of a simple 'NORMAL
-before MOVABLE' rule we have now but I'm not sure this is a viable
-approach with the current code base.
+ - add a stub function may_thrash() to avoid compile error or warning.
 
+ - rename subject from "donot retry shrink zones when memcg is disable"
+   to "more restrictive condition for retry in do_try_to_free_pages"
+
+Any comment is more than welcome!
+
+Thanks
+Yisheng Xie
+
+ mm/vmscan.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bc8031e..c4fa3d3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -100,6 +100,9 @@ struct scan_control {
+ 	/* Can cgroups be reclaimed below their normal consumption range? */
+ 	unsigned int may_thrash:1;
+ 
++	/* Did we have any memcg protected by the low limit */
++	unsigned int memcg_low_protection:1;
++
+ 	unsigned int hibernation_mode:1;
+ 
+ 	/* One of the zones is ready for compaction */
+@@ -2557,6 +2560,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			unsigned long scanned;
+ 
+ 			if (mem_cgroup_low(root, memcg)) {
++				sc->memcg_low_protection = 1;
++
+ 				if (!sc->may_thrash)
+ 					continue;
+ 				mem_cgroup_events(memcg, MEMCG_LOW, 1);
+@@ -2808,7 +2813,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		return 1;
+ 
+ 	/* Untapped cgroup reserves?  Don't OOM, retry. */
+-	if (!sc->may_thrash) {
++	if (sc->memcg_low_protection && !sc->may_thrash) {
+ 		sc->priority = initial_priority;
+ 		sc->may_thrash = 1;
+ 		goto retry;
 -- 
-  Vitaly
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
