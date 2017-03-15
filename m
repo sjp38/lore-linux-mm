@@ -1,124 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 159576B0389
-	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 20:14:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x63so4210782pfx.7
-        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 17:14:21 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s3si207520pgn.344.2017.03.14.17.14.19
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 65DA46B038B
+	for <linux-mm@kvack.org>; Tue, 14 Mar 2017 20:14:30 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v66so314432wrc.4
+        for <linux-mm@kvack.org>; Tue, 14 Mar 2017 17:14:30 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c18si275906wrb.156.2017.03.14.17.14.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Mar 2017 17:14:20 -0700 (PDT)
-Message-ID: <1489536859.2733.53.camel@linux.intel.com>
-Subject: Re: [PATCH -mm -v6 5/9] mm, THP, swap: Support to clear
- SWAP_HAS_CACHE for huge page
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Tue, 14 Mar 2017 17:14:19 -0700
-In-Reply-To: <20170308072613.17634-6-ying.huang@intel.com>
-References: <20170308072613.17634-1-ying.huang@intel.com>
-	 <20170308072613.17634-6-ying.huang@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 14 Mar 2017 17:14:29 -0700 (PDT)
+Date: Wed, 15 Mar 2017 01:14:27 +0100
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: Re: [PATCH v2] xfs: remove kmem_zalloc_greedy
+Message-ID: <20170315001427.GI28800@wotan.suse.de>
+References: <20170308003528.GK5280@birch.djwong.org>
+ <20170314165745.GB28800@wotan.suse.de>
+ <20170314180738.GV5280@birch.djwong.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170314180738.GV5280@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Xiong Zhou <xzhou@redhat.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>, sebastian.parschauer@suse.com, AlNovak@suse.com, jack@suse.cz, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Wed, 2017-03-08 at 15:26 +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Tue, Mar 14, 2017 at 11:07:38AM -0700, Darrick J. Wong wrote:
+> On Tue, Mar 14, 2017 at 05:57:45PM +0100, Luis R. Rodriguez wrote:
+> > On Tue, Mar 07, 2017 at 04:35:28PM -0800, Darrick J. Wong wrote:
+> > > The sole remaining caller of kmem_zalloc_greedy is bulkstat, which uses
+> > > it to grab 1-4 pages for staging of inobt records.  The infinite loop in
+> > > the greedy allocation function is causing hangs[1] in generic/269, so
+> > > just get rid of the greedy allocator in favor of kmem_zalloc_large.
+> > > This makes bulkstat somewhat more likely to ENOMEM if there's really no
+> > > pages to spare, but eliminates a source of hangs.
+> > > 
+> > > [1] http://lkml.kernel.org/r/20170301044634.rgidgdqqiiwsmfpj%40XZHOUW.usersys.redhat.com
+> > > 
+> > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > > ---
+> > > v2: remove single-page fallback
+> > > ---
+> > 
+> > Since this fixes a hang how about *at the very least* a respective Fixes tag ?
+> > This fixes an existing hang so what are the stable considerations here ? I
+> > realize the answer is not easy but figured its worth asking.
 > 
-> __swapcache_free() is added to support to clear the SWAP_HAS_CACHE flag
-> for the huge page.A A This will free the specified swap cluster now.
-> Because now this function will be called only in the error path to free
-> the swap cluster just allocated.A A So the corresponding swap_map[i] ==
-> SWAP_HAS_CACHE, that is, the swap count is 0.A A This makes the
-> implementation simpler than that of the ordinary swap entry.
+> I didn't think it was appropriate to "Fixes: 77e4635ae1917" since we're
+> not fixing _greedy so much as we are killing it.  The patch fixes an
+> infinite retry hang when bulkstat tries a memory allocation that cannot
+> be satisfied; and having done that, realizes there are no remaining
+> callers of _greedy and garbage collects it.  The code that was there
+> before also seems capable of sleeping forever, I think.
 > 
-> This will be used for delaying splitting THP (Transparent Huge Page)
-> during swapping out.A A Where for one THP to swap out, we will allocate a
-> swap cluster, add the THP into the swap cache, then split the THP.A A If
-> anything fails after allocating the swap cluster and before splitting
-> the THP successfully, the swapcache_free_trans_huge() will be used to
-> free the swap space allocated.
-> 
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> ---
-> A include/linux/swap.h |A A 9 +++++++--
-> A mm/swapfile.cA A A A A A A A | 34 ++++++++++++++++++++++++++++++++--
-> A 2 files changed, 39 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index e3a7609a8989..2f2a6c0363aa 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -394,7 +394,7 @@ extern void swap_shmem_alloc(swp_entry_t);
-> A extern int swap_duplicate(swp_entry_t);
-> A extern int swapcache_prepare(swp_entry_t);
-> A extern void swap_free(swp_entry_t);
-> -extern void swapcache_free(swp_entry_t);
-> +extern void __swapcache_free(swp_entry_t entry, bool huge);
-> A extern void swapcache_free_entries(swp_entry_t *entries, int n);
-> A extern int free_swap_and_cache(swp_entry_t);
-> A extern int swap_type_of(dev_t, sector_t, struct block_device **);
-> @@ -456,7 +456,7 @@ static inline void swap_free(swp_entry_t swp)
-> A {
-> A }
-> A 
-> -static inline void swapcache_free(swp_entry_t swp)
-> +static inline void __swapcache_free(swp_entry_t swp, bool huge)
-> A {
-> A }
-> A 
-> @@ -544,6 +544,11 @@ static inline swp_entry_t get_huge_swap_page(void)
-> A }
-> A #endif
-> A 
-> +static inline void swapcache_free(swp_entry_t entry)
-> +{
-> +	__swapcache_free(entry, false);
-> +}
-> +
-> A #ifdef CONFIG_MEMCG
-> A static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
-> A {
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 7241c937e52b..6019f94afbaf 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -855,6 +855,29 @@ static void swap_free_huge_cluster(struct swap_info_struct *si,
-> A 	_swap_entry_free(si, offset, true);
-> A }
-> A 
-> +static void swapcache_free_trans_huge(struct swap_info_struct *si,
-> +				A A A A A A swp_entry_t entry)
-> +{
-> +	unsigned long offset = swp_offset(entry);
-> +	unsigned long idx = offset / SWAPFILE_CLUSTER;
-> +	struct swap_cluster_info *ci;
-> +	unsigned char *map;
-> +	unsigned int i;
-> +
-> +	spin_lock(&si->lock);
-> +	ci = lock_cluster(si, offset);
-> +	map = si->swap_map + offset;
-> +	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-> +		VM_BUG_ON(map[i] != SWAP_HAS_CACHE);
-> +		map[i] &= ~SWAP_HAS_CACHE;
+> So the minimally invasive fix is to apply the allocation conversion in
+> bulkstat, and if there aren't any other callers of _greedy then you can
+> get rid of it too.
 
-Nitpicking a bit:
-map[i] = 0 A is more readable if map[i] == SWAP_HAS_CACHE here.
+For the stake of stable XFS users then why not do the less invasive change
+first, Cc stable, and then move on to the less backward portable solution ?
 
-
-Thanks.
-
-Tim
+  Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
