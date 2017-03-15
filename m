@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D07C6B0389
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 07:54:33 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y17so28963436pgh.2
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 04:54:33 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id q72si1343766pfj.362.2017.03.15.04.54.32
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DE4B6B0389
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 07:59:37 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y90so2601313wrb.1
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 04:59:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v2si2348147wrd.12.2017.03.15.04.59.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 04:54:32 -0700 (PDT)
-Date: Wed, 15 Mar 2017 19:54:40 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2 2/5] mm: parallel free pages
-Message-ID: <20170315115440.GE2442@aaronlu.sh.intel.com>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
- <1489568404-7817-3-git-send-email-aaron.lu@intel.com>
- <0a2501d29d70$7eb0f530$7c12df90$@alibaba-inc.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Mar 2017 04:59:35 -0700 (PDT)
+Date: Wed, 15 Mar 2017 12:59:33 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC PATCH] mm: retry writepages() on ENOMEM when doing an data
+ integrity writeback
+Message-ID: <20170315115933.GF12989@quack2.suse.cz>
+References: <20170309090449.GD15874@quack2.suse.cz>
+ <20170315050743.5539-1-tytso@mit.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0a2501d29d70$7eb0f530$7c12df90$@alibaba-inc.com>
+In-Reply-To: <20170315050743.5539-1-tytso@mit.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Dave Hansen' <dave.hansen@intel.com>, 'Tim Chen' <tim.c.chen@intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Ying Huang' <ying.huang@intel.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
 
-On Wed, Mar 15, 2017 at 05:42:42PM +0800, Hillf Danton wrote:
+On Wed 15-03-17 01:07:43, Ted Tso wrote:
+> Currently, file system's writepages() function must not fail with an
+> ENOMEM, since if they do, it's possible for buffered data to be lost.
+> This is because on a data integrity writeback writepages() gets called
+> but once, and if it returns ENOMEM and you're lucky the error will get
+> reflected back to the userspace process calling fsync() --- at which
+> point the application may or may not be properly checking error codes.
+> If you aren't lucky, the user is unmounting the file system, and the
+> dirty pages will simply be lost.
 > 
-> On March 15, 2017 5:00 PM Aaron Lu wrote: 
-> >  void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
-> >  {
-> > +	struct batch_free_struct *batch_free, *n;
-> > +
-> s/*n/*next/
+> For this reason, file system code generally will use GFP_NOFS, and in
+> some cases, will retry the allocation in a loop, on the theory that
+> "kernel livelocks are temporary; data loss is forever".
+> Unfortunately, this can indeed cause livelocks, since inside the
+> writepages() call, the file system is holding various mutexes, and
+> these mutexes may prevent the OOM killer from killing its targetted
+> victim if it is also holding on to those mutexes.
 > 
-> >  	tlb_flush_mmu(tlb);
-> > 
-> >  	/* keep the page table cache within bounds */
-> >  	check_pgt_cache();
-> > 
-> > +	list_for_each_entry_safe(batch_free, n, &tlb->worker_list, list) {
-> > +		flush_work(&batch_free->work);
+> A better solution would be to allow writepages() to call the memory
+> allocator with flags that give greater latitude to the allocator to
+> fail, and then release its locks and return ENOMEM, and in the case of
+> background writeback, the writes can be retried at a later time.  In
+> the case of data-integrity writeback retry after waiting a brief
+> amount of time.
 > 
-> Not sure, list_del before free?
-
-I think this is a good idea, it makes code look saner.
-I just did a search of list_for_each_entry_safe and found list_del is
-usually(I didn't check every one of them) used before free.
-
-So I'll add that in the next revision, probably some days later in case
-there are other comments.
-
-Thanks for your time to review the patch.
-
-Regards,
-Aaron
- 
-> > +		kfree(batch_free);
-> > +	}
-> > +
-> >  	tlb_flush_mmu_free_batches(tlb->local.next, true);
-> >  	tlb->local.next = NULL;
-> >  }
+> Signed-off-by: Theodore Ts'o <tytso@mit.edu>
+> ---
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> As we had discussed in an e-mail thread last week, I'm interested in
+> allowing ext4_writepages() to return ENOMEM without causing dirty
+> pages from buffered writes getting list.  It looks like doing so
+> should be fairly straightforward.   What do folks think?
+
+Makes sense to me. One comment below:
+
+
+> +	while (1) {
+> +		if (mapping->a_ops->writepages)
+> +			ret = mapping->a_ops->writepages(mapping, wbc);
+> +		else
+> +			ret = generic_writepages(mapping, wbc);
+> +		if ((ret != ENOMEM) || (wbc->sync_mode != WB_SYNC_ALL))
+
+-ENOMEM I guess...
+
+
+> +			break;
+> +		cond_resched();
+> +		congestion_wait(BLK_RW_ASYNC, HZ/50);
+> +	}
+>  	return ret;
+>  }
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
