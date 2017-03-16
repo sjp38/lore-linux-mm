@@ -1,47 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 637AF6B038B
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:14:29 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p189so6715823pfp.5
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 07:14:29 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id s5si5427182pgj.372.2017.03.16.07.14.28
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B35096B038B
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:29:09 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id s128so12530347itb.3
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 07:29:09 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0071.outbound.protection.outlook.com. [104.47.38.71])
+        by mx.google.com with ESMTPS id s141si3608226itb.110.2017.03.16.07.29.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 07:14:28 -0700 (PDT)
-Date: Thu, 16 Mar 2017 22:14:38 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
-Message-ID: <20170316141437.GA16038@aaronlu.sh.intel.com>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
- <20170315141813.GB32626@dhcp22.suse.cz>
- <20170315154406.GF2442@aaronlu.sh.intel.com>
- <20170315162843.GA27197@dhcp22.suse.cz>
- <20170316073403.GE1661@aaronlu.sh.intel.com>
- <20170316135122.GF13054@aaronlu.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 16 Mar 2017 07:29:08 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 12/32] x86: Add early boot support when running
+ with SEV active
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846768878.2349.15757532025749214650.stgit@brijesh-build-machine>
+ <20170309140748.tg67yo2jmc5ahck3@pd.tnic>
+ <5d62b16f-16ef-1bd7-1551-f0c4c43573f4@redhat.com>
+ <20170309162942.jwtb3l33632zhbaz@pd.tnic>
+ <1fe1e177-f588-fe5a-dc13-e9fde00e8958@amd.com>
+ <20170316101656.dcwgtn4qdtyp5hip@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <b27126ee-aff0-ab11-706b-fc6d8d4901db@amd.com>
+Date: Thu, 16 Mar 2017 09:28:58 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170316135122.GF13054@aaronlu.sh.intel.com>
+In-Reply-To: <20170316101656.dcwgtn4qdtyp5hip@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
+To: Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
 
-On Thu, Mar 16, 2017 at 09:51:22PM +0800, Aaron Lu wrote:
-> Considering that we are mostly improving for memory intensive apps, the
-> default setting should probably be: max_active = node_number with each
-> worker freeing 2G memory.
+On 3/16/2017 5:16 AM, Borislav Petkov wrote:
+> On Fri, Mar 10, 2017 at 10:35:30AM -0600, Brijesh Singh wrote:
+>> We could update this patch to use the below logic:
+>>
+>>  * CPUID(0) - Check for AuthenticAMD
+>>  * CPID(1) - Check if under hypervisor
+>>  * CPUID(0x80000000) - Check for highest supported leaf
+>>  * CPUID(0x8000001F).EAX - Check for SME and SEV support
+>>  * rdmsr (MSR_K8_SYSCFG)[MemEncryptionModeEnc] - Check if SMEE is set
+>
+> Actually, it is still not clear to me *why* we need to do anything
+> special wrt SEV in the guest.
+>
+> Lemme clarify: why can't the guest boot just like a normal Linux on
+> baremetal and use the SME(!) detection code to set sme_enable and so
+> on? IOW, I'd like to avoid all those checks whether we're running under
+> hypervisor and handle all that like we're running on baremetal.
 
-In case people want to give this setting a try, here is what to do.
+Because there are differences between how SME and SEV behave
+(instruction fetches are always decrypted under SEV, DMA to an
+encrypted location is not supported under SEV, etc.) we need to
+determine which mode we are in so that things can be setup properly
+during boot. For example, if SEV is active the kernel will already
+be encrypted and so we don't perform that step or the trampoline area
+for bringing up an AP must be decrypted for SME but encrypted for SEV.
+The hypervisor check will provide that ability to determine how we
+handle things.
 
-On 2-nodes EP:
-# echo 2 > /sys/devices/virtual/workqueue/batch_free_wq/max_active
-# echo 1030 > /sys/kernel/debug/parallel_free/max_gather_batch_count
+Thanks,
+Tom
 
-On 4-nodes EX:
-# echo 4 > /sys/devices/virtual/workqueue/batch_free_wq/max_active
-# echo 1030 > /sys/kernel/debug/parallel_free/max_gather_batch_count
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
