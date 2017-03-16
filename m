@@ -1,67 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B35096B038B
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:29:09 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id s128so12530347itb.3
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 07:29:09 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0071.outbound.protection.outlook.com. [104.47.38.71])
-        by mx.google.com with ESMTPS id s141si3608226itb.110.2017.03.16.07.29.08
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38C2E6B0388
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:48:36 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w37so8922199wrc.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 07:48:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s5si2438940wmd.18.2017.03.16.07.48.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Mar 2017 07:29:08 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 12/32] x86: Add early boot support when running
- with SEV active
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846768878.2349.15757532025749214650.stgit@brijesh-build-machine>
- <20170309140748.tg67yo2jmc5ahck3@pd.tnic>
- <5d62b16f-16ef-1bd7-1551-f0c4c43573f4@redhat.com>
- <20170309162942.jwtb3l33632zhbaz@pd.tnic>
- <1fe1e177-f588-fe5a-dc13-e9fde00e8958@amd.com>
- <20170316101656.dcwgtn4qdtyp5hip@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <b27126ee-aff0-ab11-706b-fc6d8d4901db@amd.com>
-Date: Thu, 16 Mar 2017 09:28:58 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Mar 2017 07:48:34 -0700 (PDT)
+Date: Thu, 16 Mar 2017 15:48:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: MAP_POPULATE vs. MADV_HUGEPAGES
+Message-ID: <20170316144832.GJ30501@dhcp22.suse.cz>
+References: <e134e521-54eb-9ae0-f379-26f38703478e@scylladb.com>
+ <20170316123449.GE30508@dhcp22.suse.cz>
+ <4e1011d9-aef3-5cd7-1424-b81aa79128cb@scylladb.com>
 MIME-Version: 1.0
-In-Reply-To: <20170316101656.dcwgtn4qdtyp5hip@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4e1011d9-aef3-5cd7-1424-b81aa79128cb@scylladb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: Avi Kivity <avi@scylladb.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 3/16/2017 5:16 AM, Borislav Petkov wrote:
-> On Fri, Mar 10, 2017 at 10:35:30AM -0600, Brijesh Singh wrote:
->> We could update this patch to use the below logic:
->>
->>  * CPUID(0) - Check for AuthenticAMD
->>  * CPID(1) - Check if under hypervisor
->>  * CPUID(0x80000000) - Check for highest supported leaf
->>  * CPUID(0x8000001F).EAX - Check for SME and SEV support
->>  * rdmsr (MSR_K8_SYSCFG)[MemEncryptionModeEnc] - Check if SMEE is set
->
-> Actually, it is still not clear to me *why* we need to do anything
-> special wrt SEV in the guest.
->
-> Lemme clarify: why can't the guest boot just like a normal Linux on
-> baremetal and use the SME(!) detection code to set sme_enable and so
-> on? IOW, I'd like to avoid all those checks whether we're running under
-> hypervisor and handle all that like we're running on baremetal.
+On Thu 16-03-17 15:26:54, Avi Kivity wrote:
+> 
+> 
+> On 03/16/2017 02:34 PM, Michal Hocko wrote:
+> >On Wed 15-03-17 18:50:32, Avi Kivity wrote:
+> >>A user is trying to allocate 1TB of anonymous memory in parallel on 48 cores
+> >>(4 NUMA nodes).  The kernel ends up spinning in isolate_freepages_block().
+> >Which kernel version is that?
+> 
+> A good question; it was 3.10.something-el.something.  The user mentioned
+> above updated to 4.4, and the problem was gone, so it looks like it is a Red
+> Hat specific problem.  I would really like the 3.10.something kernel to
+> handle this workload well, but I understand that's not this list's concern.
+> 
+> >What is the THP defrag mode
+> >(/sys/kernel/mm/transparent_hugepage/defrag)?
+> 
+> The default (always).
 
-Because there are differences between how SME and SEV behave
-(instruction fetches are always decrypted under SEV, DMA to an
-encrypted location is not supported under SEV, etc.) we need to
-determine which mode we are in so that things can be setup properly
-during boot. For example, if SEV is active the kernel will already
-be encrypted and so we don't perform that step or the trampoline area
-for bringing up an AP must be decrypted for SME but encrypted for SEV.
-The hypervisor check will provide that ability to determine how we
-handle things.
+the default has changed since then because the THP faul latencies were
+just too large. Currently we only allow madvised VMAs to go stall and
+even then we try hard to back off sooner rather than later. See
+444eb2a449ef ("mm: thp: set THP defrag by default to madvise and add a
+stall-free defrag option") merged in 4.4
+ 
+> >>I thought to help it along by using MAP_POPULATE, but then my MADV_HUGEPAGE
+> >>won't be seen until after mmap() completes, with pages already populated.
+> >>Are MAP_POPULATE and MADV_HUGEPAGE mutually exclusive?
+> >Why do you need MADV_HUGEPAGE?
+> 
+> So that I get huge pages even if transparent_hugepage/enabled=madvise.  I'm
+> allocating almost all of the memory of that machine to be used as a giant
+> cache, so I want it backed by hugepages.
 
-Thanks,
-Tom
+Is there any strong reason to not use hugetlb then? You probably want
+that memory reclaimable, right?
 
->
+> >>Is my only option to serialize those memory allocations, and fault in those
+> >>pages manually?  Or perhaps use mlock()?
+> >I am still not 100% sure I see what you are trying to achieve, though.
+> >So you do not want all those processes to contend inside the compaction
+> >while still allocate as many huge pages as possible?
+> 
+> Since the process starts with all of that memory free, there should not be
+> any compaction going on (or perhaps very minimal eviction/movement of a few
+> pages here and there).  And since it's fixed in later kernels, it looks like
+> the contention was not really mandated by the workload, just an artifact of
+> the implementation.
+
+It is possible. A lot has changed since 3.10 times.
+
+> To explain the workload again, the process starts, clones as many threads as
+> there are logical processors, and each of those threads mmap()s (and
+> mbind()s) a chunk of memory and then proceeds to touch it.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
