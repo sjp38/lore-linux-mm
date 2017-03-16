@@ -1,40 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 04CD36B038E
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:45:51 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u48so9715085wrc.0
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:45:50 -0700 (PDT)
-Date: Thu, 16 Mar 2017 18:42:39 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-In-Reply-To: <20170316172909.ux4u7dbspwlynsce@arch-dev>
-Message-ID: <alpine.DEB.2.20.1703161841220.3586@nanos>
-References: <20170316172909.ux4u7dbspwlynsce@arch-dev>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7BB6B038E
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:48:13 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u108so9780414wrb.3
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:48:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 17si5446266wmu.159.2017.03.16.10.48.11
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Mar 2017 10:48:12 -0700 (PDT)
+Date: Thu, 16 Mar 2017 18:48:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4 00/13] mm: sub-section memory hotplug support
+Message-ID: <20170316174805.GB13654@dhcp22.suse.cz>
+References: <148964440651.19438.2288075389153762985.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <148964440651.19438.2288075389153762985.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Till Smejkal <till.smejkal@googlemail.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org, Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org, Stephen Bates <stephen.bates@microsemi.com>, linux-mm@kvack.org, Nicolai Stange <nicstange@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, 16 Mar 2017, Till Smejkal wrote:
-> On Thu, 16 Mar 2017, Thomas Gleixner wrote:
-> > Why do we need yet another mechanism to represent something which looks
-> > like a file instead of simply using existing mechanisms and extend them?
-> 
-> You are right. I also recognized during the discussion with Andy, Chris,
-> Matthew, Luck, Rich and the others that there are already other
-> techniques in the Linux kernel that can achieve the same functionality
-> when combined. As I said also to the others, I will drop the VAS segments
-> for future versions. The first class virtual address space feature was
-> the more interesting part of the patchset anyways.
+Hi,
+I didn't get to look through the patch series yet and I might not be
+able before LSF/MM. How urgent is this? I am primarily asking because
+the memory hotplug is really convoluted right now and putting more on
+top doesn't really sound like the thing we really want. I have tried to
+simplify the code [1] already but this is an early stage work so I do
+not want to impose any burden on you. So I am wondering whether this
+is something that needs to be merged very soon or it can wait for the
+rework and hopefully end up being much simpler in the end as well.
 
-While you are at it, could you please drop this 'first class' marketing as
-well? It has zero technical value, really.
+What do you think?
 
-Thanks,
-
-	tglx
+[1] http://lkml.kernel.org/r/20170315091347.GA32626@dhcp22.suse.cz
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
