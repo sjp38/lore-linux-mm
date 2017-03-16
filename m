@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0476B0389
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 14:36:23 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id x127so105544640pgb.4
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:36:23 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id p7si200457pfb.260.2017.03.16.11.36.22
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C6A0E6B0389
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 14:38:04 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id y18so63757692itc.5
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:38:04 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0163.hostedemail.com. [216.40.44.163])
+        by mx.google.com with ESMTPS id j90si6935061ioi.119.2017.03.16.11.38.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 11:36:22 -0700 (PDT)
-Message-ID: <1489689381.2733.114.camel@linux.intel.com>
-Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Thu, 16 Mar 2017 11:36:21 -0700
-In-Reply-To: <20170316090732.GF30501@dhcp22.suse.cz>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
-	 <20170315141813.GB32626@dhcp22.suse.cz>
-	 <20170315154406.GF2442@aaronlu.sh.intel.com>
-	 <20170315162843.GA27197@dhcp22.suse.cz>
-	 <1489613914.2733.96.camel@linux.intel.com>
-	 <20170316090732.GF30501@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
+        Thu, 16 Mar 2017 11:38:03 -0700 (PDT)
+Message-ID: <1489689476.13953.3.camel@perches.com>
+Subject: Re: [PATCH 1/3] mm: page_alloc: Reduce object size by neatening
+ printks
+From: Joe Perches <joe@perches.com>
+Date: Thu, 16 Mar 2017 11:37:56 -0700
+In-Reply-To: <20170316113056.GG464@jagdpanzerIV.localdomain>
+References: <cover.1489628459.git.joe@perches.com>
+	 <880b3172b67d806082284d80945e4a231a5574bb.1489628459.git.joe@perches.com>
+	 <20170316113056.GG464@jagdpanzerIV.localdomain>
+Content-Type: text/plain; charset="ISO-8859-1"
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2017-03-16 at 10:07 +0100, Michal Hocko wrote:
-> On Wed 15-03-17 14:38:34, Tim Chen wrote:
-> > 
-> > On Wed, 2017-03-15 at 17:28 +0100, Michal Hocko wrote:
-> > > 
-> > > On Wed 15-03-17 23:44:07, Aaron Lu wrote:
-> > > > 
-> > > > 
-> > > > On Wed, Mar 15, 2017 at 03:18:14PM +0100, Michal Hocko wrote:
-> > > > > 
-> > > > > 
-> > > > > On Wed 15-03-17 16:59:59, Aaron Lu wrote:
-> > > > > [...]
-> > > > > > 
-> > > > > > 
-> > > > > > The proposed parallel free did this: if the process has many pages to be
-> > > > > > freed, accumulate them in these struct mmu_gather_batch(es) one after
-> > > > > > another till 256K pages are accumulated. Then take this singly linked
-> > > > > > list starting from tlb->local.next off struct mmu_gather *tlb and free
-> > > > > > them in a worker thread. The main thread can return to continue zap
-> > > > > > other pages(after freeing pages pointed by tlb->local.pages).
-> > > > > I didn't have a look at the implementation yet but there are two
-> > > > > concerns that raise up from this description. Firstly how are we going
-> > > > > to tune the number of workers. I assume there will be some upper bound
-> > > > > (one of the patch subject mentions debugfs for tuning) and secondly
-> > > > The workers are put in a dedicated workqueue which is introduced in
-> > > > patch 3/5 and the number of workers can be tuned through that workqueue's
-> > > > sysfs interface: max_active.
-> > > I suspect we cannot expect users to tune this. What do you consider a
-> > > reasonable default?
-> > From Aaron's data, it seems like 4 is a reasonable value for max_active:
-> > 
-> > max_active:A A A time
-> > 1A A A A A A A A A A A A A 8.9sA A A A+-0.5%
-> > 2A A A A A A A A A A A A A 5.65sA A A+-5.5%
-> > 4A A A A A A A A A A A A A 4.84sA A A+-0.16%
-> > 8A A A A A A A A A A A A A 4.77sA A A+-0.97%
-> > 16A A A A A A A A A A A A 4.85sA A A+-0.77%
-> > 32A A A A A A A A A A A A 6.21sA A A+-0.46%
-> OK, but this will depend on the HW, right? Also now that I am looking at
-> those numbers more closely. This was about unmapping 320GB area and
-> using 4 times more CPUs you managed to half the run time. Is this really
-> worth it? Sure if those CPUs were idle then this is a clear win but if
-> the system is moderately busy then it doesn't look like a clear win to
-> me.
+On Thu, 2017-03-16 at 20:30 +0900, Sergey Senozhatsky wrote:
+> On (03/15/17 18:43), Joe Perches wrote:
+> [..]
+> > -	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+> > -		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+> > -		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+> > -		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+> > -		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+> > -		" free:%lu free_pcp:%lu free_cma:%lu\n",
+> > -		global_node_page_state(NR_ACTIVE_ANON),
+> > -		global_node_page_state(NR_INACTIVE_ANON),
+> > -		global_node_page_state(NR_ISOLATED_ANON),
+> > -		global_node_page_state(NR_ACTIVE_FILE),
+> > -		global_node_page_state(NR_INACTIVE_FILE),
+> > -		global_node_page_state(NR_ISOLATED_FILE),
+> > -		global_node_page_state(NR_UNEVICTABLE),
+> > -		global_node_page_state(NR_FILE_DIRTY),
+> > -		global_node_page_state(NR_WRITEBACK),
+> > -		global_node_page_state(NR_UNSTABLE_NFS),
+> > -		global_page_state(NR_SLAB_RECLAIMABLE),
+> > -		global_page_state(NR_SLAB_UNRECLAIMABLE),
+> > -		global_node_page_state(NR_FILE_MAPPED),
+> > -		global_node_page_state(NR_SHMEM),
+> > -		global_page_state(NR_PAGETABLE),
+> > -		global_page_state(NR_BOUNCE),
+> > -		global_page_state(NR_FREE_PAGES),
+> > -		free_pcp,
+> > -		global_page_state(NR_FREE_CMA_PAGES));
+> > +	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n",
+> > +	       global_node_page_state(NR_ACTIVE_ANON),
+> > +	       global_node_page_state(NR_INACTIVE_ANON),
+> > +	       global_node_page_state(NR_ISOLATED_ANON));
+> > +	printk("active_file:%lu inactive_file:%lu isolated_file:%lu\n",
+> > +	       global_node_page_state(NR_ACTIVE_FILE),
+> > +	       global_node_page_state(NR_INACTIVE_FILE),
+> > +	       global_node_page_state(NR_ISOLATED_FILE));
+> > +	printk("unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n",
+> > +	       global_node_page_state(NR_UNEVICTABLE),
+> > +	       global_node_page_state(NR_FILE_DIRTY),
+> > +	       global_node_page_state(NR_WRITEBACK),
+> > +	       global_node_page_state(NR_UNSTABLE_NFS));
+> > +	printk("slab_reclaimable:%lu slab_unreclaimable:%lu\n",
+> > +	       global_page_state(NR_SLAB_RECLAIMABLE),
+> > +	       global_page_state(NR_SLAB_UNRECLAIMABLE));
+> > +	printk("mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n",
+> > +	       global_node_page_state(NR_FILE_MAPPED),
+> > +	       global_node_page_state(NR_SHMEM),
+> > +	       global_page_state(NR_PAGETABLE),
+> > +	       global_page_state(NR_BOUNCE));
+> > +	printk("free:%lu free_pcp:%lu free_cma:%lu\n",
+> > +	       global_page_state(NR_FREE_PAGES),
+> > +	       free_pcp,
+> > +	       global_page_state(NR_FREE_CMA_PAGES));
+> 
+> a side note:
+> 
+> this can make it harder to read, in _the worst case_. one printk()
+> guaranteed that we would see a single line in the serial log/etc.
+> the sort of a problem with multiple printks is that printks coming
+> from other CPUs will split that "previously single" line.
 
-It looks like we can reduce the exit time in half by using only 2 workers
-to disturb the system minimally.
-Perhaps we can only do this expedited exit only when there are idle cpus around.
-We can use the root sched domain's overload indicator for such a quick check.
+Not true.  Note the multiple \n uses in the original code.
 
-Tim
+> just a notice. up to MM people to decide.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
