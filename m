@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 497906B03AE
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:02:18 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id u69so35996515ita.1
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:02:18 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0084.hostedemail.com. [216.40.44.84])
-        by mx.google.com with ESMTPS id b41si4667138ioj.178.2017.03.15.19.02.17
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 419586B03B0
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:02:23 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 76so36902769itj.0
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:02:23 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0086.hostedemail.com. [216.40.44.86])
+        by mx.google.com with ESMTPS id d189si4690828iod.60.2017.03.15.19.02.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 19:02:17 -0700 (PDT)
+        Wed, 15 Mar 2017 19:02:22 -0700 (PDT)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 14/15] mm: page_alloc: Use octal permissions
-Date: Wed, 15 Mar 2017 19:00:11 -0700
-Message-Id: <e95b6de24576f4e6317a2a53a49f912691fe5d01.1489628477.git.joe@perches.com>
+Subject: [PATCH 15/15] mm: page_alloc: Move logical continuations to EOL
+Date: Wed, 15 Mar 2017 19:00:12 -0700
+Message-Id: <e52a03ab25e1ad4cabdbfea09947a0f7ba5e4c48.1489628477.git.joe@perches.com>
 In-Reply-To: <cover.1489628477.git.joe@perches.com>
 References: <cover.1489628477.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,27 +20,65 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 
-Using S_<FOO> permissions can be hard to parse.
-Using octal is typical.
+Just more code style conformance/neatening.
 
 Signed-off-by: Joe Perches <joe@perches.com>
 ---
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index efc3184aa6bc..930773b03b26 100644
+index 930773b03b26..011a8e057639 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2863,7 +2863,7 @@ static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+@@ -859,9 +859,9 @@ static inline void __free_one_page(struct page *page,
+ 			buddy = page + (buddy_pfn - pfn);
+ 			buddy_mt = get_pageblock_migratetype(buddy);
  
- static int __init fail_page_alloc_debugfs(void)
- {
--	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
-+	umode_t mode = S_IFREG | 0600;
- 	struct dentry *dir;
+-			if (migratetype != buddy_mt
+-			    && (is_migrate_isolate(migratetype) ||
+-				is_migrate_isolate(buddy_mt)))
++			if (migratetype != buddy_mt &&
++			    (is_migrate_isolate(migratetype) ||
++			     is_migrate_isolate(buddy_mt)))
+ 				goto done_merging;
+ 		}
+ 		max_order++;
+@@ -2115,8 +2115,9 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
  
- 	dir = fault_create_debugfs_attr("fail_page_alloc", NULL,
+ 	/* Yoink! */
+ 	mt = get_pageblock_migratetype(page);
+-	if (!is_migrate_highatomic(mt) && !is_migrate_isolate(mt)
+-	    && !is_migrate_cma(mt)) {
++	if (!is_migrate_highatomic(mt) &&
++	    !is_migrate_isolate(mt) &&
++	    !is_migrate_cma(mt)) {
+ 		zone->nr_reserved_highatomic += pageblock_nr_pages;
+ 		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+ 		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC, NULL);
+@@ -2682,8 +2683,9 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 		for (; page < endpage; page += pageblock_nr_pages) {
+ 			int mt = get_pageblock_migratetype(page);
+ 
+-			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
+-			    && !is_migrate_highatomic(mt))
++			if (!is_migrate_isolate(mt) &&
++			    !is_migrate_cma(mt) &&
++			    !is_migrate_highatomic(mt))
+ 				set_pageblock_migratetype(page,
+ 							  MIGRATE_MOVABLE);
+ 		}
+@@ -3791,8 +3793,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	if (can_direct_reclaim &&
+ 	    (costly_order ||
+-	     (order > 0 && ac->migratetype != MIGRATE_MOVABLE))
+-	    && !gfp_pfmemalloc_allowed(gfp_mask)) {
++	     (order > 0 && ac->migratetype != MIGRATE_MOVABLE)) &&
++	    !gfp_pfmemalloc_allowed(gfp_mask)) {
+ 		page = __alloc_pages_direct_compact(gfp_mask, order,
+ 						    alloc_flags, ac,
+ 						    INIT_COMPACT_PRIORITY,
 -- 
 2.10.0.rc2.1.g053435c
 
