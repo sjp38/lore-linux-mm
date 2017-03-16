@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 993856B0038
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BA44B6B0389
 	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:27:13 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e5so97036526pgk.1
+Received: by mail-pg0-f70.google.com with SMTP id g2so96770827pge.7
         for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:27:13 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
         by mx.google.com with ESMTPS id t6si5641811pgo.14.2017.03.16.08.27.12
@@ -10,9 +10,9 @@ Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 16 Mar 2017 08:27:12 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/7] mm/gup: Move permission checks into helpers
-Date: Thu, 16 Mar 2017 18:26:50 +0300
-Message-Id: <20170316152655.37789-3-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 3/7] mm/gup: Move page table entry dereference into helper
+Date: Thu, 16 Mar 2017 18:26:51 +0300
+Message-Id: <20170316152655.37789-4-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
 References: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,100 +23,52 @@ Cc: Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linu
 This is preparation patch for transition of x86 to generic GUP_fast()
 implementation.
 
-On x86, we would need to do additional permission checks to determinate if
-access is allowed.
-
-Let's abstract it out into separate helpers.
+On x86 PAE, page table entry is larger than sizeof(long) and we would
+need to provide helper that can read the entry atomically.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/asm-generic/pgtable.h | 25 +++++++++++++++++++++++++
- mm/gup.c                      | 15 ++++++++++-----
- 2 files changed, 35 insertions(+), 5 deletions(-)
+ mm/gup.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 1fad160f35de..7dfa767dc680 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -341,6 +341,31 @@ static inline int pte_unused(pte_t pte)
- }
- #endif
- 
-+#ifndef pte_access_permitted
-+#define pte_access_permitted(pte, write) \
-+	(pte_present(pte) && (!(write) || pte_write(pte)))
-+#endif
-+
-+#ifndef pmd_access_permitted
-+#define pmd_access_permitted(pmd, write) \
-+	(pmd_present(pmd) && (!(write) || pmd_write(pmd)))
-+#endif
-+
-+#ifndef pud_access_permitted
-+#define pud_access_permitted(pud, write) \
-+	(pud_present(pud) && (!(write) || pud_write(pud)))
-+#endif
-+
-+#ifndef p4d_access_permitted
-+#define p4d_access_permitted(p4d, write) \
-+	(p4d_present(p4d) && (!(write) || p4d_write(p4d)))
-+#endif
-+
-+#ifndef pgd_access_permitted
-+#define pgd_access_permitted(pgd, write) \
-+	(pgd_present(pgd) && (!(write) || pgd_write(pgd)))
-+#endif
-+
- #ifndef __HAVE_ARCH_PMD_SAME
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 diff --git a/mm/gup.c b/mm/gup.c
-index 3f2338ba3402..a62a778ce4ec 100644
+index a62a778ce4ec..ed2259dc4606 100644
 --- a/mm/gup.c
 +++ b/mm/gup.c
-@@ -1212,8 +1212,13 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
- 		 * Similar to the PMD case below, NUMA hinting must take slow
- 		 * path using the pte_protnone check.
- 		 */
--		if (!pte_present(pte) || pte_special(pte) ||
--			pte_protnone(pte) || (write && !pte_write(pte)))
-+		if (pte_protnone(pte))
-+			goto pte_unmap;
+@@ -1189,6 +1189,17 @@ struct page *get_dump_page(unsigned long addr)
+  */
+ #ifdef CONFIG_HAVE_GENERIC_RCU_GUP
+ 
++#ifndef gup_get_pte
++/*
++ * We assume that the pte can be read atomically. If this is not the case for
++ * your architecture, please provide the helper.
++ */
++static inline pte_t gup_get_pte(pte_t *ptep)
++{
++	return READ_ONCE(*ptep);
++}
++#endif
 +
-+		if (!pte_access_permitted(pte, write))
-+			goto pte_unmap;
-+
-+		if (pte_special(pte))
- 			goto pte_unmap;
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
+ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+ 			 int write, struct page **pages, int *nr)
+@@ -1198,14 +1209,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
  
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
-@@ -1264,7 +1269,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 	struct page *head, *page;
- 	int refs;
+ 	ptem = ptep = pte_offset_map(&pmd, addr);
+ 	do {
+-		/*
+-		 * In the line below we are assuming that the pte can be read
+-		 * atomically. If this is not the case for your architecture,
+-		 * please wrap this in a helper function!
+-		 *
+-		 * for an example see gup_get_pte in arch/x86/mm/gup.c
+-		 */
+-		pte_t pte = READ_ONCE(*ptep);
++		pte_t pte = gup_get_pte(ptep);
+ 		struct page *head, *page;
  
--	if (write && !pmd_write(orig))
-+	if (!pmd_access_permitted(orig, write))
- 		return 0;
- 
- 	refs = 0;
-@@ -1299,7 +1304,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
- 	struct page *head, *page;
- 	int refs;
- 
--	if (write && !pud_write(orig))
-+	if (!pud_access_permitted(orig, write))
- 		return 0;
- 
- 	refs = 0;
-@@ -1335,7 +1340,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
- 	int refs;
- 	struct page *head, *page;
- 
--	if (write && !pgd_write(orig))
-+	if (!pgd_access_permitted(orig, write))
- 		return 0;
- 
- 	refs = 0;
+ 		/*
 -- 
 2.11.0
 
