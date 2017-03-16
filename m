@@ -1,68 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB696B038A
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 04:27:54 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id 123so9653587vkm.4
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:27:54 -0700 (PDT)
-Received: from mail-vk0-x22d.google.com (mail-vk0-x22d.google.com. [2607:f8b0:400c:c05::22d])
-        by mx.google.com with ESMTPS id t9si1478050uab.1.2017.03.16.01.27.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 01:27:54 -0700 (PDT)
-Received: by mail-vk0-x22d.google.com with SMTP id d188so20065248vka.0
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:27:53 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 690996B038D
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 04:28:16 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y51so7160199wry.6
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:28:16 -0700 (PDT)
+Date: Thu, 16 Mar 2017 09:21:38 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
+In-Reply-To: <20170315220234.mooiyrzqdsglo4lp@arch-dev>
+Message-ID: <alpine.DEB.2.20.1703160919170.3586@nanos>
+References: <20170315220234.mooiyrzqdsglo4lp@arch-dev>
 MIME-Version: 1.0
-In-Reply-To: <20170316044704.GA729@jagdpanzerIV.localdomain>
-References: <20170316044704.GA729@jagdpanzerIV.localdomain>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 16 Mar 2017 09:27:32 +0100
-Message-ID: <CACT4Y+asa7rDwjQi_09cYGsgqy0LFRRiCHq3=3t6__VUMLzmXg@mail.gmail.com>
-Subject: Re: [mmotm] "x86/atomic: move __arch_atomic_add_unless out of line"
- build error
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20170315021431.13107-3-andi@firstfloor.org
-Cc: Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Till Smejkal <till.smejkal@googlemail.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
 
-On Thu, Mar 16, 2017 at 5:47 AM, Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com> wrote:
-> Hello,
->
-> commit 4f86a82ff7df ("x86/atomic: move __arch_atomic_add_unless out of li=
-ne")
-> moved __arch_atomic_add_unless() out atomic.h and new KASAN atomic
-> instrumentation [1] can't see it anymore
->
->
-> In file included from ./arch/x86/include/asm/atomic.h:257:0,
->                  from ./include/linux/atomic.h:4,
->                  from ./include/asm-generic/qspinlock_types.h:28,
->                  from ./arch/x86/include/asm/spinlock_types.h:26,
->                  from ./include/linux/spinlock_types.h:13,
->                  from kernel/bounds.c:13:
-> ./include/asm-generic/atomic-instrumented.h: In function =E2=80=98__atomi=
-c_add_unless=E2=80=99:
-> ./include/asm-generic/atomic-instrumented.h:70:9: error: implicit declara=
-tion of function =E2=80=98__arch_atomic_add_unless=E2=80=99 [-Werror=3Dimpl=
-icit-function-declaration]
->   return __arch_atomic_add_unless(v, a, u);
->          ^~~~~~~~~~~~~~~~~~~~~~~~
->
->
-> so we need a declaration of __arch_atomic_add_unless() in arch/x86/includ=
-e/asm/atomic.h
->
->
-> [1] lkml.kernel.org/r/7e450175a324bf93c602909c711bc34715d8e8f2.1489519233=
-.git.dvyukov@google.com
->
->         -ss
+On Wed, 15 Mar 2017, Till Smejkal wrote:
+> On Wed, 15 Mar 2017, Andy Lutomirski wrote:
 
+> > > VAS segments on the other side would provide a functionality to
+> > > achieve the same without the need of any mounted filesystem. However,
+> > > I agree, that this is just a small advantage compared to what can
+> > > already be achieved with the existing functionality provided by the
+> > > Linux kernel.
+> > 
+> > I see this "small advantage" as "resource leak and security problem".
+> 
+> I don't agree here. VAS segments are basically in-memory files that are
+> handled by the kernel directly without using a file system. Hence, if an
 
-Andi, why did you completely remove __arch_atomic_add_unless() from
-the header? Don't we need at least a declaration there?
+Why do we need yet another mechanism to represent something which looks
+like a file instead of simply using existing mechanisms and extend them?
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
