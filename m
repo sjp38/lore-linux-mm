@@ -1,95 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 825226B0388
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 04:10:19 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l37so7091777wrc.7
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:10:19 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id 88si5631608wrb.315.2017.03.16.01.10.18
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0461E6B0388
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 04:27:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b140so9179158wme.3
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:27:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v63si3598544wma.38.2017.03.16.01.27.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 01:10:18 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id u132so8298663wmg.1
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:10:18 -0700 (PDT)
-Date: Thu, 16 Mar 2017 09:10:13 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v7 1/3] x86/mm: Adapt MODULES_END based on Fixmap section
- size
-Message-ID: <20170316081013.GB7815@gmail.com>
-References: <20170314170508.100882-1-thgarnie@google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Mar 2017 01:27:17 -0700 (PDT)
+Date: Thu, 16 Mar 2017 09:27:14 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+Message-ID: <20170316082714.GC30501@dhcp22.suse.cz>
+References: <20161223025505.GA30876@bbox>
+ <c2fe9c45-e25f-d3d6-7fe7-f91e353bc579@wiesinger.com>
+ <20170104091120.GD25453@dhcp22.suse.cz>
+ <82bce413-1bd7-7f66-1c3d-0d890bbaf6f1@wiesinger.com>
+ <20170227090236.GA2789@bbox>
+ <20170227094448.GF14029@dhcp22.suse.cz>
+ <20170228051723.GD2702@bbox>
+ <20170228081223.GA26792@dhcp22.suse.cz>
+ <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170314170508.100882-1-thgarnie@google.com>
+In-Reply-To: <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Jonathan Corbet <corbet@lwn.net>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Kees Cook <keescook@chromium.org>, Juergen Gross <jgross@suse.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andy Lutomirski <luto@amacapital.net>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Jiri Kosina <jikos@kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Rusty Russell <rusty@rustcorp.com.au>, Paolo Bonzini <pbonzini@redhat.com>, Borislav Petkov <bp@suse.de>, Christian Borntraeger <borntraeger@de.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Stanislaw Gruszka <sgruszka@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Joerg Roedel <joro@8bytes.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-efi@vger.kernel.org, xen-devel@lists.xenproject.org, lguest@lists.ozlabs.org, kvm@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Gerhard Wiesinger <lists@wiesinger.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-
-* Thomas Garnier <thgarnie@google.com> wrote:
-
-> This patch aligns MODULES_END to the beginning of the Fixmap section.
-> It optimizes the space available for both sections. The address is
-> pre-computed based on the number of pages required by the Fixmap
-> section.
+On Thu 16-03-17 07:38:08, Gerhard Wiesinger wrote:
+[...]
+> The following commit is included in that version:
+> commit 710531320af876192d76b2c1f68190a1df941b02
+> Author: Michal Hocko <mhocko@suse.com>
+> Date:   Wed Feb 22 15:45:58 2017 -0800
 > 
-> It will allow GDT remapping in the Fixmap section. The current
-> MODULES_END static address does not provide enough space for the kernel
-> to support a large number of processors.
+>     mm, vmscan: cleanup lru size claculations
 > 
-> Signed-off-by: Thomas Garnier <thgarnie@google.com>
-> ---
-> Based on next-20170308
-> ---
->  Documentation/x86/x86_64/mm.txt         | 5 ++++-
->  arch/x86/include/asm/pgtable_64_types.h | 3 ++-
->  arch/x86/kernel/module.c                | 1 +
->  arch/x86/mm/dump_pagetables.c           | 1 +
->  arch/x86/mm/kasan_init_64.c             | 1 +
->  mm/vmalloc.c                            | 1 +
+>     commit fd538803731e50367b7c59ce4ad3454426a3d671 upstream.
 
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -35,6 +35,7 @@
->  #include <linux/uaccess.h>
->  #include <asm/tlbflush.h>
->  #include <asm/shmparam.h>
-> +#include <asm/fixmap.h>
->  
->  #include "internal.h"
+This patch shouldn't make any difference. It is a cleanup patch.
+I guess you meant 71ab6cfe88dc ("mm, vmscan: consider eligible zones in
+get_scan_count") but even that one shouldn't make any difference for 64b
+systems.
 
-Note that asm/fixmap.h is an x86-ism that isn't present in many other 
-architectures, so this hunk will break the build.
+> But still OOMs:
+> [157048.030760] clamscan: page allocation stalls for 19405ms, order:0, mode:0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null)
 
-To make progress with these patches I've fixed it up with an ugly #ifdef 
-CONFIG_X86, but it needs a real solution instead before this can be pushed 
-upstream.
+This is not OOM it is an allocation stall. The allocation request cannot
+simply make forward progress for more than 10s. This alone is bad but
+considering this is GFP_HIGHUSER_MOVABLE which has the full reclaim
+capabilities I would suspect your workload overcommits the available
+memory too much. You only have ~380MB of RAM with ~160MB sitting in the
+anonymous memory, almost nothing in the page cache so I am not wondering
+that you see a constant swap activity. There seems to be only 40M in the
+slab so we are still missing ~180MB which is neither on the LRU lists
+nor allocated by slab. This means that some kernel subsystem allocates
+from the page allocator directly.
 
-Thanks,
+That being said, I believe that what you are seeing is not a bug in the
+MM subsystem but rather some susbsytem using more memory than it used to
+before so your workload doesn't fit into the amount of memory you have
+anymore.
 
-	Ingo
+[...]
+> [157048.081827] Mem-Info:
+> [157048.083005] active_anon:19902 inactive_anon:19920 isolated_anon:383
+>                  active_file:816 inactive_file:529 isolated_file:0
+>                  unevictable:0 dirty:0 writeback:19 unstable:0
+>                  slab_reclaimable:4225 slab_unreclaimable:6483
+>                  mapped:942 shmem:3 pagetables:3553 bounce:0
+>                  free:944 free_pcp:87 free_cma:0
+> [157048.089470] Node 0 active_anon:79552kB inactive_anon:79588kB
+> active_file:3108kB inactive_file:2144kB unevictable:0kB
+> isolated(anon):1624kB isolated(file):0kB mapped:3612kB dirty:0kB
+> writeback:76kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 12kB
+> writeback_tmp:0kB unstable:0kB pages_scanned:247 all_unreclaimable? no
+> [157048.092318] Node 0 DMA free:1408kB min:104kB low:128kB high:152kB
+> active_anon:664kB inactive_anon:3124kB active_file:48kB inactive_file:40kB
+> unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB
+> slab_reclaimable:564kB slab_unreclaimable:2148kB kernel_stack:92kB
+> pagetables:1328kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> [157048.096008] lowmem_reserve[]: 0 327 327 327 327
+> [157048.097234] Node 0 DMA32 free:2576kB min:2264kB low:2828kB high:3392kB
+> active_anon:78844kB inactive_anon:76612kB active_file:2840kB
+> inactive_file:1896kB unevictable:0kB writepending:76kB present:376688kB
+> managed:353792kB mlocked:0kB slab_reclaimable:16336kB
+> slab_unreclaimable:23784kB kernel_stack:2388kB pagetables:12884kB bounce:0kB
+> free_pcp:644kB local_pcp:312kB free_cma:0kB
+> [157048.101118] lowmem_reserve[]: 0 0 0 0 0
+> [157048.102190] Node 0 DMA: 37*4kB (UEH) 12*8kB (H) 13*16kB (H) 10*32kB (H)
+> 4*64kB (H) 3*128kB (H) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 1412kB
+> [157048.104989] Node 0 DMA32: 79*4kB (UMEH) 199*8kB (UMEH) 18*16kB (UMH)
+> 5*32kB (H) 2*64kB (H) 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =
+> 2484kB
+> [157048.107789] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0
+> hugepages_size=2048kB
+> [157048.107790] 2027 total pagecache pages
+> [157048.109125] 710 pages in swap cache
+> [157048.115088] Swap cache stats: add 36179491, delete 36179123, find
+> 86964755/101977142
+> [157048.116934] Free swap  = 808064kB
+> [157048.118466] Total swap = 2064380kB
+> [157048.122828] 98170 pages RAM
+> [157048.124039] 0 pages HighMem/MovableOnly
+> [157048.125051] 5745 pages reserved
+> [157048.125997] 0 pages cma reserved
+> [157048.127008] 0 pages hwpoisoned
+> 
+> 
+> Thnx.
+> 
+> Ciao,
+> Gerhard
 
-=====================>
- mm/vmalloc.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index dabea6a29fad..b7d2a23349f4 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -35,7 +35,10 @@
- #include <linux/uaccess.h>
- #include <asm/tlbflush.h>
- #include <asm/shmparam.h>
--#include <asm/fixmap.h>
-+
-+#ifdef CONFIG_X86
-+# include <asm/fixmap.h>
-+#endif
- 
- #include "internal.h"
- 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
