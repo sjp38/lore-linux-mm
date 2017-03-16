@@ -1,86 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 419586B03B0
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:02:23 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 76so36902769itj.0
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:02:23 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0086.hostedemail.com. [216.40.44.86])
-        by mx.google.com with ESMTPS id d189si4690828iod.60.2017.03.15.19.02.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 19:02:22 -0700 (PDT)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH 15/15] mm: page_alloc: Move logical continuations to EOL
-Date: Wed, 15 Mar 2017 19:00:12 -0700
-Message-Id: <e52a03ab25e1ad4cabdbfea09947a0f7ba5e4c48.1489628477.git.joe@perches.com>
-In-Reply-To: <cover.1489628477.git.joe@perches.com>
-References: <cover.1489628477.git.joe@perches.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BF6206B0395
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:12:32 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id e5so66313238pgk.1
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:12:32 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id o20si3728572pgn.150.2017.03.15.19.12.31
+        for <linux-mm@kvack.org>;
+        Wed, 15 Mar 2017 19:12:32 -0700 (PDT)
+Date: Thu, 16 Mar 2017 11:14:04 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 7/8] mm, compaction: restrict async compaction to
+ pageblocks of same migratetype
+Message-ID: <20170316021403.GC14063@js1304-P5Q-DELUXE>
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-8-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170307131545.28577-8-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-Just more code style conformance/neatening.
+On Tue, Mar 07, 2017 at 02:15:44PM +0100, Vlastimil Babka wrote:
+> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
+> pageblocks. This is a heuristic intended to reduce latency, based on the
+> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+> 
+> However, with the exception of THP's, most high-order allocations are not
+> movable. Should the async compaction succeed, this increases the chance that
+> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
+> long-term fragmentation worse.
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/page_alloc.c | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+I agree with this idea but have some concerns on this change.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 930773b03b26..011a8e057639 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -859,9 +859,9 @@ static inline void __free_one_page(struct page *page,
- 			buddy = page + (buddy_pfn - pfn);
- 			buddy_mt = get_pageblock_migratetype(buddy);
- 
--			if (migratetype != buddy_mt
--			    && (is_migrate_isolate(migratetype) ||
--				is_migrate_isolate(buddy_mt)))
-+			if (migratetype != buddy_mt &&
-+			    (is_migrate_isolate(migratetype) ||
-+			     is_migrate_isolate(buddy_mt)))
- 				goto done_merging;
- 		}
- 		max_order++;
-@@ -2115,8 +2115,9 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
- 
- 	/* Yoink! */
- 	mt = get_pageblock_migratetype(page);
--	if (!is_migrate_highatomic(mt) && !is_migrate_isolate(mt)
--	    && !is_migrate_cma(mt)) {
-+	if (!is_migrate_highatomic(mt) &&
-+	    !is_migrate_isolate(mt) &&
-+	    !is_migrate_cma(mt)) {
- 		zone->nr_reserved_highatomic += pageblock_nr_pages;
- 		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
- 		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC, NULL);
-@@ -2682,8 +2683,9 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 		for (; page < endpage; page += pageblock_nr_pages) {
- 			int mt = get_pageblock_migratetype(page);
- 
--			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
--			    && !is_migrate_highatomic(mt))
-+			if (!is_migrate_isolate(mt) &&
-+			    !is_migrate_cma(mt) &&
-+			    !is_migrate_highatomic(mt))
- 				set_pageblock_migratetype(page,
- 							  MIGRATE_MOVABLE);
- 		}
-@@ -3791,8 +3793,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	if (can_direct_reclaim &&
- 	    (costly_order ||
--	     (order > 0 && ac->migratetype != MIGRATE_MOVABLE))
--	    && !gfp_pfmemalloc_allowed(gfp_mask)) {
-+	     (order > 0 && ac->migratetype != MIGRATE_MOVABLE)) &&
-+	    !gfp_pfmemalloc_allowed(gfp_mask)) {
- 		page = __alloc_pages_direct_compact(gfp_mask, order,
- 						    alloc_flags, ac,
- 						    INIT_COMPACT_PRIORITY,
--- 
-2.10.0.rc2.1.g053435c
+*ASYNC* compaction is designed for reducing latency and this change
+doesn't fit it. If everything works fine, there is a few movable pages
+in non-MOVABLE pageblocks as you noted above. Moreover, there is quite
+less the number of non-MOVABLE pageblock than MOVABLE one so finding
+non-MOVABLE pageblock takes long time. These two factors will increase
+the latency of *ASYNC* compaction.
+
+And, there is a concern in implementaion side. With this change, there
+is much possibilty that compaction scanner's met by ASYNC compaction.
+It resets the scanner position and SYNC compaction would start the
+scan at the beginning of the zone every time. It would make cached
+position useless and inefficient.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
