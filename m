@@ -1,85 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1886B038A
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 16:46:54 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y193so31520313lfd.3
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:46:54 -0700 (PDT)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id h16si3285289lfi.401.2017.03.16.13.46.52
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B6DE46B038A
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 16:58:50 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v66so10511413wrc.4
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:58:50 -0700 (PDT)
+Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
+        by mx.google.com with ESMTPS id l78si239953wmg.72.2017.03.16.13.58.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 13:46:52 -0700 (PDT)
-Received: by mail-lf0-x242.google.com with SMTP id v2so4196856lfi.2
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:46:52 -0700 (PDT)
+        Thu, 16 Mar 2017 13:58:49 -0700 (PDT)
+Received: by mail-wr0-x242.google.com with SMTP id g10so7363257wrg.0
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:58:49 -0700 (PDT)
 MIME-Version: 1.0
-Reply-To: bjorn@helgaas.com
-In-Reply-To: <1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com>
-References: <1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com>
-From: Bjorn Helgaas <bjorn.helgaas@gmail.com>
-Date: Thu, 16 Mar 2017 15:46:51 -0500
-Message-ID: <CABhMZUVybSZPrLPWfFhCJKwk922UbacUzhzkMYNvb_++kGuPQw@mail.gmail.com>
-Subject: Re: [PATCH v1] x86/mm, asm-generic: Add IOMMU ioremap_uc() variant default
+In-Reply-To: <20170316162402.rpkulrjcjoxzzlw4@arbab-laptop>
+References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
+ <1489680335-6594-8-git-send-email-jglisse@redhat.com> <20170316162402.rpkulrjcjoxzzlw4@arbab-laptop>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Fri, 17 Mar 2017 07:58:48 +1100
+Message-ID: <CAKTCnzkpfvUB6xBwxURTHABp7cpTrq_zJaK9Km1YRrPH6LK82A@mail.gmail.com>
+Subject: Re: [HMM 07/16] mm/migrate: new memory migration helper for use with
+ device memory v4
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@do-not-panic.com>
-Cc: mingo@kernel.org, bp@suse.de, arnd@arndb.de, dan.j.williams@intel.com, Christoph Hellwig <hch@lst.de>, luto@amacapital.net, hpa@zytor.com, tglx@linutronix.de, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, mpe@ellerman.id.au, tj@kernel.org, x86 <x86@kernel.org>, tomi.valkeinen@ti.com, mst@redhat.com, toshi.kani@hp.com, stefan.bader@canonical.com, linux-mm@kvack.org, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@suse.com>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Thu, Jul 9, 2015 at 7:28 PM, Luis R. Rodriguez
-<mcgrof@do-not-panic.com> wrote:
-
-> +/**
-> + * DOC: ioremap() and ioremap_*() variants
-> + *
-> + * If you have an IOMMU your architecture is expected to have both ioremap()
-> + * and iounmap() implemented otherwise the asm-generic helpers will provide a
-> + * direct mapping.
-> + *
-> + * There are ioremap_*() call variants, if you have no IOMMU we naturally will
-> + * default to direct mapping for all of them, you can override these defaults.
-> + * If you have an IOMMU you are highly encouraged to provide your own
-> + * ioremap variant implementation as there currently is no safe architecture
-> + * agnostic default. To avoid possible improper behaviour default asm-generic
-> + * ioremap_*() variants all return NULL when an IOMMU is available. If you've
-> + * defined your own ioremap_*() variant you must then declare your own
-> + * ioremap_*() variant as defined to itself to avoid the default NULL return.
-
-Are the references above to "IOMMU" typos?  Should they say "MMU"
-instead, so they match the #ifdef below?
-
-> + */
-> +
-> +#ifdef CONFIG_MMU
-> +
-> +#ifndef ioremap_uc
-> +#define ioremap_uc ioremap_uc
-> +static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
-> +{
-> +       return NULL;
-> +}
-> +#endif
-> +
-> +#else /* !CONFIG_MMU */
-> +
->  /*
->   * Change "struct page" to physical address.
->   *
-> @@ -743,7 +772,6 @@ static inline void *phys_to_virt(unsigned long address)
->   * you'll need to provide your own definitions.
->   */
+On Fri, Mar 17, 2017 at 3:24 AM, Reza Arbab <arbab@linux.vnet.ibm.com> wrot=
+e:
+> On Thu, Mar 16, 2017 at 12:05:26PM -0400, J=C3=A9r=C3=B4me Glisse wrote:
+>>
+>> This patch add a new memory migration helpers, which migrate memory
+>> backing a range of virtual address of a process to different memory (whi=
+ch
+>> can be allocated through special allocator). It differs from numa migrat=
+ion
+>> by working on a range of virtual address and thus by doing migration in
+>> chunk that can be large enough to use DMA engine or special copy offload=
+ing
+>> engine.
 >
-> -#ifndef CONFIG_MMU
->  #ifndef ioremap
->  #define ioremap ioremap
->  static inline void __iomem *ioremap(phys_addr_t offset, size_t size)
-> --
-> 2.3.2.209.gd67f9d5.dirty
 >
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Reviewed-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> Tested-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+>
+
+
+Acked-by: Balbir Singh <bsingharora@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
