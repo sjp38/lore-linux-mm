@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 982F96B0389
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 14:18:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x63so98917238pfx.7
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:18:00 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0082.outbound.protection.outlook.com. [104.47.41.82])
-        by mx.google.com with ESMTPS id h29si4280615pfd.390.2017.03.16.11.17.59
+	by kanga.kvack.org (Postfix) with ESMTP id 794DB6B0389
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 14:20:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x63so99010872pfx.7
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:20:22 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0061.outbound.protection.outlook.com. [104.47.41.61])
+        by mx.google.com with ESMTPS id i5si6049083pgh.191.2017.03.16.11.20.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Mar 2017 11:17:59 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 32/32] x86: kvm: Pin the guest memory when SEV is
- active
+        Thu, 16 Mar 2017 11:20:21 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 26/32] kvm: svm: Add support for SEV
+ LAUNCH_UPDATE_DATA command
 References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846793743.2349.8478208161427437950.stgit@brijesh-build-machine>
- <453770c9-f9d7-4806-dbae-d19876f2a22e@redhat.com>
+ <148846786714.2349.17724971671841396908.stgit@brijesh-build-machine>
+ <14021d2a-2a94-a0c8-88db-acbc04b4daac@redhat.com>
 From: Brijesh Singh <brijesh.singh@amd.com>
-Message-ID: <b2a3cb42-1467-823e-affd-72a0be577932@amd.com>
-Date: Thu, 16 Mar 2017 13:17:47 -0500
+Message-ID: <5fb4d24c-f070-cc22-7a47-fb55ba430011@amd.com>
+Date: Thu, 16 Mar 2017 13:20:06 -0500
 MIME-Version: 1.0
-In-Reply-To: <453770c9-f9d7-4806-dbae-d19876f2a22e@redhat.com>
+In-Reply-To: <14021d2a-2a94-a0c8-88db-acbc04b4daac@redhat.com>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,38 +27,71 @@ To: Paolo Bonzini <pbonzini@redhat.com>, simon.guinot@sequanux.org, linux-efi@vg
 Cc: brijesh.singh@amd.com
 
 
+On 03/16/2017 05:48 AM, Paolo Bonzini wrote:
+>
+>
+> On 02/03/2017 16:17, Brijesh Singh wrote:
+>> +static struct page **sev_pin_memory(unsigned long uaddr, unsigned long ulen,
+>> +				    unsigned long *n)
+>> +{
+>> +	struct page **pages;
+>> +	int first, last;
+>> +	unsigned long npages, pinned;
+>> +
+>> +	/* Get number of pages */
+>> +	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
+>> +	last = ((uaddr + ulen - 1) & PAGE_MASK) >> PAGE_SHIFT;
+>> +	npages = (last - first + 1);
+>> +
+>> +	pages = kzalloc(npages * sizeof(struct page *), GFP_KERNEL);
+>> +	if (!pages)
+>> +		return NULL;
+>> +
+>> +	/* pin the user virtual address */
+>> +	down_read(&current->mm->mmap_sem);
+>> +	pinned = get_user_pages_fast(uaddr, npages, 1, pages);
+>> +	up_read(&current->mm->mmap_sem);
+>
+> get_user_pages_fast, like get_user_pages_unlocked, must be called
+> without mmap_sem held.
 
-On 03/16/2017 05:38 AM, Paolo Bonzini wrote:
+Sure.
+
 >
->
-> On 02/03/2017 16:18, Brijesh Singh wrote:
->> The SEV memory encryption engine uses a tweak such that two identical
->> plaintexts at different location will have a different ciphertexts.
->> So swapping or moving ciphertexts of two pages will not result in
->> plaintexts being swapped. Relocating (or migrating) a physical backing pages
->> for SEV guest will require some additional steps. The current SEV key
->> management spec [1] does not provide commands to swap or migrate (move)
->> ciphertexts. For now we pin the memory allocated for the SEV guest. In
->> future when SEV key management spec provides the commands to support the
->> page migration we can update the KVM code to remove the pinning logical
->> without making any changes into userspace (qemu).
+>> +	if (pinned != npages) {
+>> +		printk(KERN_ERR "SEV: failed to pin  %ld pages (got %ld)\n",
+>> +				npages, pinned);
+>> +		goto err;
+>> +	}
+>> +
+>> +	*n = npages;
+>> +	return pages;
+>> +err:
+>> +	if (pinned > 0)
+>> +		release_pages(pages, pinned, 0);
+>> +	kfree(pages);
+>> +
+>> +	return NULL;
+>> +}
 >>
->> The patch pins userspace memory when a new slot is created and unpin the
->> memory when slot is removed.
->>
->> [1] http://support.amd.com/TechDocs/55766_SEV-KM%20API_Spec.pdf
+>> +	/* the array of pages returned by get_user_pages() is a page-aligned
+>> +	 * memory. Since the user buffer is probably not page-aligned, we need
+>> +	 * to calculate the offset within a page for first update entry.
+>> +	 */
+>> +	offset = uaddr & (PAGE_SIZE - 1);
+>> +	len = min_t(size_t, (PAGE_SIZE - offset), ulen);
+>> +	ulen -= len;
+>> +
+>> +	/* update first page -
+>> +	 * special care need to be taken for the first page because we might
+>> +	 * be dealing with offset within the page
+>> +	 */
 >
-> This is not enough, because memory can be hidden temporarily from the
-> guest and remapped later.  Think of a PCI BAR that is backed by RAM, or
-> also SMRAM.  The pinning must be kept even in that case.
->
-> You need to add a pair of KVM_MEMORY_ENCRYPT_OPs (one that doesn't map
-> to a PSP operation), such as KVM_REGISTER/UNREGISTER_ENCRYPTED_RAM.  In
-> QEMU you can use a RAMBlockNotifier to invoke the ioctls.
+> No need to special case the first page; just set "offset = 0" inside the
+> loop after the first iteration.
 >
 
-I was hoping to avoid adding new ioctl, but I see your point. Will add a pair of ioctl's
-and use RAMBlocNotifier to invoke those ioctls.
+Will do.
 
 -Brijesh
 
