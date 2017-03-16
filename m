@@ -1,97 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 110466B039C
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 21:43:49 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id y136so41719929iof.3
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 18:43:49 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0148.hostedemail.com. [216.40.44.148])
-        by mx.google.com with ESMTPS id a203si2008392itg.7.2017.03.15.18.43.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 18:43:48 -0700 (PDT)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH 3/3] mm: page_alloc: Break up a long single-line printk
-Date: Wed, 15 Mar 2017 18:43:15 -0700
-Message-Id: <3ceb85654e0cfe5168cc36f96a6e09822cf7139e.1489628459.git.joe@perches.com>
-In-Reply-To: <cover.1489628459.git.joe@perches.com>
-References: <cover.1489628459.git.joe@perches.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 416416B039E
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 21:51:54 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id e5so65571306pgk.1
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 18:51:54 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id y6si3657410pgc.350.2017.03.15.18.51.52
+        for <linux-mm@kvack.org>;
+        Wed, 15 Mar 2017 18:51:53 -0700 (PDT)
+Date: Thu, 16 Mar 2017 10:53:23 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 4/8] mm, page_alloc: count movable pages when stealing
+ from pageblock
+Message-ID: <20170316015323.GB14063@js1304-P5Q-DELUXE>
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-5-vbabka@suse.cz>
+MIME-Version: 1.0
+In-Reply-To: <20170307131545.28577-5-vbabka@suse.cz>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-Blocked multiple line output is easier to read than an
-extremely long single line.
+On Tue, Mar 07, 2017 at 02:15:41PM +0100, Vlastimil Babka wrote:
+> When stealing pages from pageblock of a different migratetype, we count how
+> many free pages were stolen, and change the pageblock's migratetype if more
+> than half of the pageblock was free. This might be too conservative, as there
+> might be other pages that are not free, but were allocated with the same
+> migratetype as our allocation requested.
 
-Miscellanea:
+I think that too conservative is good for movable case. In my experiments,
+fragmentation spreads out when unmovable/reclaimable pageblock is
+changed to movable pageblock prematurely ('prematurely' means that
+allocated unmovable pages remains). As you said below, movable allocations
+falling back to other pageblocks don't causes permanent fragmentation.
+Therefore, we don't need to be less conservative for movable
+allocation. So, how about following change to keep the criteria for
+movable allocation conservative even with this counting improvement?
 
-o Add "Node" prefix to each new line of the block
+threshold = (1 << (pageblock_order - 1));
+if (start_type == MIGRATE_MOVABLE)
+        threshold += (1 << (pageblock_order - 2));
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/page_alloc.c | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+if (free_pages + alike_pages >= threshold)
+        ...
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6816bb167394..2d3c10734874 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4540,20 +4540,23 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		       " inactive_anon:%lukB"
- 		       " active_file:%lukB"
- 		       " inactive_file:%lukB"
--		       " unevictable:%lukB",
-+		       " unevictable:%lukB"
-+		       "\n",
- 		       pgdat->node_id,
- 		       K(node_page_state(pgdat, NR_ACTIVE_ANON)),
- 		       K(node_page_state(pgdat, NR_INACTIVE_ANON)),
- 		       K(node_page_state(pgdat, NR_ACTIVE_FILE)),
- 		       K(node_page_state(pgdat, NR_INACTIVE_FILE)),
- 		       K(node_page_state(pgdat, NR_UNEVICTABLE)));
--		printk(KERN_CONT
-+		printk("Node %d"
- 		       " isolated(anon):%lukB"
- 		       " isolated(file):%lukB"
- 		       " mapped:%lukB"
- 		       " dirty:%lukB"
- 		       " writeback:%lukB"
--		       " shmem:%lukB",
-+		       " shmem:%lukB"
-+		       "\n",
-+		       pgdat->node_id,
- 		       K(node_page_state(pgdat, NR_ISOLATED_ANON)),
- 		       K(node_page_state(pgdat, NR_ISOLATED_FILE)),
- 		       K(node_page_state(pgdat, NR_FILE_MAPPED)),
-@@ -4561,20 +4564,23 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		       K(node_page_state(pgdat, NR_WRITEBACK)),
- 		       K(node_page_state(pgdat, NR_SHMEM)));
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		printk(KERN_CONT
-+		printk("Node %d"
- 		       " shmem_thp: %lukB"
- 		       " shmem_pmdmapped: %lukB"
--		       " anon_thp: %lukB",
-+		       " anon_thp: %lukB"
-+		       "\n",
-+		       pgdat->node_id,
- 		       K(node_page_state(pgdat, NR_SHMEM_THPS) * HPAGE_PMD_NR),
- 		       K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)
- 			 * HPAGE_PMD_NR),
- 		       K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR));
- #endif
--		printk(KERN_CONT
-+		printk("Node %d"
- 		       " writeback_tmp:%lukB"
- 		       " unstable:%lukB"
- 		       " all_unreclaimable? %s"
- 		       "\n",
-+		       pgdat->node_id,
- 		       K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
- 		       K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
- 		       pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
--- 
-2.10.0.rc2.1.g053435c
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
