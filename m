@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 681636B0038
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:04:09 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 187so45132848itk.2
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:04:09 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0058.outbound.protection.outlook.com. [104.47.33.58])
-        by mx.google.com with ESMTPS id v1si4336593itb.117.2017.03.16.12.04.08
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7C26B038C
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:04:49 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id r5so46377232qtb.1
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:04:49 -0700 (PDT)
+Received: from mail-ot0-x230.google.com (mail-ot0-x230.google.com. [2607:f8b0:4003:c0f::230])
+        by mx.google.com with ESMTPS id h24si2420183otc.289.2017.03.16.12.04.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Mar 2017 12:04:08 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 05/32] x86: Use encrypted access of BOOT related
- data with SEV
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846757895.2349.561582698953591240.stgit@brijesh-build-machine>
- <20170307110925.zmo7gsflxhui4k7e@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <8715da04-2d25-d1f2-3082-f45750c4f2d9@amd.com>
-Date: Thu, 16 Mar 2017 14:03:58 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Mar 2017 12:04:48 -0700 (PDT)
+Received: by mail-ot0-x230.google.com with SMTP id 19so67304482oti.0
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:04:48 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170307110925.zmo7gsflxhui4k7e@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170316174805.GB13654@dhcp22.suse.cz>
+References: <148964440651.19438.2288075389153762985.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170316174805.GB13654@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 16 Mar 2017 12:04:48 -0700
+Message-ID: <CAPcyv4hMt0s7UX=MO9KwakjXG9Uff=8XGR+Uc7YoVWoLqbKeGw@mail.gmail.com>
+Subject: Re: [PATCH v4 00/13] mm: sub-section memory hotplug support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hpe.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Logan Gunthorpe <logang@deltatee.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stephen Bates <stephen.bates@microsemi.com>, Linux MM <linux-mm@kvack.org>, Nicolai Stange <nicstange@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On 3/7/2017 5:09 AM, Borislav Petkov wrote:
-> On Thu, Mar 02, 2017 at 10:12:59AM -0500, Brijesh Singh wrote:
->> From: Tom Lendacky <thomas.lendacky@amd.com>
->>
->> When Secure Encrypted Virtualization (SEV) is active, BOOT data (such as
->> EFI related data, setup data) is encrypted and needs to be accessed as
->> such when mapped. Update the architecture override in early_memremap to
->> keep the encryption attribute when mapping this data.
+On Thu, Mar 16, 2017 at 10:48 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> Hi,
+> I didn't get to look through the patch series yet and I might not be
+> able before LSF/MM. How urgent is this? I am primarily asking because
+> the memory hotplug is really convoluted right now and putting more on
+> top doesn't really sound like the thing we really want. I have tried to
+> simplify the code [1] already but this is an early stage work so I do
+> not want to impose any burden on you. So I am wondering whether this
+> is something that needs to be merged very soon or it can wait for the
+> rework and hopefully end up being much simpler in the end as well.
 >
-> This could also explain why persistent memory needs to be accessed
-> decrypted with SEV.
+> What do you think?
 
-I'll add some comments about why persistent memory needs to be accessed
-decrypted (because the encryption key changes across reboots) for both
-SME and SEV.
+In general, I think it's better to add new features after
+reworks/cleanup, but it's not clear to me (yet) that the problem you
+are trying to solve makes this sub-section enabling for ZONE_DEVICE
+any simpler.
 
->
-> In general, what the difference in that aspect is in respect to SME. And
-> I'd write that in the comment over the function. And not say "E820 areas
-> are checked in making this determination." because that is visible but
-> say *why* we need to check those ranges and determine access depending
-> on their type.
+> [1] http://lkml.kernel.org/r/20170315091347.GA32626@dhcp22.suse.cz
 
-Will do.
+ZONE_DEVICE pages are never "online". The patch says "Instead we do
+page->zone association from move_pfn_range which is called from
+online_pages." which means the new scheme currently doesn't comprehend
+the sprinkled ZONE_DEVICE hacks in the memory hotplug code.
 
-Thanks,
-Tom
+However, that said, I might take a look at whether the hacks belong in
+the auto-online code so that we can share the delayed zone
+initialization, but still skip marking the memory online per the
+expectations of ZONE_DEVICE. I expect it would be confusing to have
+memblock devices in sysfs for ranges that can't be marked online?
 
->
+Thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
