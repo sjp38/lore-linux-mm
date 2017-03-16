@@ -1,72 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A732F6B038B
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:10:19 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b140so11150221wme.3
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:10:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k90si4890203wmc.91.2017.03.16.08.10.17
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 993856B0038
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:27:13 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e5so97036526pgk.1
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:27:13 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id t6si5641811pgo.14.2017.03.16.08.27.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Mar 2017 08:10:18 -0700 (PDT)
-Date: Thu, 16 Mar 2017 16:09:57 +0100
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC PATCH v2 12/32] x86: Add early boot support when running
- with SEV active
-Message-ID: <20170316150957.dos6wp3pmhos4hkj@pd.tnic>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846768878.2349.15757532025749214650.stgit@brijesh-build-machine>
- <20170309140748.tg67yo2jmc5ahck3@pd.tnic>
- <5d62b16f-16ef-1bd7-1551-f0c4c43573f4@redhat.com>
- <20170309162942.jwtb3l33632zhbaz@pd.tnic>
- <1fe1e177-f588-fe5a-dc13-e9fde00e8958@amd.com>
- <20170316101656.dcwgtn4qdtyp5hip@pd.tnic>
- <b27126ee-aff0-ab11-706b-fc6d8d4901db@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <b27126ee-aff0-ab11-706b-fc6d8d4901db@amd.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Mar 2017 08:27:12 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/7] mm/gup: Move permission checks into helpers
+Date: Thu, 16 Mar 2017 18:26:50 +0300
+Message-Id: <20170316152655.37789-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
+References: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Brijesh Singh <brijesh.singh@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Mar 16, 2017 at 09:28:58AM -0500, Tom Lendacky wrote:
-> Because there are differences between how SME and SEV behave
-> (instruction fetches are always decrypted under SEV, DMA to an
-> encrypted location is not supported under SEV, etc.) we need to
-> determine which mode we are in so that things can be setup properly
-> during boot. For example, if SEV is active the kernel will already
-> be encrypted and so we don't perform that step or the trampoline area
-> for bringing up an AP must be decrypted for SME but encrypted for SEV.
+This is preparation patch for transition of x86 to generic GUP_fast()
+implementation.
 
-So with SEV enabled, it seems to me a guest doesn't know anything about
-encryption and can run as if SME is disabled. So sme_active() will be
-false. And then the kernel can bypass all that code dealing with SME.
+On x86, we would need to do additional permission checks to determinate if
+access is allowed.
 
-So a guest should simply run like on baremetal with no SME, IMHO.
+Let's abstract it out into separate helpers.
 
-But then there's that part: "instruction fetches are always decrypted
-under SEV". What does that mean exactly? And how much of that code can
-be reused so that
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/asm-generic/pgtable.h | 25 +++++++++++++++++++++++++
+ mm/gup.c                      | 15 ++++++++++-----
+ 2 files changed, 35 insertions(+), 5 deletions(-)
 
-* SME on baremetal
-* SEV on guest
-
-use the same logic?
-
-Having the larger SEV preparation part on the kvm host side is perfectly
-fine. But I'd like to keep kernel initialization paths clean.
-
-Thanks.
-
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 1fad160f35de..7dfa767dc680 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -341,6 +341,31 @@ static inline int pte_unused(pte_t pte)
+ }
+ #endif
+ 
++#ifndef pte_access_permitted
++#define pte_access_permitted(pte, write) \
++	(pte_present(pte) && (!(write) || pte_write(pte)))
++#endif
++
++#ifndef pmd_access_permitted
++#define pmd_access_permitted(pmd, write) \
++	(pmd_present(pmd) && (!(write) || pmd_write(pmd)))
++#endif
++
++#ifndef pud_access_permitted
++#define pud_access_permitted(pud, write) \
++	(pud_present(pud) && (!(write) || pud_write(pud)))
++#endif
++
++#ifndef p4d_access_permitted
++#define p4d_access_permitted(p4d, write) \
++	(p4d_present(p4d) && (!(write) || p4d_write(p4d)))
++#endif
++
++#ifndef pgd_access_permitted
++#define pgd_access_permitted(pgd, write) \
++	(pgd_present(pgd) && (!(write) || pgd_write(pgd)))
++#endif
++
+ #ifndef __HAVE_ARCH_PMD_SAME
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+diff --git a/mm/gup.c b/mm/gup.c
+index 3f2338ba3402..a62a778ce4ec 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1212,8 +1212,13 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+ 		 * Similar to the PMD case below, NUMA hinting must take slow
+ 		 * path using the pte_protnone check.
+ 		 */
+-		if (!pte_present(pte) || pte_special(pte) ||
+-			pte_protnone(pte) || (write && !pte_write(pte)))
++		if (pte_protnone(pte))
++			goto pte_unmap;
++
++		if (!pte_access_permitted(pte, write))
++			goto pte_unmap;
++
++		if (pte_special(pte))
+ 			goto pte_unmap;
+ 
+ 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+@@ -1264,7 +1269,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	if (write && !pmd_write(orig))
++	if (!pmd_access_permitted(orig, write))
+ 		return 0;
+ 
+ 	refs = 0;
+@@ -1299,7 +1304,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	if (write && !pud_write(orig))
++	if (!pud_access_permitted(orig, write))
+ 		return 0;
+ 
+ 	refs = 0;
+@@ -1335,7 +1340,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
+ 	int refs;
+ 	struct page *head, *page;
+ 
+-	if (write && !pgd_write(orig))
++	if (!pgd_access_permitted(orig, write))
+ 		return 0;
+ 
+ 	refs = 0;
 -- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
