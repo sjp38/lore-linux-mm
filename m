@@ -1,132 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5930F6B0396
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 02:13:09 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c87so10468445pfl.6
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 23:13:09 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id d198si4264771pga.192.2017.03.15.23.13.08
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2036B038B
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 02:31:46 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g2so74972282pge.7
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 23:31:46 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id o1si4304418pld.248.2017.03.15.23.31.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 23:13:08 -0700 (PDT)
-Subject: [PATCH v4 13/13] libnvdimm, pfn,
- dax: stop padding pmem namespaces to section alignment
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 15 Mar 2017 23:07:57 -0700
-Message-ID: <148964447742.19438.16449477363393431899.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <148964440651.19438.2288075389153762985.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <148964440651.19438.2288075389153762985.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 15 Mar 2017 23:31:45 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v6 3/9] mm, THP, swap: Add swap cluster allocate/free functions
+References: <20170308072613.17634-1-ying.huang@intel.com>
+	<20170308072613.17634-4-ying.huang@intel.com>
+	<1489533213.2733.33.camel@linux.intel.com>
+	<87wpbrcp5s.fsf@yhuang-dev.intel.com>
+	<1489598142.2733.60.camel@linux.intel.com>
+Date: Thu, 16 Mar 2017 14:31:40 +0800
+In-Reply-To: <1489598142.2733.60.camel@linux.intel.com> (Tim Chen's message of
+	"Wed, 15 Mar 2017 10:15:42 -0700")
+Message-ID: <87bmt1yboz.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-Now that the mm core supports section-unaligned hotplug of ZONE_DEVICE
-memory, we no longer need to add padding at pfn/dax device creation
-time. The kernel will still honor padding established by older kernels.
+Tim Chen <tim.c.chen@linux.intel.com> writes:
 
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/nvdimm/pfn_devs.c |   42 +++++++-----------------------------------
- 1 file changed, 7 insertions(+), 35 deletions(-)
+> On Wed, 2017-03-15 at 09:19 +0800, Huang, Ying wrote:
+>> Tim Chen <tim.c.chen@linux.intel.com> writes:
+>> 
+>> > 
+>> > On Wed, 2017-03-08 at 15:26 +0800, Huang, Ying wrote:
+>> > > 
+>> > > From: Huang Ying <ying.huang@intel.com>
+>> > > 
+>> > > The swap cluster allocation/free functions are added based on the
+>> > > existing swap cluster management mechanism for SSD.A A These functions
+>> > > don't work for the rotating hard disks because the existing swap cluster
+>> > > management mechanism doesn't work for them.A A The hard disks support may
+>> > > be added if someone really need it.A A But that needn't be included in
+>> > > this patchset.
+>> > > 
+>> > > This will be used for the THP (Transparent Huge Page) swap support.
+>> > > Where one swap cluster will hold the contents of each THP swapped out.
+>> > > 
+>> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> > > Cc: Hugh Dickins <hughd@google.com>
+>> > > Cc: Shaohua Li <shli@kernel.org>
+>> > > Cc: Minchan Kim <minchan@kernel.org>
+>> > > Cc: Rik van Riel <riel@redhat.com>
+>> > > Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> > > ---
+>> > > A mm/swapfile.c | 217 +++++++++++++++++++++++++++++++++++++++++-----------------
+>> > > A 1 file changed, 156 insertions(+), 61 deletions(-)
+>> > > 
+>> > > diff --git a/mm/swapfile.c b/mm/swapfile.c
+>> > > index a744604384ff..91876c33114b 100644
+>> > > --- a/mm/swapfile.c
+>> > > +++ b/mm/swapfile.c
+>> > > @@ -378,6 +378,14 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
+>> > > A 	schedule_work(&si->discard_work);
+>> > > A }
+>> > > A 
+>> > > +static void __free_cluster(struct swap_info_struct *si, unsigned long idx)
+>> > > +{
+>> > > +	struct swap_cluster_info *ci = si->cluster_info;
+>> > > +
+>> > > +	cluster_set_flag(ci + idx, CLUSTER_FLAG_FREE);
+>> > > +	cluster_list_add_tail(&si->free_clusters, ci, idx);
+>> > > +}
+>> > > +
+>> > > A /*
+>> > > A  * Doing discard actually. After a cluster discard is finished, the cluster
+>> > > A  * will be added to free cluster list. caller should hold si->lock.
+>> > > @@ -398,10 +406,7 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
+>> > > A 
+>> > > A 		spin_lock(&si->lock);
+>> > > A 		ci = lock_cluster(si, idx * SWAPFILE_CLUSTER);
+>> > > -		cluster_set_flag(ci, CLUSTER_FLAG_FREE);
+>> > > -		unlock_cluster(ci);
+>> > > -		cluster_list_add_tail(&si->free_clusters, info, idx);
+>> > > -		ci = lock_cluster(si, idx * SWAPFILE_CLUSTER);
+>> > > +		__free_cluster(si, idx);
+>> > > A 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
+>> > > A 				0, SWAPFILE_CLUSTER);
+>> > > A 		unlock_cluster(ci);
+>> > The __free_cluster definition and the above change to eliminate
+>> > the extra unlock_cluster and lock_cluster can perhaps be broken up
+>> > as a separate patch. A It can be independent of THP changes.
+>> I think the change may have no value by itself without THP changes.
+>> There will be only 1 user of __free_cluster() and the lock change is
+>> trivial too.A A So I think it may be better just to keep it as that?
+>> 
+>
+> Seems like the extra unlock and lock of cluster in existing code should be taken out
+> irrespective of the THP changes:
+> A 
+> 		cluster_set_flag(ci, CLUSTER_FLAG_FREE);
+> -		unlock_cluster(ci);
+> 		cluster_list_add_tail(&si->free_clusters, info, idx);
+> -		ci = lock_cluster(si, idx * SWAPFILE_CLUSTER);
+> 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
+> A A 				0, SWAPFILE_CLUSTER);
+>
 
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 6c033c9a2f06..00b4071cab8d 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -538,7 +538,7 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
- 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
- 		altmap = NULL;
- 	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
--		nd_pfn->npfns = (resource_size(res) - offset) / PAGE_SIZE;
-+		nd_pfn->npfns = PHYS_PFN((resource_size(res) - offset));
- 		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
- 			dev_info(&nd_pfn->dev,
- 					"number of pfns truncated from %lld to %ld\n",
-@@ -557,7 +557,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- {
- 	u32 dax_label_reserve = is_nd_dax(&nd_pfn->dev) ? SZ_128K : 0;
- 	struct nd_namespace_common *ndns = nd_pfn->ndns;
--	u32 start_pad = 0, end_trunc = 0;
- 	resource_size_t start, size;
- 	struct nd_namespace_io *nsio;
- 	struct nd_region *nd_region;
-@@ -590,42 +589,16 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 		return -ENXIO;
- 	}
- 
--	memset(pfn_sb, 0, sizeof(*pfn_sb));
--
--	/*
--	 * Check if pmem collides with 'System RAM' when section aligned and
--	 * trim it accordingly
--	 */
--	nsio = to_nd_namespace_io(&ndns->dev);
--	start = PHYS_SECTION_ALIGN_DOWN(nsio->res.start);
--	size = resource_size(&nsio->res);
--	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
--				IORES_DESC_NONE) == REGION_MIXED) {
--		start = nsio->res.start;
--		start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
--	}
--
--	start = nsio->res.start;
--	size = PHYS_SECTION_ALIGN_UP(start + size) - start;
--	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
--				IORES_DESC_NONE) == REGION_MIXED) {
--		size = resource_size(&nsio->res);
--		end_trunc = start + size - PHYS_SECTION_ALIGN_DOWN(start + size);
--	}
--
--	if (start_pad + end_trunc)
--		dev_info(&nd_pfn->dev, "%s section collision, truncate %d bytes\n",
--				dev_name(&ndns->dev), start_pad + end_trunc);
--
- 	/*
- 	 * Note, we use 64 here for the standard size of struct page,
- 	 * debugging options may cause it to be larger in which case the
- 	 * implementation will limit the pfns advertised through
- 	 * ->direct_access() to those that are included in the memmap.
- 	 */
--	start += start_pad;
-+	nsio = to_nd_namespace_io(&ndns->dev);
-+	start = nsio->res.start;
- 	size = resource_size(&nsio->res);
--	npfns = (size - start_pad - end_trunc - SZ_8K) / SZ_4K;
-+	npfns = PHYS_PFN(size - SZ_8K);
- 	if (nd_pfn->mode == PFN_MODE_PMEM) {
- 		/*
- 		 * vmemmap_populate_hugepages() allocates the memmap array in
-@@ -639,13 +612,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	else
- 		return -ENXIO;
- 
--	if (offset + start_pad + end_trunc >= size) {
-+	if (offset >= size) {
- 		dev_err(&nd_pfn->dev, "%s unable to satisfy requested alignment\n",
- 				dev_name(&ndns->dev));
- 		return -ENXIO;
- 	}
- 
--	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
-+	memset(pfn_sb, 0, sizeof(*pfn_sb));
-+	npfns = PHYS_PFN(size - offset);
- 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
- 	pfn_sb->dataoff = cpu_to_le64(offset);
- 	pfn_sb->npfns = cpu_to_le64(npfns);
-@@ -654,8 +628,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
- 	pfn_sb->version_major = cpu_to_le16(1);
- 	pfn_sb->version_minor = cpu_to_le16(2);
--	pfn_sb->start_pad = cpu_to_le32(start_pad);
--	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
- 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
- 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
- 	pfn_sb->checksum = cpu_to_le64(checksum);
+This is not a functionality fix or performance optimization.  Because
+the lock on the swap_info_struct is held during the operation and there
+are no operations on cluster with index "idx" in
+cluster_list_add_tail().  The change here is just to make the resulting
+code a little simpler.  Is this deserved a separate patch?
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
