@@ -1,63 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 634FA6B038D
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:53:42 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x63so92394513pfx.7
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:53:42 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id e5si5706447plb.115.2017.03.16.08.53.41
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 154876B038E
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:55:26 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a6so27993745lfa.1
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:55:26 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id h22si1317435ljb.140.2017.03.16.08.55.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 08:53:41 -0700 (PDT)
-Date: Thu, 16 Mar 2017 09:53:35 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: fsx tests on DAX started to fail with msync failure on 0307
- -next tree
-Message-ID: <20170316155335.GA27340@linux.intel.com>
-References: <20170314025642.nwpf7zxbc6655gum@XZHOUW.usersys.redhat.com>
- <20170314173609.GA13885@linux.intel.com>
+        Thu, 16 Mar 2017 08:55:24 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id y193so3713251lfd.1
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:55:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170314173609.GA13885@linux.intel.com>
+In-Reply-To: <20170309093954.GA6567@gondor.apana.org.au>
+References: <1487952313-22381-1-git-send-email-Mahipal.Challa@cavium.com>
+ <1487952313-22381-2-git-send-email-Mahipal.Challa@cavium.com>
+ <CALZtONBeS7bAjxpbLDdQj=y_tsXUX5TVCFdqbQ3LccTSa6kfnw@mail.gmail.com>
+ <CALyTkE9=oU1dd+CLmBceHjeO965QYWWUk98L1MNoiwrDbpypcg@mail.gmail.com>
+ <CALZtONBuQJN3Qrd-RP4_TAD=OeWNO8quPYpN+=Gsz2byAxWFPg@mail.gmail.com> <20170309093954.GA6567@gondor.apana.org.au>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 16 Mar 2017 11:54:43 -0400
+Message-ID: <CALZtONDmZ0PVHaRt5nX1Zipx0poMLiHCcmUq4wRbWW77ptHoWQ@mail.gmail.com>
+Subject: Re: [PATCH v2 1/1] mm: zswap - Add crypto acomp/scomp framework support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Xiong Zhou <xzhou@redhat.com>, linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Herbert Xu <herbert@gondor.apana.org.au>
+Cc: Mahipal Reddy <mahipalreddy2006@gmail.com>, Mahipal Challa <Mahipal.Challa@cavium.com>, Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, pathreya@cavium.com, Vishnu Nair <Vishnu.Nair@cavium.com>
 
-On Tue, Mar 14, 2017 at 11:36:10AM -0600, Ross Zwisler wrote:
-> On Tue, Mar 14, 2017 at 10:56:42AM +0800, Xiong Zhou wrote:
-> > Hi,
-> > 
-> > xfstests cases:
-> > generic/075 generic/112 generic/127 generic/231 generic/263
-> > 
-> > fail with DAX, pass without it. Both xfs and ext4.
-> > 
-> > It was okay on 0306 -next tree.
-> 
-> Thanks for the report.  I'm looking into it.  -next is all kinds of broken.
-> :(
+On Thu, Mar 9, 2017 at 4:39 AM, Herbert Xu <herbert@gondor.apana.org.au> wrote:
+> On Wed, Mar 08, 2017 at 12:38:40PM -0500, Dan Streetman wrote:
+>>
+>> It looks like the crypto_scomp interface is buried under
+>> include/crypto/internal/scompress.h, however that's exactly what zswap
+>> should be using.  We don't need to switch to an asynchronous interface
+>> that's rather significantly more complicated, and then use it in a
+>> synchronous way.  The crypto_scomp interface should probably be made
+>> public, not an implementation internal.
+>
+> No scomp is not meant to be used externally.  We provide exactly
+> one compression interface and it's acomp.  acomp can be used
+> synchronously by setting the CRYPTO_ALG_ASYNC bit in the mask
+> field when allocating the algorithm.
 
-Just FYI, in case folks are still testing -next:
+setting the ASYNC bit makes it synchronous?  that seems backwards...?
 
-One other issue that I was hitting was that for many of the commits in -next
-kernel modules wouldn't load, which meant that my /dev/pmem0 device wasn't
-showing up because I have libnvdimm compiled as a module.
+Anyway, I have a few concerns about moving over to using that first,
+specifically:
 
-I bisected that issue to this commit:
+- no docs on acomp in Documentation/crypto/ that I can see
+- no place in the crypto code that I can see that parses ALG_ASYNC to
+make the crypto_acomp_compress() call synchronous
+- no synchronous test in crypto/testmgr.c
 
-commit d1091c7fa3d5 ("objtool: Improve detection of BUG() and other dead
-ends")
+Maybe I'm reading the code wrong, but it looks like any compression
+backend that is actually scomp, actually does the (de)compression
+synchronously.  In crypto_acomp_init_tfm(), if the tfm is not
+crypto_acomp_type (and I assume because all the current
+implementations register as scomp, they aren't acomp_type) it calls
+crypto_init_scomp_ops_async(), which then sets ->compress to
+scomp_acomp_compress() and that function appears to directly call the
+scomp compression function.  This is just after a very quick look, so
+maybe I'm reading it wrong.  I'll look some more, and also add a
+synchronous testmgr test so i can understand how it works better.
 
-It looks like Xiong also found this issue:
+Is the acomp interface fully ready for use?
 
-https://lkml.org/lkml/2017/3/2/114
-
-And Linus found it:
-
-https://lkml.org/lkml/2017/2/28/794
-
-- Ross
+>
+> The existing compression interface will be phased out.
+>
+> Cheers,
+> --
+> Email: Herbert Xu <herbert@gondor.apana.org.au>
+> Home Page: http://gondor.apana.org.au/~herbert/
+> PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
