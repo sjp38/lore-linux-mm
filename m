@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F8596B0038
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 16:43:23 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p189so23457006pfp.5
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:43:23 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j126si3208290pfc.51.2017.03.16.13.43.22
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A1886B038A
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 16:46:54 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id y193so31520313lfd.3
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:46:54 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id h16si3285289lfi.401.2017.03.16.13.46.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 13:43:22 -0700 (PDT)
-Date: Thu, 16 Mar 2017 13:43:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [HMM 00/16] HMM (Heterogeneous Memory Management) v18
-Message-Id: <20170316134321.c5cf727c21abf89b7e6708a2@linux-foundation.org>
-In-Reply-To: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Mar 2017 13:46:52 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id v2so4196856lfi.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:46:52 -0700 (PDT)
+MIME-Version: 1.0
+Reply-To: bjorn@helgaas.com
+In-Reply-To: <1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com>
+References: <1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com>
+From: Bjorn Helgaas <bjorn.helgaas@gmail.com>
+Date: Thu, 16 Mar 2017 15:46:51 -0500
+Message-ID: <CABhMZUVybSZPrLPWfFhCJKwk922UbacUzhzkMYNvb_++kGuPQw@mail.gmail.com>
+Subject: Re: [PATCH v1] x86/mm, asm-generic: Add IOMMU ioremap_uc() variant default
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>
+To: "Luis R. Rodriguez" <mcgrof@do-not-panic.com>
+Cc: mingo@kernel.org, bp@suse.de, arnd@arndb.de, dan.j.williams@intel.com, Christoph Hellwig <hch@lst.de>, luto@amacapital.net, hpa@zytor.com, tglx@linutronix.de, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, mpe@ellerman.id.au, tj@kernel.org, x86 <x86@kernel.org>, tomi.valkeinen@ti.com, mst@redhat.com, toshi.kani@hp.com, stefan.bader@canonical.com, linux-mm@kvack.org, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@suse.com>
 
-On Thu, 16 Mar 2017 12:05:19 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
+On Thu, Jul 9, 2015 at 7:28 PM, Luis R. Rodriguez
+<mcgrof@do-not-panic.com> wrote:
 
-> Cliff note:
+> +/**
+> + * DOC: ioremap() and ioremap_*() variants
+> + *
+> + * If you have an IOMMU your architecture is expected to have both ioremap()
+> + * and iounmap() implemented otherwise the asm-generic helpers will provide a
+> + * direct mapping.
+> + *
+> + * There are ioremap_*() call variants, if you have no IOMMU we naturally will
+> + * default to direct mapping for all of them, you can override these defaults.
+> + * If you have an IOMMU you are highly encouraged to provide your own
+> + * ioremap variant implementation as there currently is no safe architecture
+> + * agnostic default. To avoid possible improper behaviour default asm-generic
+> + * ioremap_*() variants all return NULL when an IOMMU is available. If you've
+> + * defined your own ioremap_*() variant you must then declare your own
+> + * ioremap_*() variant as defined to itself to avoid the default NULL return.
 
-"Cliff's notes" isn't appropriate for a large feature such as this. 
-Where's the long-form description?  One which permits readers to fully
-understand the requirements, design, alternative designs, the
-implementation, the interface(s), etc?
+Are the references above to "IOMMU" typos?  Should they say "MMU"
+instead, so they match the #ifdef below?
 
-Have you ever spoken about HMM at a conference?  If so, the supporting
-presentation documents might help here.  That's the level of detail
-which should be presented here.
-
-> HMM offers 2 things (each standing on its own). First
-> it allows to use device memory transparently inside any process
-> without any modifications to process program code.
-
-Well.  What is "device memory"?  That's very vague.  What are the
-characteristics of this memory?  Why is it a requirement that
-userspace code be unaltered?  What are the security implications - does
-the process need particular permissions to access this memory?  What is
-the proposed interface to set up this access?
-
-> Second it allows to mirror process address space on a device.
-
-Why?  Why is this a requirement, how will it be used, what are the
-use cases, etc?
-
-I spent a bit of time trying to locate a decent writeup of this feature
-but wasn't able to locate one.  I'm not seeing a Documentation/ update
-in this patchset.  Perhaps if you were to sit down and write a detailed
-Documentation/vm/hmm.txt then that would be a good starting point.
-
-This stuff is important - it's not really feasible to perform a decent
-review of this proposal unless the reviewer has access to this
-high-level conceptual stuff.
-
-So I'll take a look at merging this code as-is for testing purposes but
-I won't be attempting to review it at this stage.
+> + */
+> +
+> +#ifdef CONFIG_MMU
+> +
+> +#ifndef ioremap_uc
+> +#define ioremap_uc ioremap_uc
+> +static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
+> +{
+> +       return NULL;
+> +}
+> +#endif
+> +
+> +#else /* !CONFIG_MMU */
+> +
+>  /*
+>   * Change "struct page" to physical address.
+>   *
+> @@ -743,7 +772,6 @@ static inline void *phys_to_virt(unsigned long address)
+>   * you'll need to provide your own definitions.
+>   */
+>
+> -#ifndef CONFIG_MMU
+>  #ifndef ioremap
+>  #define ioremap ioremap
+>  static inline void __iomem *ioremap(phys_addr_t offset, size_t size)
+> --
+> 2.3.2.209.gd67f9d5.dirty
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
