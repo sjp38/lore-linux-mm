@@ -1,53 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 416416B039E
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 21:51:54 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id e5so65571306pgk.1
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 18:51:54 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id y6si3657410pgc.350.2017.03.15.18.51.52
-        for <linux-mm@kvack.org>;
-        Wed, 15 Mar 2017 18:51:53 -0700 (PDT)
-Date: Thu, 16 Mar 2017 10:53:23 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 4/8] mm, page_alloc: count movable pages when stealing
- from pageblock
-Message-ID: <20170316015323.GB14063@js1304-P5Q-DELUXE>
-References: <20170307131545.28577-1-vbabka@suse.cz>
- <20170307131545.28577-5-vbabka@suse.cz>
-MIME-Version: 1.0
-In-Reply-To: <20170307131545.28577-5-vbabka@suse.cz>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C695C6B0394
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:00:23 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 20so41511500iod.2
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:00:23 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0014.hostedemail.com. [216.40.44.14])
+        by mx.google.com with ESMTPS id u128si4674277iod.99.2017.03.15.19.00.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Mar 2017 19:00:23 -0700 (PDT)
+From: Joe Perches <joe@perches.com>
+Subject: [PATCH 00/15] mm: page_alloc: style neatenings
+Date: Wed, 15 Mar 2017 18:59:57 -0700
+Message-Id: <cover.1489628477.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Tue, Mar 07, 2017 at 02:15:41PM +0100, Vlastimil Babka wrote:
-> When stealing pages from pageblock of a different migratetype, we count how
-> many free pages were stolen, and change the pageblock's migratetype if more
-> than half of the pageblock was free. This might be too conservative, as there
-> might be other pages that are not free, but were allocated with the same
-> migratetype as our allocation requested.
+Just neatening.  Maybe useful, maybe not.  Mostly whitespace changes.
 
-I think that too conservative is good for movable case. In my experiments,
-fragmentation spreads out when unmovable/reclaimable pageblock is
-changed to movable pageblock prematurely ('prematurely' means that
-allocated unmovable pages remains). As you said below, movable allocations
-falling back to other pageblocks don't causes permanent fragmentation.
-Therefore, we don't need to be less conservative for movable
-allocation. So, how about following change to keep the criteria for
-movable allocation conservative even with this counting improvement?
+There are still many checkpatch messages that should probably
+be ignored.
 
-threshold = (1 << (pageblock_order - 1));
-if (start_type == MIGRATE_MOVABLE)
-        threshold += (1 << (pageblock_order - 2));
+Before:
+$ ./scripts/checkpatch.pl --strict --terse --nosummary --show-types \
+	-f mm/page_alloc.c | \
+  cut -f4 -d":" | sort | uniq -c | sort -rn
+    144 PARENTHESIS_ALIGNMENT
+     38 SPLIT_STRING
+     36 LINE_SPACING
+     32 LONG_LINE
+     28 SPACING
+     14 LONG_LINE_COMMENT
+     14 BRACES
+     13 LOGGING_CONTINUATION
+     12 PREFER_PR_LEVEL
+      8 MISPLACED_INIT
+      7 EXPORT_SYMBOL
+      7 AVOID_BUG
+      6 UNSPECIFIED_INT
+      5 MACRO_ARG_PRECEDENCE
+      4 MULTIPLE_ASSIGNMENTS
+      4 LOGICAL_CONTINUATIONS
+      4 COMPARISON_TO_NULL
+      4 CAMELCASE
+      3 UNNECESSARY_PARENTHESES
+      3 PRINTK_WITHOUT_KERN_LEVEL
+      3 MACRO_ARG_REUSE
+      2 UNDOCUMENTED_SETUP
+      2 MEMORY_BARRIER
+      2 BLOCK_COMMENT_STYLE
+      1 VOLATILE
+      1 TYPO_SPELLING
+      1 SYMBOLIC_PERMS
+      1 SUSPECT_CODE_INDENT
+      1 SPACE_BEFORE_TAB
+      1 FUNCTION_ARGUMENTS
+      1 CONSTANT_COMPARISON
+      1 CONSIDER_KSTRTO
 
-if (free_pages + alike_pages >= threshold)
-        ...
+After:
+$ ./scripts/checkpatch.pl --strict --terse --nosummary --show-types \
+	-f mm/page_alloc.c | \
+  cut -f4 -d":" | sort | uniq -c | sort -rn
+     43 SPLIT_STRING
+     21 LONG_LINE
+     14 LONG_LINE_COMMENT
+     13 LOGGING_CONTINUATION
+     12 PREFER_PR_LEVEL
+      8 PRINTK_WITHOUT_KERN_LEVEL
+      7 AVOID_BUG
+      5 MACRO_ARG_PRECEDENCE
+      4 MULTIPLE_ASSIGNMENTS
+      4 CAMELCASE
+      3 MACRO_ARG_REUSE
+      2 UNDOCUMENTED_SETUP
+      2 MEMORY_BARRIER
+      2 LEADING_SPACE
+      1 VOLATILE
+      1 SPACING
+      1 FUNCTION_ARGUMENTS
+      1 EXPORT_SYMBOL
+      1 CONSTANT_COMPARISON
+      1 CONSIDER_KSTRTO
 
-Thanks.
+Joe Perches (15):
+  mm: page_alloc: whitespace neatening
+  mm: page_alloc: align arguments to parenthesis
+  mm: page_alloc: fix brace positions
+  mm: page_alloc: fix blank lines
+  mm: page_alloc: Move __meminitdata and __initdata uses
+  mm: page_alloc: Use unsigned int instead of unsigned
+  mm: page_alloc: Move labels to column 1
+  mm: page_alloc: Fix typo acording -> according & the the -> to the
+  mm: page_alloc: Use the common commenting style
+  mm: page_alloc: 80 column neatening
+  mm: page_alloc: Move EXPORT_SYMBOL uses
+  mm: page_alloc: Avoid pointer comparisons to NULL
+  mm: page_alloc: Remove unnecessary parentheses
+  mm: page_alloc: Use octal permissions
+  mm: page_alloc: Move logical continuations to EOL
+
+ mm/page_alloc.c | 845 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 458 insertions(+), 387 deletions(-)
+
+-- 
+2.10.0.rc2.1.g053435c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
