@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B8F296B038C
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:33:44 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e129so93943971pfh.1
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 09:33:44 -0700 (PDT)
-Received: from helcar.apana.org.au (helcar.hengli.com.au. [209.40.204.226])
-        by mx.google.com with ESMTPS id s15si5816262plj.27.2017.03.16.09.33.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 451A06B0390
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:41:13 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id b2so99893688pgc.6
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 09:41:13 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 2si1564538pgy.24.2017.03.16.09.41.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 09:33:43 -0700 (PDT)
-Date: Fri, 17 Mar 2017 00:33:31 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH v2 1/1] mm: zswap - Add crypto acomp/scomp framework
- support
-Message-ID: <20170316163331.GA13997@gondor.apana.org.au>
-References: <1487952313-22381-1-git-send-email-Mahipal.Challa@cavium.com>
- <1487952313-22381-2-git-send-email-Mahipal.Challa@cavium.com>
- <CALZtONBeS7bAjxpbLDdQj=y_tsXUX5TVCFdqbQ3LccTSa6kfnw@mail.gmail.com>
- <CALyTkE9=oU1dd+CLmBceHjeO965QYWWUk98L1MNoiwrDbpypcg@mail.gmail.com>
- <CALZtONBuQJN3Qrd-RP4_TAD=OeWNO8quPYpN+=Gsz2byAxWFPg@mail.gmail.com>
+        Thu, 16 Mar 2017 09:41:12 -0700 (PDT)
+Date: Thu, 16 Mar 2017 09:41:10 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [mmotm] "x86/atomic: move __arch_atomic_add_unless out of line"
+ build error
+Message-ID: <20170316164110.GK32070@tassilo.jf.intel.com>
+References: <20170316044704.GA729@jagdpanzerIV.localdomain>
+ <CACT4Y+asa7rDwjQi_09cYGsgqy0LFRRiCHq3=3t6__VUMLzmXg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALZtONBuQJN3Qrd-RP4_TAD=OeWNO8quPYpN+=Gsz2byAxWFPg@mail.gmail.com>
+In-Reply-To: <CACT4Y+asa7rDwjQi_09cYGsgqy0LFRRiCHq3=3t6__VUMLzmXg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Mahipal Reddy <mahipalreddy2006@gmail.com>, Mahipal Challa <Mahipal.Challa@cavium.com>, Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, pathreya@cavium.com, Vishnu Nair <Vishnu.Nair@cavium.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: 20170315021431.13107-3-andi@firstfloor.org, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Mar 08, 2017 at 12:38:40PM -0500, Dan Streetman wrote:
->
-> zswap gets the fun of being the first crypto compression consumer to
-> switch to the new api? ;-)
+> Andi, why did you completely remove __arch_atomic_add_unless() from
+> the header? Don't we need at least a declaration there?
 
-BTW I think we should hold off on converting zswap for now.
+Actually it's there in my git version:
 
-The reason is that I'd like to try out the new interface on IPcomp
-and make sure that it actually is able to do decompression piecemeal
-which is the main advantage over the existing interface for IPcomp
-where we allocate for the worst-case (64K vs average packet size
-of 1.5K).
+I wonder where it disappeared.
 
-In that process we may have to tweak the interface.
+-/**
+- * __atomic_add_unless - add unless the number is already a given value
+- * @v: pointer of type atomic_t
+- * @a: the amount to add to v...
+- * @u: ...unless v is equal to u.
+- *
+- * Atomically adds @a to @v, so long as @v was not already @u.
+- * Returns the old value of @v.
+- */
+-static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
+-{
+-       int c, old;
+-       c = atomic_read(v);
+-       for (;;) {
+-               if (unlikely(c == (u)))
+-                       break;
+-               old = atomic_cmpxchg((v), c, c + (a));
+-               if (likely(old == c))
+-                       break;
+-               c = old;
+-       }
+-       return c;
+-}
++int __atomic_add_unless(atomic_t *v, int a, int u);
 
-Thanks,
--- 
-Email: Herbert Xu <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
