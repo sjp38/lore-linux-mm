@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B59EF6B038B
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 14:34:34 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id n11so12045885wma.5
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:34:34 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id h26si7730926wrb.231.2017.03.16.11.34.33
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0476B0389
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 14:36:23 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id x127so105544640pgb.4
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:36:23 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id p7si200457pfb.260.2017.03.16.11.36.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 11:34:33 -0700 (PDT)
-Date: Thu, 16 Mar 2017 14:34:22 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 0/8] try to reduce fragmenting fallbacks
-Message-ID: <20170316183422.GA1461@cmpxchg.org>
-References: <20170307131545.28577-1-vbabka@suse.cz>
- <20170308164631.GA12130@cmpxchg.org>
- <fbc47cf0-2f8f-defc-cd79-50395e9985a7@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <fbc47cf0-2f8f-defc-cd79-50395e9985a7@suse.cz>
+        Thu, 16 Mar 2017 11:36:22 -0700 (PDT)
+Message-ID: <1489689381.2733.114.camel@linux.intel.com>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Thu, 16 Mar 2017 11:36:21 -0700
+In-Reply-To: <20170316090732.GF30501@dhcp22.suse.cz>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+	 <20170315141813.GB32626@dhcp22.suse.cz>
+	 <20170315154406.GF2442@aaronlu.sh.intel.com>
+	 <20170315162843.GA27197@dhcp22.suse.cz>
+	 <1489613914.2733.96.camel@linux.intel.com>
+	 <20170316090732.GF30501@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Wed, Mar 08, 2017 at 08:17:39PM +0100, Vlastimil Babka wrote:
-> On 8.3.2017 17:46, Johannes Weiner wrote:
-> > Is there any other data you would like me to gather?
-> 
-> If you can enable the extfrag tracepoint, it would be nice to have graphs of how
-> unmovable allocations falling back to movable pageblocks, etc.
+On Thu, 2017-03-16 at 10:07 +0100, Michal Hocko wrote:
+> On Wed 15-03-17 14:38:34, Tim Chen wrote:
+> > 
+> > On Wed, 2017-03-15 at 17:28 +0100, Michal Hocko wrote:
+> > > 
+> > > On Wed 15-03-17 23:44:07, Aaron Lu wrote:
+> > > > 
+> > > > 
+> > > > On Wed, Mar 15, 2017 at 03:18:14PM +0100, Michal Hocko wrote:
+> > > > > 
+> > > > > 
+> > > > > On Wed 15-03-17 16:59:59, Aaron Lu wrote:
+> > > > > [...]
+> > > > > > 
+> > > > > > 
+> > > > > > The proposed parallel free did this: if the process has many pages to be
+> > > > > > freed, accumulate them in these struct mmu_gather_batch(es) one after
+> > > > > > another till 256K pages are accumulated. Then take this singly linked
+> > > > > > list starting from tlb->local.next off struct mmu_gather *tlb and free
+> > > > > > them in a worker thread. The main thread can return to continue zap
+> > > > > > other pages(after freeing pages pointed by tlb->local.pages).
+> > > > > I didn't have a look at the implementation yet but there are two
+> > > > > concerns that raise up from this description. Firstly how are we going
+> > > > > to tune the number of workers. I assume there will be some upper bound
+> > > > > (one of the patch subject mentions debugfs for tuning) and secondly
+> > > > The workers are put in a dedicated workqueue which is introduced in
+> > > > patch 3/5 and the number of workers can be tuned through that workqueue's
+> > > > sysfs interface: max_active.
+> > > I suspect we cannot expect users to tune this. What do you consider a
+> > > reasonable default?
+> > From Aaron's data, it seems like 4 is a reasonable value for max_active:
+> > 
+> > max_active:A A A time
+> > 1A A A A A A A A A A A A A 8.9sA A A A+-0.5%
+> > 2A A A A A A A A A A A A A 5.65sA A A+-5.5%
+> > 4A A A A A A A A A A A A A 4.84sA A A+-0.16%
+> > 8A A A A A A A A A A A A A 4.77sA A A+-0.97%
+> > 16A A A A A A A A A A A A 4.85sA A A+-0.77%
+> > 32A A A A A A A A A A A A 6.21sA A A+-0.46%
+> OK, but this will depend on the HW, right? Also now that I am looking at
+> those numbers more closely. This was about unmapping 320GB area and
+> using 4 times more CPUs you managed to half the run time. Is this really
+> worth it? Sure if those CPUs were idle then this is a clear win but if
+> the system is moderately busy then it doesn't look like a clear win to
+> me.
 
-Okay, here we go. I recorded 24 hours worth of the extfrag tracepoint,
-filtered to fallbacks from unmovable requests to movable blocks. I've
-uploaded the plot here:
+It looks like we can reduce the exit time in half by using only 2 workers
+to disturb the system minimally.
+Perhaps we can only do this expedited exit only when there are idle cpus around.
+We can use the root sched domain's overload indicator for such a quick check.
 
-http://cmpxchg.org/antifrag/fallbackrate.png
-
-but this already speaks for itself:
-
-11G     alloc-mtfallback.trace
-3.3G    alloc-mtfallback-patched.trace
-
-;)
-
-> Possibly also /proc/pagetypeinfo for numbers of pageblock types.
-
-After a week of uptime, the patched (b) kernel has more movable blocks
-than vanilla 4.10-rc8 (a):
-
-   Number of blocks type     Unmovable      Movable  Reclaimable   HighAtomic          CMA      Isolate
-
-a: Node 1, zone   Normal         2017        29763          987            1            0            0
-b: Node 1, zone   Normal         1264        30850          653            1            0            0
-
-I sampled this somewhat sporadically over the week and it's been
-reading reliably this way.
-
-The patched kernel also consistently beats vanilla in terms of peak
-job throughput.
-
-Overall very cool!
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
