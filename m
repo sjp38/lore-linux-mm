@@ -1,388 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B8476B0390
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:04:02 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id n37so38764208qtb.7
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:04:02 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1663E6B0391
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:04:03 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id j127so42143652qke.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:04:03 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o16si4094904qto.176.2017.03.16.08.04.00
+        by mx.google.com with ESMTPS id t126si4078322qkf.303.2017.03.16.08.03.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 08:04:00 -0700 (PDT)
+        Thu, 16 Mar 2017 08:03:45 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM 09/16] mm/hmm: heterogeneous memory management (HMM for short)
-Date: Thu, 16 Mar 2017 12:05:28 -0400
-Message-Id: <1489680335-6594-10-git-send-email-jglisse@redhat.com>
-In-Reply-To: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
+Subject: [HMM 00/16] HMM (Heterogeneous Memory Management) v18
+Date: Thu, 16 Mar 2017 12:05:19 -0400
+Message-Id: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-HMM provides 3 separate types of functionality:
-    - Mirroring: synchronize CPU page table and device page table
-    - Device memory: allocating struct page for device memory
-    - Migration: migrating regular memory to device memory
+Cliff note: HMM offers 2 things (each standing on its own). First
+it allows to use device memory transparently inside any process
+without any modifications to process program code. Second it allows
+to mirror process address space on a device.
 
-This patch introduces some common helpers and definitions to all of
-those 3 functionality.
+Changes since v17:
+  - typos
+  - ZONE_DEVICE page refcount move put_zone_device_page()
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
----
- MAINTAINERS              |   7 +++
- include/linux/hmm.h      | 153 +++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/mm_types.h |   5 ++
- kernel/fork.c            |   2 +
- mm/Kconfig               |   4 ++
- mm/Makefile              |   1 +
- mm/hmm.c                 |  81 +++++++++++++++++++++++++
- 7 files changed, 253 insertions(+)
+Work is still underway to use this feature inside the upstream
+nouveau driver. It has been tested with closed source driver
+and test are still underway on top of new kernel. So far we have
+found no issues. I expect to get a tested-by soon. Also this
+feature is not only useful for NVidia GPU, i expect AMD GPU will
+need it too if they want to support some of the new industry API.
+I also expect some FPGA company to use it and probably other
+hardware.
+
+That being said I don't expect i will ever get a review-by anyone
+for reasons beyond my control. Many people have read the code and
+i included their comments each time they had any. So i believe this
+code had sufficient scrutiny from various people to warrent it being
+merge. I am willing to face and deal with the fallout but i don't
+expect any as this is an opt-in code thought i believe all major
+distribution will enable it in order to support new hardware.
+
+I do not wish to compete for the patchset with the highest revision
+count and i would like a clear cut position on wether it can be
+merge or not. If not i would like to know why because i am more than
+willing to address any issues people might have. I just don't want
+to keep submitting it over and over until i end up in hell.
+
+So please consider applying for 4.12
+
+
+Know issues:
+
+Device memory pick some random unuse physical address range. Latter
+memory hotplug might fails because of this. Intention is to fix this
+in latter patchset to use physical address above the platform limit
+thus making sure that no real memory can be hotplug at conflicting
+address.
+
+
+Patchset overview:
+
+Patchset is divided into 3 features that can each be use independently
+from one another. First is changes to ZONE_DEVICE so we can have struct
+page for device un-addressable memory (patch 1-4 and 13-14). Second is
+process address space mirroring (patch 8 to 11), this allow to snapshot
+CPU page table and to keep the device page table synchronize with the
+CPU one.
+
+Last is a new page migration helper which allow migration for range of
+virtual address using hardware copy engine (patch 5-7 for new migrate
+function and 12 for migration of un-addressable memory).
+
+
+Future plan:
+
+In this patchset i restricted myself to set of core features what
+is missing:
+  - force read only on CPU for memory duplication and GPU atomic
+  - changes to mmu_notifier for optimization purposes
+  - migration of file back page to device memory
+
+I plan to submit a couple more patchset to implement those features
+once core HMM is upstream.
+
+Git tree:
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v18
+
+
+Previous patchset posting :
+    v1 http://lwn.net/Articles/597289/
+    v2 https://lkml.org/lkml/2014/6/12/559
+    v3 https://lkml.org/lkml/2014/6/13/633
+    v4 https://lkml.org/lkml/2014/8/29/423
+    v5 https://lkml.org/lkml/2014/11/3/759
+    v6 http://lwn.net/Articles/619737/
+    v7 http://lwn.net/Articles/627316/
+    v8 https://lwn.net/Articles/645515/
+    v9 https://lwn.net/Articles/651553/
+    v10 https://lwn.net/Articles/654430/
+    v11 http://www.gossamer-threads.com/lists/linux/kernel/2286424
+    v12 http://www.kernelhub.org/?msg=972982&p=2
+    v13 https://lwn.net/Articles/706856/
+    v14 https://lkml.org/lkml/2016/12/8/344
+    v15 http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1304107.html
+    v16 http://www.spinics.net/lists/linux-mm/msg119814.html
+    v17 https://lkml.org/lkml/2017/1/27/847
+
+JA(C)rA'me Glisse (16):
+  mm/memory/hotplug: convert device bool to int to allow for more flags
+    v3
+  mm/put_page: move ref decrement to put_zone_device_page()
+  mm/ZONE_DEVICE/free-page: callback when page is freed v3
+  mm/ZONE_DEVICE/unaddressable: add support for un-addressable device
+    memory v3
+  mm/ZONE_DEVICE/x86: add support for un-addressable device memory
+  mm/migrate: add new boolean copy flag to migratepage() callback
+  mm/migrate: new memory migration helper for use with device memory v4
+  mm/migrate: migrate_vma() unmap page from vma while collecting pages
+  mm/hmm: heterogeneous memory management (HMM for short)
+  mm/hmm/mirror: mirror process address space on device with HMM helpers
+  mm/hmm/mirror: helper to snapshot CPU page table v2
+  mm/hmm/mirror: device page fault handler
+  mm/hmm/migrate: support un-addressable ZONE_DEVICE page in migration
+  mm/migrate: allow migrate_vma() to alloc new page on empty entry
+  mm/hmm/devmem: device memory hotplug using ZONE_DEVICE
+  mm/hmm/devmem: dummy HMM device for ZONE_DEVICE memory v2
+
+ MAINTAINERS                                |    7 +
+ arch/ia64/mm/init.c                        |   23 +-
+ arch/powerpc/mm/mem.c                      |   23 +-
+ arch/s390/mm/init.c                        |   10 +-
+ arch/sh/mm/init.c                          |   22 +-
+ arch/tile/mm/init.c                        |   10 +-
+ arch/x86/mm/init_32.c                      |   23 +-
+ arch/x86/mm/init_64.c                      |   41 +-
+ drivers/staging/lustre/lustre/llite/rw26.c |    8 +-
+ fs/aio.c                                   |    7 +-
+ fs/btrfs/disk-io.c                         |   11 +-
+ fs/f2fs/data.c                             |    8 +-
+ fs/f2fs/f2fs.h                             |    2 +-
+ fs/hugetlbfs/inode.c                       |    9 +-
+ fs/nfs/internal.h                          |    5 +-
+ fs/nfs/write.c                             |    9 +-
+ fs/proc/task_mmu.c                         |    7 +
+ fs/ubifs/file.c                            |    8 +-
+ include/linux/balloon_compaction.h         |    3 +-
+ include/linux/fs.h                         |   13 +-
+ include/linux/hmm.h                        |  468 +++++++++++
+ include/linux/ioport.h                     |    1 +
+ include/linux/memory_hotplug.h             |   31 +-
+ include/linux/memremap.h                   |   37 +
+ include/linux/migrate.h                    |   86 +-
+ include/linux/mm.h                         |    8 +-
+ include/linux/mm_types.h                   |    5 +
+ include/linux/swap.h                       |   18 +-
+ include/linux/swapops.h                    |   67 ++
+ kernel/fork.c                              |    2 +
+ kernel/memremap.c                          |   34 +-
+ mm/Kconfig                                 |   38 +
+ mm/Makefile                                |    1 +
+ mm/balloon_compaction.c                    |    2 +-
+ mm/hmm.c                                   | 1231 ++++++++++++++++++++++++++++
+ mm/memory.c                                |   66 +-
+ mm/memory_hotplug.c                        |   14 +-
+ mm/migrate.c                               |  786 +++++++++++++++++-
+ mm/mprotect.c                              |   12 +
+ mm/page_vma_mapped.c                       |   10 +
+ mm/rmap.c                                  |   25 +
+ mm/zsmalloc.c                              |   12 +-
+ 42 files changed, 3119 insertions(+), 84 deletions(-)
  create mode 100644 include/linux/hmm.h
  create mode 100644 mm/hmm.c
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index c776906..af37f7c 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -5964,6 +5964,13 @@ S:	Supported
- F:	drivers/scsi/hisi_sas/
- F:	Documentation/devicetree/bindings/scsi/hisilicon-sas.txt
- 
-+HMM - Heterogeneous Memory Management
-+M:	JA(C)rA'me Glisse <jglisse@redhat.com>
-+L:	linux-mm@kvack.org
-+S:	Maintained
-+F:	mm/hmm*
-+F:	include/linux/hmm*
-+
- HOST AP DRIVER
- M:	Jouni Malinen <j@w1.fi>
- L:	linux-wireless@vger.kernel.org
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-new file mode 100644
-index 0000000..9fb6767
---- /dev/null
-+++ b/include/linux/hmm.h
-@@ -0,0 +1,153 @@
-+/*
-+ * Copyright 2013 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
-+ */
-+/*
-+ * HMM provides 3 separate types of functionality:
-+ *   - Mirroring: synchronize CPU page table and device page table
-+ *   - Device memory: allocating struct pages for device memory
-+ *   - Migration: migrating regular memory to device memory
-+ *
-+ * Each can be used independently from the others.
-+ *
-+ *
-+ * Mirroring:
-+ *
-+ * HMM provides helpers to mirror a process address space on a device. For this,
-+ * it provides several helpers to order device page table updates with respect
-+ * to CPU page table updates. The requirement is that for any given virtual
-+ * address the CPU and device page table cannot point to different physical
-+ * pages. It uses the mmu_notifier API behind the scenes.
-+ *
-+ * Device memory:
-+ *
-+ * HMM provides helpers to help leverage device memory. Device memory is, at any
-+ * given time, either CPU-addressable like regular memory, or completely
-+ * unaddressable. In both cases the device memory is associated with dedicated
-+ * struct pages (which are allocated as if for hotplugged memory). Device memory
-+ * management is under the responsibility of the device driver. HMM only
-+ * allocates and initializes the struct pages associated with the device memory,
-+ * by hotplugging a ZONE_DEVICE memory range.
-+ *
-+ * Allocating struct pages for device memory allows us to use device memory
-+ * almost like regular CPU memory. Unlike regular memory, however, it cannot be
-+ * added to the lru, nor can any memory allocation can use device memory
-+ * directly. Device memory will only end up in use by a process if the device
-+ * driver migrates some of the process memory from regular memory to device
-+ * memory.
-+ *
-+ * Migration:
-+ *
-+ * The existing memory migration mechanism (mm/migrate.c) does not allow using
-+ * anything other than the CPU to copy from source to destination memory.
-+ * Moreover, existing code does not provide a way to migrate based on a virtual
-+ * address range. Existing code only supports struct-page-based migration. Also,
-+ * the migration flow does not allow for graceful failure at intermediate stages
-+ * of the migration process.
-+ *
-+ * HMM solves all of the above, by providing a simple API:
-+ *
-+ *      hmm_vma_migrate(ops, vma, src_pfns, dst_pfns, start, end, private);
-+ *
-+ * finalize_and_map(). The first,  alloc_and_copy(), allocates the destination
-+ * memory and initializes it using source memory. Migration can fail at this
-+ * point, and the device driver then has a place to abort the migration. The
-+ * finalize_and_map() callback allows the device driver to know which pages
-+ * were successfully migrated and which were not.
-+ *
-+ * This can easily be used outside of the original HMM use case.
-+ *
-+ *
-+ * This header file contain all the APIs related to hmm_vma_migrate. Additional
-+ * detailed documentation may be found below.
-+ */
-+#ifndef LINUX_HMM_H
-+#define LINUX_HMM_H
-+
-+#include <linux/kconfig.h>
-+
-+#if IS_ENABLED(CONFIG_HMM)
-+
-+
-+/*
-+ * hmm_pfn_t - HMM use its own pfn type to keep several flags per page
-+ *
-+ * Flags:
-+ * HMM_PFN_VALID: pfn is valid
-+ * HMM_PFN_WRITE: CPU page table have the write permission set
-+ */
-+typedef unsigned long hmm_pfn_t;
-+
-+#define HMM_PFN_VALID (1 << 0)
-+#define HMM_PFN_WRITE (1 << 1)
-+#define HMM_PFN_SHIFT 2
-+
-+/*
-+ * hmm_pfn_to_page() - return struct page pointed to by a valid hmm_pfn_t
-+ * @pfn: hmm_pfn_t to convert to struct page
-+ * Returns: struct page pointer if pfn is a valid hmm_pfn_t, NULL otherwise
-+ *
-+ * If the hmm_pfn_t is valid (ie valid flag set) then return the struct page
-+ * matching the pfn value store in the hmm_pfn_t. Otherwise return NULL.
-+ */
-+static inline struct page *hmm_pfn_to_page(hmm_pfn_t pfn)
-+{
-+	if (!(pfn & HMM_PFN_VALID))
-+		return NULL;
-+	return pfn_to_page(pfn >> HMM_PFN_SHIFT);
-+}
-+
-+/*
-+ * hmm_pfn_to_pfn() - return pfn value store in a hmm_pfn_t
-+ * @pfn: hmm_pfn_t to extract pfn from
-+ * Returns: pfn value if hmm_pfn_t is valid, -1UL otherwise
-+ */
-+static inline unsigned long hmm_pfn_to_pfn(hmm_pfn_t pfn)
-+{
-+	if (!(pfn & HMM_PFN_VALID))
-+		return -1UL;
-+	return (pfn >> HMM_PFN_SHIFT);
-+}
-+
-+/*
-+ * hmm_pfn_from_page() - create a valid hmm_pfn_t value from struct page
-+ * @page: struct page pointer for which to create the hmm_pfn_t
-+ * Returns: valid hmm_pfn_t for the page
-+ */
-+static inline hmm_pfn_t hmm_pfn_from_page(struct page *page)
-+{
-+	return (page_to_pfn(page) << HMM_PFN_SHIFT) | HMM_PFN_VALID;
-+}
-+
-+/*
-+ * hmm_pfn_from_pfn() - create a valid hmm_pfn_t value from pfn
-+ * @pfn: pfn value for which to create the hmm_pfn_t
-+ * Returns: valid hmm_pfn_t for the pfn
-+ */
-+static inline hmm_pfn_t hmm_pfn_from_pfn(unsigned long pfn)
-+{
-+	return (pfn << HMM_PFN_SHIFT) | HMM_PFN_VALID;
-+}
-+
-+
-+/* Below are for HMM internal use only! Not to be used by device driver! */
-+void hmm_mm_destroy(struct mm_struct *mm);
-+
-+#else /* IS_ENABLED(CONFIG_HMM) */
-+
-+/* Below are for HMM internal use only! Not to be used by device driver! */
-+static inline void hmm_mm_destroy(struct mm_struct *mm) {}
-+
-+#endif /* IS_ENABLED(CONFIG_HMM) */
-+#endif /* LINUX_HMM_H */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index f60f45f..81068ce 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -23,6 +23,7 @@
- 
- struct address_space;
- struct mem_cgroup;
-+struct hmm;
- 
- /*
-  * Each physical page in the system has a struct page associated with
-@@ -495,6 +496,10 @@ struct mm_struct {
- 	atomic_long_t hugetlb_usage;
- #endif
- 	struct work_struct async_put_work;
-+#if IS_ENABLED(CONFIG_HMM)
-+	/* HMM need to track few things per mm */
-+	struct hmm *hmm;
-+#endif
- };
- 
- extern struct mm_struct init_mm;
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 6c463c80..1f8d612 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -37,6 +37,7 @@
- #include <linux/binfmts.h>
- #include <linux/mman.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/hmm.h>
- #include <linux/fs.h>
- #include <linux/mm.h>
- #include <linux/vmacache.h>
-@@ -863,6 +864,7 @@ void __mmdrop(struct mm_struct *mm)
- 	BUG_ON(mm == &init_mm);
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
-+	hmm_mm_destroy(mm);
- 	mmu_notifier_mm_destroy(mm);
- 	check_mm(mm);
- 	put_user_ns(mm->user_ns);
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9502315..fe8ad24 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -289,6 +289,10 @@ config MIGRATION
- config ARCH_ENABLE_HUGEPAGE_MIGRATION
- 	bool
- 
-+config HMM
-+	bool
-+	depends on MMU
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
- 
-diff --git a/mm/Makefile b/mm/Makefile
-index 026f6a8..9eb4121 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -75,6 +75,7 @@ obj-$(CONFIG_FAILSLAB) += failslab.o
- obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
- obj-$(CONFIG_MEMTEST)		+= memtest.o
- obj-$(CONFIG_MIGRATION) += migrate.o
-+obj-$(CONFIG_HMM) += hmm.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o khugepaged.o
- obj-$(CONFIG_PAGE_COUNTER) += page_counter.o
-diff --git a/mm/hmm.c b/mm/hmm.c
-new file mode 100644
-index 0000000..ed3a847
---- /dev/null
-+++ b/mm/hmm.c
-@@ -0,0 +1,81 @@
-+/*
-+ * Copyright 2013 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
-+ */
-+/*
-+ * Refer to include/linux/hmm.h for information about heterogeneous memory
-+ * management or HMM for short.
-+ */
-+#include <linux/mm.h>
-+#include <linux/hmm.h>
-+#include <linux/slab.h>
-+#include <linux/sched.h>
-+
-+/*
-+ * struct hmm - HMM per mm struct
-+ *
-+ * @mm: mm struct this HMM struct is bound to
-+ */
-+struct hmm {
-+	struct mm_struct	*mm;
-+};
-+
-+/*
-+ * hmm_register - register HMM against an mm (HMM internal)
-+ *
-+ * @mm: mm struct to attach to
-+ *
-+ * This is not intended to be used directly by device drivers. It allocates an
-+ * HMM struct if mm does not have one, and initializes it.
-+ */
-+static struct hmm *hmm_register(struct mm_struct *mm)
-+{
-+	if (!mm->hmm) {
-+		struct hmm *hmm = NULL;
-+
-+		hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
-+		if (!hmm)
-+			return NULL;
-+		hmm->mm = mm;
-+
-+		spin_lock(&mm->page_table_lock);
-+		if (!mm->hmm)
-+			mm->hmm = hmm;
-+		else
-+			kfree(hmm);
-+		spin_unlock(&mm->page_table_lock);
-+	}
-+
-+	/*
-+	 * The hmm struct can only be freed once the mm_struct goes away,
-+	 * hence we should always have pre-allocated an new hmm struct
-+	 * above.
-+	 */
-+	return mm->hmm;
-+}
-+
-+void hmm_mm_destroy(struct mm_struct *mm)
-+{
-+	struct hmm *hmm;
-+
-+	/*
-+	 * We should not need to lock here as no one should be able to register
-+	 * a new HMM while an mm is being destroy. But just to be safe ...
-+	 */
-+	spin_lock(&mm->page_table_lock);
-+	hmm = mm->hmm;
-+	mm->hmm = NULL;
-+	spin_unlock(&mm->page_table_lock);
-+	kfree(hmm);
-+}
 -- 
 2.4.11
 
