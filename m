@@ -1,72 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9A26B038E
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:11:08 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o126so102719523pfb.2
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:11:08 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l4si6157987plk.280.2017.03.16.12.11.07
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 286216B0038
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:39:04 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y17so109182944pgh.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:39:04 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0094.outbound.protection.outlook.com. [104.47.32.94])
+        by mx.google.com with ESMTPS id 31si6226663pli.135.2017.03.16.12.39.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 12:11:08 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2GJ4C0p071778
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:11:07 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 297we8h2ag-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:11:07 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 16 Mar 2017 15:11:06 -0400
-Date: Thu, 16 Mar 2017 12:11:02 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 7/7] x86/mm: Switch to generic get_user_page_fast()
- implementation
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
- <20170316152655.37789-8-kirill.shutemov@linux.intel.com>
- <20170316172046.sl7j5elg77yjevau@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 16 Mar 2017 12:39:03 -0700 (PDT)
+Date: Thu, 16 Mar 2017 14:38:44 -0500
+From: Alex Thorlton <alex.thorlton@hpe.com>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+Message-ID: <20170316193844.GA110825@stormcage.americas.sgi.com>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170316172046.sl7j5elg77yjevau@hirez.programming.kicks-ass.net>
-Message-Id: <20170316191102.GM3637@linux.vnet.ibm.com>
+In-Reply-To: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, alex.thorlton@hpe.com
 
-On Thu, Mar 16, 2017 at 06:20:46PM +0100, Peter Zijlstra wrote:
-> On Thu, Mar 16, 2017 at 06:26:55PM +0300, Kirill A. Shutemov wrote:
-> > +config HAVE_GENERIC_RCU_GUP
-> > +	def_bool y
-> > +
+On Wed, Mar 15, 2017 at 04:59:59PM +0800, Aaron Lu wrote:
+> v2 changes: Nothing major, only minor ones.
+>  - rebased on top of v4.11-rc2-mmotm-2017-03-14-15-41;
+>  - use list_add_tail instead of list_add to add worker to tlb's worker
+>    list so that when doing flush, the first queued worker gets flushed
+>    first(based on the comsumption that the first queued worker has a
+>    better chance of finishing its job than those later queued workers);
+>  - use bool instead of int for variable free_batch_page in function
+>    tlb_flush_mmu_free_batches;
+>  - style change according to ./scripts/checkpatch;
+>  - reword some of the changelogs to make it more readable.
 > 
-> Nothing immediately jumped out to me; except that this option might be
-> misnamed.
-> 
-> AFAICT that code does not in fact rely on HAVE_RCU_TABLE_FREE; it will
-> happily work with the (x86) broadcast IPI invalidate model, as you show
-> here.
-> 
-> Architectures that do not do that obviously need HAVE_RCU_TABLE_FREE,
-> but that is not the point I feel.
-> 
-> Also, this code hard relies on IRQ-disable delaying grace periods, which
-> is mostly true I think, but has always been something Paul didn't really
-> want to commit too firmly to.
+> v1 is here:
+> https://lkml.org/lkml/2017/2/24/245
 
-That is quite true!
+I tested v1 on a Haswell system with 64 sockets/1024 cores/2048 threads
+and 8TB of RAM, with a 1TB malloc.  The average free() time for a 1TB
+malloc on a vanilla kernel was 41.69s, the patched kernel averaged
+21.56s for the same test.
 
-The only case where IRQ-disable is guaranteed to delay grace periods is
-when you are using RCU-sched, in other words synchronize_sched() and
-call_rcu_sched().  And even then, the CPU cannot be in the idle loop,
-cannot be offline, and cannot be a nohz_full CPU on its way to/from
-userspace execution.
+I am testing v2 now and will report back with results in the next day or
+so.
 
-							Thanx, Paul
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
