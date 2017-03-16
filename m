@@ -1,93 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5E16B038A
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 04:42:31 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id v2so21531701lfi.2
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:42:31 -0700 (PDT)
-Received: from smtp59.i.mail.ru (smtp59.i.mail.ru. [217.69.128.39])
-        by mx.google.com with ESMTPS id e22si2344155lfi.131.2017.03.16.01.42.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 01:42:29 -0700 (PDT)
-Date: Thu, 16 Mar 2017 11:42:26 +0300
-From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: Is it fixed by following patch
-Message-ID: <20170316084226.GA2025@esperanza>
-References: <58CA429E.6000109@huawei.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EEE26B038A
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 04:46:48 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id o126so76357597pfb.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:46:48 -0700 (PDT)
+Received: from shells.gnugeneration.com (shells.gnugeneration.com. [66.240.222.126])
+        by mx.google.com with ESMTP id e1si4617332plk.239.2017.03.16.01.46.47
+        for <linux-mm@kvack.org>;
+        Thu, 16 Mar 2017 01:46:47 -0700 (PDT)
+Date: Thu, 16 Mar 2017 01:47:33 -0700
+From: lkml@pengaru.com
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+Message-ID: <20170316084733.GP802@shells.gnugeneration.com>
+References: <c2fe9c45-e25f-d3d6-7fe7-f91e353bc579@wiesinger.com>
+ <20170104091120.GD25453@dhcp22.suse.cz>
+ <82bce413-1bd7-7f66-1c3d-0d890bbaf6f1@wiesinger.com>
+ <20170227090236.GA2789@bbox>
+ <20170227094448.GF14029@dhcp22.suse.cz>
+ <20170228051723.GD2702@bbox>
+ <20170228081223.GA26792@dhcp22.suse.cz>
+ <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+ <20170316082714.GC30501@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <58CA429E.6000109@huawei.com>
+In-Reply-To: <20170316082714.GC30501@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Rik van Riel <riel@redhat.com>, Xishi Qiu <qiuxishi@huawei.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Gerhard Wiesinger <lists@wiesinger.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Mar 16, 2017 at 03:45:34PM +0800, zhong jiang wrote:
-> Hi,  Vladimir
+On Thu, Mar 16, 2017 at 09:27:14AM +0100, Michal Hocko wrote:
+> On Thu 16-03-17 07:38:08, Gerhard Wiesinger wrote:
+> [...]
+> > The following commit is included in that version:
+> > commit 710531320af876192d76b2c1f68190a1df941b02
+> > Author: Michal Hocko <mhocko@suse.com>
+> > Date:   Wed Feb 22 15:45:58 2017 -0800
+> > 
+> >     mm, vmscan: cleanup lru size claculations
+> > 
+> >     commit fd538803731e50367b7c59ce4ad3454426a3d671 upstream.
 > 
-> I find upstream 414e2fb8ce5a ("rmap: fix theoretical race between do_wp_page and shrink_active_list ")
-> fix the bug maybe is  the same as the following issue, but I'm not sure. 
-
-It looks like in your case shrink_active_list() ran into a page with
-page->mapping set to PAGE_MAPPING_ANON, which made page_referenced()
-call page_referenced_anon(), which in turn called
-page_lock_anon_vma_read(), which hit the bug trying to dereference
-(page->mapping - PAGE_MAPPING_ANON) = NULL.
-
-Theoretically, this could happen if page->mapping was updated
-non-atomically by page_move_anon_rmap(), which is the case the commit
-you mentioned fixes. However, I find it unlikely to happen on x86 with
-any sane compiler: on x86 it should be cheaper to first load the result
-(PAGE_MAPPING_ANON + addr in this case) to a register and only then
-store it in memory as a whole (page->mapping). To be sure, you should
-check assembly of page_move_anon_rmap() if it updates page->mapping
-non-atomically.
-
+> This patch shouldn't make any difference. It is a cleanup patch.
+> I guess you meant 71ab6cfe88dc ("mm, vmscan: consider eligible zones in
+> get_scan_count") but even that one shouldn't make any difference for 64b
+> systems.
 > 
-> 9381.005212] CPU: 3 PID: 12737 Comm: docker-runc Tainted: G           OE  ---- -------   3.10.0-327.36.58.4.x86_64 #1
-> [19381.005212] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20160826_044443-hghoulaslx112 04/01/2014
-> [19381.005212] task: ffff880002938000 ti: ffff880232254000 task.ti: ffff880232254000
-> [19381.005212] RIP: 0010:[<ffffffff810aca65>]  [<ffffffff810aca65>] down_read_trylock+0x5/0x50
-> [19381.005212] RSP: 0018:ffff8802322576c0  EFLAGS: 00010202
-> [19381.005212] RAX: 0000000000000000 RBX: ffff880230cabbc0 RCX: 0000000000000000
-> [19381.005212] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000008
-> [19381.005212] RBP: ffff8802322576e8 R08: ffffea00083725a0 R09: ffff8800b185b408
-> [19381.005212] R10: 0000000000000000 R11: fff00000fe000000 R12: ffff880230cabbc1
-> [19381.005212] R13: ffffea0008372580 R14: 0000000000000008 R15: ffffea0008372580
-> [19381.005212] FS:  00007f66aea00700(0000) GS:ffff88023ed80000(0000) knlGS:0000000000000000
-> [19381.005212] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [19381.005212] CR2: 0000000000000008 CR3: 0000000231be8000 CR4: 00000000001407e0
-> [19381.005212] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [19381.005212] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [19381.018017] Stack:
-> [19381.018017]  ffffffff811b22b5 ffffea0008372580 0000000000000000 0000000000000004
-> [19381.018017]  0000000000000001 ffff880232257760 ffffffff811b2537 ffff8800b18ab1c0
-> [19381.018017]  00000007fcd103e2 ffff8802322577b0 0000000100000000 00000007fcd0fbe6
-> [19381.018017] Call Trace:
-> [19381.018017]  [<ffffffff811b22b5>] ? page_lock_anon_vma_read+0x55/0x110
-> [19381.018017]  [<ffffffff811b2537>] page_referenced+0x1c7/0x350
-> [19381.018017]  [<ffffffff8118d634>] shrink_active_list+0x1e4/0x400
-> [19381.018017]  [<ffffffff8118dd0d>] shrink_lruvec+0x4bd/0x770
-> [19381.018017]  [<ffffffff8118e036>] shrink_zone+0x76/0x1a0
-> [19381.018017]  [<ffffffff8118e530>] do_try_to_free_pages+0xe0/0x3f0
-> [19381.018017]  [<ffffffff8118e93c>] try_to_free_pages+0xfc/0x180
-> [19381.018017]  [<ffffffff81182218>] __alloc_pages_nodemask+0x818/0xcc0
-> [19381.018017]  [<ffffffff811cabfa>] alloc_pages_vma+0x9a/0x150
-> [19381.018017]  [<ffffffff811e0346>] do_huge_pmd_wp_page+0x106/0xb60
-> [19381.018017]  [<ffffffffa01c27d0>] ? dm_get_queue_limits+0x30/0x30 [dm_mod]
-> [19381.018017]  [<ffffffff811a6518>] handle_mm_fault+0x638/0xfa0
-> [19381.018017]  [<ffffffff81313cf2>] ? radix_tree_lookup_slot+0x22/0x50
-> [19381.018017]  [<ffffffff8117771e>] ? __find_get_page+0x1e/0xa0
-> [19381.018017]  [<ffffffff81160097>] ? rtos_hungtask_acquired+0x57/0x140
-> [19381.018017]  [<ffffffff81660435>] __do_page_fault+0x145/0x490
-> [19381.018017]  [<ffffffff81660843>] trace_do_page_fault+0x43/0x110
-> [19381.018017]  [<ffffffff8165fef9>] do_async_page_fault+0x29/0xe0
-> [19381.018017]  [<ffffffff8165c538>] async_page_fault+0x28/0x30
-> [19381.018017]  [<ffffffff8131af79>] ? copy_user_enhanced_fast_string+0x9/0x20
-> [19381.018017]  [<ffffffff81207c9c>] ? poll_select_copy_remaining+0xfc/0x150
-> [19381.018017]  [<ffffffff81208c2c>] SyS_select+0xcc/0x110
-> [19381.018017]  [<ffffffff81664ff3>] system_call_fastpath+0x16/0x1b
+> > But still OOMs:
+> > [157048.030760] clamscan: page allocation stalls for 19405ms, order:0, mode:0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null)
+> 
+> This is not OOM it is an allocation stall. The allocation request cannot
+> simply make forward progress for more than 10s. This alone is bad but
+> considering this is GFP_HIGHUSER_MOVABLE which has the full reclaim
+> capabilities I would suspect your workload overcommits the available
+> memory too much. You only have ~380MB of RAM with ~160MB sitting in the
+> anonymous memory, almost nothing in the page cache so I am not wondering
+> that you see a constant swap activity. There seems to be only 40M in the
+> slab so we are still missing ~180MB which is neither on the LRU lists
+> nor allocated by slab. This means that some kernel subsystem allocates
+> from the page allocator directly.
+> 
+> That being said, I believe that what you are seeing is not a bug in the
+> MM subsystem but rather some susbsytem using more memory than it used to
+> before so your workload doesn't fit into the amount of memory you have
+> anymore.
+> 
+
+While on the topic of understanding allocation stalls, Philip Freeman recently
+mailed linux-kernel with a similar report, and in his case there are plenty of
+page cache pages.  It was also a GFP_HIGHUSER_MOVABLE 0-order allocation.
+
+I'm no MM expert, but it appears a bit broken for such a low-order allocation
+to stall on the order of 10 seconds when there's plenty of reclaimable pages,
+in addition to mostly unused and abundant swap space on SSD.
+
+Regards,
+Vito Caputo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
