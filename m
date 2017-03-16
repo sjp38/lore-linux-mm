@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA7C26B038C
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:04:49 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id r5so46377232qtb.1
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:04:49 -0700 (PDT)
-Received: from mail-ot0-x230.google.com (mail-ot0-x230.google.com. [2607:f8b0:4003:c0f::230])
-        by mx.google.com with ESMTPS id h24si2420183otc.289.2017.03.16.12.04.48
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DB9A26B038E
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:11:08 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o126so102719523pfb.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:11:08 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l4si6157987plk.280.2017.03.16.12.11.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 12:04:48 -0700 (PDT)
-Received: by mail-ot0-x230.google.com with SMTP id 19so67304482oti.0
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 12:04:48 -0700 (PDT)
+        Thu, 16 Mar 2017 12:11:08 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2GJ4C0p071778
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:11:07 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 297we8h2ag-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 15:11:07 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 16 Mar 2017 15:11:06 -0400
+Date: Thu, 16 Mar 2017 12:11:02 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 7/7] x86/mm: Switch to generic get_user_page_fast()
+ implementation
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
+ <20170316152655.37789-8-kirill.shutemov@linux.intel.com>
+ <20170316172046.sl7j5elg77yjevau@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20170316174805.GB13654@dhcp22.suse.cz>
-References: <148964440651.19438.2288075389153762985.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170316174805.GB13654@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 16 Mar 2017 12:04:48 -0700
-Message-ID: <CAPcyv4hMt0s7UX=MO9KwakjXG9Uff=8XGR+Uc7YoVWoLqbKeGw@mail.gmail.com>
-Subject: Re: [PATCH v4 00/13] mm: sub-section memory hotplug support
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170316172046.sl7j5elg77yjevau@hirez.programming.kicks-ass.net>
+Message-Id: <20170316191102.GM3637@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hpe.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Logan Gunthorpe <logang@deltatee.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stephen Bates <stephen.bates@microsemi.com>, Linux MM <linux-mm@kvack.org>, Nicolai Stange <nicstange@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 16, 2017 at 10:48 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> Hi,
-> I didn't get to look through the patch series yet and I might not be
-> able before LSF/MM. How urgent is this? I am primarily asking because
-> the memory hotplug is really convoluted right now and putting more on
-> top doesn't really sound like the thing we really want. I have tried to
-> simplify the code [1] already but this is an early stage work so I do
-> not want to impose any burden on you. So I am wondering whether this
-> is something that needs to be merged very soon or it can wait for the
-> rework and hopefully end up being much simpler in the end as well.
->
-> What do you think?
+On Thu, Mar 16, 2017 at 06:20:46PM +0100, Peter Zijlstra wrote:
+> On Thu, Mar 16, 2017 at 06:26:55PM +0300, Kirill A. Shutemov wrote:
+> > +config HAVE_GENERIC_RCU_GUP
+> > +	def_bool y
+> > +
+> 
+> Nothing immediately jumped out to me; except that this option might be
+> misnamed.
+> 
+> AFAICT that code does not in fact rely on HAVE_RCU_TABLE_FREE; it will
+> happily work with the (x86) broadcast IPI invalidate model, as you show
+> here.
+> 
+> Architectures that do not do that obviously need HAVE_RCU_TABLE_FREE,
+> but that is not the point I feel.
+> 
+> Also, this code hard relies on IRQ-disable delaying grace periods, which
+> is mostly true I think, but has always been something Paul didn't really
+> want to commit too firmly to.
 
-In general, I think it's better to add new features after
-reworks/cleanup, but it's not clear to me (yet) that the problem you
-are trying to solve makes this sub-section enabling for ZONE_DEVICE
-any simpler.
+That is quite true!
 
-> [1] http://lkml.kernel.org/r/20170315091347.GA32626@dhcp22.suse.cz
+The only case where IRQ-disable is guaranteed to delay grace periods is
+when you are using RCU-sched, in other words synchronize_sched() and
+call_rcu_sched().  And even then, the CPU cannot be in the idle loop,
+cannot be offline, and cannot be a nohz_full CPU on its way to/from
+userspace execution.
 
-ZONE_DEVICE pages are never "online". The patch says "Instead we do
-page->zone association from move_pfn_range which is called from
-online_pages." which means the new scheme currently doesn't comprehend
-the sprinkled ZONE_DEVICE hacks in the memory hotplug code.
-
-However, that said, I might take a look at whether the hacks belong in
-the auto-online code so that we can share the delayed zone
-initialization, but still skip marking the memory online per the
-expectations of ZONE_DEVICE. I expect it would be confusing to have
-memblock devices in sysfs for ranges that can't be marked online?
-
-Thoughts?
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
