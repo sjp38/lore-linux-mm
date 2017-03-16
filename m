@@ -1,122 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 72AD1831CC
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:32:32 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a6so27681270lfa.1
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:32:32 -0700 (PDT)
-Received: from smtp14.mail.ru (smtp14.mail.ru. [94.100.181.95])
-        by mx.google.com with ESMTPS id s81si2873809lja.146.2017.03.16.08.32.30
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A89CB831CC
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 11:34:56 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id r141so52206774ita.6
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:34:56 -0700 (PDT)
+Received: from mail-it0-x232.google.com (mail-it0-x232.google.com. [2607:f8b0:4001:c0b::232])
+        by mx.google.com with ESMTPS id n71si3812077itg.29.2017.03.16.08.34.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 08:32:30 -0700 (PDT)
-Date: Thu, 16 Mar 2017 18:32:25 +0300
-From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: Is it fixed by following patch
-Message-ID: <20170316153225.GB2025@esperanza>
-References: <58CA429E.6000109@huawei.com>
- <20170316084226.GA2025@esperanza>
- <58CA565C.20803@huawei.com>
+        Thu, 16 Mar 2017 08:34:55 -0700 (PDT)
+Received: by mail-it0-x232.google.com with SMTP id w124so74843126itb.1
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 08:34:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58CA565C.20803@huawei.com>
+In-Reply-To: <20170316081013.GB7815@gmail.com>
+References: <20170314170508.100882-1-thgarnie@google.com> <20170316081013.GB7815@gmail.com>
+From: Thomas Garnier <thgarnie@google.com>
+Date: Thu, 16 Mar 2017 08:33:32 -0700
+Message-ID: <CAJcbSZEB09inR2KLF_puOnmAK7QUv-zJHcguiF0qucUYTtg1Pw@mail.gmail.com>
+Subject: Re: [PATCH v7 1/3] x86/mm: Adapt MODULES_END based on Fixmap section size
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Rik van Riel <riel@redhat.com>, Xishi Qiu <qiuxishi@huawei.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Jonathan Corbet <corbet@lwn.net>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Kees Cook <keescook@chromium.org>, Juergen Gross <jgross@suse.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andy Lutomirski <luto@amacapital.net>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Jiri Kosina <jikos@kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Rusty Russell <rusty@rustcorp.com.au>, Paolo Bonzini <pbonzini@redhat.com>, Borislav Petkov <bp@suse.de>, Christian Borntraeger <borntraeger@de.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Stanislaw Gruszka <sgruszka@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Joerg Roedel <joro@8bytes.org>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, linux-efi@vger.kernel.org, xen-devel@lists.xenproject.org, lguest@lists.ozlabs.org, kvm list <kvm@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Thu, Mar 16, 2017 at 05:09:48PM +0800, zhong jiang wrote:
-> On 2017/3/16 16:42, Vladimir Davydov wrote:
-> > On Thu, Mar 16, 2017 at 03:45:34PM +0800, zhong jiang wrote:
-> >> Hi,  Vladimir
-> >>
-> >> I find upstream 414e2fb8ce5a ("rmap: fix theoretical race between do_wp_page and shrink_active_list ")
-> >> fix the bug maybe is  the same as the following issue, but I'm not sure. 
-> > It looks like in your case shrink_active_list() ran into a page with
-> > page->mapping set to PAGE_MAPPING_ANON, which made page_referenced()
-> > call page_referenced_anon(), which in turn called
-> > page_lock_anon_vma_read(), which hit the bug trying to dereference
-> > (page->mapping - PAGE_MAPPING_ANON) = NULL.
->   Yes,  That is what we think.
-> > Theoretically, this could happen if page->mapping was updated
-> > non-atomically by page_move_anon_rmap(), which is the case the commit
-> > you mentioned fixes. However, I find it unlikely to happen on x86 with
-> > any sane compiler: on x86 it should be cheaper to first load the result
-> > (PAGE_MAPPING_ANON + addr in this case) to a register and only then
-> > store it in memory as a whole (page->mapping). To be sure, you should
-> > check assembly of page_move_anon_rmap() if it updates page->mapping
-> > non-atomically.
->   The following is the assembly code.
->  
-> (gdb) disassemble page_move_anon_rmap
->  Dump of assembler code for function page_move_anon_rmap:
->    0xffffffff811a4e10 <+0>:     callq  0xffffffff8164d9c0 <__fentry__>
->    0xffffffff811a4e15 <+5>:     mov    0x88(%rsi),%rax
+On Thu, Mar 16, 2017 at 1:10 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> Note that asm/fixmap.h is an x86-ism that isn't present in many other
+> architectures, so this hunk will break the build.
+>
+> To make progress with these patches I've fixed it up with an ugly #ifdef
+> CONFIG_X86, but it needs a real solution instead before this can be pushed
+> upstream.
 
-Load vma->anon_vma address to RAX.
+I also saw an error on x86 tip on special configuration. I found this
+new patch below to be a good solution to both.
 
->    0xffffffff811a4e1c <+12>:    push   %rbp
->    0xffffffff811a4e1d <+13>:    mov    %rsp,%rbp
->    0xffffffff811a4e20 <+16>:    add    $0x1,%rax
+Let me know what you think.
 
-Add PAGE_MAPPING_ANON to RAX.
+=====
 
->    0xffffffff811a4e24 <+20>:    mov    %rax,0x8(%rdi)
+This patch aligns MODULES_END to the beginning of the Fixmap section.
+It optimizes the space available for both sections. The address is
+pre-computed based on the number of pages required by the Fixmap
+section.
 
-Move the result to page->mapping.
+It will allow GDT remapping in the Fixmap section. The current
+MODULES_END static address does not provide enough space for the kernel
+to support a large number of processors.
 
-This is atomic, so the commit you mentioned won't help, unfortunately.
+Signed-off-by: Thomas Garnier <thgarnie@google.com>
+---
+Based on next-20170308
+---
+ Documentation/x86/x86_64/mm.txt         | 5 ++++-
+ arch/x86/include/asm/pgtable_64.h       | 1 +
+ arch/x86/include/asm/pgtable_64_types.h | 3 ++-
+ 3 files changed, 7 insertions(+), 2 deletions(-)
 
->    0xffffffff811a4e28 <+24>:    pop    %rbp
->    0xffffffff811a4e29 <+25>:    retq
->  End of assembler dump.
->  (gdb)
-> >> 9381.005212] CPU: 3 PID: 12737 Comm: docker-runc Tainted: G           OE  ---- -------   3.10.0-327.36.58.4.x86_64 #1
-> >> [19381.005212] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20160826_044443-hghoulaslx112 04/01/2014
-> >> [19381.005212] task: ffff880002938000 ti: ffff880232254000 task.ti: ffff880232254000
-> >> [19381.005212] RIP: 0010:[<ffffffff810aca65>]  [<ffffffff810aca65>] down_read_trylock+0x5/0x50
-> >> [19381.005212] RSP: 0018:ffff8802322576c0  EFLAGS: 00010202
-> >> [19381.005212] RAX: 0000000000000000 RBX: ffff880230cabbc0 RCX: 0000000000000000
-> >> [19381.005212] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000008
-> >> [19381.005212] RBP: ffff8802322576e8 R08: ffffea00083725a0 R09: ffff8800b185b408
-> >> [19381.005212] R10: 0000000000000000 R11: fff00000fe000000 R12: ffff880230cabbc1
-> >> [19381.005212] R13: ffffea0008372580 R14: 0000000000000008 R15: ffffea0008372580
-> >> [19381.005212] FS:  00007f66aea00700(0000) GS:ffff88023ed80000(0000) knlGS:0000000000000000
-> >> [19381.005212] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> >> [19381.005212] CR2: 0000000000000008 CR3: 0000000231be8000 CR4: 00000000001407e0
-> >> [19381.005212] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> >> [19381.005212] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> >> [19381.018017] Stack:
-> >> [19381.018017]  ffffffff811b22b5 ffffea0008372580 0000000000000000 0000000000000004
-> >> [19381.018017]  0000000000000001 ffff880232257760 ffffffff811b2537 ffff8800b18ab1c0
-> >> [19381.018017]  00000007fcd103e2 ffff8802322577b0 0000000100000000 00000007fcd0fbe6
-> >> [19381.018017] Call Trace:
-> >> [19381.018017]  [<ffffffff811b22b5>] ? page_lock_anon_vma_read+0x55/0x110
-> >> [19381.018017]  [<ffffffff811b2537>] page_referenced+0x1c7/0x350
-> >> [19381.018017]  [<ffffffff8118d634>] shrink_active_list+0x1e4/0x400
-> >> [19381.018017]  [<ffffffff8118dd0d>] shrink_lruvec+0x4bd/0x770
-> >> [19381.018017]  [<ffffffff8118e036>] shrink_zone+0x76/0x1a0
-> >> [19381.018017]  [<ffffffff8118e530>] do_try_to_free_pages+0xe0/0x3f0
-> >> [19381.018017]  [<ffffffff8118e93c>] try_to_free_pages+0xfc/0x180
-> >> [19381.018017]  [<ffffffff81182218>] __alloc_pages_nodemask+0x818/0xcc0
-> >> [19381.018017]  [<ffffffff811cabfa>] alloc_pages_vma+0x9a/0x150
-> >> [19381.018017]  [<ffffffff811e0346>] do_huge_pmd_wp_page+0x106/0xb60
-> >> [19381.018017]  [<ffffffffa01c27d0>] ? dm_get_queue_limits+0x30/0x30 [dm_mod]
-> >> [19381.018017]  [<ffffffff811a6518>] handle_mm_fault+0x638/0xfa0
-> >> [19381.018017]  [<ffffffff81313cf2>] ? radix_tree_lookup_slot+0x22/0x50
-> >> [19381.018017]  [<ffffffff8117771e>] ? __find_get_page+0x1e/0xa0
-> >> [19381.018017]  [<ffffffff81160097>] ? rtos_hungtask_acquired+0x57/0x140
-> >> [19381.018017]  [<ffffffff81660435>] __do_page_fault+0x145/0x490
-> >> [19381.018017]  [<ffffffff81660843>] trace_do_page_fault+0x43/0x110
-> >> [19381.018017]  [<ffffffff8165fef9>] do_async_page_fault+0x29/0xe0
-> >> [19381.018017]  [<ffffffff8165c538>] async_page_fault+0x28/0x30
-> >> [19381.018017]  [<ffffffff8131af79>] ? copy_user_enhanced_fast_string+0x9/0x20
-> >> [19381.018017]  [<ffffffff81207c9c>] ? poll_select_copy_remaining+0xfc/0x150
-> >> [19381.018017]  [<ffffffff81208c2c>] SyS_select+0xcc/0x110
-> >> [19381.018017]  [<ffffffff81664ff3>] system_call_fastpath+0x16/0x1b
-> > .
-> >
-> 
+diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
+index 5724092db811..ee3f9c30957c 100644
+--- a/Documentation/x86/x86_64/mm.txt
++++ b/Documentation/x86/x86_64/mm.txt
+@@ -19,7 +19,7 @@ ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp
+fixup stacks
+ ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
+ ... unused hole ...
+ ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
+-ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
++ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space (variable)
+ ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
+ ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+
+@@ -39,6 +39,9 @@ memory window (this size is arbitrary, it can be
+raised later if needed).
+ The mappings are not part of any other kernel PGD and are only available
+ during EFI runtime calls.
+
++The module mapping space size changes based on the CONFIG requirements for the
++following fixmap section.
++
+ Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
+ physical memory, vmalloc/ioremap space and virtual memory map are randomized.
+ Their order is preserved but their base will be offset early at boot time.
+diff --git a/arch/x86/include/asm/pgtable_64.h
+b/arch/x86/include/asm/pgtable_64.h
+index 73c7ccc38912..67608d4abc2c 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -13,6 +13,7 @@
+ #include <asm/processor.h>
+ #include <linux/bitops.h>
+ #include <linux/threads.h>
++#include <asm/fixmap.h>
+
+ extern pud_t level3_kernel_pgt[512];
+ extern pud_t level3_ident_pgt[512];
+diff --git a/arch/x86/include/asm/pgtable_64_types.h
+b/arch/x86/include/asm/pgtable_64_types.h
+index 3a264200c62f..bb05e21cf3c7 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -67,7 +67,8 @@ typedef struct { pteval_t pte; } pte_t;
+ #endif /* CONFIG_RANDOMIZE_MEMORY */
+ #define VMALLOC_END (VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
+ #define MODULES_VADDR    (__START_KERNEL_map + KERNEL_IMAGE_SIZE)
+-#define MODULES_END      _AC(0xffffffffff000000, UL)
++/* The module sections ends with the start of the fixmap */
++#define MODULES_END   __fix_to_virt(__end_of_fixed_addresses + 1)
+ #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
+ #define ESPFIX_PGD_ENTRY _AC(-2, UL)
+ #define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << PGDIR_SHIFT)
+-- 
+2.12.0.367.g23dc2f6d3c-goog
+
+-- 
+Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
