@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D5E6B03A6
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:01:28 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id z13so41858992iof.7
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:01:28 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0095.hostedemail.com. [216.40.44.95])
-        by mx.google.com with ESMTPS id c102si4695415iod.53.2017.03.15.19.01.28
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9006B03A7
+	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:01:36 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id z13so41863145iof.7
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 19:01:36 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0238.hostedemail.com. [216.40.44.238])
+        by mx.google.com with ESMTPS id c8si4675711ioe.168.2017.03.15.19.01.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 19:01:28 -0700 (PDT)
+        Wed, 15 Mar 2017 19:01:35 -0700 (PDT)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 08/15] mm: page_alloc: Fix typo acording -> according & the the -> to the
-Date: Wed, 15 Mar 2017 19:00:05 -0700
-Message-Id: <d18c3116815d70609eb063d8ce97d5a9fe05a2b9.1489628477.git.joe@perches.com>
+Subject: [PATCH 09/15] mm: page_alloc: Use the common commenting style
+Date: Wed, 15 Mar 2017 19:00:06 -0700
+Message-Id: <4573a4c65f069b60292458130b58cda88c009301.1489628477.git.joe@perches.com>
 In-Reply-To: <cover.1489628477.git.joe@perches.com>
 References: <cover.1489628477.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,26 +20,30 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 
-Just a typo fix...
+Just neatening
 
 Signed-off-by: Joe Perches <joe@perches.com>
 ---
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 60ec74894a56..e417d52b9de9 100644
+index e417d52b9de9..3e1d377201b8 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5419,7 +5419,7 @@ static int zone_batchsize(struct zone *zone)
-  * locking.
-  *
-  * Any new users of pcp->batch and pcp->high should ensure they can cope with
-- * those fields changing asynchronously (acording the the above rule).
-+ * those fields changing asynchronously (according to the above rule).
-  *
-  * mutex_is_locked(&pcp_batch_high_lock) required when calling this function
-  * outside of boot time (or some other assurance that no concurrent updaters
+@@ -5222,8 +5222,10 @@ void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
+ 		if (zone)
+ 			setup_zone_pageset(zone);
+ #endif
+-		/* we have to stop all cpus to guarantee there is no user
+-		   of zonelist */
++		/*
++		 * we have to stop all cpus to guarantee
++		 * there is no user of zonelist
++		 */
+ 		stop_machine(__build_all_zonelists, pgdat, NULL);
+ 		/* cpuset refresh routine should be here */
+ 	}
 -- 
 2.10.0.rc2.1.g053435c
 
