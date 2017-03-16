@@ -1,34 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DF46B038D
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:29:15 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w37so9790830wrc.2
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:29:15 -0700 (PDT)
-From: Till Smejkal <till.smejkal@googlemail.com>
-Date: Thu, 16 Mar 2017 10:29:09 -0700
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-Message-ID: <20170316172909.ux4u7dbspwlynsce@arch-dev>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1896B0038
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 13:40:58 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id d66so11869556wmi.2
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 10:40:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m139si5460180wma.32.2017.03.16.10.40.57
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Mar 2017 10:40:57 -0700 (PDT)
+Date: Thu, 16 Mar 2017 18:40:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] rework memory hotplug onlining
+Message-ID: <20170316174050.GA13654@dhcp22.suse.cz>
+References: <20170315091347.GA32626@dhcp22.suse.cz>
+ <1489622542.9118.8.camel@hpe.com>
+ <20170316085404.GE30501@dhcp22.suse.cz>
+ <1489688018.9118.14.camel@hpe.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1703160919170.3586@nanos>
+In-Reply-To: <1489688018.9118.14.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Till Smejkal <till.smejkal@googlemail.com>, Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Pawel Osciak <pawel@osciak.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Richard Weinberger <richard@nod.at>, Cyrille Pitchen <cyrille.pitchen@atmel.com>, Felipe Balbi <balbi@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jeff Layton <jlayton@poochiereds.net>, "J. Bruce Fields" <bfields@fieldses.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-alpha@vger.kernel.org, arcml <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, adi-buildroot-devel@lists.sourceforge.net, linux-hexagon@vger.kernel.org, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-metag@vger.kernel.org, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-mtd@lists.infradead.org, USB list <linux-usb@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, ALSA development <alsa-devel@alsa-project.org>
+To: "Kani, Toshimitsu" <toshi.kani@hpe.com>
+Cc: "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, "tangchen@cn.fujitsu.com" <tangchen@cn.fujitsu.com>, "arbab@linux.vnet.ibm.com" <arbab@linux.vnet.ibm.com>, "vkuznets@redhat.com" <vkuznets@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "daniel.kiper@oracle.com" <daniel.kiper@oracle.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "yasu.isimatu@gmail.com" <yasu.isimatu@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "imammedo@redhat.com" <imammedo@redhat.com>, "rientjes@google.com" <rientjes@google.com>, "mgorman@suse.de" <mgorman@suse.de>, "ak@linux.intel.com" <ak@linux.intel.com>, "slaoub@gmail.com" <slaoub@gmail.com>
 
-On Thu, 16 Mar 2017, Thomas Gleixner wrote:
-> Why do we need yet another mechanism to represent something which looks
-> like a file instead of simply using existing mechanisms and extend them?
+On Thu 16-03-17 17:19:34, Kani, Toshimitsu wrote:
+> On Thu, 2017-03-16 at 09:54 +0100, Michal Hocko wrote:
+> > On Wed 15-03-17 23:08:14, Kani, Toshimitsu wrote:
+> > > On Wed, 2017-03-15 at 10:13 +0100, Michal Hocko wrote:
+>  :
+> > > > -	zone = page_zone(pfn_to_page(valid_start));
+> > > 
+> > > Please do not remove the fix made in a96dfddbcc043. zone needs to
+> > > be set from valid_start, not from start_pfn.
+> > 
+> > Thanks for pointing this out. I was scratching my head about this
+> > part but was too tired from previous git archeology so I didn't check
+> > the history of this particular part.
+> >
+> > I will restore the original behavior but before I do that I am really
+> > curious whether partial memblocks are even supported for onlining.
+> > Maybe I am missing something but I do not see any explicit checks for
+> > NULL struct page when we set zone boundaries or online a memblock. Is
+> > it possible those memblocks are just never hotplugable?
+> 
+> check_hotplug_memory_range() checks if a given range is aligned by the
+> section size.
 
-You are right. I also recognized during the discussion with Andy, Chris, Matthew,
-Luck, Rich and the others that there are already other techniques in the Linux kernel
-that can achieve the same functionality when combined. As I said also to the others,
-I will drop the VAS segments for future versions. The first class virtual address
-space feature was the more interesting part of the patchset anyways.
+Ohh, right you are! I have completely missed check_hotplug_memory_range.
+Thanks for pointing it out.
 
-Thanks
-Till
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
