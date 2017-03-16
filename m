@@ -1,56 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 204E86B038A
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 00:47:09 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b2so71047038pgc.6
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 21:47:09 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id g7si4011447plk.69.2017.03.15.21.47.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 21:47:08 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id o126so18521018pfb.3
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 21:47:08 -0700 (PDT)
-Date: Thu, 16 Mar 2017 13:47:04 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [mmotm] "x86/atomic: move __arch_atomic_add_unless out of line"
- build error
-Message-ID: <20170316044704.GA729@jagdpanzerIV.localdomain>
-Reply-To: 20170315021431.13107-3-andi@firstfloor.org
+	by kanga.kvack.org (Postfix) with ESMTP id 8963E6B038C
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 01:30:15 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y17so73074447pgh.2
+        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 22:30:15 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id t11si2966437pfg.45.2017.03.15.22.30.13
+        for <linux-mm@kvack.org>;
+        Wed, 15 Mar 2017 22:30:14 -0700 (PDT)
+Date: Thu, 16 Mar 2017 14:31:22 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: ZONE_NORMAL vs. ZONE_MOVABLE
+Message-ID: <20170316053122.GA14701@js1304-P5Q-DELUXE>
+References: <20170315091347.GA32626@dhcp22.suse.cz>
+ <87shmedddm.fsf@vitty.brq.redhat.com>
+ <20170315122914.GG32620@dhcp22.suse.cz>
+ <87k27qd7m2.fsf@vitty.brq.redhat.com>
+ <20170315131139.GK32620@dhcp22.suse.cz>
+ <20170315163729.GR27056@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20170315163729.GR27056@redhat.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Andi Kleen <ak@linux.intel.com>
+
+On Wed, Mar 15, 2017 at 05:37:29PM +0100, Andrea Arcangeli wrote:
+> On Wed, Mar 15, 2017 at 02:11:40PM +0100, Michal Hocko wrote:
+> > OK, I see now. I am afraid there is quite a lot of code which expects
+> > that zones do not overlap. We can have holes in zones but not different
+> > zones interleaving. Probably something which could be addressed but far
+> > from trivial IMHO.
+> > 
+> > All that being said, I do not want to discourage you from experiments in
+> > those areas. Just be prepared all those are far from trivial and
+> > something for a long project ;)
+> 
+> This constraint was known for quite some time, so when I talked about
+> this very constraint with Mel at least year LSF/MM he suggested sticky
+> pageblocks would be superior to the current movable zone.
+> 
+> So instead of having a Movable zone, we could use the pageblocks but
+> make it sticky-movable so they're only going to accept __GFP_MOVABLE
+> allocations into them. It would be still a quite large change indeed
+> but it looks simpler and with fewer drawbacks than trying to make the
+> zone overlap.
 
 Hello,
 
-commit 4f86a82ff7df ("x86/atomic: move __arch_atomic_add_unless out of line")
-moved __arch_atomic_add_unless() out atomic.h and new KASAN atomic
-instrumentation [1] can't see it anymore
+I don't follow up previous discussion so please let me know if I miss
+something. I'd just like to mention about sticky pageblocks.
 
+Before that, I'd like to say that a lot of code already deals with zone
+overlap. Zone overlap exists for a long time although I don't know exact
+history. IIRC, Mel fixed such a case before and compaction code has a
+check for it. And, I added the overlap check to some pfn iterators which
+doesn't have such a check for preparation of introducing a new zone,
+ZONE_CMA, which has zone range overlap property. See following commits.
 
-In file included from ./arch/x86/include/asm/atomic.h:257:0,
-                 from ./include/linux/atomic.h:4,
-                 from ./include/asm-generic/qspinlock_types.h:28,
-                 from ./arch/x86/include/asm/spinlock_types.h:26,
-                 from ./include/linux/spinlock_types.h:13,
-                 from kernel/bounds.c:13:
-./include/asm-generic/atomic-instrumented.h: In function a??__atomic_add_unlessa??:
-./include/asm-generic/atomic-instrumented.h:70:9: error: implicit declaration of function a??__arch_atomic_add_unlessa?? [-Werror=implicit-function-declaration]
-  return __arch_atomic_add_unless(v, a, u);
-         ^~~~~~~~~~~~~~~~~~~~~~~~
+'ba6b097', '9d43f5a', 'a91c43c'.
 
+Come to my main topic, I disagree that sticky pageblock would be
+superior to the current separate zone approach. There is some reasons
+about the objection to sticky movable pageblock in following link.
 
-so we need a declaration of __arch_atomic_add_unless() in arch/x86/include/asm/atomic.h
+Sticky movable pageblock is conceptually same with MIGRATE_CMA and it
+will cause many subtle issues like as MIGRATE_CMA did for CMA users.
+MIGRATE_CMA introduces many hooks in various code path, and, to fix the
+remaining issues, it needs more hooks. I don't think it is
+maintainable approach. If you see following link which implements ZONE
+approach, you can see that many hooks are removed in the end.
 
+lkml.kernel.org/r/1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com
 
-[1] lkml.kernel.org/r/7e450175a324bf93c602909c711bc34715d8e8f2.1489519233.git.dvyukov@google.com
+I don't know exact requirement on memory hotplug so it would be
+possible that ZONE approach is not suitable for it. But, anyway, sticky
+pageblock seems not to be a good solution to me.
 
-	-ss
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
