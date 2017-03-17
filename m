@@ -1,87 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EF5A6B0038
-	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 20:45:21 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u108so11148396wrb.3
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 17:45:21 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id o184si861410wma.92.2017.03.16.17.45.19
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 969F56B0038
+	for <linux-mm@kvack.org>; Thu, 16 Mar 2017 21:00:07 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g2so118031532pge.7
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 18:00:07 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id y9si6864916pli.294.2017.03.16.18.00.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 17:45:20 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id z133so905973wmb.2
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 17:45:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <d4e8433d-4680-dced-4f11-2f3cc8ebc613@nvidia.com>
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
- <1489680335-6594-8-git-send-email-jglisse@redhat.com> <20170316160520.d03ac02474cad6d2c8eba9bc@linux-foundation.org>
- <d4e8433d-4680-dced-4f11-2f3cc8ebc613@nvidia.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Fri, 17 Mar 2017 11:45:19 +1100
-Message-ID: <CAKTCnzmYob5uq11zkJE781BX9rDH9EYM7zxHH+ZMtTs4D5kkiQ@mail.gmail.com>
+        Thu, 16 Mar 2017 18:00:06 -0700 (PDT)
 Subject: Re: [HMM 07/16] mm/migrate: new memory migration helper for use with
  device memory v4
-Content-Type: text/plain; charset=UTF-8
+References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
+ <1489680335-6594-8-git-send-email-jglisse@redhat.com>
+ <20170316160520.d03ac02474cad6d2c8eba9bc@linux-foundation.org>
+ <d4e8433d-4680-dced-4f11-2f3cc8ebc613@nvidia.com>
+ <CAKTCnzmYob5uq11zkJE781BX9rDH9EYM7zxHH+ZMtTs4D5kkiQ@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <94e0d115-7deb-c748-3dc2-60d6289e6551@nvidia.com>
+Date: Thu, 16 Mar 2017 17:57:35 -0700
+MIME-Version: 1.0
+In-Reply-To: <CAKTCnzmYob5uq11zkJE781BX9rDH9EYM7zxHH+ZMtTs4D5kkiQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
+To: Balbir Singh <bsingharora@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Fri, Mar 17, 2017 at 11:22 AM, John Hubbard <jhubbard@nvidia.com> wrote:
-> On 03/16/2017 04:05 PM, Andrew Morton wrote:
+On 03/16/2017 05:45 PM, Balbir Singh wrote:
+> On Fri, Mar 17, 2017 at 11:22 AM, John Hubbard <jhubbard@nvidia.com> wrot=
+e:
+>> On 03/16/2017 04:05 PM, Andrew Morton wrote:
+>>>
+>>> On Thu, 16 Mar 2017 12:05:26 -0400 J=C3=A9r=C3=B4me Glisse <jglisse@red=
+hat.com>
+>>> wrote:
+>>>
+>>>> +static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
+>>>> +{
+>>>> +       if (!(mpfn & MIGRATE_PFN_VALID))
+>>>> +               return NULL;
+>>>> +       return pfn_to_page(mpfn & MIGRATE_PFN_MASK);
+>>>> +}
+>>>
+>>>
+>>> i386 allnoconfig:
+>>>
+>>> In file included from mm/page_alloc.c:61:
+>>> ./include/linux/migrate.h: In function 'migrate_pfn_to_page':
+>>> ./include/linux/migrate.h:139: warning: left shift count >=3D width of =
+type
+>>> ./include/linux/migrate.h:141: warning: left shift count >=3D width of =
+type
+>>> ./include/linux/migrate.h: In function 'migrate_pfn_size':
+>>> ./include/linux/migrate.h:146: warning: left shift count >=3D width of =
+type
+>>>
 >>
->> On Thu, 16 Mar 2017 12:05:26 -0400 J=C3=A9r=C3=B4me Glisse <jglisse@redh=
-at.com>
->> wrote:
+>> It seems clear that this was never meant to work with < 64-bit pfns:
 >>
->>> +static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
->>> +{
->>> +       if (!(mpfn & MIGRATE_PFN_VALID))
->>> +               return NULL;
->>> +       return pfn_to_page(mpfn & MIGRATE_PFN_MASK);
->>> +}
+>> // migrate.h excerpt:
+>> #define MIGRATE_PFN_VALID       (1UL << (BITS_PER_LONG_LONG - 1))
+>> #define MIGRATE_PFN_MIGRATE     (1UL << (BITS_PER_LONG_LONG - 2))
+>> #define MIGRATE_PFN_HUGE        (1UL << (BITS_PER_LONG_LONG - 3))
+>> #define MIGRATE_PFN_LOCKED      (1UL << (BITS_PER_LONG_LONG - 4))
+>> #define MIGRATE_PFN_WRITE       (1UL << (BITS_PER_LONG_LONG - 5))
+>> #define MIGRATE_PFN_DEVICE      (1UL << (BITS_PER_LONG_LONG - 6))
+>> #define MIGRATE_PFN_ERROR       (1UL << (BITS_PER_LONG_LONG - 7))
+>> #define MIGRATE_PFN_MASK        ((1UL << (BITS_PER_LONG_LONG - PAGE_SHIF=
+T))
+>> - 1)
 >>
+>> ...obviously, there is not enough room for these flags, in a 32-bit pfn.
 >>
->> i386 allnoconfig:
->>
->> In file included from mm/page_alloc.c:61:
->> ./include/linux/migrate.h: In function 'migrate_pfn_to_page':
->> ./include/linux/migrate.h:139: warning: left shift count >=3D width of t=
-ype
->> ./include/linux/migrate.h:141: warning: left shift count >=3D width of t=
-ype
->> ./include/linux/migrate.h: In function 'migrate_pfn_size':
->> ./include/linux/migrate.h:146: warning: left shift count >=3D width of t=
-ype
->>
+>> So, given the current HMM design, I think we are going to have to provid=
+e a
+>> 32-bit version of these routines (migrate_pfn_to_page, and related) that=
+ is
+>> a no-op, right?
 >
-> It seems clear that this was never meant to work with < 64-bit pfns:
+> Or make the HMM Kconfig feature 64BIT only by making it depend on 64BIT?
 >
-> // migrate.h excerpt:
-> #define MIGRATE_PFN_VALID       (1UL << (BITS_PER_LONG_LONG - 1))
-> #define MIGRATE_PFN_MIGRATE     (1UL << (BITS_PER_LONG_LONG - 2))
-> #define MIGRATE_PFN_HUGE        (1UL << (BITS_PER_LONG_LONG - 3))
-> #define MIGRATE_PFN_LOCKED      (1UL << (BITS_PER_LONG_LONG - 4))
-> #define MIGRATE_PFN_WRITE       (1UL << (BITS_PER_LONG_LONG - 5))
-> #define MIGRATE_PFN_DEVICE      (1UL << (BITS_PER_LONG_LONG - 6))
-> #define MIGRATE_PFN_ERROR       (1UL << (BITS_PER_LONG_LONG - 7))
-> #define MIGRATE_PFN_MASK        ((1UL << (BITS_PER_LONG_LONG - PAGE_SHIFT=
-))
-> - 1)
->
-> ...obviously, there is not enough room for these flags, in a 32-bit pfn.
->
-> So, given the current HMM design, I think we are going to have to provide=
- a
-> 32-bit version of these routines (migrate_pfn_to_page, and related) that =
-is
-> a no-op, right?
 
-Or make the HMM Kconfig feature 64BIT only by making it depend on 64BIT?
+Yes, that was my first reaction too, but these particular routines are aspi=
+ring to be generic=20
+routines--in fact, you have had an influence there, because these might pos=
+sibly help with NUMA=20
+migrations. :)
 
+So it would look odd to see this:
 
-Balbir Singh
+#ifdef CONFIG_HMM
+int migrate_vma(const struct migrate_vma_ops *ops,
+		struct vm_area_struct *vma,
+		unsigned long mentries,
+		unsigned long start,
+		unsigned long end,
+		unsigned long *src,
+		unsigned long *dst,
+		void *private)
+{
+    //...implementation
+#endif
+
+...because migrate_vma() does not sound HMM-specific, and it is, after all,=
+ in migrate.h and=20
+migrate.c. We probably want this a more generic approach (not sure if I've =
+picked exactly the right=20
+token to #ifdef on, but it's close):
+
+#ifdef CONFIG_64BIT
+int migrate_vma(const struct migrate_vma_ops *ops,
+		struct vm_area_struct *vma,
+		unsigned long mentries,
+		unsigned long start,
+		unsigned long end,
+		unsigned long *src,
+		unsigned long *dst,
+		void *private)
+{
+    /* ... full implementation */
+}
+
+#else
+int migrate_vma(const struct migrate_vma_ops *ops,
+		struct vm_area_struct *vma,
+		unsigned long mentries,
+		unsigned long start,
+		unsigned long end,
+		unsigned long *src,
+		unsigned long *dst,
+		void *private)
+{
+    return -EINVAL; /* or something more appropriate */
+}
+#endif
+
+thanks
+John Hubbard
+NVIDIA
+
+>
+> Balbir Singh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
