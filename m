@@ -1,52 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DDEE6B038C
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 09:20:45 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v66so13948013wrc.4
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 06:20:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k19si3240874wmi.79.2017.03.17.06.20.44
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8892B6B038C
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 09:24:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y6so113206747pfa.3
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 06:24:54 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r39si8680521pld.105.2017.03.17.06.24.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Mar 2017 06:20:44 -0700 (PDT)
-Date: Fri, 17 Mar 2017 14:20:36 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] rework memory hotplug onlining
-Message-ID: <20170317132036.GI26298@dhcp22.suse.cz>
-References: <20170315091347.GA32626@dhcp22.suse.cz>
+        Fri, 17 Mar 2017 06:24:53 -0700 (PDT)
+Subject: Re: DOM Worker: page allocation stalls (4.9.13)
+References: <20170316100409.GR802@shells.gnugeneration.com>
+ <20170317084652.GD26298@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <08ae9fca-9388-1f8a-f8ae-14ada0bdbb92@I-love.SAKURA.ne.jp>
+Date: Fri, 17 Mar 2017 22:24:40 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170315091347.GA32626@dhcp22.suse.cz>
+In-Reply-To: <20170317084652.GD26298@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mgorman@suse.de>, qiuxishi@huawei.com, toshi.kani@hpe.com, xieyisheng1@huawei.com, slaoub@gmail.com, iamjoonsoo.kim@lge.com, Zhang Zhen <zhenzhang.zhang@huawei.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Andi Kleen <ak@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>, "Philip J. Freeman" <elektron@halo.nu>
+Cc: linux-mm@kvack.org
 
-On Wed 15-03-17 10:13:47, Michal Hocko wrote:
-[...]
-> It seems that all this is just started by the semantic introduced by
-> 9d99aaa31f59 ("[PATCH] x86_64: Support memory hotadd without sparsemem")
-> quite some time ago. When the movable onlinining has been introduced it
-> just built on top of this. It seems that the requirement to have
-> freshly probed memory associated with the zone normal is no longer
-> necessary. HOTPLUG depends on CONFIG_SPARSEMEM these days.
+On 2017/03/17 17:46, Michal Hocko wrote:
+> On Thu 16-03-17 03:04:09, Philip J. Freeman wrote:
+>> My laptop became almost totally un responsive today. I was able to
+>> switch VTs but not log in and had to power cycle to regain control. I
+>> don't understand what this means. Any ideas?
+>>
+>> Mar 14 14:31:20 x61s-44a5 kernel: [168382.032039] DOM Worker: page allocation stalls for 10646ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
+> [...]
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032181] Mem-Info:
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032192] active_anon:308454 inactive_anon:154809 isolated_anon:224
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032192]  active_file:869 inactive_file:978 isolated_file:0
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032192]  unevictable:0 dirty:0 writeback:0 unstable:0
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032192]  slab_reclaimable:6099 slab_unreclaimable:8555
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032192]  mapped:1999 shmem:156254 pagetables:2929 bounce:0
+>> Mar 14 14:31:22 x61s-44a5 kernel: [168382.032192]  free:13192 free_pcp:0 free_cma:0
 > 
-> The following blob [2] simply removes all the zone specific operations
-> from __add_pages (aka arch_add_memory) path.  Instead we do page->zone
-> association from move_pfn_range which is called from online_pages. The
-> criterion for movable/normal zone association is really simple now. We
-> just have to guarantee that zone Normal is always lower than zone
-> Movable. It would be actually sufficient to guarantee they do not
-> overlap and that is indeed trivial to implement now. I didn't do that
-> yet for simplicity of this change though.
+> OK, so the allocation couldn't make a forward progress for more than
+> 10s. You do not seem to have many file pages on the LRU lists left
+> and so you only have anonymous memory as reclaimable. Slab doesn't
+> have many pages either. Everything together makes it 1886MB out of 2GB.
+> ~50MB is free so this means ~70MB is in unaccounted memory (50MB is
+> reserved) which looks reasonably and I wouldn't suspect any kernel
+> memory leak
 
-Does anybody have any comments on this? Any issues I've overlooked
-(except for the one pointed by Toshi Kani which is already fixed in my
-local branch)?
--- 
-Michal Hocko
-SUSE Labs
+I don't suspect any kernel memory leak here.
+
+> And again the anonymous memory pressure grows. So I would suspect some
+> userspace application went off the hook and started consuming a lot of
+> anonymous memory which gets you to a trashing stage when basically
+> nothing can move on much without swap out. The page cache is at its
+> minimum and I suspect that most binaries would have to be read from disk
+> and you reached the point of trashing. I am afraid we are not really
+> great at handling these situations from the kernel well. Killing the
+> memory hog would be probably the most sane thing to do.
+> 
+
+I don't know what "DOM Worker" process is. But guessing from that there is
+"firefox-esr" process, "DOM Worker" is a process related to HTML5 Web Workers API.
+Since web browser processes can heavily consume memory depending on the content
+loaded (or memory leak of plugins), it is possible that you are overstressing
+the system.
+
+"DMA32 free:" is below "DMA32 min:" which I think means that the OOM killer
+would have been triggerred immediately if there is no swap.
+
+I guess there were other processes which stalled less than 10 seconds. Maybe
+processes stalling at doing swap I/O exist, but we can't know them because
+warn_alloc() threshold is not configurable and __GFP_NOWARN allocations are
+not reported by warn_alloc(). Too bad.
+
+If you can rebuild your kernel, calling dump_tasks() in mm/oom_kill.c when
+you hit warn_alloc() warnings might help. If you cannot, SysRq-f will be
+handy to check.
+
+If you still suspect that this is a kernel problem, you can try older kernels
+for comparison purpose which you think everything was working well, though
+warn_alloc() was added in Linux 4.9.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
