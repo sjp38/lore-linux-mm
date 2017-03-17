@@ -1,155 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CF026B0038
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:56:19 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id g2so140917399pge.7
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 07:56:19 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0083.outbound.protection.outlook.com. [104.47.36.83])
-        by mx.google.com with ESMTPS id h25si6165199pfk.166.2017.03.17.07.56.05
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C46AE6B038A
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 11:52:43 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id n37so66096769qtb.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 08:52:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k67si6742020qkb.55.2017.03.17.08.52.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 17 Mar 2017 07:56:06 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 08/32] x86: Use PAGE_KERNEL protection for ioremap
- of memory page
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846761276.2349.4899767672892365544.stgit@brijesh-build-machine>
- <20170307145954.l2fqy5s5h65wbtyz@pd.tnic>
- <413f12e9-818a-745d-374b-3dbc439e972c@amd.com>
- <0a7de265-1352-6327-ef3a-4287bfca732d@amd.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <bca182ee-a881-6290-9b94-fceabe20306f@amd.com>
-Date: Fri, 17 Mar 2017 09:55:55 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Mar 2017 08:52:42 -0700 (PDT)
+Date: Fri, 17 Mar 2017 11:52:37 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 00/16] HMM (Heterogeneous Memory Management) v18
+Message-ID: <20170317155236.GA7582@redhat.com>
+References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
+ <20170316134321.c5cf727c21abf89b7e6708a2@linux-foundation.org>
+ <20170316234950.GA5725@redhat.com>
+ <a0e1af7b-d8a6-2277-b659-66608cc61ef5@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <0a7de265-1352-6327-ef3a-4287bfca732d@amd.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <a0e1af7b-d8a6-2277-b659-66608cc61ef5@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Bob Liu <liubo95@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>
 
-On 3/17/2017 9:32 AM, Tom Lendacky wrote:
-> On 3/16/2017 3:04 PM, Tom Lendacky wrote:
->> On 3/7/2017 8:59 AM, Borislav Petkov wrote:
->>> On Thu, Mar 02, 2017 at 10:13:32AM -0500, Brijesh Singh wrote:
->>>> From: Tom Lendacky <thomas.lendacky@amd.com>
->>>>
->>>> In order for memory pages to be properly mapped when SEV is active, we
->>>> need to use the PAGE_KERNEL protection attribute as the base
->>>> protection.
->>>> This will insure that memory mapping of, e.g. ACPI tables, receives the
->>>> proper mapping attributes.
->>>>
->>>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->>>> ---
->>>
->>>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
->>>> index c400ab5..481c999 100644
->>>> --- a/arch/x86/mm/ioremap.c
->>>> +++ b/arch/x86/mm/ioremap.c
->>>> @@ -151,7 +151,15 @@ static void __iomem
->>>> *__ioremap_caller(resource_size_t phys_addr,
->>>>                 pcm = new_pcm;
->>>>         }
->>>>
->>>> +       /*
->>>> +        * If the page being mapped is in memory and SEV is active then
->>>> +        * make sure the memory encryption attribute is enabled in the
->>>> +        * resulting mapping.
->>>> +        */
->>>>         prot = PAGE_KERNEL_IO;
->>>> +       if (sev_active() && page_is_mem(pfn))
->>>
->>> Hmm, a resource tree walk per ioremap call. This could get expensive for
->>> ioremap-heavy workloads.
->>>
->>> __ioremap_caller() gets called here during boot 55 times so not a whole
->>> lot but I wouldn't be surprised if there were some nasty use cases which
->>> ioremap a lot.
->>>
->>> ...
->>>
->>>> diff --git a/kernel/resource.c b/kernel/resource.c
->>>> index 9b5f044..db56ba3 100644
->>>> --- a/kernel/resource.c
->>>> +++ b/kernel/resource.c
->>>> @@ -518,6 +518,46 @@ int __weak page_is_ram(unsigned long pfn)
->>>>  }
->>>>  EXPORT_SYMBOL_GPL(page_is_ram);
->>>>
->>>> +/*
->>>> + * This function returns true if the target memory is marked as
->>>> + * IORESOURCE_MEM and IORESOUCE_BUSY and described as other than
->>>> + * IORES_DESC_NONE (e.g. IORES_DESC_ACPI_TABLES).
->>>> + */
->>>> +static int walk_mem_range(unsigned long start_pfn, unsigned long
->>>> nr_pages)
->>>> +{
->>>> +    struct resource res;
->>>> +    unsigned long pfn, end_pfn;
->>>> +    u64 orig_end;
->>>> +    int ret = -1;
->>>> +
->>>> +    res.start = (u64) start_pfn << PAGE_SHIFT;
->>>> +    res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
->>>> +    res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
->>>> +    orig_end = res.end;
->>>> +    while ((res.start < res.end) &&
->>>> +        (find_next_iomem_res(&res, IORES_DESC_NONE, true) >= 0)) {
->>>> +        pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
->>>> +        end_pfn = (res.end + 1) >> PAGE_SHIFT;
->>>> +        if (end_pfn > pfn)
->>>> +            ret = (res.desc != IORES_DESC_NONE) ? 1 : 0;
->>>> +        if (ret)
->>>> +            break;
->>>> +        res.start = res.end + 1;
->>>> +        res.end = orig_end;
->>>> +    }
->>>> +    return ret;
->>>> +}
->>>
->>> So the relevant difference between this one and walk_system_ram_range()
->>> is this:
->>>
->>> -            ret = (*func)(pfn, end_pfn - pfn, arg);
->>> +            ret = (res.desc != IORES_DESC_NONE) ? 1 : 0;
->>>
->>> so it seems to me you can have your own *func() pointer which does that
->>> IORES_DESC_NONE comparison. And then you can define your own workhorse
->>> __walk_memory_range() which gets called by both walk_mem_range() and
->>> walk_system_ram_range() instead of almost duplicating them.
->>>
->>> And looking at walk_system_ram_res(), that one looks similar too except
->>> the pfn computation. But AFAICT the pfn/end_pfn things are computed from
->>> res.start and res.end so it looks to me like all those three functions
->>> are crying for unification...
->>
->> I'll take a look at what it takes to consolidate these with a pre-patch.
->> Then I'll add the new support.
->
-> It looks pretty straight forward to combine walk_iomem_res_desc() and
-> walk_system_ram_res(). The walk_system_ram_range() function would fit
-> easily into this, also, except for the fact that the callback function
-> takes unsigned longs vs the u64s of the other functions.  Is it worth
-> modifying all of the callers of walk_system_ram_range() (which are only
-> about 8 locations) to change the callback functions to accept u64s in
-> order to consolidate the walk_system_ram_range() function, too?
+On Fri, Mar 17, 2017 at 04:39:28PM +0800, Bob Liu wrote:
+> On 2017/3/17 7:49, Jerome Glisse wrote:
+> > On Thu, Mar 16, 2017 at 01:43:21PM -0700, Andrew Morton wrote:
+> >> On Thu, 16 Mar 2017 12:05:19 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
+> >>
+> >>> Cliff note:
+> >>
+> >> "Cliff's notes" isn't appropriate for a large feature such as this. 
+> >> Where's the long-form description?  One which permits readers to fully
+> >> understand the requirements, design, alternative designs, the
+> >> implementation, the interface(s), etc?
+> >>
+> >> Have you ever spoken about HMM at a conference?  If so, the supporting
+> >> presentation documents might help here.  That's the level of detail
+> >> which should be presented here.
+> > 
+> > Longer description of patchset rational, motivation and design choices
+> > were given in the first few posting of the patchset to which i included
+> > a link in my cover letter. Also given that i presented that for last 3
+> > or 4 years to mm summit and kernel summit i thought that by now peoples
+> > were familiar about the topic and wanted to spare them the long version.
+> > My bad.
+> > 
+> > I attach a patch that is a first stab at a Documentation/hmm.txt that
+> > explain the motivation and rational behind HMM. I can probably add a
+> > section about how to use HMM from device driver point of view.
+> > 
+> 
+> And a simple example program/pseudo-code make use of the device memory 
+> would also very useful for person don't have GPU programming experience :)
 
-The more I dig, the more I find that the changes keep expanding. I'll
-leave walk_system_ram_range() out of the consolidation for now.
+Like i said there is no userspace API to this. Right now it is under
+driver control what and when to migrate. So this is specific to each
+driver and without a driver which use this feature nothing happen. 
 
-Thanks,
-Tom
+Each driver will expose its own API that probably won't be expose to
+the end user but to the user space driver (OpenCL, Cuda, C++, OpenMP,
+...). We are not sure what kind of API we will expose in the nouveau
+driver this still need to be discuss. Same for the AMD driver.
 
->
-> Thanks,
-> Tom
->
->>
->> Thanks,
->> Tom
->>
->>>
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
