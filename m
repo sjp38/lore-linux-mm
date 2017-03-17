@@ -1,114 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F9B6B0388
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 18:06:15 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 81so132212582pgh.3
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 15:06:15 -0700 (PDT)
-Received: from cmccmta3.chinamobile.com (cmccmta3.chinamobile.com. [221.176.66.81])
-        by mx.google.com with ESMTP id y76si6985776pfi.244.2017.03.17.15.06.13
-        for <linux-mm@kvack.org>;
-        Fri, 17 Mar 2017 15:06:14 -0700 (PDT)
-In-Reply-To: <2dd405f8-9f5b-405d-e744-9ee8bac77686@redhat.com>
-References: <1488962743-17028-1-git-send-email-lixiubo@cmss.chinamobile.com><1488962743-17028-3-git-send-email-lixiubo@cmss.chinamobile.com><3b1ce412-6072-fda1-3002-220cf8fbf34f@redhat.com><ddd797ea-43f0-b863-64e4-1e758f41dafe@cmss.chinamobile.com><f4c4e83a-d6b1-ed57-7a54-4277722e5a46@cmss.chinamobile.com> <2dd405f8-9f5b-405d-e744-9ee8bac77686@redhat.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ADDE36B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 18:13:18 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id g138so42566423itb.4
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 15:13:18 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id v2si3453708ite.91.2017.03.17.15.13.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Mar 2017 15:13:17 -0700 (PDT)
+Subject: Re: [LSF/MM TOPIC][LSF/MM,ATTEND] shared TLB, hugetlb reservations
+References: <cad15568-221e-82b7-a387-f23567a0bc76@oracle.com>
+ <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
+ <20170314183706.GO27056@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <f78063aa-ac16-dd0a-d664-ea6e4aff6b9f@oracle.com>
+Date: Fri, 17 Mar 2017 15:13:11 -0700
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="----DTKAJ5MA9N3GK5FOKD5BA28PNDC3L3"
-Subject: Re:  [PATCHv2 2/5] target/user: Add global data block pool support
-From: =?UTF-8?B?5p2O56eA5rOi?= <lixiubo@cmss.chinamobile.com>
-Date: Sat, 18 Mar 2017 06:06:11 +0800
-Message-ID: <13903058-78b8-4737-9eef-849ee7bca307@email.android.com>
+In-Reply-To: <20170314183706.GO27056@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: AndyGrover <agrover@redhat.com>, nab@linux-iscsi.org, mchristi@redhat.com
-Cc: shli@kernel.org, sheng@yasker.org, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, namei.unix@gmail.com, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, qemu-devel@nongnu.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-------DTKAJ5MA9N3GK5FOKD5BA28PNDC3L3
-Content-Type: text/plain;
- charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On 03/14/2017 11:37 AM, Andrea Arcangeli wrote:
+> Hello,
+> 
+> On Wed, Mar 08, 2017 at 05:30:55PM -0800, Mike Kravetz wrote:
+>> On 01/10/2017 03:02 PM, Mike Kravetz wrote:
+>>> Another more concrete topic is hugetlb reservations.  Michal Hocko
+>>> proposed the topic "mm patches review bandwidth", and brought up the
+>>> related subject of areas in need of attention from an architectural
+>>> POV.  I suggested that hugetlb reservations was one such area.  I'm
+>>> guessing it was introduced to solve a rather concrete problem.  However,
+>>> over time additional hugetlb functionality was added and the
+>>> capabilities of the reservation code was stretched to accommodate.
+>>> It would be good to step back and take a look at the design of this
+>>> code to determine if a rewrite/redesign is necessary.  Michal suggested
+>>> documenting the current design/code as a first step.  If people think
+>>> this is worth discussion at the summit, I could put together such a
+>>> design before the gathering.
+>>
+>> I attempted to put together a design/overview of how hugetlb reservations
+>> currently work.  Hopefully, this will be useful.
+> 
+> Another area of hugetlbfs that is not clear is the status of
+> MADV_REMOVE and the behavior of fallocate punch hole that deviates
+> from more standard shmem semantics. That might also be a topic of
+> interest related to your hugetlbfs topic and marginally related to
+> userfaultfd.
 
+Thanks Andrea,
 
+I was not aware qemu was carrying all this information.
 
-AndyGrover <agrover@redhat=2Ecom>=E5=86=99=E5=88=B0=EF=BC=9A
->On 03/17/20=
-17 01:04 AM, Xiubo Li wrote:
->> [=2E=2E=2E]
->>> These days what I have gott=
-en is that the unmap_mapping_range()
->could
->>> be used=2E
->>> At the same =
-time I have deep into the mm code and fixed the double
->>> usage of
->>> the=
- data blocks and possible page fault call trace bugs mentioned
->above=2E
->>=
->
->>> Following is the V3 patch=2E I have test this using 4 targets & fio
->=
-for
->>> about 2 days, so
->>> far so good=2E
->>>
->>> I'm still testing this =
-using more complex test case=2E
->>>
->> I have test it the whole day today:
-=
->> - using 4 targets
->> - setting TCMU_GLOBAL_MAX_BLOCKS =3D [512 1K 1M 1G =
-2G]
->> - each target here needs more than 450 blocks when running
->> - fio:=
- -iodepth [1 2 4 8 16] -thread -rw=3D[read write] -bs=3D[1K 2K 3K
->5K
->> 7K=
- 16K 64K 1M] -size=3D20G -numjobs=3D10 -runtime=3D1000  =2E=2E=2E
->
->Hi Xiu=
-bo,
->
->V3 is sounding very good=2E I look forward to reviewing it after it =
-is
->posted=2E
->
+> The current status for anon, shmem and hugetlbfs like this:
+> 
+> MADV_DONTNEED works: anon, !VM_SHARED shmem
+> MADV_DONTNEED doesn't work: hugetlbfs VM_SHARED, hugetlbfs !VM_SHARED
+> MADV_DONTNEED works but not guaranteed to fault: shmem VM_SHARED
+> 
+> MADV_REMOVE works: shmem VM_SHARED, hugetlbfs VM_SHARED
+> MADV_REMOVE doesn't work: anon, shmem !VM_SHARED, hugetlbfs !VM_SHARED
+> 
+> fallocate punch hole works: hugetlbfs VM_SHARED, hugetlbfs !VM_SHARED,
+> 	  	     	    shmem VM_SHARED
+> fallocate punch hole doesn't work: anon, shmem !VM_SHARED
+> 
+> So what happens in qemu is:
+> 
+> anon			-> MADV_DONTNEED
+> 
+> shmem !VM_SHARED	-> MADV_DONTNEED (fallocate punch hole wouldn't zap
+> 			   private pages, but it does on hugetlbfs)
+> 
+> shmem VM_SHARED		-> fallocate punch hole (MADV_REMOVE would
+>       			   work too)
+> 
+> hugetlbfs !VM_SHARED	-> fallocate punch hole (works for hugetlbfs
+> 			   but not for shmem !VM_SHARED)
+> 
+> hugetlbfs VM_SHARED	-> fallocate punch hole (MADV_REMOVE would work too)
+> 
+> This means qemu has to carry around information on the type of memory
+> it got from the initial memblock setup, so at live migration time it
+> can zap the memory with the right call. (NOTE: such memory is not
+> generated by userfaultfd UFFDIO_COPY, but it was allocated and mapped
+> and it must be zapped well before calling userfaultfd the first time).
+> 
+> To do this qemu uses fstatfs and finds out which kind of memory it's
+> dealing with to use the right call depending on which memory.
+> 
+> In short it'd be better to have something like a generic MADV_REMOVE
+> that guarantees a non-present fault after it succeeds, no matter what
+> kind of memory is mapped in the virtual range that has to be
+> zapped. The above is far from ideal from a userland developer
+> prospective.
 
-Yes, I will post it later after more test and checking=2E
-=
+I think we will need to have a new generic MADV_REMOVE type of call
+as you suggest.  Based on existing documentation for MADV_DONTNEED,
+MADV_REMOVE and fallocate hole punch they each are designed not to
+work on at least one of the desired memory mapping types.
 
-Thanks,
+> Overall fallocate punch hole covers the most cases so to keep the code
+> simpler ironically MADV_REMOVE ends up being never used despite it
+> provides a more friendly API than fallocate to qemu. The files are
+> always mapped and the older code only dealt with virtual addresses
+> (before hugetlbfs and shmem entered thee equation). Ideally qemu wants
+> to call the same madvise regardles if the memory is anon shmem or
+> hugetlbfs without having to carry around file descriptor, file offsets
+> and superblock types.
+> 
+> It's also not clear why MADV_DONTNEED doesn't work for hugetlbfs
+> !VM_SHARED mappings and why fallocate punch hole is also zapping
+> private cow-like pages from !VM_SHARED mappings (although if it
+> didn't, it would be impossible to zap those... so it's good luck it
+> does).
 
-BRs
-Xiubo
+Yes, it is more like good luck than design.  fallocate hole punch for
+hugetlbfs VM_SHARED was the original use case/design.  MADV_REMOVE was
+added just because it could without additional effort.
 
+Thanks for bringing this up.  We should definitely discuss within the
+scope of hugetlbfs and/or userfaultfd.
 
->Thanks -- Regards -- Andy
+-- 
+Mike Kravetz
 
-------DTKAJ5MA9N3GK5FOKD5BA28PNDC3L3
-Content-Type: text/html;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-<br><br>AndyGrover <agrover@redhat=2Ecom>=E5=86=99=E5=88=B0=EF=BC=9A<BR>>On=
- 03/17/2017 01:04 AM, Xiubo Li wrote:<BR>>> [=2E=2E=2E]<BR>>>> These days w=
-hat I have gotten is that the unmap_mapping_range()<BR>>could<BR>>>> be use=
-d=2E<BR>>>> At the same time I have deep into the mm code and fixed the dou=
-ble<BR>>>> usage of<BR>>>> the data blocks and possible page fault call tra=
-ce bugs mentioned<BR>>above=2E<BR>>>><BR>>>> Following is the V3 patch=2E I=
- have test this using 4 targets & fio<BR>>for<BR>>>> about 2 days, so<BR>>>=
-> far so good=2E<BR>>>><BR>>>> I'm still testing this using more complex te=
-st case=2E<BR>>>><BR>>> I have test it the whole day today:<BR>>> - using 4=
- targets<BR>>> - setting TCMU_GLOBAL_MAX_BLOCKS =3D [512 1K 1M 1G 2G]<BR>>>=
- - each target here needs more than 450 blocks when running<BR>>> - fio: -i=
-odepth [1 2 4 8 16] -thread -rw=3D[read write] -bs=3D[1K 2K 3K<BR>>5K<BR>>>=
- 7K 16K 64K 1M] -size=3D20G -numjobs=3D10 -runtime=3D1000  =2E=2E=2E<BR>><B=
-R>>Hi Xiubo,<BR>><BR>>V3 is sounding very good=2E I look forward to reviewi=
-ng it after it is<BR>>posted=2E<BR>><BR><BR>Yes, I will post it later after=
- more test and checking=2E<BR><BR>Thanks,<BR><BR>BRs<BR>Xiubo<BR><BR><BR>>T=
-hanks -- Regards -- Andy<BR>
-------DTKAJ5MA9N3GK5FOKD5BA28PNDC3L3--
-
-
+> 
+> Thanks,
+> Andrea
+> 
+> PS. CC'ed also qemu-devel in case it may help clarify why things are
+> implemented they way they are in the postcopy live migration
+> hugetlbfs/shmem support and in the future patches for shmem/hugetlbfs
+> share=on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
