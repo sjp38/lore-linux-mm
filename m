@@ -1,78 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 820546B0038
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 03:34:43 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x124so2227978wmf.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:34:43 -0700 (PDT)
-Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
-        by mx.google.com with ESMTPS id l2si9995077wrb.253.2017.03.17.00.34.41
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D32AE6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 03:39:47 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l37so12281579wrc.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:39:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x133si2121238wme.3.2017.03.17.00.39.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 00:34:42 -0700 (PDT)
-Received: by mail-wr0-x241.google.com with SMTP id u48so8488721wrc.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:34:41 -0700 (PDT)
-Date: Fri, 17 Mar 2017 08:34:37 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v7 1/3] x86/mm: Adapt MODULES_END based on Fixmap section
- size
-Message-ID: <20170317073437.GA14797@gmail.com>
-References: <20170314170508.100882-1-thgarnie@google.com>
- <20170316081013.GB7815@gmail.com>
- <CAJcbSZEB09inR2KLF_puOnmAK7QUv-zJHcguiF0qucUYTtg1Pw@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Mar 2017 00:39:46 -0700 (PDT)
+Date: Fri, 17 Mar 2017 08:39:44 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm: page_alloc: Reduce object size by neatening
+ printks
+Message-ID: <20170317073943.GA26298@dhcp22.suse.cz>
+References: <cover.1489628459.git.joe@perches.com>
+ <880b3172b67d806082284d80945e4a231a5574bb.1489628459.git.joe@perches.com>
+ <20170316105627.GB30508@dhcp22.suse.cz>
+ <1489696343.13953.11.camel@perches.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJcbSZEB09inR2KLF_puOnmAK7QUv-zJHcguiF0qucUYTtg1Pw@mail.gmail.com>
+In-Reply-To: <1489696343.13953.11.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Jonathan Corbet <corbet@lwn.net>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Kees Cook <keescook@chromium.org>, Juergen Gross <jgross@suse.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andy Lutomirski <luto@amacapital.net>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Jiri Kosina <jikos@kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Rusty Russell <rusty@rustcorp.com.au>, Paolo Bonzini <pbonzini@redhat.com>, Borislav Petkov <bp@suse.de>, Christian Borntraeger <borntraeger@de.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Stanislaw Gruszka <sgruszka@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Joerg Roedel <joro@8bytes.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, linux-efi@vger.kernel.org, xen-devel@lists.xenproject.org, lguest@lists.ozlabs.org, kvm list <kvm@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Joe Perches <joe@perches.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-* Thomas Garnier <thgarnie@google.com> wrote:
-
-> On Thu, Mar 16, 2017 at 1:10 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > Note that asm/fixmap.h is an x86-ism that isn't present in many other
-> > architectures, so this hunk will break the build.
-> >
-> > To make progress with these patches I've fixed it up with an ugly #ifdef
-> > CONFIG_X86, but it needs a real solution instead before this can be pushed
-> > upstream.
+On Thu 16-03-17 13:32:23, Joe Perches wrote:
+> On Thu, 2017-03-16 at 11:56 +0100, Michal Hocko wrote:
+> > On Wed 15-03-17 18:43:13, Joe Perches wrote:
+> > > Function calls with large argument counts cause x86-64 register
+> > > spilling.  Reducing the number of arguments in a multi-line printk
+> > > by converting to multiple printks which saves some object code size.
+> > > 
+> > > $ size mm/page_alloc.o* (defconfig)
+> > >    text    data     bss     dec     hex filename
+> > >   35914	   1699	    628	  38241	   9561	mm/page_alloc.o.new
+> > >   36018    1699     628   38345    95c9 mm/page_alloc.o.old
+> > > 
+> > > Miscellanea:
+> > > 
+> > > o Remove line leading spaces from the formerly multi-line printks
+> > >   commit a25700a53f71 ("mm: show bounce pages in oom killer output")
+> > >   back in 2007 started the leading space when a single long line
+> > >   was split into multiple lines but the leading space was likely
+> > >   mistakenly kept and subsequent commits followed suit.
+> > > o Align arguments in a few more printks
+> > 
+> > This is really hard to review. Could you just drop all the whitespace
+> > changes please?
 > 
-> I also saw an error on x86 tip on special configuration. I found this
-> new patch below to be a good solution to both.
-> 
-> Let me know what you think.
-> 
-> =====
-> 
-> This patch aligns MODULES_END to the beginning of the Fixmap section.
-> It optimizes the space available for both sections. The address is
-> pre-computed based on the number of pages required by the Fixmap
-> section.
-> 
-> It will allow GDT remapping in the Fixmap section. The current
-> MODULES_END static address does not provide enough space for the kernel
-> to support a large number of processors.
-> 
-> Signed-off-by: Thomas Garnier <thgarnie@google.com>
-> ---
-> Based on next-20170308
-> ---
->  Documentation/x86/x86_64/mm.txt         | 5 ++++-
->  arch/x86/include/asm/pgtable_64.h       | 1 +
->  arch/x86/include/asm/pgtable_64_types.h | 3 ++-
->  3 files changed, 7 insertions(+), 2 deletions(-)
+> It's a single, simple change. 
 
-The patch is heavily whitespace and line wrap damaged :-(
+no it adds a lot of whitespace noise to an actual change. It takes to
+check every single line to see whether some typo or unintended change
+has been made.
 
-Please send a properly titled, changelogged delta patch against tip:master (or 
-tip:x86/mm) to remove the CONFIG_X86 hack and fix the build bug.
+> It's IMO trivial to review.
 
-Thanks,
-
-	Ingo
+it's not IMNSHO.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
