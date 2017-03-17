@@ -1,156 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 474B26B038C
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 02:54:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e129so118913524pfh.1
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 23:54:15 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a95si7705983pli.38.2017.03.16.23.54.14
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AE07F6B038C
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 03:02:32 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e129so119168902pfh.1
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:02:32 -0700 (PDT)
+Received: from dggrg03-dlp.huawei.com ([45.249.212.189])
+        by mx.google.com with ESMTPS id p17si7700391pgi.218.2017.03.17.00.02.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 23:54:14 -0700 (PDT)
-Message-ID: <58CB8865.5030707@intel.com>
-Date: Fri, 17 Mar 2017 14:55:33 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Mar 2017 00:02:31 -0700 (PDT)
+Subject: Re: [HMM 16/16] mm/hmm/devmem: dummy HMM device for ZONE_DEVICE
+ memory v2
+References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
+ <1489680335-6594-17-git-send-email-jglisse@redhat.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <e3163e6a-654d-cbf6-3aad-788c31f20655@huawei.com>
+Date: Fri, 17 Mar 2017 14:55:57 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH kernel v8 3/4] mm: add inerface to offer info about unused
- pages
-References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com> <1489648127-37282-4-git-send-email-wei.w.wang@intel.com> <20170316142842.69770813b98df70277431b1e@linux-foundation.org>
-In-Reply-To: <20170316142842.69770813b98df70277431b1e@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1489680335-6594-17-git-send-email-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny
+ Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On 03/17/2017 05:28 AM, Andrew Morton wrote:
-> On Thu, 16 Mar 2017 15:08:46 +0800 Wei Wang <wei.w.wang@intel.com> wrote:
->
->> From: Liang Li <liang.z.li@intel.com>
->>
->> This patch adds a function to provides a snapshot of the present system
->> unused pages. An important usage of this function is to provide the
->> unsused pages to the Live migration thread, which skips the transfer of
->> thoses unused pages. Newly used pages can be re-tracked by the dirty
->> page logging mechanisms.
-> I don't think this will be useful for anything other than
-> virtio-balloon.  I guess it would be better to keep this code in the
-> virtio-balloon driver if possible, even though that's rather a layering
-> violation :( What would have to be done to make that possible?  Perhaps
-> we can put some *small* helpers into page_alloc.c to prevent things
-> from becoming too ugly.
+Hi JA(C)rA'me,
 
-The patch description was too narrowed and may have caused some
-confusion, sorry about that. This function is aimed to be generic. I
-agree with the description suggested by Michael.
+On 2017/3/17 0:05, JA(C)rA'me Glisse wrote:
+> This introduce a dummy HMM device class so device driver can use it to
+> create hmm_device for the sole purpose of registering device memory.
 
-Since the main body of the function is related to operating on the
-free_list. I think it is better to have them located here.
-Small helpers may be less efficient and thereby causing some
-performance loss as well.
-I think one improvement we can make is to remove the "chunk format"
-related things from this function. The function can generally offer the
-base pfn to the caller's recording buffer. Then it will be the caller's
-responsibility to format the pfn if they need.
+May I ask where is the latest dummy HMM device driver?
+I can only get this one: https://patchwork.kernel.org/patch/4352061/
 
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -4498,6 +4498,120 @@ void show_free_areas(unsigned int filter)
->>   	show_swap_cache_info();
->>   }
->>   
->> +static int __record_unused_pages(struct zone *zone, int order,
->> +				 __le64 *buf, unsigned int size,
->> +				 unsigned int *offset, bool part_fill)
->> +{
->> +	unsigned long pfn, flags;
->> +	int t, ret = 0;
->> +	struct list_head *curr;
->> +	__le64 *chunk;
->> +
->> +	if (zone_is_empty(zone))
->> +		return 0;
->> +
->> +	spin_lock_irqsave(&zone->lock, flags);
->> +
->> +	if (*offset + zone->free_area[order].nr_free > size && !part_fill) {
->> +		ret = -ENOSPC;
->> +		goto out;
->> +	}
->> +	for (t = 0; t < MIGRATE_TYPES; t++) {
->> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
->> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
->> +			chunk = buf + *offset;
->> +			if (*offset + 2 > size) {
->> +				ret = -ENOSPC;
->> +				goto out;
->> +			}
->> +			/* Align to the chunk format used in virtio-balloon */
->> +			*chunk = cpu_to_le64(pfn << 12);
->> +			*(chunk + 1) = cpu_to_le64((1 << order) << 12);
->> +			*offset += 2;
->> +		}
->> +	}
->> +
->> +out:
->> +	spin_unlock_irqrestore(&zone->lock, flags);
->> +
->> +	return ret;
->> +}
-> This looks like it could disable interrupts for a long time.  Too long?
+Thanks,
+Bob
 
-What do you think if we give "budgets" to the above function?
-For example, budget=1000, and there are 2000 nodes on the list.
-record() returns with "incomplete" status in the first round, along with the
-status info, "*continue_node".
+> It is usefull to device driver that want to manage multiple physical
+> device memory under same struct device umbrella.
+> 
+> Changed since v1:
+>   - Improve commit message
+>   - Add drvdata parameter to set on struct device
+> 
+> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+> Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+> Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+> Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+> ---
+>  include/linux/hmm.h | 22 +++++++++++-
+>  mm/hmm.c            | 96 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 117 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 3054ce7..e4e6b36 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -79,11 +79,11 @@
+>  
+>  #if IS_ENABLED(CONFIG_HMM)
+>  
+> +#include <linux/device.h>
+>  #include <linux/migrate.h>
+>  #include <linux/memremap.h>
+>  #include <linux/completion.h>
+>  
+> -
+>  struct hmm;
+>  
+>  /*
+> @@ -433,6 +433,26 @@ static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
+>  
+>  	return drvdata[1];
+>  }
+> +
+> +
+> +/*
+> + * struct hmm_device - fake device to hang device memory onto
+> + *
+> + * @device: device struct
+> + * @minor: device minor number
+> + */
+> +struct hmm_device {
+> +	struct device		device;
+> +	unsigned		minor;
+> +};
+> +
+> +/*
+> + * Device driver that wants to handle multiple devices memory through a single
+> + * fake device can use hmm_device to do so. This is purely a helper and it
+> + * is not needed to make use of any HMM functionality.
+> + */
+> +struct hmm_device *hmm_device_new(void *drvdata);
+> +void hmm_device_put(struct hmm_device *hmm_device);
+>  #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
+>  
+>  
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 019f379..c477bd1 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -24,6 +24,7 @@
+>  #include <linux/slab.h>
+>  #include <linux/sched.h>
+>  #include <linux/mmzone.h>
+> +#include <linux/module.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/swapops.h>
+>  #include <linux/hugetlb.h>
+> @@ -1132,4 +1133,99 @@ int hmm_devmem_fault_range(struct hmm_devmem *devmem,
+>  	return 0;
+>  }
+>  EXPORT_SYMBOL(hmm_devmem_fault_range);
+> +
+> +/*
+> + * A device driver that wants to handle multiple devices memory through a
+> + * single fake device can use hmm_device to do so. This is purely a helper
+> + * and it is not needed to make use of any HMM functionality.
+> + */
+> +#define HMM_DEVICE_MAX 256
+> +
+> +static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
+> +static DEFINE_SPINLOCK(hmm_device_lock);
+> +static struct class *hmm_device_class;
+> +static dev_t hmm_device_devt;
+> +
+> +static void hmm_device_release(struct device *device)
+> +{
+> +	struct hmm_device *hmm_device;
+> +
+> +	hmm_device = container_of(device, struct hmm_device, device);
+> +	spin_lock(&hmm_device_lock);
+> +	clear_bit(hmm_device->minor, hmm_device_mask);
+> +	spin_unlock(&hmm_device_lock);
+> +
+> +	kfree(hmm_device);
+> +}
+> +
+> +struct hmm_device *hmm_device_new(void *drvdata)
+> +{
+> +	struct hmm_device *hmm_device;
+> +	int ret;
+> +
+> +	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
+> +	if (!hmm_device)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	ret = alloc_chrdev_region(&hmm_device->device.devt,0,1,"hmm_device");
+> +	if (ret < 0) {
+> +		kfree(hmm_device);
+> +		return NULL;
+> +	}
+> +
+> +	spin_lock(&hmm_device_lock);
+> +	hmm_device->minor=find_first_zero_bit(hmm_device_mask,HMM_DEVICE_MAX);
+> +	if (hmm_device->minor >= HMM_DEVICE_MAX) {
+> +		spin_unlock(&hmm_device_lock);
+> +		kfree(hmm_device);
+> +		return NULL;
+> +	}
+> +	set_bit(hmm_device->minor, hmm_device_mask);
+> +	spin_unlock(&hmm_device_lock);
+> +
+> +	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
+> +	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
+> +					hmm_device->minor);
+> +	hmm_device->device.release = hmm_device_release;
+> +	dev_set_drvdata(&hmm_device->device, drvdata);
+> +	hmm_device->device.class = hmm_device_class;
+> +	device_initialize(&hmm_device->device);
+> +
+> +	return hmm_device;
+> +}
+> +EXPORT_SYMBOL(hmm_device_new);
+> +
+> +void hmm_device_put(struct hmm_device *hmm_device)
+> +{
+> +	put_device(&hmm_device->device);
+> +}
+> +EXPORT_SYMBOL(hmm_device_put);
+> +
+> +static int __init hmm_init(void)
+> +{
+> +	int ret;
+> +
+> +	ret = alloc_chrdev_region(&hmm_device_devt, 0,
+> +				  HMM_DEVICE_MAX,
+> +				  "hmm_device");
+> +	if (ret)
+> +		return ret;
+> +
+> +	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
+> +	if (IS_ERR(hmm_device_class)) {
+> +		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
+> +		return PTR_ERR(hmm_device_class);
+> +	}
+> +	return 0;
+> +}
+> +
+> +static void __exit hmm_exit(void)
+> +{
+> +	unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
+> +	class_destroy(hmm_device_class);
+> +}
+> +
+> +module_init(hmm_init);
+> +module_exit(hmm_exit);
+> +MODULE_LICENSE("GPL");
+>  #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
+> 
 
-*continue_node: pointer to the starting node of the leftover. If 
-*continue_node
-has been used at the time of the second call (i.e. continue_node->next 
-== NULL),
-which implies that the previous 1000 nodes have been used, then the record()
-function can simply start from the head of the list.
-
-It is up to the caller whether it needs to continue the second round
-when getting "incomplete".
-
->
->> +/*
->> + * The record_unused_pages() function is used to record the system unused
->> + * pages. The unused pages can be skipped to transfer during live migration.
->> + * Though the unused pages are dynamically changing, dirty page logging
->> + * mechanisms are able to capture the newly used pages though they were
->> + * recorded as unused pages via this function.
->> + *
->> + * This function scans the free page list of the specified order to record
->> + * the unused pages, and chunks those continuous pages following the chunk
->> + * format below:
->> + * --------------------------------------
->> + * |	Base (52-bit)	| Rsvd (12-bit) |
->> + * --------------------------------------
->> + * --------------------------------------
->> + * |	Size (52-bit)	| Rsvd (12-bit) |
->> + * --------------------------------------
->> + *
->> + * @start_zone: zone to start the record operation.
->> + * @order: order of the free page list to record.
->> + * @buf: buffer to record the unused page info in chunks.
->> + * @size: size of the buffer in __le64 to record
->> + * @offset: offset in the buffer to record.
->> + * @part_fill: indicate if partial fill is used.
->> + *
->> + * return -EINVAL if parameter is invalid
->> + * return -ENOSPC when the buffer is too small to record all the unsed pages
->> + * return 0 when sccess
->> + */
-> It's a strange thing - it returns information which will instantly
-> become incorrect.
-
-I didn't get the point, could you please explain more? Thanks.
-
-Best,
-Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
