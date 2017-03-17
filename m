@@ -1,46 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CAB626B0038
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 07:47:39 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y90so13438290wrb.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 04:47:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c46si10830452wra.299.2017.03.17.04.47.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E03BA6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 08:33:06 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p189so47935691pfp.5
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 05:33:06 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id v185si8537608pgv.305.2017.03.17.05.33.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Mar 2017 04:47:38 -0700 (PDT)
-Date: Fri, 17 Mar 2017 12:47:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/5] mm, swap: Try kzalloc before vzalloc
-Message-ID: <20170317114732.GF26298@dhcp22.suse.cz>
-References: <20170317064635.12792-1-ying.huang@intel.com>
- <20170317064635.12792-4-ying.huang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Mar 2017 05:33:05 -0700 (PDT)
+Date: Fri, 17 Mar 2017 20:33:15 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+Message-ID: <20170317123315.GA1929@aaronlu.sh.intel.com>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <20170315141813.GB32626@dhcp22.suse.cz>
+ <20170315154406.GF2442@aaronlu.sh.intel.com>
+ <20170315162843.GA27197@dhcp22.suse.cz>
+ <1489613914.2733.96.camel@linux.intel.com>
+ <20170316090732.GF30501@dhcp22.suse.cz>
+ <1489689381.2733.114.camel@linux.intel.com>
+ <20170317074707.GB26298@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170317064635.12792-4-ying.huang@intel.com>
+In-Reply-To: <20170317074707.GB26298@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Aaron Lu <aaron.lu@intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Fri 17-03-17 14:46:22, Huang, Ying wrote:
-> +void *swap_kvzalloc(size_t size)
-> +{
-> +	void *p;
-> +
-> +	p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
-> +	if (!p)
-> +		p = vzalloc(size);
-> +
-> +	return p;
-> +}
+On Fri, Mar 17, 2017 at 08:47:08AM +0100, Michal Hocko wrote:
+> On Thu 16-03-17 11:36:21, Tim Chen wrote:
+> [...]
+> > Perhaps we can only do this expedited exit only when there are idle cpus around.
+> > We can use the root sched domain's overload indicator for such a quick check.
+> 
+> This is not so easy, I am afraid. Those CPUs might be idle for a good
+> reason (power saving etc.). You will never know by simply checking
 
-please do not invent your own kvmalloc implementation when we already
-have on in mmotm tree.
--- 
-Michal Hocko
-SUSE Labs
+Is it that those CPUs are deliberately put into idle mode to save power?
+IIRC, idle injection driver could be used to do this and if so, the
+injected idle task is a realtime one so the spawned kworker will not be
+able to preempt(disturb) it.
+
+> one metric. This is why doing these optimistic parallelization
+> optimizations is far from trivial. This is not the first time somebody
+> wants to do this.  People are trying to make THP migration faster
+> doing the similar thing. I guess we really need a help from the
+> scheduler to do this properly, though. I've been thinking about an API
+> (e.g. try_to_run_in_backgroun) which would evaluate all these nasty
+> details and either return with -EBUSY or kick the background thread to
+> accomplish the work if the system is reasonably idle. I am not really
+> sure whether such an API is viable though.  Peter, what do you think?
+
+I would very much like to know what these nasty details are and what
+'reasonably idle' actually means, I think they are useful to understand
+the problem and define the API.
+
+I totally agree that we shouldn't distrub the system by starting more
+workers/threads to do spin work or to make a process utilizing more CPU
+or other resources than allowed by its cgroup.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
