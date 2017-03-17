@@ -1,219 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AE07F6B038C
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 03:02:32 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e129so119168902pfh.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:02:32 -0700 (PDT)
-Received: from dggrg03-dlp.huawei.com ([45.249.212.189])
-        by mx.google.com with ESMTPS id p17si7700391pgi.218.2017.03.17.00.02.30
+	by kanga.kvack.org (Postfix) with ESMTP id EE7926B038A
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 03:22:10 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x63so120000630pfx.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:22:10 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id 1si7737165pgl.232.2017.03.17.00.22.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Mar 2017 00:02:31 -0700 (PDT)
-Subject: Re: [HMM 16/16] mm/hmm/devmem: dummy HMM device for ZONE_DEVICE
- memory v2
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Mar 2017 00:22:10 -0700 (PDT)
+Subject: Re: [HMM 07/16] mm/migrate: new memory migration helper for use with
+ device memory v4
 References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
- <1489680335-6594-17-git-send-email-jglisse@redhat.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <e3163e6a-654d-cbf6-3aad-788c31f20655@huawei.com>
-Date: Fri, 17 Mar 2017 14:55:57 +0800
+ <1489680335-6594-8-git-send-email-jglisse@redhat.com>
+ <20170316160520.d03ac02474cad6d2c8eba9bc@linux-foundation.org>
+ <d4e8433d-4680-dced-4f11-2f3cc8ebc613@nvidia.com>
+ <CAKTCnzmYob5uq11zkJE781BX9rDH9EYM7zxHH+ZMtTs4D5kkiQ@mail.gmail.com>
+ <94e0d115-7deb-c748-3dc2-60d6289e6551@nvidia.com>
+ <CAKTCnznV1D4iZcn-PWvfu92_NB-Ree=cOT3bKfuJSPSXVB_QAg@mail.gmail.com>
+ <a8b67ed5-118c-6da5-1db6-6edf836f9230@gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <8c26baee-c681-a03d-4021-f9f92182e71f@nvidia.com>
+Date: Fri, 17 Mar 2017 00:17:15 -0700
 MIME-Version: 1.0
-In-Reply-To: <1489680335-6594-17-git-send-email-jglisse@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <a8b67ed5-118c-6da5-1db6-6edf836f9230@gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny
- Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-Hi JA(C)rA'me,
-
-On 2017/3/17 0:05, JA(C)rA'me Glisse wrote:
-> This introduce a dummy HMM device class so device driver can use it to
-> create hmm_device for the sole purpose of registering device memory.
-
-May I ask where is the latest dummy HMM device driver?
-I can only get this one: https://patchwork.kernel.org/patch/4352061/
-
-Thanks,
-Bob
-
-> It is usefull to device driver that want to manage multiple physical
-> device memory under same struct device umbrella.
-> 
-> Changed since v1:
->   - Improve commit message
->   - Add drvdata parameter to set on struct device
-> 
-> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-> Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-> Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-> Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+On 03/16/2017 09:51 PM, Balbir Singh wrote:
+[...]
+> So this is what I ended up with, a quick fix for the 32 bit
+> build failures
+>
+> Date: Fri, 17 Mar 2017 15:42:52 +1100
+> Subject: [PATCH] mm/hmm: Fix build on 32 bit systems
+>
+> Fix build breakage of hmm-v18 in the current mmotm by
+> making the migrate_vma() and related functions 64
+> bit only. The 32 bit variant will return -EINVAL.
+> There are other approaches to solving this problem,
+> but we can enable 32 bit systems as we need them.
+>
+> This patch tries to limit the impact on 32 bit systems
+> by turning HMM off on them and not enabling the migrate
+> functions.
+>
+> I've built this on ppc64/i386 and x86_64
+>
+> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
 > ---
->  include/linux/hmm.h | 22 +++++++++++-
->  mm/hmm.c            | 96 +++++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 117 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 3054ce7..e4e6b36 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -79,11 +79,11 @@
->  
->  #if IS_ENABLED(CONFIG_HMM)
->  
-> +#include <linux/device.h>
->  #include <linux/migrate.h>
->  #include <linux/memremap.h>
->  #include <linux/completion.h>
->  
-> -
->  struct hmm;
->  
->  /*
-> @@ -433,6 +433,26 @@ static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
->  
->  	return drvdata[1];
+>  include/linux/migrate.h | 18 +++++++++++++++++-
+>  mm/Kconfig              |  4 +++-
+>  mm/migrate.c            |  3 ++-
+>  3 files changed, 22 insertions(+), 3 deletions(-)
+>
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 01f4945..1888a70 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -124,7 +124,7 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 >  }
+>  #endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
+>
+> -
+> +#ifdef CONFIG_64BIT
+>  #define MIGRATE_PFN_VALID	(1UL << (BITS_PER_LONG_LONG - 1))
+>  #define MIGRATE_PFN_MIGRATE	(1UL << (BITS_PER_LONG_LONG - 2))
+>  #define MIGRATE_PFN_HUGE	(1UL << (BITS_PER_LONG_LONG - 3))
+
+As long as we're getting this accurate, should we make that 1ULL, in all of the 
+MIGRATE_PFN_* defines? The 1ULL is what determines the type of the resulting number, 
+so it's one more tiny piece of type correctness that is good to have.
+
+The rest of this fix looks good, and the above is not technically necessary (the 
+code that uses it will force its own type anyway), so:
+
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+
+thanks
+John Hubbard
+NVIDIA
+
+> @@ -145,6 +145,7 @@ static inline unsigned long migrate_pfn_size(unsigned long mpfn)
+>  {
+>  	return mpfn & MIGRATE_PFN_HUGE ? PMD_SIZE : PAGE_SIZE;
+>  }
+> +#endif
+>
+>  /*
+>   * struct migrate_vma_ops - migrate operation callback
+> @@ -194,6 +195,7 @@ struct migrate_vma_ops {
+>  				 void *private);
+>  };
+>
+> +#ifdef CONFIG_64BIT
+>  int migrate_vma(const struct migrate_vma_ops *ops,
+>  		struct vm_area_struct *vma,
+>  		unsigned long mentries,
+> @@ -202,5 +204,19 @@ int migrate_vma(const struct migrate_vma_ops *ops,
+>  		unsigned long *src,
+>  		unsigned long *dst,
+>  		void *private);
+> +#else
+> +static inline int migrate_vma(const struct migrate_vma_ops *ops,
+> +				struct vm_area_struct *vma,
+> +				unsigned long mentries,
+> +				unsigned long start,
+> +				unsigned long end,
+> +				unsigned long *src,
+> +				unsigned long *dst,
+> +				void *private)
+> +{
+> +	return -EINVAL;
+> +}
+> +#endif
 > +
-> +
-> +/*
-> + * struct hmm_device - fake device to hang device memory onto
-> + *
-> + * @device: device struct
-> + * @minor: device minor number
-> + */
-> +struct hmm_device {
-> +	struct device		device;
-> +	unsigned		minor;
-> +};
-> +
-> +/*
-> + * Device driver that wants to handle multiple devices memory through a single
-> + * fake device can use hmm_device to do so. This is purely a helper and it
-> + * is not needed to make use of any HMM functionality.
-> + */
-> +struct hmm_device *hmm_device_new(void *drvdata);
-> +void hmm_device_put(struct hmm_device *hmm_device);
->  #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
->  
->  
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 019f379..c477bd1 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -24,6 +24,7 @@
->  #include <linux/slab.h>
->  #include <linux/sched.h>
->  #include <linux/mmzone.h>
-> +#include <linux/module.h>
->  #include <linux/pagemap.h>
->  #include <linux/swapops.h>
->  #include <linux/hugetlb.h>
-> @@ -1132,4 +1133,99 @@ int hmm_devmem_fault_range(struct hmm_devmem *devmem,
+>
+>  #endif /* _LINUX_MIGRATE_H */
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index a430d51..c13677f 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -291,7 +291,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+>
+>  config HMM
+>  	bool
+> -	depends on MMU
+> +	depends on MMU && 64BIT
+>
+>  config HMM_MIRROR
+>  	bool "HMM mirror CPU page table into a device page table"
+> @@ -307,6 +307,7 @@ config HMM_MIRROR
+>  	  Second side of the equation is replicating CPU page table content for
+>  	  range of virtual address. This require careful synchronization with
+>  	  CPU page table update.
+> +	depends on 64BIT
+>
+>  config HMM_DEVMEM
+>  	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
+> @@ -314,6 +315,7 @@ config HMM_DEVMEM
+>  	help
+>  	  HMM devmem are helpers to leverage new ZONE_DEVICE feature. This is
+>  	  just to avoid device driver to replicate boiler plate code.
+> +	depends on 64BIT
+>
+>  config PHYS_ADDR_T_64BIT
+>  	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index b9d25d1..15f2972 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -2080,7 +2080,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+>
+>  #endif /* CONFIG_NUMA */
+>
+> -
+> +#ifdef CONFIG_64BIT
+>  struct migrate_vma {
+>  	struct vm_area_struct	*vma;
+>  	unsigned long		*dst;
+> @@ -2787,3 +2787,4 @@ int migrate_vma(const struct migrate_vma_ops *ops,
 >  	return 0;
 >  }
->  EXPORT_SYMBOL(hmm_devmem_fault_range);
-> +
-> +/*
-> + * A device driver that wants to handle multiple devices memory through a
-> + * single fake device can use hmm_device to do so. This is purely a helper
-> + * and it is not needed to make use of any HMM functionality.
-> + */
-> +#define HMM_DEVICE_MAX 256
-> +
-> +static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
-> +static DEFINE_SPINLOCK(hmm_device_lock);
-> +static struct class *hmm_device_class;
-> +static dev_t hmm_device_devt;
-> +
-> +static void hmm_device_release(struct device *device)
-> +{
-> +	struct hmm_device *hmm_device;
-> +
-> +	hmm_device = container_of(device, struct hmm_device, device);
-> +	spin_lock(&hmm_device_lock);
-> +	clear_bit(hmm_device->minor, hmm_device_mask);
-> +	spin_unlock(&hmm_device_lock);
-> +
-> +	kfree(hmm_device);
-> +}
-> +
-> +struct hmm_device *hmm_device_new(void *drvdata)
-> +{
-> +	struct hmm_device *hmm_device;
-> +	int ret;
-> +
-> +	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
-> +	if (!hmm_device)
-> +		return ERR_PTR(-ENOMEM);
-> +
-> +	ret = alloc_chrdev_region(&hmm_device->device.devt,0,1,"hmm_device");
-> +	if (ret < 0) {
-> +		kfree(hmm_device);
-> +		return NULL;
-> +	}
-> +
-> +	spin_lock(&hmm_device_lock);
-> +	hmm_device->minor=find_first_zero_bit(hmm_device_mask,HMM_DEVICE_MAX);
-> +	if (hmm_device->minor >= HMM_DEVICE_MAX) {
-> +		spin_unlock(&hmm_device_lock);
-> +		kfree(hmm_device);
-> +		return NULL;
-> +	}
-> +	set_bit(hmm_device->minor, hmm_device_mask);
-> +	spin_unlock(&hmm_device_lock);
-> +
-> +	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
-> +	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
-> +					hmm_device->minor);
-> +	hmm_device->device.release = hmm_device_release;
-> +	dev_set_drvdata(&hmm_device->device, drvdata);
-> +	hmm_device->device.class = hmm_device_class;
-> +	device_initialize(&hmm_device->device);
-> +
-> +	return hmm_device;
-> +}
-> +EXPORT_SYMBOL(hmm_device_new);
-> +
-> +void hmm_device_put(struct hmm_device *hmm_device)
-> +{
-> +	put_device(&hmm_device->device);
-> +}
-> +EXPORT_SYMBOL(hmm_device_put);
-> +
-> +static int __init hmm_init(void)
-> +{
-> +	int ret;
-> +
-> +	ret = alloc_chrdev_region(&hmm_device_devt, 0,
-> +				  HMM_DEVICE_MAX,
-> +				  "hmm_device");
-> +	if (ret)
-> +		return ret;
-> +
-> +	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
-> +	if (IS_ERR(hmm_device_class)) {
-> +		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
-> +		return PTR_ERR(hmm_device_class);
-> +	}
-> +	return 0;
-> +}
-> +
-> +static void __exit hmm_exit(void)
-> +{
-> +	unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
-> +	class_destroy(hmm_device_class);
-> +}
-> +
-> +module_init(hmm_init);
-> +module_exit(hmm_exit);
-> +MODULE_LICENSE("GPL");
->  #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
-> 
-
+>  EXPORT_SYMBOL(migrate_vma);
+> +#endif
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
