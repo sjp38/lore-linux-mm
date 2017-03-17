@@ -1,82 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B3186B0389
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:45:39 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v127so68672947qkb.5
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 07:45:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y2si6588522qta.230.2017.03.17.07.45.37
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1691F6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:50:42 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g8so4133218wmg.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 07:50:42 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u93si11438845wrb.292.2017.03.17.07.50.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 07:45:38 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 14/32] x86: mm: Provide support to use memblock
- when spliting large pages
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846771545.2349.9373586041426414252.stgit@brijesh-build-machine>
- <20170310110657.hophlog2juw5hpzz@pd.tnic>
- <cb6a9a56-2c52-d98d-3ff6-3b61d0e5875e@amd.com>
- <20170316182836.tyvxoeq56thtc4pd@pd.tnic>
- <ec134379-6a48-905c-26e4-f6f2738814dc@redhat.com>
- <20170317101737.icdois7sdmtutt6b@pd.tnic>
- <b6f9f46c-58c4-a19c-4955-2d07bd411443@redhat.com>
- <20170317105610.musvo4baokgssvye@pd.tnic>
- <78c99889-f175-f60f-716b-34a62203418a@redhat.com>
- <20170317113337.syvpat3c4s2l4nuz@pd.tnic>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <b516a873-029a-b20a-3c43-d8bf4a200cb7@redhat.com>
-Date: Fri, 17 Mar 2017 15:45:26 +0100
+        Fri, 17 Mar 2017 07:50:40 -0700 (PDT)
+Date: Fri, 17 Mar 2017 10:50:20 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v4] mm/vmscan: more restrictive condition for retry in
+ do_try_to_free_pages
+Message-ID: <20170317145020.GA8106@cmpxchg.org>
+References: <1489577808-19228-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20170317113337.syvpat3c4s2l4nuz@pd.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1489577808-19228-1-git-send-email-xieyisheng1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, qiuxishi@huawei.com
 
+On Wed, Mar 15, 2017 at 07:36:48PM +0800, Yisheng Xie wrote:
+> By reviewing code, I find that when enter do_try_to_free_pages, the
+> may_thrash is always clear, and it will retry shrink zones to tap
+> cgroup's reserves memory by setting may_thrash when the former
+> shrink_zones reclaim nothing.
+> 
+> However, when memcg is disabled or on legacy hierarchy, or there do not
+> have any memcg protected by low limit, it should not do this useless retry
+> at all, for we do not have any cgroup's reserves memory to tap, and we
+> have already done hard work but made no progress.
+> 
+> To avoid this unneeded retrying, add a new field in scan_control named
+> memcg_low_protection, set it if there is any memcg protected by low limit
+> and only do the retry when memcg_low_protection is set while may_thrash
+> is clear.
+> 
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> Suggested-by: Michal Hocko <mhocko@kernel.org>
+> Suggested-by: Shakeel Butt <shakeelb@google.com>
+> Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-
-On 17/03/2017 12:33, Borislav Petkov wrote:
-> On Fri, Mar 17, 2017 at 12:03:31PM +0100, Paolo Bonzini wrote:
-> 
->> If it is possible to do it in a fairly hypervisor-independent manner,
->> I'm all for it.  That is, only by looking at AMD-specified CPUID leaves
->> and at kernel ELF sections.
-> 
-> Not even that.
-> 
-> What that needs to be able to do is:
-> 
-> 	kvm_map_percpu_hv_shared(st, sizeof(*st)))
-> 
-> where st is the percpu steal time ptr:
-> 
-> 	struct kvm_steal_time *st = &per_cpu(steal_time, cpu);
-> 
-> Underneath, what it does basically is it clears the encryption mask from
-> the pte, see patch 16/32.
-
-Yes, and I'd like that to be done with a new data section rather than a
-special KVM hook.
-
-> And I keep talking about SEV-ES because this is going to expand on the
-> need of having a shared memory region which the hypervisor and the guest
-> needs to access, thus unencrypted. See
-> 
-> http://support.amd.com/TechDocs/Protecting%20VM%20Register%20State%20with%20SEV-ES.pdf
-> 
-> This is where you come in and say what would be the best approach there...
-
-I have no idea.  SEV-ES seems to be very hard to set up at the beginning
-of the kernel bootstrap.  There's all sorts of chicken and egg problems,
-as well as complicated handshakes between the firmware and the guest,
-and the way to do it also depends on the trust and threat models.
-
-A much simpler way is to just boot under a trusted hypervisor, do
-"modprobe sev-es" and save a snapshot of the guest.  Then you sign the
-snapshot and pass it to your cloud provider.
-
-Paolo
+I don't see the point of this patch. It adds more code just to
+marginally optimize a near-OOM cold path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
