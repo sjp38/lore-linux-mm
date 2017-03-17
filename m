@@ -1,75 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4E56B038C
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:13:44 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y90so14791879wrb.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:13:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 57si11924426wrv.297.2017.03.17.10.13.43
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C21926B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:27:20 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g2so150551917pge.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:27:20 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c2si9253639plb.50.2017.03.17.10.27.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Mar 2017 10:13:43 -0700 (PDT)
-Date: Fri, 17 Mar 2017 18:13:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Still OOM problems with 4.9er/4.10er kernels
-Message-ID: <20170317171339.GA23957@dhcp22.suse.cz>
-References: <20170228051723.GD2702@bbox>
- <20170228081223.GA26792@dhcp22.suse.cz>
- <20170302071721.GA32632@bbox>
- <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
- <20170316082714.GC30501@dhcp22.suse.cz>
- <20170316084733.GP802@shells.gnugeneration.com>
- <20170316090844.GG30501@dhcp22.suse.cz>
- <20170316092318.GQ802@shells.gnugeneration.com>
- <20170316093931.GH30501@dhcp22.suse.cz>
- <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Mar 2017 10:27:19 -0700 (PDT)
+Date: Fri, 17 Mar 2017 20:27:12 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 5/7] mm/gup: Implement dev_pagemap logic in generic
+ get_user_pages_fast()
+Message-ID: <20170317172711.kx4oed6jbe5knbgs@black.fi.intel.com>
+References: <20170316152655.37789-1-kirill.shutemov@linux.intel.com>
+ <20170316152655.37789-6-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+In-Reply-To: <20170316152655.37789-6-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerhard Wiesinger <lists@wiesinger.com>
-Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
 
-On Fri 17-03-17 17:37:48, Gerhard Wiesinger wrote:
-[...]
-> Why does the kernel prefer to swapin/out and not use
-> 
-> a.) the free memory?
+On Thu, Mar 16, 2017 at 06:26:53PM +0300, Kirill A. Shutemov wrote:
+> +static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
+> +		unsigned long end, struct page **pages, int *nr)
+> +{
+> +	unsigned long fault_pfn;
+> +
+> +	fault_pfn = pmd_pfn(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> +	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+> +}
+> +
+> +static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+> +		unsigned long end, struct page **pages, int *nr)
+> +{
+> +	unsigned long fault_pfn;
+> +
+> +	fault_pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> +	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+> +}
+> +
 
-It will use all the free memory up to min watermark which is set up
-based on min_free_kbytes.
+PowerPC doesn't [always] provide pmd_pfn() and pud_pfn().
 
-> b.) the buffer/cache?
+Fixup:
 
-the memory reclaim is strongly biased towards page cache and we try to
-avoid swapout as much as possible (see get_scan_count).
+diff --git a/mm/gup.c b/mm/gup.c
+index 5cc489d98562..6f36cbc294cf 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1287,6 +1287,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+ }
+ #endif /* __HAVE_ARCH_PTE_SPECIAL */
  
-> There is ~100M memory available but kernel swaps all the time ...
-> 
-> Any ideas?
-> 
-> Kernel: 4.9.14-200.fc25.x86_64
-> 
-> top - 17:33:43 up 28 min,  3 users,  load average: 3.58, 1.67, 0.89
-> Tasks: 145 total,   4 running, 141 sleeping,   0 stopped,   0 zombie
-> %Cpu(s): 19.1 us, 56.2 sy,  0.0 ni,  4.3 id, 13.4 wa, 2.0 hi,  0.3 si,  4.7
-> st
-> KiB Mem :   230076 total,    61508 free,   123472 used,    45096 buff/cache
-> 
-> procs -----------memory---------- ---swap-- -----io---- -system--
-> ------cpu-----
->  r  b   swpd   free   buff  cache   si   so    bi    bo in   cs us sy id wa st
->  3  5 303916  60372    328  43864 27828  200 41420   236 6984 11138 11 47  6 23 14
-
-I am really surprised to see any reclaim at all. 26% of free memory
-doesn't sound as if we should do a reclaim at all. Do you have an
-unusual configuration of /proc/sys/vm/min_free_kbytes ? Or is there
-anything running inside a memory cgroup with a small limit?
++#ifdef __HAVE_ARCH_PTE_DEVMAP
+ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
+ 		unsigned long end, struct page **pages, int *nr)
+ {
+@@ -1328,6 +1329,21 @@ static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+ 	fault_pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+ 	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+ }
++#else
++static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
++		unsigned long end, struct page **pages, int *nr)
++{
++	BUILD_BUG();
++	return 0;
++}
++
++static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
++		unsigned long end, struct page **pages, int *nr)
++{
++	BUILD_BUG();
++	return 0;
++}
++#endif
+ 
+ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+@@ -1338,7 +1354,6 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ 	if (!pmd_access_permitted(orig, write))
+ 		return 0;
+ 
+-	VM_BUG_ON(!pfn_valid(pmd_pfn(orig)));
+ 	if (pmd_devmap(orig))
+ 		return __gup_device_huge_pmd(orig, addr, end, pages, nr);
+ 
+@@ -1378,7 +1393,6 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ 	if (!pud_access_permitted(orig, write))
+ 		return 0;
+ 
+-	VM_BUG_ON(!pfn_valid(pud_pfn(orig)));
+ 	if (pud_devmap(orig))
+ 		return __gup_device_huge_pud(orig, addr, end, pages, nr);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
