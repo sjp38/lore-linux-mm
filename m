@@ -1,194 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E111D6B0038
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 00:52:22 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b2so123913663pgc.6
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 21:52:22 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id e9si7401602plk.170.2017.03.16.21.52.21
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 38A566B038A
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 02:46:48 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y6so101240579pfa.3
+        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 23:46:48 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id x188si7670256pgb.6.2017.03.16.23.46.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Mar 2017 21:52:21 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id 81so299448pgh.3
-        for <linux-mm@kvack.org>; Thu, 16 Mar 2017 21:52:21 -0700 (PDT)
-Subject: Re: [HMM 07/16] mm/migrate: new memory migration helper for use with
- device memory v4
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
- <1489680335-6594-8-git-send-email-jglisse@redhat.com>
- <20170316160520.d03ac02474cad6d2c8eba9bc@linux-foundation.org>
- <d4e8433d-4680-dced-4f11-2f3cc8ebc613@nvidia.com>
- <CAKTCnzmYob5uq11zkJE781BX9rDH9EYM7zxHH+ZMtTs4D5kkiQ@mail.gmail.com>
- <94e0d115-7deb-c748-3dc2-60d6289e6551@nvidia.com>
- <CAKTCnznV1D4iZcn-PWvfu92_NB-Ree=cOT3bKfuJSPSXVB_QAg@mail.gmail.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <a8b67ed5-118c-6da5-1db6-6edf836f9230@gmail.com>
-Date: Fri, 17 Mar 2017 15:51:33 +1100
-MIME-Version: 1.0
-In-Reply-To: <CAKTCnznV1D4iZcn-PWvfu92_NB-Ree=cOT3bKfuJSPSXVB_QAg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        Thu, 16 Mar 2017 23:46:47 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH 1/5] mm, swap: Fix comment in __read_swap_cache_async
+Date: Fri, 17 Mar 2017 14:46:19 +0800
+Message-Id: <20170317064635.12792-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Huang Ying <ying.huang@intel.com>, Rafael Aquini <aquini@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+From: Huang Ying <ying.huang@intel.com>
 
+The commit cbab0e4eec29 ("swap: avoid read_swap_cache_async() race to
+deadlock while waiting on discard I/O completion") fixed a deadlock in
+read_swap_cache_async().  Because at that time, in swap allocation
+path, a swap entry may be set as SWAP_HAS_CACHE, then wait for
+discarding to complete before the page for the swap entry is added to
+the swap cache.  But in the commit 815c2c543d3a ("swap: make swap
+discard async"), the discarding for swap become asynchronous, waiting
+for discarding to complete will be done before the swap entry is set
+as SWAP_HAS_CACHE.  So the comments in code is incorrect now.  This
+patch fixes the comments.
 
-On 17/03/17 14:42, Balbir Singh wrote:
->>> Or make the HMM Kconfig feature 64BIT only by making it depend on 64BIT?
->>>
->>
->> Yes, that was my first reaction too, but these particular routines are
->> aspiring to be generic routines--in fact, you have had an influence there,
->> because these might possibly help with NUMA migrations. :)
->>
-> 
-> Yes, I still stick to them being generic, but I'd be OK if they worked
-> just for 64 bit systems.
-> Having said that even the 64 bit works version work for upto physical
-> sizes of 64 - PAGE_SHIFT
-> which is a little limiting I think.
-> 
-> One option is to make pfn's unsigned long long and do 32 and 64 bit computations
-> separately
-> 
-> Option 2, could be something like you said
-> 
-> a. Define a __weak migrate_vma to return -EINVAL
-> b. In a 64BIT only file define migrate_vma
-> 
-> Option 3
-> 
-> Something totally different
-> 
-> If we care to support 32 bit we go with 1, else option 2 is a good
-> starting point. There might
-> be other ways of doing option 2, like you've suggested
+The cond_resched() added in the commit cbab0e4eec29 is not necessary
+now too.  But if we added some sleep in swap allocation path in the
+future, there may be some hard to debug/reproduce deadlock bug.  So it
+is kept.
 
-
-So this is what I ended up with, a quick fix for the 32 bit
-build failures
-
-Date: Fri, 17 Mar 2017 15:42:52 +1100
-Subject: [PATCH] mm/hmm: Fix build on 32 bit systems
-
-Fix build breakage of hmm-v18 in the current mmotm by
-making the migrate_vma() and related functions 64
-bit only. The 32 bit variant will return -EINVAL.
-There are other approaches to solving this problem,
-but we can enable 32 bit systems as we need them.
-
-This patch tries to limit the impact on 32 bit systems
-by turning HMM off on them and not enabling the migrate
-functions.
-
-I've built this on ppc64/i386 and x86_64
-
-Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Rafael Aquini <aquini@redhat.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/migrate.h | 18 +++++++++++++++++-
- mm/Kconfig              |  4 +++-
- mm/migrate.c            |  3 ++-
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ mm/swap_state.c | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 01f4945..1888a70 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -124,7 +124,7 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- }
- #endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
- 
--
-+#ifdef CONFIG_64BIT
- #define MIGRATE_PFN_VALID	(1UL << (BITS_PER_LONG_LONG - 1))
- #define MIGRATE_PFN_MIGRATE	(1UL << (BITS_PER_LONG_LONG - 2))
- #define MIGRATE_PFN_HUGE	(1UL << (BITS_PER_LONG_LONG - 3))
-@@ -145,6 +145,7 @@ static inline unsigned long migrate_pfn_size(unsigned long mpfn)
- {
- 	return mpfn & MIGRATE_PFN_HUGE ? PMD_SIZE : PAGE_SIZE;
- }
-+#endif
- 
- /*
-  * struct migrate_vma_ops - migrate operation callback
-@@ -194,6 +195,7 @@ struct migrate_vma_ops {
- 				 void *private);
- };
- 
-+#ifdef CONFIG_64BIT
- int migrate_vma(const struct migrate_vma_ops *ops,
- 		struct vm_area_struct *vma,
- 		unsigned long mentries,
-@@ -202,5 +204,19 @@ int migrate_vma(const struct migrate_vma_ops *ops,
- 		unsigned long *src,
- 		unsigned long *dst,
- 		void *private);
-+#else
-+static inline int migrate_vma(const struct migrate_vma_ops *ops,
-+				struct vm_area_struct *vma,
-+				unsigned long mentries,
-+				unsigned long start,
-+				unsigned long end,
-+				unsigned long *src,
-+				unsigned long *dst,
-+				void *private)
-+{
-+	return -EINVAL;
-+}
-+#endif
-+
- 
- #endif /* _LINUX_MIGRATE_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index a430d51..c13677f 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -291,7 +291,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
- 
- config HMM
- 	bool
--	depends on MMU
-+	depends on MMU && 64BIT
- 
- config HMM_MIRROR
- 	bool "HMM mirror CPU page table into a device page table"
-@@ -307,6 +307,7 @@ config HMM_MIRROR
- 	  Second side of the equation is replicating CPU page table content for
- 	  range of virtual address. This require careful synchronization with
- 	  CPU page table update.
-+	depends on 64BIT
- 
- config HMM_DEVMEM
- 	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
-@@ -314,6 +315,7 @@ config HMM_DEVMEM
- 	help
- 	  HMM devmem are helpers to leverage new ZONE_DEVICE feature. This is
- 	  just to avoid device driver to replicate boiler plate code.
-+	depends on 64BIT
- 
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b9d25d1..15f2972 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -2080,7 +2080,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 
- #endif /* CONFIG_NUMA */
- 
--
-+#ifdef CONFIG_64BIT
- struct migrate_vma {
- 	struct vm_area_struct	*vma;
- 	unsigned long		*dst;
-@@ -2787,3 +2787,4 @@ int migrate_vma(const struct migrate_vma_ops *ops,
- 	return 0;
- }
- EXPORT_SYMBOL(migrate_vma);
-+#endif
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 473b71e052a8..7bfb9bd1ca21 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -360,17 +360,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			/*
+ 			 * We might race against get_swap_page() and stumble
+ 			 * across a SWAP_HAS_CACHE swap_map entry whose page
+-			 * has not been brought into the swapcache yet, while
+-			 * the other end is scheduled away waiting on discard
+-			 * I/O completion at scan_swap_map().
+-			 *
+-			 * In order to avoid turning this transitory state
+-			 * into a permanent loop around this -EEXIST case
+-			 * if !CONFIG_PREEMPT and the I/O completion happens
+-			 * to be waiting on the CPU waitqueue where we are now
+-			 * busy looping, we just conditionally invoke the
+-			 * scheduler here, if there are some more important
+-			 * tasks to run.
++			 * has not been brought into the swapcache yet.
+ 			 */
+ 			cond_resched();
+ 			continue;
 -- 
-2.10.2
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
