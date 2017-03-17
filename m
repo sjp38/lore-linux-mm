@@ -1,194 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 24EAB6B038F
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 16:08:58 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id h89so46691688lfi.6
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:08:58 -0700 (PDT)
-Received: from vps01.wiesinger.com ([2a02:25b0:aaaa:57a::affe:bade])
-        by mx.google.com with ESMTPS id i13si5004571ljb.108.2017.03.17.13.08.56
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5045D6B0390
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 16:09:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x63so139749806pfx.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:09:54 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0068.outbound.protection.outlook.com. [104.47.40.68])
+        by mx.google.com with ESMTPS id 33si9609064plk.81.2017.03.17.13.09.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 13:08:56 -0700 (PDT)
-Subject: Re: Still OOM problems with 4.9er/4.10er kernels
-References: <20170228051723.GD2702@bbox>
- <20170228081223.GA26792@dhcp22.suse.cz> <20170302071721.GA32632@bbox>
- <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
- <20170316082714.GC30501@dhcp22.suse.cz>
- <20170316084733.GP802@shells.gnugeneration.com>
- <20170316090844.GG30501@dhcp22.suse.cz>
- <20170316092318.GQ802@shells.gnugeneration.com>
- <20170316093931.GH30501@dhcp22.suse.cz>
- <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
- <20170317171339.GA23957@dhcp22.suse.cz>
-From: Gerhard Wiesinger <lists@wiesinger.com>
-Message-ID: <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
-Date: Fri, 17 Mar 2017 21:08:31 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 17 Mar 2017 13:09:53 -0700 (PDT)
+Subject: Re: [RFC PATCH v4 25/28] x86: Access the setup data through sysfs
+ decrypted
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154738.19244.37908.stgit@tlendack-t1.amdoffice.net>
+ <20170308070934.GC11045@dhcp-128-65.nay.redhat.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <5e391176-9bf1-617c-0b3d-00aada2b3856@amd.com>
+Date: Fri, 17 Mar 2017 15:09:43 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170317171339.GA23957@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20170308070934.GC11045@dhcp-128-65.nay.redhat.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Dave Young <dyoung@redhat.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On 17.03.2017 18:13, Michal Hocko wrote:
-> On Fri 17-03-17 17:37:48, Gerhard Wiesinger wrote:
-> [...]
->> Why does the kernel prefer to swapin/out and not use
+On 3/8/2017 1:09 AM, Dave Young wrote:
+> On 02/16/17 at 09:47am, Tom Lendacky wrote:
+>> Use memremap() to map the setup data.  This will make the appropriate
+>> decision as to whether a RAM remapping can be done or if a fallback to
+>> ioremap_cache() is needed (similar to the setup data debugfs support).
 >>
->> a.) the free memory?
-> It will use all the free memory up to min watermark which is set up
-> based on min_free_kbytes.
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/kernel/ksysfs.c |   27 ++++++++++++++-------------
+>>  1 file changed, 14 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/arch/x86/kernel/ksysfs.c b/arch/x86/kernel/ksysfs.c
+>> index 4afc67f..d653b3e 100644
+>> --- a/arch/x86/kernel/ksysfs.c
+>> +++ b/arch/x86/kernel/ksysfs.c
+>> @@ -16,6 +16,7 @@
+>>  #include <linux/stat.h>
+>>  #include <linux/slab.h>
+>>  #include <linux/mm.h>
+>> +#include <linux/io.h>
+>>
+>>  #include <asm/io.h>
+>>  #include <asm/setup.h>
+>> @@ -79,12 +80,12 @@ static int get_setup_data_paddr(int nr, u64 *paddr)
+>>  			*paddr = pa_data;
+>>  			return 0;
+>>  		}
+>> -		data = ioremap_cache(pa_data, sizeof(*data));
+>> +		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
+>>  		if (!data)
+>>  			return -ENOMEM;
+>>
+>>  		pa_data = data->next;
+>> -		iounmap(data);
+>> +		memunmap(data);
+>>  		i++;
+>>  	}
+>>  	return -EINVAL;
+>> @@ -97,17 +98,17 @@ static int __init get_setup_data_size(int nr, size_t *size)
+>>  	u64 pa_data = boot_params.hdr.setup_data;
+>>
+>>  	while (pa_data) {
+>> -		data = ioremap_cache(pa_data, sizeof(*data));
+>> +		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
+>>  		if (!data)
+>>  			return -ENOMEM;
+>>  		if (nr == i) {
+>>  			*size = data->len;
+>> -			iounmap(data);
+>> +			memunmap(data);
+>>  			return 0;
+>>  		}
+>>
+>>  		pa_data = data->next;
+>> -		iounmap(data);
+>> +		memunmap(data);
+>>  		i++;
+>>  	}
+>>  	return -EINVAL;
+>> @@ -127,12 +128,12 @@ static ssize_t type_show(struct kobject *kobj,
+>>  	ret = get_setup_data_paddr(nr, &paddr);
+>>  	if (ret)
+>>  		return ret;
+>> -	data = ioremap_cache(paddr, sizeof(*data));
+>> +	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
+>>  	if (!data)
+>>  		return -ENOMEM;
+>>
+>>  	ret = sprintf(buf, "0x%x\n", data->type);
+>> -	iounmap(data);
+>> +	memunmap(data);
+>>  	return ret;
+>>  }
+>>
+>> @@ -154,7 +155,7 @@ static ssize_t setup_data_data_read(struct file *fp,
+>>  	ret = get_setup_data_paddr(nr, &paddr);
+>>  	if (ret)
+>>  		return ret;
+>> -	data = ioremap_cache(paddr, sizeof(*data));
+>> +	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
+>>  	if (!data)
+>>  		return -ENOMEM;
+>>
+>> @@ -170,15 +171,15 @@ static ssize_t setup_data_data_read(struct file *fp,
+>>  		goto out;
+>>
+>>  	ret = count;
+>> -	p = ioremap_cache(paddr + sizeof(*data), data->len);
+>> +	p = memremap(paddr + sizeof(*data), data->len, MEMREMAP_WB);
+>>  	if (!p) {
+>>  		ret = -ENOMEM;
+>>  		goto out;
+>>  	}
+>>  	memcpy(buf, p + off, count);
+>> -	iounmap(p);
+>> +	memunmap(p);
+>>  out:
+>> -	iounmap(data);
+>> +	memunmap(data);
+>>  	return ret;
+>>  }
+>>
+>> @@ -250,13 +251,13 @@ static int __init get_setup_data_total_num(u64 pa_data, int *nr)
+>>  	*nr = 0;
+>>  	while (pa_data) {
+>>  		*nr += 1;
+>> -		data = ioremap_cache(pa_data, sizeof(*data));
+>> +		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
+>>  		if (!data) {
+>>  			ret = -ENOMEM;
+>>  			goto out;
+>>  		}
+>>  		pa_data = data->next;
+>> -		iounmap(data);
+>> +		memunmap(data);
+>>  	}
+>>
+>>  out:
+>>
+>
+> It would be better that these cleanup patches are sent separately.
 
-Makes sense, how is /proc/sys/vm/min_free_kbytes default value calculated?
+Bjorn suggested something along the same line so I've combined all the
+changes from ioremap to memremap as a single pre-patch in the series.
+I could send them separately if needed.
+
+Thanks,
+Tom
 
 >
->> b.) the buffer/cache?
-> the memory reclaim is strongly biased towards page cache and we try to
-> avoid swapout as much as possible (see get_scan_count).
-
-If I understand it correctly, swapping is preferred over dropping the 
-cache, right. Can this behaviour be changed to prefer dropping the cache 
-to some minimum amount?
-Is this also configurable in a way?
-(As far as I remember e.g. kernel 2.4 dropped the caches well).
-
->   
->> There is ~100M memory available but kernel swaps all the time ...
->>
->> Any ideas?
->>
->> Kernel: 4.9.14-200.fc25.x86_64
->>
->> top - 17:33:43 up 28 min,  3 users,  load average: 3.58, 1.67, 0.89
->> Tasks: 145 total,   4 running, 141 sleeping,   0 stopped,   0 zombie
->> %Cpu(s): 19.1 us, 56.2 sy,  0.0 ni,  4.3 id, 13.4 wa, 2.0 hi,  0.3 si,  4.7
->> st
->> KiB Mem :   230076 total,    61508 free,   123472 used,    45096 buff/cache
->>
->> procs -----------memory---------- ---swap-- -----io---- -system--
->> ------cpu-----
->>   r  b   swpd   free   buff  cache   si   so    bi    bo in   cs us sy id wa st
->>   3  5 303916  60372    328  43864 27828  200 41420   236 6984 11138 11 47  6 23 14
-> I am really surprised to see any reclaim at all. 26% of free memory
-> doesn't sound as if we should do a reclaim at all. Do you have an
-> unusual configuration of /proc/sys/vm/min_free_kbytes ? Or is there
-> anything running inside a memory cgroup with a small limit?
-
-nothing special set regarding /proc/sys/vm/min_free_kbytes (default 
-values), detailed config below. Regarding cgroups, none of I know. How 
-to check (I guess nothing is set because cg* commands are not available)?
-
-cat /etc/sysctl.d/* | grep "^vm"
-vm.dirty_background_ratio = 3
-vm.dirty_ratio = 15
-vm.overcommit_memory = 2
-vm.overcommit_ratio = 80
-vm.swappiness=10
-
-find /proc/sys/vm -type f -exec echo {} \; -exec cat {} \;
-/proc/sys/vm/admin_reserve_kbytes
-8192
-/proc/sys/vm/block_dump
-0
-/proc/sys/vm/compact_memory
-cat: /proc/sys/vm/compact_memory: Permission denied
-/proc/sys/vm/compact_unevictable_allowed
-1
-/proc/sys/vm/dirty_background_bytes
-0
-/proc/sys/vm/dirty_background_ratio
-3
-/proc/sys/vm/dirty_bytes
-0
-/proc/sys/vm/dirty_expire_centisecs
-3000
-/proc/sys/vm/dirty_ratio
-15
-/proc/sys/vm/dirty_writeback_centisecs
-500
-/proc/sys/vm/dirtytime_expire_seconds
-43200
-/proc/sys/vm/drop_caches
-0
-/proc/sys/vm/extfrag_threshold
-500
-/proc/sys/vm/hugepages_treat_as_movable
-0
-/proc/sys/vm/hugetlb_shm_group
-0
-/proc/sys/vm/laptop_mode
-0
-/proc/sys/vm/legacy_va_layout
-0
-/proc/sys/vm/lowmem_reserve_ratio
-256     256     32      1
-/proc/sys/vm/max_map_count
-65530
-/proc/sys/vm/memory_failure_early_kill
-0
-/proc/sys/vm/memory_failure_recovery
-1
-/proc/sys/vm/min_free_kbytes
-45056
-/proc/sys/vm/min_slab_ratio
-5
-/proc/sys/vm/min_unmapped_ratio
-1
-/proc/sys/vm/mmap_min_addr
-65536
-/proc/sys/vm/mmap_rnd_bits
-28
-/proc/sys/vm/mmap_rnd_compat_bits
-8
-/proc/sys/vm/nr_hugepages
-0
-/proc/sys/vm/nr_hugepages_mempolicy
-0
-/proc/sys/vm/nr_overcommit_hugepages
-0
-/proc/sys/vm/nr_pdflush_threads
-0
-/proc/sys/vm/numa_zonelist_order
-default
-/proc/sys/vm/oom_dump_tasks
-1
-/proc/sys/vm/oom_kill_allocating_task
-0
-/proc/sys/vm/overcommit_kbytes
-0
-/proc/sys/vm/overcommit_memory
-2
-/proc/sys/vm/overcommit_ratio
-80
-/proc/sys/vm/page-cluster
-3
-/proc/sys/vm/panic_on_oom
-0
-/proc/sys/vm/percpu_pagelist_fraction
-0
-/proc/sys/vm/stat_interval
-1
-/proc/sys/vm/stat_refresh
-/proc/sys/vm/swappiness
-10
-/proc/sys/vm/user_reserve_kbytes
-31036
-/proc/sys/vm/vfs_cache_pressure
-100
-/proc/sys/vm/watermark_scale_factor
-10
-/proc/sys/vm/zone_reclaim_mode
-0
-
-Thnx.
-
-
-Ciao,
-
-Gerhard
-
+> Acked-by: Dave Young <dyoung@redhat.com>
+>
+> Thanks
+> Dave
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
