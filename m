@@ -1,45 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B63C6B0389
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 04:52:56 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c87so62410521pfl.6
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 01:52:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d71sor1809708pgc.5.1969.12.31.16.00.00
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 299ED6B0389
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 04:57:41 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d66so2508008wmi.2
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 01:57:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j186si2370288wma.13.2017.03.17.01.57.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 17 Mar 2017 01:52:55 -0700 (PDT)
-Date: Fri, 17 Mar 2017 01:52:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/5] mm, swap: Try kzalloc before vzalloc
-In-Reply-To: <20170317064635.12792-4-ying.huang@intel.com>
-Message-ID: <alpine.DEB.2.10.1703170147030.15347@chino.kir.corp.google.com>
-References: <20170317064635.12792-1-ying.huang@intel.com> <20170317064635.12792-4-ying.huang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Mar 2017 01:57:39 -0700 (PDT)
+Date: Fri, 17 Mar 2017 09:57:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch v2] mm, vmstat: print non-populated zones in zoneinfo
+Message-ID: <20170317085737.GE26298@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1703021525500.5229@chino.kir.corp.google.com>
+ <4acf16c5-c64b-b4f8-9a41-1926eed23fe1@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1703031445340.92298@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1703031451310.98023@chino.kir.corp.google.com>
+ <20170308144159.GD11034@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170308144159.GD11034@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?J=C3=A9r=C3=B4me_Glisse?= <jglisse@redhat.com>, Aaron Lu <aaron.lu@intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 17 Mar 2017, Huang, Ying wrote:
-
-> From: Huang Ying <ying.huang@intel.com>
+On Wed 08-03-17 15:41:59, Michal Hocko wrote:
+> On Fri 03-03-17 14:53:07, David Rientjes wrote:
+> > Initscripts can use the information (protection levels) from
+> > /proc/zoneinfo to configure vm.lowmem_reserve_ratio at boot.
+> > 
+> > vm.lowmem_reserve_ratio is an array of ratios for each configured zone on
+> > the system.  If a zone is not populated on an arch, /proc/zoneinfo
+> > suppresses its output.
+> > 
+> > This results in there not being a 1:1 mapping between the set of zones
+> > emitted by /proc/zoneinfo and the zones configured by
+> > vm.lowmem_reserve_ratio.
+> >
+> > This patch shows statistics for non-populated zones in /proc/zoneinfo.
+> > The zones exist and hold a spot in the vm.lowmem_reserve_ratio array.
+> > Without this patch, it is not possible to determine which index in the
+> > array controls which zone if one or more zones on the system are not
+> > populated.
+> > 
+> > Remaining users of walk_zones_in_node() are unchanged.  Files such as
+> > /proc/pagetypeinfo require certain zone data to be initialized properly
+> > for display, which is not done for unpopulated zones.
 > 
-> Now vzalloc() is used in swap code to allocate various data
-> structures, such as swap cache, swap slots cache, cluster info, etc.
-> Because the size may be too large on some system, so that normal
-> kzalloc() may fail.  But using kzalloc() has some advantages, for
-> example, less memory fragmentation, less TLB pressure, etc.  So change
-> the data structure allocation in swap code to try to use kzalloc()
-> firstly, and fallback to vzalloc() if kzalloc() failed.
+> Does it really make sense to print any counters of that zone though?
+> Your follow up patch just suggests that we don't want some but what
+> about others?
 > 
+> I can see how skipping empty zones completely can be clumsy but wouldn't
+> it be sufficient to just provide
+> 
+> Node $NUM, zone $NAME
+> (unpopulated)
+> 
+> instead?
 
-I'm concerned about preferring kzalloc() with __GFP_RECLAIM since the page 
-allocator will try to do memory compaction for high-order allocations when 
-the vzalloc() would have succeeded immediately.  Do we necessarily want to 
-spend time doing memory compaction and direct reclaim for contiguous 
-memory if it's not needed?
+ping
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
