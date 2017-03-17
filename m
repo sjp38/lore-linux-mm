@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F3646B038A
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 07:03:56 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a6so39437672lfa.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 04:03:56 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FA2D6B038A
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 07:10:27 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id r5so58600296qtb.1
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 04:10:27 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t65si6185869qkg.35.2017.03.17.04.03.45
+        by mx.google.com with ESMTPS id m62si6185528qkb.143.2017.03.17.04.09.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 04:03:45 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 14/32] x86: mm: Provide support to use memblock
- when spliting large pages
+        Fri, 17 Mar 2017 04:09:58 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 29/32] kvm: svm: Add support for SEV DEBUG_DECRYPT
+ command
 References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846771545.2349.9373586041426414252.stgit@brijesh-build-machine>
- <20170310110657.hophlog2juw5hpzz@pd.tnic>
- <cb6a9a56-2c52-d98d-3ff6-3b61d0e5875e@amd.com>
- <20170316182836.tyvxoeq56thtc4pd@pd.tnic>
- <ec134379-6a48-905c-26e4-f6f2738814dc@redhat.com>
- <20170317101737.icdois7sdmtutt6b@pd.tnic>
- <b6f9f46c-58c4-a19c-4955-2d07bd411443@redhat.com>
- <20170317105610.musvo4baokgssvye@pd.tnic>
+ <148846789744.2349.167641684941925238.stgit@brijesh-build-machine>
+ <4579cfdd-1797-8b47-8e00-254e3f6eb73f@redhat.com>
+ <d89ef60d-a97c-b712-fb0f-0242ebebb91a@amd.com>
 From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <78c99889-f175-f60f-716b-34a62203418a@redhat.com>
-Date: Fri, 17 Mar 2017 12:03:31 +0100
+Message-ID: <ca24bbc2-25cf-a5ca-cd39-5862036214bb@redhat.com>
+Date: Fri, 17 Mar 2017 12:09:42 +0100
 MIME-Version: 1.0
-In-Reply-To: <20170317105610.musvo4baokgssvye@pd.tnic>
+In-Reply-To: <d89ef60d-a97c-b712-fb0f-0242ebebb91a@amd.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org
+To: Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
 
 
 
-On 17/03/2017 11:56, Borislav Petkov wrote:
->> Theoretically or practically?
-> In the sense, it needs to be tried first to see how ugly it can get.
+On 16/03/2017 19:41, Brijesh Singh wrote:
+>>
+>> Please do add it, it doesn't seem very different from what you're doing
+>> in LAUNCH_UPDATE_DATA.  There's no need for a separate
+>> __sev_dbg_decrypt_page function, you can just pin/unpin here and do a
+>> per-page loop as in LAUNCH_UPDATE_DATA.
 > 
->> It only looks at the E820 map, doesn't it?  Why does it have to do
->> anything with percpu memory areas?
-> That's irrelevant. What we want to do is take what's in init_mm.pgd and
-> modify it. And use the facilities in arch/x86/mm/init_{32,64}.c because
-> they already know about early/late pagetable pages allocation and they
-> deal with the kernel pagetable anyway.
+> I can certainly add support to handle crossing the page boundary cases.
+> Should we limit the size to prevent user passing arbitrary long length
+> and we end up looping inside the kernel? I was thinking to limit to a
+> PAGE_SIZE.
 
-If it is possible to do it in a fairly hypervisor-independent manner,
-I'm all for it.  That is, only by looking at AMD-specified CPUID leaves
-and at kernel ELF sections.
+I guess it depends on how it's used.  PAGE_SIZE makes sense since you
+only know if a physical address is encrypted when you reach it from a
+visit of the page tables.
 
 Paolo
-
-> And *not* teach pageattr.c about memblock because that can be misused,
-> as tglx pointed out on IRC.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
