@@ -1,105 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 601996B038C
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 11:57:44 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id j127so72110694qke.2
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 08:57:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h62si6744479qkc.61.2017.03.17.08.57.43
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C41076B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 12:38:00 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a6so44088822lfa.1
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 09:38:00 -0700 (PDT)
+Received: from vps01.wiesinger.com (vps01.wiesinger.com. [46.36.37.179])
+        by mx.google.com with ESMTPS id s16si4737827ljd.259.2017.03.17.09.37.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 08:57:43 -0700 (PDT)
-Date: Fri, 17 Mar 2017 11:57:38 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 00/16] HMM (Heterogeneous Memory Management) v18
-Message-ID: <20170317155737.GB7582@redhat.com>
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
- <20170316134321.c5cf727c21abf89b7e6708a2@linux-foundation.org>
- <20170316234950.GA5725@redhat.com>
- <3ff0fc0b-eb2a-a0d2-d8f6-82045a445324@huawei.com>
+        Fri, 17 Mar 2017 09:37:58 -0700 (PDT)
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+References: <20170227090236.GA2789@bbox>
+ <20170227094448.GF14029@dhcp22.suse.cz> <20170228051723.GD2702@bbox>
+ <20170228081223.GA26792@dhcp22.suse.cz> <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+ <20170316082714.GC30501@dhcp22.suse.cz>
+ <20170316084733.GP802@shells.gnugeneration.com>
+ <20170316090844.GG30501@dhcp22.suse.cz>
+ <20170316092318.GQ802@shells.gnugeneration.com>
+ <20170316093931.GH30501@dhcp22.suse.cz>
+From: Gerhard Wiesinger <lists@wiesinger.com>
+Message-ID: <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+Date: Fri, 17 Mar 2017 17:37:48 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <3ff0fc0b-eb2a-a0d2-d8f6-82045a445324@huawei.com>
+In-Reply-To: <20170316093931.GH30501@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>
+To: Michal Hocko <mhocko@kernel.org>, lkml@pengaru.com
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Mar 17, 2017 at 04:29:10PM +0800, Bob Liu wrote:
-> On 2017/3/17 7:49, Jerome Glisse wrote:
-> > On Thu, Mar 16, 2017 at 01:43:21PM -0700, Andrew Morton wrote:
-> >> On Thu, 16 Mar 2017 12:05:19 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
-> >>
-> >>> Cliff note:
-> >>
-> >> "Cliff's notes" isn't appropriate for a large feature such as this. 
-> >> Where's the long-form description?  One which permits readers to fully
-> >> understand the requirements, design, alternative designs, the
-> >> implementation, the interface(s), etc?
-> >>
-> >> Have you ever spoken about HMM at a conference?  If so, the supporting
-> >> presentation documents might help here.  That's the level of detail
-> >> which should be presented here.
-> > 
-> > Longer description of patchset rational, motivation and design choices
-> > were given in the first few posting of the patchset to which i included
-> > a link in my cover letter. Also given that i presented that for last 3
-> > or 4 years to mm summit and kernel summit i thought that by now peoples
-> > were familiar about the topic and wanted to spare them the long version.
-> > My bad.
-> > 
-> > I attach a patch that is a first stab at a Documentation/hmm.txt that
-> > explain the motivation and rational behind HMM. I can probably add a
-> > section about how to use HMM from device driver point of view.
-> > 
-> 
-> Please, that would be very helpful!
-> 
-> > +3) Share address space and migration
-> > +
-> > +HMM intends to provide two main features. First one is to share the address
-> > +space by duplication the CPU page table into the device page table so same
-> > +address point to same memory and this for any valid main memory address in
-> > +the process address space.
-> 
-> Is this an optional feature?
-> I mean the device don't have to duplicate the CPU page table.
-> But only make use of the second(migration) feature.
+On 16.03.2017 10:39, Michal Hocko wrote:
+> On Thu 16-03-17 02:23:18, lkml@pengaru.com wrote:
+>> On Thu, Mar 16, 2017 at 10:08:44AM +0100, Michal Hocko wrote:
+>>> On Thu 16-03-17 01:47:33, lkml@pengaru.com wrote:
+>>> [...]
+>>>> While on the topic of understanding allocation stalls, Philip Freeman recently
+>>>> mailed linux-kernel with a similar report, and in his case there are plenty of
+>>>> page cache pages.  It was also a GFP_HIGHUSER_MOVABLE 0-order allocation.
+>>> care to point me to the report?
+>> http://lkml.iu.edu/hypermail/linux/kernel/1703.1/06360.html
+> Thanks. It is gone from my lkml mailbox. Could you CC me (and linux-mm) please?
+>   
+>>>   
+>>>> I'm no MM expert, but it appears a bit broken for such a low-order allocation
+>>>> to stall on the order of 10 seconds when there's plenty of reclaimable pages,
+>>>> in addition to mostly unused and abundant swap space on SSD.
+>>> yes this might indeed signal a problem.
+>> Well maybe I missed something obvious that a better informed eye will catch.
+> Nothing really obvious. There is indeed a lot of anonymous memory to
+> swap out. Almost no pages on file LRU lists (active_file:759
+> inactive_file:749) but 158783 total pagecache pages so we have to have a
+> lot of pages in the swap cache. I would probably have to see more data
+> to make a full picture.
+>
 
-Correct each feature can be use on its own without the other.
+Why does the kernel prefer to swapin/out and not use
+
+a.) the free memory?
+
+b.) the buffer/cache?
+
+There is ~100M memory available but kernel swaps all the time ...
+
+Any ideas?
+
+Kernel: 4.9.14-200.fc25.x86_64
+
+top - 17:33:43 up 28 min,  3 users,  load average: 3.58, 1.67, 0.89
+Tasks: 145 total,   4 running, 141 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 19.1 us, 56.2 sy,  0.0 ni,  4.3 id, 13.4 wa, 2.0 hi,  0.3 si,  
+4.7 st
+KiB Mem :   230076 total,    61508 free,   123472 used,    45096 buff/cache
+
+procs -----------memory---------- ---swap-- -----io---- -system-- 
+------cpu-----
+  r  b   swpd   free   buff  cache   si   so    bi    bo in   cs us sy 
+id wa st
+  3  5 303916  60372    328  43864 27828  200 41420   236 6984 11138 11 
+47  6 23 14
+  5  4 292852  52904    756  58584 19600  448 48780   540 8088 10528 18 
+61  1  7 13
+  3  3 288792  49052   1152  65924 4856  576  9824  1100 4324 5720  7 
+18  2 64  8
+  2  2 283676  54160    716  67604 6332  344 31740   964 3879 5055 12 34 
+10 37  7
+  3  3 286852  66712    216  53136 28064 4832 56532  4920 9175 12625 10 
+55 12 14 10
+  2  0 299680  62428    196  53316 36312 13164 54728 13212 16820 25283  
+7 56 18 12  7
+  1  1 300756  63220    624  58160 17944 1260 24528  1304 5804 9302  3 
+22 38 34  3
+
+Thnx.
 
 
-> > +The second mechanism HMM provide is a new kind of ZONE_DEVICE memory that does
-> > +allow to allocate a struct page for each page of the device memory. Those page
-> > +are special because the CPU can not map them. They however allow to migrate
-> > +main memory to device memory using exhisting migration mechanism and everything
-> > +looks like if page was swap out to disk from CPU point of view. Using a struct
-> > +page gives the easiest and cleanest integration with existing mm mechanisms.
-> > +Again here HMM only provide helpers, first to hotplug new ZONE_DEVICE memory
-> > +for the device memory and second to perform migration. Policy decision of what
-> > +and when to migrate things is left to the device driver.
-> > +
-> > +Note that any CPU acess to a device page trigger a page fault which initiate a
-> > +migration back to system memory so that CPU can access it.
-> 
-> A bit confused here, do you mean CPU access to a main memory page but that page has
-> been migrated to device memory?
-> Then a page fault will be triggered and initiate a migration back.
+Ciao,
 
-If you migrate the page backing address A from a main memory page to a device page
-and then CPU try to access address A then you get a page fault because device memory
-is not accessible by CPU. The page fault is exactly as if the page was swap out to
-disk from kernel point of view.
-
-At any point in time there is only one and one page backing an address either a
-regular main memory page or device page. There is no change here to this fundamental
-fact in respect to mm. The only difference is that device page are not accessible
-by CPU.
-
-Cheers,
-Jerome
+Gerhard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
