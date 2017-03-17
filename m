@@ -1,73 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BDE6B038A
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:55:00 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id e5so156784915pgk.1
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:55:00 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 1si9313834pgt.65.2017.03.17.10.54.59
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C1BF96B0038
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 14:02:40 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id p5so70945231qtb.0
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 11:02:40 -0700 (PDT)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com. [209.85.220.182])
+        by mx.google.com with ESMTPS id 143si1618261qki.268.2017.03.17.11.02.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 10:55:00 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2HHrfi9011069
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:54:59 -0400
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 298dm5cnxs-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:54:58 -0400
-Received: from localhost
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 18 Mar 2017 03:54:56 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v2HHskgV49545342
-	for <linux-mm@kvack.org>; Sat, 18 Mar 2017 04:54:54 +1100
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v2HHsL7s006625
-	for <linux-mm@kvack.org>; Sat, 18 Mar 2017 04:54:21 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 26/26] x86/mm: allow to have userspace mappings above 47-bits
-In-Reply-To: <20170313055020.69655-27-kirill.shutemov@linux.intel.com>
-References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com> <20170313055020.69655-27-kirill.shutemov@linux.intel.com>
-Date: Fri, 17 Mar 2017 23:23:54 +0530
+        Fri, 17 Mar 2017 11:02:39 -0700 (PDT)
+Received: by mail-qk0-f182.google.com with SMTP id p64so70838949qke.1
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 11:02:39 -0700 (PDT)
+Subject: Re: [RFC PATCH 08/12] cma: Store a name in the cma structure
+References: <1488491084-17252-1-git-send-email-labbott@redhat.com>
+ <1488491084-17252-9-git-send-email-labbott@redhat.com>
+ <CAO_48GEHxuMMwZO71ytaVhRkapMYaAWBWd1gW+ktspnQg=b8Sw@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <7c750fb1-d019-03c1-a682-3bc04c6730ac@redhat.com>
+Date: Fri, 17 Mar 2017 11:02:34 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87a88jg571.fsf@skywalker.in.ibm.com>
+In-Reply-To: <CAO_48GEHxuMMwZO71ytaVhRkapMYaAWBWd1gW+ktspnQg=b8Sw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sumit Semwal <sumit.semwal@linaro.org>
+Cc: Riley Andrews <riandrews@android.com>, =?UTF-8?B?QXJ2ZSBIau+/vW5uZXY=?= =?UTF-8?B?77+9Zw==?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, LKML <linux-kernel@vger.kernel.org>, Linaro MM SIG <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+On 03/10/2017 12:53 AM, Sumit Semwal wrote:
+> Hi Laura,
+> 
+> Thanks for the patch.
+> 
+> On 3 March 2017 at 03:14, Laura Abbott <labbott@redhat.com> wrote:
+>>
+>> Frameworks that may want to enumerate CMA heaps (e.g. Ion) will find it
+>> useful to have an explicit name attached to each region. Store the name
+>> in each CMA structure.
+>>
+>> Signed-off-by: Laura Abbott <labbott@redhat.com>
+>> ---
+>>  drivers/base/dma-contiguous.c |  5 +++--
+>>  include/linux/cma.h           |  4 +++-
+>>  mm/cma.c                      | 11 +++++++++--
+>>  mm/cma.h                      |  1 +
+>>  mm/cma_debug.c                |  2 +-
+>>  5 files changed, 17 insertions(+), 6 deletions(-)
+>>
+> <snip>
+>> +const char *cma_get_name(const struct cma *cma)
+>> +{
+>> +       return cma->name ? cma->name : "(undefined)";
+>> +}
+>> +
+> Would it make sense to perhaps have the idx stored as the name,
+> instead of 'undefined'? That would make sure that the various cma
+> names are still unique.
+> 
 
-> On x86, 5-level paging enables 56-bit userspace virtual address space.
-> Not all user space is ready to handle wide addresses. It's known that
-> at least some JIT compilers use higher bits in pointers to encode their
-> information. It collides with valid pointers with 5-level paging and
-> leads to crashes.
->
-> To mitigate this, we are not going to allocate virtual address space
-> above 47-bit by default.
->
-> But userspace can ask for allocation from full address space by
-> specifying hint address (with or without MAP_FIXED) above 47-bits.
->
-> If hint address set above 47-bit, but MAP_FIXED is not specified, we try
-> to look for unmapped area by specified address. If it's already
-> occupied, we look for unmapped area in *full* address space, rather than
-> from 47-bit window.
->
-> This approach helps to easily make application's memory allocator aware
-> about large address space without manually tracking allocated virtual
-> address space.
->
+Good suggestion. I'll see about cleaning that up.
 
-So if I have done a successful mmap which returned > 128TB what should a
-following mmap(0,...) return ? Should that now search the *full* address
-space or below 128TB ?
-
--aneesh
+>>  static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
+>>                                              int align_order)
+>>  {
+>> @@ -168,6 +173,7 @@ core_initcall(cma_init_reserved_areas);
+>>   */
+>>  int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
+>>                                  unsigned int order_per_bit,
+>> +                                const char *name,
+>>                                  struct cma **res_cma)
+>>  {
+> 
+> Best regards,
+> Sumit.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
