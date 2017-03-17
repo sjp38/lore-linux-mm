@@ -1,64 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 70EB76B038A
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 14:08:14 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y51so14954447wry.6
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 11:08:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 135si4190390wmh.53.2017.03.17.11.08.12
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 29FF06B038C
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 14:25:19 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id c85so77850987qkg.0
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 11:25:19 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i23si7045614qta.103.2017.03.17.11.25.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Mar 2017 11:08:13 -0700 (PDT)
-Date: Fri, 17 Mar 2017 19:08:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mm/vmscan: more restrictive condition for retry in
- do_try_to_free_pages
-Message-ID: <20170317180809.GB23957@dhcp22.suse.cz>
-References: <1489577808-19228-1-git-send-email-xieyisheng1@huawei.com>
- <20170317145020.GA8106@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Mar 2017 11:25:18 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [HMM 0/2] Build fix and documentation
+Date: Fri, 17 Mar 2017 15:27:01 -0400
+Message-Id: <1489778823-8694-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170317145020.GA8106@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, riel@redhat.com, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, qiuxishi@huawei.com
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Fri 17-03-17 10:50:20, Johannes Weiner wrote:
-> On Wed, Mar 15, 2017 at 07:36:48PM +0800, Yisheng Xie wrote:
-> > By reviewing code, I find that when enter do_try_to_free_pages, the
-> > may_thrash is always clear, and it will retry shrink zones to tap
-> > cgroup's reserves memory by setting may_thrash when the former
-> > shrink_zones reclaim nothing.
-> > 
-> > However, when memcg is disabled or on legacy hierarchy, or there do not
-> > have any memcg protected by low limit, it should not do this useless retry
-> > at all, for we do not have any cgroup's reserves memory to tap, and we
-> > have already done hard work but made no progress.
-> > 
-> > To avoid this unneeded retrying, add a new field in scan_control named
-> > memcg_low_protection, set it if there is any memcg protected by low limit
-> > and only do the retry when memcg_low_protection is set while may_thrash
-> > is clear.
-> > 
-> > Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> > Suggested-by: Michal Hocko <mhocko@kernel.org>
-> > Suggested-by: Shakeel Butt <shakeelb@google.com>
-> > Reviewed-by: Shakeel Butt <shakeelb@google.com>
-> 
-> I don't see the point of this patch. It adds more code just to
-> marginally optimize a near-OOM cold path.
+This fix build on 32 bit system by simply disabling this feature as
+it was never intented for 32 bit system. This also add documentations.
 
-The current behavior is surprising and not really desirable when we want
-to control the retry logic from the page allocator. So I do not think
-that the additional 5 lines of code would be unbearable burden or
-maintenance cost. I am not saying the patch adds any break through but
-it is not pointless either.
+Size impact is virtualy non-existent (allyesconfig on i386 without
+patchset and then with whole patchset and build fixes).
+
+[glisse@localhost linux]$ size vmlinux-without 
+   text	   data	    bss	    dec	    hex	filename
+73065929	43745211	26939392	143750532	8917584	vmlinux-without
+[glisse@localhost linux]$ size vmlinux
+   text	   data	    bss	    dec	    hex	filename
+73066001	43745211	26939392	143750604	89175cc	vmlinux
+
+Sorry for all the build failures.
+
+Cheers,
+JA(C)rA'me
+
+
+Balbir Singh (1):
+  mm/hmm: Fix build on 32 bit systems
+
+JA(C)rA'me Glisse (1):
+  hmm: heterogeneous memory management documentation
+
+ Documentation/vm/hmm.txt | 362 +++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/migrate.h  |  18 ++-
+ mm/Kconfig               |   4 +-
+ mm/migrate.c             |   3 +-
+ 4 files changed, 384 insertions(+), 3 deletions(-)
+ create mode 100644 Documentation/vm/hmm.txt
 
 -- 
-Michal Hocko
-SUSE Labs
+2.4.11
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
