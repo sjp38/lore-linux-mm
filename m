@@ -1,53 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 101596B0038
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 12:53:58 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v127so73149316qkb.5
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 09:53:58 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D58DD6B038A
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:11:48 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id u4so52157299qtc.4
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:11:48 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w3si6863455qtg.225.2017.03.17.09.53.56
+        by mx.google.com with ESMTPS id m48si6899962qtc.263.2017.03.17.10.11.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 09:53:56 -0700 (PDT)
-Date: Fri, 17 Mar 2017 12:53:51 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 16/16] mm/hmm/devmem: dummy HMM device for ZONE_DEVICE
- memory v2
-Message-ID: <20170317165351.GA16236@redhat.com>
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
- <1489680335-6594-17-git-send-email-jglisse@redhat.com>
- <e3163e6a-654d-cbf6-3aad-788c31f20655@huawei.com>
+        Fri, 17 Mar 2017 10:11:47 -0700 (PDT)
+Subject: Re: [PATCHv2 2/5] target/user: Add global data block pool support
+References: <1488962743-17028-1-git-send-email-lixiubo@cmss.chinamobile.com>
+ <1488962743-17028-3-git-send-email-lixiubo@cmss.chinamobile.com>
+ <3b1ce412-6072-fda1-3002-220cf8fbf34f@redhat.com>
+ <ddd797ea-43f0-b863-64e4-1e758f41dafe@cmss.chinamobile.com>
+ <f4c4e83a-d6b1-ed57-7a54-4277722e5a46@cmss.chinamobile.com>
+From: Andy Grover <agrover@redhat.com>
+Message-ID: <2dd405f8-9f5b-405d-e744-9ee8bac77686@redhat.com>
+Date: Fri, 17 Mar 2017 10:11:43 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e3163e6a-654d-cbf6-3aad-788c31f20655@huawei.com>
+In-Reply-To: <f4c4e83a-d6b1-ed57-7a54-4277722e5a46@cmss.chinamobile.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Xiubo Li <lixiubo@cmss.chinamobile.com>, nab@linux-iscsi.org, mchristi@redhat.com
+Cc: shli@kernel.org, sheng@yasker.org, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, namei.unix@gmail.com, linux-mm@kvack.org
 
-On Fri, Mar 17, 2017 at 02:55:57PM +0800, Bob Liu wrote:
-> Hi Jerome,
-> 
-> On 2017/3/17 0:05, Jerome Glisse wrote:
-> > This introduce a dummy HMM device class so device driver can use it to
-> > create hmm_device for the sole purpose of registering device memory.
-> 
-> May I ask where is the latest dummy HMM device driver?
-> I can only get this one: https://patchwork.kernel.org/patch/4352061/
+On 03/17/2017 01:04 AM, Xiubo Li wrote:
+> [...]
+>> These days what I have gotten is that the unmap_mapping_range() could
+>> be used.
+>> At the same time I have deep into the mm code and fixed the double
+>> usage of
+>> the data blocks and possible page fault call trace bugs mentioned above.
+>>
+>> Following is the V3 patch. I have test this using 4 targets & fio for
+>> about 2 days, so
+>> far so good.
+>>
+>> I'm still testing this using more complex test case.
+>>
+> I have test it the whole day today:
+> - using 4 targets
+> - setting TCMU_GLOBAL_MAX_BLOCKS = [512 1K 1M 1G 2G]
+> - each target here needs more than 450 blocks when running
+> - fio: -iodepth [1 2 4 8 16] -thread -rw=[read write] -bs=[1K 2K 3K 5K
+> 7K 16K 64K 1M] -size=20G -numjobs=10 -runtime=1000  ...
 
-https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-next
+Hi Xiubo,
 
-This is a 4.10 tree but the dummy driver there apply on top of v18
+V3 is sounding very good. I look forward to reviewing it after it is posted.
 
-https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v18
-
-This is really an example driver it doesn't do anything useful beside
-help in testing and debugging.
-
-Cheers,
-Jerome
+Thanks -- Regards -- Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
