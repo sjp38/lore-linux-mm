@@ -1,58 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D58DD6B038A
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:11:48 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id u4so52157299qtc.4
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:11:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m48si6899962qtc.263.2017.03.17.10.11.47
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E4E56B038C
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 13:13:44 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y90so14791879wrb.1
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 10:13:44 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 57si11924426wrv.297.2017.03.17.10.13.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 10:11:47 -0700 (PDT)
-Subject: Re: [PATCHv2 2/5] target/user: Add global data block pool support
-References: <1488962743-17028-1-git-send-email-lixiubo@cmss.chinamobile.com>
- <1488962743-17028-3-git-send-email-lixiubo@cmss.chinamobile.com>
- <3b1ce412-6072-fda1-3002-220cf8fbf34f@redhat.com>
- <ddd797ea-43f0-b863-64e4-1e758f41dafe@cmss.chinamobile.com>
- <f4c4e83a-d6b1-ed57-7a54-4277722e5a46@cmss.chinamobile.com>
-From: Andy Grover <agrover@redhat.com>
-Message-ID: <2dd405f8-9f5b-405d-e744-9ee8bac77686@redhat.com>
-Date: Fri, 17 Mar 2017 10:11:43 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Mar 2017 10:13:43 -0700 (PDT)
+Date: Fri, 17 Mar 2017 18:13:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+Message-ID: <20170317171339.GA23957@dhcp22.suse.cz>
+References: <20170228051723.GD2702@bbox>
+ <20170228081223.GA26792@dhcp22.suse.cz>
+ <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+ <20170316082714.GC30501@dhcp22.suse.cz>
+ <20170316084733.GP802@shells.gnugeneration.com>
+ <20170316090844.GG30501@dhcp22.suse.cz>
+ <20170316092318.GQ802@shells.gnugeneration.com>
+ <20170316093931.GH30501@dhcp22.suse.cz>
+ <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
 MIME-Version: 1.0
-In-Reply-To: <f4c4e83a-d6b1-ed57-7a54-4277722e5a46@cmss.chinamobile.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiubo Li <lixiubo@cmss.chinamobile.com>, nab@linux-iscsi.org, mchristi@redhat.com
-Cc: shli@kernel.org, sheng@yasker.org, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, namei.unix@gmail.com, linux-mm@kvack.org
+To: Gerhard Wiesinger <lists@wiesinger.com>
+Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 03/17/2017 01:04 AM, Xiubo Li wrote:
-> [...]
->> These days what I have gotten is that the unmap_mapping_range() could
->> be used.
->> At the same time I have deep into the mm code and fixed the double
->> usage of
->> the data blocks and possible page fault call trace bugs mentioned above.
->>
->> Following is the V3 patch. I have test this using 4 targets & fio for
->> about 2 days, so
->> far so good.
->>
->> I'm still testing this using more complex test case.
->>
-> I have test it the whole day today:
-> - using 4 targets
-> - setting TCMU_GLOBAL_MAX_BLOCKS = [512 1K 1M 1G 2G]
-> - each target here needs more than 450 blocks when running
-> - fio: -iodepth [1 2 4 8 16] -thread -rw=[read write] -bs=[1K 2K 3K 5K
-> 7K 16K 64K 1M] -size=20G -numjobs=10 -runtime=1000  ...
+On Fri 17-03-17 17:37:48, Gerhard Wiesinger wrote:
+[...]
+> Why does the kernel prefer to swapin/out and not use
+> 
+> a.) the free memory?
 
-Hi Xiubo,
+It will use all the free memory up to min watermark which is set up
+based on min_free_kbytes.
 
-V3 is sounding very good. I look forward to reviewing it after it is posted.
+> b.) the buffer/cache?
 
-Thanks -- Regards -- Andy
+the memory reclaim is strongly biased towards page cache and we try to
+avoid swapout as much as possible (see get_scan_count).
+ 
+> There is ~100M memory available but kernel swaps all the time ...
+> 
+> Any ideas?
+> 
+> Kernel: 4.9.14-200.fc25.x86_64
+> 
+> top - 17:33:43 up 28 min,  3 users,  load average: 3.58, 1.67, 0.89
+> Tasks: 145 total,   4 running, 141 sleeping,   0 stopped,   0 zombie
+> %Cpu(s): 19.1 us, 56.2 sy,  0.0 ni,  4.3 id, 13.4 wa, 2.0 hi,  0.3 si,  4.7
+> st
+> KiB Mem :   230076 total,    61508 free,   123472 used,    45096 buff/cache
+> 
+> procs -----------memory---------- ---swap-- -----io---- -system--
+> ------cpu-----
+>  r  b   swpd   free   buff  cache   si   so    bi    bo in   cs us sy id wa st
+>  3  5 303916  60372    328  43864 27828  200 41420   236 6984 11138 11 47  6 23 14
+
+I am really surprised to see any reclaim at all. 26% of free memory
+doesn't sound as if we should do a reclaim at all. Do you have an
+unusual configuration of /proc/sys/vm/min_free_kbytes ? Or is there
+anything running inside a memory cgroup with a small limit?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
