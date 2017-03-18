@@ -1,589 +1,2288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 75EC16B0398
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 21:34:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p189so71871118pfp.5
-        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 18:34:11 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id b13si10218805pga.132.2017.03.17.18.34.09
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B62EA6B038B
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2017 22:28:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g2so172567001pge.7
+        for <linux-mm@kvack.org>; Fri, 17 Mar 2017 19:28:51 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id w28si7332034pfl.201.2017.03.17.19.28.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Mar 2017 18:34:10 -0700 (PDT)
-Subject: Re: [HMM 2/2] hmm: heterogeneous memory management documentation
-References: <1489778823-8694-1-git-send-email-jglisse@redhat.com>
- <1489778823-8694-3-git-send-email-jglisse@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <d1dd967c-69e6-f673-0c88-06bb4e234872@nvidia.com>
-Date: Fri, 17 Mar 2017 18:32:27 -0700
+        Fri, 17 Mar 2017 19:28:47 -0700 (PDT)
+Date: Fri, 17 Mar 2017 19:28:46 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: XArray version 2
+Message-ID: <20170318022846.GH4033@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <1489778823-8694-3-git-send-email-jglisse@redhat.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/17/2017 12:27 PM, J=C3=A9r=C3=B4me Glisse wrote:
-> This add documentation for HMM (Heterogeneous Memory Management). It
-> presents the motivation behind it, the features necessary for it to
-> be usefull and and gives an overview of how this is implemented.
+Here's version 2 of the XArray patch.
 
-For this patch, I will leave it to others to decide how to proceed, given t=
-he following:
+Compared to version 1, I fixed a lot of bugs.  0day has finally stopped
+whinging about the various things I've done wrong, so I have some level
+of confidence in it.
 
-1. This hmm.txt has a lot of critical information in it.
+You can get a git tree here if you're interested.  I rebase occasionally.
+http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray-2017-03-11
 
-2. It is, however, more of a first draft than a final draft: lots of errors=
- in each sentence, and=20
-lots of paragraphs that need re-doing, for example. After a quick pass thro=
-ugh a few other=20
-Documentation/vm/*.txt documents to gage the quality bar, I am inclined to =
-recommend (or do) a=20
-second draft of this, before submitting it.
+I've started converting the page cache from the radix tree to the XArray.
+It's a big job, but it's found some problems I had to address.  I was
+hoping to do the conversion as a big bang, but I now think that's too
+big a job.  I probably need to convert things over one step at a time.
+If you look at the git tree link above, you can see the first step
+towards that in "Abstract away the page cache lock".
 
-Since I'm the one being harsh here (and Jerome, you already know I'm harsh!=
- haha), I can provide a=20
-second draft. But it won't look much like the current draft, so brace yours=
-elf before saying yes... :)
+You can take a look at my current conversion efforts in
+http://www.infradead.org/~willy/linux/pagecache-rewrite-2017-03-17.diff
+I'll tease you with the diffstat:
+ 39 files changed, 682 insertions(+), 1015 deletions(-)
+DAX is in progress.  khugepaged.c is also in progress.
 
-thanks
-John Hubbard
-NVIDIA
+One of the things I've been focusing on recently is performance.
+I'm trying to make sure that the xarray iterators do as well as the radix
+tree iterators.  Working on the page cache has helped with that because
+that's the most performance sensitive user.  I think things should be
+a bit quicker, particularly on large files where we may be looking at
+a very deep radix tree.
 
->
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> ---
->  Documentation/vm/hmm.txt | 362 +++++++++++++++++++++++++++++++++++++++++=
-++++++
->  1 file changed, 362 insertions(+)
->  create mode 100644 Documentation/vm/hmm.txt
->
-> diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
-> new file mode 100644
-> index 0000000..a6829ba
-> --- /dev/null
-> +++ b/Documentation/vm/hmm.txt
-> @@ -0,0 +1,362 @@
-> +Heterogeneous Memory Management (HMM)
-> +
-> +Transparently allow any component of a program to use any memory region =
-of said
-> +program with a device without using device specific memory allocator. Th=
-is is
-> +becoming a requirement to simplify the use of advance heterogeneous comp=
-uting
-> +where GPU, DSP or FPGA are use to perform various computations.
-> +
-> +This document is divided as follow, in the first section i expose the pr=
-oblems
-> +related to the use of a device specific allocator. The second section i =
-expose
-> +the hardware limitations that are inherent to many platforms. The third =
-section
-> +gives an overview of HMM designs. The fourth section explains how CPU pa=
-ge-
-> +table mirroring works and what is HMM purpose in this context. Fifth sec=
-tion
-> +deals with how device memory is represented inside the kernel. Finaly th=
-e last
-> +section present the new migration helper that allow to leverage the devi=
-ce DMA
-> +engine.
-> +
-> +
-> +------------------------------------------------------------------------=
--------
-> +
-> +1) Problems of using device specific memory allocator:
-> +
-> +Device with large amount of on board memory (several giga bytes) like GP=
-U have
-> +historicaly manage their memory through dedicated driver specific API. T=
-his
-> +creates a disconnect between memory allocated and managed by device driv=
-er and
-> +regular application memory (private anonynous, share memory or regular f=
-ile
-> +back memory). From here on i will refer to this aspect as split address =
-space.
-> +I use share address space to refer to the opposite situation ie one in w=
-hich
-> +any memory region can be use by device transparently.
-> +
-> +Split address space because device can only access memory allocated thro=
-ugh the
-> +device specific API. This imply that all memory object in a program are =
-not
-> +equal from device point of view which complicate large program that rely=
- on a
-> +wide set of libraries.
-> +
-> +Concretly this means that code that wants to leverage device like GPU ne=
-ed to
-> +copy object between genericly allocated memory (malloc, mmap private/sha=
-re/)
-> +and memory allocated through the device driver API (this still end up wi=
-th an
-> +mmap but of the device file).
-> +
-> +For flat dataset (array, grid, image, ...) this isn't too hard to achiev=
-e but
-> +complex data-set (list, tree, ...) are hard to get right. Duplicating a =
-complex
-> +data-set need to re-map all the pointer relations between each of its el=
-ements.
-> +This is error prone and program gets harder to debug because of the dupl=
-icate
-> +data-set.
-> +
-> +Split address space also means that library can not transparently use da=
-ta they
-> +are getting from core program or other library and thus each library mig=
-ht have
-> +to duplicate its input data-set using specific memory allocator. Large p=
-roject
-> +suffer from this and waste resources because of the various memory copy.
-> +
-> +Duplicating each library API to accept as input or output memory allocte=
-d by
-> +each device specific allocator is not a viable option. It would lead to =
-a
-> +combinatorial explosions in the library entry points.
-> +
-> +Finaly with the advance of high level langage constructs (in C++ but in =
-other
-> +langage too) it is now possible for compiler to leverage GPU or other de=
-vices
-> +without even the programmer knowledge. Some of compiler identified patte=
-rns are
-> +only do-able with a share address. It is as well more reasonable to use =
-a share
-> +address space for all the other patterns.
-> +
-> +
-> +------------------------------------------------------------------------=
--------
-> +
-> +2) System bus, device memory characteristics
-> +
-> +System bus cripple share address due to few limitations. Most system bus=
- only
-> +allow basic memory access from device to main memory, even cache coheren=
-cy is
-> +often optional. Access to device memory from CPU is even more limited, m=
-ost
-> +often than not it is not cache coherent.
-> +
-> +If we only consider the PCIE bus than device can access main memory (oft=
-en
-> +through an IOMMU) and be cache coherent with the CPUs. However it only a=
-llows
-> +a limited set of atomic operation from device on main memory. This is wo=
-rse
-> +in the other direction the CPUs can only access a limited range of the d=
-evice
-> +memory and can not perform atomic operations on it. Thus device memory c=
-an not
-> +be consider like regular memory from kernel point of view.
-> +
-> +Another crippling factor is the limited bandwidth (~32GBytes/s with PCIE=
- 4.0
-> +and 16 lanes). This is 33 times less that fastest GPU memory (1 TBytes/s=
-).
-> +The final limitation is latency, access to main memory from the device h=
-as an
-> +order of magnitude higher latency than when the device access its own me=
-mory.
-> +
-> +Some platform are developing new system bus or additions/modifications t=
-o PCIE
-> +to address some of those limitations (OpenCAPI, CCIX). They mainly allow=
- two
-> +way cache coherency between CPU and device and allow all atomic operatio=
-ns the
-> +architecture supports. Saddly not all platform are following this trends=
- and
-> +some major architecture are left without hardware solutions to those pro=
-blems.
-> +
-> +So for share address space to make sense not only we must allow device t=
-o
-> +access any memory memory but we must also permit any memory to be migrat=
-ed to
-> +device memory while device is using it (blocking CPU access while it hap=
-pens).
-> +
-> +
-> +------------------------------------------------------------------------=
--------
-> +
-> +3) Share address space and migration
-> +
-> +HMM intends to provide two main features. First one is to share the addr=
-ess
-> +space by duplication the CPU page table into the device page table so sa=
-me
-> +address point to same memory and this for any valid main memory address =
-in
-> +the process address space.
-> +
-> +To achieve this, HMM offer a set of helpers to populate the device page =
-table
-> +while keeping track of CPU page table updates. Device page table updates=
- are
-> +not as easy as CPU page table updates. To update the device page table y=
-ou must
-> +allow a buffer (or use a pool of pre-allocated buffer) and write GPU spe=
-cifics
-> +commands in it to perform the update (unmap, cache invalidations and flu=
-sh,
-> +...). This can not be done through common code for all device. Hence why=
- HMM
-> +provides helpers to factor out everything that can be while leaving the =
-gory
-> +details to the device driver.
-> +
-> +The second mechanism HMM provide is a new kind of ZONE_DEVICE memory tha=
-t does
-> +allow to allocate a struct page for each page of the device memory. Thos=
-e page
-> +are special because the CPU can not map them. They however allow to migr=
-ate
-> +main memory to device memory using exhisting migration mechanism and eve=
-rything
-> +looks like if page was swap out to disk from CPU point of view. Using a =
-struct
-> +page gives the easiest and cleanest integration with existing mm mechani=
-sms.
-> +Again here HMM only provide helpers, first to hotplug new ZONE_DEVICE me=
-mory
-> +for the device memory and second to perform migration. Policy decision o=
-f what
-> +and when to migrate things is left to the device driver.
-> +
-> +Note that any CPU access to a device page trigger a page fault and a mig=
-ration
-> +back to main memory ie when a page backing an given address A is migrate=
-d from
-> +a main memory page to a device page then any CPU acess to address A trig=
-ger a
-> +page fault and initiate a migration back to main memory.
-> +
-> +
-> +With this two features, HMM not only allow a device to mirror a process =
-address
-> +space and keeps both CPU and device page table synchronize, but also all=
-ow to
-> +leverage device memory by migrating part of data-set that is actively us=
-e by a
-> +device.
-> +
-> +
-> +------------------------------------------------------------------------=
--------
-> +
-> +4) Address space mirroring implementation and API
-> +
-> +Address space mirroring main objective is to allow to duplicate range of=
- CPU
-> +page table into a device page table and HMM helps keeping both synchroni=
-ze. A
-> +device driver that want to mirror a process address space must start wit=
-h the
-> +registration of an hmm_mirror struct:
-> +
-> +  int hmm_mirror_register(struct hmm_mirror *mirror,
-> +                          struct mm_struct *mm);
-> +  int hmm_mirror_register_locked(struct hmm_mirror *mirror,
-> +                                 struct mm_struct *mm);
-> +
-> +The locked varient is to be use when the driver is already holding the m=
-map_sem
-> +of the mm in write mode. The mirror struct has a set of callback that ar=
-e use
-> +to propagate CPU page table:
-> +
-> +  struct hmm_mirror_ops {
-> +      /* update() - update virtual address range of memory
-> +       *
-> +       * @mirror: pointer to struct hmm_mirror
-> +       * @update: update's type (turn read only, unmap, ...)
-> +       * @start: virtual start address of the range to update
-> +       * @end: virtual end address of the range to update
-> +       *
-> +       * This callback is call when the CPU page table is updated, the d=
-evice
-> +       * driver must update device page table accordingly to update's ac=
-tion.
-> +       *
-> +       * Device driver callback must wait until the device has fully upd=
-ated
-> +       * its view for the range. Note we plan to make this asynchronous =
-in
-> +       * later patches, so that multiple devices can schedule update to =
-their
-> +       * page tables, and once all device have schedule the update then =
-we
-> +       * wait for them to propagate.
-> +       */
-> +       void (*update)(struct hmm_mirror *mirror,
-> +                      enum hmm_update action,
-> +                      unsigned long start,
-> +                      unsigned long end);
-> +  };
-> +
-> +Device driver must perform update to the range following action (turn ra=
-nge
-> +read only, or fully unmap, ...). Once driver callback returns the device=
- must
-> +be done with the update.
-> +
-> +
-> +When device driver wants to populate a range of virtual address it can u=
-se
-> +either:
-> +  int hmm_vma_get_pfns(struct vm_area_struct *vma,
-> +                       struct hmm_range *range,
-> +                       unsigned long start,
-> +                       unsigned long end,
-> +                       hmm_pfn_t *pfns);
-> +  int hmm_vma_fault(struct vm_area_struct *vma,
-> +                    struct hmm_range *range,
-> +                    unsigned long start,
-> +                    unsigned long end,
-> +                    hmm_pfn_t *pfns,
-> +                    bool write,
-> +                    bool block);
-> +
-> +First one (hmm_vma_get_pfns()) will only fetch present CPU page table en=
-try and
-> +will not trigger a page fault on missing or non present entry. The secon=
-d one
-> +do trigger page fault on missing or read only entry if write parameter i=
-s true.
-> +Page fault use the generic mm page fault code path just like a CPU page =
-fault.
-> +
-> +Both function copy CPU page table into their pfns array argument. Each e=
-ntry in
-> +that array correspond to an address in the virtual range. HMM provide a =
-set of
-> +flags to help driver identify special CPU page table entries.
-> +
-> +Locking with the update() callback is the most important aspect the driv=
-er must
-> +respect in order to keep things properly synchronize. The usage pattern =
-is :
-> +
-> +  int driver_populate_range(...)
-> +  {
-> +       struct hmm_range range;
-> +       ...
-> +  again:
-> +       ret =3D hmm_vma_get_pfns(vma, &range, start, end, pfns);
-> +       if (ret)
-> +           return ret;
-> +       take_lock(driver->update);
-> +       if (!hmm_vma_range_done(vma, &range)) {
-> +           release_lock(driver->update);
-> +           goto again;
-> +       }
-> +
-> +       // Use pfns array content to update device page table
-> +
-> +       release_lock(driver->update);
-> +       return 0;
-> +  }
-> +
-> +The driver->update lock is the same lock that driver takes inside its up=
-date()
-> +callback. That lock must be call before hmm_vma_range_done() to avoid an=
-y race
-> +with a concurrent CPU page table update.
-> +
-> +HMM implements all this on top of the mmu_notifier API because we wanted=
- to a
-> +simpler API and also to be able to perform optimization latter own like =
-doing
-> +concurrent device update in multi-devices scenario.
-> +
-> +HMM also serve as an impedence missmatch between how CPU page table upda=
-te are
-> +done (by CPU write to the page table and TLB flushes) from how device up=
-date
-> +their own page table. Device update is a multi-step process, first appro=
-priate
-> +commands are write to a buffer, then this buffer is schedule for executi=
-on on
-> +the device. It is only once the device has executed commands in the buff=
-er that
-> +the update is done. Creating and scheduling update command buffer can ha=
-ppen
-> +concurrently for multiple devices. Waiting for each device to report com=
-mands
-> +as executed is serialize (there is no point in doing this concurrently).
-> +
-> +
-> +------------------------------------------------------------------------=
--------
-> +
-> +5) Represent and manage device memory from core kernel point of view
-> +
-> +Several differents design were try to support device memory. First one u=
-se
-> +device specific data structure to keep informations about migrated memor=
-y and
-> +HMM hooked itself in various place of mm code to handle any access to ad=
-dress
-> +that were back by device memory. It turns out that this ended up replica=
-ting
-> +most of the fields of struct page and also needed many kernel code path =
-to be
-> +updated to understand this new kind of memory.
-> +
-> +Thing is most kernel code path never try to access the memory behind a p=
-age
-> +but only care about struct page contents. Because of this HMM switchted =
-to
-> +directly using struct page for device memory which left most kernel code=
- path
-> +un-aware of the difference. We only need to make sure that no one ever t=
-ry to
-> +map those page from the CPU side.
-> +
-> +HMM provide a set of helpers to register and hotplug device memory as a =
-new
-> +region needing struct page. This is offer through a very simple API:
-> +
-> +  struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
-> +                                    struct device *device,
-> +                                    unsigned long size);
-> +  void hmm_devmem_remove(struct hmm_devmem *devmem);
-> +
-> +The hmm_devmem_ops is where most of the important things are:
-> +
-> +  struct hmm_devmem_ops {
-> +      void (*free)(struct hmm_devmem *devmem, struct page *page);
-> +      int (*fault)(struct hmm_devmem *devmem,
-> +                   struct vm_area_struct *vma,
-> +                   unsigned long addr,
-> +                   struct page *page,
-> +                   unsigned flags,
-> +                   pmd_t *pmdp);
-> +  };
-> +
-> +The first callback (free()) happens when the last reference on a device =
-page is
-> +drop. This means the device page is now free and no longer use by anyone=
-. The
-> +second callback happens whenever CPU try to access a device page which i=
-t can
-> +not do. This second callback must trigger a migration back to system mem=
-ory,
-> +HMM provides an helper to do just that:
-> +
-> +  int hmm_devmem_fault_range(struct hmm_devmem *devmem,
-> +                             struct vm_area_struct *vma,
-> +                             const struct migrate_vma_ops *ops,
-> +                             unsigned long mentry,
-> +                             unsigned long *src,
-> +                             unsigned long *dst,
-> +                             unsigned long start,
-> +                             unsigned long addr,
-> +                             unsigned long end,
-> +                             void *private);
-> +
-> +It relies on new migrate_vma() helper which is a generic page migration =
-helper
-> +that work on range of virtual address instead of working on individual p=
-ages,
-> +it also allow to leverage device DMA engine to perform the copy from dev=
-ice to
-> +main memory (or in the other direction). The next section goes over this=
- new
-> +helper.
-> +
-> +
-> +------------------------------------------------------------------------=
--------
-> +
-> +6) Migrate to and from device memory
-> +
-> +Because CPU can not access device memory, migration must use device DMA =
-engine
-> +to perform copy from and to device memory. For this we need a new migrat=
-ion
-> +helper:
-> +
-> +  int migrate_vma(const struct migrate_vma_ops *ops,
-> +                  struct vm_area_struct *vma,
-> +                  unsigned long mentries,
-> +                  unsigned long start,
-> +                  unsigned long end,
-> +                  unsigned long *src,
-> +                  unsigned long *dst,
-> +                  void *private);
-> +
-> +Unlike other migration function it works on a range of virtual address, =
-there
-> +is two reasons for that. First device DMA copy has a high setup overhead=
- cost
-> +and thus batching multiple pages is needed as otherwise the migration ov=
-erhead
-> +make the whole excersie pointless. The second reason is because driver t=
-rigger
-> +such migration base on range of address the device is actively accessing=
-.
-> +
-> +The migrate_vma_ops struct define two callbacks. First one (alloc_and_co=
-py())
-> +control destination memory allocation and copy operation. Second one is =
-there
-> +to allow device driver to perform cleanup operation after migration.
-> +
-> +  struct migrate_vma_ops {
-> +      void (*alloc_and_copy)(struct vm_area_struct *vma,
-> +                             const unsigned long *src,
-> +                             unsigned long *dst,
-> +                             unsigned long start,
-> +                             unsigned long end,
-> +                             void *private);
-> +      void (*finalize_and_map)(struct vm_area_struct *vma,
-> +                               const unsigned long *src,
-> +                               const unsigned long *dst,
-> +                               unsigned long start,
-> +                               unsigned long end,
-> +                               void *private);
-> +  };
-> +
-> +It is important to stress that this migration helpers allow for hole in =
-the
-> +virtual address range. Some pages in the range might not be migrated for=
- all
-> +the usual reasons (page is pin, page is lock, ...). This helper does not=
- fail
-> +but just skip over those pages.
-> +
-> +The alloc_and_copy() might as well decide to not migrate all pages in th=
-e
-> +range (for reasons under the callback control). For those the callback j=
-ust
-> +have to leave the corresponding dst entry empty.
-> +
-> +Finaly the migration of the struct page might fails (for file back page)=
- for
-> +various reasons (failure to freeze reference, or update page cache, ...)=
-. If
-> +that happens then the finalize_and_map() can catch any pages that was no=
-t
-> +migrated. Note those page were still copied to new page and thus we wast=
-ed
-> +bandwidth but this is considered as a rare event and a price that we are
-> +willing to pay to keep all the code simpler.
-> --
-> 2.4.11
->
+Changes since v1:
+
+ - There is now an xa_init() to initialise dynamically allocated xarrays.
+ - Removed 'const' from much of the API.  lockdep basically makes it
+   impossible to mark these things as const.
+ - Removed the #ifdef XA_ADVANCED guard.  Everybody gets the whole API now.
+ - Changed the representation of errors in the xa_state to make it easier
+   for the iterators to bug out to their helper routines.
+ - Combined xa_is_retry() and xas_retry() into one function.  Before:
+	if (xa_is_retry(entry)) {
+		xas_retry(&xas);
+		continue;
+	}
+   After:
+	if (xas_is_retry(&xas, entry))
+		continue;
+   That saves two lines of precious vertical space
+ - Figured out how to remove xas_delete_node() from the API.  Use the
+   ability to store a NULL into a multientry slot to delete a node instead.
+ - Renamed xarray_init() to init_xarray().  It was confusing whether
+   xa_init() or xarray_init() initialised an individual xarray or the
+   entire xarray subsystem
+
+commit 9e8d487b470907735e4d6082dd6b2125b3b1c673
+Author: Matthew Wilcox <mawilcox@microsoft.com>
+Date:   Tue Feb 28 12:51:54 2017 -0500
+
+    Add XArray
+    
+    The xarray is an array of 2^BITS_PER_LONG pointers which handles its own
+    locking and memory allocation.  It is intended to replace the radix tree.
+    
+    Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+new file mode 100644
+index 0000000..43cdedc
+--- /dev/null
++++ b/include/linux/xarray.h
+@@ -0,0 +1,823 @@
++#ifndef _LINUX_XARRAY_H
++#define _LINUX_XARRAY_H
++/*
++ * eXtensible Arrays
++ * Copyright (c) 2017 Microsoft Corporation
++ * Author: Matthew Wilcox <mawilcox@microsoft.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of
++ * the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++/**
++ * An eXtensible Array is an array of pointers indexed by an unsigned
++ * long.  The xarray takes care of its own locking, using an irqsafe
++ * spinlock for operations that modify the array and RCU for operations
++ * which only read from the array.
++ *
++ * The xarray can store exceptional entries as well as pointers.
++ * Exceptional entries have a value between 0 and 2^(BITS_PER_LONG - 1).
++ * You cannot store arbitrary unsigned longs in the xarray as some
++ * values are reserved for internal use.  It is better to avoid storing
++ * IS_ERR() pointers in the array as it is hard to distinguish between
++ * xa_store() having failed to allocate memory, and a previously successful
++ * store of the entry ERR_PTR(-ENOMEM) in the array.
++ *
++ * A freshly initialised xarray is full of NULL pointers.  You can set
++ * the entry at any index by calling xa_store(), and get the value by
++ * calling xa_load().  There is no difference between an entry which has
++ * never been stored to and an entry which has most recently had NULL stored
++ * to it.  You can conditionally update the value of an entry by calling
++ * xa_replace().  Each entry which isn't NULL can be tagged with up to three
++ * bits of extra information, accessed through xa_get_tag(), xa_set_tag() and
++ * xa_clear_tag().  You can copy batches of entries out of the array by
++ * calling xa_get_entries() or xa_get_tagged().  You can iterate over present
++ * entries in the array by calling xa_find(), xa_next() or xa_for_each().
++ *
++ * There are two levels of API provided.  Normal and Advanced.
++ * The advanced API has sharp edges and you can easily corrupt an xarray.
++ */
++
++#include <linux/bug.h>
++#include <linux/compiler.h>
++#include <linux/kernel.h>
++#include <linux/rcupdate.h>
++#include <linux/spinlock.h>
++
++/**
++ * struct xarray - The anchor of the XArray
++ * @xa_lock: Lock protecting writes to the array.
++ * @xa_flags: Internal XArray flags.
++ * @xa_head: The first pointer in the array.
++ *
++ * If all of the pointers in the array are NULL, @xa_head is a NULL pointer.
++ * If the only non-NULL pointer in the array is at index 0, @xa_head is that
++ * pointer.  If any other pointer in the array is non-NULL, @xa_head points
++ * to an @xa_node.
++ */
++struct xarray {
++	spinlock_t xa_lock;
++	unsigned int xa_flags;
++	void __rcu *xa_head;
++};
++
++#define __XARRAY_INIT(name, flags) {				\
++	.xa_lock = __SPIN_LOCK_UNLOCKED(name.xa_lock),		\
++	.xa_flags = flags,					\
++	.xa_head = NULL,					\
++}
++
++#define XARRAY_INIT(name) __XARRAY_INIT(name, 0)
++#define XARRAY_FREE_INIT(name) __XARRAY_INIT(name, XA_FLAG_TRACK_FREE | 1)
++
++#define DEFINE_XARRAY(name) struct xarray name = XARRAY_INIT(name)
++
++static inline void __xarray_init(struct xarray *xa, const char *name,
++		unsigned int flags)
++{
++	spin_lock_init(&xa->xa_lock);
++	xa->xa_flags = flags;
++	xa->xa_head = NULL;
++}
++#define xa_init(xa)	__xarray_init(xa, #xa ".xa_lock", 0)
++
++/*
++ * The low three bits of the flag field are used for storing the tags.
++ *
++ * The TRACK_FREE flag indicates that the XA_FREE_TAG tag is used to track
++ * free entries in the xarray.  If you set this flag, only tags 1 & 2
++ * are available for you to use.
++ */
++#define XA_FLAG_TRACK_FREE	(1 << 3)
++
++void *xa_load(struct xarray *, unsigned long index);
++void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
++void *xa_replace(struct xarray *, unsigned long index,
++		void *entry, void *old, gfp_t);
++
++typedef unsigned __bitwise xa_tag_t;
++#define XA_TAG_0	((__force xa_tag_t)0U)
++#define XA_TAG_1	((__force xa_tag_t)1U)
++#define XA_TAG_2	((__force xa_tag_t)2U)
++
++#define XA_TAG_MAX	XA_TAG_2
++#define XA_FREE_TAG	XA_TAG_0
++
++/*
++ * The vast majority of users have a constant tag, so the compiler can
++ * optimise this away.
++ */
++static inline bool xa_bad_tag(xa_tag_t tag)
++{
++	return (WARN_ON_ONCE((__force unsigned)tag >
++				(__force unsigned)XA_TAG_MAX));
++}
++
++/**
++ * xa_tagged() - Inquire whether any entry in this array has a tag set
++ * @xa: Array
++ * @tag: Tag value
++ *
++ * Return: True if any entry has this tag set, false if no entry does.
++ */
++static inline bool xa_tagged(const struct xarray *xa, xa_tag_t tag)
++{
++	if (xa_bad_tag(tag))
++		return false;
++	return xa->xa_flags & (1 << (__force unsigned)tag);
++}
++
++bool __xa_get_tag(struct xarray *, unsigned long index, xa_tag_t);
++void *__xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
++void *__xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
++
++#define xa_get_tag(xa, index, tag) \
++	(!xa_bad_tag(tag) && __xa_get_tag(xa, index, tag))
++#define xa_set_tag(xa, index, tag) \
++	(xa_bad_tag(tag) ? ERR_PTR(-EINVAL) : __xa_set_tag(xa, index, tag))
++#define xa_clear_tag(xa, index, tag) \
++	(xa_bad_tag(tag) ? ERR_PTR(-EINVAL) : __xa_clear_tag(xa, index, tag))
++
++int xa_get_entries(struct xarray *, unsigned long start, void **dst,
++		unsigned int n);
++int xa_get_tagged(struct xarray *, unsigned long start, void **dst,
++		unsigned int n, xa_tag_t);
++
++/**
++ * xa_empty() - Determine if an array has any present entries
++ * @xa: Array
++ *
++ * Return: True if the array has no entries in it.
++ */
++static inline bool xa_empty(const struct xarray *xa)
++{
++	return xa->xa_head == NULL;
++}
++
++void *xa_find(struct xarray *xa, unsigned long *index, unsigned long max);
++void *xa_next(struct xarray *xa, unsigned long *index, unsigned long max);
++
++/**
++ * xa_for_each() - Iterate over a portion of an array
++ * @xa: Array
++ * @entry: Pointer retrieved from array
++ * @index: Index of pointer retrieved from the array
++ * @max: Maximum index to retrieve from array
++ *
++ * Initialise @index to the minimum index you want to retrieve from
++ * the array.  During the iteration, @entry will have the value of the
++ * pointer stored in @xa at @index.  The iteration will skip all NULL
++ * pointers in the array.  You may modify @index during the
++ * iteration if you want to skip indices.  It is safe to modify the
++ * array during the iteration.  At the end of the iteration, @entry will
++ * be set to NULL and @index will have a value less than or equal to max.
++ *
++ * xa_for_each() is O(n.log(n)) while xas_for_each() is O(n).  You have
++ * to handle your own locking with xas_for_each(), and if you have to unlock
++ * after each iteration, it will also end up being O(n.log(n)).
++ */
++#define xa_for_each(xa, entry, index, max) \
++	for (entry = xa_find(xa, &index, max); entry; \
++	     entry = xa_next(xa, &index, max))
++
++/**
++ * xa_mk_exceptional() - Create an exceptional entry
++ * @v: value to store in exceptional entry
++ */
++static inline void *xa_mk_exceptional(unsigned long v)
++{
++	WARN_ON(v > LONG_MAX);
++	return (void *)((v << 1) | 1);
++}
++
++/**
++ * xa_exceptional_value() - Get value stored in an exceptional entry
++ * @entry: Value stored in xarray
++ */
++static inline unsigned long xa_exceptional_value(void *entry)
++{
++	return (unsigned long)entry >> 1;
++}
++
++/**
++ * xa_is_exceptional() - Determine if an entry is exceptional
++ * @entry: Value stored in xarray
++ *
++ * Return: True if the entry is exceptional
++ */
++static inline bool xa_is_exceptional(void *entry)
++{
++	return (unsigned long)entry & 1;
++}
++
++/* Everything below here is the Advanced API.  Proceed with caution. */
++
++#ifdef XA_DEBUG
++#define XA_BUG_ON(x) BUG_ON(x)
++#else
++#define XA_BUG_ON(x)
++#endif
++
++/* XXX: unused */
++typedef unsigned __bitwise xa_tags_t;
++
++#define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
++#define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
++#define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
++#define xa_lock_irq(xa)		spin_lock_irq(&(xa)->xa_lock)
++#define xa_unlock_irq(xa)	spin_unlock_irq(&(xa)->xa_lock)
++#define xa_lock_irqsave(xa, flags) \
++				spin_lock_irqsave(&(xa)->xa_lock, flags)
++#define xa_unlock_irqrestore(xa, flags) \
++				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
++
++/*
++ * The xarray is constructed out of a set of 'chunks' of pointers.  Choosing
++ * the best chunk size requires some tradeoffs.  A power of two recommends
++ * itself so that we can arrange the chunks into a tree and navigate based
++ * purely on shifts and masks.  Generally, the larger the better; as the
++ * number of slots per level of the tree increases, the less tall the tree
++ * needs to be.  But that needs to be balanced against the memory consumption
++ * of each node.  On a 64-bit system, xa_node is currently 576 bytes, and we
++ * get 7 of them per 4kB page.  If we doubled the number of slots per node,
++ * we'd get only 3 nodes per 4kB page.
++ */
++#define XA_CHUNK_SHIFT		6
++#define XA_CHUNK_SIZE		(1 << XA_CHUNK_SHIFT)
++#define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
++#define XA_MAX_TAGS		3
++#define XA_TAG_LONGS 		(XA_CHUNK_SIZE / BITS_PER_LONG)
++#define XA_PREALLOC_COUNT	((BITS_PER_LONG / XA_CHUNK_SHIFT) * 2 + 1)
++
++/**
++ * struct xa_node - A node in the xarray
++ * @offset: This chunk's offset in its parent's slots array.
++ * @max: The number of slots in this node (head node only).
++ * @shift: The number of bits represented by each entry in the slots array.
++ * @count: The number of non-empty slots.
++ * @exceptional: The number of slots deemed 'exceptional'.
++ * @parent: NULL for the head node, otherwise the node closer to the head.
++ * @array: The xarray this node belongs to.
++ * @private_list: A list head for the use of the array user (very advanced)
++ * @rcu_head: Used to delay freeing nodes
++ * @tags: Bitmap of additional information about each slot
++ * @slots: Array of entries
++ *
++ * The xarray is constructed out of nodes which are arranged into a tree-like
++ * structure.  The node does not know the indices of the entries contained
++ * within it; that is inferred by its position in the tree.  At each level,
++ * we use the next XA_CHUNK_SHIFT bits of the index to determine which entry
++ * to look at in the slots array.
++ */
++struct xa_node {
++	union {
++		unsigned char offset;
++		unsigned char max;
++	};
++	unsigned char shift;
++	unsigned char count;
++	unsigned char exceptional;
++	struct xa_node __rcu *parent;
++	struct xarray *array;
++	union {
++		struct list_head private_list;
++		struct rcu_head rcu_head;
++	};
++	unsigned long tags[XA_MAX_TAGS][XA_TAG_LONGS];
++	void __rcu *slots[XA_CHUNK_SIZE];
++};
++
++/*
++ * Entries in the xa_node slots array have three possible types:
++ * 1. Kernel pointers.  These have the bottom two bits clear.
++ * 2. Exceptional entries.  These have the bottom bit set.
++ * 3. Internal entries.  These have the bottom two bits equal to 10b.
++ *
++ * Internal entries can only be observed if you're using the advanced
++ * API; the normal API will not expose them to the user.
++ *
++ * There are six subtypes of internal entries:
++ * 3a. Node entry.  This entry points to a node closer to the edge.
++ * 3b. Retry entry.  This indicates that the entry you're looking for is
++ *     in the array, but it's been moved to a different node.  Retry your
++ *     lookup from the head of the array.
++ * 3c. Sibling entry.  This indicates that the entry you're looking for
++ *     is stored in a different slot in the same node.
++ * 3d. Cousin entry.  This indicates that the entry you're looking for
++ *     is stored in a slot in a different node. (not yet implemented)
++ * 3e. IDR NULL entry.  The IDR distinguishes between allocated NULL pointers
++ *     and free entries.  The easiest way to support this in the xarray is to
++ *     substitute an internal entry for the NULL pointer.
++ * 3f. Walk End entry.  This entry is never found in the array.  It is
++ *     returned by iteration functions to signal that the iteration has
++ *     finished.
++ *
++ * The head of the array never contains a retry, sibling or cousin entry;
++ * these entries can only be found in array nodes.
++ */
++
++static inline void *xa_mk_internal(unsigned long v)
++{
++	return (void *)((v << 2) | 2);
++}
++
++static inline unsigned long xa_internal_value(void *entry)
++{
++	return (unsigned long)entry >> 2;
++}
++
++static inline bool xa_is_internal(void *entry)
++{
++	return ((unsigned long)entry & 3) == 2;
++}
++
++static inline void *xa_mk_node(struct xa_node *node)
++{
++	return (void *)((unsigned long)node | 2);
++}
++
++static inline struct xa_node *xa_node(void *entry)
++{
++	return (struct xa_node *)((unsigned long)entry & ~3UL);
++}
++
++static inline bool xa_is_node(void *entry)
++{
++	return xa_is_internal(entry) && (unsigned long)entry > 4096;
++}
++
++static inline void *xa_mk_sibling(unsigned int offset)
++{
++	return xa_mk_internal(offset);
++}
++
++static inline unsigned long xa_sibling_offset(void *entry)
++{
++	return xa_internal_value(entry);
++}
++
++static inline bool xa_is_sibling(void *entry)
++{
++	return xa_is_internal(entry) && xa_sibling_offset(entry) < 256;
++}
++
++static inline void *xa_mk_cousin(unsigned long offset)
++{
++	return xa_mk_internal(offset + 256);
++}
++
++static inline unsigned long xa_cousin_offset(void *entry)
++{
++	return xa_internal_value(entry) - 256;
++}
++
++static inline bool xa_is_cousin(void *entry)
++{
++	return xa_is_internal(entry) && xa_cousin_offset(entry) < 256;
++}
++
++static inline bool xa_is_relative(void *entry)
++{
++	return xa_is_internal(entry) && xa_internal_value(entry) < 512;
++}
++
++/*
++ * Values 0-255 are reserved for sibling entries (0-62 actually used)
++ * Values 256-511 are reserved for cousin entries (0-62, 64 actually used)
++ * 515-1023 are available for use before we start packing siblings & cousins
++ * closer together.
++ */
++#define XA_IDR_NULL		xa_mk_internal(512)
++#define XA_RETRY_ENTRY		xa_mk_internal(513)
++#define XA_WALK_END		xa_mk_internal(514)
++
++static inline bool xa_is_idr_null(void *entry)
++{
++	return entry == XA_IDR_NULL;
++}
++
++/* When we're iterating, we want to skip siblings, cousins and NULLs */
++static inline bool xa_is_skip(void *entry)
++{
++	return unlikely(!entry ||
++			(xa_is_internal(entry) && entry < XA_RETRY_ENTRY));
++}
++
++static inline bool xa_is_retry(void *entry)
++{
++	return unlikely(entry == XA_RETRY_ENTRY);
++}
++
++static inline bool xa_track_free(struct xarray *xa)
++{
++	return xa->xa_flags & XA_FLAG_TRACK_FREE;
++}
++
++static inline void *xa_head(struct xarray *xa)
++{
++	return rcu_dereference_check(xa->xa_head,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_head_locked(struct xarray *xa)
++{
++	return rcu_dereference_protected(xa->xa_head,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_entry(struct xarray *xa,
++		const struct xa_node *node, unsigned int offset)
++{
++	XA_BUG_ON(offset >= XA_CHUNK_SIZE);
++	return rcu_dereference_check(node->slots[offset],
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_entry_locked(struct xarray *xa,
++		const struct xa_node *node, unsigned int offset)
++{
++	XA_BUG_ON(offset >= XA_CHUNK_SIZE);
++	return rcu_dereference_protected(node->slots[offset],
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline struct xa_node *xa_parent(struct xarray *xa,
++		const struct xa_node *node)
++{
++	return rcu_dereference_check(node->parent,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline struct xa_node *xa_parent_locked(struct xarray *xa,
++		const struct xa_node *node)
++{
++	return rcu_dereference_protected(node->parent,
++					lockdep_is_held(&xa->xa_lock));
++}
++
++static inline void *xa_deref_locked(struct xarray *xa, void __rcu **slot)
++{
++	return rcu_dereference_protected(*slot, lockdep_is_held(&xa->xa_lock));
++}
++
++typedef void (*xa_update_node_t)(struct xa_node *);
++
++/**
++ * xa_state - XArray operation state
++ * @xa_index: The index which this operation is currently about.
++ * @xa_shift: The shift of the node containing the entry we're interested in.
++ * @xa_slots: The number of slots occupied by that entry in that node.
++ * @xa_flags: Flags, see below
++ * @xa_offset: This entry's offset within the chunk of slots.
++ * @xa_node: The node containing this entry, or NULL if the entry is at
++ *	     xa_head, or XA_WALK_RESTART to start walking through the array
++ *	     from the head, or an IS_ERR pointer if an error occurred.
++ * @xa_alloc: One preallocated node.
++ * @xa_count: Number of entries added/deleted so far during this operation.
++ * @xa_exceptional: Number of exceptional entries added/deleted.
++ * @xa_update: Callback when updating a node.
++ *
++ * Some of this state may seem redundant, but some of it is input state and
++ * some is output state.  For example, xa_shift is not equal to xa_node->shift
++ * until we have walked through the array to the correct xa_node.
++ */
++struct xa_state {
++	unsigned long xa_index;
++	unsigned char xa_shift;
++	unsigned char xa_slots;
++	unsigned char xa_offset;
++	unsigned char xa_flags;
++	struct xa_node *xa_node;
++	struct xa_node *xa_alloc;
++	long xa_count;
++	long xa_exceptional;
++	xa_update_node_t xa_update;
++};
++
++/*
++ * XAS_FLAG_LOOKUP - Find this index.  If clear, it means we're searching for
++ * the next index.  This only makes a difference if we see a multislot entry;
++ * if set, we move backwards to return the entry.  If clear, we move forwards
++ * and find the next entry.
++ */
++#define XAS_FLAG_LOOKUP	1
++
++/*
++ * These are not array entries.  They are found only in xas->xa_node.
++ * Once we set an error, we have to drop the xa_lock to remedy it, so we
++ * must restart the walk from the head of the xarray.
++ */
++#define XAS_ERROR(errno)	((struct xa_node *)((errno << 1) | 1))
++#define XA_WALK_RESTART		XAS_ERROR(0)
++
++/* Special -- error-or-restart */
++static inline bool xas_special(const struct xa_state *xas)
++{
++	return (unsigned long)xas->xa_node & 1;
++}
++
++static inline int xas_error(const struct xa_state *xas)
++{
++	unsigned long v = (unsigned long)xas->xa_node;
++	return (v & 1) ? -(v >> 1) : 0;
++}
++
++static inline void xas_set_err(struct xa_state *xas, unsigned long err)
++{
++	XA_BUG_ON(err > MAX_ERRNO);
++	xas->xa_node = XAS_ERROR(err);
++}
++
++static inline bool xas_restart(const struct xa_state *xas)
++{
++	return unlikely(xas->xa_node == XA_WALK_RESTART);
++}
++
++static inline bool xas_retry(struct xa_state *xas, void *entry)
++{
++	if (!xa_is_retry(entry))
++		return false;
++	xas->xa_flags |= XAS_FLAG_LOOKUP;
++	xas->xa_node = XA_WALK_RESTART;
++	return true;
++}
++
++static inline void xas_pause(struct xa_state *xas)
++{
++	xas->xa_node = XA_WALK_RESTART;
++}
++
++static inline void xas_jump(struct xa_state *xas, unsigned long index)
++{
++	xas->xa_index = index;
++	xas->xa_flags |= XAS_FLAG_LOOKUP;
++	xas->xa_node = XA_WALK_RESTART;
++}
++
++void xas_init_range(struct xa_state *, unsigned long index,
++		unsigned char shift, unsigned char slots);
++void xas_destroy(struct xa_state *);
++bool xas_nomem(struct xa_state *, gfp_t);
++
++void *xas_load(struct xarray *, struct xa_state *);
++void *xas_store(struct xarray *, struct xa_state *, void *entry);
++void *xas_create(struct xarray *, struct xa_state *);
++int xas_split(struct xarray *, struct xa_state *, unsigned int order);
++
++bool xas_get_tag(const struct xarray *, const struct xa_state *, xa_tag_t);
++void xas_set_tag(struct xarray *, const struct xa_state *, xa_tag_t);
++void xas_clear_tag(struct xarray *, const struct xa_state *, xa_tag_t);
++void xas_init_tags(struct xarray *, const struct xa_state *);
++void *xas_find_tag(struct xarray *, struct xa_state *, unsigned long max,
++		xa_tag_t);
++
++void *xas_next_entry(struct xarray *, struct xa_state *, unsigned long max);
++void *__xas_next_slot(struct xarray *, struct xa_state *, unsigned long max);
++void *__xas_prev_slot(struct xarray *, struct xa_state *, unsigned long min);
++void *__xas_store(struct xarray *, struct xa_state *, void *entry);
++void *__xas_split(struct xarray *, struct xa_state *, void *entry);
++
++/*
++ * xas_init() - Set up xarray operation state
++ * @xas: Array operation state.
++ * @index: Target of the operation.
++ */
++static inline void xas_init(struct xa_state *xas, unsigned long index)
++{
++	xas_init_range(xas, index, 0, 1);
++}
++
++/**
++ * xas_init_order() - Set up xarray operation state for a multislot entry
++ * @xas: Array operation state.
++ * @index: Target of the operation.
++ * @order: Entry occupies 2^@order indices.
++ */
++static inline void xas_init_order(struct xa_state *xas, unsigned long index,
++		unsigned int order)
++{
++	unsigned char shift = order - (order % XA_CHUNK_SHIFT);
++	unsigned char slots = 1 << (order % XA_CHUNK_SHIFT);
++
++	index = ((index >> shift) & ~(slots - 1UL)) << shift;
++	xas_init_range(xas, index, shift, slots);
++}
++
++static inline void *xas_next(struct xarray *xa, struct xa_state *xas,
++		unsigned long max)
++{
++	struct xa_node *node = xas->xa_node;
++	void *entry;
++
++	if (unlikely(!node || (unsigned long)node & 1) || node->shift)
++		return xas_next_entry(xa, xas, max);
++
++	do {
++		xas->xa_index++;
++		if (unlikely(xas->xa_index > max))
++			return XA_WALK_END;
++		if (unlikely(++xas->xa_offset == XA_CHUNK_SIZE))
++			return xas_next_entry(xa, xas, max);
++		entry = xa_entry(xa, node, xas->xa_offset);
++	} while (xa_is_skip(entry));
++
++	return entry;
++}
++
++/* FIXME: optimise for 32-bit machines as well */
++static inline unsigned int xas_chunk_tag(const struct xa_state *xas,
++		xa_tag_t tag)
++{
++	unsigned long *addr = xas->xa_node->tags[(__force unsigned)tag];
++
++	if (xas->xa_offset >= XA_CHUNK_SIZE)
++		return XA_CHUNK_SIZE;
++	if (XA_CHUNK_SIZE == BITS_PER_LONG) {
++		unsigned long data = *addr & (~0UL << xas->xa_offset);
++		if (data)
++			return __ffs(data);
++		return XA_CHUNK_SIZE;
++	}
++
++	return find_next_bit(addr, XA_CHUNK_SIZE, xas->xa_offset);
++}
++
++static inline void *xas_next_tag(struct xarray *xa, struct xa_state *xas,
++		unsigned long max, xa_tag_t tag)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset;
++
++	if (unlikely(!node || (unsigned long)node & 1))
++		return xas_find_tag(xa, xas, max, tag);
++
++	xas->xa_offset++;
++	xas->xa_index = (xas->xa_index | ((1UL << node->shift) - 1)) + 1;
++	if (unlikely(xas->xa_index > max))
++		return XA_WALK_END;
++	offset = xas_chunk_tag(xas, tag);
++	if (offset == XA_CHUNK_SIZE)
++		return xas_find_tag(xa, xas, max, tag);
++	if (offset != xas->xa_offset) {
++		xas->xa_index += (offset - xas->xa_offset) << node->shift;
++		xas->xa_offset = offset;
++		if (unlikely(xas->xa_index > max))
++			return XA_WALK_END;
++	}
++
++	return xa_entry(xa, node, offset);
++}
++
++static inline void *xas_next_slot(struct xarray *xa, struct xa_state *xas,
++		unsigned long max)
++{
++	struct xa_node *node = xas->xa_node;
++
++	if (unlikely(!node || (unsigned long)node & 1) || node->shift)
++		return __xas_next_slot(xa, xas, max);
++
++	xas->xa_index++;
++	if (unlikely(xas->xa_index > max))
++		return XA_WALK_END;
++	if (unlikely(++xas->xa_offset == XA_CHUNK_SIZE))
++		return __xas_next_slot(xa, xas, max);
++	return xa_entry(xa, node, xas->xa_offset);
++}
++
++static inline void *xas_prev_slot(struct xarray *xa, struct xa_state *xas,
++		unsigned long min)
++{
++	struct xa_node *node = xas->xa_node;
++
++	if (unlikely(!node || (unsigned long)node & 1) || node->shift)
++		return __xas_prev_slot(xa, xas, min);
++
++	xas->xa_index--;
++	if (unlikely(xas->xa_index < min))
++		return XA_WALK_END;
++	if (unlikely(xas->xa_offset == 0))
++		return __xas_prev_slot(xa, xas, min);
++	xas->xa_offset--;
++	return xa_entry(xa, node, xas->xa_offset);
++}
++
++/**
++ * xas_for_each() - Iterate over all present entries in this range
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @max: Highest index to return
++ *
++ * The loop body will be invoked for each entry present in the xarray
++ * between the current xas position and @max.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each(xa, xas, entry, max) \
++	for (entry = xas_next(xa, xas, max); \
++	     entry != XA_WALK_END; \
++	     entry = xas_next(xa, xas, max))
++
++/**
++ * xas_for_each_slot() - Iterate over all slots in this range
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @max: Highest index to return
++ *
++ * The loop body will be executed for each allocated slot in the xarray
++ * between the current xas position and @max.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each_slot(xa, xas, entry, max) \
++	for (entry = xas_next_slot(xa, xas, max); \
++	     entry != XA_WALK_END; \
++	     entry = xas_next_slot(xa, xas, max))
++
++/**
++ * xas_for_each_tag() - Iterate over all tagged entries in this range
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @max: Highest index to return
++ *
++ * The loop body will be executed for each tagged entry in the xarray
++ * between the current xas position and @max.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each_tag(xa, xas, entry, max, tag) \
++	for (entry = xas_next_tag(xa, xas, max, tag); \
++	     entry != XA_WALK_END; \
++	     entry = xas_next_tag(xa, xas, max, tag))
++
++/**
++ * xas_for_each_slot_rev() - Iterate over all slots in this range backwards
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @min: Lowest index to return
++ *
++ * The loop body will be executed for each allocated slot in the xarray
++ * between the current xas position and @min.  @entry will be set to
++ * the entry retrieved from the xarray.  It is safe to delete entries
++ * from the array in the loop body.
++ */
++#define xas_for_each_slot_rev(xa, xas, entry, min) \
++	for (entry = xas_prev_slot(xa, xas, min); \
++	     entry != XA_WALK_END; \
++	     entry = xas_prev_slot(xa, xas, min))
++
++/**
++ * xas_store_for_each() - Iterate over all entries, then replace them
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ * @index: Index to store new entry at
++ * @order: Order of new entry
++ * @new: New entry
++ *
++ * The loop body will be executed for each entry present in the range
++ * specified by @index and @order.  After all entries have been processed,
++ * the @new entry will be atomically stored in the xarray.
++ * RCU readers may temporarily see retry entries.  If you break out of the
++ * loop, no modifications will have been made to the xarray.
++ */
++#define xas_store_for_each(xa, xas, entry, new) \
++	for (entry = __xas_store(xa, xas, new); \
++	     entry != XA_WALK_END; \
++	     entry = __xas_store(xa, xas, new))
++
++/**
++ * xas_split_for_each() - Create new entries to replace a multislot entry
++ * @xa: Array
++ * @xas: Array operation state
++ * @entry: Pointer to use for iteration
++ *
++ * The loop body will be executed for each new entry present in the range
++ * specified by @index and @order.  The loop will see the index of the new
++ * entry in @xas->xa_index.  It should call xas_store() to set up each new
++ * entry.  After the loop has successfully terminated, the new entries will
++ * be atomically stored in the xarray.  RCU readers may temporarily see
++ * retry entries.  If you break out of the loop, no modifications will have
++ * been made to the xarray and the temporary memory allocation will be freed
++ * by xas_destroy().
++ */
++#define xas_split_for_each(xa, xas, entry) \
++	for (entry = __xas_split(xa, xas, entry); \
++	     entry != XA_WALK_END; \
++	     entry = __xas_split(xa, xas, entry))
++
++/* Really advanced. */
++extern struct kmem_cache *xa_node_cache;
++
++extern void init_xarray(void);
++#endif /* _LINUX_XARRAY_H */
+diff --git a/lib/Makefile b/lib/Makefile
+index 320ac46a..ab3c590 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -17,7 +17,7 @@ KCOV_INSTRUMENT_debugobjects.o := n
+ KCOV_INSTRUMENT_dynamic_debug.o := n
+ 
+ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+-	 rbtree.o radix-tree.o dump_stack.o timerqueue.o\
++	 xarray.o rbtree.o radix-tree.o dump_stack.o timerqueue.o\
+ 	 idr.o int_sqrt.o extable.o \
+ 	 sha1.o chacha20.o md5.o irq_regs.o argv_split.o \
+ 	 flex_proportions.o ratelimit.o show_mem.o \
+@@ -27,6 +27,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+ 
+ CFLAGS_radix-tree.o += -DCONFIG_SPARSE_RCU_POINTER
+ CFLAGS_idr.o += -DCONFIG_SPARSE_RCU_POINTER
++CFLAGS_xarray.o += -DCONFIG_SPARSE_RCU_POINTER
+ 
+ lib-$(CONFIG_MMU) += ioremap.o
+ lib-$(CONFIG_SMP) += cpumask.o
+diff --git a/lib/xarray.c b/lib/xarray.c
+new file mode 100644
+index 0000000..01f7972
+--- /dev/null
++++ b/lib/xarray.c
+@@ -0,0 +1,1343 @@
++#include <linux/bitmap.h>
++#include <linux/bitops.h>
++#include <linux/export.h>
++#include <linux/gfp.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/list.h>
++#include <linux/rcupdate.h>
++#include <linux/slab.h>
++#include <linux/xarray.h>
++
++#ifdef XA_DEBUG
++#define XA_BUG_ON(x) BUG_ON(x)
++#else
++#define XA_BUG_ON(x)
++#endif
++
++/*
++ * Coding conventions in this file:
++ *
++ * @xa is used to refer to the entire xarray.
++ * @xas is the 'xarray operation state'.  It may be either a pointer to
++ * an xa_state, or an xa_state stored on the stack.  This is an unfortunate
++ * ambiguity.
++ * @index is the index of the entry being operated on
++ * @tag is an xa_tag_t; a small number indicating one of the tag bits.
++ * @node refers to an xa_node; usually the primary one being operated on by
++ * this function.
++ * @offset is the index into the slots array inside an xa_node.
++ * @parent refers to the @xa_node closer to the head than @node.
++ * @entry refers to something stored in a slot in the xarray
++ */
++#define inc_tag(tag) do { \
++	tag = (__force xa_tag_t)((__force unsigned)(tag) + 1); \
++} while (0)
++
++static inline void xa_tag_set(struct xarray *xa, xa_tag_t tag)
++{
++	if (!(xa->xa_flags & (1 << (__force unsigned)tag)))
++		xa->xa_flags |= (1 << (__force unsigned)tag);
++}
++
++static inline void xa_tag_clear(struct xarray *xa, xa_tag_t tag)
++{
++	if (xa->xa_flags & (1 << (__force unsigned)tag))
++		xa->xa_flags &= ~(1 << (__force unsigned)tag);
++}
++
++static inline bool tag_get(const struct xa_node *node, unsigned int offset,
++		xa_tag_t tag)
++{
++	return test_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void tag_set(struct xa_node *node, unsigned int offset,
++		xa_tag_t tag)
++{
++	__set_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void tag_clear(struct xa_node *node, unsigned int offset,
++		xa_tag_t tag)
++{
++	__clear_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void tag_set_all(struct xa_node *node, xa_tag_t tag)
++{
++	bitmap_fill(node->tags[(__force unsigned)tag], XA_CHUNK_SIZE);
++}
++
++static inline bool tag_any_set(struct xa_node *node, xa_tag_t tag)
++{
++	return !bitmap_empty(node->tags[(__force unsigned)tag], XA_CHUNK_SIZE);
++}
++
++/*
++ * Use this to calculate the maximum index that will need to be created
++ * in order to add the entry described by @xas.  Because we cannot store a
++ * multiple-slot entry at index 0, the calculation is a little more complex
++ * than you might expect.
++ */
++static unsigned long xas_max(struct xa_state *xas)
++{
++	unsigned long mask, max = xas->xa_index;
++
++	if (xas->xa_shift || xas->xa_slots > 1) {
++		mask = ((xas->xa_slots << xas->xa_shift) - 1);
++		max |= mask;
++		if (mask == max)
++			max++;
++	}
++	return max;
++}
++
++static unsigned long set_index(struct xa_node *node, unsigned int offset,
++		unsigned long index)
++{
++	unsigned long mask = ((unsigned long)XA_CHUNK_SIZE << node->shift) - 1;
++
++	return (index & ~mask) + ((unsigned long)offset << node->shift);
++}
++
++/* XXX: kill? */
++static unsigned int node_offset(struct xa_node *node, unsigned long index)
++{
++	return (index >> node->shift) & XA_CHUNK_MASK;
++}
++
++static unsigned long xas_offset(struct xa_state *xas)
++{
++	return (xas->xa_index >> xas->xa_node->shift) & XA_CHUNK_MASK;
++}
++
++/* Returns true if @head can contain @index */
++static bool xa_bounds(unsigned long index, void *head)
++{
++	struct xa_node *node;
++	unsigned int max;
++
++	if (!xa_is_node(head))
++		return index == 0;
++	node = xa_node(head);
++	max = node->max;
++	if (max == 0)
++		max = 63;
++	return (index >> node->shift) <= max;
++}
++
++/*
++ * (re)starts a walk.  If we've already walked the @xas to the correct
++ * slot, or somewhere on the path to the correct slot, returns the entry.
++ * If we're in an error state, returns NULL.  If we're in a retry state,
++ * returns XA_WALK_END if the index is outside the current limits of the
++ * xarray.  If we're looking for a multiorder entry that is larger than
++ * the current size of the array, set xa_node to NULL and return the current
++ * head of the array.  Otherwise, set xa_node to the node stored in the head
++ * of the array, xa_offset to the position within that node to look for the
++ * next level of this index, and return the entry stored in the head of the
++ * array.
++ */
++static void *xas_start(struct xarray *xa, struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++	void *entry;
++	unsigned long offset;
++
++	if (!xas_restart(xas)) {
++		if (xas_error(xas))
++			return NULL;
++		else if (node)
++			return xa_entry(xa, xas->xa_node, xas->xa_offset);
++		else
++			return xa_head(xa);
++	}
++
++	entry = xa_head(xa);
++	if (!xa_is_node(entry)) {
++		if (xas->xa_index)
++			return XA_WALK_END;
++		xas->xa_node = NULL;
++		return entry;
++	}
++
++	node = xa_node(entry);
++	if (xas->xa_shift > node->shift) {
++		xas->xa_node = NULL;
++		return entry;
++	}
++
++	offset = xas->xa_index >> node->shift;
++	if (offset > XA_CHUNK_MASK)
++		return XA_WALK_END;
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
++}
++
++/**
++ * xas_init_range() - Initialise xarray operation state for a multislot entry
++ * @xas: Array operation state.
++ * @index: Eventual target of the operation.
++ * @shift: Shift of the node this will occupy
++ * @slots: Number of slots in that node to occupy
++ */
++void xas_init_range(struct xa_state *xas, unsigned long index,
++		unsigned char shift, unsigned char slots)
++{
++	xas->xa_index = index;
++	xas->xa_shift = shift;
++	xas->xa_slots = slots;
++	xas->xa_offset = 0;
++	xas->xa_flags = XAS_FLAG_LOOKUP;
++	xas->xa_node = XA_WALK_RESTART;
++	xas->xa_alloc = NULL;
++	xas->xa_count = 0;
++	xas->xa_exceptional = 0;
++	xas->xa_update = NULL;
++}
++EXPORT_SYMBOL_GPL(xas_init_range);
++
++struct kmem_cache *xa_node_cache;
++
++static void xa_node_ctor(void *p)
++{
++	struct xa_node *node = p;
++
++	memset(&node->tags, 0, sizeof(node->tags));
++	memset(&node->slots, 0, sizeof(node->slots));
++	INIT_LIST_HEAD(&node->private_list);
++}
++
++static void xa_node_rcu_free(struct rcu_head *head)
++{
++	struct xa_node *node = container_of(head, struct xa_node, rcu_head);
++
++	xa_node_ctor(node);
++	kmem_cache_free(xa_node_cache, node);
++}
++
++static void xa_node_free(struct xa_node *node)
++{
++	call_rcu(&node->rcu_head, xa_node_rcu_free);
++}
++
++/**
++ * xas_destroy() - Dispose of any resources used during the xarray operation
++ * @xas: Array operation state.
++ *
++ * If the operation only involved read accesses to the XArray or modifying
++ * existing data in the XArray, there is no need to call this function
++ * (eg xa_set_tag()).  However, if you may have allocated memory (for
++ * example by calling xas_nomem()), then call this function.
++ *
++ * This function does not reinitialise the state, so you may continue to
++ * call xas_error(), and you would want to call xas_init() before reusing
++ * this structure.  It only releases any resources.
++ */
++void xas_destroy(struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_alloc;
++
++	if (!node)
++		return;
++#if 0
++	while (node->count)
++		kmem_cache_free(xa_node_cache, node->slots[node->count - 1]);
++#endif
++	kmem_cache_free(xa_node_cache, node);
++	xas->xa_alloc = NULL;
++}
++EXPORT_SYMBOL_GPL(xas_destroy);
++
++/**
++ * xas_nomem() - Allocate memory if needed
++ * @xas: Array operation state.
++ * @gfp: Memory allocation flags
++ *
++ * If we need to add new nodes to the xarray, we try to allocate memory
++ * with GFP_NOWAIT while holding the lock, which will usually succeed.
++ * If it fails, @xas is flagged as needing memory to continue.  The caller
++ * should drop the lock and call xas_nomem().  If xas_nomem() succeeds,
++ * the caller should retry the operation.
++ *
++ * Forward progress is guaranteed as one node is allocated here and is
++ * available to the memory allocators.
++ *
++ * Return: true if memory was needed, and was successfully allocated.
++ */
++bool xas_nomem(struct xa_state *xas, gfp_t gfp)
++{
++	if (xas->xa_node != XAS_ERROR(ENOMEM))
++		return false;
++	xas->xa_alloc = kmem_cache_alloc(xa_node_cache, gfp);
++	if (!xas->xa_alloc)
++		return false;
++	xas->xa_node = XA_WALK_RESTART;
++	return true;
++}
++EXPORT_SYMBOL_GPL(xas_nomem);
++
++static void *xas_alloc(struct xarray *xa, struct xa_state *xas,
++		unsigned int shift)
++{
++	struct xa_node *parent = xas->xa_node;
++	struct xa_node *node = xas->xa_alloc;
++
++	if (xas_error(xas))
++		return NULL;
++
++	if (node) {
++		xas->xa_alloc = NULL;
++	} else {
++		node = kmem_cache_alloc(xa_node_cache,
++					GFP_NOWAIT | __GFP_NOWARN);
++		if (!node) {
++			xas_set_err(xas, ENOMEM);
++			return NULL;
++		}
++	}
++
++	if (xas->xa_node) {
++		node->offset = xas->xa_offset;
++		parent->count++;
++		XA_BUG_ON(parent->count > XA_CHUNK_SIZE);
++	} else {
++		node->max = XA_CHUNK_MASK;
++	}
++	XA_BUG_ON(shift > BITS_PER_LONG);
++	node->shift = shift;
++	node->count = 0;
++	node->exceptional = 0;
++	RCU_INIT_POINTER(node->parent, xas->xa_node);
++	node->array = xa;
++
++	return node;
++}
++
++#if 0
++static void *xas_find_cousin(const struct xarray *xa, struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++	void *entry;
++
++	while (offset == 0) {
++		offset = node->offset;
++		node = xa_parent(xa, node);
++		XA_BUG_ON(!node);
++	}
++
++	offset--;
++
++	for (;;) {
++		entry = xa_entry(xa, node, offset);
++
++		if (xa_is_sibling(entry)) {
++			offset = xa_sibling_offset(entry);
++			entry = xa_entry(xa, node, offset);
++		}
++
++		if (!xa_is_node(entry))
++			break;
++		node = xa_node(entry);
++		offset = XA_CHUNK_SIZE - 1;
++	}
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
++}
++	} else if (unlikely(xa_cousin_entry(entry))) {
++		return xas_find_cousin(xa, xas);
++#endif
++
++static void *xas_descend(struct xarray *xa, struct xa_state *xas,
++		struct xa_node *node)
++{
++	unsigned int offset = node_offset(node, xas->xa_index);
++	void *entry = xa_entry(xa, node, offset);
++
++	if (xa_is_sibling(entry)) {
++		offset = xa_sibling_offset(entry);
++		entry = xa_entry(xa, node, offset);
++	}
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
++}
++
++/**
++ * xas_get_tag() - Returns the state of this tag
++ * @xa: Array
++ * @xas: Array operation state.
++ * @tag: Tag value
++ *
++ * Return: true if the tag is set, false if the tag is clear or @xas
++ * is in an error state.
++ */
++bool xas_get_tag(const struct xarray *xa, const struct xa_state *xas,
++		xa_tag_t tag)
++{
++	if (xas_special(xas))
++		return false;
++	if (!xas->xa_node)
++		return xa_tagged(xa, tag);
++	return tag_get(xas->xa_node, xas->xa_offset, tag);
++}
++EXPORT_SYMBOL_GPL(xas_get_tag);
++
++/**
++ * xas_set_tag() - Sets the tag on this entry and its parents
++ * @xa: Array
++ * @xas: Array operation state.
++ * @tag: Tag value
++ *
++ * Sets the specified tag on this entry, and walks up the tree setting it
++ * on all the ancestor entries.  Does nothing if @xas has not been walked to
++ * an entry, or is in an error state.
++ */
++void xas_set_tag(struct xarray *xa, const struct xa_state *xas, xa_tag_t tag)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++
++	if (xas_special(xas))
++		return;
++
++	while (node) {
++		if (tag_get(node, offset, tag))
++			return;
++		tag_set(node, offset, tag);
++		offset = node->offset;
++		node = xa_parent(xa, node);
++	}
++
++	if (!xa_tagged(xa, tag))
++		xa_tag_set(xa, tag);
++}
++EXPORT_SYMBOL_GPL(xas_set_tag);
++
++/**
++ * xas_clear_tag() - Clears the tag on this entry and its parents
++ * @xa: Array
++ * @xas: Array operation state.
++ * @tag: Tag value
++ *
++ * Clears the specified tag on this entry, and walks back to the head
++ * attempting to clear it on all the ancestor entries.  A tag may only be
++ * cleared on an ancestor entry if none of its children have that tag set.
++ */
++void xas_clear_tag(struct xarray *xa, const struct xa_state *xas, xa_tag_t tag)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++
++	if (xas_special(xas))
++		return;
++
++	while (node) {
++		if (!tag_get(node, offset, tag))
++			return;
++		tag_clear(node, offset, tag);
++		if (tag_any_set(node, tag))
++			return;
++
++		offset = node->offset;
++		node = xa_parent(xa, node);
++	}
++
++	if (xa_tagged(xa, tag))
++		xa_tag_clear(xa, tag);
++}
++EXPORT_SYMBOL_GPL(xas_clear_tag);
++
++/**
++ * xas_init_tags() - Initialise all tags for the entry
++ * @xa: Array
++ * @xas: Array operations state.
++ *
++ * Initialise all tags for the entry specified by @xas.  If we're tracking
++ * free entries with a tag, we need to set it on all entries.  All other
++ * tags are cleared.
++ *
++ * This implementation is not as efficient as it could be; we may walk
++ * up the tree multiple times.
++ */
++void xas_init_tags(struct xarray *xa, const struct xa_state *xas)
++{
++	xa_tag_t tag = 0;
++
++	if (xa_track_free(xa)) {
++		xas_set_tag(xa, xas, XA_FREE_TAG);
++		inc_tag(tag);
++	}
++	for (;;) {
++		xas_clear_tag(xa, xas, tag);
++		if (tag == XA_TAG_MAX)
++			break;
++		inc_tag(tag);
++	}
++}
++EXPORT_SYMBOL_GPL(xas_init_tags);
++
++/**
++ * xas_load() - Find the entry for the index
++ * @xa: Array.
++ * @xas: Array operation state.
++ *
++ * If the @xas is in an error state, returns NULL
++ * If it is in the RESTART_WALK state, will return XA_WALK_END if the
++ * xa_index cannot be contained in the current xarray without expanding it.
++ * If there is no entry for the index, the walk may stop at a level in the
++ * tree higher than the entry, or even at the root.
++ *
++ * Return: An entry in the tree that is not a sibling or node entry.  May be
++ * a NULL pointer, a user pointer, exceptional entry, retry entry, or an
++ * IDR_NULL.
++ */
++void *xas_load(struct xarray *xa, struct xa_state *xas)
++{
++	void *entry;
++
++	if (xas_error(xas))
++		return NULL;
++
++	entry = xas_start(xa, xas);
++	while (xa_is_node(entry)) {
++		struct xa_node *node = xa_node(entry);
++
++		if (xas->xa_shift > node->shift)
++			break;
++		entry = xas_descend(xa, xas, node);
++	}
++	return entry;
++}
++EXPORT_SYMBOL_GPL(xas_load);
++
++static void xas_shrink(struct xarray *xa, const struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	for (;;) {
++		void *entry;
++
++		XA_BUG_ON(node->count > XA_CHUNK_SIZE);
++		if (node->count != 1)
++			break;
++		entry = xa_entry_locked(xa, node, 0);
++		if (!entry)
++			break;
++		if (!xa_is_node(entry) && node->shift)
++			break;
++
++		RCU_INIT_POINTER(xa->xa_head, entry);
++		if (xa_track_free(xa) && !tag_get(node, 0, XA_FREE_TAG))
++			xa_tag_clear(xa, XA_FREE_TAG);
++
++		node->count = 0;
++		node->exceptional = 0;
++		if (xa_is_node(entry))
++			RCU_INIT_POINTER(node->slots[0], XA_RETRY_ENTRY);
++		VM_WARN_ON_ONCE(!list_empty(&node->private_list));
++		xa_node_free(node);
++		if (!xa_is_node(entry))
++			break;
++		node = xa_node(entry);
++		if (xas->xa_update)
++			xas->xa_update(node);
++	}
++}
++
++/*
++ * xas_delete_node() - Attempt to delete an xa_node
++ * @xa: Array
++ * @xas: Array operation state.
++ *
++ * Attempts to delete the @xas->xa_node.  This will fail if xa->node has
++ * a non-zero reference count.
++ */
++static void xas_delete_node(struct xarray *xa, struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	for (;;) {
++		struct xa_node *parent;
++
++		XA_BUG_ON(node->count > XA_CHUNK_SIZE);
++		if (node->count)
++			break;
++
++		parent = xa_parent_locked(xa, node);
++		VM_WARN_ON_ONCE(!list_empty(&node->private_list));
++		xas->xa_node = parent;
++		xas->xa_offset = node->offset;
++		xa_node_free(node);
++
++		if (!parent) {
++			xa->xa_head = NULL;
++			xas->xa_node = XA_WALK_RESTART;
++			return;
++		}
++
++		parent->slots[xas->xa_offset] = NULL;
++		parent->count--;
++		XA_BUG_ON(parent->count > XA_CHUNK_SIZE);
++		node = parent;
++		if (xas->xa_update)
++			xas->xa_update(node);
++	}
++
++	if (!node->parent)
++		xas_shrink(xa, xas);
++}
++
++/**
++ * xas_free_nodes() - Free this node and all nodes that it references
++ * @xa: Array
++ * @xas: Array operation state.
++ * @top: Node to free
++ *
++ * This node has been removed from the tree.  We must now free it and all
++ * of its subnodes.  There may be RCU walkers with references into the tree,
++ * so we must replace all entries with retry markers.
++ */
++static void xas_free_nodes(struct xarray *xa, struct xa_state *xas,
++		struct xa_node *top)
++{
++	unsigned int offset = 0;
++	struct xa_node *node = top;
++
++	for (;;) {
++		void *entry = xa_entry_locked(xa, node, offset);
++
++		if (xa_is_node(entry)) {
++			node = xa_node(entry);
++			offset = 0;
++			continue;
++		}
++		if (entry) {
++			RCU_INIT_POINTER(node->slots[offset], XA_RETRY_ENTRY);
++			if (xa_is_exceptional(entry))
++				xas->xa_exceptional--;
++			xas->xa_count--;
++		}
++		offset++;
++		while (offset == XA_CHUNK_SIZE) {
++			struct xa_node *parent = xa_parent_locked(xa, node);
++
++			offset = node->offset + 1;
++			node->count = 0;
++			node->exceptional = 0;
++			if (xas->xa_update)
++				xas->xa_update(node);
++			VM_WARN_ON_ONCE(!list_empty(&node->private_list));
++			xa_node_free(node);
++			if (node == top)
++				return;
++			node = parent;
++		}
++	}
++}
++
++/*
++ * xas_expand adds nodes to the head of the tree until it has reached
++ * sufficient height to be able to contain @xas->xa_index
++ */
++static int xas_expand(struct xarray *xa, struct xa_state *xas, void *head)
++{
++	struct xa_node *node = NULL;
++	unsigned int shift = 0;
++	unsigned long max = xas_max(xas);
++
++	if (!head) {
++		if (max == 0)
++			return 0;
++		while ((max >> shift) >= XA_CHUNK_SIZE)
++			shift += XA_CHUNK_SHIFT;
++		return shift + XA_CHUNK_SHIFT;
++	} else if (xa_is_node(head)) {
++		node = xa_node(head);
++		shift = node->shift + XA_CHUNK_SHIFT;
++	}
++	xas->xa_node = NULL;
++
++	while (!xa_bounds(max, head)) {
++		xa_tag_t tag = 0;
++
++		XA_BUG_ON(shift > BITS_PER_LONG);
++		node = xas_alloc(xa, xas, shift);
++		if (!node)
++			return -ENOMEM;
++
++		node->count = 1;
++		if (xa_is_exceptional(head))
++			node->exceptional = 1;
++		RCU_INIT_POINTER(node->slots[0], head);
++
++		/* Propagate the aggregated tag info to the new child */
++		if (xa_track_free(xa)) {
++			tag_set_all(node, XA_FREE_TAG);
++			if (!xa_tagged(xa, XA_FREE_TAG)) {
++				tag_clear(node, 0, XA_FREE_TAG);
++				xa_tag_set(xa, XA_FREE_TAG);
++			}
++			inc_tag(tag);
++		}
++		for (;;) {
++			if (xa_tagged(xa, tag))
++				tag_set(node, 0, tag);
++			if (tag == XA_TAG_MAX)
++				break;
++			inc_tag(tag);
++		}
++
++		/*
++		 * Now that the new node is fully initialised, we can add
++		 * it to the tree
++		 */
++		if (xa_is_node(head)) {
++			xa_node(head)->offset = 0;
++			rcu_assign_pointer(xa_node(head)->parent, node);
++		}
++		head = xa_mk_node(node);
++		rcu_assign_pointer(xa->xa_head, head);
++
++		shift += XA_CHUNK_SHIFT;
++	}
++
++	xas->xa_node = node;
++	return shift;
++}
++
++/**
++ * xas_create() - Create a slot to store an entry in.
++ * @xa: Array
++ * @xas: Array operation state.
++ *
++ * Most users will not need to call this function directly, as it is called
++ * by xas_store().  It is useful for doing conditional store operations
++ * (see the xa_replace() implementation for an example).
++ *
++ * Return: If the slot already existed, returns the contents of this slot.
++ * If the slot was newly created, returns NULL.  If it failed to create the
++ * slot, returns NULL and indicates the error in @xas.
++ */
++void *xas_create(struct xarray *xa, struct xa_state *xas)
++{
++	void *entry;
++	void __rcu **slot;
++	struct xa_node *node = xas->xa_node;
++	int shift;
++	unsigned int order = xas->xa_shift;
++
++	if (node == XA_WALK_RESTART) {
++		entry = xa_head_locked(xa);
++		xas->xa_node = NULL;
++		shift = xas_expand(xa, xas, entry);
++		if (shift < 0)
++			return NULL;
++		entry = xa_head_locked(xa);
++		slot = &xa->xa_head;
++	} else if (xas_error(xas)) {
++		return NULL;
++	} else if (node) {
++		unsigned int offset = xas->xa_offset;
++
++		shift = node->shift;
++		entry = xa_entry_locked(xa, node, offset);
++		slot = &node->slots[offset];
++	} else {
++		shift = 0;
++		entry = xa_head_locked(xa);
++		slot = &xa->xa_head;
++	}
++
++	while (shift > order) {
++		shift -= XA_CHUNK_SHIFT;
++		if (!entry) {
++			node = xas_alloc(xa, xas, shift);
++			if (!node)
++				break;
++			if (xa_track_free(xa))
++				tag_set_all(node, XA_FREE_TAG);
++			rcu_assign_pointer(*slot, xa_mk_node(node));
++		} else if (xa_is_node(entry)) {
++			node = xa_node(entry);
++		} else {
++			break;
++		}
++		entry = xas_descend(xa, xas, node);
++		slot = &node->slots[xas->xa_offset];
++	}
++
++	return entry;
++}
++EXPORT_SYMBOL_GPL(xas_create);
++
++/* FIXME: mishandles counts if you have something like
++ * exceptional, sibling, NULL, normal and store something
++ * over the top of all four.  write a testcase for it, then fix it.
++ */
++static void handle_sibling_slots(struct xarray *xa, struct xa_state *xas,
++		void *entry, int *countp, int *exceptionalp)
++{
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
++	unsigned int slots = xas->xa_slots;
++	void *sibling = entry ? xa_mk_sibling(offset) : NULL;
++
++	while (++offset < XA_CHUNK_SIZE) {
++		void *next = xa_entry(xa, node, offset);
++
++		if (--slots)
++			RCU_INIT_POINTER(node->slots[offset], sibling);
++		else if (!xa_is_sibling(next))
++			break;
++
++		if (xa_is_node(next))
++			xas_free_nodes(xa, xas, xa_node(next));
++		*countp += !next - !entry;
++		*exceptionalp += !xa_is_exceptional(next) -
++				 !xa_is_exceptional(entry);
++	}
++}
++
++/**
++ * xas_store() - Store this entry in the array
++ * @xa: Array
++ * @xas: Array operation state.
++ * @entry: New entry
++ *
++ * Return: The old value at this index.
++ */
++void *xas_store(struct xarray *xa, struct xa_state *xas, void *entry)
++{
++	struct xa_node *node;
++	int count, exceptional;
++	void *curr;
++
++	if (entry)
++		curr = xas_create(xa, xas);
++	else
++		curr = xas_load(xa, xas);
++	if (xas_special(xas))
++		return NULL;
++
++	node = xas->xa_node;
++	if (node)
++		rcu_assign_pointer(node->slots[xas->xa_offset], entry);
++	else
++		rcu_assign_pointer(xa->xa_head, entry);
++	if (!entry)
++		xas_init_tags(xa, xas);
++	else if (xa_track_free(xa))
++		xas_clear_tag(xa, xas, XA_FREE_TAG);
++
++	exceptional = !xa_is_exceptional(curr) - !xa_is_exceptional(entry);
++	count = !curr - !entry;
++	if (xa_is_node(curr))
++		xas_free_nodes(xa, xas, xa_node(curr));
++	if (node)
++		handle_sibling_slots(xa, xas, entry, &count, &exceptional);
++
++	if (!xa_is_internal(entry)) {
++		xas->xa_count += count;
++		xas->xa_exceptional += exceptional;
++	}
++	if (node) {
++		node->count += count;
++		XA_BUG_ON(node->count > XA_CHUNK_SIZE);
++		node->exceptional += exceptional;
++		XA_BUG_ON(node->exceptional > XA_CHUNK_SIZE);
++		if ((count || exceptional) && xas->xa_update)
++			xas->xa_update(node);
++		if (count < 0)
++			xas_delete_node(xa, xas);
++	}
++
++	return curr;
++}
++EXPORT_SYMBOL_GPL(xas_store);
++
++/*
++ * xas_next_entry() - Helper for other tree walking functions
++ *
++ * As a helper, this function has a lot of rough edges.  On entry,
++ * xas->xa_index may not lay within xas->xa_node (which is why we
++ * start by walking back up the tree if it isn't).  There are a lot
++ * of different reasons we may have been called, so we have to fumble
++ * around a bit to find out what we're doing.
++ */
++void *xas_next_entry(struct xarray *xa, struct xa_state *xas, unsigned long max)
++{
++	bool lookup = xas->xa_flags & XAS_FLAG_LOOKUP;
++
++	if (xas_error(xas))
++		return XA_WALK_END;
++
++	xas->xa_flags &= ~XAS_FLAG_LOOKUP;
++	if (!lookup && xas->xa_offset < XA_CHUNK_SIZE && xas->xa_node &&
++			!((unsigned long)xas->xa_node & 1)) {
++		xas->xa_index |= (1UL << xas->xa_node->shift) - 1;
++		xas->xa_index++;
++		xas->xa_offset++;
++	}
++
++	while (xas->xa_node && (xas->xa_index <= max)) {
++		void *entry;
++
++		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
++			xas->xa_offset = xas->xa_node->offset + 1;
++			xas->xa_node = xa_parent(xa, xas->xa_node);
++			continue;
++		}
++		entry = xas_load(xa, xas);
++
++		if (xa_is_node(entry)) {
++			xas->xa_node = xa_node(entry);
++			xas->xa_offset = xas_offset(xas);
++			continue;
++		} else if (lookup && xa_is_sibling(entry)) {
++			xas->xa_offset = xa_sibling_offset(entry);
++			entry = xa_entry(xa, xas->xa_node, xas->xa_offset);
++			return entry;
++		} else if (!xa_is_skip(entry))
++			return entry;
++
++		if (xas->xa_node <= XA_WALK_RESTART)
++			break;
++		xas->xa_offset++;
++		xas->xa_index += 1UL << xas->xa_node->shift;
++	}
++
++	return XA_WALK_END;
++}
++EXPORT_SYMBOL_GPL(xas_next_entry);
++
++/**
++ * xas_find_tag() - Search the xarray for a tagged entry
++ * @xa: Array
++ * @xas: Array operation state.
++ * @max: Maximum value to return
++ * @tag: Tag number to search for
++ *
++ * Finds the first tagged entry at or after the index in @xas
++ * tag set and is less than or equal to @max.
++ *
++ * Return: The entry, if found, otherwise XA_WALK_END.
++ */
++void *xas_find_tag(struct xarray *xa, struct xa_state *xas,
++		unsigned long max, xa_tag_t tag)
++{
++	void *entry = XA_WALK_END;
++	int offset;
++
++	if (xas_error(xas) || xas->xa_index > max)
++		return entry;
++
++	if (xas_restart(xas)) {
++		struct xa_node *node;
++		unsigned long offset;
++
++		entry = xa_head(xa);
++		if (!xa_tagged(xa, tag)) {
++			if (xa_is_node(entry))
++				xas->xa_index = XA_CHUNK_SIZE <<
++						xa_node(entry)->shift;
++			else if (xas->xa_index < 1)
++				xas->xa_index = 1;
++			return XA_WALK_END;
++		}
++		if (!xa_is_node(entry)) {
++			if (xas->xa_index)
++				return XA_WALK_END;
++			xas->xa_node = NULL;
++			return entry;
++		}
++		node = xa_node(entry);
++		offset = xas->xa_index >> node->shift;
++		if (offset > XA_CHUNK_MASK)
++			return XA_WALK_END;
++		xas->xa_node = node;
++		xas->xa_offset = offset;
++		entry = XA_WALK_END;
++	}
++
++	while (xas->xa_node) {
++		offset = xas_chunk_tag(xas, tag);
++		if (offset != xas->xa_offset) {
++			unsigned long index = set_index(xas->xa_node, offset,
++								xas->xa_index);
++			if (!index || index > max) {
++				xas->xa_index = max + 1;
++				break;
++			}
++			xas->xa_index = index;
++			xas->xa_offset = offset;
++		}
++
++		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
++			xas->xa_offset = xas->xa_node->offset + 1;
++			xas->xa_node = xa_parent(xa, xas->xa_node);
++			continue;
++		}
++
++		entry = xa_entry(xa, xas->xa_node, offset);
++		if (!xa_is_node(entry))
++			break;
++		xas->xa_node = xa_node(entry);
++		xas->xa_offset = xas_offset(xas);
++		entry = XA_WALK_END;
++	}
++
++	if (entry == XA_WALK_END)
++		xas->xa_node = XA_WALK_RESTART;
++	return entry;
++}
++EXPORT_SYMBOL_GPL(xas_find_tag);
++
++/**
++ * xa_load() - Load the entry from the array
++ * @xa: Array
++ * @index: index in array
++ *
++ * Return: The entry at @index in @xa.
++ */
++void *xa_load(struct xarray *xa, unsigned long index)
++{
++	struct xa_state xas;
++	void *entry;
++
++	xas_init(&xas, index);
++	rcu_read_lock();
++	entry = xas_start(xa, &xas);
++	while (xa_is_node(entry)) {
++		entry = xas_descend(xa, &xas, xa_node(entry));
++		if (xa_is_retry(entry))
++			entry = xas_start(xa, &xas);
++	}
++	rcu_read_unlock();
++
++	if (entry == XA_WALK_END)
++		entry = NULL;
++	return entry;
++}
++EXPORT_SYMBOL(xa_load);
++
++/**
++ * xa_store() - Store this entry in the array
++ * @xa: Array
++ * @index: index in array
++ * @entry: New entry
++ * @gfp: Allocation flags
++ *
++ * Stores almost always succeed.  The notable exceptions:
++ *  - Attempted to store a reserved pointer value (-EINVAL)
++ *  - Ran out of memory trying to allocate new nodes (-ENOMEM)
++ *
++ * Storing into an existing multislot entry updates the value of every index.
++ *
++ * Return: The old value at this index or ERR_PTR() if an error happened
++ */
++void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
++{
++	struct xa_state xas;
++	unsigned long flags;
++	void *curr;
++
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return ERR_PTR(-EINVAL);
++
++	xas_init(&xas, index);
++	do {
++		xa_lock_irqsave(xa, flags);
++		curr = xas_store(xa, &xas, entry);
++		xa_unlock_irqrestore(xa, flags);
++	} while (xas_nomem(&xas, gfp));
++	xas_destroy(&xas);
++
++	if (xas_error(&xas))
++		curr = xas.xa_node;
++	return curr;
++}
++EXPORT_SYMBOL(xa_store);
++
++/**
++ * xa_replace() - Conditionally replace this entry in the array
++ * @xa: Array
++ * @index: index in array
++ * @entry: New value to place in array
++ * @old: Old value to test against
++ * @gfp: Allocation flags
++ *
++ * If the entry at @index is the same as @old, replace it with @entry.
++ * If the return value is equal to @old, then the exchange was successful.
++ *
++ * Return: The old value at this index or ERR_PTR() if an error happened
++ */
++void *xa_replace(struct xarray *xa, unsigned long index,
++		void *entry, void *old, gfp_t gfp)
++{
++	struct xa_state xas;
++	unsigned long flags;
++	void *curr;
++
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return ERR_PTR(-EINVAL);
++
++	xas_init(&xas, index);
++	do {
++		xa_lock_irqsave(xa, flags);
++		curr = xas_create(xa, &xas);
++		if (curr == old)
++			xas_store(xa, &xas, entry);
++		xa_unlock_irqrestore(xa, flags);
++	} while (xas_nomem(&xas, gfp));
++	xas_destroy(&xas);
++
++	if (xas_error(&xas))
++		curr = xas.xa_node;
++	return curr;
++}
++EXPORT_SYMBOL(xa_replace);
++
++/**
++ * xa_get_tag() - Inquire whether this tag is set on this entry
++ * @xa: Array
++ * @index: Index of entry
++ * @tag: Tag value
++ *
++ * This function is protected by the RCU read lock, so the result may be
++ * out of date by the time it returns.  If you need the result to be stable,
++ * use a lock.
++ *
++ * Return: True if the entry at @index has this tag set, false if it doesn't.
++ */
++bool __xa_get_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
++{
++	struct xa_state xas;
++	void *entry;
++
++	xas_init(&xas, index);
++	rcu_read_lock();
++	entry = xas_start(xa, &xas);
++	while (xas_get_tag(xa, &xas, tag)) {
++		if (!xa_is_node(entry))
++			goto found;
++		entry = xas_descend(xa, &xas, xa_node(entry));
++	}
++	rcu_read_unlock();
++	return false;
++found:
++	rcu_read_unlock();
++	return true;
++}
++EXPORT_SYMBOL(__xa_get_tag);
++
++/**
++ * xa_set_tag() - Set this tag on this entry.
++ * @xa: Array
++ * @index: Index of entry
++ * @tag: Tag value
++ *
++ * Attempting to set a tag on a NULL entry does not succeed.
++ *
++ * Return: The entry at this index or ERR_PTR() if an error occurs.
++ */
++void *__xa_set_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
++{
++	struct xa_state xas;
++	unsigned long flags;
++	void *entry;
++
++	xas_init(&xas, index);
++	xa_lock_irqsave(xa, flags);
++	entry = xas_load(xa, &xas);
++	if (entry == XA_WALK_END)
++		entry = NULL;
++	if (entry)
++		xas_set_tag(xa, &xas, tag);
++	xa_unlock_irqrestore(xa, flags);
++
++	return entry;
++}
++EXPORT_SYMBOL(__xa_set_tag);
++
++/**
++ * xa_clear_tag() - Clear this tag on this entry.
++ * @xa: Array
++ * @index: Index of entry
++ * @tag: Tag value
++ *
++ * Clearing a tag on an entry which doesn't exist always succeeds
++ *
++ * Return: The entry at this index or ERR_PTR() if an error occurs.
++ */
++void *__xa_clear_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
++{
++	struct xa_state xas;
++	unsigned long flags;
++	void *entry;
++
++	xas_init(&xas, index);
++	xa_lock_irqsave(xa, flags);
++	entry = xas_load(xa, &xas);
++	if (entry == XA_WALK_END)
++		entry = NULL;
++	if (entry)
++		xas_clear_tag(xa, &xas, tag);
++	xa_unlock_irqrestore(xa, flags);
++
++	return entry;
++}
++EXPORT_SYMBOL(__xa_clear_tag);
++
++/**
++ * xa_find() - Search the xarray for a present entry
++ * @xa: Array
++ * @indexp: Pointer to an index
++ * @max: Maximum value to return
++ *
++ * Finds the entry in the xarray with the lowest index that is between
++ * *@indexp and max, inclusive.  If an entry is found, updates @indexp to
++ * be the index of the pointer.  This function is protected by the RCU read
++ * lock, so it may not find all entries if called in a loop.
++ *
++ * Return: The pointer, if found, otherwise NULL.
++ */
++void *xa_find(struct xarray *xa, unsigned long *indexp, unsigned long max)
++{
++	struct xa_state xas;
++	void *entry;
++
++	xas_init(&xas, *indexp);
++
++	rcu_read_lock();
++	do {
++		entry = xas_next(xa, &xas, max);
++		xas_retry(&xas, entry);
++		if (entry == XA_WALK_END)
++			entry = NULL;
++	} while (xa_is_internal(entry));
++	rcu_read_unlock();
++
++	if (entry)
++		*indexp = xas.xa_index;
++	return entry;
++}
++EXPORT_SYMBOL(xa_find);
++
++/**
++ * xa_next() - Search the xarray for the next present entry
++ * @xa: Array
++ * @indexp: Pointer to an index
++ * @max: Maximum value to return
++ *
++ * Finds the entry in the xarray with the lowest index that is above
++ * *@indexp and not greater than max.  If an entry is found, updates
++ * @indexp to be the index of the pointer.
++ *
++ * Return: The pointer, if found, otherwise NULL.
++ */
++void *xa_next(struct xarray *xa, unsigned long *indexp, unsigned long max)
++{
++	struct xa_state xas;
++	void *entry;
++
++	xas_init(&xas, *indexp + 1);
++	xas.xa_flags &= ~XAS_FLAG_LOOKUP;
++
++	rcu_read_lock();
++	do {
++		entry = xas_next(xa, &xas, max);
++		xas_retry(&xas, entry);
++		if (entry == XA_WALK_END)
++			entry = NULL;
++	} while (xa_is_internal(entry));
++	rcu_read_unlock();
++
++	if (entry)
++		*indexp = xas.xa_index;
++	return entry;
++}
++EXPORT_SYMBOL(xa_next);
++
++/**
++ * xa_get_entries() - Copy entries from the xarray into a normal array
++ * @xa: The source XArray to copy from
++ * @dst: The buffer to copy pointers into
++ * @start: The first index in the XArray eligible to be copied from
++ * @n: The maximum number of entries to copy
++ *
++ * Return: The number of entries copied.
++ */
++int xa_get_entries(struct xarray *xa, unsigned long start, void **dst,
++		unsigned int n)
++{
++	struct xa_state xas;
++	void *entry;
++	unsigned int i = 0;
++
++	if (!n)
++		return 0;
++
++	xas_init(&xas, start);
++	rcu_read_lock();
++	xas_for_each(xa, &xas, entry, ~0UL) {
++		if (xas_retry(&xas, entry))
++			continue;
++		dst[i++] = entry;
++		if (i == n)
++			break;
++	}
++	rcu_read_unlock();
++
++	return i;
++}
++EXPORT_SYMBOL(xa_get_entries);
++
++/**
++ * xa_get_tagged() - Copy tagged entries from the xarray into a normal array
++ * @xa: The source XArray to copy from
++ * @dst: The buffer to copy pointers into
++ * @start: The first index in the XArray eligible to be copied from
++ * @n: The maximum number of entries to copy
++ *
++ * Return: The number of entries copied.
++ */
++int xa_get_tagged(struct xarray *xa, unsigned long start, void **dst,
++		unsigned int n, xa_tag_t tag)
++{
++	struct xa_state xas;
++	void *entry;
++	unsigned int i = 0;
++
++	if (!n)
++		return 0;
++
++	xas_init(&xas, start);
++	rcu_read_lock();
++	xas_for_each_tag(xa, &xas, entry, ~0UL, tag) {
++		if (xas_retry(&xas, entry))
++			continue;
++		dst[i++] = entry;
++		if (i == n)
++			break;
++	}
++	rcu_read_unlock();
++
++	return i;
++}
++EXPORT_SYMBOL(xa_get_tagged);
++
++void __init init_xarray(void)
++{
++	xa_node_cache = kmem_cache_create("xa_node",
++				sizeof(struct xa_node), 0,
++				SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
++				xa_node_ctor);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
