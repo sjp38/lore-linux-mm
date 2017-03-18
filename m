@@ -1,70 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C355B6B038E
-	for <linux-mm@kvack.org>; Sat, 18 Mar 2017 13:01:20 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w37so18944447wrc.2
-        for <linux-mm@kvack.org>; Sat, 18 Mar 2017 10:01:20 -0700 (PDT)
-Received: from mail-wr0-x234.google.com (mail-wr0-x234.google.com. [2a00:1450:400c:c0c::234])
-        by mx.google.com with ESMTPS id k206si7732748wmf.165.2017.03.18.10.01.19
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C8DEB6B0038
+	for <linux-mm@kvack.org>; Sat, 18 Mar 2017 15:31:49 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 76so83230128itj.0
+        for <linux-mm@kvack.org>; Sat, 18 Mar 2017 12:31:49 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0029.hostedemail.com. [216.40.44.29])
+        by mx.google.com with ESMTPS id t8si5842830ith.88.2017.03.18.12.31.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 18 Mar 2017 10:01:19 -0700 (PDT)
-Received: by mail-wr0-x234.google.com with SMTP id l37so69060493wrc.1
-        for <linux-mm@kvack.org>; Sat, 18 Mar 2017 10:01:19 -0700 (PDT)
-Date: Fri, 17 Mar 2017 20:57:14 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 26/26] x86/mm: allow to have userspace mappings above
- 47-bits
-Message-ID: <20170317175714.3bvpdylaaudf4ig2@node.shutemov.name>
-References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
- <20170313055020.69655-27-kirill.shutemov@linux.intel.com>
- <87a88jg571.fsf@skywalker.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87a88jg571.fsf@skywalker.in.ibm.com>
+        Sat, 18 Mar 2017 12:31:49 -0700 (PDT)
+Message-ID: <1489865495.13953.19.camel@perches.com>
+Subject: Re: [PATCH 1/3] mm: page_alloc: Reduce object size by neatening
+ printks
+From: Joe Perches <joe@perches.com>
+Date: Sat, 18 Mar 2017 12:31:35 -0700
+In-Reply-To: <20170317015600.GA426@jagdpanzerIV.localdomain>
+References: <cover.1489628459.git.joe@perches.com>
+	 <880b3172b67d806082284d80945e4a231a5574bb.1489628459.git.joe@perches.com>
+	 <20170316113056.GG464@jagdpanzerIV.localdomain>
+	 <1489689476.13953.3.camel@perches.com>
+	 <20170317015600.GA426@jagdpanzerIV.localdomain>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Petr Mladek <pmladek@suse.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Fri, Mar 17, 2017 at 11:23:54PM +0530, Aneesh Kumar K.V wrote:
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+(adding Petr and Steven to cc's)
+
+On Fri, 2017-03-17 at 10:56 +0900, Sergey Senozhatsky wrote:
+> On (03/16/17 11:37), Joe Perches wrote:
+> > On Thu, 2017-03-16 at 20:30 +0900, Sergey Senozhatsky wrote:
+> > > On (03/15/17 18:43), Joe Perches wrote:
+> > > [..]
+> > > > -	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+> > > > -		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+> > > > -		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+> > > > -		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+> > > > -		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+> > > > -		" free:%lu free_pcp:%lu free_cma:%lu\n",
+> > > > -		global_node_page_state(NR_ACTIVE_ANON),
+> > > > -		global_node_page_state(NR_INACTIVE_ANON),
+> > > > -		global_node_page_state(NR_ISOLATED_ANON),
+> > > > -		global_node_page_state(NR_ACTIVE_FILE),
+> > > > -		global_node_page_state(NR_INACTIVE_FILE),
+> > > > -		global_node_page_state(NR_ISOLATED_FILE),
+> > > > -		global_node_page_state(NR_UNEVICTABLE),
+> > > > -		global_node_page_state(NR_FILE_DIRTY),
+> > > > -		global_node_page_state(NR_WRITEBACK),
+> > > > -		global_node_page_state(NR_UNSTABLE_NFS),
+> > > > -		global_page_state(NR_SLAB_RECLAIMABLE),
+> > > > -		global_page_state(NR_SLAB_UNRECLAIMABLE),
+> > > > -		global_node_page_state(NR_FILE_MAPPED),
+> > > > -		global_node_page_state(NR_SHMEM),
+> > > > -		global_page_state(NR_PAGETABLE),
+> > > > -		global_page_state(NR_BOUNCE),
+> > > > -		global_page_state(NR_FREE_PAGES),
+> > > > -		free_pcp,
+> > > > -		global_page_state(NR_FREE_CMA_PAGES));
+[]
+> > > > a side note:
+> > > 
+> > > this can make it harder to read, in _the worst case_. one printk()
+> > > guaranteed that we would see a single line in the serial log/etc.
+> > > the sort of a problem with multiple printks is that printks coming
+> > > from other CPUs will split that "previously single" line.
+> > 
+> > Not true.  Note the multiple \n uses in the original code.
 > 
-> > On x86, 5-level paging enables 56-bit userspace virtual address space.
-> > Not all user space is ready to handle wide addresses. It's known that
-> > at least some JIT compilers use higher bits in pointers to encode their
-> > information. It collides with valid pointers with 5-level paging and
-> > leads to crashes.
-> >
-> > To mitigate this, we are not going to allocate virtual address space
-> > above 47-bit by default.
-> >
-> > But userspace can ask for allocation from full address space by
-> > specifying hint address (with or without MAP_FIXED) above 47-bits.
-> >
-> > If hint address set above 47-bit, but MAP_FIXED is not specified, we try
-> > to look for unmapped area by specified address. If it's already
-> > occupied, we look for unmapped area in *full* address space, rather than
-> > from 47-bit window.
-> >
-> > This approach helps to easily make application's memory allocator aware
-> > about large address space without manually tracking allocated virtual
-> > address space.
-> >
+> one printk call ends up in logbuf as a single entry and, thus, we print
+> it to the serial console in one shot (what is the correct english word
+> to use here?). multiple printks result in multiple logbuf entries, and
+> printks from other CPUs can mix in.
 > 
-> So if I have done a successful mmap which returned > 128TB what should a
-> following mmap(0,...) return ? Should that now search the *full* address
-> space or below 128TB ?
+> so the difference is:
+> 
+> 
+> 	CPU0						CPU1
+> 							printk(foo\n)
+> printk(..isolated_anon\n...isolated_file\n...)
+> 							printk(bar\n)
+> 
+> vs
+> 
+> 	CPU0						CPU1
+> printk(..isolated_anon\n)
+> 							printk(foo\n)
+> printk(...isolated_file\n)
+> 							printk(bar\n)
+> printk(...\n)
+> 
+> not the same thing.
+> 
+> and the slower the serial console is the more messages potentially
+> can appear between "..isolated_anon\n" and "...isolated_file\n".
 
-No, I don't think so. And this implementation doesn't do this.
+Right.  For the definition of "single line", meaning "contiguous
+block" and not single line.
 
-It's safer this way: if an library can't handle high addresses, it's
-better not to switch it automagically to full address space if other part
-of the process requested high address.
-
--- 
- Kirill A. Shutemov
+Perhaps there would be some value in having a generic mechanism
+for the dump_stack use of "atomic_t dump_lock", where a thread
+can grab exclusive use of the printk subsystem for a short period
+to keep messages from being interleaved by other processes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
