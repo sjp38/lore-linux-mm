@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B748A6B038A
-	for <linux-mm@kvack.org>; Sat, 18 Mar 2017 12:37:39 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n11so12144171pfg.7
-        for <linux-mm@kvack.org>; Sat, 18 Mar 2017 09:37:39 -0700 (PDT)
-Received: from helcar.apana.org.au (helcar.hengli.com.au. [209.40.204.226])
-        by mx.google.com with ESMTPS id z7si8564669pff.69.2017.03.18.09.37.36
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D39196B038C
+	for <linux-mm@kvack.org>; Sat, 18 Mar 2017 12:57:19 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id r141so72732737ita.6
+        for <linux-mm@kvack.org>; Sat, 18 Mar 2017 09:57:19 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id k129si12647334iok.32.2017.03.18.09.57.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 18 Mar 2017 09:37:38 -0700 (PDT)
-Date: Sun, 19 Mar 2017 00:37:02 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 0/5] mm subsystem refcounter conversions
-Message-ID: <20170318163702.GA23796@gondor.apana.org.au>
+        Sat, 18 Mar 2017 09:57:19 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id y18so9624625itc.2
+        for <linux-mm@kvack.org>; Sat, 18 Mar 2017 09:57:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170228172156.de13fdc41a3ca6a4deea7750@linux-foundation.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 18 Mar 2017 09:57:18 -0700
+Message-ID: <CA+55aFyq++yzU6bthhy1eDebkaAiXnH6YXHCTNzsC2-KZqN=Pw@mail.gmail.com>
+Subject: kernel BUG at mm/swap_slots.c:270
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: elena.reshetova@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, arnd@arndb.de, luto@kernel.org, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> The performance implications of this proposal are terrifying.
-> 
-> I suggest adding a set of non-debug inlined refcount functions which
-> just fall back to the simple atomic.h operations.
-> 
-> And add a new CONFIG_DEBUG_REFCOUNT.  So the performance (and code
-> size!) with CONFIG_DEBUG_REFCOUNT=n is unaltered from present code. 
-> And make CONFIG_DEBUG_REFCOUNT suitably difficult to set.
+Tim at al,
+ I got this on my desktop at shutdown:
 
-I agree.  Refcounts are used in many performance-critical sites
-within the network subsystem.
+  ------------[ cut here ]------------
+  kernel BUG at mm/swap_slots.c:270!
+  invalid opcode: 0000 [#1] SMP
+  CPU: 5 PID: 1745 Comm: (sd-pam) Not tainted 4.11.0-rc1-00243-g24c534bb161b #1
+  Hardware name: System manufacturer System Product Name/Z170-K, BIOS
+1803 05/06/2016
+  RIP: 0010:free_swap_slot+0xba/0xd0
+  Call Trace:
+   swap_free+0x36/0x40
+   do_swap_page+0x360/0x6d0
+   __handle_mm_fault+0x880/0x1080
+   handle_mm_fault+0xd0/0x240
+   __do_page_fault+0x232/0x4d0
+   do_page_fault+0x20/0x70
+   page_fault+0x22/0x30
+  ---[ end trace aefc9ede53e0ab21 ]---
 
-Thanks,
--- 
-Email: Herbert Xu <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+so there seems to be something screwy in the new swap_slots code.
+
+Any ideas? I'm not finding other reports of this, but I'm also not
+seeing why it should BUG_ON(). The "use_swap_slot_cache" thing very
+much checks whether swap_slot_cache_initialized has been set, so the
+BUG_ON() just seems like garbage. But please take a look.
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
