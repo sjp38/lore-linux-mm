@@ -1,65 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 52F5C6B0389
-	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 10:04:55 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u48so22104901wrc.0
-        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 07:04:55 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B59CA6B0038
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 10:30:18 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n11so11970443wma.5
+        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 07:30:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n69si11136194wmd.101.2017.03.19.07.04.53
+        by mx.google.com with ESMTPS id 5si19161028wrb.21.2017.03.19.07.30.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 19 Mar 2017 07:04:53 -0700 (PDT)
-Date: Sun, 19 Mar 2017 10:04:47 -0400
+        Sun, 19 Mar 2017 07:30:17 -0700 (PDT)
+Date: Sun, 19 Mar 2017 10:30:13 -0400
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: kernel BUG at mm/swap_slots.c:270
-Message-ID: <20170319140447.GA12414@dhcp22.suse.cz>
-References: <CA+55aFyq++yzU6bthhy1eDebkaAiXnH6YXHCTNzsC2-KZqN=Pw@mail.gmail.com>
+Subject: Re: [PATCH] mm: use BITS_PER_LONG to unify the definition in
+ page->flags
+Message-ID: <20170319143012.GB12414@dhcp22.suse.cz>
+References: <20170318003914.24839-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFyq++yzU6bthhy1eDebkaAiXnH6YXHCTNzsC2-KZqN=Pw@mail.gmail.com>
+In-Reply-To: <20170318003914.24839-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 18-03-17 09:57:18, Linus Torvalds wrote:
-> Tim at al,
->  I got this on my desktop at shutdown:
+On Sat 18-03-17 08:39:14, Wei Yang wrote:
+> The field page->flags is defined as unsigned long and is divided into
+> several parts to store different information of the page, like section,
+> node, zone. Which means all parts must sit in the one "unsigned
+> long".
 > 
->   ------------[ cut here ]------------
->   kernel BUG at mm/swap_slots.c:270!
->   invalid opcode: 0000 [#1] SMP
->   CPU: 5 PID: 1745 Comm: (sd-pam) Not tainted 4.11.0-rc1-00243-g24c534bb161b #1
->   Hardware name: System manufacturer System Product Name/Z170-K, BIOS
-> 1803 05/06/2016
->   RIP: 0010:free_swap_slot+0xba/0xd0
->   Call Trace:
->    swap_free+0x36/0x40
->    do_swap_page+0x360/0x6d0
->    __handle_mm_fault+0x880/0x1080
->    handle_mm_fault+0xd0/0x240
->    __do_page_fault+0x232/0x4d0
->    do_page_fault+0x20/0x70
->    page_fault+0x22/0x30
->   ---[ end trace aefc9ede53e0ab21 ]---
+> BITS_PER_LONG is used in several places to ensure this applies.
 > 
-> so there seems to be something screwy in the new swap_slots code.
+>     #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > BITS_PER_LONG - NR_PAGEFLAGS
+>     #if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+>     #if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+> 
+> While we use "sizeof(unsigned long) * 8" in the definition of
+> SECTIONS_PGOFF
+> 
+>     #define SECTIONS_PGOFF         ((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
+> 
+> This may not be that obvious for audience to catch the point.
+> 
+> This patch replaces the "sizeof(unsigned long) * 8" with BITS_PER_LONG to
+> make all this consistent.
 
-I am travelling (LSFMM) so I didn't get to look at this more thoroughly
-but it seems like a race because enable_swap_slots_cache is called at
-the very end of the swapon and we could have already created a swap
-entry for a page by that time I guess.
+I am not really sure this is an improvement. page::flags is unsigned
+long nad the current code reflects that type.
 
-> Any ideas? I'm not finding other reports of this, but I'm also not
-> seeing why it should BUG_ON(). The "use_swap_slot_cache" thing very
-> much checks whether swap_slot_cache_initialized has been set, so the
-> BUG_ON() just seems like garbage. But please take a look.
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  include/linux/mm.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index b84615b0f64c..a5d80de089ff 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -684,7 +684,7 @@ int finish_mkwrite_fault(struct vm_fault *vmf);
+>   */
+>  
+>  /* Page flags: | [SECTION] | [NODE] | ZONE | [LAST_CPUPID] | ... | FLAGS | */
+> -#define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
+> +#define SECTIONS_PGOFF		(BITS_PER_LONG - SECTIONS_WIDTH)
+>  #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
+>  #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+>  #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
+> -- 
+> 2.11.0
+> 
 
-I guess you are right. I cannot speak of the original intention but it
-seems Tim wanted to be careful to not see unexpected swap entry when
-the swap wasn't initialized yet. I would just drop the BUG_ON and bail
-out when the slot cache hasn't been initialized yet.
 -- 
 Michal Hocko
 SUSE Labs
