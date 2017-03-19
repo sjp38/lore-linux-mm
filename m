@@ -1,132 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C01B6B0395
-	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 16:09:19 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y51so23354191wry.6
-        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 13:09:19 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id c18si20040545wrb.156.2017.03.19.13.09.17
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D5F6B0396
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 16:09:30 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y51so23354740wry.6
+        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 13:09:30 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id j191si12073994wmd.134.2017.03.19.13.09.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Mar 2017 13:09:18 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id C5FE61C3186
-	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 20:09:17 +0000 (GMT)
-Date: Sun, 19 Mar 2017 20:09:12 +0000
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 19 Mar 2017 13:09:28 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 8BD9298D08
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 20:09:28 +0000 (UTC)
+Date: Sun, 19 Mar 2017 20:09:22 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [HMM 06/16] mm/migrate: add new boolean copy flag to
- migratepage() callback
-Message-ID: <20170319200912.GF2774@techsingularity.net>
-References: <1489680335-6594-1-git-send-email-jglisse@redhat.com>
- <1489680335-6594-7-git-send-email-jglisse@redhat.com>
+Subject: Re: [HMM 09/16] mm/hmm: heterogeneous memory management (HMM for
+ short)
+Message-ID: <20170319200922.GG2774@techsingularity.net>
+References: <1489680335-6594-10-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1489680335-6594-7-git-send-email-jglisse@redhat.com>
+In-Reply-To: <1489680335-6594-10-git-send-email-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: J?r?me Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Thu, Mar 16, 2017 at 12:05:25PM -0400, J?r?me Glisse wrote:
-> Allow migration without copy in case destination page already have
-> source page content. This is usefull for new dma capable migration
-> where use device dma engine to copy pages.
+On Thu, Mar 16, 2017 at 12:05:28PM -0400, J?r?me Glisse wrote:
+> HMM provides 3 separate types of functionality:
+>     - Mirroring: synchronize CPU page table and device page table
+>     - Device memory: allocating struct page for device memory
+>     - Migration: migrating regular memory to device memory
 > 
-> This feature need carefull audit of filesystem code to make sure
-> that no one can write to the source page while it is unmapped and
-> locked. It should be safe for most filesystem but as precaution
-> return error until support for device migration is added to them.
+> This patch introduces some common helpers and definitions to all of
+> those 3 functionality.
 > 
 > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+> Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+> Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+> ---
+> <SNIP>
+> + * Mirroring:
+> + *
+> + * HMM provides helpers to mirror a process address space on a device. For this,
+> + * it provides several helpers to order device page table updates with respect
+> + * to CPU page table updates. The requirement is that for any given virtual
+> + * address the CPU and device page table cannot point to different physical
+> + * pages. It uses the mmu_notifier API behind the scenes.
+> + *
+> + * Device memory:
+> + *
+> + * HMM provides helpers to help leverage device memory. Device memory is, at any
+> + * given time, either CPU-addressable like regular memory, or completely
+> + * unaddressable. In both cases the device memory is associated with dedicated
+> + * struct pages (which are allocated as if for hotplugged memory). Device memory
+> + * management is under the responsibility of the device driver. HMM only
+> + * allocates and initializes the struct pages associated with the device memory,
+> + * by hotplugging a ZONE_DEVICE memory range.
+> + *
+> + * Allocating struct pages for device memory allows us to use device memory
+> + * almost like regular CPU memory. Unlike regular memory, however, it cannot be
+> + * added to the lru, nor can any memory allocation can use device memory
+> + * directly. Device memory will only end up in use by a process if the device
+> + * driver migrates some of the process memory from regular memory to device
+> + * memory.
+> + *
+> + * Migration:
+> + *
+> + * The existing memory migration mechanism (mm/migrate.c) does not allow using
+> + * anything other than the CPU to copy from source to destination memory.
+> + * Moreover, existing code does not provide a way to migrate based on a virtual
+> + * address range. Existing code only supports struct-page-based migration. Also,
+> + * the migration flow does not allow for graceful failure at intermediate stages
+> + * of the migration process.
+> + *
+> + * HMM solves all of the above, by providing a simple API:
+> + *
+> + *      hmm_vma_migrate(ops, vma, src_pfns, dst_pfns, start, end, private);
+> + *
+> + * finalize_and_map(). The first,  alloc_and_copy(), allocates the destination
 
-I really dislike the amount of boilerplace code this creates and the fact
-that additional headers are needed for that boilerplate. As it's only of
-relevance to DMA capable migration, why not simply infer from that if it's
-an option instead of updating all supporters of migration?
+Somethinig is missing from that sentence. It doesn't parse as it is. The
+previous helper was migrate_vma from two patches ago so something has
+gone side-ways. I think you meant to explain the ops parameter here but
+it got munged.
 
-If that is unsuitable, create a new migreate_mode for a no-copy
-migration. You'll need to alter some sites that check the migrate_mode
-and it *may* be easier to convert migrate_mode to a bitmask but overall
-it would be less boilerplate and confined to just the migration code.
+If so, it would best to put the explanation of the API and ops with
+their declarations and reference them from here. Someone looking to
+understand migrate_vma() will not necessarily be inspired to check hmm.h
+for the information.
 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 9a0897a..cb911ce 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -596,18 +596,10 @@ static void copy_huge_page(struct page *dst, struct page *src)
->  	}
->  }
->  
-> -/*
-> - * Copy the page to its new location
-> - */
-> -void migrate_page_copy(struct page *newpage, struct page *page)
-> +static void migrate_page_states(struct page *newpage, struct page *page)
->  {
->  	int cpupid;
->  
-> -	if (PageHuge(page) || PageTransHuge(page))
-> -		copy_huge_page(newpage, page);
-> -	else
-> -		copy_highpage(newpage, page);
-> -
->  	if (PageError(page))
->  		SetPageError(newpage);
->  	if (PageReferenced(page))
+> <SNIP>
 
-> @@ -661,6 +653,19 @@ void migrate_page_copy(struct page *newpage, struct page *page)
->  
->  	mem_cgroup_migrate(page, newpage);
->  }
+Various helpers looked ok
+
+> +/* Below are for HMM internal use only! Not to be used by device driver! */
+> +void hmm_mm_destroy(struct mm_struct *mm);
 > +
-> +/*
-> + * Copy the page to its new location
-> + */
-> +void migrate_page_copy(struct page *newpage, struct page *page)
+
+This will be ignored at least once :) . Not that it matters as assuming
+the driver is a module, it'll not resolve the symbol,
+
+> @@ -495,6 +496,10 @@ struct mm_struct {
+>  	atomic_long_t hugetlb_usage;
+>  #endif
+>  	struct work_struct async_put_work;
+> +#if IS_ENABLED(CONFIG_HMM)
+> +	/* HMM need to track few things per mm */
+> +	struct hmm *hmm;
+> +#endif
+>  };
+>  
+
+Inevitable really but not too bad in comparison to putting pfn_to_page
+unnecessarily in the fault path or updating every migration user.
+
+> @@ -289,6 +289,10 @@ config MIGRATION
+>  config ARCH_ENABLE_HUGEPAGE_MIGRATION
+>  	bool
+>  
+> +config HMM
+> +	bool
+> +	depends on MMU
+> +
+>  config PHYS_ADDR_T_64BIT
+>  	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+>  
+
+That's a bit sparse in terms of documentation and information
+distribution maintainers if they want to enable this.
+
+> <SNIP>
+>
+> +void hmm_mm_destroy(struct mm_struct *mm)
 > +{
-> +	if (PageHuge(page) || PageTransHuge(page))
-> +		copy_huge_page(newpage, page);
-> +	else
-> +		copy_highpage(newpage, page);
+> +	struct hmm *hmm;
 > +
-> +	migrate_page_states(newpage, page);
+> +	/*
+> +	 * We should not need to lock here as no one should be able to register
+> +	 * a new HMM while an mm is being destroy. But just to be safe ...
+> +	 */
+> +	spin_lock(&mm->page_table_lock);
+> +	hmm = mm->hmm;
+> +	mm->hmm = NULL;
+> +	spin_unlock(&mm->page_table_lock);
+> +	kfree(hmm);
 > +}
->  EXPORT_SYMBOL(migrate_page_copy);
->  
->  /************************************************************
-> @@ -674,8 +679,8 @@ EXPORT_SYMBOL(migrate_page_copy);
->   * Pages are locked upon entry and exit.
->   */
->  int migrate_page(struct address_space *mapping,
-> -		struct page *newpage, struct page *page,
-> -		enum migrate_mode mode)
-> +		 struct page *newpage, struct page *page,
-> +		 enum migrate_mode mode, bool copy)
->  {
->  	int rc;
->  
-> @@ -686,7 +691,11 @@ int migrate_page(struct address_space *mapping,
->  	if (rc != MIGRATEPAGE_SUCCESS)
->  		return rc;
->  
-> -	migrate_page_copy(newpage, page);
-> +	if (copy)
-> +		migrate_page_copy(newpage, page);
-> +	else
-> +		migrate_page_states(newpage, page);
-> +
->  	return MIGRATEPAGE_SUCCESS;
->  }
->  EXPORT_SYMBOL(migrate_page);
 
-Other than some reshuffling, this is the place where the new copy
-parameters it used and it has the mode parameter. At worst you end up
-creating a helper to check two potential migrate modes to have either
-ASYNC, SYNC or SYNC_LIGHT semantics. I expect you want SYNC symantics.
+Eh? 
 
-This patch is huge relative to the small thing it acatually requires.
+I actually reacted very badly to the locking before I read the comment
+to the extent I searched the patch again looking for the locking
+documentation that said this was needed.
+
+Ditch that lock, it's called from mmdrop context and the register
+handler doesn't have the same locking. It's also expanding the scope of
+what that lock is for into an area it does not belong.
+
+Everything else looked fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
