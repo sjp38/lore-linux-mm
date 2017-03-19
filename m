@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E86936B0038
-	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 04:17:42 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p85so59483919lfg.5
-        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 01:17:42 -0700 (PDT)
-Received: from vps01.wiesinger.com (vps01.wiesinger.com. [46.36.37.179])
-        by mx.google.com with ESMTPS id i88si7237110lfk.387.2017.03.19.01.17.40
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CD486B0038
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 04:25:07 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q126so236013163pga.0
+        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 01:25:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f21si13700600pgg.271.2017.03.19.01.25.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Mar 2017 01:17:41 -0700 (PDT)
-Subject: Re: Still OOM problems with 4.9er/4.10er kernels
-References: <20170228051723.GD2702@bbox>
- <20170228081223.GA26792@dhcp22.suse.cz> <20170302071721.GA32632@bbox>
- <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
- <20170316082714.GC30501@dhcp22.suse.cz>
- <20170316084733.GP802@shells.gnugeneration.com>
- <20170316090844.GG30501@dhcp22.suse.cz>
- <20170316092318.GQ802@shells.gnugeneration.com>
- <20170316093931.GH30501@dhcp22.suse.cz>
- <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
- <20170317171339.GA23957@dhcp22.suse.cz>
- <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
-From: Gerhard Wiesinger <lists@wiesinger.com>
-Message-ID: <62c22eea-c65c-5a9b-0de6-3a7a916ec7f0@wiesinger.com>
-Date: Sun, 19 Mar 2017 09:17:26 +0100
+        Sun, 19 Mar 2017 01:25:06 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2J8DXjM055477
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 04:25:05 -0400
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2992tddfcw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 04:25:05 -0400
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 19 Mar 2017 18:25:03 +1000
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v2J8OrnK32243888
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 19:25:01 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v2J8OSUv004764
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 19:24:28 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 26/26] x86/mm: allow to have userspace mappings above 47-bits
+In-Reply-To: <20170317175714.3bvpdylaaudf4ig2@node.shutemov.name>
+References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com> <20170313055020.69655-27-kirill.shutemov@linux.intel.com> <87a88jg571.fsf@skywalker.in.ibm.com> <20170317175714.3bvpdylaaudf4ig2@node.shutemov.name>
+Date: Sun, 19 Mar 2017 13:54:03 +0530
 MIME-Version: 1.0
-In-Reply-To: <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Message-Id: <877f3lfzdo.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 17.03.2017 21:08, Gerhard Wiesinger wrote:
-> On 17.03.2017 18:13, Michal Hocko wrote:
->> On Fri 17-03-17 17:37:48, Gerhard Wiesinger wrote:
->> [...] 
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-4.11.0-0.rc2.git4.1.fc27.x86_64
+> On Fri, Mar 17, 2017 at 11:23:54PM +0530, Aneesh Kumar K.V wrote:
+>> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+>> 
+>> > On x86, 5-level paging enables 56-bit userspace virtual address space.
+>> > Not all user space is ready to handle wide addresses. It's known that
+>> > at least some JIT compilers use higher bits in pointers to encode their
+>> > information. It collides with valid pointers with 5-level paging and
+>> > leads to crashes.
+>> >
+>> > To mitigate this, we are not going to allocate virtual address space
+>> > above 47-bit by default.
+>> >
+>> > But userspace can ask for allocation from full address space by
+>> > specifying hint address (with or without MAP_FIXED) above 47-bits.
+>> >
+>> > If hint address set above 47-bit, but MAP_FIXED is not specified, we try
+>> > to look for unmapped area by specified address. If it's already
+>> > occupied, we look for unmapped area in *full* address space, rather than
+>> > from 47-bit window.
+>> >
+>> > This approach helps to easily make application's memory allocator aware
+>> > about large address space without manually tracking allocated virtual
+>> > address space.
+>> >
+>> 
+>> So if I have done a successful mmap which returned > 128TB what should a
+>> following mmap(0,...) return ? Should that now search the *full* address
+>> space or below 128TB ?
+>
+> No, I don't think so. And this implementation doesn't do this.
+>
+> It's safer this way: if an library can't handle high addresses, it's
+> better not to switch it automagically to full address space if other part
+> of the process requested high address.
+>
 
-There are also lockups after some runtime hours to 1 day:
-Message from syslogd@myserver Mar 19 08:22:33 ...
-  kernel:BUG: workqueue lockup - pool cpus=0 node=0 flags=0x0 nice=0 
-stuck for 18717s!
+What is the epectation when the hint addr is below 128TB but addr + len >
+128TB ? Should such mmap request fail ?
 
-Message from syslogd@myserver at Mar 19 08:22:33 ...
-  kernel:BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 
-stuck for 18078s!
-
-repeated a lot of times ....
-
-Ciao,
-Gerhard
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
