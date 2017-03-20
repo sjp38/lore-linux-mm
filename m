@@ -1,51 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 445B66B0388
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 14:39:59 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c23so272137306pfj.0
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 11:39:59 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id s66si13112972pfd.340.2017.03.20.11.39.58
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CE346B0388
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 15:15:52 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id j30so124745153qta.2
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 12:15:52 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0131.outbound.protection.outlook.com. [104.47.38.131])
+        by mx.google.com with ESMTPS id 22si13703814qku.104.2017.03.20.12.15.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Mar 2017 11:39:58 -0700 (PDT)
-Date: Mon, 20 Mar 2017 11:38:54 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 26/26] x86/mm: allow to have userspace mappings above
- 47-bits
-Message-ID: <20170320183854.GB22036@bombadil.infradead.org>
-References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
- <20170313055020.69655-27-kirill.shutemov@linux.intel.com>
- <87a88jg571.fsf@skywalker.in.ibm.com>
- <20170317175714.3bvpdylaaudf4ig2@node.shutemov.name>
- <877f3lfzdo.fsf@skywalker.in.ibm.com>
- <CAFZ8GQx2JmEECQHEsKOymP8nDv9YHfLgcK80R75gM+r-1q-owQ@mail.gmail.com>
- <95631D05-2CA2-4967-A29E-DB396C76F62D@zytor.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 20 Mar 2017 12:15:51 -0700 (PDT)
+Date: Mon, 20 Mar 2017 14:15:36 -0500
+From: Alex Thorlton <alex.thorlton@hpe.com>
+Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
+Message-ID: <20170320191536.GG196487@stormcage.americas.sgi.com>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <20170316193844.GA110825@stormcage.americas.sgi.com>
+ <20170317022158.GB18964@aaronlu.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <95631D05-2CA2-4967-A29E-DB396C76F62D@zytor.com>
+In-Reply-To: <20170317022158.GB18964@aaronlu.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Alex Thorlton <alex.thorlton@hpe.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Mon, Mar 20, 2017 at 11:08:41AM -0700, hpa@zytor.com wrote:
-> On March 19, 2017 1:26:58 AM PDT, "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> >On Mar 19, 2017 09:25, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > > What is the epectation when the hint addr is below 128TB but addr + len
-> > > 128TB ? Should such mmap request fail ?
-> >
-> >Yes, I believe so.
+On Fri, Mar 17, 2017 at 10:21:58AM +0800, Aaron Lu wrote:
+> On Thu, Mar 16, 2017 at 02:38:44PM -0500, Alex Thorlton wrote:
+> > On Wed, Mar 15, 2017 at 04:59:59PM +0800, Aaron Lu wrote:
+> > > v2 changes: Nothing major, only minor ones.
+> > >  - rebased on top of v4.11-rc2-mmotm-2017-03-14-15-41;
+> > >  - use list_add_tail instead of list_add to add worker to tlb's worker
+> > >    list so that when doing flush, the first queued worker gets flushed
+> > >    first(based on the comsumption that the first queued worker has a
+> > >    better chance of finishing its job than those later queued workers);
+> > >  - use bool instead of int for variable free_batch_page in function
+> > >    tlb_flush_mmu_free_batches;
+> > >  - style change according to ./scripts/checkpatch;
+> > >  - reword some of the changelogs to make it more readable.
+> > > 
+> > > v1 is here:
+> > > https://lkml.org/lkml/2017/2/24/245
+> > 
+> > I tested v1 on a Haswell system with 64 sockets/1024 cores/2048 threads
+> > and 8TB of RAM, with a 1TB malloc.  The average free() time for a 1TB
+> > malloc on a vanilla kernel was 41.69s, the patched kernel averaged
+> > 21.56s for the same test.
 > 
-> This *better* be conditional on some kind of settable limit.  Having a
-> barrier in the middle of the address space for no apparent reason to
-> "clean" software is insane.
+> Thanks a lot for the test result.
+> 
+> > 
+> > I am testing v2 now and will report back with results in the next day or
+> > so.
+> 
+> Testing plain v2 shouldn't bring any surprise/difference
 
-I disagree with Kirill here.  If addr+len > 128TB, I think we should
-assume the application is 57-bit aware.
+You're right!  Not much difference here.  v2 averaged a 23.17s free
+time for a 1T allocation.
 
-Specifying hint addresses is such a rare thing to do anyway.
+> better set the
+> following param before the test(I'm planning to make them default in the
+> next version):
+> # echo 64 > /sys/devices/virtual/workqueue/batch_free_wq/max_active
+> # echo 1030 > /sys/kernel/debug/parallel_free/max_gather_batch_count
+
+10 test runs with these params set averaged 22.22s to free 1T.
+
+So, we're still seeing a nearly 50% decrease in free time vs. the
+unpatched kernel.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
