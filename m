@@ -1,184 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6736B0388
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 10:31:22 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 76so139550308itj.0
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:31:22 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l192sor591275ioe.6.1969.12.31.16.00.00
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE32A6B0388
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 10:41:55 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id i1so281510058ota.0
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:41:55 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id 70si4098036oie.292.2017.03.20.07.41.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 20 Mar 2017 07:31:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Mar 2017 07:41:54 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id a144so4062261oib.3
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:41:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170320011408.GA28871@WeideMacBook-Pro.local>
-References: <20170317175034.4701-1-thgarnie@google.com> <20170319160333.GA1187@WeideMBP.lan>
- <CAJcbSZE5Kq4ew3hHSSpMkReNf54EVpetA0hU09YYtkE2j=8m9w@mail.gmail.com> <20170320011408.GA28871@WeideMacBook-Pro.local>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Mon, 20 Mar 2017 07:31:17 -0700
-Message-ID: <CAJcbSZFE9kgF81eHsbpQ_8Wsw-X=w93X=P8SHFqsaznEuF+XTQ@mail.gmail.com>
-Subject: Re: [PATCH tip] x86/mm: Correct fixmap header usage on adaptable MODULES_END
+In-Reply-To: <20170317231636.142311-2-timmurray@google.com>
+References: <20170317231636.142311-1-timmurray@google.com> <20170317231636.142311-2-timmurray@google.com>
+From: vinayak menon <vinayakm.list@gmail.com>
+Date: Mon, 20 Mar 2017 20:11:53 +0530
+Message-ID: <CAOaiJ-mS6jFzyBgzrMWKgYvSTSp-=g9bzTo1N3KGX5fJHBPrsw@mail.gmail.com>
+Subject: Re: [RFC 1/1] mm, memcg: add prioritized reclaim
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Tim Murray <timmurray@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, surenb@google.com, totte@google.com, kernel-team@android.com, Vinayak Menon <vinmenon@codeaurora.org>
 
-On Sun, Mar 19, 2017 at 6:14 PM, Wei Yang <richard.weiyang@gmail.com> wrote:
-> On Sun, Mar 19, 2017 at 09:25:00AM -0700, Thomas Garnier wrote:
->>On Sun, Mar 19, 2017 at 9:03 AM, Wei Yang <richard.weiyang@gmail.com> wrote:
->>> On Fri, Mar 17, 2017 at 10:50:34AM -0700, Thomas Garnier wrote:
->>>>This patch remove fixmap header usage on non-x86 code that was
->>>>introduced by the adaptable MODULE_END change.
->>>
->>> Hi, Thomas
->>>
->>> In this patch, it looks you are trying to do two things for my understanding:
->>> 1. To include <asm/fixmap.h> in asm/pagetable_64.h and remove the include in
->>> some of the x86 files
->>> 2. Remove <asm/fixmap.h> in mm/vmalloc.c
->>>
->>> I think your change log covers the second task in the patch, but not not talk
->>> about the first task you did in the patch. If you could mention it in commit
->>> log, it would be good for maintain.
->>
->>I agree, I am not the best at writing commits (by far). What's the
->>best way for me to correct that? (the bot seem to have taken it).
->>
+On Sat, Mar 18, 2017 at 4:46 AM, Tim Murray <timmurray@google.com> wrote:
+> When a system is under memory pressure, it may be beneficial to prioritize
+> some memory cgroups to keep their pages resident ahead of other cgroups'
+> pages. Add a new interface to memory cgroups, memory.priority, that enables
+> kswapd and direct reclaim to scan more pages in lower-priority cgroups
+> before looking at higher-priority cgroups.
 >
-> Simply mention it in your commit log is enough to me.
+> Signed-off-by: Tim Murray <timmurray@google.com>
+> ---
+>  include/linux/memcontrol.h | 20 +++++++++++++++++++-
+>  mm/memcontrol.c            | 33 +++++++++++++++++++++++++++++++++
+>  mm/vmscan.c                |  3 ++-
+>  3 files changed, 54 insertions(+), 2 deletions(-)
 >
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 5af377303880..0d0f95839a8d 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -206,7 +206,9 @@ struct mem_cgroup {
+>         bool            oom_lock;
+>         int             under_oom;
+>
+> -       int     swappiness;
+> +       int             swappiness;
+> +       int             priority;
+> +
+>         /* OOM-Killer disable */
+>         int             oom_kill_disable;
+>
+> @@ -487,6 +489,16 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
+>
+>  bool mem_cgroup_oom_synchronize(bool wait);
+>
+> +static inline int mem_cgroup_priority(struct mem_cgroup *memcg)
+> +{
+> +       /* root ? */
+> +       if (mem_cgroup_disabled() || !memcg->css.parent)
+> +               return 0;
+> +
+> +       return memcg->priority;
+> +}
+> +
+> +
+>  #ifdef CONFIG_MEMCG_SWAP
+>  extern int do_swap_account;
+>  #endif
+> @@ -766,6 +778,12 @@ static inline
+>  void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+>  {
+>  }
+> +
+> +static inline int mem_cgroup_priority(struct mem_cgroup *memcg)
+> +{
+> +       return 0;
+> +}
+> +
+>  #endif /* CONFIG_MEMCG */
+>
+>  #ifdef CONFIG_CGROUP_WRITEBACK
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2bd7541d7c11..7343ca106a36 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -81,6 +81,8 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
+>
+>  #define MEM_CGROUP_RECLAIM_RETRIES     5
+>
+> +#define MEM_CGROUP_PRIORITY_MAX        10
+> +
+>  /* Socket memory accounting disabled? */
+>  static bool cgroup_memory_nosocket;
+>
+> @@ -241,6 +243,7 @@ enum res_type {
+>         _OOM_TYPE,
+>         _KMEM,
+>         _TCP,
+> +       _PRIO,
+>  };
+>
+>  #define MEMFILE_PRIVATE(x, val)        ((x) << 16 | (val))
+> @@ -842,6 +845,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>                  */
+>                 memcg = mem_cgroup_from_css(css);
+>
+> +               if (reclaim && reclaim->priority &&
+> +                   (DEF_PRIORITY - memcg->priority) < reclaim->priority)
+> +                       continue;
+> +
+This as I understand will skip say a priority 0 memcg until scan
+priority is less
+than 3. Considering a case of foreground task at memcg priority 0, and
+large number of background tasks each consuming very small amount of
+memory (and thus tiny LRUs) and at priority 10. Also assume that
+a large part of memory is occupied by these small apps (which I think is a valid
+scenario on android). Because of the small LRU sizes of BG apps, the
+kswapd priority will
+drop fast and we would eventually reach priority 2. And at 2 or 1, a
+lot of pages
+would get scanned from both foreground and background tasks. The foreground
+LRU will get excessively scanned, even though most of the memory is occupied
+by the large number of small BG apps. No ?
 
-I meant, do I send another patch or reply on in this thread and bot
-will pick it up?
 
->>>
->>> BTW, I have little knowledge about MODULE_END. By searching the code
->>> MODULE_END is not used in arch/x86. If you would like to mention the commit
->>> which introduce the problem, it would be more helpful to review the code.
->>
->>It is used in many places in arch/x86, kasan, head64, fault etc..:
->>http://lxr.free-electrons.com/ident?i=MODULES_END
->>
+>                 if (css == &root->css)
+>                         break;
 >
-> Oh, thanks :-)
+> @@ -2773,6 +2780,7 @@ enum {
+>         RES_MAX_USAGE,
+>         RES_FAILCNT,
+>         RES_SOFT_LIMIT,
+> +       RES_PRIORITY,
+>  };
 >
->>>
->>>>
->>>>Signed-off-by: Thomas Garnier <thgarnie@google.com>
->>>>---
->>>>Based on tip:x86/mm
->>>>---
->>>> arch/x86/include/asm/pgtable_64.h | 1 +
->>>> arch/x86/kernel/module.c          | 1 -
->>>> arch/x86/mm/dump_pagetables.c     | 1 -
->>>> arch/x86/mm/kasan_init_64.c       | 1 -
->>>> mm/vmalloc.c                      | 4 ----
->>>> 5 files changed, 1 insertion(+), 7 deletions(-)
->>>>
->>>>diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
->>>>index 73c7ccc38912..67608d4abc2c 100644
->>>>--- a/arch/x86/include/asm/pgtable_64.h
->>>>+++ b/arch/x86/include/asm/pgtable_64.h
->>>>@@ -13,6 +13,7 @@
->>>> #include <asm/processor.h>
->>>> #include <linux/bitops.h>
->>>> #include <linux/threads.h>
->>>>+#include <asm/fixmap.h>
->>>>
->>>
->>> Hmm... I see in both pgtable_32.h and pgtable_64.h will include <asm/fixmap.h>
->>> after this change. And pgtable_32.h and pgtable_64.h will be included only in
->>> pgtable.h. So is it possible to include <asm/fixmap.h> in pgtable.h for once
->>> instead of include it in both files? Any concerns you would have?
->>
->>I am not sure I understood. Only 64-bit need this header to correctly
->>get MODULES_END, that's why I added it to pgtable_64.h only. I tried
->>to add it lower before and ran into multiple header errors.
->>
+>  static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
+> @@ -2783,6 +2791,7 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
 >
-> When you look in to pgtable_64.h, you would see it includes <asm/fixmap.h>
-> too. Hmm... If only 64-bit need this header, would it be possible to remote it
-> from pgtable_32.h?
+>         switch (MEMFILE_TYPE(cft->private)) {
+>         case _MEM:
+> +       case _PRIO:
+>                 counter = &memcg->memory;
+>                 break;
+>         case _MEMSWAP:
+> @@ -2813,6 +2822,8 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
+>                 return counter->failcnt;
+>         case RES_SOFT_LIMIT:
+>                 return (u64)memcg->soft_limit * PAGE_SIZE;
+> +       case RES_PRIORITY:
+> +               return (u64)memcg->priority;
+>         default:
+>                 BUG();
+>         }
+> @@ -2966,6 +2977,22 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
+>         return ret;
+>  }
 >
+> +static ssize_t mem_cgroup_update_prio(struct kernfs_open_file *of,
+> +                                     char *buf, size_t nbytes, loff_t off)
+> +{
+> +       struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+> +       unsigned long long prio = -1;
+> +
+> +       buf = strstrip(buf);
+> +       prio = memparse(buf, NULL);
+> +
+> +       if (prio >= 0 && prio <= MEM_CGROUP_PRIORITY_MAX) {
+> +               memcg->priority = (int)prio;
+> +               return nbytes;
+> +       }
+> +       return -EINVAL;
+> +}
+> +
+>  /*
+>   * The user of this function is...
+>   * RES_LIMIT.
+> @@ -3940,6 +3967,12 @@ static struct cftype mem_cgroup_legacy_files[] = {
+>                 .read_u64 = mem_cgroup_read_u64,
+>         },
+>         {
+> +               .name = "priority",
+> +               .private = MEMFILE_PRIVATE(_PRIO, RES_PRIORITY),
+> +               .write = mem_cgroup_update_prio,
+> +               .read_u64 = mem_cgroup_read_u64,
+> +       },
+> +       {
+>                 .name = "stat",
+>                 .seq_show = memcg_stat_show,
+>         },
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index bc8031ef994d..c47b21326ab0 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2116,6 +2116,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>                            unsigned long *lru_pages)
+>  {
+>         int swappiness = mem_cgroup_swappiness(memcg);
+> +       int priority = mem_cgroup_priority(memcg);
+>         struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+>         u64 fraction[2];
+>         u64 denominator = 0;    /* gcc */
+> @@ -2287,7 +2288,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>                         unsigned long scan;
+>
+>                         size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+> -                       scan = size >> sc->priority;
+> +                       scan = size >> (sc->priority + priority);
+If most of the apps in background (with memcg priortiy near 10) are
+smaller ones in terms of LRU size,
+this would result in a priority drop because of increasing the
+priority ? And this would also cause some
+small LRUs never to be scanned i.e. when (size >>
+MEM_CGROUP_PRIORITY_MAX) is 0 (or when
+scan is > 0, but SCAN_FRACT makes it 0) ?
 
-I see that you mean, I can test to see if putting fixmap in pgtable.h
-will be enough.
-
 >
->>>
->>>> extern pud_t level3_kernel_pgt[512];
->>>> extern pud_t level3_ident_pgt[512];
->>>>diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
->>>>index fad61caac75e..477ae806c2fa 100644
->>>>--- a/arch/x86/kernel/module.c
->>>>+++ b/arch/x86/kernel/module.c
->>>>@@ -35,7 +35,6 @@
->>>> #include <asm/page.h>
->>>> #include <asm/pgtable.h>
->>>> #include <asm/setup.h>
->>>>-#include <asm/fixmap.h>
->>>>
->>>> #if 0
->>>> #define DEBUGP(fmt, ...)                              \
->>>>diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
->>>>index 75efeecc85eb..58b5bee7ea27 100644
->>>>--- a/arch/x86/mm/dump_pagetables.c
->>>>+++ b/arch/x86/mm/dump_pagetables.c
->>>>@@ -20,7 +20,6 @@
->>>>
->>>> #include <asm/kasan.h>
->>>> #include <asm/pgtable.h>
->>>>-#include <asm/fixmap.h>
->>>>
->>>> /*
->>>>  * The dumper groups pagetable entries of the same type into one, and for
->>>>diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
->>>>index 1bde19ef86bd..8d63d7a104c3 100644
->>>>--- a/arch/x86/mm/kasan_init_64.c
->>>>+++ b/arch/x86/mm/kasan_init_64.c
->>>>@@ -9,7 +9,6 @@
->>>>
->>>> #include <asm/tlbflush.h>
->>>> #include <asm/sections.h>
->>>>-#include <asm/fixmap.h>
->>>>
->>>> extern pgd_t early_level4_pgt[PTRS_PER_PGD];
->>>> extern struct range pfn_mapped[E820_X_MAX];
->>>>diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->>>>index b7d2a23349f4..0dd80222b20b 100644
->>>>--- a/mm/vmalloc.c
->>>>+++ b/mm/vmalloc.c
->>>>@@ -36,10 +36,6 @@
->>>> #include <asm/tlbflush.h>
->>>> #include <asm/shmparam.h>
->>>>
->>>>-#ifdef CONFIG_X86
->>>>-# include <asm/fixmap.h>
->>>>-#endif
->>>>-
->>>> #include "internal.h"
->>>>
->>>> struct vfree_deferred {
->>>>--
->>>>2.12.0.367.g23dc2f6d3c-goog
->>>
->>> --
->>> Wei Yang
->>> Help you, Help me
->>
->>
->>
->>--
->>Thomas
+>                         if (!scan && pass && force_scan)
+>                                 scan = min(size, SWAP_CLUSTER_MAX);
+> --
+> 2.12.0.367.g23dc2f6d3c-goog
 >
 > --
-> Wei Yang
-> Help you, Help me
-
-
-
--- 
-Thomas
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
