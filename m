@@ -1,233 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AE32A6B0388
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 10:41:55 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id i1so281510058ota.0
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:41:55 -0700 (PDT)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id 70si4098036oie.292.2017.03.20.07.41.54
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C73776B0388
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 11:08:11 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id x125so122378427pgb.5
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 08:08:11 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id x33si17858175plb.145.2017.03.20.08.08.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Mar 2017 07:41:54 -0700 (PDT)
-Received: by mail-oi0-x241.google.com with SMTP id a144so4062261oib.3
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:41:54 -0700 (PDT)
+        Mon, 20 Mar 2017 08:08:10 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id n11so6407046pfg.2
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 08:08:10 -0700 (PDT)
+Date: Mon, 20 Mar 2017 23:08:07 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH tip] x86/mm: Correct fixmap header usage on adaptable
+ MODULES_END
+Message-ID: <20170320150807.GA78291@WeideMBP.lan>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170317175034.4701-1-thgarnie@google.com>
+ <20170319160333.GA1187@WeideMBP.lan>
+ <CAJcbSZE5Kq4ew3hHSSpMkReNf54EVpetA0hU09YYtkE2j=8m9w@mail.gmail.com>
+ <20170320011408.GA28871@WeideMacBook-Pro.local>
+ <CAJcbSZFE9kgF81eHsbpQ_8Wsw-X=w93X=P8SHFqsaznEuF+XTQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170317231636.142311-2-timmurray@google.com>
-References: <20170317231636.142311-1-timmurray@google.com> <20170317231636.142311-2-timmurray@google.com>
-From: vinayak menon <vinayakm.list@gmail.com>
-Date: Mon, 20 Mar 2017 20:11:53 +0530
-Message-ID: <CAOaiJ-mS6jFzyBgzrMWKgYvSTSp-=g9bzTo1N3KGX5fJHBPrsw@mail.gmail.com>
-Subject: Re: [RFC 1/1] mm, memcg: add prioritized reclaim
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="gKMricLos+KVdGMg"
+Content-Disposition: inline
+In-Reply-To: <CAJcbSZFE9kgF81eHsbpQ_8Wsw-X=w93X=P8SHFqsaznEuF+XTQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Murray <timmurray@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, surenb@google.com, totte@google.com, kernel-team@android.com, Vinayak Menon <vinmenon@codeaurora.org>
-
-On Sat, Mar 18, 2017 at 4:46 AM, Tim Murray <timmurray@google.com> wrote:
-> When a system is under memory pressure, it may be beneficial to prioritize
-> some memory cgroups to keep their pages resident ahead of other cgroups'
-> pages. Add a new interface to memory cgroups, memory.priority, that enables
-> kswapd and direct reclaim to scan more pages in lower-priority cgroups
-> before looking at higher-priority cgroups.
->
-> Signed-off-by: Tim Murray <timmurray@google.com>
-> ---
->  include/linux/memcontrol.h | 20 +++++++++++++++++++-
->  mm/memcontrol.c            | 33 +++++++++++++++++++++++++++++++++
->  mm/vmscan.c                |  3 ++-
->  3 files changed, 54 insertions(+), 2 deletions(-)
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 5af377303880..0d0f95839a8d 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -206,7 +206,9 @@ struct mem_cgroup {
->         bool            oom_lock;
->         int             under_oom;
->
-> -       int     swappiness;
-> +       int             swappiness;
-> +       int             priority;
-> +
->         /* OOM-Killer disable */
->         int             oom_kill_disable;
->
-> @@ -487,6 +489,16 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
->
->  bool mem_cgroup_oom_synchronize(bool wait);
->
-> +static inline int mem_cgroup_priority(struct mem_cgroup *memcg)
-> +{
-> +       /* root ? */
-> +       if (mem_cgroup_disabled() || !memcg->css.parent)
-> +               return 0;
-> +
-> +       return memcg->priority;
-> +}
-> +
-> +
->  #ifdef CONFIG_MEMCG_SWAP
->  extern int do_swap_account;
->  #endif
-> @@ -766,6 +778,12 @@ static inline
->  void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
->  {
->  }
-> +
-> +static inline int mem_cgroup_priority(struct mem_cgroup *memcg)
-> +{
-> +       return 0;
-> +}
-> +
->  #endif /* CONFIG_MEMCG */
->
->  #ifdef CONFIG_CGROUP_WRITEBACK
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2bd7541d7c11..7343ca106a36 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -81,6 +81,8 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
->
->  #define MEM_CGROUP_RECLAIM_RETRIES     5
->
-> +#define MEM_CGROUP_PRIORITY_MAX        10
-> +
->  /* Socket memory accounting disabled? */
->  static bool cgroup_memory_nosocket;
->
-> @@ -241,6 +243,7 @@ enum res_type {
->         _OOM_TYPE,
->         _KMEM,
->         _TCP,
-> +       _PRIO,
->  };
->
->  #define MEMFILE_PRIVATE(x, val)        ((x) << 16 | (val))
-> @@ -842,6 +845,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->                  */
->                 memcg = mem_cgroup_from_css(css);
->
-> +               if (reclaim && reclaim->priority &&
-> +                   (DEF_PRIORITY - memcg->priority) < reclaim->priority)
-> +                       continue;
-> +
-This as I understand will skip say a priority 0 memcg until scan
-priority is less
-than 3. Considering a case of foreground task at memcg priority 0, and
-large number of background tasks each consuming very small amount of
-memory (and thus tiny LRUs) and at priority 10. Also assume that
-a large part of memory is occupied by these small apps (which I think is a valid
-scenario on android). Because of the small LRU sizes of BG apps, the
-kswapd priority will
-drop fast and we would eventually reach priority 2. And at 2 or 1, a
-lot of pages
-would get scanned from both foreground and background tasks. The foreground
-LRU will get excessively scanned, even though most of the memory is occupied
-by the large number of small BG apps. No ?
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
 
->                 if (css == &root->css)
->                         break;
->
-> @@ -2773,6 +2780,7 @@ enum {
->         RES_MAX_USAGE,
->         RES_FAILCNT,
->         RES_SOFT_LIMIT,
-> +       RES_PRIORITY,
->  };
->
->  static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
-> @@ -2783,6 +2791,7 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
->
->         switch (MEMFILE_TYPE(cft->private)) {
->         case _MEM:
-> +       case _PRIO:
->                 counter = &memcg->memory;
->                 break;
->         case _MEMSWAP:
-> @@ -2813,6 +2822,8 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
->                 return counter->failcnt;
->         case RES_SOFT_LIMIT:
->                 return (u64)memcg->soft_limit * PAGE_SIZE;
-> +       case RES_PRIORITY:
-> +               return (u64)memcg->priority;
->         default:
->                 BUG();
->         }
-> @@ -2966,6 +2977,22 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
->         return ret;
->  }
->
-> +static ssize_t mem_cgroup_update_prio(struct kernfs_open_file *of,
-> +                                     char *buf, size_t nbytes, loff_t off)
-> +{
-> +       struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-> +       unsigned long long prio = -1;
-> +
-> +       buf = strstrip(buf);
-> +       prio = memparse(buf, NULL);
-> +
-> +       if (prio >= 0 && prio <= MEM_CGROUP_PRIORITY_MAX) {
-> +               memcg->priority = (int)prio;
-> +               return nbytes;
-> +       }
-> +       return -EINVAL;
-> +}
-> +
->  /*
->   * The user of this function is...
->   * RES_LIMIT.
-> @@ -3940,6 +3967,12 @@ static struct cftype mem_cgroup_legacy_files[] = {
->                 .read_u64 = mem_cgroup_read_u64,
->         },
->         {
-> +               .name = "priority",
-> +               .private = MEMFILE_PRIVATE(_PRIO, RES_PRIORITY),
-> +               .write = mem_cgroup_update_prio,
-> +               .read_u64 = mem_cgroup_read_u64,
-> +       },
-> +       {
->                 .name = "stat",
->                 .seq_show = memcg_stat_show,
->         },
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bc8031ef994d..c47b21326ab0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2116,6 +2116,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
->                            unsigned long *lru_pages)
->  {
->         int swappiness = mem_cgroup_swappiness(memcg);
-> +       int priority = mem_cgroup_priority(memcg);
->         struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
->         u64 fraction[2];
->         u64 denominator = 0;    /* gcc */
-> @@ -2287,7 +2288,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
->                         unsigned long scan;
->
->                         size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-> -                       scan = size >> sc->priority;
-> +                       scan = size >> (sc->priority + priority);
-If most of the apps in background (with memcg priortiy near 10) are
-smaller ones in terms of LRU size,
-this would result in a priority drop because of increasing the
-priority ? And this would also cause some
-small LRUs never to be scanned i.e. when (size >>
-MEM_CGROUP_PRIORITY_MAX) is 0 (or when
-scan is > 0, but SCAN_FRACT makes it 0) ?
+--gKMricLos+KVdGMg
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
+On Mon, Mar 20, 2017 at 07:31:17AM -0700, Thomas Garnier wrote:
+>On Sun, Mar 19, 2017 at 6:14 PM, Wei Yang <richard.weiyang@gmail.com> wrot=
+e:
+>> On Sun, Mar 19, 2017 at 09:25:00AM -0700, Thomas Garnier wrote:
+>>>On Sun, Mar 19, 2017 at 9:03 AM, Wei Yang <richard.weiyang@gmail.com> wr=
+ote:
+>>>> On Fri, Mar 17, 2017 at 10:50:34AM -0700, Thomas Garnier wrote:
+>>>>>This patch remove fixmap header usage on non-x86 code that was
+>>>>>introduced by the adaptable MODULE_END change.
+>>>>
+>>>> Hi, Thomas
+>>>>
+>>>> In this patch, it looks you are trying to do two things for my underst=
+anding:
+>>>> 1. To include <asm/fixmap.h> in asm/pagetable_64.h and remove the incl=
+ude in
+>>>> some of the x86 files
+>>>> 2. Remove <asm/fixmap.h> in mm/vmalloc.c
+>>>>
+>>>> I think your change log covers the second task in the patch, but not n=
+ot talk
+>>>> about the first task you did in the patch. If you could mention it in =
+commit
+>>>> log, it would be good for maintain.
+>>>
+>>>I agree, I am not the best at writing commits (by far). What's the
+>>>best way for me to correct that? (the bot seem to have taken it).
+>>>
+>>
+>> Simply mention it in your commit log is enough to me.
+>>
 >
->                         if (!scan && pass && force_scan)
->                                 scan = min(size, SWAP_CLUSTER_MAX);
-> --
-> 2.12.0.367.g23dc2f6d3c-goog
+>I meant, do I send another patch or reply on in this thread and bot
+>will pick it up?
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+I think it is necessary to send V2.
+
+--=20
+Wei Yang
+Help you, Help me
+
+--gKMricLos+KVdGMg
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJYz/BXAAoJEKcLNpZP5cTd49EP/37hjdpnoxhIqed7hQudunF8
+c0iUNKywdIn4mP0Bewal0Ceg7Lo6OYXLl6igv7expYAVlIo8eHY8DIvNkdJGOWeU
+MTj9uM6p8YyzDALOp9bFGz7NG/o7VzkA4jnBIgmptYUMqyqXaa6xUEATtYw5hY4h
+XFBNDNYipt28ZKWK4n9PEEz9N+ZnBO/wSGy4qNUY+XGOd+QCFBacwjX4qdyua9FX
+hoI35QYkf/zwNbjVy8jTb5rskUEcWbWiO0TIerghosEl92Azp+gKIlg/4ILiW7jH
+rcnxzR0vgJucpNvmnDsbYdhDY42aLKzL9ZNVH7yAKwf8Evdz3cRcq3HPHcRFXsz/
+wWAn1ZACSNJVaRm3sEqEVAsCet8GPO6nfVKT+KjjD1MhP11myqW0i+UWbVB639eZ
+8UkP9itKHyXRyxNbDTpRja5mobaerYpOgWmWzvqDN3K05Penbs1DVtXf7HK9cNsz
+3CA1VI3/u/KDj+1ZTCjJl9Io66hk7eFDGaRa9GwtGh0BjuA8YCnxumtdZvbc+/a8
+Q5x3WZtcmTGiz4ONwlyIYvrZ21myFaROSSV/j/mns0QBl/F+cjzIit4j+8d/0NVB
+i3EetvEHDJhwQtxO8uekpLU8UWUb2nMs2AtqB6rLCC+LCnX2zxuGohFwiOGNs+Ub
+t8l/UGJ5bV5kvUCuC+XS
+=18uu
+-----END PGP SIGNATURE-----
+
+--gKMricLos+KVdGMg--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
