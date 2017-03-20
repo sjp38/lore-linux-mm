@@ -1,132 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9006F6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 04:18:58 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id v2so68753498lfi.2
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 01:18:58 -0700 (PDT)
-Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
-        by mx.google.com with ESMTPS id n6si3987853lje.92.2017.03.20.01.18.56
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F2836B0038
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 04:47:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 81so248137219pgh.3
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 01:47:52 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id v10si16696947pge.382.2017.03.20.01.47.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Mar 2017 01:18:56 -0700 (PDT)
-Received: by mail-lf0-x232.google.com with SMTP id j90so52211483lfk.2
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 01:18:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170317231636.142311-1-timmurray@google.com>
-References: <20170317231636.142311-1-timmurray@google.com>
-From: Kyungmin Park <kmpark@infradead.org>
-Date: Mon, 20 Mar 2017 17:18:55 +0900
-Message-ID: <CAH9JG2U6idQHCeXTaLhx813pkhBsJU--HH1U-SKYafeGrM+wbA@mail.gmail.com>
-Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Mon, 20 Mar 2017 01:47:51 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap data structure
+Date: Mon, 20 Mar 2017 16:47:22 +0800
+Message-Id: <20170320084732.3375-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Murray <timmurray@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm <linux-mm@kvack.org>, surenb@google.com, totte@google.com, Android Kernel Team <kernel-team@android.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Mar 18, 2017 at 8:16 AM, Tim Murray <timmurray@google.com> wrote:
-> Hi all,
->
-> I've been working to improve Android's memory management and drop lowmemo=
-rykiller from the kernel, and I'd like to get some feedback on a small patc=
-h with a lot of side effects.
->
-> Currently, when an Android device is under memory pressure, one of three =
-things will happen from kswapd:
->
-> 1. Compress an anonymous page to ZRAM.
-> 2. Evict a file page.
-> 3. Kill a process via lowmemorykiller.
->
-> The first two are cheap and per-page, the third is relatively cheap in th=
-e short term, frees many pages, and may cause power and performance penalti=
-es later on when the process has to be started again. For lots of reasons, =
-I'd like a better balance between reclamation and killing on Android.
->
-> One of the nice things about Android from an optimization POV is that the=
- execution model is more constrained than a generic Linux machine. There ar=
-e only a limited number of processes that need to execute quickly for the d=
-evice to appear to have good performance, and a userspace daemon (called Ac=
-tivityManagerService) knows exactly what those processes are at any given t=
-ime. We've made use of that in the past via cpusets and schedtune to limit =
-the CPU resources available to background processes, and I think we can app=
-ly the same concept to memory.
->
-> This patch adds a new tunable to mem cgroups, memory.priority. A mem cgro=
-up with a non-zero priority will not be eligible for scanning until the sca=
-n_control's priority is greater than zero. Once the mem cgroup is eligible =
-for scanning, the priority acts as a bias to reduce the number of pages tha=
-t should be scanned.
+From: Huang Ying <ying.huang@intel.com>
 
-Here's old discussion to support app-per-memcg reclaim
+Now vzalloc() is used in swap code to allocate various data
+structures, such as swap cache, swap slots cache, cluster info, etc.
+Because the size may be too large on some system, so that normal
+kzalloc() may fail.  But using kzalloc() has some advantages, for
+example, less memory fragmentation, less TLB pressure, etc.  So change
+the data structure allocation in swap code to use kvzalloc() which
+will try kzalloc() firstly, and fallback to vzalloc() if kzalloc()
+failed.
 
-"[PATCH] memcg: Add force_reclaim to reclaim tasks' memory in memcg."
-http://www.spinics.net/lists/cgroups/msg07874.html
+The allocation for swap_map[] in struct swap_info_struct is not
+changed, because that is usually quite large and vmalloc_to_page() is
+used for it.  That makes it a little harder to change.
 
-unlike existing interface, it can reclaim the memory while process is
-still in memcg.
+Signed-off-by: Huang Ying <ying.huang@intel.com>
+Acked-by: Tim Chen <tim.c.chen@intel.com>
+---
+ mm/swap_slots.c | 19 +++++++++++--------
+ mm/swap_state.c |  2 +-
+ mm/swapfile.c   | 10 ++++++----
+ 3 files changed, 18 insertions(+), 13 deletions(-)
 
-In our case, it's used for reclaim and swap out pages for that app.
-
-Thank you,
-Kyungmin Park
->
-> We've seen cases on Android where the global LRU isn't sufficient. For ex=
-ample, notifications in Android are rendered as part of a separate process =
-that runs infrequently. However, when a notification appears and the user s=
-lides down the notification tray, we'll often see dropped frames due to pag=
-e faults if there has been severe memory pressure. There are similar issues=
- with other persistent processes.
->
-> The goal on an Android device is to aggressively evict from very low-prio=
-rity background tasks that are likely to be killed anyway, since this will =
-reduce the likelihood of lowmemorykiller running in the first place. It wil=
-l still evict some from foreground and persistent processes, but it should =
-help ensure that background processes are effectively reduced to the size o=
-f their heaps before evicting from more critical tasks. This should mean fe=
-wer background processes end up killed, which should improve performance an=
-d power on Android across the board (since it costs significantly less to p=
-age things back in than to replay the entirety of application startup).
->
-> The follow-on that I'm also experimenting with is how to improve vmpressu=
-re such that userspace can have some idea when low-priority memory cgroups =
-are about as small as they can get. The correct time for Android to kill a =
-background process under memory pressure is when there is evidence that a p=
-rocess has to be killed in order to alleviate memory pressure. If the devic=
-e is below the low memory watermark and we know that there's probably no wa=
-y to reclaim any more from background processes, then a userspace daemon sh=
-ould kill one or more background processes to fix that. Per-cgroup priority=
- could be the first step toward that information.
->
-> I've tested a version of this patch on a Pixel running 3.18 along with an=
- overhauled version of lmkd (the Android userspace lowmemorykiller daemon),=
- and it does seem to work fine. I've ported it forward but have not yet rig=
-orously tested it at TOT, since I don't have an Android test setup running =
-TOT. While I'm getting my tests ported over, I would like some feedback on =
-adding another tunable as well as what the tunable's interface should be--I=
- really don't like the 0-10 priority scheme I have in the patch but I don't=
- have a better idea.
->
-> Thanks,
-> Tim
->
-> Tim Murray (1):
->   mm, memcg: add prioritized reclaim
->
->  include/linux/memcontrol.h | 20 +++++++++++++++++++-
->  mm/memcontrol.c            | 33 +++++++++++++++++++++++++++++++++
->  mm/vmscan.c                |  3 ++-
->  3 files changed, 54 insertions(+), 2 deletions(-)
->
-> --
-> 2.12.0.367.g23dc2f6d3c-goog
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index 9b5bc86f96ad..7376d2ffb2db 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -31,6 +31,7 @@
+ #include <linux/cpumask.h>
+ #include <linux/vmalloc.h>
+ #include <linux/mutex.h>
++#include <linux/mm.h>
+ 
+ #ifdef CONFIG_SWAP
+ 
+@@ -119,16 +120,18 @@ static int alloc_swap_slot_cache(unsigned int cpu)
+ 
+ 	/*
+ 	 * Do allocation outside swap_slots_cache_mutex
+-	 * as vzalloc could trigger reclaim and get_swap_page,
++	 * as kvzalloc could trigger reclaim and get_swap_page,
+ 	 * which can lock swap_slots_cache_mutex.
+ 	 */
+-	slots = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
++	slots = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
++			 GFP_KERNEL);
+ 	if (!slots)
+ 		return -ENOMEM;
+ 
+-	slots_ret = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
++	slots_ret = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
++			     GFP_KERNEL);
+ 	if (!slots_ret) {
+-		vfree(slots);
++		kvfree(slots);
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -152,9 +155,9 @@ static int alloc_swap_slot_cache(unsigned int cpu)
+ out:
+ 	mutex_unlock(&swap_slots_cache_mutex);
+ 	if (slots)
+-		vfree(slots);
++		kvfree(slots);
+ 	if (slots_ret)
+-		vfree(slots_ret);
++		kvfree(slots_ret);
+ 	return 0;
+ }
+ 
+@@ -171,7 +174,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
+ 		cache->cur = 0;
+ 		cache->nr = 0;
+ 		if (free_slots && cache->slots) {
+-			vfree(cache->slots);
++			kvfree(cache->slots);
+ 			cache->slots = NULL;
+ 		}
+ 		mutex_unlock(&cache->alloc_lock);
+@@ -186,7 +189,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
+ 		}
+ 		spin_unlock_irq(&cache->free_lock);
+ 		if (slots)
+-			vfree(slots);
++			kvfree(slots);
+ 	}
+ }
+ 
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 7bfb9bd1ca21..539b8885e3d1 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -523,7 +523,7 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
+ 	unsigned int i, nr;
+ 
+ 	nr = DIV_ROUND_UP(nr_pages, SWAP_ADDRESS_SPACE_PAGES);
+-	spaces = vzalloc(sizeof(struct address_space) * nr);
++	spaces = kvzalloc(sizeof(struct address_space) * nr, GFP_KERNEL);
+ 	if (!spaces)
+ 		return -ENOMEM;
+ 	for (i = 0; i < nr; i++) {
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 53b5881ee0d6..90054f3c2cdc 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2272,8 +2272,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ 	free_percpu(p->percpu_cluster);
+ 	p->percpu_cluster = NULL;
+ 	vfree(swap_map);
+-	vfree(cluster_info);
+-	vfree(frontswap_map);
++	kvfree(cluster_info);
++	kvfree(frontswap_map);
+ 	/* Destroy swap account information */
+ 	swap_cgroup_swapoff(p->type);
+ 	exit_swap_address_space(p->type);
+@@ -2796,7 +2796,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
+ 		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
+ 
+-		cluster_info = vzalloc(nr_cluster * sizeof(*cluster_info));
++		cluster_info = kvzalloc(nr_cluster * sizeof(*cluster_info),
++					GFP_KERNEL);
+ 		if (!cluster_info) {
+ 			error = -ENOMEM;
+ 			goto bad_swap;
+@@ -2829,7 +2830,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	}
+ 	/* frontswap enabled? set up bit-per-page map for frontswap */
+ 	if (IS_ENABLED(CONFIG_FRONTSWAP))
+-		frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
++		frontswap_map = kvzalloc(BITS_TO_LONGS(maxpages) * sizeof(long),
++					 GFP_KERNEL);
+ 
+ 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
+ 		/*
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
