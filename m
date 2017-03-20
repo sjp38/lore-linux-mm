@@ -1,84 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B02AE6B0388
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 11:23:25 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v66so27315015wrc.4
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 08:23:25 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 139si12375604wml.77.2017.03.20.08.23.23
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 88E1F6B0388
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 11:38:28 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g2so287607019pge.7
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 08:38:28 -0700 (PDT)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10103.outbound.protection.outlook.com. [40.107.1.103])
+        by mx.google.com with ESMTPS id q2si17897434pge.319.2017.03.20.08.38.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Mar 2017 08:23:24 -0700 (PDT)
-Date: Mon, 20 Mar 2017 11:23:15 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
-Message-ID: <20170320152315.GA27672@cmpxchg.org>
-References: <20170317231636.142311-1-timmurray@google.com>
- <20170320055930.GA30167@bbox>
- <3023449c-8012-333d-1da9-81f18d3f8540@codeaurora.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 20 Mar 2017 08:38:27 -0700 (PDT)
+Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
+References: <20170302134851.101218-1-andreyknvl@google.com>
+ <20170302134851.101218-7-andreyknvl@google.com>
+ <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
+ <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
+ <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com>
+ <CAAeHK+xnHx5fvhq158+oxMxieG7a+gG7i0MQS92DqxYGe0O=Ww@mail.gmail.com>
+ <576aeb81-9408-13fa-041d-a6bd1e2cf895@virtuozzo.com>
+ <CAAeHK+w087z_pEWN=ZBDZN=XqqQMFZ9eevX44LERFV-d=G3F8g@mail.gmail.com>
+ <CAAeHK+xCo+JcFstGz+xhgX2qvkP1zpwOg9VD0N-oD4Q=YcSi7A@mail.gmail.com>
+ <69679f30-e502-d2cf-8dee-4ee88f64f887@virtuozzo.com>
+ <CAAeHK+yMCqcLW1UbJ+iEG5628wO6j=d9a7cRdPTbZTBoK-CfbQ@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <4220fac8-b193-e1f7-5f31-3614ce4bef9e@virtuozzo.com>
+Date: Mon, 20 Mar 2017 18:39:42 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3023449c-8012-333d-1da9-81f18d3f8540@codeaurora.org>
+In-Reply-To: <CAAeHK+yMCqcLW1UbJ+iEG5628wO6j=d9a7cRdPTbZTBoK-CfbQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, surenb@google.com, totte@google.com, kernel-team@android.com
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Mar 20, 2017 at 07:28:53PM +0530, Vinayak Menon wrote:
-> From the discussions @ https://lkml.org/lkml/2017/3/3/752, I assume you are trying
-> per-app memcg. We were trying to implement per app memory cgroups and were
-> encountering some issues (https://www.spinics.net/lists/linux-mm/msg121665.html) .
-> I am curious if you have seen similar issues and would like to know if the patch also
-> address some of these problems.
+On 03/14/2017 08:15 PM, Andrey Konovalov wrote:
+> On Thu, Mar 9, 2017 at 1:56 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>> On 03/06/2017 08:16 PM, Andrey Konovalov wrote:
+>>
+>>>>
+>>>> What about
+>>>>
+>>>> Object at ffff880068388540 belongs to cache kmalloc-128 of size 128
+>>>> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
+>>>>
+>>>> ?
+>>>
+>>> Another alternative:
+>>>
+>>> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
+>>> Object belongs to cache kmalloc-128 of size 128
+>>>
+>>
+>> Is it something wrong with just printing offset at the end as I suggested earlier?
+>> It's more compact and also more clear IMO.
 > 
-> The major issues were:
-> (1) Because of multiple per-app memcgs, the per memcg LRU size is so small and
-> results in kswapd priority drop. This results in sudden increase in scan at lower priorities.
-> And kswapd ends up consuming around 3 times more time.
+> This is what you suggested:
+> 
+> Object at ffff880068388540, in cache kmalloc-128 size: 128 accessed at
+> offset 123
+> 
+> After minor reworking of punctuation, etc, we get:
+> 
+> Object at ffff880068388540, in cache kmalloc-128 of size 128, accessed
+> at offset 123
+> 
+> It's good, but I still don't like two things:
+> 
+> 1. The line is quite long. Over 84 characters in this example, but
+> might be longer for different cache names. The solution would be to
+> split it into two lines.
 
-There shouldn't be a connection between those two things.
+One line slightly larger than 80 chars is easier to read than
+two IMO.
 
-Yes, priority levels used to dictate aggressiveness of reclaim, and we
-did add a bunch of memcg code to avoid priority drops.
+> 
+> 2. The access might be within the object (for example use-after-free),
+> or outside the object (slab-out-of-bounds). In this case just saying
+> "accessed at offset X" might be confusing, since the offset might be
+> from the start of the object, or might be from the end. The solution
+> would be to specifically describe this.
+> 
 
-But nowadays the priority level should only set the LRU scan window
-and we bail out once we have reclaimed enough (see the code in
-shrink_node_memcg()).
+It's not confusing IMO.
+It's pretty obvious that offset in the message "Object at <addr> ... accessed at offset <x>" 
+specifies the offset from the start of the object.
 
-If kswapd gets stuck on smaller LRUs, we should find out why and then
-address that problem.
 
-> (2) Due to kswapd taking more time in freeing up memory, allocstalls are high and for
-> similar reasons stated above direct reclaim path consumes 2.5 times more time.
-> (3) Because of multiple LRUs, the aging of pages is affected and this results in wrong
-> pages being evicted resulting in higher number of major faults.
+> Out of all options above this one I like the most:
 >
-> Since soft reclaim was not of much help in mitigating the problem, I was trying out
-> something similar to memcg priority. But what I have seen is that this aggravates the
-> above mentioned problems. I think this is because, even though the high priority tasks
-> (foreground) are having pages which are used at the moment, there are idle pages too
-> which could be reclaimed. But due to the high priority of foreground memcg, it requires
-> the kswapd priority to drop down much to reclaim these idle pages. This results in excessive
-> reclaim from background apps resulting in increased major faults, pageins and thus increased
-> launch latency when these apps are later brought back to foreground.
+>>> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
+>>> Object belongs to cache kmalloc-128 of size 128
+> 
+> as:
+> 
+> 1. It specifies whether the offset is inside or outside the object.
 
-This is what the soft limit *should* do, but unfortunately its
-semantics and implementation in cgroup1 are too broken for this.
+It doesn't really matter much whether is offset inside or outside.
+Offset is only useful to identify what exactly struct/field accessed in situation like this:
+  x = a->b->c->d;
+In other cases it usually just useless. 
 
-Have you tried configuring memory.low for the foreground groups in
-cgroup2? That protects those pages from reclaim as long as there are
-reclaimable idle pages in the memory.low==0 background groups.
+Also, note that you comparing access_addr against cache->object_size (which may be not equal to
+the size requested by kmalloc)
 
-> One thing which is found to fix the above problems is to have both global LRU and the per-memcg LRU.
-> Global reclaim can use the global LRU thus fixing the above 3 issues. The memcg LRUs can then be used
-> for soft reclaim or a proactive reclaim similar to Minchan's Per process reclaim for the background or
-> low priority tasks. I have been trying this change on 4.4 kernel (yet to try the per-app
-> reclaim/soft reclaim part). One downside is the extra list_head in struct page and the memory it consumes.
++	if (access_addr < object_addr) {
++		rel_type = "to the left";
++		rel_bytes = object_addr - access_addr;
++	} else if (access_addr >= object_addr + cache->object_size) {
++		rel_type = "to the right";
++		rel_bytes = access_addr - (object_addr + cache->object_size);
++	} else {
++		rel_type = "inside";
++		rel_bytes = access_addr - object_addr;
++	}
++
 
-That would be a major step backwards, and I'm not entirely convinced
-that the issues you are seeing cannot be fixed by improving the way we
-do global round-robin reclaim and/or configuring memory.low.
+So let's say we did kmalloc(100, GFP_KERNEL); This would mean that allocation
+was from kmalloc-128 cache.
+
+ a) If we have off-by-one OOB access, we would see:
+	Accessed address is 100 bytes inside of [<start>, <start> + 128)
+	belongs to cache kmalloc-128 of size 128
+
+ b) And for the off-by-28 OOB, we would see:
+	Accessed address is 0 bytes to the right [<start>, <start> + 128)
+	belongs to cache kmalloc-128 of size 128
+
+But I don't really see why we supposed to have different message for case a) b).
+
+Comparing against requested size is possible only by looking into shadow. However that would
+be complicated and also racy which means that you occasionally end up with some random numbers.
+
+Also, I couldn't imagine why would anyone need to know the offset from the end of the object.
+
+> 2. The lines are not too long (the first one is 76 chars).
+> 3. Accounts for larger cache names (the second line has some spare space).
+> 4. Shows exact addresses of start and end of the object (it's possible
+> to calculate the end address using the start and the size, but it's
+> nicer to have it already calculated and shown).
+
+Come on we can do the simple math if needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
