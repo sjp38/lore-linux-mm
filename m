@@ -1,51 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BD0AA6B0038
-	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 21:02:04 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c87so179436239pfl.6
-        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 18:02:04 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id d10si6945178pln.75.2017.03.19.18.02.03
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C2A196B0388
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 21:02:08 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id x75so32667527vke.5
+        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 18:02:08 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id o2si15594966pga.229.2017.03.19.18.02.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Mar 2017 18:02:03 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH 4/5] mm, swap: Try kzalloc before vzalloc
-In-Reply-To: <20170317114732.GF26298@dhcp22.suse.cz> (Michal Hocko's message
-	of "Fri, 17 Mar 2017 12:47:33 +0100")
-References: <20170317064635.12792-1-ying.huang@intel.com>
-	<20170317064635.12792-4-ying.huang@intel.com>
-	<20170317114732.GF26298@dhcp22.suse.cz>
-Date: Mon, 20 Mar 2017 09:01:54 +0800
-Message-ID: <87wpbk222l.fsf@yhuang-dev.intel.com>
+        Sun, 19 Mar 2017 18:02:08 -0700 (PDT)
+Date: Sun, 19 Mar 2017 18:01:41 -0700
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Subject: Re: [PATCH] mm, swap: VMA based swap readahead
+Message-ID: <20170320010140.GA19343@linux.intel.com>
+Reply-To: tim.c.chen@linux.intel.com
+References: <20170314092538.32649-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170314092538.32649-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jerome Glisse <jglisse@redhat.com>, Aaron Lu <aaron.lu@intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Minchan Kim <minchan@kernel.org>, Dmitry Safonov <dsafonov@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>, Vegard Nossum <vegard.nossum@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Aaron Lu <aaron.lu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko <mhocko@kernel.org> writes:
+On Tue, Mar 14, 2017 at 05:25:29PM +0800, Huang, Ying wrote:
+> +struct page *do_swap_page_readahead(struct vm_fault *vmf,
+> +				    struct vma_swap_readahead *swap_ra,
+> +				    swp_entry_t fentry,
+> +				    struct page *fpage)
+> +{
+> +	struct blk_plug plug;
+> +	struct vm_area_struct *vma = vmf->vma;
+> +	struct page *page;
+> +	unsigned long addr;
+> +	pte_t *pte, pentry;
+> +	gfp_t gfp_mask;
+> +	swp_entry_t entry;
+> +	int i, alloc = 0, count;
+> +	bool page_allocated;
+> +
+> +	addr = vmf->address & PAGE_MASK;
+> +	blk_start_plug(&plug);
+> +	if (!fpage) {
+> +		fpage = __read_swap_cache_async(fentry, GFP_HIGHUSER_MOVABLE,
+> +						vma, addr, &page_allocated);
+> +		if (!fpage) {
+> +			blk_finish_plug(&plug);
+> +			return NULL;
+> +		}
+> +		if (page_allocated) {
+> +			alloc++;
+> +			swap_readpage(fpage);
+> +		}
 
-> On Fri 17-03-17 14:46:22, Huang, Ying wrote:
->> +void *swap_kvzalloc(size_t size)
->> +{
->> +	void *p;
->> +
->> +	p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
->> +	if (!p)
->> +		p = vzalloc(size);
->> +
->> +	return p;
->> +}
->
-> please do not invent your own kvmalloc implementation when we already
-> have on in mmotm tree.
+Do you need to add here a put_page as there's a get_page
+in __read-swap_cache_async?
 
-Thanks for pointing that out!  I will use it.
+		put_page(fpage);
 
-Best Regards,
-Huang, Ying
+I think there is no put_page on the returned page when you return from
+do_swap_page_readahead.
+
+Thanks.
+
+Tim
+
+> +	}
+> +	/* fault page has been checked */
+> +	count = 1;
+> +	addr += PAGE_SIZE * swap_ra->direction;
+> +	pte = swap_ra->ptes;
+> +	if (swap_ra->direction < 0)
+> +		pte += swap_ra->nr_pte - 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
