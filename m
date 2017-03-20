@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A06266B0038
-	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 21:25:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 79so144205921pgf.2
-        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 18:25:53 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 3si15717798pls.17.2017.03.19.18.25.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 436056B0038
+	for <linux-mm@kvack.org>; Sun, 19 Mar 2017 21:54:23 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 21so95373535pgg.4
+        for <linux-mm@kvack.org>; Sun, 19 Mar 2017 18:54:23 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y10si11197897pfk.375.2017.03.19.18.54.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Mar 2017 18:25:52 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: kernel BUG at mm/swap_slots.c:270
-References: <CA+55aFyq++yzU6bthhy1eDebkaAiXnH6YXHCTNzsC2-KZqN=Pw@mail.gmail.com>
-	<20170319140447.GA12414@dhcp22.suse.cz>
-Date: Mon, 20 Mar 2017 09:25:50 +0800
-In-Reply-To: <20170319140447.GA12414@dhcp22.suse.cz> (Michal Hocko's message
-	of "Sun, 19 Mar 2017 10:04:47 -0400")
-Message-ID: <87d1dcd9i9.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 19 Mar 2017 18:54:22 -0700 (PDT)
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+References: <20170228051723.GD2702@bbox>
+ <20170228081223.GA26792@dhcp22.suse.cz> <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+ <20170316082714.GC30501@dhcp22.suse.cz>
+ <20170316084733.GP802@shells.gnugeneration.com>
+ <20170316090844.GG30501@dhcp22.suse.cz>
+ <20170316092318.GQ802@shells.gnugeneration.com>
+ <20170316093931.GH30501@dhcp22.suse.cz>
+ <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+ <20170317171339.GA23957@dhcp22.suse.cz>
+ <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
+ <62c22eea-c65c-5a9b-0de6-3a7a916ec7f0@wiesinger.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <eccd9828-803b-1f2a-d3ed-dea59a1e00cd@I-love.SAKURA.ne.jp>
+Date: Mon, 20 Mar 2017 10:54:12 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <62c22eea-c65c-5a9b-0de6-3a7a916ec7f0@wiesinger.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Gerhard Wiesinger <lists@wiesinger.com>
+Cc: Michal Hocko <mhocko@kernel.org>, lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hi,
+On 2017/03/19 17:17, Gerhard Wiesinger wrote:
+> On 17.03.2017 21:08, Gerhard Wiesinger wrote:
+>> On 17.03.2017 18:13, Michal Hocko wrote:
+>>> On Fri 17-03-17 17:37:48, Gerhard Wiesinger wrote:
+>>> [...] 
+> 
+> 4.11.0-0.rc2.git4.1.fc27.x86_64
+> 
+> There are also lockups after some runtime hours to 1 day:
+> Message from syslogd@myserver Mar 19 08:22:33 ...
+>  kernel:BUG: workqueue lockup - pool cpus=0 node=0 flags=0x0 nice=0 stuck for 18717s!
+> 
+> Message from syslogd@myserver at Mar 19 08:22:33 ...
+>  kernel:BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 stuck for 18078s!
+> 
+> repeated a lot of times ....
+> 
+> Ciao,
+> Gerhard
 
-Michal Hocko <mhocko@kernel.org> writes:
+"kernel:BUG: workqueue lockup" lines alone do not help. It does not tell what work is
+stalling. Maybe stalling due to constant swapping while doing memory allocation when
+processing some work, but relevant lines are needed in order to know what is happening.
+You can try SysRq-t to dump what workqueue threads are doing when you encounter such lines.
 
-> On Sat 18-03-17 09:57:18, Linus Torvalds wrote:
->> Tim at al,
->>  I got this on my desktop at shutdown:
->> 
->>   ------------[ cut here ]------------
->>   kernel BUG at mm/swap_slots.c:270!
->>   invalid opcode: 0000 [#1] SMP
->>   CPU: 5 PID: 1745 Comm: (sd-pam) Not tainted 4.11.0-rc1-00243-g24c534bb161b #1
->>   Hardware name: System manufacturer System Product Name/Z170-K, BIOS
->> 1803 05/06/2016
->>   RIP: 0010:free_swap_slot+0xba/0xd0
->>   Call Trace:
->>    swap_free+0x36/0x40
->>    do_swap_page+0x360/0x6d0
->>    __handle_mm_fault+0x880/0x1080
->>    handle_mm_fault+0xd0/0x240
->>    __do_page_fault+0x232/0x4d0
->>    do_page_fault+0x20/0x70
->>    page_fault+0x22/0x30
->>   ---[ end trace aefc9ede53e0ab21 ]---
->> 
->> so there seems to be something screwy in the new swap_slots code.
->
-> I am travelling (LSFMM) so I didn't get to look at this more thoroughly
-> but it seems like a race because enable_swap_slots_cache is called at
-> the very end of the swapon and we could have already created a swap
-> entry for a page by that time I guess.
->
->> Any ideas? I'm not finding other reports of this, but I'm also not
->> seeing why it should BUG_ON(). The "use_swap_slot_cache" thing very
->> much checks whether swap_slot_cache_initialized has been set, so the
->> BUG_ON() just seems like garbage. But please take a look.
->
-> I guess you are right. I cannot speak of the original intention but it
-> seems Tim wanted to be careful to not see unexpected swap entry when
-> the swap wasn't initialized yet. I would just drop the BUG_ON and bail
-> out when the slot cache hasn't been initialized yet.
-
-Yes.  The BUG_ON() is problematic.  The initialization of swap slot
-cache may fail too, if so, we should still allow using swap without slot
-cache.  Will send out a fixing patch ASAP.
-
-Best Regards,
-Huang, Ying
+You might want to try kmallocwd at
+http://lkml.kernel.org/r/1489578541-81526-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
