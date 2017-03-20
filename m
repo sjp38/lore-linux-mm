@@ -1,103 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D9E916B0038
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 09:59:05 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e126so6601539pfg.3
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 06:59:05 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id y7si17670467plb.63.2017.03.20.06.59.04
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D8B1B6B0038
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 10:15:33 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e126so7416614pfg.3
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:15:33 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id x11si5287289pgx.284.2017.03.20.07.15.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Mar 2017 06:59:04 -0700 (PDT)
-Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
-References: <20170317231636.142311-1-timmurray@google.com>
- <20170320055930.GA30167@bbox>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <3023449c-8012-333d-1da9-81f18d3f8540@codeaurora.org>
-Date: Mon, 20 Mar 2017 19:28:53 +0530
+        Mon, 20 Mar 2017 07:15:32 -0700 (PDT)
+Date: Mon, 20 Mar 2017 10:15:30 -0400
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Subject: Re: kernel BUG at mm/swap_slots.c:270
+Message-ID: <20170320141529.GA6417@linux.intel.com>
+Reply-To: tim.c.chen@linux.intel.com
+References: <CA+55aFyq++yzU6bthhy1eDebkaAiXnH6YXHCTNzsC2-KZqN=Pw@mail.gmail.com>
+ <20170319140447.GA12414@dhcp22.suse.cz>
+ <87d1dcd9i9.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170320055930.GA30167@bbox>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87d1dcd9i9.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, surenb@google.com, totte@google.com, kernel-team@android.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+On Mon, Mar 20, 2017 at 09:25:50AM +0800, Huang, Ying wrote:
+> Hi,
+> 
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> > On Sat 18-03-17 09:57:18, Linus Torvalds wrote:
+> >> Tim at al,
+> >>  I got this on my desktop at shutdown:
+> >> 
+> >>   ------------[ cut here ]------------
+> >>   kernel BUG at mm/swap_slots.c:270!
+> >>   invalid opcode: 0000 [#1] SMP
+> >>   CPU: 5 PID: 1745 Comm: (sd-pam) Not tainted 4.11.0-rc1-00243-g24c534bb161b #1
+> >>   Hardware name: System manufacturer System Product Name/Z170-K, BIOS
+> >> 1803 05/06/2016
+> >>   RIP: 0010:free_swap_slot+0xba/0xd0
+> >>   Call Trace:
+> >>    swap_free+0x36/0x40
+> >>    do_swap_page+0x360/0x6d0
+> >>    __handle_mm_fault+0x880/0x1080
+> >>    handle_mm_fault+0xd0/0x240
+> >>    __do_page_fault+0x232/0x4d0
+> >>    do_page_fault+0x20/0x70
+> >>    page_fault+0x22/0x30
+> >>   ---[ end trace aefc9ede53e0ab21 ]---
+> >> 
+> >> so there seems to be something screwy in the new swap_slots code.
+> >
+> > I am travelling (LSFMM) so I didn't get to look at this more thoroughly
+> > but it seems like a race because enable_swap_slots_cache is called at
+> > the very end of the swapon and we could have already created a swap
+> > entry for a page by that time I guess.
+> >
+> >> Any ideas? I'm not finding other reports of this, but I'm also not
+> >> seeing why it should BUG_ON(). The "use_swap_slot_cache" thing very
+> >> much checks whether swap_slot_cache_initialized has been set, so the
+> >> BUG_ON() just seems like garbage. But please take a look.
+> >
+> > I guess you are right. I cannot speak of the original intention but it
+> > seems Tim wanted to be careful to not see unexpected swap entry when
+> > the swap wasn't initialized yet. I would just drop the BUG_ON and bail
+> > out when the slot cache hasn't been initialized yet.
+> 
+> Yes.  The BUG_ON() is problematic.  The initialization of swap slot
+> cache may fail too, if so, we should still allow using swap without slot
+> cache.  Will send out a fixing patch ASAP.
+> 
 
-On Fri, Mar 17, 2017 at 04:16:35PM -0700, Tim Murray wrote:
+I kind of suspect that the swap slot cache initialization failed for some
+reason.  But swap should still work when we try to free a swap slot
+without the slots cache.
 
-Hi Tim,
->> Hi all,
->>
->> I've been working to improve Android's memory management and drop lowmemorykiller from the kernel, and I'd like to get some feedback on a small patch with a lot of side effects. 
->>
->> Currently, when an Android device is under memory pressure, one of three things will happen from kswapd:
->>
->> 1. Compress an anonymous page to ZRAM.
->> 2. Evict a file page.
->> 3. Kill a process via lowmemorykiller.
->>
->> The first two are cheap and per-page, the third is relatively cheap in the short term, frees many pages, and may cause power and performance penalties later on when the process has to be started again. For lots of reasons, I'd like a better balance between reclamation and killing on Android.
->>
->> One of the nice things about Android from an optimization POV is that the execution model is more constrained than a generic Linux machine. There are only a limited number of processes that need to execute quickly for the device to appear to have good performance, and a userspace daemon (called ActivityManagerService) knows exactly what those processes are at any given time. We've made use of that in the past via cpusets and schedtune to limit the CPU resources available to background processes, and I think we can apply the same concept to memory.
->> This patch adds a new tunable to mem cgroups, memory.priority. A mem cgroup with a non-zero priority will not be eligible for scanning until the scan_control's priority is greater than zero. Once the mem cgroup is eligible for scanning, the priority acts as a bias to reduce the number of pages that should be scanned.
->From the discussions @ https://lkml.org/lkml/2017/3/3/752, I assume you are trying
-per-app memcg. We were trying to implement per app memory cgroups and were
-encountering some issues (https://www.spinics.net/lists/linux-mm/msg121665.html) .
-I am curious if you have seen similar issues and would like to know if the patch also
-address some of these problems.
+A proposed patch to fix this problem:
 
-The major issues were:
-(1) Because of multiple per-app memcgs, the per memcg LRU size is so small and
-results in kswapd priority drop. This results in sudden increase in scan at lower priorities.
-And kswapd ends up consuming around 3 times more time.
-(2) Due to kswapd taking more time in freeing up memory, allocstalls are high and for
-similar reasons stated above direct reclaim path consumes 2.5 times more time.
-(3) Because of multiple LRUs, the aging of pages is affected and this results in wrong
-pages being evicted resulting in higher number of major faults.
+--->8---
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Mon, 20 Mar 2017 10:00:03 -0400
+Subject: [PATCH] mm/swap: Fix inappropriate BUG_ON in swap_slots.c
 
-Since soft reclaim was not of much help in mitigating the problem, I was trying out
-something similar to memcg priority. But what I have seen is that this aggravates the
-above mentioned problems. I think this is because, even though the high priority tasks
-(foreground) are having pages which are used at the moment, there are idle pages too
-which could be reclaimed. But due to the high priority of foreground memcg, it requires
-the kswapd priority to drop down much to reclaim these idle pages. This results in excessive
-reclaim from background apps resulting in increased major faults, pageins and thus increased
-launch latency when these apps are later brought back to foreground.
+It is possible that we don't have swap_slots cache configured and
+running when swap is in use and swap slot is freed.  So the BUG_ON is
+in appropriate when swap_slots cache is not initizliaed when a swap slot
+is released.
 
-One thing which is found to fix the above problems is to have both global LRU and the per-memcg LRU.
-Global reclaim can use the global LRU thus fixing the above 3 issues. The memcg LRUs can then be used
-for soft reclaim or a proactive reclaim similar to Minchan's Per process reclaim for the background or
-low priority tasks. I have been trying this change on 4.4 kernel (yet to try the per-app
-reclaim/soft reclaim part). One downside is the extra list_head in struct page and the memory it consumes.
->> We've seen cases on Android where the global LRU isn't sufficient. For example, notifications in Android are rendered as part of a separate process that runs infrequently. However, when a notification appears and the user slides down the notification tray, we'll often see dropped frames due to page faults if there has been severe memory pressure. There are similar issues with other persistent processes.
->>
->> The goal on an Android device is to aggressively evict from very low-priority background tasks that are likely to be killed anyway, since this will reduce the likelihood of lowmemorykiller running in the first place. It will still evict some from foreground and persistent processes, but it should help ensure that background processes are effectively reduced to the size of their heaps before evicting from more critical tasks. This should mean fewer background processes end up killed, which should improve performance and power on Android across the board (since it costs significantly less to page things back in than to replay the entirety of application startup).
->>
->> The follow-on that I'm also experimenting with is how to improve vmpressure such that userspace can have some idea when low-priority memory cgroups are about as small as they can get. The correct time for Android to kill a background process under memory pressure is when there is evidence that a process has to be killed in order to alleviate memory pressure. If the device is below the low memory watermark and we know that there's probably no way to reclaim any more from background processes, then a userspace daemon should kill one or more background processes to fix that. Per-cgroup priority could be the first step toward that information.
->>
->> I've tested a version of this patch on a Pixel running 3.18 along with an overhauled version of lmkd (the Android userspace lowmemorykiller daemon), and it does seem to work fine. I've ported it forward but have not yet rigorously tested it at TOT, since I don't have an Android test setup running TOT. While I'm getting my tests ported over, I would like some feedback on adding another tunable as well as what the tunable's interface should be--I really don't like the 0-10 priority scheme I have in the patch but I don't have a better idea.
->>
->> Thanks,
->> Tim
->>
->> Tim Murray (1):
->>   mm, memcg: add prioritized reclaim
->>
->>  include/linux/memcontrol.h | 20 +++++++++++++++++++-
->>  mm/memcontrol.c            | 33 +++++++++++++++++++++++++++++++++
->>  mm/vmscan.c                |  3 ++-
->>  3 files changed, 54 insertions(+), 2 deletions(-)
->>
->> -- 
->> 2.12.0.367.g23dc2f6d3c-goog
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+---
+ mm/swap_slots.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index 9b5bc86..a17ecbf 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -267,10 +267,11 @@ int free_swap_slot(swp_entry_t entry)
+ {
+ 	struct swap_slots_cache *cache;
+ 
+-	BUG_ON(!swap_slot_cache_initialized);
++	if (unlikely(!use_swap_slot_cache))
++		swapcache_free_entries(&entry, 1);
+ 
+ 	cache = &get_cpu_var(swp_slots);
+-	if (use_swap_slot_cache && cache->slots_ret) {
++	if (cache->slots_ret) {
+ 		spin_lock_irq(&cache->free_lock);
+ 		/* Swap slots cache may be deactivated before acquiring lock */
+ 		if (!use_swap_slot_cache) {
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
