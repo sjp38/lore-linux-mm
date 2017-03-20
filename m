@@ -1,120 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B1B6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 10:15:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e126so7416614pfg.3
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:15:33 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id x11si5287289pgx.284.2017.03.20.07.15.32
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DB6736B0388
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 10:31:22 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 76so139550308itj.0
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 07:31:22 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l192sor591275ioe.6.1969.12.31.16.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Mar 2017 07:15:32 -0700 (PDT)
-Date: Mon, 20 Mar 2017 10:15:30 -0400
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: Re: kernel BUG at mm/swap_slots.c:270
-Message-ID: <20170320141529.GA6417@linux.intel.com>
-Reply-To: tim.c.chen@linux.intel.com
-References: <CA+55aFyq++yzU6bthhy1eDebkaAiXnH6YXHCTNzsC2-KZqN=Pw@mail.gmail.com>
- <20170319140447.GA12414@dhcp22.suse.cz>
- <87d1dcd9i9.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Mon, 20 Mar 2017 07:31:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87d1dcd9i9.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20170320011408.GA28871@WeideMacBook-Pro.local>
+References: <20170317175034.4701-1-thgarnie@google.com> <20170319160333.GA1187@WeideMBP.lan>
+ <CAJcbSZE5Kq4ew3hHSSpMkReNf54EVpetA0hU09YYtkE2j=8m9w@mail.gmail.com> <20170320011408.GA28871@WeideMacBook-Pro.local>
+From: Thomas Garnier <thgarnie@google.com>
+Date: Mon, 20 Mar 2017 07:31:17 -0700
+Message-ID: <CAJcbSZFE9kgF81eHsbpQ_8Wsw-X=w93X=P8SHFqsaznEuF+XTQ@mail.gmail.com>
+Subject: Re: [PATCH tip] x86/mm: Correct fixmap header usage on adaptable MODULES_END
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Mar 20, 2017 at 09:25:50AM +0800, Huang, Ying wrote:
-> Hi,
-> 
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
-> > On Sat 18-03-17 09:57:18, Linus Torvalds wrote:
-> >> Tim at al,
-> >>  I got this on my desktop at shutdown:
-> >> 
-> >>   ------------[ cut here ]------------
-> >>   kernel BUG at mm/swap_slots.c:270!
-> >>   invalid opcode: 0000 [#1] SMP
-> >>   CPU: 5 PID: 1745 Comm: (sd-pam) Not tainted 4.11.0-rc1-00243-g24c534bb161b #1
-> >>   Hardware name: System manufacturer System Product Name/Z170-K, BIOS
-> >> 1803 05/06/2016
-> >>   RIP: 0010:free_swap_slot+0xba/0xd0
-> >>   Call Trace:
-> >>    swap_free+0x36/0x40
-> >>    do_swap_page+0x360/0x6d0
-> >>    __handle_mm_fault+0x880/0x1080
-> >>    handle_mm_fault+0xd0/0x240
-> >>    __do_page_fault+0x232/0x4d0
-> >>    do_page_fault+0x20/0x70
-> >>    page_fault+0x22/0x30
-> >>   ---[ end trace aefc9ede53e0ab21 ]---
-> >> 
-> >> so there seems to be something screwy in the new swap_slots code.
-> >
-> > I am travelling (LSFMM) so I didn't get to look at this more thoroughly
-> > but it seems like a race because enable_swap_slots_cache is called at
-> > the very end of the swapon and we could have already created a swap
-> > entry for a page by that time I guess.
-> >
-> >> Any ideas? I'm not finding other reports of this, but I'm also not
-> >> seeing why it should BUG_ON(). The "use_swap_slot_cache" thing very
-> >> much checks whether swap_slot_cache_initialized has been set, so the
-> >> BUG_ON() just seems like garbage. But please take a look.
-> >
-> > I guess you are right. I cannot speak of the original intention but it
-> > seems Tim wanted to be careful to not see unexpected swap entry when
-> > the swap wasn't initialized yet. I would just drop the BUG_ON and bail
-> > out when the slot cache hasn't been initialized yet.
-> 
-> Yes.  The BUG_ON() is problematic.  The initialization of swap slot
-> cache may fail too, if so, we should still allow using swap without slot
-> cache.  Will send out a fixing patch ASAP.
-> 
+On Sun, Mar 19, 2017 at 6:14 PM, Wei Yang <richard.weiyang@gmail.com> wrote:
+> On Sun, Mar 19, 2017 at 09:25:00AM -0700, Thomas Garnier wrote:
+>>On Sun, Mar 19, 2017 at 9:03 AM, Wei Yang <richard.weiyang@gmail.com> wrote:
+>>> On Fri, Mar 17, 2017 at 10:50:34AM -0700, Thomas Garnier wrote:
+>>>>This patch remove fixmap header usage on non-x86 code that was
+>>>>introduced by the adaptable MODULE_END change.
+>>>
+>>> Hi, Thomas
+>>>
+>>> In this patch, it looks you are trying to do two things for my understanding:
+>>> 1. To include <asm/fixmap.h> in asm/pagetable_64.h and remove the include in
+>>> some of the x86 files
+>>> 2. Remove <asm/fixmap.h> in mm/vmalloc.c
+>>>
+>>> I think your change log covers the second task in the patch, but not not talk
+>>> about the first task you did in the patch. If you could mention it in commit
+>>> log, it would be good for maintain.
+>>
+>>I agree, I am not the best at writing commits (by far). What's the
+>>best way for me to correct that? (the bot seem to have taken it).
+>>
+>
+> Simply mention it in your commit log is enough to me.
+>
 
-I kind of suspect that the swap slot cache initialization failed for some
-reason.  But swap should still work when we try to free a swap slot
-without the slots cache.
+I meant, do I send another patch or reply on in this thread and bot
+will pick it up?
 
-A proposed patch to fix this problem:
+>>>
+>>> BTW, I have little knowledge about MODULE_END. By searching the code
+>>> MODULE_END is not used in arch/x86. If you would like to mention the commit
+>>> which introduce the problem, it would be more helpful to review the code.
+>>
+>>It is used in many places in arch/x86, kasan, head64, fault etc..:
+>>http://lxr.free-electrons.com/ident?i=MODULES_END
+>>
+>
+> Oh, thanks :-)
+>
+>>>
+>>>>
+>>>>Signed-off-by: Thomas Garnier <thgarnie@google.com>
+>>>>---
+>>>>Based on tip:x86/mm
+>>>>---
+>>>> arch/x86/include/asm/pgtable_64.h | 1 +
+>>>> arch/x86/kernel/module.c          | 1 -
+>>>> arch/x86/mm/dump_pagetables.c     | 1 -
+>>>> arch/x86/mm/kasan_init_64.c       | 1 -
+>>>> mm/vmalloc.c                      | 4 ----
+>>>> 5 files changed, 1 insertion(+), 7 deletions(-)
+>>>>
+>>>>diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+>>>>index 73c7ccc38912..67608d4abc2c 100644
+>>>>--- a/arch/x86/include/asm/pgtable_64.h
+>>>>+++ b/arch/x86/include/asm/pgtable_64.h
+>>>>@@ -13,6 +13,7 @@
+>>>> #include <asm/processor.h>
+>>>> #include <linux/bitops.h>
+>>>> #include <linux/threads.h>
+>>>>+#include <asm/fixmap.h>
+>>>>
+>>>
+>>> Hmm... I see in both pgtable_32.h and pgtable_64.h will include <asm/fixmap.h>
+>>> after this change. And pgtable_32.h and pgtable_64.h will be included only in
+>>> pgtable.h. So is it possible to include <asm/fixmap.h> in pgtable.h for once
+>>> instead of include it in both files? Any concerns you would have?
+>>
+>>I am not sure I understood. Only 64-bit need this header to correctly
+>>get MODULES_END, that's why I added it to pgtable_64.h only. I tried
+>>to add it lower before and ran into multiple header errors.
+>>
+>
+> When you look in to pgtable_64.h, you would see it includes <asm/fixmap.h>
+> too. Hmm... If only 64-bit need this header, would it be possible to remote it
+> from pgtable_32.h?
+>
 
---->8---
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Mon, 20 Mar 2017 10:00:03 -0400
-Subject: [PATCH] mm/swap: Fix inappropriate BUG_ON in swap_slots.c
+I see that you mean, I can test to see if putting fixmap in pgtable.h
+will be enough.
 
-It is possible that we don't have swap_slots cache configured and
-running when swap is in use and swap slot is freed.  So the BUG_ON is
-in appropriate when swap_slots cache is not initizliaed when a swap slot
-is released.
+>
+>>>
+>>>> extern pud_t level3_kernel_pgt[512];
+>>>> extern pud_t level3_ident_pgt[512];
+>>>>diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+>>>>index fad61caac75e..477ae806c2fa 100644
+>>>>--- a/arch/x86/kernel/module.c
+>>>>+++ b/arch/x86/kernel/module.c
+>>>>@@ -35,7 +35,6 @@
+>>>> #include <asm/page.h>
+>>>> #include <asm/pgtable.h>
+>>>> #include <asm/setup.h>
+>>>>-#include <asm/fixmap.h>
+>>>>
+>>>> #if 0
+>>>> #define DEBUGP(fmt, ...)                              \
+>>>>diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+>>>>index 75efeecc85eb..58b5bee7ea27 100644
+>>>>--- a/arch/x86/mm/dump_pagetables.c
+>>>>+++ b/arch/x86/mm/dump_pagetables.c
+>>>>@@ -20,7 +20,6 @@
+>>>>
+>>>> #include <asm/kasan.h>
+>>>> #include <asm/pgtable.h>
+>>>>-#include <asm/fixmap.h>
+>>>>
+>>>> /*
+>>>>  * The dumper groups pagetable entries of the same type into one, and for
+>>>>diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+>>>>index 1bde19ef86bd..8d63d7a104c3 100644
+>>>>--- a/arch/x86/mm/kasan_init_64.c
+>>>>+++ b/arch/x86/mm/kasan_init_64.c
+>>>>@@ -9,7 +9,6 @@
+>>>>
+>>>> #include <asm/tlbflush.h>
+>>>> #include <asm/sections.h>
+>>>>-#include <asm/fixmap.h>
+>>>>
+>>>> extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+>>>> extern struct range pfn_mapped[E820_X_MAX];
+>>>>diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>>>>index b7d2a23349f4..0dd80222b20b 100644
+>>>>--- a/mm/vmalloc.c
+>>>>+++ b/mm/vmalloc.c
+>>>>@@ -36,10 +36,6 @@
+>>>> #include <asm/tlbflush.h>
+>>>> #include <asm/shmparam.h>
+>>>>
+>>>>-#ifdef CONFIG_X86
+>>>>-# include <asm/fixmap.h>
+>>>>-#endif
+>>>>-
+>>>> #include "internal.h"
+>>>>
+>>>> struct vfree_deferred {
+>>>>--
+>>>>2.12.0.367.g23dc2f6d3c-goog
+>>>
+>>> --
+>>> Wei Yang
+>>> Help you, Help me
+>>
+>>
+>>
+>>--
+>>Thomas
+>
+> --
+> Wei Yang
+> Help you, Help me
 
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
----
- mm/swap_slots.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index 9b5bc86..a17ecbf 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -267,10 +267,11 @@ int free_swap_slot(swp_entry_t entry)
- {
- 	struct swap_slots_cache *cache;
- 
--	BUG_ON(!swap_slot_cache_initialized);
-+	if (unlikely(!use_swap_slot_cache))
-+		swapcache_free_entries(&entry, 1);
- 
- 	cache = &get_cpu_var(swp_slots);
--	if (use_swap_slot_cache && cache->slots_ret) {
-+	if (cache->slots_ret) {
- 		spin_lock_irq(&cache->free_lock);
- 		/* Swap slots cache may be deactivated before acquiring lock */
- 		if (!use_swap_slot_cache) {
+
 -- 
-2.5.5
+Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
