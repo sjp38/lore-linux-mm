@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 860866B0388
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 17:30:16 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id p85so79636193lfg.5
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 14:30:16 -0700 (PDT)
-Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with ESMTPS id l198si10058324lfe.22.2017.03.20.14.30.14
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF10B6B038A
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2017 17:32:29 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 81so281055534pgh.3
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 14:32:29 -0700 (PDT)
+Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
+        by mx.google.com with ESMTPS id o12si18881476plg.220.2017.03.20.14.32.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 Mar 2017 14:30:14 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: memory hotplug and force_remove
-Date: Mon, 20 Mar 2017 22:24:42 +0100
-Message-ID: <2735706.OR0SQDpVy6@aspire.rjw.lan>
-In-Reply-To: <20170320192938.GA11363@dhcp22.suse.cz>
-References: <20170320192938.GA11363@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Mar 2017 14:32:29 -0700 (PDT)
+Received: by mail-pg0-x229.google.com with SMTP id n190so83474823pga.0
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2017 14:32:29 -0700 (PDT)
+Date: Mon, 20 Mar 2017 14:32:27 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap
+ data structure
+In-Reply-To: <20170320084732.3375-1-ying.huang@intel.com>
+Message-ID: <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
+References: <20170320084732.3375-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, Jiri Kosina <jkosina@suse.cz>, joeyli <jlee@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Monday, March 20, 2017 03:29:39 PM Michal Hocko wrote:
-> Hi Rafael,
+On Mon, 20 Mar 2017, Huang, Ying wrote:
 
-Hi,
-
-> we have been chasing the following BUG() triggering during the memory
-> hotremove (remove_memory):
-> 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
-> 				check_memblock_offlined_cb);
-> 	if (ret)
-> 		BUG();
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> and it took a while to learn that the issue is caused by
-> /sys/firmware/acpi/hotplug/force_remove being enabled. I was really
-> surprised to see such an option because at least for the memory hotplug
-> it cannot work at all. Memory hotplug fails when the memory is still
-> in use. Even if we do not BUG() here enforcing the hotplug operation
-> will lead to problematic behavior later like crash or a silent memory
-> corruption if the memory gets onlined back and reused by somebody else.
+> Now vzalloc() is used in swap code to allocate various data
+> structures, such as swap cache, swap slots cache, cluster info, etc.
+> Because the size may be too large on some system, so that normal
+> kzalloc() may fail.  But using kzalloc() has some advantages, for
+> example, less memory fragmentation, less TLB pressure, etc.  So change
+> the data structure allocation in swap code to use kvzalloc() which
+> will try kzalloc() firstly, and fallback to vzalloc() if kzalloc()
+> failed.
 > 
-> I am wondering what was the motivation for introducing this behavior and
-> whether there is a way to disallow it for memory hotplug. Or maybe drop
-> it completely. What would break in such a case?
 
-Honestly, I don't remember from the top of my head and I haven't looked at
-that code for several months.
-
-I need some time to recall that.
-
-Thanks,
-Rafael
+As questioned in -v1 of this patch, what is the benefit of directly 
+compacting and reclaiming memory for high-order pages by first preferring 
+kmalloc() if this does not require contiguous memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
