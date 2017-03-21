@@ -1,105 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BE686B0343
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 17:20:43 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id i50so333271188otd.3
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 14:20:43 -0700 (PDT)
-Received: from mail-ot0-x244.google.com (mail-ot0-x244.google.com. [2607:f8b0:4003:c0f::244])
-        by mx.google.com with ESMTPS id v55si9017055otf.27.2017.03.21.14.20.42
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ADAB56B0343
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 17:42:08 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c23so330750314pfj.0
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 14:42:08 -0700 (PDT)
+Received: from mail.zytor.com ([2001:1868:a000:17::138])
+        by mx.google.com with ESMTPS id 2si22641052pla.204.2017.03.21.14.42.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 14:20:42 -0700 (PDT)
-Received: by mail-ot0-x244.google.com with SMTP id y88so686311ota.1
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 14:20:42 -0700 (PDT)
+        Tue, 21 Mar 2017 14:42:07 -0700 (PDT)
+Date: Tue, 21 Mar 2017 14:23:51 -0700
+In-Reply-To: <20170321211648.xcgwigbv37ktxofx@angband.pl>
+References: <20170321174711.29880-1-dsafonov@virtuozzo.com> <20170321211648.xcgwigbv37ktxofx@angband.pl>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+bNrh_a8mBth7ewHS-Fk=wgCky4=Uc89ePeuh5jrLvCQg@mail.gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170320171718.GL31213@leverpostej> <956a8e10-e03f-a21c-99d9-8a75c2616e0a@virtuozzo.com>
- <20170321104139.GA22188@leverpostej> <CACT4Y+bNrh_a8mBth7ewHS-Fk=wgCky4=Uc89ePeuh5jrLvCQg@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Tue, 21 Mar 2017 22:20:41 +0100
-Message-ID: <CAK8P3a3FqENx+tsg3cbbW4CQtpye7k8MedQqMZidxMCrBR8byg@mail.gmail.com>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCHv3] x86/mm: set x32 syscall bit in SET_PERSONALITY()
+From: hpa@zytor.com
+Message-ID: <D1FD1484-E113-4B53-8ED5-E5B34BAECC53@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Adam Borowski <kilobyte@angband.pl>, Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Mar 21, 2017 at 7:06 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Tue, Mar 21, 2017 at 11:41 AM, Mark Rutland <mark.rutland@arm.com> wrote:
->> On Tue, Mar 21, 2017 at 12:25:06PM +0300, Andrey Ryabinin wrote:
+On March 21, 2017 2:16:48 PM PDT, Adam Borowski <kilobyte@angband=2Epl> wro=
+te:
+>On Tue, Mar 21, 2017 at 08:47:11PM +0300, Dmitry Safonov wrote:
+>> After my changes to mmap(), its code now relies on the bitness of
+>> performing syscall=2E According to that, it chooses the base of
+>allocation:
+>> mmap_base for 64-bit mmap() and mmap_compat_base for 32-bit syscall=2E
+>> It was done by:
+>>   commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for
+>> 32-bit mmap()")=2E
+>>=20
+>> The code afterwards relies on in_compat_syscall() returning true for
+>> 32-bit syscalls=2E It's usually so while we're in context of
+>application
+>> that does 32-bit syscalls=2E But during exec() it is not valid for x32
+>ELF=2E
+>> The reason is that the application hasn't yet done any syscall, so
+>x32
+>> bit has not being set=2E
+>> That results in -ENOMEM for x32 ELF files as there fired BAD_ADDR()
+>> in elf_map(), that is called from do_execve()->load_elf_binary()=2E
+>> For i386 ELFs it works as SET_PERSONALITY() sets TS_COMPAT flag=2E
+>>=20
+>> Set x32 bit before first return to userspace, during setting
+>personality
+>> at exec()=2E This way we can rely on in_compat_syscall() during exec()=
+=2E
+>> Do also the reverse: drop x32 syscall bit at SET_PERSONALITY for
+>64-bits=2E
+>>=20
+>> Fixes: commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for
+>> 32-bit mmap()")
 >
-> I don't mind changing READ_ONCE_NOCHECK to READ_ONCE. But I don't have
-> strong preference either way.
+>Tested:
+>with bash:x32, mksh:amd64, posh:i386, zsh:armhf (binfmt:qemu),
+>fork+exec
+>works for every parent-child combination=2E
 >
-> We could do:
-> #define arch_atomic_read_is_already_instrumented 1
-> and then skip instrumentation in asm-generic if it's defined. But I
-> don't think it's worth it.
+>Contrary to my naive initial reading of your fix, mixing syscalls from
+>a
+>process of the wrong ABI also works as it did before=2E  While using a
+>glibc
+>wrapper will call the right version, x32 processes calling amd64
+>syscalls is
+>surprisingly common -- this brings seccomp joy=2E
 >
-> There is no functional difference, it's only an optimization (now
-> somewhat questionable). As Andrey said, one can get a splash of
-> reports anyway, and it's the first one that is important. We use KASAN
-> with panic_on_warn=1 so we don't even see the rest.
+>I've attached a freestanding test case for write() and mmap(); it's
+>freestanding asm as most of you don't have an x32 toolchain at hand,
+>sorry
+>for unfriendly error messages=2E
+>
+>So with these two patches:
+>x86/tls: Forcibly set the accessed bit in TLS segments
+>x86/mm: set x32 syscall bit in SET_PERSONALITY()
+>everything appears to be fine=2E
 
-I'm getting couple of new stack size warnings that are all the result
-of the _NOCHECK.
-
-/git/arm-soc/mm/page_alloc.c: In function 'show_free_areas':
-/git/arm-soc/mm/page_alloc.c:4685:1: error: the frame size of 3368
-bytes is larger than 3072 bytes [-Werror=frame-larger-than=]
- }
-/git/arm-soc/lib/atomic64_test.c: In function 'test_atomic':
-/git/arm-soc/lib/atomic64_test.c:148:1: error: the frame size of 6528
-bytes is larger than 3072 bytes [-Werror=frame-larger-than=]
- }
- ^
-/git/arm-soc/lib/atomic64_test.c: In function 'test_atomic64':
-/git/arm-soc/lib/atomic64_test.c:243:1: error: the frame size of 7112
-bytes is larger than 3072 bytes [-Werror=frame-larger-than=]
-
-This is with my previous set of patches already applied, so
-READ_ONCE should not cause problems. Reverting
-the READ_ONCE_NOCHECK() in atomic_read() and atomic64_read()
-back to READ_ONCE()
-
-I also get a build failure as a result of your patch, but this one is
-not addressed by using READ_ONCE():
-
-In file included from /git/arm-soc/arch/x86/include/asm/atomic.h:7:0,
-                 from /git/arm-soc/include/linux/atomic.h:4,
-                 from /git/arm-soc/arch/x86/include/asm/thread_info.h:53,
-                 from /git/arm-soc/include/linux/thread_info.h:25,
-                 from /git/arm-soc/arch/x86/include/asm/preempt.h:6,
-                 from /git/arm-soc/include/linux/preempt.h:80,
-                 from /git/arm-soc/include/linux/spinlock.h:50,
-                 from /git/arm-soc/include/linux/mmzone.h:7,
-                 from /git/arm-soc/include/linux/gfp.h:5,
-                 from /git/arm-soc/include/linux/mm.h:9,
-                 from /git/arm-soc/mm/slub.c:12:
-/git/arm-soc/mm/slub.c: In function '__slab_free':
-/git/arm-soc/arch/x86/include/asm/cmpxchg.h:174:2: error: 'asm'
-operand has impossible constraints
-  asm volatile(pfx "cmpxchg%c4b %2; sete %0"   \
-  ^
-/git/arm-soc/arch/x86/include/asm/cmpxchg.h:183:2: note: in expansion
-of macro '__cmpxchg_double'
-  __cmpxchg_double(LOCK_PREFIX, p1, p2, o1, o2, n1, n2)
-  ^~~~~~~~~~~~~~~~
-/git/arm-soc/include/asm-generic/atomic-instrumented.h:236:2: note: in
-expansion of macro 'arch_cmpxchg_double'
-  arch_cmpxchg_double(____p1, (p2), (o1), (o2), (n1), (n2)); \
-  ^~~~~~~~~~~~~~~~~~~
-/git/arm-soc/mm/slub.c:385:7: note: in expansion of macro 'cmpxchg_double'
-   if (cmpxchg_double(&page->freelist, &page->counters,
-       ^~~~~~~~~~~~~~
-/git/arm-soc/scripts/Makefile.build:308: recipe for target 'mm/slub.o' failed
-
-http://pastebin.com/raw/qXVpi9Ev has the defconfig file I used, and I get the
-error with any gcc version I tried (4.9 through 7.0.1).
-
-      Arnd
+What userspace is that?  Is this syscall(3) (ab)users or incorrectly porte=
+d to x32 software?
+--=20
+Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
