@@ -1,87 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A136B0353
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 12:14:19 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b140so3845643wme.3
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 09:14:19 -0700 (PDT)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id k6si20476761wma.165.2017.03.21.09.14.17
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 535696B036C
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 12:28:29 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id b2so358932489pgc.6
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 09:28:29 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0108.outbound.protection.outlook.com. [104.47.0.108])
+        by mx.google.com with ESMTPS id b73si15471502pfk.291.2017.03.21.09.28.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 09:14:17 -0700 (PDT)
-Date: Wed, 22 Mar 2017 00:13:56 +0800
-From: joeyli <jlee@suse.com>
-Subject: Re: memory hotplug and force_remove
-Message-ID: <20170321161356.GA20835@linux-l9pv.suse>
-References: <20170320192938.GA11363@dhcp22.suse.cz>
- <2735706.OR0SQDpVy6@aspire.rjw.lan>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 21 Mar 2017 09:28:28 -0700 (PDT)
+Subject: Re: [PATCH] x86/mm: set x32 syscall bit in SET_PERSONALITY()
+References: <20170321155525.12220-1-dsafonov@virtuozzo.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <28376471-644c-a695-b249-9d0f66ee3a3f@virtuozzo.com>
+Date: Tue, 21 Mar 2017 19:24:46 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2735706.OR0SQDpVy6@aspire.rjw.lan>
+In-Reply-To: <20170321155525.12220-1-dsafonov@virtuozzo.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Michal Hocko <mhocko@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Mar 20, 2017 at 10:24:42PM +0100, Rafael J. Wysocki wrote:
-> On Monday, March 20, 2017 03:29:39 PM Michal Hocko wrote:
-> > Hi Rafael,
-> 
-> Hi,
-> 
-> > we have been chasing the following BUG() triggering during the memory
-> > hotremove (remove_memory):
-> > 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
-> > 				check_memblock_offlined_cb);
-> > 	if (ret)
-> > 		BUG();
-> > 
-> > and it took a while to learn that the issue is caused by
-> > /sys/firmware/acpi/hotplug/force_remove being enabled. I was really
-> > surprised to see such an option because at least for the memory hotplug
-> > it cannot work at all. Memory hotplug fails when the memory is still
-> > in use. Even if we do not BUG() here enforcing the hotplug operation
-> > will lead to problematic behavior later like crash or a silent memory
-> > corruption if the memory gets onlined back and reused by somebody else.
-> > 
-> > I am wondering what was the motivation for introducing this behavior and
-> > whether there is a way to disallow it for memory hotplug. Or maybe drop
-> > it completely. What would break in such a case?
-> 
-> Honestly, I don't remember from the top of my head and I haven't looked at
-> that code for several months.
-> 
-> I need some time to recall that.
+On 03/21/2017 06:55 PM, Dmitry Safonov wrote:
+> After my changes to mmap(), its code now relies on the bitness of
+> performing syscall. According to that, it chooses the base of allocation:
+> mmap_base for 64-bit mmap() and mmap_compat_base for 32-bit syscall.
+> It was done by:
+>   commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for
+> 32-bit mmap()").
+>
+> The code afterwards relies on in_compat_syscall() returning true for
+> 32-bit syscalls. It's usually so while we're in context of application
+> that does 32-bit syscalls. But during exec() it is not valid for x32 ELF.
+> The reason is that the application hasn't yet done any syscall, so x32
+> bit has not being set.
+> For i386 ELFs it works as SET_PERSONALITY() sets TS_COMPAT flag.
+>
+> I suggest to set x32 bit before first return to userspace, during
+> setting personality at exec(). This way we can rely on
+> in_compat_syscall() during exec().
+>
+> Fixes: commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for
+> 32-bit mmap()")
+> Cc: 0x7f454c46@gmail.com
+> Cc: linux-mm@kvack.org
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Borislav Petkov <bp@suse.de>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: x86@kernel.org
+> Cc: H. Peter Anvin <hpa@zytor.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Reported-by: Adam Borowski <kilobyte@angband.pl>
+> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+
+Drop this one - I'll send updated v2 shortly slightly improving:
+- specifying mmap() allocation path which failed during exec()
+- fix comment style (looks like my editor didn't insert asterisks
+   as they were missing before and check_patch didn't blame me)
+
+> ---
+>  arch/x86/kernel/process_64.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+>
+> diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+> index d6b784a5520d..88d99d35a699 100644
+> --- a/arch/x86/kernel/process_64.c
+> +++ b/arch/x86/kernel/process_64.c
+> @@ -520,7 +520,12 @@ void set_personality_ia32(bool x32)
+>  			current->mm->context.ia32_compat = TIF_X32;
+>  		current->personality &= ~READ_IMPLIES_EXEC;
+>  		/* in_compat_syscall() uses the presence of the x32
+> -		   syscall bit flag to determine compat status */
+> +		   syscall bit flag to determine compat status.
+> +		   On the bitness of syscall relies x86 mmap() code,
+> +		   so set x32 syscall bit right here to make
+> +		   in_compat_syscall() work during exec().
+> +		 */
+> +		task_pt_regs(current)->orig_ax |= __X32_SYSCALL_BIT;
+>  		current->thread.status &= ~TS_COMPAT;
+>  	} else {
+>  		set_thread_flag(TIF_IA32);
 >
 
-IMHO. 
-In the second pass offline in acpi_scan_try_to_offline(), when force_remove flag
-enabled, it's still run offline on the parent device even there have any child
-device offline failed. And it doesn't return the error from acpi_bus_offline() to
-caller. 
 
-	errdev = NULL;
-	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX, 
-			    NULL, acpi_bus_offline, (void *)true,
-			    (void **)&errdev);
-	if (!errdev || acpi_force_hot_remove)                 
-		acpi_bus_offline(handle, 0, (void *)true, 
-				 (void **)&errdev);
-
-In this situation, the parent device or any child device may not really
-offline successfully. But acpi_scan_hot_remove, the caller doesn't know that.
-Then it cause the later acpi_bus_trim() process failed.
-
-acpi_bus_trim()
-	-> handler->detach()
-		-> acpi_memory_device_remove()
-			-> remove_memory() -> BUG()  
-
-because some memory doesn't really offline. 
-
-Thanks a lot!
-Joey Lee
+-- 
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
