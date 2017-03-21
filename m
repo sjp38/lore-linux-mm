@@ -1,100 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F1BB56B038A
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 03:17:30 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d66so1546227wmi.2
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 00:17:30 -0700 (PDT)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id k8si11641677wmg.107.2017.03.21.00.17.29
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7436B0388
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 05:10:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x124so1974875wmf.1
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 02:10:37 -0700 (PDT)
+Received: from mail-wr0-x22b.google.com (mail-wr0-x22b.google.com. [2a00:1450:400c:c0c::22b])
+        by mx.google.com with ESMTPS id f3si19031866wme.93.2017.03.21.02.10.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 00:17:29 -0700 (PDT)
-Received: by mail-wr0-x242.google.com with SMTP id u108so21216469wrb.2
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 00:17:29 -0700 (PDT)
-Date: Tue, 21 Mar 2017 08:17:25 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH tip v2] x86/mm: Correct fixmap header usage on adaptable
- MODULES_END
-Message-ID: <20170321071725.GA15782@gmail.com>
-References: <20170320194024.60749-1-thgarnie@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170320194024.60749-1-thgarnie@google.com>
+        Tue, 21 Mar 2017 02:10:36 -0700 (PDT)
+Received: by mail-wr0-x22b.google.com with SMTP id u48so107781945wrc.0
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 02:10:36 -0700 (PDT)
+From: Dmitry Vyukov <dvyukov@google.com>
+Subject: [PATCH] kcov: simplify interrupt check
+Date: Tue, 21 Mar 2017 10:10:26 +0100
+Message-Id: <20170321091026.139655-1-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Borislav Petkov <bp@suse.de>, Hugh Dickins <hughd@google.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, richard.weiyang@gmail.com
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kefeng Wang <wangkefeng.wang@huawei.com>, James Morse <james.morse@arm.com>, Alexander Popov <alex.popov@linux.com>, Andrey Konovalov <andreyknvl@google.com>, linux-kernel@vger.kernel.org, syzkaller@googlegroups.com
 
+in_interrupt() semantics are confusing and wrong for most users
+as it also returns true when bh is disabled. Thus we open coded
+a proper check for interrupts in __sanitizer_cov_trace_pc()
+with a lengthy explanatory comment.
 
-* Thomas Garnier <thgarnie@google.com> wrote:
+Use the new in_task() predicate instead.
 
-> This patch removes fixmap headers on non-x86 code introduced by the
-> adaptable MODULE_END change. It is also removed in the 32-bit pgtable
-> header. Instead, it is added  by default in the pgtable generic header
-> for both architectures.
-> 
-> Signed-off-by: Thomas Garnier <thgarnie@google.com>
-> ---
->  arch/x86/include/asm/pgtable.h    | 1 +
->  arch/x86/include/asm/pgtable_32.h | 1 -
->  arch/x86/kernel/module.c          | 1 -
->  arch/x86/mm/dump_pagetables.c     | 1 -
->  arch/x86/mm/kasan_init_64.c       | 1 -
->  mm/vmalloc.c                      | 4 ----
->  6 files changed, 1 insertion(+), 8 deletions(-)
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kefeng Wang <wangkefeng.wang@huawei.com>
+Cc: James Morse <james.morse@arm.com>
+Cc: Alexander Popov <alex.popov@linux.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+Cc: syzkaller@googlegroups.com
+---
+ kernel/kcov.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
 
-So I already have v1 and there's no explanation about the changes from v1 to v2.
-
-The interdiff between v1 and v2 is below, it only affects x86, presumably it's 
-done to simplify the header usage slightly: instead of including fixmap.h in both 
-pgtable_32/64.h it's only included in the common pgtable.h file.
-
-That's a sensible cleanup of the original patch and I'd rather not rebase it (as 
-tip:x86/mm has other changes as well), so could I've applied the delta cleanup on 
-top of the existing changes, with its own changelog.
-
-Thanks,
-
-	Ingo
-
-============>
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 84f6ec4d47ec..9f6809545269 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -601,6 +601,7 @@ pte_t *populate_extra_pte(unsigned long vaddr);
- #include <linux/mm_types.h>
- #include <linux/mmdebug.h>
- #include <linux/log2.h>
-+#include <asm/fixmap.h>
- 
- static inline int pte_none(pte_t pte)
- {
-diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
-index fbc73360aea0..bfab55675c16 100644
---- a/arch/x86/include/asm/pgtable_32.h
-+++ b/arch/x86/include/asm/pgtable_32.h
-@@ -14,7 +14,6 @@
-  */
- #ifndef __ASSEMBLY__
- #include <asm/processor.h>
--#include <asm/fixmap.h>
- #include <linux/threads.h>
- #include <asm/paravirt.h>
- 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 13709cf74ab6..1a4bc71534d4 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -13,7 +13,6 @@
- #include <asm/processor.h>
- #include <linux/bitops.h>
- #include <linux/threads.h>
--#include <asm/fixmap.h>
- 
- extern pud_t level3_kernel_pgt[512];
- extern pud_t level3_ident_pgt[512];
+diff --git a/kernel/kcov.c b/kernel/kcov.c
+index 85e5546cd791..cd771993f96f 100644
+--- a/kernel/kcov.c
++++ b/kernel/kcov.c
+@@ -60,15 +60,8 @@ void notrace __sanitizer_cov_trace_pc(void)
+ 	/*
+ 	 * We are interested in code coverage as a function of a syscall inputs,
+ 	 * so we ignore code executed in interrupts.
+-	 * The checks for whether we are in an interrupt are open-coded, because
+-	 * 1. We can't use in_interrupt() here, since it also returns true
+-	 *    when we are inside local_bh_disable() section.
+-	 * 2. We don't want to use (in_irq() | in_serving_softirq() | in_nmi()),
+-	 *    since that leads to slower generated code (three separate tests,
+-	 *    one for each of the flags).
+ 	 */
+-	if (!t || (preempt_count() & (HARDIRQ_MASK | SOFTIRQ_OFFSET
+-							| NMI_MASK)))
++	if (!t || !in_task())
+ 		return;
+ 	mode = READ_ONCE(t->kcov_mode);
+ 	if (mode == KCOV_MODE_TRACE) {
+-- 
+2.12.1.500.gab5fba24ee-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
