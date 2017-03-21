@@ -1,109 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 85CC36B0359
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 12:01:44 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id y136so65930332iof.3
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 09:01:44 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 189sor232649iti.7.1969.12.31.16.00.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26A136B0353
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 12:14:19 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b140so3845643wme.3
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 09:14:19 -0700 (PDT)
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id k6si20476761wma.165.2017.03.21.09.14.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 21 Mar 2017 09:01:43 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Mar 2017 09:14:17 -0700 (PDT)
+Date: Wed, 22 Mar 2017 00:13:56 +0800
+From: joeyli <jlee@suse.com>
+Subject: Re: memory hotplug and force_remove
+Message-ID: <20170321161356.GA20835@linux-l9pv.suse>
+References: <20170320192938.GA11363@dhcp22.suse.cz>
+ <2735706.OR0SQDpVy6@aspire.rjw.lan>
 MIME-Version: 1.0
-In-Reply-To: <20170321071725.GA15782@gmail.com>
-References: <20170320194024.60749-1-thgarnie@google.com> <20170321071725.GA15782@gmail.com>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Tue, 21 Mar 2017 09:01:42 -0700
-Message-ID: <CAJcbSZEgRZ+BVyWHmQ8mVxXmmBNYf7XRHTEByCEvO2TJ8THgpg@mail.gmail.com>
-Subject: Re: [PATCH tip v2] x86/mm: Correct fixmap header usage on adaptable MODULES_END
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2735706.OR0SQDpVy6@aspire.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Borislav Petkov <bp@suse.de>, Hugh Dickins <hughd@google.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Andy Lutomirski <luto@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, Chris Wilson <chris@chris-wilson.co.uk>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Wei Yang <richard.weiyang@gmail.com>
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Michal Hocko <mhocko@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-On Tue, Mar 21, 2017 at 12:17 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Thomas Garnier <thgarnie@google.com> wrote:
->
->> This patch removes fixmap headers on non-x86 code introduced by the
->> adaptable MODULE_END change. It is also removed in the 32-bit pgtable
->> header. Instead, it is added  by default in the pgtable generic header
->> for both architectures.
->>
->> Signed-off-by: Thomas Garnier <thgarnie@google.com>
->> ---
->>  arch/x86/include/asm/pgtable.h    | 1 +
->>  arch/x86/include/asm/pgtable_32.h | 1 -
->>  arch/x86/kernel/module.c          | 1 -
->>  arch/x86/mm/dump_pagetables.c     | 1 -
->>  arch/x86/mm/kasan_init_64.c       | 1 -
->>  mm/vmalloc.c                      | 4 ----
->>  6 files changed, 1 insertion(+), 8 deletions(-)
->
-> So I already have v1 and there's no explanation about the changes from v1 to v2.
->
-> The interdiff between v1 and v2 is below, it only affects x86, presumably it's
-> done to simplify the header usage slightly: instead of including fixmap.h in both
-> pgtable_32/64.h it's only included in the common pgtable.h file.
->
-
-Correct, simplify the header and explains better.
-
-> That's a sensible cleanup of the original patch and I'd rather not rebase it (as
-> tip:x86/mm has other changes as well), so could I've applied the delta cleanup on
-> top of the existing changes, with its own changelog.
-
-I understand. Thanks for merging a clean-up version of this patch.
-
->
-> Thanks,
->
->         Ingo
->
-> ============>
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 84f6ec4d47ec..9f6809545269 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -601,6 +601,7 @@ pte_t *populate_extra_pte(unsigned long vaddr);
->  #include <linux/mm_types.h>
->  #include <linux/mmdebug.h>
->  #include <linux/log2.h>
-> +#include <asm/fixmap.h>
->
->  static inline int pte_none(pte_t pte)
->  {
-> diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
-> index fbc73360aea0..bfab55675c16 100644
-> --- a/arch/x86/include/asm/pgtable_32.h
-> +++ b/arch/x86/include/asm/pgtable_32.h
-> @@ -14,7 +14,6 @@
->   */
->  #ifndef __ASSEMBLY__
->  #include <asm/processor.h>
-> -#include <asm/fixmap.h>
->  #include <linux/threads.h>
->  #include <asm/paravirt.h>
->
-> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> index 13709cf74ab6..1a4bc71534d4 100644
-> --- a/arch/x86/include/asm/pgtable_64.h
-> +++ b/arch/x86/include/asm/pgtable_64.h
-> @@ -13,7 +13,6 @@
->  #include <asm/processor.h>
->  #include <linux/bitops.h>
->  #include <linux/threads.h>
-> -#include <asm/fixmap.h>
->
->  extern pud_t level3_kernel_pgt[512];
->  extern pud_t level3_ident_pgt[512];
+On Mon, Mar 20, 2017 at 10:24:42PM +0100, Rafael J. Wysocki wrote:
+> On Monday, March 20, 2017 03:29:39 PM Michal Hocko wrote:
+> > Hi Rafael,
+> 
+> Hi,
+> 
+> > we have been chasing the following BUG() triggering during the memory
+> > hotremove (remove_memory):
+> > 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> > 				check_memblock_offlined_cb);
+> > 	if (ret)
+> > 		BUG();
+> > 
+> > and it took a while to learn that the issue is caused by
+> > /sys/firmware/acpi/hotplug/force_remove being enabled. I was really
+> > surprised to see such an option because at least for the memory hotplug
+> > it cannot work at all. Memory hotplug fails when the memory is still
+> > in use. Even if we do not BUG() here enforcing the hotplug operation
+> > will lead to problematic behavior later like crash or a silent memory
+> > corruption if the memory gets onlined back and reused by somebody else.
+> > 
+> > I am wondering what was the motivation for introducing this behavior and
+> > whether there is a way to disallow it for memory hotplug. Or maybe drop
+> > it completely. What would break in such a case?
+> 
+> Honestly, I don't remember from the top of my head and I haven't looked at
+> that code for several months.
+> 
+> I need some time to recall that.
 >
 
+IMHO. 
+In the second pass offline in acpi_scan_try_to_offline(), when force_remove flag
+enabled, it's still run offline on the parent device even there have any child
+device offline failed. And it doesn't return the error from acpi_bus_offline() to
+caller. 
 
+	errdev = NULL;
+	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX, 
+			    NULL, acpi_bus_offline, (void *)true,
+			    (void **)&errdev);
+	if (!errdev || acpi_force_hot_remove)                 
+		acpi_bus_offline(handle, 0, (void *)true, 
+				 (void **)&errdev);
 
--- 
-Thomas
+In this situation, the parent device or any child device may not really
+offline successfully. But acpi_scan_hot_remove, the caller doesn't know that.
+Then it cause the later acpi_bus_trim() process failed.
+
+acpi_bus_trim()
+	-> handler->detach()
+		-> acpi_memory_device_remove()
+			-> remove_memory() -> BUG()  
+
+because some memory doesn't really offline. 
+
+Thanks a lot!
+Joey Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
