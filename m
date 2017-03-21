@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C35716B0388
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 05:58:41 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id b202so44264616vka.7
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 02:58:41 -0700 (PDT)
-Received: from mail-vk0-x22b.google.com (mail-vk0-x22b.google.com. [2607:f8b0:400c:c05::22b])
-        by mx.google.com with ESMTPS id o130si4237865vke.136.2017.03.21.02.58.40
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 534CC6B0388
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 06:37:49 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id a94so124633124oic.5
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 03:37:49 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t137si7055607oif.260.2017.03.21.03.37.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 02:58:40 -0700 (PDT)
-Received: by mail-vk0-x22b.google.com with SMTP id x75so88773225vke.2
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 02:58:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <005501d2a225$7ab66870$70233950$@alibaba-inc.com>
-References: <20170321091026.139655-1-dvyukov@google.com> <005501d2a225$7ab66870$70233950$@alibaba-inc.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 21 Mar 2017 10:58:19 +0100
-Message-ID: <CACT4Y+Y90ZJj=FXn-Kdpk6uJ_=qq3NsiOwa1K+xwHDBdHf3MTQ@mail.gmail.com>
-Subject: Re: [PATCH] kcov: simplify interrupt check
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 21 Mar 2017 03:37:48 -0700 (PDT)
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170307133057.26182-1-mhocko@kernel.org>
+	<1488916356.6405.4.camel@redhat.com>
+	<20170309180540.GA8678@cmpxchg.org>
+	<20170310102010.GD3753@dhcp22.suse.cz>
+	<201703102044.DBJ04626.FLVMFOQOJtOFHS@I-love.SAKURA.ne.jp>
+In-Reply-To: <201703102044.DBJ04626.FLVMFOQOJtOFHS@I-love.SAKURA.ne.jp>
+Message-Id: <201703211937.FDE04610.OSQOFtOFFHMJVL@I-love.SAKURA.ne.jp>
+Date: Tue, 21 Mar 2017 19:37:39 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kefeng Wang <wangkefeng.wang@huawei.com>, James Morse <james.morse@arm.com>, Alexander Popov <alex.popov@linux.com>, Andrey Konovalov <andreyknvl@google.com>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>
+To: mhocko@kernel.org, hannes@cmpxchg.org
+Cc: riel@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 21, 2017 at 10:28 AM, Hillf Danton <hillf.zj@alibaba-inc.com> wrote:
->
-> On March 21, 2017 5:10 PM Dmitry Vyukov wrote:
+On 2017/03/10 20:44, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+>> On Thu 09-03-17 13:05:40, Johannes Weiner wrote:
+>>>> It may be OK, I just do not understand all the implications.
+>>>>
+>>>> I like the general direction your patch takes the code in,
+>>>> but I would like to understand it better...
+>>>
+>>> I feel the same way. The throttling logic doesn't seem to be very well
+>>> thought out at the moment, making it hard to reason about what happens
+>>> in certain scenarios.
+>>>
+>>> In that sense, this patch isn't really an overall improvement to the
+>>> way things work. It patches a hole that seems to be exploitable only
+>>> from an artificial OOM torture test, at the risk of regressing high
+>>> concurrency workloads that may or may not be artificial.
+>>>
+>>> Unless I'm mistaken, there doesn't seem to be a whole lot of urgency
+>>> behind this patch. Can we think about a general model to deal with
+>>> allocation concurrency? 
 >>
->> @@ -60,15 +60,8 @@ void notrace __sanitizer_cov_trace_pc(void)
->>       /*
->>        * We are interested in code coverage as a function of a syscall inputs,
->>        * so we ignore code executed in interrupts.
->> -      * The checks for whether we are in an interrupt are open-coded, because
->> -      * 1. We can't use in_interrupt() here, since it also returns true
->> -      *    when we are inside local_bh_disable() section.
->> -      * 2. We don't want to use (in_irq() | in_serving_softirq() | in_nmi()),
->> -      *    since that leads to slower generated code (three separate tests,
->> -      *    one for each of the flags).
->>        */
->> -     if (!t || (preempt_count() & (HARDIRQ_MASK | SOFTIRQ_OFFSET
->> -                                                     | NMI_MASK)))
->> +     if (!t || !in_task())
->>               return;
->
-> Nit: can we get the current task check cut off?
+>> I am definitely not against. There is no reason to rush the patch in.
+> 
+> I don't hurry if we can check using watchdog whether this problem is occurring
+> in the real world. I have to test corner cases because watchdog is missing.
 
+Today I tested linux-next-20170321 with not so insane stress, and I again
+hit this problem. Thus, I think this problem might occur in the real world.
 
-Humm... good question.
-I don't remember why exactly I added it. I guess something was
-crashing during boot. Note that this call is inserted into almost all
-kernel code. But probably that was before I disabled instrumentation
-of some early boot code for other reasons (with KCOV_INSTRUMENT := n
-in Makefile), because now I can boot kernel in qemu without this
-check. But I am still not sure about real hardware/arm/etc.
-Does anybody know if current can ever (including early boot) return
-invalid pointer?
+http://I-love.SAKURA.ne.jp/tmp/serial-20170321.txt.xz (Logs up to before swapoff are eliminated.)
+----------
+[ 2250.175109] MemAlloc-Info: stalling=16 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2257.535653] MemAlloc-Info: stalling=16 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2319.806880] MemAlloc-Info: stalling=19 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2320.722282] MemAlloc-Info: stalling=19 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2381.243393] MemAlloc-Info: stalling=20 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2389.777052] MemAlloc-Info: stalling=20 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2450.878287] MemAlloc-Info: stalling=20 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2459.386321] MemAlloc-Info: stalling=20 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2520.500633] MemAlloc-Info: stalling=20 dying=0 exiting=4 victim=0 oom_count=1155386
+[ 2529.042088] MemAlloc-Info: stalling=20 dying=0 exiting=4 victim=0 oom_count=1155386
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
