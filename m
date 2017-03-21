@@ -1,56 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A82326B0371
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 13:17:27 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y193so91797823lfd.3
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 10:17:27 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id 23si11643117lju.121.2017.03.21.10.17.26
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 86AC66B0373
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 13:18:28 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 187so17415745itk.2
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 10:18:28 -0700 (PDT)
+Received: from mail-it0-x22c.google.com (mail-it0-x22c.google.com. [2607:f8b0:4001:c0b::22c])
+        by mx.google.com with ESMTPS id p19si17840959iod.95.2017.03.21.10.18.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 10:17:26 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id v2so13702748lfi.2
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 10:17:26 -0700 (PDT)
-Date: Tue, 21 Mar 2017 20:17:23 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCHv2] x86/mm: set x32 syscall bit in SET_PERSONALITY()
-Message-ID: <20170321171723.GB21564@uranus.lan>
-References: <20170321163712.20334-1-dsafonov@virtuozzo.com>
+        Tue, 21 Mar 2017 10:18:27 -0700 (PDT)
+Received: by mail-it0-x22c.google.com with SMTP id y18so12507747itc.1
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 10:18:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170321163712.20334-1-dsafonov@virtuozzo.com>
+In-Reply-To: <20170320055930.GA30167@bbox>
+References: <20170317231636.142311-1-timmurray@google.com> <20170320055930.GA30167@bbox>
+From: Tim Murray <timmurray@google.com>
+Date: Tue, 21 Mar 2017 10:18:26 -0700
+Message-ID: <CAEe=SxnYXGg+s15imF4D93DVzvhVT+yo5fvAvDtKrQKdXz2kyA@mail.gmail.com>
+Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Suren Baghdasaryan <surenb@google.com>, Patrik Torstensson <totte@google.com>, Android Kernel Team <kernel-team@android.com>, vinmenon@codeaurora.org
 
-On Tue, Mar 21, 2017 at 07:37:12PM +0300, Dmitry Safonov wrote:
-...
-> diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-> index d6b784a5520d..d3d4d9abcaf8 100644
-> --- a/arch/x86/kernel/process_64.c
-> +++ b/arch/x86/kernel/process_64.c
-> @@ -519,8 +519,14 @@ void set_personality_ia32(bool x32)
->  		if (current->mm)
->  			current->mm->context.ia32_compat = TIF_X32;
->  		current->personality &= ~READ_IMPLIES_EXEC;
-> -		/* in_compat_syscall() uses the presence of the x32
-> -		   syscall bit flag to determine compat status */
-> +		/*
-> +		 * in_compat_syscall() uses the presence of the x32
-> +		 * syscall bit flag to determine compat status.
-> +		 * On the bitness of syscall relies x86 mmap() code,
-> +		 * so set x32 syscall bit right here to make
-> +		 * in_compat_syscall() work during exec().
-> +		 */
-> +		task_pt_regs(current)->orig_ax |= __X32_SYSCALL_BIT;
->  		current->thread.status &= ~TS_COMPAT;
+On Sun, Mar 19, 2017 at 10:59 PM, Minchan Kim <minchan@kernel.org> wrote:
+> However, I'm not sure your approach is good. It seems your approach just
+> reclaims pages from groups (DEF_PRIORITY - memcg->priority) >=3D sc->prio=
+rity.
+> IOW, it is based on *temporal* memory pressure fluctuation sc->priority.
+>
+> Rather than it, I guess pages to be reclaimed should be distributed by
+> memcg->priority. Namely, if global memory pressure happens and VM want to
+> reclaim 100 pages, VM should reclaim 90 pages from memcg-A(priority-10)
+> and 10 pages from memcg-B(prioirty-90).
 
-Hi! I must admit I didn't follow close the overall series (so can't
-comment much here :) but I have a slightly unrelated question -- is
-there a way to figure out if task is running in x32 mode say with
-some ptrace or procfs sign?
+This is what I debated most while writing this patch. If I'm
+understanding your concern correctly, I think I'm doing more than
+skipping high-priority cgroups:
+
+- If the scan isn't high priority yet, then skip high-priority cgroups.
+- When the scan is high priority, scan fewer pages from
+higher-priority cgroups (using the priority to modify the shift in
+get_scan_count).
+
+This is tightly coupled with the question of what to do with
+vmpressure. The right thing to do on an Android device under memory
+pressure is probably something like this:
+
+1. Reclaim aggressively from low-priority background processes. The
+goal here is to reduce the pages used by background processes to the
+size of their heaps (or smaller with ZRAM) but zero file pages.
+They're already likely to be killed by userspace and we're keeping
+them around opportunistically, so a performance hit if they run and
+have to do IO to restore some of that working set is okay.
+2. Reclaim a small amount from persistent processes. These often have
+a performance-critical subset of pages that we absolutely don't want
+paged out, but some reclaim of these processes is fine. They're large,
+some of them only run sporadically and don't impact performance, it's
+okay to touch these sometimes.
+3. If there still aren't enough free pages, notify userspace to kill
+any processes it can. If I put my "Android performance engineer
+working on userspace" hat on, what I'd want to know from userspace is
+that kswapd/direct reclaim probably has to scan foreground processes
+in order to reclaim enough free pages to satisfy watermarks. That's a
+signal I could directly act on from userspace.
+4. If that still isn't enough, reclaim from foreground processes,
+since those processes are performance-critical.
+
+As a result, I like not being fair about which cgroups are scanned
+initially. Some cgroups are strictly more important than others. (With
+that said, I'm not tied to enforcing unfairness in scanning. Android
+would probably use different priority levels for each app level for
+fair scanning vs unfair scanning, but my guess is that the actual
+reclaiming behavior would look similar in both schemes.)
+
+Mem cgroup priority suggests a useful signal for vmpressure. If
+scanning is starting to touch cgroups at a higher priority than
+persistent processes, then the userspace lowmemorykiller could kill
+one or more background processes (which would be in low-priority
+cgroups that have already been scanned aggressively). The current lmk
+hand-tuned watermarks would be gone, and tuning the /proc/sys/vm knobs
+would be all that's required to make an Android device do the right
+thing in terms of memory.
+
+On Sun, Mar 19, 2017 at 10:59 PM, Minchan Kim <minchan@kernel.org> wrote:
+> Hello,
+>
+> On Fri, Mar 17, 2017 at 04:16:35PM -0700, Tim Murray wrote:
+>> Hi all,
+>>
+>> I've been working to improve Android's memory management and drop lowmem=
+orykiller from the kernel, and I'd like to get some feedback on a small pat=
+ch with a lot of side effects.
+>>
+>> Currently, when an Android device is under memory pressure, one of three=
+ things will happen from kswapd:
+>>
+>> 1. Compress an anonymous page to ZRAM.
+>> 2. Evict a file page.
+>> 3. Kill a process via lowmemorykiller.
+>>
+>> The first two are cheap and per-page, the third is relatively cheap in t=
+he short term, frees many pages, and may cause power and performance penalt=
+ies later on when the process has to be started again. For lots of reasons,=
+ I'd like a better balance between reclamation and killing on Android.
+>>
+>> One of the nice things about Android from an optimization POV is that th=
+e execution model is more constrained than a generic Linux machine. There a=
+re only a limited number of processes that need to execute quickly for the =
+device to appear to have good performance, and a userspace daemon (called A=
+ctivityManagerService) knows exactly what those processes are at any given =
+time. We've made use of that in the past via cpusets and schedtune to limit=
+ the CPU resources available to background processes, and I think we can ap=
+ply the same concept to memory.
+>>
+>
+> AFAIK, many platforms as well as android have done it. IOW, they know wha=
+t
+> processes are important while others are not critical for user-response.
+>
+>> This patch adds a new tunable to mem cgroups, memory.priority. A mem cgr=
+oup with a non-zero priority will not be eligible for scanning until the sc=
+an_control's priority is greater than zero. Once the mem cgroup is eligible=
+ for scanning, the priority acts as a bias to reduce the number of pages th=
+at should be scanned.
+>
+> First of all, the concept makes sense to me. The problem with cgroup-per-=
+app
+> model is that it's really hard to predict how many of memory a group need=
+s to
+> make system smooth although we know what processes are important.
+> Because of it, it's hard to tune memcg low/high/max proactively.
+>
+> So, it would be great if admin can give more priority some groups like
+> graphic mamager, laucher and killer applications like TV manager, Dial
+> manager and so (ie, when memory pressure happens, please reclaim more pag=
+es
+> from low priority groups).
+>
+> However, I'm not sure your approach is good. It seems your approach just
+> reclaims pages from groups (DEF_PRIORITY - memcg->priority) >=3D sc->prio=
+rity.
+> IOW, it is based on *temporal* memory pressure fluctuation sc->priority.
+>
+> Rather than it, I guess pages to be reclaimed should be distributed by
+> memcg->priority. Namely, if global memory pressure happens and VM want to
+> reclaim 100 pages, VM should reclaim 90 pages from memcg-A(priority-10)
+> and 10 pages from memcg-B(prioirty-90).
+>
+> Anyway, it's really desireble approach so memcg maintainers, Please, have=
+ a
+> look.
+>
+> Thanks.
+>
+>>
+>> We've seen cases on Android where the global LRU isn't sufficient. For e=
+xample, notifications in Android are rendered as part of a separate process=
+ that runs infrequently. However, when a notification appears and the user =
+slides down the notification tray, we'll often see dropped frames due to pa=
+ge faults if there has been severe memory pressure. There are similar issue=
+s with other persistent processes.
+>>
+>> The goal on an Android device is to aggressively evict from very low-pri=
+ority background tasks that are likely to be killed anyway, since this will=
+ reduce the likelihood of lowmemorykiller running in the first place. It wi=
+ll still evict some from foreground and persistent processes, but it should=
+ help ensure that background processes are effectively reduced to the size =
+of their heaps before evicting from more critical tasks. This should mean f=
+ewer background processes end up killed, which should improve performance a=
+nd power on Android across the board (since it costs significantly less to =
+page things back in than to replay the entirety of application startup).
+>>
+>> The follow-on that I'm also experimenting with is how to improve vmpress=
+ure such that userspace can have some idea when low-priority memory cgroups=
+ are about as small as they can get. The correct time for Android to kill a=
+ background process under memory pressure is when there is evidence that a =
+process has to be killed in order to alleviate memory pressure. If the devi=
+ce is below the low memory watermark and we know that there's probably no w=
+ay to reclaim any more from background processes, then a userspace daemon s=
+hould kill one or more background processes to fix that. Per-cgroup priorit=
+y could be the first step toward that information.
+>>
+>> I've tested a version of this patch on a Pixel running 3.18 along with a=
+n overhauled version of lmkd (the Android userspace lowmemorykiller daemon)=
+, and it does seem to work fine. I've ported it forward but have not yet ri=
+gorously tested it at TOT, since I don't have an Android test setup running=
+ TOT. While I'm getting my tests ported over, I would like some feedback on=
+ adding another tunable as well as what the tunable's interface should be--=
+I really don't like the 0-10 priority scheme I have in the patch but I don'=
+t have a better idea.
+>>
+>> Thanks,
+>> Tim
+>>
+>> Tim Murray (1):
+>>   mm, memcg: add prioritized reclaim
+>>
+>>  include/linux/memcontrol.h | 20 +++++++++++++++++++-
+>>  mm/memcontrol.c            | 33 +++++++++++++++++++++++++++++++++
+>>  mm/vmscan.c                |  3 ++-
+>>  3 files changed, 54 insertions(+), 2 deletions(-)
+>>
+>> --
+>> 2.12.0.367.g23dc2f6d3c-goog
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
