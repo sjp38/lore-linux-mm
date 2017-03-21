@@ -1,77 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 272466B0388
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 10:54:50 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c23so314110990pfj.0
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 07:54:50 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y21si21487887pgi.329.2017.03.21.07.54.49
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6306B038A
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 11:18:19 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t143so104650606pgb.1
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 08:18:19 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id h21si21553896pgj.54.2017.03.21.08.18.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 07:54:49 -0700 (PDT)
+        Tue, 21 Mar 2017 08:18:18 -0700 (PDT)
+Message-ID: <1490109496.17719.15.camel@linux.intel.com>
 Subject: Re: [PATCH v2 0/5] mm: support parallel free of memory
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
- <20170315141813.GB32626@dhcp22.suse.cz>
- <20170315154406.GF2442@aaronlu.sh.intel.com>
- <20170315162843.GA27197@dhcp22.suse.cz>
- <1489613914.2733.96.camel@linux.intel.com>
- <20170316090732.GF30501@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <ae4e3597-f664-e5c4-97fb-e07f230d5017@intel.com>
-Date: Tue, 21 Mar 2017 07:54:37 -0700
-MIME-Version: 1.0
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Tue, 21 Mar 2017 11:18:16 -0400
 In-Reply-To: <20170316090732.GF30501@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+	 <20170315141813.GB32626@dhcp22.suse.cz>
+	 <20170315154406.GF2442@aaronlu.sh.intel.com>
+	 <20170315162843.GA27197@dhcp22.suse.cz>
+	 <1489613914.2733.96.camel@linux.intel.com>
+	 <20170316090732.GF30501@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On 03/16/2017 02:07 AM, Michal Hocko wrote:
-> On Wed 15-03-17 14:38:34, Tim Chen wrote:
->> max_active:   time
->> 1             8.9s   +-0.5%
->> 2             5.65s  +-5.5%
->> 4             4.84s  +-0.16%
->> 8             4.77s  +-0.97%
->> 16            4.85s  +-0.77%
->> 32            6.21s  +-0.46%
-> 
-> OK, but this will depend on the HW, right? Also now that I am looking at
-> those numbers more closely. This was about unmapping 320GB area and
-> using 4 times more CPUs you managed to half the run time. Is this really
-> worth it? Sure if those CPUs were idle then this is a clear win but if
-> the system is moderately busy then it doesn't look like a clear win to
-> me.
+On Thu, 2017-03-16 at 10:07 +0100, Michal Hocko wrote:
+>A 
+> > > the main problem is that kworkers will not belong to the same cpu group
+> > > and so they will not be throttled properly.
+> > You do have a point that this page freeing activities should strive to
+> > affect other threads not in the same cgroup minimally.
+> > 
+> > On the other hand, we also don't do this throttling of kworkersA 
+> > today (e.g. pdflush) according to the cgroup it is doing work for.
+> Yes, I am not saying this a new problem. I just wanted to point out that
+> this is something to consider here. I believe this should be fixable.
+> Worker can attach to the same cgroup the initiator had for example
+> (assuming the cgroup core allows that which is something would have to
+> be checked).
 
-This still suffers from zone lock contention.  It scales much better if
-we are freeing memory from more than one zone.  We would expect any
-other generic page allocator scalability improvements to really help
-here, too.
+Instead of attaching the kworders to the cgroup of the initiator, I
+wonder what people think about creating a separate kworker cgroup.A 
+The administrator can set limit on its cpu resource bandwidth
+if he/she does not want such kworkers perturbing the system.
 
-Aaron, could you make sure to make sure that the memory being freed is
-coming from multiple NUMA nodes?  It might also be interesting to boot
-with a fake NUMA configuration with a *bunch* of nodes to see what the
-best case looks like when zone lock contention isn't even in play where
-one worker would be working on its own zone.
-
->>> Moreover, and this is a more generic question, is this functionality
->>> useful in general purpose workloads? 
->>
->> If we are running consecutive batch jobs, this optimization
->> should help start the next job sooner.
-> 
-> Is this sufficient justification to add a potentially hard to tune
-> optimization that can influence other workloads on the machine?
-
-The guys for whom a reboot is faster than a single exit() certainly
-think so. :)
-
-I have the feeling that we can find a pretty sane large process size to
-be the floor where this feature gets activated.  I doubt the systems
-that really care about noise from other workloads are often doing
-multi-gigabyte mapping teardowns.
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
