@@ -1,94 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 682136B0388
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 09:48:38 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id j127so153221516qke.2
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 06:48:38 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g17si15691860qtc.257.2017.03.21.06.48.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A4D96B038A
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 09:59:10 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n11so145059527pfg.7
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 06:59:10 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id u126si15197873pfu.306.2017.03.21.06.59.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 06:48:37 -0700 (PDT)
-Date: Tue, 21 Mar 2017 14:48:34 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] userfaultfd: provide pid in userfault's uffd_msg
-Message-ID: <20170321134834.GA32299@redhat.com>
-References: <1489850488-5837-1-git-send-email-a.perevalov@samsung.com>
- <CGME20170318152135eucas1p1602bef7c9085a775c08932bf9422cfbd@eucas1p1.samsung.com>
- <1489850488-5837-2-git-send-email-a.perevalov@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1489850488-5837-2-git-send-email-a.perevalov@samsung.com>
+        Tue, 21 Mar 2017 06:59:09 -0700 (PDT)
+Message-ID: <1490104745.17719.6.camel@linux.intel.com>
+Subject: Re: [PATCH] mm, swap: VMA based swap readahead
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Tue, 21 Mar 2017 09:59:05 -0400
+In-Reply-To: <871stsbr4y.fsf@yhuang-dev.intel.com>
+References: <20170314092538.32649-1-ying.huang@intel.com>
+	 <20170320010140.GA19343@linux.intel.com>
+	 <871stsbr4y.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Perevalov <a.perevalov@samsung.com>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, linux-mm@kvack.org, i.maximets@samsung.com, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Minchan Kim <minchan@kernel.org>, Dmitry Safonov <dsafonov@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>, Vegard Nossum <vegard.nossum@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, "Aneesh Kumar
+ K.V" <aneesh.kumar@linux.vnet.ibm.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Aaron Lu <aaron.lu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Alexey,
-
-On Sat, Mar 18, 2017 at 06:21:28PM +0300, Alexey Perevalov wrote:
-> It could be useful for calculating downtime during
-> postcopy live migration per vCPU. Side observer or application itself
-> will be informed about proper task's sleep during userfaultfd
-> processing.
+On Mon, 2017-03-20 at 10:47 +0800, Huang, Ying wrote:
+> Hi, Tim,
 > 
-> Signed-off-by: Alexey Perevalov <a.perevalov@samsung.com>
-> ---
->  fs/userfaultfd.c                 | 1 +
->  include/uapi/linux/userfaultfd.h | 1 +
->  2 files changed, 2 insertions(+)
+> Tim Chen <tim.c.chen@linux.intel.com> writes:
 > 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index b5a17e4..722c392 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -206,6 +206,7 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
->  		 * write protect fault.
->  		 */
->  		msg.arg.pagefault.flags |= UFFD_PAGEFAULT_FLAG_WP;
-> +		msg.arg.pagefault.ptid = current->pid;
+> > 
+> > On Tue, Mar 14, 2017 at 05:25:29PM +0800, Huang, Ying wrote:
+> > > 
+> > > +struct page *do_swap_page_readahead(struct vm_fault *vmf,
+> > > +				A A A A struct vma_swap_readahead *swap_ra,
+> > > +				A A A A swp_entry_t fentry,
+> > > +				A A A A struct page *fpage)
+> > > +{
+> > > +	struct blk_plug plug;
+> > > +	struct vm_area_struct *vma = vmf->vma;
+> > > +	struct page *page;
+> > > +	unsigned long addr;
+> > > +	pte_t *pte, pentry;
+> > > +	gfp_t gfp_mask;
+> > > +	swp_entry_t entry;
+> > > +	int i, alloc = 0, count;
+> > > +	bool page_allocated;
+> > > +
+> > > +	addr = vmf->address & PAGE_MASK;
+> > > +	blk_start_plug(&plug);
+> > > +	if (!fpage) {
+> > > +		fpage = __read_swap_cache_async(fentry, GFP_HIGHUSER_MOVABLE,
+> > > +						vma, addr, &page_allocated);
+> > > +		if (!fpage) {
+> > > +			blk_finish_plug(&plug);
+> > > +			return NULL;
+> > > +		}
+> > > +		if (page_allocated) {
+> > > +			alloc++;
+> > > +			swap_readpage(fpage);
+> > > +		}
+> > Do you need to add here a put_page as there's a get_page
+> > in __read-swap_cache_async?
+> I don't call put_page() here because the page will be mapped to process
+> page table.
+> 
+> > 
+> > 		put_page(fpage);
+> > 
+> > I think there is no put_page on the returned page when you return from
+> > do_swap_page_readahead.
+> In the original swapin_readahead(), the read_swap_cache_async() will be
+> called for the fault swap entry again in the end of the function, and
+> pug_page() is not called there.
+> 
 
-Alignment doesn't look right but the code is correct. It needs to be
-rechecked against PID namespaces though, we need to be sure we return
-the pid inside the container.
+I missed the second call to read_swap_cache_async in swapin_readahead.
+You're right that we should keep the reference on the faulted page and not call
+put_page on fpage here.
 
-It'd need a feature flag too, otherwise userland won't know beforehand
-if the feature is available in the running kernel. Perhaps it should
-be conditional to a feature flag being requested by userland too.
+Thanks.
 
-The pid for qemu seems useful only for statistical purposes, we cannot
-prioritize a vcpu or io thread against the others. In theory if an app
-wanted, with this information it would be possible to prioritize
-userfaults depending on pid. I cannot exclude some app could want
-that, by keeping reading more faults until read() returns -EAGAIN and
-then sorting them, but it doesn't look very practical to do that
-because handling userfaults is fairly low latency and in most cases
-there won't ever be too many queued up to sort by pid (maximum number
-of userfaults to read in a row and sort by pid cannot exceed the
-number of threads anyway).
-
-> diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-> index fbf2886..bf7d4b5 100644
-> --- a/include/uapi/linux/userfaultfd.h
-> +++ b/include/uapi/linux/userfaultfd.h
-> @@ -84,6 +84,7 @@ struct uffd_msg {
->  		struct {
->  			__u64	flags;
->  			__u64	address;
-> +			pid_t ptid;
-
-I suggest to use __u32 to be sure it's consistent and to put it in a
-union of its own in case something else pops up that may also need to
-be reported in the uffd_msg pagefault struct. Unless others think we
-should always provide the pid to all userfaults unconditionally, in
-which case it wouldn't need to go in a union.
-
-Comments welcome, thanks!
-Andrea
-
-PS. I think the mailing list in CC on the git send-email wasn't
-correct as it was a readonly list, so I'm CC'ing linux-mm instead.
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
