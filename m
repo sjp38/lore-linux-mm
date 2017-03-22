@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C7976B0038
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 10:44:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u108so40593295wrb.3
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 07:44:22 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f18si2508312wrc.171.2017.03.22.07.44.20
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E2086B0343
+	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 10:54:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b140so11760376wme.3
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 07:54:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n124si25091436wmd.81.2017.03.22.07.54.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Mar 2017 07:44:21 -0700 (PDT)
-Date: Wed, 22 Mar 2017 10:43:49 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Mar 2017 07:54:22 -0700 (PDT)
+Date: Wed, 22 Mar 2017 10:54:15 -0400
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v5] mm/vmscan: more restrictive condition for retry in
  do_try_to_free_pages
-Message-ID: <20170322144349.GA22107@cmpxchg.org>
+Message-ID: <20170322145413.GA10290@dhcp22.suse.cz>
 References: <1490191893-5923-1-git-send-email-ysxie@foxmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -22,9 +22,9 @@ In-Reply-To: <1490191893-5923-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Yisheng Xie <ysxie@foxmail.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, qiuxishi@huawei.com
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, riel@redhat.com, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On Wed, Mar 22, 2017 at 10:11:33PM +0800, Yisheng Xie wrote:
+On Wed 22-03-17 22:11:33, Yisheng Xie wrote:
 > From: Yisheng Xie <xieyisheng1@huawei.com>
 > 
 > By reviewing code, I find that when enter do_try_to_free_pages, the
@@ -52,9 +52,101 @@ On Wed, Mar 22, 2017 at 10:11:33PM +0800, Yisheng Xie wrote:
 > Suggested-by: Shakeel Butt <shakeelb@google.com>
 > Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Yes, the naming is much better now. Btw. Acked-by tags should be usually
+dropped after the patch is reworked. But I am OK with keeping it in this
+particular case.
 
-Thanks Yisheng!
+Thanks!
+
+> ---
+> v5:
+>  - remove may_thrash field in scan_control, and introduce mem_cgroup_reclaim
+>    and memcg_low_skipped to make code more readable. - Johannes
+> 
+> v4:
+>  - add a new field in scan_control named memcg_low_protection to check whether
+>    there have any memcg protected by low limit. - Michal
+> 
+> v3:
+>  - rename function may_thrash() to mem_cgroup_thrashed() to avoid confusing.
+> 
+> v2:
+>  - more restrictive condition for retry of shrink_zones (restricting
+>    cgroup_disabled=memory boot option and cgroup legacy hierarchy) - Shakeel
+> 
+>  - add a stub function may_thrash() to avoid compile error or warning.
+> 
+>  - rename subject from "donot retry shrink zones when memcg is disable"
+>    to "more restrictive condition for retry in do_try_to_free_pages"
+> 
+> Any comment is more than welcome!
+> 
+> Hi, Andrew,
+> Could you please help to drop the v4, thank you so much.
+> 
+> Thanks
+> Yisheng Xie
+> 
+>  mm/vmscan.c | 18 +++++++++++++-----
+>  1 file changed, 13 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index bc8031e..d214212 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -97,8 +97,13 @@ struct scan_control {
+>  	/* Can pages be swapped as part of reclaim? */
+>  	unsigned int may_swap:1;
+>  
+> -	/* Can cgroups be reclaimed below their normal consumption range? */
+> -	unsigned int may_thrash:1;
+> +	/*
+> +	 * Cgroups are not reclaimed below their configured memory.low,
+> +	 * unless we threaten to OOM. If any cgroups are skipped due to
+> +	 * memory.low and nothing was reclaimed, go back for memory.low.
+> +	 */
+> +	unsigned int memcg_low_reclaim:1;
+> +	unsigned int memcg_low_skipped:1;
+>  
+>  	unsigned int hibernation_mode:1;
+>  
+> @@ -2557,8 +2562,10 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  			unsigned long scanned;
+>  
+>  			if (mem_cgroup_low(root, memcg)) {
+> -				if (!sc->may_thrash)
+> +				if (!sc->memcg_low_reclaim) {
+> +					sc->memcg_low_skipped = 1;
+>  					continue;
+> +				}
+>  				mem_cgroup_events(memcg, MEMCG_LOW, 1);
+>  			}
+>  
+> @@ -2808,9 +2815,10 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		return 1;
+>  
+>  	/* Untapped cgroup reserves?  Don't OOM, retry. */
+> -	if (!sc->may_thrash) {
+> +	if (sc->memcg_low_skipped) {
+>  		sc->priority = initial_priority;
+> -		sc->may_thrash = 1;
+> +		sc->memcg_low_reclaim = 1;
+> +		sc->memcg_low_skipped = 0;
+>  		goto retry;
+>  	}
+>  
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
