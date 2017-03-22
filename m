@@ -1,113 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CB326B0333
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 06:43:10 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id r69so25542268vke.4
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 03:43:10 -0700 (PDT)
-Received: from mail-vk0-x233.google.com (mail-vk0-x233.google.com. [2607:f8b0:400c:c05::233])
-        by mx.google.com with ESMTPS id b199si349103vka.202.2017.03.22.03.43.09
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D8696B0343
+	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 06:52:41 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q126so396642653pga.0
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 03:52:41 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x188si1343991pgb.304.2017.03.22.03.52.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Mar 2017 03:43:09 -0700 (PDT)
-Received: by mail-vk0-x233.google.com with SMTP id d188so120850718vka.0
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 03:43:09 -0700 (PDT)
+        Wed, 22 Mar 2017 03:52:40 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH kernel v8 3/4] mm: add inerface to offer info about
+ unused	pages
+Date: Wed, 22 Mar 2017 10:52:36 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F7391A770E@shsmsx102.ccr.corp.intel.com>
+References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com>
+	<1489648127-37282-4-git-send-email-wei.w.wang@intel.com>
+	<20170316142842.69770813b98df70277431b1e@linux-foundation.org>
+ <58CB8865.5030707@intel.com>
+In-Reply-To: <58CB8865.5030707@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <CAK8P3a3FqENx+tsg3cbbW4CQtpye7k8MedQqMZidxMCrBR8byg@mail.gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170320171718.GL31213@leverpostej> <956a8e10-e03f-a21c-99d9-8a75c2616e0a@virtuozzo.com>
- <20170321104139.GA22188@leverpostej> <CACT4Y+bNrh_a8mBth7ewHS-Fk=wgCky4=Uc89ePeuh5jrLvCQg@mail.gmail.com>
- <CAK8P3a3FqENx+tsg3cbbW4CQtpye7k8MedQqMZidxMCrBR8byg@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 22 Mar 2017 11:42:48 +0100
-Message-ID: <CACT4Y+ZfWiDY27wehrg3wY1-_19JqEh1B8n7_xdf4u-rzDHFHw@mail.gmail.com>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Wang, Wei W" <wei.w.wang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>
 
-On Tue, Mar 21, 2017 at 10:20 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Tue, Mar 21, 2017 at 7:06 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> On Tue, Mar 21, 2017 at 11:41 AM, Mark Rutland <mark.rutland@arm.com> wrote:
->>> On Tue, Mar 21, 2017 at 12:25:06PM +0300, Andrey Ryabinin wrote:
->>
->> I don't mind changing READ_ONCE_NOCHECK to READ_ONCE. But I don't have
->> strong preference either way.
->>
->> We could do:
->> #define arch_atomic_read_is_already_instrumented 1
->> and then skip instrumentation in asm-generic if it's defined. But I
->> don't think it's worth it.
->>
->> There is no functional difference, it's only an optimization (now
->> somewhat questionable). As Andrey said, one can get a splash of
->> reports anyway, and it's the first one that is important. We use KASAN
->> with panic_on_warn=1 so we don't even see the rest.
->
-> I'm getting couple of new stack size warnings that are all the result
-> of the _NOCHECK.
->
-> /git/arm-soc/mm/page_alloc.c: In function 'show_free_areas':
-> /git/arm-soc/mm/page_alloc.c:4685:1: error: the frame size of 3368
-> bytes is larger than 3072 bytes [-Werror=frame-larger-than=]
->  }
-> /git/arm-soc/lib/atomic64_test.c: In function 'test_atomic':
-> /git/arm-soc/lib/atomic64_test.c:148:1: error: the frame size of 6528
-> bytes is larger than 3072 bytes [-Werror=frame-larger-than=]
->  }
->  ^
-> /git/arm-soc/lib/atomic64_test.c: In function 'test_atomic64':
-> /git/arm-soc/lib/atomic64_test.c:243:1: error: the frame size of 7112
-> bytes is larger than 3072 bytes [-Werror=frame-larger-than=]
->
-> This is with my previous set of patches already applied, so
-> READ_ONCE should not cause problems. Reverting
-> the READ_ONCE_NOCHECK() in atomic_read() and atomic64_read()
-> back to READ_ONCE()
->
-> I also get a build failure as a result of your patch, but this one is
-> not addressed by using READ_ONCE():
->
-> In file included from /git/arm-soc/arch/x86/include/asm/atomic.h:7:0,
->                  from /git/arm-soc/include/linux/atomic.h:4,
->                  from /git/arm-soc/arch/x86/include/asm/thread_info.h:53,
->                  from /git/arm-soc/include/linux/thread_info.h:25,
->                  from /git/arm-soc/arch/x86/include/asm/preempt.h:6,
->                  from /git/arm-soc/include/linux/preempt.h:80,
->                  from /git/arm-soc/include/linux/spinlock.h:50,
->                  from /git/arm-soc/include/linux/mmzone.h:7,
->                  from /git/arm-soc/include/linux/gfp.h:5,
->                  from /git/arm-soc/include/linux/mm.h:9,
->                  from /git/arm-soc/mm/slub.c:12:
-> /git/arm-soc/mm/slub.c: In function '__slab_free':
-> /git/arm-soc/arch/x86/include/asm/cmpxchg.h:174:2: error: 'asm'
-> operand has impossible constraints
->   asm volatile(pfx "cmpxchg%c4b %2; sete %0"   \
->   ^
-> /git/arm-soc/arch/x86/include/asm/cmpxchg.h:183:2: note: in expansion
-> of macro '__cmpxchg_double'
->   __cmpxchg_double(LOCK_PREFIX, p1, p2, o1, o2, n1, n2)
->   ^~~~~~~~~~~~~~~~
-> /git/arm-soc/include/asm-generic/atomic-instrumented.h:236:2: note: in
-> expansion of macro 'arch_cmpxchg_double'
->   arch_cmpxchg_double(____p1, (p2), (o1), (o2), (n1), (n2)); \
->   ^~~~~~~~~~~~~~~~~~~
-> /git/arm-soc/mm/slub.c:385:7: note: in expansion of macro 'cmpxchg_double'
->    if (cmpxchg_double(&page->freelist, &page->counters,
->        ^~~~~~~~~~~~~~
-> /git/arm-soc/scripts/Makefile.build:308: recipe for target 'mm/slub.o' failed
->
-> http://pastebin.com/raw/qXVpi9Ev has the defconfig file I used, and I get the
-> error with any gcc version I tried (4.9 through 7.0.1).
+Hi Andrew,=20
 
+Do you have any comments on my thoughts? Thanks.
 
-Initially I've tested with my stock gcc 4.8.4 (Ubuntu
-4.8.4-2ubuntu1~14.04.3) and amusingly it works. But I can reproduce
-the bug with 7.0.1.
-Filed https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80148
-Will think about kernel fix.
-Thanks!
+> On 03/17/2017 05:28 AM, Andrew Morton wrote:
+> > On Thu, 16 Mar 2017 15:08:46 +0800 Wei Wang <wei.w.wang@intel.com>
+> wrote:
+> >
+> >> From: Liang Li <liang.z.li@intel.com>
+> >>
+> >> This patch adds a function to provides a snapshot of the present
+> >> system unused pages. An important usage of this function is to
+> >> provide the unsused pages to the Live migration thread, which skips
+> >> the transfer of thoses unused pages. Newly used pages can be
+> >> re-tracked by the dirty page logging mechanisms.
+> > I don't think this will be useful for anything other than
+> > virtio-balloon.  I guess it would be better to keep this code in the
+> > virtio-balloon driver if possible, even though that's rather a
+> > layering violation :( What would have to be done to make that
+> > possible?  Perhaps we can put some *small* helpers into page_alloc.c
+> > to prevent things from becoming too ugly.
+>=20
+> The patch description was too narrowed and may have caused some confusion=
+,
+> sorry about that. This function is aimed to be generic. I agree with the
+> description suggested by Michael.
+>=20
+> Since the main body of the function is related to operating on the free_l=
+ist. I
+> think it is better to have them located here.
+> Small helpers may be less efficient and thereby causing some performance =
+loss
+> as well.
+> I think one improvement we can make is to remove the "chunk format"
+> related things from this function. The function can generally offer the b=
+ase pfn
+> to the caller's recording buffer. Then it will be the caller's responsibi=
+lity to
+> format the pfn if they need.
+>=20
+> >> --- a/mm/page_alloc.c
+> >> +++ b/mm/page_alloc.c
+> >> @@ -4498,6 +4498,120 @@ void show_free_areas(unsigned int filter)
+> >>   	show_swap_cache_info();
+> >>   }
+> >>
+> >> +static int __record_unused_pages(struct zone *zone, int order,
+> >> +				 __le64 *buf, unsigned int size,
+> >> +				 unsigned int *offset, bool part_fill) {
+> >> +	unsigned long pfn, flags;
+> >> +	int t, ret =3D 0;
+> >> +	struct list_head *curr;
+> >> +	__le64 *chunk;
+> >> +
+> >> +	if (zone_is_empty(zone))
+> >> +		return 0;
+> >> +
+> >> +	spin_lock_irqsave(&zone->lock, flags);
+> >> +
+> >> +	if (*offset + zone->free_area[order].nr_free > size && !part_fill) {
+> >> +		ret =3D -ENOSPC;
+> >> +		goto out;
+> >> +	}
+> >> +	for (t =3D 0; t < MIGRATE_TYPES; t++) {
+> >> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+> >> +			pfn =3D page_to_pfn(list_entry(curr, struct page, lru));
+> >> +			chunk =3D buf + *offset;
+> >> +			if (*offset + 2 > size) {
+> >> +				ret =3D -ENOSPC;
+> >> +				goto out;
+> >> +			}
+> >> +			/* Align to the chunk format used in virtio-balloon */
+> >> +			*chunk =3D cpu_to_le64(pfn << 12);
+> >> +			*(chunk + 1) =3D cpu_to_le64((1 << order) << 12);
+> >> +			*offset +=3D 2;
+> >> +		}
+> >> +	}
+> >> +
+> >> +out:
+> >> +	spin_unlock_irqrestore(&zone->lock, flags);
+> >> +
+> >> +	return ret;
+> >> +}
+> > This looks like it could disable interrupts for a long time.  Too long?
+>=20
+> What do you think if we give "budgets" to the above function?
+> For example, budget=3D1000, and there are 2000 nodes on the list.
+> record() returns with "incomplete" status in the first round, along with =
+the status
+> info, "*continue_node".
+>=20
+> *continue_node: pointer to the starting node of the leftover. If *continu=
+e_node
+> has been used at the time of the second call (i.e. continue_node->next =
+=3D=3D NULL),
+> which implies that the previous 1000 nodes have been used, then the recor=
+d()
+> function can simply start from the head of the list.
+>=20
+> It is up to the caller whether it needs to continue the second round when=
+ getting
+> "incomplete".
+>=20
+> >
+> >> +/*
+> >> + * The record_unused_pages() function is used to record the system
+> >> +unused
+> >> + * pages. The unused pages can be skipped to transfer during live mig=
+ration.
+> >> + * Though the unused pages are dynamically changing, dirty page
+> >> +logging
+> >> + * mechanisms are able to capture the newly used pages though they
+> >> +were
+> >> + * recorded as unused pages via this function.
+> >> + *
+> >> + * This function scans the free page list of the specified order to
+> >> +record
+> >> + * the unused pages, and chunks those continuous pages following the
+> >> +chunk
+> >> + * format below:
+> >> + * --------------------------------------
+> >> + * |	Base (52-bit)	| Rsvd (12-bit) |
+> >> + * --------------------------------------
+> >> + * --------------------------------------
+> >> + * |	Size (52-bit)	| Rsvd (12-bit) |
+> >> + * --------------------------------------
+> >> + *
+> >> + * @start_zone: zone to start the record operation.
+> >> + * @order: order of the free page list to record.
+> >> + * @buf: buffer to record the unused page info in chunks.
+> >> + * @size: size of the buffer in __le64 to record
+> >> + * @offset: offset in the buffer to record.
+> >> + * @part_fill: indicate if partial fill is used.
+> >> + *
+> >> + * return -EINVAL if parameter is invalid
+> >> + * return -ENOSPC when the buffer is too small to record all the
+> >> +unsed pages
+> >> + * return 0 when sccess
+> >> + */
+> > It's a strange thing - it returns information which will instantly
+> > become incorrect.
+>=20
+> I didn't get the point, could you please explain more? Thanks.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
