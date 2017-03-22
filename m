@@ -1,96 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 08E8C6B0038
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 13:33:56 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n141so178806463qke.1
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 10:33:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 124sor2069950qkh.11.1969.12.31.16.00.00
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A106B0038
+	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 13:39:29 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 15so38012275itw.1
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 10:39:29 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0061.outbound.protection.outlook.com. [104.47.1.61])
+        by mx.google.com with ESMTPS id m12si10237895iti.60.2017.03.22.10.39.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Mar 2017 10:33:55 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 22 Mar 2017 10:39:27 -0700 (PDT)
+Subject: Re: Page allocator order-0 optimizations merged
+References: <58b48b1f.F/jo2/WiSxvvGm/z%akpm@linux-foundation.org>
+ <20170301144845.783f8cad@redhat.com>
+ <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
+From: Tariq Toukan <tariqt@mellanox.com>
+Message-ID: <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
+Date: Wed, 22 Mar 2017 19:39:17 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+zAt=iim4SoU5U8cD8i_yYoC_HGVKSvBGBgEO15KdZEPg@mail.gmail.com>
-References: <20170322160647.32032-1-aryabinin@virtuozzo.com>
- <CAAeHK+zt9U+_8o4-k1mTvHsNTVGnKbzy7jVz2jn=TkNFf2neHQ@mail.gmail.com>
- <cbb22acb-1228-0f7b-c7a0-5822ea721b3f@virtuozzo.com> <CAAeHK+zAt=iim4SoU5U8cD8i_yYoC_HGVKSvBGBgEO15KdZEPg@mail.gmail.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Wed, 22 Mar 2017 18:33:53 +0100
-Message-ID: <CAG_fn=WpeCq70LGqt+GiYDSO72uvNWYndG+rGyMJzVuaFUcNQw@mail.gmail.com>
-Subject: Re: [PATCH] kasan: report only the first error
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+Cc: akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
 
-On Wed, Mar 22, 2017 at 6:07 PM, Andrey Konovalov <andreyknvl@google.com> w=
-rote:
-> On Wed, Mar 22, 2017 at 5:54 PM, Andrey Ryabinin
-> <aryabinin@virtuozzo.com> wrote:
->> On 03/22/2017 07:34 PM, Andrey Konovalov wrote:
->>> On Wed, Mar 22, 2017 at 5:06 PM, Andrey Ryabinin
->>> <aryabinin@virtuozzo.com> wrote:
->>>> Disable kasan after the first report. There are several reasons for th=
-is:
->>>>  * Single bug quite often has multiple invalid memory accesses causing
->>>>     storm in the dmesg.
->>>>  * Write OOB access might corrupt metadata so the next report will pri=
-nt
->>>>     bogus alloc/free stacktraces.
->>>>  * Reports after the first easily could be not bugs by itself but just=
- side
->>>>     effects of the first one.
->>>>
->>>> Given that multiple reports only do harm, it makes sense to disable
->>>> kasan after the first one. Except for the tests in lib/test_kasan.c
->>>> as we obviously want to see all reports from test.
->>>
->>> Hi Andrey,
->>>
->>> Could you make it configurable via CONFIG_KASAN_SOMETHING (which can
->>> default to showing only the first report)?
->>
->> I'd rather make this boot time configurable, but wouldn't want to withou=
-t
->> a good reason.
+
+
+On 01/03/2017 7:36 PM, Tariq Toukan wrote:
 >
-> That would work for me.
+> On 01/03/2017 3:48 PM, Jesper Dangaard Brouer wrote:
+>> Hi NetDev community,
+>>
+>> I just wanted to make net driver people aware that this MM commit[1] got
+>> merged and is available in net-next.
+>>
+>>   commit 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator 
+>> for irq-safe requests")
+>>   [1] https://git.kernel.org/davem/net-next/c/374ad05ab64d696
+>>
+>> It provides approx 14% speedup of order-0 page allocations.  I do know
+>> most driver do their own page-recycling.  Thus, this gain will only be
+>> seen when this page recycling is insufficient, which Tariq was affected
+>> by AFAIK.
+> Thanks Jesper, this is great news!
+> I will start perf testing this tomorrow.
+>>
+>> We are also playing with a bulk page allocator facility[2], that I've
+>> benchmarked[3][4].  While I'm seeing between 34%-46% improvements by
+>> bulking, I believe we actually need to do better, before it reach our
+>> performance target for high-speed networking.
+> Very promising!
+> This fits perfectly in our Striding RQ feature (Multi-Packet WQE)
+> where we allocate fragmented buffers (of order-0 pages) of 256KB total.
+> Big like :)
 >
+> Thanks,
+> Tariq
+>> --Jesper
+>>
+>> [2] 
+>> http://lkml.kernel.org/r/20170109163518.6001-5-mgorman%40techsingularity.net
+>> [3] http://lkml.kernel.org/r/20170116152518.5519dc1e%40redhat.com
+>> [4] 
+>> https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/page_bench04_bulk.c
 >>
 >>
->>> I sometimes use KASAN to see what bad accesses a particular bug
->>> causes, and seeing all of them (even knowing that they may be
->>> corrupt/induced) helps a lot.
+>> On Mon, 27 Feb 2017 12:25:03 -0800 akpm@linux-foundation.org wrote:
 >>
->> I'm wondering why you need to see all reports?
->
-> To get a better picture of what are the consequences of a bug. For
-> example whether it leads to some bad or controllable memory
-> corruption. Sometimes it's easier to let KASAN track the memory
-> accesses then do that manually.
-Another case is when you're seeing an OOB read at boot time, which has
-limited impact, and you don't want to wait for the code owner to fix
-it to move forward.
->>
+>>> The patch titled
+>>>       Subject: mm, page_alloc: only use per-cpu allocator for 
+>>> irq-safe requests
+>>> has been removed from the -mm tree.  Its filename was
+>>> mm-page_alloc-only-use-per-cpu-allocator-for-irq-safe-requests.patch
 >>>
->>> Thanks!
+>>> This patch was dropped because it was merged into mainline or a 
+>>> subsystem tree
 >>>
+>>> ------------------------------------------------------
+>>> From: Mel Gorman <mgorman@techsingularity.net>
+>>> Subject: mm, page_alloc: only use per-cpu allocator for irq-safe 
+>>> requests
+>>>
+>>> Many workloads that allocate pages are not handling an interrupt at a
+>>> time.  As allocation requests may be from IRQ context, it's 
+>>> necessary to
+>>> disable/enable IRQs for every page allocation.  This cost is the 
+>>> bulk of
+>>> the free path but also a significant percentage of the allocation path.
+>>>
+>>> This patch alters the locking and checks such that only irq-safe
+>>> allocation requests use the per-cpu allocator.  All others acquire the
+>>> irq-safe zone->lock and allocate from the buddy allocator. It relies on
+>>> disabling preemption to safely access the per-cpu structures. It 
+>>> could be
+>>> slightly modified to avoid soft IRQs using it but it's not clear it's
+>>> worthwhile.
+>>>
+>>> This modification may slow allocations from IRQ context slightly but 
+>>> the
+>>> main gain from the per-cpu allocator is that it scales better for
+>>> allocations from multiple contexts.  There is an implicit assumption 
+>>> that
+>>> intensive allocations from IRQ contexts on multiple CPUs from a single
+>>> NUMA node are rare 
+Hi Mel, Jesper, and all.
 
+This assumption contradicts regular multi-stream traffic that is 
+naturally handled
+over close numa cores.  I compared iperf TCP multistream (8 streams)
+over CX4 (mlx5 driver) with kernels v4.10 (before this series) vs
+kernel v4.11-rc1 (with this series).
+I disabled the page-cache (recycle) mechanism to stress the page allocator,
+and see a drastic degradation in BW, from 47.5 G in v4.10 to 31.4 G in 
+v4.11-rc1 (34% drop).
+I noticed queued_spin_lock_slowpath occupies 62.87% of CPU time.
 
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Best,
+Tariq
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
