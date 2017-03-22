@@ -1,46 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9407D6B0337
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 08:15:03 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id j64so52341780vkg.3
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 05:15:03 -0700 (PDT)
-Received: from mail-vk0-x22d.google.com (mail-vk0-x22d.google.com. [2607:f8b0:400c:c05::22d])
-        by mx.google.com with ESMTPS id 8si417774uam.104.2017.03.22.05.15.02
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D54396B0333
+	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 08:24:54 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y90so39456756wrb.1
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 05:24:54 -0700 (PDT)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id 1si1958959wrk.174.2017.03.22.05.24.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Mar 2017 05:15:02 -0700 (PDT)
-Received: by mail-vk0-x22d.google.com with SMTP id j64so108439942vkg.3
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 05:15:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAK8P3a1o3ZwS2y9uoE9Cp70E1s-s5NyQ43zNzTjEiMXiH_tKng@mail.gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170320171718.GL31213@leverpostej> <956a8e10-e03f-a21c-99d9-8a75c2616e0a@virtuozzo.com>
- <20170321104139.GA22188@leverpostej> <CACT4Y+bNrh_a8mBth7ewHS-Fk=wgCky4=Uc89ePeuh5jrLvCQg@mail.gmail.com>
- <CAK8P3a3FqENx+tsg3cbbW4CQtpye7k8MedQqMZidxMCrBR8byg@mail.gmail.com>
- <CACT4Y+ZfWiDY27wehrg3wY1-_19JqEh1B8n7_xdf4u-rzDHFHw@mail.gmail.com> <CAK8P3a1o3ZwS2y9uoE9Cp70E1s-s5NyQ43zNzTjEiMXiH_tKng@mail.gmail.com>
+        Wed, 22 Mar 2017 05:24:53 -0700 (PDT)
+Received: by mail-wm0-x236.google.com with SMTP id t189so36135745wmt.1
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 05:24:53 -0700 (PDT)
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 22 Mar 2017 13:14:41 +0100
-Message-ID: <CACT4Y+bJOw_iMMkMw89oMqNsBCbqapXrS1Sk1uigjgB_7mnAgg@mail.gmail.com>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] x86: s/READ_ONCE_NOCHECK/READ_ONCE/ in arch_atomic_read()
+Date: Wed, 22 Mar 2017 13:24:49 +0100
+Message-Id: <20170322122449.54505-1-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, arnd@arndb.de, aryabinin@virtuozzo.com
+Cc: Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com
 
-On Wed, Mar 22, 2017 at 12:30 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Wed, Mar 22, 2017 at 11:42 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> On Tue, Mar 21, 2017 at 10:20 PM, Arnd Bergmann <arnd@arndb.de> wrote:
->>> On Tue, Mar 21, 2017 at 7:06 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->>
->> Initially I've tested with my stock gcc 4.8.4 (Ubuntu
->> 4.8.4-2ubuntu1~14.04.3) and amusingly it works. But I can reproduce
->> the bug with 7.0.1.
->
-> It's probably because gcc-4.8 didn't support KASAN yet, so the added
-> check had no effect.
+Two problems was reported with READ_ONCE_NOCHECK in arch_atomic_read:
+1. Andrey Ryabinin reported significant binary size increase
+(+400K of text). READ_ONCE_NOCHECK is intentionally compiled to
+non-inlined function call, and I counted 640 copies of it in my vmlinux.
+2. Arnd Bergmann reported a new splat of too large frame sizes.
 
-I've tested without KASAN with both compilers.
+A single inlined KASAN check is very cheap, a non-inlined function
+call with KASAN/KCOV instrumentation can easily be more expensive.
+
+Switch to READ_ONCE() in arch_atomic_read().
+
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+Reported-by: Arnd Bergmann <arnd@arndb.de>
+Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
+Cc: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: kasan-dev@googlegroups.com
+---
+ arch/x86/include/asm/atomic.h | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/arch/x86/include/asm/atomic.h b/arch/x86/include/asm/atomic.h
+index 0cde164f058a..46e53bbf7ce3 100644
+--- a/arch/x86/include/asm/atomic.h
++++ b/arch/x86/include/asm/atomic.h
+@@ -24,10 +24,13 @@
+ static __always_inline int arch_atomic_read(const atomic_t *v)
+ {
+ 	/*
+-	 * We use READ_ONCE_NOCHECK() because atomic_read() contains KASAN
+-	 * instrumentation. Double instrumentation is unnecessary.
++	 * Note: READ_ONCE() here leads to double instrumentation as
++	 * both READ_ONCE() and atomic_read() contain instrumentation.
++	 * This is deliberate choice. READ_ONCE_NOCHECK() is compiled to a
++	 * non-inlined function call that considerably increases binary size
++	 * and stack usage under KASAN.
+ 	 */
+-	return READ_ONCE_NOCHECK((v)->counter);
++	return READ_ONCE((v)->counter);
+ }
+ 
+ /**
+@@ -39,12 +42,6 @@ static __always_inline int arch_atomic_read(const atomic_t *v)
+  */
+ static __always_inline void arch_atomic_set(atomic_t *v, int i)
+ {
+-	/*
+-	 * We could use WRITE_ONCE_NOCHECK() if it exists, similar to
+-	 * READ_ONCE_NOCHECK() in arch_atomic_read(). But there is no such
+-	 * thing at the moment, and introducing it for this case does not
+-	 * worth it.
+-	 */
+ 	WRITE_ONCE(v->counter, i);
+ }
+ 
+-- 
+2.12.1.500.gab5fba24ee-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
