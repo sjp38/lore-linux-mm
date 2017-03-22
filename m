@@ -1,57 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DBF86B0038
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 10:13:02 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id l49so201786584otc.5
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 07:13:02 -0700 (PDT)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id q44si810767otq.141.2017.03.22.07.13.01
+	by kanga.kvack.org (Postfix) with ESMTP id 60C386B0038
+	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 10:14:37 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id l49so201805424otc.5
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 07:14:37 -0700 (PDT)
+Received: from smtpbg337.qq.com (smtpbg337.qq.com. [14.17.44.32])
+        by mx.google.com with ESMTPS id f17si808177ote.213.2017.03.22.07.14.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Mar 2017 07:13:01 -0700 (PDT)
-Received: by mail-oi0-x242.google.com with SMTP id a94so8854561oic.0
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 07:13:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170322125740.85337-1-dvyukov@google.com>
-References: <20170322125740.85337-1-dvyukov@google.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 22 Mar 2017 15:13:00 +0100
-Message-ID: <CAK8P3a2NdyBRciYh9_N0wq8B_u0uS+3HwiSqKYe5ez5uZdwkiQ@mail.gmail.com>
-Subject: Re: [PATCH v2] x86: s/READ_ONCE_NOCHECK/READ_ONCE/ in arch_atomic[64]_read()
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Mar 2017 07:14:36 -0700 (PDT)
+From: Yisheng Xie <ysxie@foxmail.com>
+Subject: [PATCH v5] mm/vmscan: more restrictive condition for retry in do_try_to_free_pages
+Date: Wed, 22 Mar 2017 22:11:33 +0800
+Message-Id: <1490191893-5923-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, x86@kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, shakeelb@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On Wed, Mar 22, 2017 at 1:57 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> Two problems was reported with READ_ONCE_NOCHECK in arch_atomic_read:
-> 1. Andrey Ryabinin reported significant binary size increase
-> (+400K of text). READ_ONCE_NOCHECK is intentionally compiled to
-> non-inlined function call, and I counted 640 copies of it in my vmlinux.
-> 2. Arnd Bergmann reported a new splat of too large frame sizes.
->
-> A single inlined KASAN check is very cheap, a non-inlined function
-> call with KASAN/KCOV instrumentation can easily be more expensive.
->
-> Switch to READ_ONCE() in arch_atomic[64]_read().
->
-> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-> Reported-by: Arnd Bergmann <arnd@arndb.de>
-> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Cc: x86@kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: kasan-dev@googlegroups.com
-> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
->
+From: Yisheng Xie <xieyisheng1@huawei.com>
 
-Acked-by: Arnd Bergmann <arnd@arndb.de>
+By reviewing code, I find that when enter do_try_to_free_pages, the
+may_thrash is always clear, and it will retry shrink zones to tap
+cgroup's reserves memory by setting may_thrash when the former
+shrink_zones reclaim nothing.
+
+However, when memcg is disabled or on legacy hierarchy, or there do not
+have any memcg protected by low limit, it should not do this useless
+retry at all, for we do not have any cgroup's reserves memory to tap,
+and we have already done hard work but made no progress, which as Michal
+pointed out in former version, we are trying hard to control the retry
+logical of page alloctor, and the current additional round of reclaim is
+just lame.
+
+Therefore, to avoid this unneeded retrying and make code more readable,
+we remove the may_thrash field in scan_control, instead, introduce
+memcg_low_reclaim and memcg_low_skipped, and only retry when
+memcg_low_skipped, by setting memcg_low_reclaim.
+
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Suggested-by: Shakeel Butt <shakeelb@google.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+---
+v5:
+ - remove may_thrash field in scan_control, and introduce mem_cgroup_reclaim
+   and memcg_low_skipped to make code more readable. - Johannes
+
+v4:
+ - add a new field in scan_control named memcg_low_protection to check whether
+   there have any memcg protected by low limit. - Michal
+
+v3:
+ - rename function may_thrash() to mem_cgroup_thrashed() to avoid confusing.
+
+v2:
+ - more restrictive condition for retry of shrink_zones (restricting
+   cgroup_disabled=memory boot option and cgroup legacy hierarchy) - Shakeel
+
+ - add a stub function may_thrash() to avoid compile error or warning.
+
+ - rename subject from "donot retry shrink zones when memcg is disable"
+   to "more restrictive condition for retry in do_try_to_free_pages"
+
+Any comment is more than welcome!
+
+Hi, Andrew,
+Could you please help to drop the v4, thank you so much.
+
+Thanks
+Yisheng Xie
+
+ mm/vmscan.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bc8031e..d214212 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -97,8 +97,13 @@ struct scan_control {
+ 	/* Can pages be swapped as part of reclaim? */
+ 	unsigned int may_swap:1;
+ 
+-	/* Can cgroups be reclaimed below their normal consumption range? */
+-	unsigned int may_thrash:1;
++	/*
++	 * Cgroups are not reclaimed below their configured memory.low,
++	 * unless we threaten to OOM. If any cgroups are skipped due to
++	 * memory.low and nothing was reclaimed, go back for memory.low.
++	 */
++	unsigned int memcg_low_reclaim:1;
++	unsigned int memcg_low_skipped:1;
+ 
+ 	unsigned int hibernation_mode:1;
+ 
+@@ -2557,8 +2562,10 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			unsigned long scanned;
+ 
+ 			if (mem_cgroup_low(root, memcg)) {
+-				if (!sc->may_thrash)
++				if (!sc->memcg_low_reclaim) {
++					sc->memcg_low_skipped = 1;
+ 					continue;
++				}
+ 				mem_cgroup_events(memcg, MEMCG_LOW, 1);
+ 			}
+ 
+@@ -2808,9 +2815,10 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		return 1;
+ 
+ 	/* Untapped cgroup reserves?  Don't OOM, retry. */
+-	if (!sc->may_thrash) {
++	if (sc->memcg_low_skipped) {
+ 		sc->priority = initial_priority;
+-		sc->may_thrash = 1;
++		sc->memcg_low_reclaim = 1;
++		sc->memcg_low_skipped = 0;
+ 		goto retry;
+ 	}
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
