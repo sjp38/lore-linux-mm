@@ -1,89 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B1F626B0333
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 01:20:18 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p189so265918547pfp.5
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 22:20:18 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id r21si394422pgo.226.2017.03.21.22.20.16
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 37BA46B0333
+	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 02:33:42 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p189so267751903pfp.5
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 23:33:42 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id k91si584347pld.175.2017.03.21.23.33.40
         for <linux-mm@kvack.org>;
-        Tue, 21 Mar 2017 22:20:17 -0700 (PDT)
-Date: Wed, 22 Mar 2017 14:20:13 +0900
+        Tue, 21 Mar 2017 23:33:41 -0700 (PDT)
+Date: Wed, 22 Mar 2017 15:33:35 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
-Message-ID: <20170322052013.GE30149@bbox>
-References: <20170317231636.142311-1-timmurray@google.com>
- <20170320055930.GA30167@bbox>
- <CAEe=SxnYXGg+s15imF4D93DVzvhVT+yo5fvAvDtKrQKdXz2kyA@mail.gmail.com>
- <20170322044117.GD30149@bbox>
+Subject: Re: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
+Message-ID: <20170322063335.GF30149@bbox>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170322044117.GD30149@bbox>
+In-Reply-To: <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Murray <timmurray@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Suren Baghdasaryan <surenb@google.com>, Patrik Torstensson <totte@google.com>, Android Kernel Team <kernel-team@android.com>, vinmenon@codeaurora.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Wed, Mar 22, 2017 at 01:41:17PM +0900, Minchan Kim wrote:
-> Hi Tim,
-> 
-> On Tue, Mar 21, 2017 at 10:18:26AM -0700, Tim Murray wrote:
-> > On Sun, Mar 19, 2017 at 10:59 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > > However, I'm not sure your approach is good. It seems your approach just
-> > > reclaims pages from groups (DEF_PRIORITY - memcg->priority) >= sc->priority.
-> > > IOW, it is based on *temporal* memory pressure fluctuation sc->priority.
-> > >
-> > > Rather than it, I guess pages to be reclaimed should be distributed by
-> > > memcg->priority. Namely, if global memory pressure happens and VM want to
-> > > reclaim 100 pages, VM should reclaim 90 pages from memcg-A(priority-10)
-> > > and 10 pages from memcg-B(prioirty-90).
-> > 
-> > This is what I debated most while writing this patch. If I'm
-> > understanding your concern correctly, I think I'm doing more than
-> > skipping high-priority cgroups:
-> 
-> Yes, that is my concern. It could give too much pressure lower-priority
-> group. You already reduced scanning window for high-priority group so
-> I guess it would be enough for working.
-> 
-> The rationale from my thining is high-priority group can have cold pages(
-> for instance, used-once pages, madvise_free pages and so on) so, VM should
-> age every groups to reclaim cold pages but we can reduce scanning window
-> for high-priority group to keep more workingset as you did. By that, we
-> already give more pressure to lower priority group than high-prioirty group.
-> 
-> > 
-> > - If the scan isn't high priority yet, then skip high-priority cgroups.
-> 
-> This part is the one I think it's too much ;-)
-> I think no need to skip but just reduce scanning window by the group's
-> prioirty.
-> 
-> > - When the scan is high priority, scan fewer pages from
-> > higher-priority cgroups (using the priority to modify the shift in
-> > get_scan_count).
-> 
-> That sounds lkie a good idea but need to tune more.
-> 
-> How about this?
-> 
-> get_scan_count for memcg-A:
->         ..
->         size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx) *
->                         (memcg-A / sum(memcg all priorities))
-> 
-> get_scan_count for memcg-B:
->         ..
->         size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx) *
->                         (memcg-B / sum(memcg all priorities))
-> 
+Hi,
 
-Huh, correction.
+On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:
+> Introduce a workqueue for all the free workers so that user can fine
+> tune how many workers can be active through sysfs interface: max_active.
+> More workers will normally lead to better performance, but too many can
+> cause severe lock contention.
 
-        size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-        scan = size >> sc->priority;
-        scan =  scan * (sum(memcg) - memcg A) / sum(memcg);
+Let me ask a question.
+
+How well can workqueue distribute the jobs in multiple CPU?
+I don't ask about currency but parallelism.
+I guess benefit you are seeing comes from the parallelism and
+for your goal, unbound wq should spawn a thread per cpu and
+doing the work in every each CPU. does it work?
+
+> 
+> Note that since the zone lock is global, the workqueue is also global
+> for all processes, i.e. if we set 8 to max_active, we will have at most
+> 8 workers active for all processes that are doing munmap()/exit()/etc.
+> 
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+> ---
+>  mm/memory.c | 15 ++++++++++++++-
+>  1 file changed, 14 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 001c7720d773..19b25bb5f45b 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -253,6 +253,19 @@ static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+>  	__tlb_reset_range(tlb);
+>  }
+>  
+> +static struct workqueue_struct *batch_free_wq;
+> +static int __init batch_free_wq_init(void)
+> +{
+> +	batch_free_wq = alloc_workqueue("batch_free_wq",
+> +					WQ_UNBOUND | WQ_SYSFS, 0);
+> +	if (!batch_free_wq) {
+> +		pr_warn("failed to create workqueue batch_free_wq\n");
+> +		return -ENOMEM;
+> +	}
+> +	return 0;
+> +}
+> +subsys_initcall(batch_free_wq_init);
+> +
+>  static void tlb_flush_mmu_free_batches(struct mmu_gather_batch *batch_start,
+>  				       bool free_batch_page)
+>  {
+> @@ -306,7 +319,7 @@ static void tlb_flush_mmu_free(struct mmu_gather *tlb)
+>  		batch_free->batch_start = tlb->local.next;
+>  		INIT_WORK(&batch_free->work, batch_free_work);
+>  		list_add_tail(&batch_free->list, &tlb->worker_list);
+> -		queue_work(system_unbound_wq, &batch_free->work);
+> +		queue_work(batch_free_wq, &batch_free->work);
+>  
+>  		tlb->batch_count = 0;
+>  		tlb->local.next = NULL;
+> -- 
+> 2.7.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
