@@ -1,57 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA08A6B0343
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 20:53:26 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g10so34955074wrg.5
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 17:53:26 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j137si197221wmj.0.2017.03.21.17.53.25
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 897FE6B0333
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 22:31:44 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r89so23211982pfi.1
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 19:31:44 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id q3si13329plb.23.2017.03.21.19.31.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Mar 2017 17:53:25 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH] mm: workingset: fix premature shadow node shrinking with cgroups
-Date: Tue, 21 Mar 2017 20:53:20 -0400
-Message-Id: <20170322005320.8165-1-hannes@cmpxchg.org>
+        Tue, 21 Mar 2017 19:31:43 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id 79so19327812pgf.0
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 19:31:43 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1] mm, hugetlb: use pte_present() instead of pmd_present() in follow_huge_pmd()
+Date: Wed, 22 Mar 2017 11:31:38 +0900
+Message-Id: <1490149898-20231-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-0a6b76dd23fa ("mm: workingset: make shadow node shrinker memcg aware")
-enabled cgroup-awareness in the shadow node shrinker, but forgot to
-also enable cgroup-awareness in the list_lru the shadow nodes sit on.
+I found the race condition which triggers the following bug when
+move_pages() and soft offline are called on a single hugetlb page
+concurrently.
 
-Consequently, all shadow nodes are sitting on a global (per-NUMA node)
-list, while the shrinker applies the limits according to the amount of
-cache in the cgroup its shrinking. The result is excessive pressure on
-the shadow nodes from cgroups that have very little cache.
+    [61163.578957] Soft offlining page 0x119400 at 0x700000000000
+    [61163.580062] BUG: unable to handle kernel paging request at ffffea0011943820
+    [61163.580791] IP: follow_huge_pmd+0x143/0x190
+    [61163.581203] PGD 7ffd2067
+    [61163.581204] PUD 7ffd1067
+    [61163.581471] PMD 0
+    [61163.581723]
+    [61163.582052] Oops: 0000 [#1] SMP
+    [61163.582349] Modules linked in: binfmt_misc ppdev virtio_balloon parport_pc pcspkr i2c_piix4 parport i2c_core acpi_cpufreq ip_tables xfs libcrc32c ata_generic pata_acpi virtio_blk 8139too crc32c_intel ata_piix serio_raw libata virtio_pci 8139cp virtio_ring virtio mii floppy dm_mirror dm_region_hash dm_log dm_mod [last unloaded: cap_check]
+    [61163.585130] CPU: 0 PID: 22573 Comm: iterate_numa_mo Tainted: P           OE   4.11.0-rc2-mm1+ #2
+    [61163.586055] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
+    [61163.586627] task: ffff88007c951680 task.stack: ffffc90004bd8000
+    [61163.587181] RIP: 0010:follow_huge_pmd+0x143/0x190
+    [61163.587622] RSP: 0018:ffffc90004bdbcd0 EFLAGS: 00010202
+    [61163.588096] RAX: 0000000465003e80 RBX: ffffea0004e34d30 RCX: 00003ffffffff000
+    [61163.588818] RDX: 0000000011943800 RSI: 0000000000080001 RDI: 0000000465003e80
+    [61163.589486] RBP: ffffc90004bdbd18 R08: 0000000000000000 R09: ffff880138d34000
+    [61163.590097] R10: ffffea0004650000 R11: 0000000000c363b0 R12: ffffea0011943800
+    [61163.590751] R13: ffff8801b8d34000 R14: ffffea0000000000 R15: 000077ff80000000
+    [61163.591375] FS:  00007fc977710740(0000) GS:ffff88007dc00000(0000) knlGS:0000000000000000
+    [61163.592068] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+    [61163.592627] CR2: ffffea0011943820 CR3: 000000007a746000 CR4: 00000000001406f0
+    [61163.593330] Call Trace:
+    [61163.593556]  follow_page_mask+0x270/0x550
+    [61163.593908]  SYSC_move_pages+0x4ea/0x8f0
+    [61163.594253]  ? lru_cache_add_active_or_unevictable+0x4b/0xd0
+    [61163.594798]  SyS_move_pages+0xe/0x10
+    [61163.595113]  do_syscall_64+0x67/0x180
+    [61163.595434]  entry_SYSCALL64_slow_path+0x25/0x25
+    [61163.595837] RIP: 0033:0x7fc976e03949
+    [61163.596148] RSP: 002b:00007ffe72221d88 EFLAGS: 00000246 ORIG_RAX: 0000000000000117
+    [61163.596940] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007fc976e03949
+    [61163.597567] RDX: 0000000000c22390 RSI: 0000000000001400 RDI: 0000000000005827
+    [61163.598177] RBP: 00007ffe72221e00 R08: 0000000000c2c3a0 R09: 0000000000000004
+    [61163.598842] R10: 0000000000c363b0 R11: 0000000000000246 R12: 0000000000400650
+    [61163.599456] R13: 00007ffe72221ee0 R14: 0000000000000000 R15: 0000000000000000
+    [61163.600067] Code: 81 e4 ff ff 1f 00 48 21 c2 49 c1 ec 0c 48 c1 ea 0c 4c 01 e2 49 bc 00 00 00 00 00 ea ff ff 48 c1 e2 06 49 01 d4 f6 45 bc 04 74 90 <49> 8b 7c 24 20 40 f6 c7 01 75 2b 4c 89 e7 8b 47 1c 85 c0 7e 2a
+    [61163.601845] RIP: follow_huge_pmd+0x143/0x190 RSP: ffffc90004bdbcd0
+    [61163.602376] CR2: ffffea0011943820
+    [61163.602767] ---[ end trace e4f81353a2d23232 ]---
+    [61163.603236] Kernel panic - not syncing: Fatal exception
+    [61163.603706] Kernel Offset: disabled
 
-Enable memcg-mode on the shadow node LRUs, such that per-cgroup limits
-are applied to per-cgroup lists.
+This bug is triggered when pmd_present() returns true for non-present
+hugetlb, so fixing the present check in follow_huge_pmd() prevents it.
+Using pmd_present() to determine present/non-present for hugetlb is
+not correct, because pmd_present() checks multiple bits (not only
+_PAGE_PRESENT) for historical reason and it can misjudge hugetlb state.
 
-Fixes: 0a6b76dd23fa ("mm: workingset: make shadow node shrinker memcg aware")
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: <stable@vger.kernel.org> # 4.6+
+Fixes: e66f17ff7177 ("mm/hugetlb: take page table lock in follow_huge_pmd()")
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: <stable@vger.kernel.org>        [4.0+]
 ---
- mm/workingset.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/hugetlb.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/mm/workingset.c b/mm/workingset.c
-index ac839fca0e76..eda05c71fa49 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -532,7 +532,7 @@ static int __init workingset_init(void)
- 	pr_info("workingset: timestamp_bits=%d max_order=%d bucket_order=%u\n",
- 	       timestamp_bits, max_order, bucket_order);
- 
--	ret = list_lru_init_key(&shadow_nodes, &shadow_nodes_key);
-+	ret = __list_lru_init(&shadow_nodes, true, &shadow_nodes_key);
- 	if (ret)
- 		goto err;
- 	ret = register_shrinker(&workingset_shadow_shrinker);
+diff --git v4.11-rc2-mmotm-2017-03-17-15-26/mm/hugetlb.c v4.11-rc2-mmotm-2017-03-17-15-26_patched/mm/hugetlb.c
+index 3d0aab9..f501f14 100644
+--- v4.11-rc2-mmotm-2017-03-17-15-26/mm/hugetlb.c
++++ v4.11-rc2-mmotm-2017-03-17-15-26_patched/mm/hugetlb.c
+@@ -4651,6 +4651,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ {
+ 	struct page *page = NULL;
+ 	spinlock_t *ptl;
++	pte_t pte;
+ retry:
+ 	ptl = pmd_lockptr(mm, pmd);
+ 	spin_lock(ptl);
+@@ -4660,12 +4661,13 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 	 */
+ 	if (!pmd_huge(*pmd))
+ 		goto out;
+-	if (pmd_present(*pmd)) {
++	pte = huge_ptep_get((pte_t *)pmd);
++	if (pte_present(pte)) {
+ 		page = pmd_page(*pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
+ 		if (flags & FOLL_GET)
+ 			get_page(page);
+ 	} else {
+-		if (is_hugetlb_entry_migration(huge_ptep_get((pte_t *)pmd))) {
++		if (is_hugetlb_entry_migration(pte)) {
+ 			spin_unlock(ptl);
+ 			__migration_entry_wait(mm, (pte_t *)pmd, ptl);
+ 			goto retry;
 -- 
-2.12.0
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
