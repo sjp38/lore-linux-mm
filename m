@@ -1,176 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F766B0343
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 22:36:49 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id p41so343808862otb.4
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 19:36:49 -0700 (PDT)
-Received: from dggrg01-dlp.huawei.com ([45.249.212.187])
-        by mx.google.com with ESMTPS id a5si9272991ota.303.2017.03.21.19.36.46
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 21 Mar 2017 19:36:48 -0700 (PDT)
-Message-ID: <58D1E31F.2050000@huawei.com>
-Date: Wed, 22 Mar 2017 10:36:15 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AE916B0333
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2017 23:29:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p189so263020199pfp.5
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2017 20:29:53 -0700 (PDT)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id q18si123383pgd.282.2017.03.21.20.29.50
+        for <linux-mm@kvack.org>;
+        Tue, 21 Mar 2017 20:29:52 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1490149898-20231-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1490149898-20231-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm, hugetlb: use pte_present() instead of pmd_present() in follow_huge_pmd()
+Date: Wed, 22 Mar 2017 11:29:33 +0800
+Message-ID: <006601d2a2bc$86e34b80$94a9e280$@alibaba-inc.com>
 MIME-Version: 1.0
-Subject: Re: Is it fixed by following patch
-References: <58CA429E.6000109@huawei.com> <20170316084226.GA2025@esperanza> <58CA565C.20803@huawei.com> <20170316153225.GB2025@esperanza>
-In-Reply-To: <20170316153225.GB2025@esperanza>
-Content-Type: text/plain; charset="ISO-8859-1"
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@tarantool.org>
-Cc: Rik van Riel <riel@redhat.com>, Xishi Qiu <qiuxishi@huawei.com>, Linux
- Memory Management List <linux-mm@kvack.org>
+To: 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Hugh Dickins' <hughd@google.com>, 'Michal Hocko' <mhocko@kernel.org>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, 'Naoya Horiguchi' <nao.horiguchi@gmail.com>
 
-Hi,   Vladimir
 
-      By further analysis and realize,  Adding following patch , This issue will not reproduce in the VM.
-I wonder that the issue  only exist  in the VM. because It is not appearance in the phycial machine
-before  the issue had come.  So , I am not sure that the following patch have solved the issue.
 
- diff --git a/mm/rmap.c b/mm/rmap.c
-index 4c545e1..e93d497 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1,5 +1,5 @@
- /*
-- * mm/rmap.c - physical to virtual reverse mappings
-+ +* mm/rmap.c - physical to virtual reverse mappings
-  *
-  * Copyright 2001, Rik van Riel <riel@conectiva.com.br>
-  * Released under the General Public License (GPL).
-@@ -456,6 +456,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
-                goto out;
 
-        anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-+       BUG_ON(!anon_vma);
-        root_anon_vma = ACCESS_ONCE(anon_vma->root);
-        if (down_read_trylock(&root_anon_vma->rwsem)) {
-                /*
-@@ -970,7 +971,7 @@ void page_move_anon_rmap(struct page *page,
-        VM_BUG_ON(page->index != linear_page_index(vma, address));
+On March 22, 2017 10:32 AM Naoya Horiguchi wrote: 
+> 
+> I found the race condition which triggers the following bug when
+> move_pages() and soft offline are called on a single hugetlb page
+> concurrently.
+> 
+>     [61163.578957] Soft offlining page 0x119400 at 0x700000000000
+>     [61163.580062] BUG: unable to handle kernel paging request at ffffea0011943820
+>     [61163.580791] IP: follow_huge_pmd+0x143/0x190
+>     [61163.581203] PGD 7ffd2067
+>     [61163.581204] PUD 7ffd1067
+>     [61163.581471] PMD 0
+>     [61163.581723]
+>     [61163.582052] Oops: 0000 [#1] SMP
+>     [61163.582349] Modules linked in: binfmt_misc ppdev virtio_balloon parport_pc pcspkr i2c_piix4 parport i2c_core acpi_cpufreq
+> ip_tables xfs libcrc32c ata_generic pata_acpi virtio_blk 8139too crc32c_intel ata_piix serio_raw libata virtio_pci 8139cp
+virtio_ring virtio
+> mii floppy dm_mirror dm_region_hash dm_log dm_mod [last unloaded: cap_check]
+>     [61163.585130] CPU: 0 PID: 22573 Comm: iterate_numa_mo Tainted: P           OE   4.11.0-rc2-mm1+ #2
+>     [61163.586055] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
+>     [61163.586627] task: ffff88007c951680 task.stack: ffffc90004bd8000
+>     [61163.587181] RIP: 0010:follow_huge_pmd+0x143/0x190
+>     [61163.587622] RSP: 0018:ffffc90004bdbcd0 EFLAGS: 00010202
+>     [61163.588096] RAX: 0000000465003e80 RBX: ffffea0004e34d30 RCX: 00003ffffffff000
+>     [61163.588818] RDX: 0000000011943800 RSI: 0000000000080001 RDI: 0000000465003e80
+>     [61163.589486] RBP: ffffc90004bdbd18 R08: 0000000000000000 R09: ffff880138d34000
+>     [61163.590097] R10: ffffea0004650000 R11: 0000000000c363b0 R12: ffffea0011943800
+>     [61163.590751] R13: ffff8801b8d34000 R14: ffffea0000000000 R15: 000077ff80000000
+>     [61163.591375] FS:  00007fc977710740(0000) GS:ffff88007dc00000(0000) knlGS:0000000000000000
+>     [61163.592068] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>     [61163.592627] CR2: ffffea0011943820 CR3: 000000007a746000 CR4: 00000000001406f0
+>     [61163.593330] Call Trace:
+>     [61163.593556]  follow_page_mask+0x270/0x550
+>     [61163.593908]  SYSC_move_pages+0x4ea/0x8f0
+>     [61163.594253]  ? lru_cache_add_active_or_unevictable+0x4b/0xd0
+>     [61163.594798]  SyS_move_pages+0xe/0x10
+>     [61163.595113]  do_syscall_64+0x67/0x180
+>     [61163.595434]  entry_SYSCALL64_slow_path+0x25/0x25
+>     [61163.595837] RIP: 0033:0x7fc976e03949
+>     [61163.596148] RSP: 002b:00007ffe72221d88 EFLAGS: 00000246 ORIG_RAX: 0000000000000117
+>     [61163.596940] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007fc976e03949
+>     [61163.597567] RDX: 0000000000c22390 RSI: 0000000000001400 RDI: 0000000000005827
+>     [61163.598177] RBP: 00007ffe72221e00 R08: 0000000000c2c3a0 R09: 0000000000000004
+>     [61163.598842] R10: 0000000000c363b0 R11: 0000000000000246 R12: 0000000000400650
+>     [61163.599456] R13: 00007ffe72221ee0 R14: 0000000000000000 R15: 0000000000000000
+>     [61163.600067] Code: 81 e4 ff ff 1f 00 48 21 c2 49 c1 ec 0c 48 c1 ea 0c 4c 01 e2 49 bc 00 00 00 00 00 ea ff ff 48 c1 e2 06 49
+01 d4 f6 45 bc
+> 04 74 90 <49> 8b 7c 24 20 40 f6 c7 01 75 2b 4c 89 e7 8b 47 1c 85 c0 7e 2a
+>     [61163.601845] RIP: follow_huge_pmd+0x143/0x190 RSP: ffffc90004bdbcd0
+>     [61163.602376] CR2: ffffea0011943820
+>     [61163.602767] ---[ end trace e4f81353a2d23232 ]---
+>     [61163.603236] Kernel panic - not syncing: Fatal exception
+>     [61163.603706] Kernel Offset: disabled
+> 
+> This bug is triggered when pmd_present() returns true for non-present
+> hugetlb, so fixing the present check in follow_huge_pmd() prevents it.
+> Using pmd_present() to determine present/non-present for hugetlb is
+> not correct, because pmd_present() checks multiple bits (not only
+> _PAGE_PRESENT) for historical reason and it can misjudge hugetlb state.
+> 
+> Fixes: e66f17ff7177 ("mm/hugetlb: take page table lock in follow_huge_pmd()")
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: <stable@vger.kernel.org>        [4.0+]
+> ---
 
-        anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--       page->mapping = (struct address_space *) anon_vma;
-+       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
- }
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
- /**
-@@ -999,7 +1000,7 @@ static void __page_set_anon_rmap(struct page *page,
-                anon_vma = anon_vma->root;
-
-        anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--       page->mapping = (struct address_space *) anon_vma;
-+       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
-        page->index = linear_page_index(vma, address);
- }
-
-@@ -1773,7 +1774,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
-                anon_vma = anon_vma->root;
-
-        anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--       page->mapping = (struct address_space *) anon_vma;
-+       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
-        page->index = linear_page_index(vma, address);
- }
-
-Thanks
-zhongjiang
-
-On 2017/3/16 23:32, Vladimir Davydov wrote:
-> On Thu, Mar 16, 2017 at 05:09:48PM +0800, zhong jiang wrote:
->> On 2017/3/16 16:42, Vladimir Davydov wrote:
->>> On Thu, Mar 16, 2017 at 03:45:34PM +0800, zhong jiang wrote:
->>>> Hi,  Vladimir
->>>>
->>>> I find upstream 414e2fb8ce5a ("rmap: fix theoretical race between do_wp_page and shrink_active_list ")
->>>> fix the bug maybe is  the same as the following issue, but I'm not sure. 
->>> It looks like in your case shrink_active_list() ran into a page with
->>> page->mapping set to PAGE_MAPPING_ANON, which made page_referenced()
->>> call page_referenced_anon(), which in turn called
->>> page_lock_anon_vma_read(), which hit the bug trying to dereference
->>> (page->mapping - PAGE_MAPPING_ANON) = NULL.
->>   Yes,  That is what we think.
->>> Theoretically, this could happen if page->mapping was updated
->>> non-atomically by page_move_anon_rmap(), which is the case the commit
->>> you mentioned fixes. However, I find it unlikely to happen on x86 with
->>> any sane compiler: on x86 it should be cheaper to first load the result
->>> (PAGE_MAPPING_ANON + addr in this case) to a register and only then
->>> store it in memory as a whole (page->mapping). To be sure, you should
->>> check assembly of page_move_anon_rmap() if it updates page->mapping
->>> non-atomically.
->>   The following is the assembly code.
->>  
->> (gdb) disassemble page_move_anon_rmap
->>  Dump of assembler code for function page_move_anon_rmap:
->>    0xffffffff811a4e10 <+0>:     callq  0xffffffff8164d9c0 <__fentry__>
->>    0xffffffff811a4e15 <+5>:     mov    0x88(%rsi),%rax
-> Load vma->anon_vma address to RAX.
->
->>    0xffffffff811a4e1c <+12>:    push   %rbp
->>    0xffffffff811a4e1d <+13>:    mov    %rsp,%rbp
->>    0xffffffff811a4e20 <+16>:    add    $0x1,%rax
-> Add PAGE_MAPPING_ANON to RAX.
->
->>    0xffffffff811a4e24 <+20>:    mov    %rax,0x8(%rdi)
-> Move the result to page->mapping.
->
-> This is atomic, so the commit you mentioned won't help, unfortunately.
->
->>    0xffffffff811a4e28 <+24>:    pop    %rbp
->>    0xffffffff811a4e29 <+25>:    retq
->>  End of assembler dump.
->>  (gdb)
->>>> 9381.005212] CPU: 3 PID: 12737 Comm: docker-runc Tainted: G           OE  ---- -------   3.10.0-327.36.58.4.x86_64 #1
->>>> [19381.005212] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20160826_044443-hghoulaslx112 04/01/2014
->>>> [19381.005212] task: ffff880002938000 ti: ffff880232254000 task.ti: ffff880232254000
->>>> [19381.005212] RIP: 0010:[<ffffffff810aca65>]  [<ffffffff810aca65>] down_read_trylock+0x5/0x50
->>>> [19381.005212] RSP: 0018:ffff8802322576c0  EFLAGS: 00010202
->>>> [19381.005212] RAX: 0000000000000000 RBX: ffff880230cabbc0 RCX: 0000000000000000
->>>> [19381.005212] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000008
->>>> [19381.005212] RBP: ffff8802322576e8 R08: ffffea00083725a0 R09: ffff8800b185b408
->>>> [19381.005212] R10: 0000000000000000 R11: fff00000fe000000 R12: ffff880230cabbc1
->>>> [19381.005212] R13: ffffea0008372580 R14: 0000000000000008 R15: ffffea0008372580
->>>> [19381.005212] FS:  00007f66aea00700(0000) GS:ffff88023ed80000(0000) knlGS:0000000000000000
->>>> [19381.005212] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->>>> [19381.005212] CR2: 0000000000000008 CR3: 0000000231be8000 CR4: 00000000001407e0
->>>> [19381.005212] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->>>> [19381.005212] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->>>> [19381.018017] Stack:
->>>> [19381.018017]  ffffffff811b22b5 ffffea0008372580 0000000000000000 0000000000000004
->>>> [19381.018017]  0000000000000001 ffff880232257760 ffffffff811b2537 ffff8800b18ab1c0
->>>> [19381.018017]  00000007fcd103e2 ffff8802322577b0 0000000100000000 00000007fcd0fbe6
->>>> [19381.018017] Call Trace:
->>>> [19381.018017]  [<ffffffff811b22b5>] ? page_lock_anon_vma_read+0x55/0x110
->>>> [19381.018017]  [<ffffffff811b2537>] page_referenced+0x1c7/0x350
->>>> [19381.018017]  [<ffffffff8118d634>] shrink_active_list+0x1e4/0x400
->>>> [19381.018017]  [<ffffffff8118dd0d>] shrink_lruvec+0x4bd/0x770
->>>> [19381.018017]  [<ffffffff8118e036>] shrink_zone+0x76/0x1a0
->>>> [19381.018017]  [<ffffffff8118e530>] do_try_to_free_pages+0xe0/0x3f0
->>>> [19381.018017]  [<ffffffff8118e93c>] try_to_free_pages+0xfc/0x180
->>>> [19381.018017]  [<ffffffff81182218>] __alloc_pages_nodemask+0x818/0xcc0
->>>> [19381.018017]  [<ffffffff811cabfa>] alloc_pages_vma+0x9a/0x150
->>>> [19381.018017]  [<ffffffff811e0346>] do_huge_pmd_wp_page+0x106/0xb60
->>>> [19381.018017]  [<ffffffffa01c27d0>] ? dm_get_queue_limits+0x30/0x30 [dm_mod]
->>>> [19381.018017]  [<ffffffff811a6518>] handle_mm_fault+0x638/0xfa0
->>>> [19381.018017]  [<ffffffff81313cf2>] ? radix_tree_lookup_slot+0x22/0x50
->>>> [19381.018017]  [<ffffffff8117771e>] ? __find_get_page+0x1e/0xa0
->>>> [19381.018017]  [<ffffffff81160097>] ? rtos_hungtask_acquired+0x57/0x140
->>>> [19381.018017]  [<ffffffff81660435>] __do_page_fault+0x145/0x490
->>>> [19381.018017]  [<ffffffff81660843>] trace_do_page_fault+0x43/0x110
->>>> [19381.018017]  [<ffffffff8165fef9>] do_async_page_fault+0x29/0xe0
->>>> [19381.018017]  [<ffffffff8165c538>] async_page_fault+0x28/0x30
->>>> [19381.018017]  [<ffffffff8131af79>] ? copy_user_enhanced_fast_string+0x9/0x20
->>>> [19381.018017]  [<ffffffff81207c9c>] ? poll_select_copy_remaining+0xfc/0x150
->>>> [19381.018017]  [<ffffffff81208c2c>] SyS_select+0xcc/0x110
->>>> [19381.018017]  [<ffffffff81664ff3>] system_call_fastpath+0x16/0x1b
->>> .
->>>
-> .
->
-
+>  mm/hugetlb.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git v4.11-rc2-mmotm-2017-03-17-15-26/mm/hugetlb.c v4.11-rc2-mmotm-2017-03-17-15-26_patched/mm/hugetlb.c
+> index 3d0aab9..f501f14 100644
+> --- v4.11-rc2-mmotm-2017-03-17-15-26/mm/hugetlb.c
+> +++ v4.11-rc2-mmotm-2017-03-17-15-26_patched/mm/hugetlb.c
+> @@ -4651,6 +4651,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  {
+>  	struct page *page = NULL;
+>  	spinlock_t *ptl;
+> +	pte_t pte;
+>  retry:
+>  	ptl = pmd_lockptr(mm, pmd);
+>  	spin_lock(ptl);
+> @@ -4660,12 +4661,13 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  	 */
+>  	if (!pmd_huge(*pmd))
+>  		goto out;
+> -	if (pmd_present(*pmd)) {
+> +	pte = huge_ptep_get((pte_t *)pmd);
+> +	if (pte_present(pte)) {
+>  		page = pmd_page(*pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
+>  		if (flags & FOLL_GET)
+>  			get_page(page);
+>  	} else {
+> -		if (is_hugetlb_entry_migration(huge_ptep_get((pte_t *)pmd))) {
+> +		if (is_hugetlb_entry_migration(pte)) {
+>  			spin_unlock(ptl);
+>  			__migration_entry_wait(mm, (pte_t *)pmd, ptl);
+>  			goto retry;
+> --
+> 2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
