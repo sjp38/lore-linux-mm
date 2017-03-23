@@ -1,58 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 67E116B0038
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 14:02:32 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id j137so2952357vke.3
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 11:02:32 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B2CCD6B0333
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 16:34:56 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 187so6259852itk.2
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 13:34:56 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h18si1949441vkh.240.2017.03.23.11.02.31
+        by mx.google.com with ESMTPS id g14si20235ioe.11.2017.03.23.13.34.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Mar 2017 11:02:31 -0700 (PDT)
-Subject: Re: mm: BUG in resv_map_release
-References: <CACT4Y+Z-trVe0Oqzs8c+mTG6_iL7hPBBFgOm0p0iQsCz9Q2qiw@mail.gmail.com>
- <a10eb28c-305d-3547-8df1-7a2216473e09@oracle.com>
+        Thu, 23 Mar 2017 13:34:55 -0700 (PDT)
+Subject: Re: security, hugetlbfs: write to user memory in
+ hugetlbfs_destroy_inode
+References: <CACT4Y+Z1eodoxayi1qP-x05UoQ3nscXYUwA3UTN8ypOHfGJwjg@mail.gmail.com>
+ <CACT4Y+ZHqNYPE_uMrc1NwX3Rb1FXYoN47D4eJFn=T07bSQ7YEw@mail.gmail.com>
+ <201703232249.CCF09362.LVtHFOFFOMOQJS@I-love.SAKURA.ne.jp>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <888af92c-1d20-d9f4-a425-c720d1179756@oracle.com>
-Date: Thu, 23 Mar 2017 11:02:22 -0700
+Message-ID: <844751a3-f77b-4319-a908-6f7237536812@oracle.com>
+Date: Thu, 23 Mar 2017 13:34:35 -0700
 MIME-Version: 1.0
-In-Reply-To: <a10eb28c-305d-3547-8df1-7a2216473e09@oracle.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <201703232249.CCF09362.LVtHFOFFOMOQJS@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, nyc@holomorphy.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dvyukov@google.com, nyc@holomorphy.com, linux-kernel@vger.kernel.org, paul@paul-moore.com, sds@tycho.nsa.gov, eparis@parisplace.org, james.l.morris@oracle.com, serge@hallyn.com, keescook@chromium.org, anton@enomsg.org, ccross@android.com, tony.luck@intel.com, selinux@tycho.nsa.gov, linux-security-module@vger.kernel.org, linux-mm@kvack.org
+Cc: syzkaller@googlegroups.com
 
-On 03/23/2017 10:25 AM, Mike Kravetz wrote:
-> On 03/23/2017 03:19 AM, Dmitry Vyukov wrote:
->> Hello,
->>
->> I've got the following BUG while running syzkaller fuzzer.
->> Note the injected kmalloc failure, most likely it's the root cause.
+On 03/23/2017 06:49 AM, Tetsuo Handa wrote:
+> Dmitry Vyukov wrote:
+>> On Thu, Mar 23, 2017 at 2:06 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>> Hello,
+>>>
+>>> I've got the following report while running syzkaller fuzzer on
+>>> 093b995e3b55a0ae0670226ddfcb05bfbf0099ae. Note the preceding injected
+>>> kmalloc failure in inode_alloc_security, most likely it's the root
+>>> cause.
 > 
-> Thanks  Dmitry,
+> I don't think inode_alloc_security() failure is the root cause.
+> I think this is a bug in hugetlbfs or mm part.
 > 
-> The BUG indicates someone called region_chg() in the process of adding
-> a hugetlbfs page reservation, but did not complete this 'two step'
-> process with a call to region_add() or region_abort().  Most likely a
-> missed call in an error path somewhere.  :(
+> If inode_alloc_security() fails, inode->i_security remains NULL
+> which was initialized to NULL at security_inode_alloc(). Thus,
+> security_inode_alloc() is irrelevant to this problem.
 > 
-> I'll try to track this down.  The hint of 'injected kmalloc failure'
-> should help.
+> inode_init_always() returned -ENOMEM due to fault injection and
+> 
+> 	if (unlikely(inode_init_always(sb, inode))) {
+> 		if (inode->i_sb->s_op->destroy_inode)
+> 			inode->i_sb->s_op->destroy_inode(inode);
+> 		else
+> 			kmem_cache_free(inode_cachep, inode);
+> 		return NULL;
+> 	}
+> 
+> hugetlbfs_destroy_inode() was called via inode->i_sb->s_op->destroy_inode()
+> when inode initialization failed
+> 
+> static void hugetlbfs_destroy_inode(struct inode *inode)
+> {
+> 	hugetlbfs_inc_free_inodes(HUGETLBFS_SB(inode->i_sb));
+> 	mpol_free_shared_policy(&HUGETLBFS_I(inode)->policy);
+> 	call_rcu(&inode->i_rcu, hugetlbfs_i_callback);
+> }
+> 
+> but mpol_shared_policy_init() is called only when new_inode() succeeds.
+> 
+> 	inode = new_inode(sb);
+> 	if (inode) {
+> (...snipped...)
+> 		info = HUGETLBFS_I(inode);
+> 		/*
+> 		 * The policy is initialized here even if we are creating a
+> 		 * private inode because initialization simply creates an
+> 		 * an empty rb tree and calls rwlock_init(), later when we
+> 		 * call mpol_free_shared_policy() it will just return because
+> 		 * the rb tree will still be empty.
+> 		 */
+> 		mpol_shared_policy_init(&info->policy, NULL);
+> 
 
-Actually, in this case I believe the bug is in hugetlb_reserve_pages.
-It calls region_chg(), but gets an error due to the injected kmalloc
-failure.  At this point, the resv_map->adds_in_progress is 0 as it
-should be.  However, the error path for hugetlb_reserve_pages calls
-region_abort() which will unconditionally decrement adds_in_progress.
-So, adds_in_progress goes negative and we eventually BUG.  :(
+Thank you for analysis (and Dmitry for reporting).
 
-I'll look for other misuses of region_chg()/region_add()/region_abort()
-and put together a patch.
-
-Dmitry, is there some way to run the fuzzer with kmalloc failure injection
-and target the hugetlbfs code?  I'm suspect we could flush out other bugs.
-I noticed one other you discovered, and will look at that next.
+This certainly does look like a hugetlbfs bug.  I will put together a
+patch to fix.
 
 -- 
 Mike Kravetz
