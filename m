@@ -1,102 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BAB7C6B0351
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 09:05:44 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o126so393161802pfb.2
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 06:05:44 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0129.outbound.protection.outlook.com. [104.47.2.129])
-        by mx.google.com with ESMTPS id e65si3983024pfg.419.2017.03.23.06.05.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 23 Mar 2017 06:05:43 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9390D6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 09:29:32 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id g2so415685250pge.7
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 06:29:32 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b10si5650629pgf.419.2017.03.23.06.29.31
+        for <linux-mm@kvack.org>;
+        Thu, 23 Mar 2017 06:29:31 -0700 (PDT)
+Date: Thu, 23 Mar 2017 13:29:13 +0000
+From: Mark Rutland <mark.rutland@arm.com>
 Subject: Re: [PATCH v2] kasan: report only the first error by default
+Message-ID: <20170323132913.GF9287@leverpostej>
 References: <20170322160647.32032-1-aryabinin@virtuozzo.com>
  <20170323114916.29871-1-aryabinin@virtuozzo.com>
  <20170323124154.GE9287@leverpostej>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <d9be02d7-af87-208a-c51b-c890b549434b@virtuozzo.com>
-Date: Thu, 23 Mar 2017 16:06:59 +0300
+ <d9be02d7-af87-208a-c51b-c890b549434b@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20170323124154.GE9287@leverpostej>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d9be02d7-af87-208a-c51b-c890b549434b@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Thu, Mar 23, 2017 at 04:06:59PM +0300, Andrey Ryabinin wrote:
+> On 03/23/2017 03:41 PM, Mark Rutland wrote:
 
-
-On 03/23/2017 03:41 PM, Mark Rutland wrote:
-> On Thu, Mar 23, 2017 at 02:49:16PM +0300, Andrey Ryabinin wrote:
->> +	kasan_multi_shot
->> +			[KNL] Enforce KASAN (Kernel Address Sanitizer) to print
->> +			report on every invalid memory access. Without this
->> +			parameter KASAN will print report only for the first
->> +			invalid access.
->> +
-> 
-> The option looks fine to me.
-> 
->>  static int __init kmalloc_tests_init(void)
->>  {
->> +	/* Rise reports limit high enough to see all the following bugs */
->> +	atomic_add(100, &kasan_report_count);
-> 
->> +
->> +	/*
->> +	 * kasan is unreliable now, disable reports if
->> +	 * we are in single shot mode
->> +	 */
->> +	atomic_sub(100, &kasan_report_count);
->>  	return -EAGAIN;
->>  }
-> 
-> ... but these magic numbers look rather messy.
-> 
-> [...]
-> 
->> +atomic_t kasan_report_count = ATOMIC_INIT(1);
->> +EXPORT_SYMBOL_GPL(kasan_report_count);
->> +
->> +static int __init kasan_set_multi_shot(char *str)
->> +{
->> +	atomic_set(&kasan_report_count, 1000000000);
->> +	return 1;
->> +}
->> +__setup("kasan_multi_shot", kasan_set_multi_shot);
-> 
-> ... likewise.
-> 
-> Rather than trying to pick an arbitrarily large number, how about we use
-> separate flags to determine whether we're in multi-shot mode, and
-> whether a (oneshot) report has been made.
-> 
-> How about the below?
- 
-Yes, it deferentially looks better.
-Can you send a patch with a changelog, or do you want me to care of it?
-
-> Thanks,
-> Mark.
-> 
-
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index f479365..f1c5892 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -13,6 +13,7 @@
->   *
->   */
+> > Rather than trying to pick an arbitrarily large number, how about we use
+> > separate flags to determine whether we're in multi-shot mode, and
+> > whether a (oneshot) report has been made.
+> > 
+> > How about the below?
 >  
-> +#include <linux/bitops.h>
->  #include <linux/ftrace.h>
+> Yes, it deferentially looks better.
+> Can you send a patch with a changelog, or do you want me to care of it?
 
-We also need <linux/init.h> for __setup().
+Would you be happy to take care of it, along with the fixup you
+suggested below, as v3?
 
->  #include <linux/kernel.h>
->  #include <linux/mm.h>
-> @@ -293,6 +294,40 @@ static void kasan_report_error(struct kasan_access_info *info)
+You can add my:
+
+Signed-off-by: Mark Rutland <mark.rutland@arm.com>
+
+Thanks,
+Mark.
+
+
+> >  
+> > +#include <linux/bitops.h>
+> >  #include <linux/ftrace.h>
+> 
+> We also need <linux/init.h> for __setup().
+> 
+> >  #include <linux/kernel.h>
+> >  #include <linux/mm.h>
+> > @@ -293,6 +294,40 @@ static void kasan_report_error(struct kasan_access_info *info)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
