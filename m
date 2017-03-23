@@ -1,106 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 09A096B0343
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 10:51:36 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p197so21878058wmg.6
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 07:51:35 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id i65si28254371wmc.121.2017.03.23.07.51.34
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BF4E6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 11:10:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d66so22077329wmi.2
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 08:10:12 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.130])
+        by mx.google.com with ESMTPS id h13si7847534wme.149.2017.03.23.08.10.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Mar 2017 07:51:34 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 4EC1098919
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 14:51:34 +0000 (UTC)
-Date: Thu, 23 Mar 2017 14:51:33 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: Page allocator order-0 optimizations merged
-Message-ID: <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
-References: <58b48b1f.F/jo2/WiSxvvGm/z%akpm@linux-foundation.org>
- <20170301144845.783f8cad@redhat.com>
- <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
- <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
- <20170322234004.kffsce4owewgpqnm@techsingularity.net>
- <20170323144347.1e6f29de@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170323144347.1e6f29de@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Mar 2017 08:10:11 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] kasan: avoid -Wmaybe-uninitialized warning
+Date: Thu, 23 Mar 2017 16:04:09 +0100
+Message-Id: <20170323150415.301180-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Tariq Toukan <tariqt@mellanox.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Peter Zijlstra <peterz@infradead.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 23, 2017 at 02:43:47PM +0100, Jesper Dangaard Brouer wrote:
-> On Wed, 22 Mar 2017 23:40:04 +0000
-> Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > On Wed, Mar 22, 2017 at 07:39:17PM +0200, Tariq Toukan wrote:
-> > > > > > This modification may slow allocations from IRQ context slightly
-> > > > > > but the
-> > > > > > main gain from the per-cpu allocator is that it scales better for
-> > > > > > allocations from multiple contexts.  There is an implicit
-> > > > > > assumption that
-> > > > > > intensive allocations from IRQ contexts on multiple CPUs from a single
-> > > > > > NUMA node are rare  
-> > > Hi Mel, Jesper, and all.
-> > > 
-> > > This assumption contradicts regular multi-stream traffic that is naturally
-> > > handled
-> > > over close numa cores.  I compared iperf TCP multistream (8 streams)
-> > > over CX4 (mlx5 driver) with kernels v4.10 (before this series) vs
-> > > kernel v4.11-rc1 (with this series).
-> > > I disabled the page-cache (recycle) mechanism to stress the page allocator,
-> > > and see a drastic degradation in BW, from 47.5 G in v4.10 to 31.4 G in
-> > > v4.11-rc1 (34% drop).
-> > > I noticed queued_spin_lock_slowpath occupies 62.87% of CPU time.  
-> > 
-> > Can you get the stack trace for the spin lock slowpath to confirm it's
-> > from IRQ context?
-> 
-> AFAIK allocations happen in softirq.  Argh and during review I missed
-> that in_interrupt() also covers softirq.  To Mel, can we use a in_irq()
-> check instead?
-> 
-> (p.s. just landed and got home)
+gcc-7 produces this warning:
 
-Not built or even boot tested. I'm unable to run tests at the moment
+mm/kasan/report.c: In function 'kasan_report':
+mm/kasan/report.c:351:3: error: 'info.first_bad_addr' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+   print_shadow_for_address(info->first_bad_addr);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+mm/kasan/report.c:360:27: note: 'info.first_bad_addr' was declared here
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6cbde310abed..f82225725bc1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2481,7 +2481,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- 	unsigned long pfn = page_to_pfn(page);
- 	int migratetype;
- 
--	if (in_interrupt()) {
-+	if (in_irq()) {
- 		__free_pages_ok(page, 0);
- 		return;
- 	}
-@@ -2647,7 +2647,7 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
+The code seems fine as we only print info.first_bad_addr when there is a shadow,
+and we always initialize it in that case, but this is relatively hard
+for gcc to figure out after the latest rework. Adding an intialization
+in the other code path gets rid of the warning.
+
+Fixes: b235b9808664 ("kasan: unify report headers")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/kasan/report.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 718a10a48a19..63de3069dceb 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -109,6 +109,8 @@ const char *get_wild_bug_type(struct kasan_access_info *info)
  {
- 	struct page *page;
+ 	const char *bug_type = "unknown-crash";
  
--	VM_BUG_ON(in_interrupt());
-+	VM_BUG_ON(in_irq());
- 
- 	do {
- 		if (list_empty(list)) {
-@@ -2704,7 +2704,7 @@ struct page *rmqueue(struct zone *preferred_zone,
- 	unsigned long flags;
- 	struct page *page;
- 
--	if (likely(order == 0) && !in_interrupt()) {
-+	if (likely(order == 0) && !in_irq()) {
- 		page = rmqueue_pcplist(preferred_zone, zone, order,
- 				gfp_flags, migratetype);
- 		goto out;
-
++	info->first_bad_addr = (void *)(-1ul);
++
+ 	if ((unsigned long)info->access_addr < PAGE_SIZE)
+ 		bug_type = "null-ptr-deref";
+ 	else if ((unsigned long)info->access_addr < TASK_SIZE)
 -- 
-Mel Gorman
-SUSE Labs
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
