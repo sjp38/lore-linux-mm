@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4B86B0038
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 04:38:54 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c5so18393226wmi.0
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:38:54 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
-        by mx.google.com with ESMTPS id 1si5883635wrh.331.2017.03.23.01.38.52
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9594E6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 04:49:34 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id r69so35080252vke.4
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:49:34 -0700 (PDT)
+Received: from mail-vk0-x22a.google.com (mail-vk0-x22a.google.com. [2607:f8b0:400c:c05::22a])
+        by mx.google.com with ESMTPS id t42si180842uag.63.2017.03.23.01.49.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Mar 2017 01:38:53 -0700 (PDT)
-Message-ID: <1490258325.27756.42.camel@gmx.de>
-Subject: Re: Still OOM problems with 4.9er/4.10er kernels
-From: Mike Galbraith <efault@gmx.de>
-Date: Thu, 23 Mar 2017 09:38:45 +0100
-In-Reply-To: <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
-References: <20170302071721.GA32632@bbox>
-	 <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
-	 <20170316082714.GC30501@dhcp22.suse.cz>
-	 <20170316084733.GP802@shells.gnugeneration.com>
-	 <20170316090844.GG30501@dhcp22.suse.cz>
-	 <20170316092318.GQ802@shells.gnugeneration.com>
-	 <20170316093931.GH30501@dhcp22.suse.cz>
-	 <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
-	 <20170317171339.GA23957@dhcp22.suse.cz>
-	 <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
-	 <20170319151837.GD12414@dhcp22.suse.cz>
-	 <555d1f95-7c9e-2691-b14f-0260f90d23a9@wiesinger.com>
-	 <1489979147.4273.22.camel@gmx.de>
-	 <798104b6-091d-5415-2c51-8992b6b231e5@wiesinger.com>
-	 <1490080422.14658.39.camel@gmx.de>
-	 <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
-Content-Type: text/plain; charset="us-ascii"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 23 Mar 2017 01:49:33 -0700 (PDT)
+Received: by mail-vk0-x22a.google.com with SMTP id r69so32767745vke.2
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:49:33 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAK8P3a2DskgumXx5XuzN8J-T0jmhXgD5dPZ4QWBtDA3WvMCyoQ@mail.gmail.com>
+References: <20170322111022.85745-1-dvyukov@google.com> <CAK8P3a2pm2EsxOxxf7SsEObxcNFJP60JOY_78a19g2kD4pL6Rw@mail.gmail.com>
+ <CAK8P3a2DskgumXx5XuzN8J-T0jmhXgD5dPZ4QWBtDA3WvMCyoQ@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 23 Mar 2017 09:49:12 +0100
+Message-ID: <CACT4Y+aL-X8VbFC0kfHG8tKVSanhkY9a_hNrEcAHGUyQk1WtSA@mail.gmail.com>
+Subject: Re: [PATCH] asm-generic: fix compilation failure in cmpxchg_double()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerhard Wiesinger <lists@wiesinger.com>, Michal Hocko <mhocko@kernel.org>
-Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, 2017-03-23 at 08:16 +0100, Gerhard Wiesinger wrote:
-> On 21.03.2017 08:13, Mike Galbraith wrote:
-> > On Tue, 2017-03-21 at 06:59 +0100, Gerhard Wiesinger wrote:
-> > 
-> > > Is this the correct information?
-> > Incomplete, but enough to reiterate cgroup_disable=memory
-> > suggestion.
-> > 
-> 
-> How to collect complete information?
+On Wed, Mar 22, 2017 at 10:27 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+> On Wed, Mar 22, 2017 at 12:27 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+>> On Wed, Mar 22, 2017 at 12:10 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>> Arnd reported that the new code leads to compilation failures
+>>> with some versions of gcc. I've filed gcc issue 72873,
+>>> but we need a kernel fix as well.
+>>>
+>>> Remove instrumentation from cmpxchg_double() for now.
+>>
+>> Thanks, I also checked that fixes the build error for me.
+>
+> I got a new variant of the bug in
+> arch/x86/include/asm/cmpxchg_32.h:set_64bit() now.
+>
+> In file included from /git/arm-soc/arch/x86/include/asm/cmpxchg.h:142:0,
+>                  from /git/arm-soc/arch/x86/include/asm/atomic.h:7,
+>                  from /git/arm-soc/arch/x86/include/asm/msr.h:66,
+>                  from /git/arm-soc/arch/x86/include/asm/processor.h:20,
+>                  from /git/arm-soc/arch/x86/include/asm/cpufeature.h:4,
+>                  from /git/arm-soc/arch/x86/include/asm/thread_info.h:52,
+>                  from /git/arm-soc/include/linux/thread_info.h:25,
+>                  from /git/arm-soc/arch/x86/include/asm/preempt.h:6,
+>                  from /git/arm-soc/include/linux/preempt.h:80,
+>                  from /git/arm-soc/include/linux/spinlock.h:50,
+>                  from /git/arm-soc/include/linux/mmzone.h:7,
+>                  from /git/arm-soc/include/linux/gfp.h:5,
+>                  from /git/arm-soc/include/linux/mm.h:9,
+>                  from /git/arm-soc/mm/khugepaged.c:3:
+> /git/arm-soc/mm/khugepaged.c: In function 'khugepaged':
+> /git/arm-soc/arch/x86/include/asm/cmpxchg_32.h:29:2: error: 'asm'
+> operand has impossible constraints
+>   asm volatile("\n1:\t"
+>
+> Defconfig is at http://pastebin.com/raw/Pthhv5iU
 
-If Michal wants specifics, I suspect he'll ask.  I posted only to pass
-along a speck of information, and offer a test suggestion.. twice.
 
-	-Mike
+I can't reproduce it with gcc 4.8.4, 7.0.0, 7.0.1.
+
+Are you sure it's related to my recent change? I did not touch set_64bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
