@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 061C56B0343
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 19:40:07 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id c5so15363974wmi.0
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 16:40:06 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id i140si4848702wmd.64.2017.03.22.16.40.05
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Mar 2017 16:40:05 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 279CD993E5
-	for <linux-mm@kvack.org>; Wed, 22 Mar 2017 23:40:05 +0000 (UTC)
-Date: Wed, 22 Mar 2017 23:40:04 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: Page allocator order-0 optimizations merged
-Message-ID: <20170322234004.kffsce4owewgpqnm@techsingularity.net>
-References: <58b48b1f.F/jo2/WiSxvvGm/z%akpm@linux-foundation.org>
- <20170301144845.783f8cad@redhat.com>
- <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
- <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 206956B0038
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:53:14 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id q126so420509375pga.0
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 22:53:14 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id m5si4317989pln.98.2017.03.22.22.53.12
+        for <linux-mm@kvack.org>;
+        Wed, 22 Mar 2017 22:53:13 -0700 (PDT)
+Date: Thu, 23 Mar 2017 14:53:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
+Message-ID: <20170323055309.GA6117@bbox>
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
+ <20170322063335.GF30149@bbox>
+ <20170322084103.GC2360@aaronlu.sh.intel.com>
+ <20170322085512.GA32359@bbox>
+ <20170322134304.GG2360@aaronlu.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+In-Reply-To: <20170322134304.GG2360@aaronlu.sh.intel.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tariq Toukan <tariqt@mellanox.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Wed, Mar 22, 2017 at 07:39:17PM +0200, Tariq Toukan wrote:
-> > > > This modification may slow allocations from IRQ context slightly
-> > > > but the
-> > > > main gain from the per-cpu allocator is that it scales better for
-> > > > allocations from multiple contexts.  There is an implicit
-> > > > assumption that
-> > > > intensive allocations from IRQ contexts on multiple CPUs from a single
-> > > > NUMA node are rare
-> Hi Mel, Jesper, and all.
+On Wed, Mar 22, 2017 at 09:43:04PM +0800, Aaron Lu wrote:
+> On Wed, Mar 22, 2017 at 05:55:12PM +0900, Minchan Kim wrote:
+> > On Wed, Mar 22, 2017 at 04:41:04PM +0800, Aaron Lu wrote:
+> > > My understanding of the unbound workqueue is that it will create a
+> > > thread pool for each node, versus each CPU as in the bound workqueue
+> > > case, and use threads from the thread pool(create threads if not enough)
+> > > to do the work.
+> > 
+> > Yes, that was my understand so I read code and found that
+> > 
+> > insert_work:
+> >         ..
+> >         if (__need_more_worker(pool))
+> >                 wake_up_worker(pool); 
+> > 
+> > so I thought if there is a running thread in that node, workqueue
+> > will not wake any other threads so parallelism should be max 2.
+> > AFAIK, if the work goes sleep, scheduler will spawn new worker
+> > thread so the active worker could be a lot but I cannot see any
+> > significant sleepable point in that work(ie, batch_free_work).
 > 
-> This assumption contradicts regular multi-stream traffic that is naturally
-> handled
-> over close numa cores.  I compared iperf TCP multistream (8 streams)
-> over CX4 (mlx5 driver) with kernels v4.10 (before this series) vs
-> kernel v4.11-rc1 (with this series).
-> I disabled the page-cache (recycle) mechanism to stress the page allocator,
-> and see a drastic degradation in BW, from 47.5 G in v4.10 to 31.4 G in
-> v4.11-rc1 (34% drop).
-> I noticed queued_spin_lock_slowpath occupies 62.87% of CPU time.
+> Looks like worker_thread() will spawn new worker through manage_worker().
+> 
+> Note that pool->nr_running will always be zero for an unbound workqueue
+> and thus need_more_worker() will return true as long as there are queued
+> work items in the pool.
 
-Can you get the stack trace for the spin lock slowpath to confirm it's
-from IRQ context?
-
--- 
-Mel Gorman
-SUSE Labs
+Aha, it solves my wonder. Thanks a lot!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
