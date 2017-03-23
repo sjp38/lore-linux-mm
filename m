@@ -1,80 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 782DB6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 09:31:06 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id a12so369653553ota.1
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 06:31:06 -0700 (PDT)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id o88si2293582ota.292.2017.03.23.06.31.05
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 230D26B0343
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 09:43:55 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id v127so193558644qkb.5
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 06:43:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p5si3721158qkb.70.2017.03.23.06.43.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Mar 2017 06:31:05 -0700 (PDT)
-Received: by mail-oi0-x242.google.com with SMTP id f81so5587066oih.2
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 06:31:05 -0700 (PDT)
+        Thu, 23 Mar 2017 06:43:54 -0700 (PDT)
+Date: Thu, 23 Mar 2017 14:43:47 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Page allocator order-0 optimizations merged
+Message-ID: <20170323144347.1e6f29de@redhat.com>
+In-Reply-To: <20170322234004.kffsce4owewgpqnm@techsingularity.net>
+References: <58b48b1f.F/jo2/WiSxvvGm/z%akpm@linux-foundation.org>
+	<20170301144845.783f8cad@redhat.com>
+	<d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
+	<83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
+	<20170322234004.kffsce4owewgpqnm@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+aL-X8VbFC0kfHG8tKVSanhkY9a_hNrEcAHGUyQk1WtSA@mail.gmail.com>
-References: <20170322111022.85745-1-dvyukov@google.com> <CAK8P3a2pm2EsxOxxf7SsEObxcNFJP60JOY_78a19g2kD4pL6Rw@mail.gmail.com>
- <CAK8P3a2DskgumXx5XuzN8J-T0jmhXgD5dPZ4QWBtDA3WvMCyoQ@mail.gmail.com> <CACT4Y+aL-X8VbFC0kfHG8tKVSanhkY9a_hNrEcAHGUyQk1WtSA@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Thu, 23 Mar 2017 14:31:04 +0100
-Message-ID: <CAK8P3a0v1_hb_BLmnbz-hcgvCi=-B8mKvhhkX-FpXJM5z+TQgA@mail.gmail.com>
-Subject: Re: [PATCH] asm-generic: fix compilation failure in cmpxchg_double()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Tariq Toukan <tariqt@mellanox.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>, brouer@redhat.com
 
-On Thu, Mar 23, 2017 at 9:49 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Mar 22, 2017 at 10:27 PM, Arnd Bergmann <arnd@arndb.de> wrote:
->> On Wed, Mar 22, 2017 at 12:27 PM, Arnd Bergmann <arnd@arndb.de> wrote:
->>> On Wed, Mar 22, 2017 at 12:10 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->>>> Arnd reported that the new code leads to compilation failures
->>>> with some versions of gcc. I've filed gcc issue 72873,
->>>> but we need a kernel fix as well.
->>>>
->>>> Remove instrumentation from cmpxchg_double() for now.
->>>
->>> Thanks, I also checked that fixes the build error for me.
->>
->> I got a new variant of the bug in
->> arch/x86/include/asm/cmpxchg_32.h:set_64bit() now.
->>
->> In file included from /git/arm-soc/arch/x86/include/asm/cmpxchg.h:142:0,
->>                  from /git/arm-soc/arch/x86/include/asm/atomic.h:7,
->>                  from /git/arm-soc/arch/x86/include/asm/msr.h:66,
->>                  from /git/arm-soc/arch/x86/include/asm/processor.h:20,
->>                  from /git/arm-soc/arch/x86/include/asm/cpufeature.h:4,
->>                  from /git/arm-soc/arch/x86/include/asm/thread_info.h:52,
->>                  from /git/arm-soc/include/linux/thread_info.h:25,
->>                  from /git/arm-soc/arch/x86/include/asm/preempt.h:6,
->>                  from /git/arm-soc/include/linux/preempt.h:80,
->>                  from /git/arm-soc/include/linux/spinlock.h:50,
->>                  from /git/arm-soc/include/linux/mmzone.h:7,
->>                  from /git/arm-soc/include/linux/gfp.h:5,
->>                  from /git/arm-soc/include/linux/mm.h:9,
->>                  from /git/arm-soc/mm/khugepaged.c:3:
->> /git/arm-soc/mm/khugepaged.c: In function 'khugepaged':
->> /git/arm-soc/arch/x86/include/asm/cmpxchg_32.h:29:2: error: 'asm'
->> operand has impossible constraints
->>   asm volatile("\n1:\t"
->>
->> Defconfig is at http://pastebin.com/raw/Pthhv5iU
->
->
-> I can't reproduce it with gcc 4.8.4, 7.0.0, 7.0.1.
->
-> Are you sure it's related to my recent change? I did not touch set_64bit.
+On Wed, 22 Mar 2017 23:40:04 +0000
+Mel Gorman <mgorman@techsingularity.net> wrote:
 
-You are right, this is different, it just appeared on the same day with
-almost exactly the same symptom as the other one, so I mistakenly
-assumed it was the same root cause.
+> On Wed, Mar 22, 2017 at 07:39:17PM +0200, Tariq Toukan wrote:
+> > > > > This modification may slow allocations from IRQ context slightly
+> > > > > but the
+> > > > > main gain from the per-cpu allocator is that it scales better for
+> > > > > allocations from multiple contexts.  There is an implicit
+> > > > > assumption that
+> > > > > intensive allocations from IRQ contexts on multiple CPUs from a single
+> > > > > NUMA node are rare  
+> > Hi Mel, Jesper, and all.
+> > 
+> > This assumption contradicts regular multi-stream traffic that is naturally
+> > handled
+> > over close numa cores.  I compared iperf TCP multistream (8 streams)
+> > over CX4 (mlx5 driver) with kernels v4.10 (before this series) vs
+> > kernel v4.11-rc1 (with this series).
+> > I disabled the page-cache (recycle) mechanism to stress the page allocator,
+> > and see a drastic degradation in BW, from 47.5 G in v4.10 to 31.4 G in
+> > v4.11-rc1 (34% drop).
+> > I noticed queued_spin_lock_slowpath occupies 62.87% of CPU time.  
+> 
+> Can you get the stack trace for the spin lock slowpath to confirm it's
+> from IRQ context?
 
-Reverting your patches doesn't fix it, and I only see it with the
-latest gcc-7.0.1 snapshot, not with one from a few weeks ago.
-I'll open a gcc bug for it.
+AFAIK allocations happen in softirq.  Argh and during review I missed
+that in_interrupt() also covers softirq.  To Mel, can we use a in_irq()
+check instead?
 
-       Arnd
+(p.s. just landed and got home)
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
