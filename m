@@ -1,92 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E7C0E6B0343
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 16:55:47 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id 204so682769301ywo.6
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 13:55:47 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id u131si11639ywa.398.2017.03.23.13.55.46
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 04EEF6B0333
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 17:03:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c87so349862086pfl.6
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 14:02:59 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0050.outbound.protection.outlook.com. [104.47.32.50])
+        by mx.google.com with ESMTPS id h29si35640pfd.390.2017.03.23.14.02.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Mar 2017 13:55:46 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/2] Add hstate parameter to huge_pte_offset()
-References: <20170323125823.429-1-punit.agrawal@arm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <bde0d8a5-f361-ef4e-5cb3-1615bc2a98b0@oracle.com>
-Date: Thu, 23 Mar 2017 13:55:27 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Mar 2017 14:02:58 -0700 (PDT)
+Subject: Re: [RFC PATCH v4 15/28] Add support to access persistent memory in
+ the clear
+References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
+ <20170216154521.19244.89502.stgit@tlendack-t1.amdoffice.net>
+ <DF4PR84MB01694A716568EFB01F5C1C5EAB390@DF4PR84MB0169.NAMPRD84.PROD.OUTLOOK.COM>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <01d5f854-c8ea-61db-7e1b-1f97952bff75@amd.com>
+Date: Thu, 23 Mar 2017 16:02:53 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170323125823.429-1-punit.agrawal@arm.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <DF4PR84MB01694A716568EFB01F5C1C5EAB390@DF4PR84MB0169.NAMPRD84.PROD.OUTLOOK.COM>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tyler Baicar <tbaicar@codeaurora.org>
+To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On 03/23/2017 05:58 AM, Punit Agrawal wrote:
-> On architectures that support hugepages composed of contiguous pte as
-> well as block entries at the same level in the page table,
-> huge_pte_offset() is not able to determine the right offset to return
-> when it encounters a swap entry (which is used to mark poisoned as
-> well as migrated pages in the page table).
-> 
-> huge_pte_offset() needs to know the size of the hugepage at the
-> requested address to determine the offset to return - the current
-> entry or the first entry of a set of contiguous hugepages. This came
-> up while enabling support for memory failure handling on arm64[0].
-> 
-> Patch 1 adds a hstate parameter to huge_pte_offset() to provide
-> additional information about the target address. It also updates the
-> signatures (and usage) of huge_pte_offset() for architectures that
-> override the generic implementation. This patch has been compile
-> tested on ia64 and x86.
+On 3/17/2017 5:58 PM, Elliott, Robert (Persistent Memory) wrote:
+>
+>
+>> -----Original Message-----
+>> From: linux-kernel-owner@vger.kernel.org [mailto:linux-kernel-
+>> owner@vger.kernel.org] On Behalf Of Tom Lendacky
+>> Sent: Thursday, February 16, 2017 9:45 AM
+>> Subject: [RFC PATCH v4 15/28] Add support to access persistent memory in
+>> the clear
+>>
+>> Persistent memory is expected to persist across reboots. The encryption
+>> key used by SME will change across reboots which will result in corrupted
+>> persistent memory.  Persistent memory is handed out by block devices
+>> through memory remapping functions, so be sure not to map this memory as
+>> encrypted.
+>
+> The system might be able to save and restore the correct encryption key for a
+> region of persistent memory, in which case it does need to be mapped as
+> encrypted.
 
-I haven't looked at the performance implications of making huge_pte_offset
-just a little slower.  But, I think you can get hstate from the parameters
-passed today.
+If the OS could get some indication that BIOS/UEFI has saved and
+restored the encryption key, then it could be mapped encrypted.
 
-vma = find_vma(mm, addr);
-h = hstate_vma(vma);
+>
+> This might deserve a new EFI_MEMORY_ENCRYPTED attribute bit so the
+> system firmware can communicate that information to the OS (in the
+> UEFI memory map and the ACPI NFIT SPA Range structures).  It wouldn't
+> likely ever be added to the E820h table - ACPI 6.1 already obsoleted the
+> Extended Attribute for AddressRangeNonVolatile.
 
--- 
-Mike Kravetz
+An attribute bit in some form would be a nice way to inform the OS that
+the persistent memory can be mapped encrypted.
 
-> Patch 2 uses the size determined by the parameter added in Patch 1, to
-> return the correct page table offset.
-> 
-> The patchset is based on top of v4.11-rc3 and the arm64 huge page
-> cleanup for break-before-make[1].
-> 
-> Thanks,
-> Punit
-> 
-> 
-> [0] http://marc.info/?l=linux-arm-kernel&m=148772028907925&w=2
-> [1] https://www.spinics.net/lists/arm-kernel/msg570422.html
-> 
-> Punit Agrawal (2):
->   mm/hugetlb.c: add hstate parameter to huge_pte_offset()
->   arm64: hugetlbpages: Correctly handle swap entries in
->     huge_pte_offset()
-> 
->  arch/arm64/mm/hugetlbpage.c   | 33 +++++++++++++++++----------------
->  arch/ia64/mm/hugetlbpage.c    |  4 ++--
->  arch/metag/mm/hugetlbpage.c   |  2 +-
->  arch/mips/mm/hugetlbpage.c    |  2 +-
->  arch/parisc/mm/hugetlbpage.c  |  2 +-
->  arch/powerpc/mm/hugetlbpage.c |  2 +-
->  arch/s390/mm/hugetlbpage.c    |  2 +-
->  arch/sh/mm/hugetlbpage.c      |  2 +-
->  arch/sparc/mm/hugetlbpage.c   |  2 +-
->  arch/tile/mm/hugetlbpage.c    |  2 +-
->  arch/x86/mm/hugetlbpage.c     |  2 +-
->  fs/userfaultfd.c              |  7 +++++--
->  include/linux/hugetlb.h       |  2 +-
->  mm/hugetlb.c                  | 18 +++++++++---------
->  mm/page_vma_mapped.c          |  2 +-
->  mm/pagewalk.c                 |  2 +-
->  16 files changed, 45 insertions(+), 41 deletions(-)
-> 
+>
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/mm/ioremap.c |    2 ++
+>>  1 file changed, 2 insertions(+)
+>>
+>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+>> index b0ff6bc..c6cb921 100644
+>> --- a/arch/x86/mm/ioremap.c
+>> +++ b/arch/x86/mm/ioremap.c
+>> @@ -498,6 +498,8 @@ static bool
+>> memremap_should_map_encrypted(resource_size_t phys_addr,
+>>  	case E820_TYPE_ACPI:
+>>  	case E820_TYPE_NVS:
+>>  	case E820_TYPE_UNUSABLE:
+>> +	case E820_TYPE_PMEM:
+>> +	case E820_TYPE_PRAM:
+>>  		return false;
+>>  	default:
+>>  		break;
+>
+> E820_TYPE_RESERVED is also used to report persistent memory in
+> some systems (patch 16 adds that for other reasons).
+>
+> You might want to intercept the persistent memory types in the
+> efi_mem_type(phys_addr) switch statement earlier in the function
+> as well.  https://lkml.org/lkml/2017/3/13/357 recently mentioned that
+> "in qemu hotpluggable memory isn't put into E820," with the latest
+> information only in the UEFI memory map.
+>
+> Persistent memory can be reported there as:
+> * EfiReservedMemoryType type with the EFI_MEMORY_NV attribute
+> * EfiPersistentMemory type with the EFI_MEMORY_NV attribute
+>
+> Even the UEFI memory map is not authoritative, though.  To really
+> determine what is in these regions requires parsing the ACPI NFIT
+> SPA Ranges structures.  Parts of the E820 or UEFI regions could be
+> reported as volatile there and should thus be encrypted.
+
+Thanks for the details on this. I'll take a closer look at this and
+update the checks appropriately.
+
+Thanks,
+Tom
+
+>
+> ---
+> Robert Elliott, HPE Persistent Memory
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
