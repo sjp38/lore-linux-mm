@@ -1,116 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 04EEF6B0333
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 17:03:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c87so349862086pfl.6
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 14:02:59 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0050.outbound.protection.outlook.com. [104.47.32.50])
-        by mx.google.com with ESMTPS id h29si35640pfd.390.2017.03.23.14.02.58
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ED17F6B0333
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 18:55:22 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 81so423635116pgh.3
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 15:55:22 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d2si251635plj.152.2017.03.23.15.55.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 23 Mar 2017 14:02:58 -0700 (PDT)
-Subject: Re: [RFC PATCH v4 15/28] Add support to access persistent memory in
- the clear
-References: <20170216154158.19244.66630.stgit@tlendack-t1.amdoffice.net>
- <20170216154521.19244.89502.stgit@tlendack-t1.amdoffice.net>
- <DF4PR84MB01694A716568EFB01F5C1C5EAB390@DF4PR84MB0169.NAMPRD84.PROD.OUTLOOK.COM>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <01d5f854-c8ea-61db-7e1b-1f97952bff75@amd.com>
-Date: Thu, 23 Mar 2017 16:02:53 -0500
-MIME-Version: 1.0
-In-Reply-To: <DF4PR84MB01694A716568EFB01F5C1C5EAB390@DF4PR84MB0169.NAMPRD84.PROD.OUTLOOK.COM>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Mar 2017 15:55:22 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [v1 4/5] mm: zero struct pages during initialization
+Date: Thu, 23 Mar 2017 19:01:52 -0400
+Message-Id: <1490310113-824438-5-git-send-email-pasha.tatashin@oracle.com>
+In-Reply-To: <1490310113-824438-1-git-send-email-pasha.tatashin@oracle.com>
+References: <1490310113-824438-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.or
 
-On 3/17/2017 5:58 PM, Elliott, Robert (Persistent Memory) wrote:
->
->
->> -----Original Message-----
->> From: linux-kernel-owner@vger.kernel.org [mailto:linux-kernel-
->> owner@vger.kernel.org] On Behalf Of Tom Lendacky
->> Sent: Thursday, February 16, 2017 9:45 AM
->> Subject: [RFC PATCH v4 15/28] Add support to access persistent memory in
->> the clear
->>
->> Persistent memory is expected to persist across reboots. The encryption
->> key used by SME will change across reboots which will result in corrupted
->> persistent memory.  Persistent memory is handed out by block devices
->> through memory remapping functions, so be sure not to map this memory as
->> encrypted.
->
-> The system might be able to save and restore the correct encryption key for a
-> region of persistent memory, in which case it does need to be mapped as
-> encrypted.
+When deferred struct page initialization is enabled, do not expect that
+the memory that was allocated for struct pages was zeroed by the
+allocator. Zero it when "struct pages" are initialized.
 
-If the OS could get some indication that BIOS/UEFI has saved and
-restored the encryption key, then it could be mapped encrypted.
+Also, a defined boolean VMEMMAP_ZERO is provided to tell platforms whether
+they should zero memory or can deffer it.
 
->
-> This might deserve a new EFI_MEMORY_ENCRYPTED attribute bit so the
-> system firmware can communicate that information to the OS (in the
-> UEFI memory map and the ACPI NFIT SPA Range structures).  It wouldn't
-> likely ever be added to the E820h table - ACPI 6.1 already obsoleted the
-> Extended Attribute for AddressRangeNonVolatile.
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
+---
+ include/linux/mm.h |    9 +++++++++
+ mm/page_alloc.c    |    3 +++
+ 2 files changed, 12 insertions(+), 0 deletions(-)
 
-An attribute bit in some form would be a nice way to inform the OS that
-the persistent memory can be mapped encrypted.
-
->
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/mm/ioremap.c |    2 ++
->>  1 file changed, 2 insertions(+)
->>
->> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
->> index b0ff6bc..c6cb921 100644
->> --- a/arch/x86/mm/ioremap.c
->> +++ b/arch/x86/mm/ioremap.c
->> @@ -498,6 +498,8 @@ static bool
->> memremap_should_map_encrypted(resource_size_t phys_addr,
->>  	case E820_TYPE_ACPI:
->>  	case E820_TYPE_NVS:
->>  	case E820_TYPE_UNUSABLE:
->> +	case E820_TYPE_PMEM:
->> +	case E820_TYPE_PRAM:
->>  		return false;
->>  	default:
->>  		break;
->
-> E820_TYPE_RESERVED is also used to report persistent memory in
-> some systems (patch 16 adds that for other reasons).
->
-> You might want to intercept the persistent memory types in the
-> efi_mem_type(phys_addr) switch statement earlier in the function
-> as well.  https://lkml.org/lkml/2017/3/13/357 recently mentioned that
-> "in qemu hotpluggable memory isn't put into E820," with the latest
-> information only in the UEFI memory map.
->
-> Persistent memory can be reported there as:
-> * EfiReservedMemoryType type with the EFI_MEMORY_NV attribute
-> * EfiPersistentMemory type with the EFI_MEMORY_NV attribute
->
-> Even the UEFI memory map is not authoritative, though.  To really
-> determine what is in these regions requires parsing the ACPI NFIT
-> SPA Ranges structures.  Parts of the E820 or UEFI regions could be
-> reported as volatile there and should thus be encrypted.
-
-Thanks for the details on this. I'll take a closer look at this and
-update the checks appropriately.
-
-Thanks,
-Tom
-
->
-> ---
-> Robert Elliott, HPE Persistent Memory
->
->
->
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 54df194..eb052f6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2427,6 +2427,15 @@ int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ void vmemmap_free(unsigned long start, unsigned long end);
+ #endif
++/*
++ * Don't zero "struct page"es during early boot, and zero only when they are
++ * initialized in parallel.
++ */
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++#define VMEMMAP_ZERO	false
++#else
++#define VMEMMAP_ZERO	true
++#endif
+ void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+ 				  unsigned long size);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f202f8b..02945e4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1168,6 +1168,9 @@ static void free_one_page(struct zone *zone,
+ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 				unsigned long zone, int nid)
+ {
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++	memset(page, 0, sizeof(struct page));
++#endif
+ 	set_page_links(page, zone, nid, pfn);
+ 	init_page_count(page);
+ 	page_mapcount_reset(page);
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
