@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B98C56B0344
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 11:29:51 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r89so77419295pfi.1
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 08:29:51 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z66si4275864pfb.389.2017.03.23.08.29.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 07B9D6B0344
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 11:38:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t87so269645430pfk.4
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 08:38:45 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id o22si6016216pgd.138.2017.03.23.08.38.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Mar 2017 08:29:50 -0700 (PDT)
-Date: Thu, 23 Mar 2017 08:29:49 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [4.11-rc3] BUG: sleeping function called from invalid context at
- mm/vmalloc.c:1480
-Message-ID: <20170323152949.GA29134@bombadil.infradead.org>
-References: <201703232349.BGB95898.QHLVFFOMtFOOJS@I-love.SAKURA.ne.jp>
+        Thu, 23 Mar 2017 08:38:44 -0700 (PDT)
+Subject: Re: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
+References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
+ <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
+ <20170322063335.GF30149@bbox> <20170322084103.GC2360@aaronlu.sh.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <4549498a-befc-133d-b204-dd69b191e579@intel.com>
+Date: Thu, 23 Mar 2017 08:38:43 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201703232349.BGB95898.QHLVFFOMtFOOJS@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170322084103.GC2360@aaronlu.sh.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Aaron Lu <aaron.lu@intel.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
 
-On Thu, Mar 23, 2017 at 11:49:06PM +0900, Tetsuo Handa wrote:
-> [    2.609598] [drm] Initialized vmwgfx 2.12.0 20170221 for 0000:00:0f.0 on minor 0
-> [    2.616064] BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
-[...]
-> [    2.616289]  __might_sleep+0x4a/0x80
-> [    2.616293]  remove_vm_area+0x22/0x90
-> [    2.616296]  __vunmap+0x2e/0x110
-> [    2.616299]  vfree+0x42/0x90
-> [    2.616304]  kvfree+0x2c/0x40
-> [    2.616312]  drm_ht_remove+0x1a/0x30 [drm]
-> [    2.616317]  ttm_object_file_release+0x50/0x90 [ttm]
+On 03/22/2017 01:41 AM, Aaron Lu wrote:
+> On Wed, Mar 22, 2017 at 03:33:35PM +0900, Minchan Kim wrote:
+>> On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:
+>>> Introduce a workqueue for all the free workers so that user can fine
+>>> tune how many workers can be active through sysfs interface: max_active.
+>>> More workers will normally lead to better performance, but too many can
+>>> cause severe lock contention.
+>>
+>> Let me ask a question.
+>>
+>> How well can workqueue distribute the jobs in multiple CPU?
+> 
+> I would say it's good enough for my needs.
+> After all, it doesn't need many kworkers to achieve the 50% time
+> decrease: 2-4 kworkers for EP and 4-8 kworkers for EX are enough from
+> previous attched data.
 
-ttm_object_file_release() takes a spinlock, calls drm_ht_remove() which
-calls kvfree().
-
-Can somebody remind me what exactly might sleep in remove_vm_area()?
-Is it the cache flush on some architectures?  It'd be really nice for
-vfree() to be callable from atomic context.
-
-Assuming we can't get rid of the thing which might sleep in
-remove_vm_area(), I think we should add a might_sleep() in kvfree().
-We need that big warning there so we don't get hard to debug problems
-when kvmalloc had to fall back to vmalloc().
+It's also worth noting that we'd like to *also* like to look into
+increasing how scalable freeing pages to a given zone is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
