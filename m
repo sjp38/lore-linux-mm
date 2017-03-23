@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C04E96B0038
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 04:28:30 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p78so102185353lfd.0
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:28:30 -0700 (PDT)
-Received: from smtp52.i.mail.ru (smtp52.i.mail.ru. [94.100.177.112])
-        by mx.google.com with ESMTPS id u139si2895521lff.291.2017.03.23.01.28.29
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4B86B0038
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 04:38:54 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c5so18393226wmi.0
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:38:54 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
+        by mx.google.com with ESMTPS id 1si5883635wrh.331.2017.03.23.01.38.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Mar 2017 01:28:29 -0700 (PDT)
-Date: Thu, 23 Mar 2017 11:28:22 +0300
-From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: [PATCH] mm: workingset: fix premature shadow node shrinking with
- cgroups
-Message-ID: <20170323082822.GA17625@esperanza>
-References: <20170322005320.8165-1-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170322005320.8165-1-hannes@cmpxchg.org>
+        Thu, 23 Mar 2017 01:38:53 -0700 (PDT)
+Message-ID: <1490258325.27756.42.camel@gmx.de>
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+From: Mike Galbraith <efault@gmx.de>
+Date: Thu, 23 Mar 2017 09:38:45 +0100
+In-Reply-To: <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
+References: <20170302071721.GA32632@bbox>
+	 <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+	 <20170316082714.GC30501@dhcp22.suse.cz>
+	 <20170316084733.GP802@shells.gnugeneration.com>
+	 <20170316090844.GG30501@dhcp22.suse.cz>
+	 <20170316092318.GQ802@shells.gnugeneration.com>
+	 <20170316093931.GH30501@dhcp22.suse.cz>
+	 <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+	 <20170317171339.GA23957@dhcp22.suse.cz>
+	 <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
+	 <20170319151837.GD12414@dhcp22.suse.cz>
+	 <555d1f95-7c9e-2691-b14f-0260f90d23a9@wiesinger.com>
+	 <1489979147.4273.22.camel@gmx.de>
+	 <798104b6-091d-5415-2c51-8992b6b231e5@wiesinger.com>
+	 <1490080422.14658.39.camel@gmx.de>
+	 <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
+Content-Type: text/plain; charset="us-ascii"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Gerhard Wiesinger <lists@wiesinger.com>, Michal Hocko <mhocko@kernel.org>
+Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue, Mar 21, 2017 at 08:53:20PM -0400, Johannes Weiner wrote:
-> 0a6b76dd23fa ("mm: workingset: make shadow node shrinker memcg aware")
-> enabled cgroup-awareness in the shadow node shrinker, but forgot to
-> also enable cgroup-awareness in the list_lru the shadow nodes sit on.
+On Thu, 2017-03-23 at 08:16 +0100, Gerhard Wiesinger wrote:
+> On 21.03.2017 08:13, Mike Galbraith wrote:
+> > On Tue, 2017-03-21 at 06:59 +0100, Gerhard Wiesinger wrote:
+> > 
+> > > Is this the correct information?
+> > Incomplete, but enough to reiterate cgroup_disable=memory
+> > suggestion.
+> > 
 > 
-> Consequently, all shadow nodes are sitting on a global (per-NUMA node)
-> list, while the shrinker applies the limits according to the amount of
-> cache in the cgroup its shrinking. The result is excessive pressure on
-> the shadow nodes from cgroups that have very little cache.
-> 
-> Enable memcg-mode on the shadow node LRUs, such that per-cgroup limits
-> are applied to per-cgroup lists.
-> 
-> Fixes: 0a6b76dd23fa ("mm: workingset: make shadow node shrinker memcg aware")
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: <stable@vger.kernel.org> # 4.6+
+> How to collect complete information?
 
-Acked-by: Vladimir Davydov <vdavydov@tarantool.org>
+If Michal wants specifics, I suspect he'll ask.  I posted only to pass
+along a speck of information, and offer a test suggestion.. twice.
 
-> ---
->  mm/workingset.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index ac839fca0e76..eda05c71fa49 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -532,7 +532,7 @@ static int __init workingset_init(void)
->  	pr_info("workingset: timestamp_bits=%d max_order=%d bucket_order=%u\n",
->  	       timestamp_bits, max_order, bucket_order);
->  
-> -	ret = list_lru_init_key(&shadow_nodes, &shadow_nodes_key);
-> +	ret = __list_lru_init(&shadow_nodes, true, &shadow_nodes_key);
->  	if (ret)
->  		goto err;
->  	ret = register_shrinker(&workingset_shadow_shrinker);
-> -- 
-> 2.12.0
-> 
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
