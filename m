@@ -1,117 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84F8F6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 10:47:49 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 15so59147754itw.1
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 07:47:49 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A874A6B0343
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 10:49:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n11so224946069pfg.7
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 07:49:10 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id g17si3415539ita.71.2017.03.23.07.47.47
+        by mx.google.com with ESMTPS id l12si5920134plc.299.2017.03.23.07.49.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Mar 2017 07:47:48 -0700 (PDT)
-Subject: Re: Still OOM problems with 4.9er/4.10er kernels
-References: <20170302071721.GA32632@bbox>
- <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
- <20170316082714.GC30501@dhcp22.suse.cz>
- <20170316084733.GP802@shells.gnugeneration.com>
- <20170316090844.GG30501@dhcp22.suse.cz>
- <20170316092318.GQ802@shells.gnugeneration.com>
- <20170316093931.GH30501@dhcp22.suse.cz>
- <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
- <20170317171339.GA23957@dhcp22.suse.cz>
- <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
- <20170319151837.GD12414@dhcp22.suse.cz>
- <555d1f95-7c9e-2691-b14f-0260f90d23a9@wiesinger.com>
- <1489979147.4273.22.camel@gmx.de>
- <798104b6-091d-5415-2c51-8992b6b231e5@wiesinger.com>
- <1490080422.14658.39.camel@gmx.de>
- <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
- <1490258325.27756.42.camel@gmx.de>
+        Thu, 23 Mar 2017 07:49:09 -0700 (PDT)
+Received: from fsav402.sakura.ne.jp (fsav402.sakura.ne.jp [133.242.250.101])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id v2NEn8c6064539
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 23:49:08 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from AQUA (softbank126227147111.bbtec.net [126.227.147.111])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id v2NEn7M4064535
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 23:49:08 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Subject: [4.11-rc3] BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <113bf774-7f7c-4128-d614-7c16dd9ecd67@I-love.SAKURA.ne.jp>
-Date: Thu, 23 Mar 2017 23:46:26 +0900
-MIME-Version: 1.0
-In-Reply-To: <1490258325.27756.42.camel@gmx.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Message-Id: <201703232349.BGB95898.QHLVFFOMtFOOJS@I-love.SAKURA.ne.jp>
+Date: Thu, 23 Mar 2017 23:49:06 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <efault@gmx.de>, Gerhard Wiesinger <lists@wiesinger.com>, Michal Hocko <mhocko@kernel.org>
-Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org
 
-On 2017/03/23 17:38, Mike Galbraith wrote:
-> On Thu, 2017-03-23 at 08:16 +0100, Gerhard Wiesinger wrote:
->> On 21.03.2017 08:13, Mike Galbraith wrote:
->>> On Tue, 2017-03-21 at 06:59 +0100, Gerhard Wiesinger wrote:
->>>
->>>> Is this the correct information?
->>> Incomplete, but enough to reiterate cgroup_disable=memory
->>> suggestion.
->>>
->>
->> How to collect complete information?
-> 
-> If Michal wants specifics, I suspect he'll ask.  I posted only to pass
-> along a speck of information, and offer a test suggestion.. twice.
-> 
-> 	-Mike
+Is this a known problem?
 
-Isn't information Mike asked something like output from below command
-
-  for i in `find /sys/fs/cgroup/memory/ -type f`; do echo ========== $i ==========; cat $i | xargs echo; done
-
-and check which cgroups stalling tasks belong to? Also, Mike suggested to
-reproduce your problem with cgroup_disable=memory kernel command line option
-in order to bisect whether memory cgroups are related to your problem.
-
-I don't know whether Michal already knows specific information to collect.
-I think memory allocation watchdog might give us some clue. It will give us
-output like http://I-love.SAKURA.ne.jp/tmp/serial-20170321.txt.xz .
-
-Can you afford building kernels with watchdog patch applied? Steps I tried for
-building kernels are shown below. (If you can't afford building but can afford
-trying binary rpms, I can upload them.)
-
-----------------------------------------
-yum -y install yum-utils
-wget https://dl.fedoraproject.org/pub/alt/rawhide-kernel-nodebug/SRPMS/kernel-4.11.0-0.rc3.git0.1.fc27.src.rpm
-yum-builddep -y kernel-4.11.0-0.rc3.git0.1.fc27.src.rpm
-rpm -ivh kernel-4.11.0-0.rc3.git0.1.fc27.src.rpm
-yum-builddep -y ~/rpmbuild/SPECS/kernel.spec
-patch -p1 -d ~/rpmbuild/SPECS/ << "EOF"
---- a/kernel.spec
-+++ b/kernel.spec
-@@ -24,7 +24,7 @@
- %global zipsed -e 's/\.ko$/\.ko.xz/'
- %endif
- 
--# define buildid .local
-+%define buildid .kmallocwd
- 
- # baserelease defines which build revision of this kernel version we're
- # building.  We used to call this fedora_build, but the magical name
-@@ -1207,6 +1207,8 @@
- 
- git am %{patches}
- 
-+patch -p1 < $RPM_SOURCE_DIR/kmallocwd.patch
-+
- # END OF PATCH APPLICATIONS
- 
- # Any further pre-build tree manipulations happen here.
-@@ -1243,6 +1245,8 @@
- do
-   cat $i > temp-$i
-   mv $i .config
-+  echo 'CONFIG_DETECT_MEMALLOC_STALL_TASK=y' >> .config
-+  echo 'CONFIG_DEFAULT_MEMALLOC_TASK_TIMEOUT=30' >> .config
-   Arch=`head -1 .config | cut -b 3-`
-   make ARCH=$Arch listnewconfig | grep -E '^CONFIG_' >.newoptions || true
- %if %{listnewconfig_fail}
-EOF
-wget -O ~/rpmbuild/SOURCES/kmallocwd.patch 'https://marc.info/?l=linux-mm&m=148957858821214&q=raw'
-rpmbuild -bb ~/rpmbuild/SPECS/kernel.spec
-----------------------------------------
+[    2.545698] scsi target2:0:0: Domain Validation skipping write tests
+[    2.545701] scsi target2:0:0: Ending Domain Validation
+[    2.545759] scsi target2:0:0: FAST-40 WIDE SCSI 80.0 MB/s ST (25 ns, offset 127)
+[    2.560545] [drm] Fifo max 0x00040000 min 0x00001000 cap 0x0000077f
+[    2.563036] [drm] Using command buffers with DMA pool.
+[    2.563050] [drm] DX: no.
+[    2.582553] fbcon: svgadrmfb (fb0) is primary device
+[    2.593178] Console: switching to colour frame buffer device 160x48
+[    2.609598] [drm] Initialized vmwgfx 2.12.0 20170221 for 0000:00:0f.0 on minor 0
+[    2.616064] BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
+[    2.616125] in_atomic(): 1, irqs_disabled(): 0, pid: 341, name: plymouthd
+[    2.616156] 2 locks held by plymouthd/341:
+[    2.616158]  #0:  (drm_global_mutex){+.+.+.}, at: [<ffffffffc01c274b>] drm_release+0x3b/0x3b0 [drm]
+[    2.616256]  #1:  (&(&tfile->lock)->rlock){+.+...}, at: [<ffffffffc0173038>] ttm_object_file_release+0x28/0x90 [ttm]
+[    2.616270] CPU: 2 PID: 341 Comm: plymouthd Not tainted 4.11.0-0.rc3.git0.1.kmallocwd.fc25.x86_64+debug #1
+[    2.616271] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
+[    2.616273] Call Trace:
+[    2.616281]  dump_stack+0x86/0xc3
+[    2.616285]  ___might_sleep+0x17d/0x250
+[    2.616289]  __might_sleep+0x4a/0x80
+[    2.616293]  remove_vm_area+0x22/0x90
+[    2.616296]  __vunmap+0x2e/0x110
+[    2.616299]  vfree+0x42/0x90
+[    2.616304]  kvfree+0x2c/0x40
+[    2.616312]  drm_ht_remove+0x1a/0x30 [drm]
+[    2.616317]  ttm_object_file_release+0x50/0x90 [ttm]
+[    2.616324]  vmw_postclose+0x47/0x60 [vmwgfx]
+[    2.616331]  drm_release+0x290/0x3b0 [drm]
+[    2.616338]  __fput+0xf8/0x210
+[    2.616342]  ____fput+0xe/0x10
+[    2.616345]  task_work_run+0x85/0xc0
+[    2.616351]  exit_to_usermode_loop+0xb4/0xc0
+[    2.616355]  do_syscall_64+0x185/0x1f0
+[    2.616359]  entry_SYSCALL64_slow_path+0x25/0x25
+[    2.616362] RIP: 0033:0x7f7bf114d260
+[    2.616364] RSP: 002b:00007ffc984e3538 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[    2.616366] RAX: 0000000000000000 RBX: 00005605e7a90140 RCX: 00007f7bf114d260
+[    2.616368] RDX: 00005605e7a900f0 RSI: 00007f7bf1415ae8 RDI: 0000000000000009
+[    2.616369] RBP: 0000000000000009 R08: 00005605e7a90140 R09: 0000000000000000
+[    2.616371] R10: 00005605e7a90100 R11: 0000000000000246 R12: 000000000000e280
+[    2.616373] R13: 00007f7bf1b42970 R14: 00007f7bf1b428e0 R15: 000000000000000d
+[    2.627007] sd 2:0:0:0: [sda] 83886080 512-byte logical blocks: (42.9 GB/40.0 GiB)
+[    2.627132] sd 2:0:0:0: [sda] Write Protect is off
+[    2.627135] sd 2:0:0:0: [sda] Mode Sense: 61 00 00 00
+[    2.627214] sd 2:0:0:0: [sda] Cache data unavailable
+[    2.627217] sd 2:0:0:0: [sda] Assuming drive cache: write through
+[    2.630509] sd 2:0:0:0: Attached scsi generic sg1 type 0
+[    2.630600]  sda: sda1
+[    2.631414] sd 2:0:0:0: [sda] Attached SCSI disk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
