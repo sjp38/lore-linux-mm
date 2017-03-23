@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 206956B0038
-	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 01:53:14 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id q126so420509375pga.0
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2017 22:53:14 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id m5si4317989pln.98.2017.03.22.22.53.12
-        for <linux-mm@kvack.org>;
-        Wed, 22 Mar 2017 22:53:13 -0700 (PDT)
-Date: Thu, 23 Mar 2017 14:53:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
-Message-ID: <20170323055309.GA6117@bbox>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
- <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
- <20170322063335.GF30149@bbox>
- <20170322084103.GC2360@aaronlu.sh.intel.com>
- <20170322085512.GA32359@bbox>
- <20170322134304.GG2360@aaronlu.sh.intel.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3714A6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Mar 2017 03:17:04 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p85so101538583lfg.5
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 00:17:04 -0700 (PDT)
+Received: from vps01.wiesinger.com (vps01.wiesinger.com. [46.36.37.179])
+        by mx.google.com with ESMTPS id a201si2808493lfe.49.2017.03.23.00.17.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Mar 2017 00:17:02 -0700 (PDT)
+From: Gerhard Wiesinger <lists@wiesinger.com>
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+References: <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+ <20170316082714.GC30501@dhcp22.suse.cz>
+ <20170316084733.GP802@shells.gnugeneration.com>
+ <20170316090844.GG30501@dhcp22.suse.cz>
+ <20170316092318.GQ802@shells.gnugeneration.com>
+ <20170316093931.GH30501@dhcp22.suse.cz>
+ <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+ <20170317171339.GA23957@dhcp22.suse.cz>
+ <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
+ <20170319151837.GD12414@dhcp22.suse.cz>
+ <555d1f95-7c9e-2691-b14f-0260f90d23a9@wiesinger.com>
+ <1489979147.4273.22.camel@gmx.de>
+ <798104b6-091d-5415-2c51-8992b6b231e5@wiesinger.com>
+ <1490080422.14658.39.camel@gmx.de>
+Message-ID: <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
+Date: Thu, 23 Mar 2017 08:16:54 +0100
 MIME-Version: 1.0
-In-Reply-To: <20170322134304.GG2360@aaronlu.sh.intel.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <1490080422.14658.39.camel@gmx.de>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
+To: Mike Galbraith <efault@gmx.de>, Michal Hocko <mhocko@kernel.org>
+Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, Mar 22, 2017 at 09:43:04PM +0800, Aaron Lu wrote:
-> On Wed, Mar 22, 2017 at 05:55:12PM +0900, Minchan Kim wrote:
-> > On Wed, Mar 22, 2017 at 04:41:04PM +0800, Aaron Lu wrote:
-> > > My understanding of the unbound workqueue is that it will create a
-> > > thread pool for each node, versus each CPU as in the bound workqueue
-> > > case, and use threads from the thread pool(create threads if not enough)
-> > > to do the work.
-> > 
-> > Yes, that was my understand so I read code and found that
-> > 
-> > insert_work:
-> >         ..
-> >         if (__need_more_worker(pool))
-> >                 wake_up_worker(pool); 
-> > 
-> > so I thought if there is a running thread in that node, workqueue
-> > will not wake any other threads so parallelism should be max 2.
-> > AFAIK, if the work goes sleep, scheduler will spawn new worker
-> > thread so the active worker could be a lot but I cannot see any
-> > significant sleepable point in that work(ie, batch_free_work).
-> 
-> Looks like worker_thread() will spawn new worker through manage_worker().
-> 
-> Note that pool->nr_running will always be zero for an unbound workqueue
-> and thus need_more_worker() will return true as long as there are queued
-> work items in the pool.
+On 21.03.2017 08:13, Mike Galbraith wrote:
+> On Tue, 2017-03-21 at 06:59 +0100, Gerhard Wiesinger wrote:
+>
+>> Is this the correct information?
+> Incomplete, but enough to reiterate cgroup_disable=memory suggestion.
+>
 
-Aha, it solves my wonder. Thanks a lot!
+How to collect complete information?
+
+Thnx.
+
+Ciao,
+Gerhard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
