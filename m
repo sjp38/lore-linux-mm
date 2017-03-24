@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E5E986B0343
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:57:10 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id p66so11021713vkd.5
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:57:10 -0700 (PDT)
-Received: from mail-vk0-x22f.google.com (mail-vk0-x22f.google.com. [2607:f8b0:400c:c05::22f])
-        by mx.google.com with ESMTPS id b63si626074uab.101.2017.03.24.01.57.10
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CD2986B0343
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:59:35 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u1so6568854wra.5
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:59:35 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id w10si1865468wme.154.2017.03.24.01.59.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 01:57:10 -0700 (PDT)
-Received: by mail-vk0-x22f.google.com with SMTP id z204so8355843vkd.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:57:10 -0700 (PDT)
+        Fri, 24 Mar 2017 01:59:34 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id x124so1876840wmf.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:59:34 -0700 (PDT)
+Date: Fri, 24 Mar 2017 11:59:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 26/26] x86/mm: allow to have userspace mappings above
+ 47-bits
+Message-ID: <20170324085931.7hvhrs2emqu5k5mr@node.shutemov.name>
+References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
+ <20170313055020.69655-27-kirill.shutemov@linux.intel.com>
+ <87a88jg571.fsf@skywalker.in.ibm.com>
+ <20170317175714.3bvpdylaaudf4ig2@node.shutemov.name>
+ <877f3lfzdo.fsf@skywalker.in.ibm.com>
+ <CAFZ8GQx2JmEECQHEsKOymP8nDv9YHfLgcK80R75gM+r-1q-owQ@mail.gmail.com>
+ <95631D05-2CA2-4967-A29E-DB396C76F62D@zytor.com>
 MIME-Version: 1.0
-In-Reply-To: <888af92c-1d20-d9f4-a425-c720d1179756@oracle.com>
-References: <CACT4Y+Z-trVe0Oqzs8c+mTG6_iL7hPBBFgOm0p0iQsCz9Q2qiw@mail.gmail.com>
- <a10eb28c-305d-3547-8df1-7a2216473e09@oracle.com> <888af92c-1d20-d9f4-a425-c720d1179756@oracle.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 24 Mar 2017 09:56:49 +0100
-Message-ID: <CACT4Y+YKEDKGwNFeBJ84K_xNWogPZnUUMBrcgLXYSjBUaoM=-Q@mail.gmail.com>
-Subject: Re: mm: BUG in resv_map_release
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <95631D05-2CA2-4967-A29E-DB396C76F62D@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: nyc@holomorphy.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: hpa@zytor.com
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Mar 23, 2017 at 7:02 PM, Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> On 03/23/2017 10:25 AM, Mike Kravetz wrote:
->> On 03/23/2017 03:19 AM, Dmitry Vyukov wrote:
->>> Hello,
->>>
->>> I've got the following BUG while running syzkaller fuzzer.
->>> Note the injected kmalloc failure, most likely it's the root cause.
->>
->> Thanks  Dmitry,
->>
->> The BUG indicates someone called region_chg() in the process of adding
->> a hugetlbfs page reservation, but did not complete this 'two step'
->> process with a call to region_add() or region_abort().  Most likely a
->> missed call in an error path somewhere.  :(
->>
->> I'll try to track this down.  The hint of 'injected kmalloc failure'
->> should help.
->
-> Actually, in this case I believe the bug is in hugetlb_reserve_pages.
-> It calls region_chg(), but gets an error due to the injected kmalloc
-> failure.  At this point, the resv_map->adds_in_progress is 0 as it
-> should be.  However, the error path for hugetlb_reserve_pages calls
-> region_abort() which will unconditionally decrement adds_in_progress.
-> So, adds_in_progress goes negative and we eventually BUG.  :(
->
-> I'll look for other misuses of region_chg()/region_add()/region_abort()
-> and put together a patch.
->
-> Dmitry, is there some way to run the fuzzer with kmalloc failure injection
-> and target the hugetlbfs code?  I'm suspect we could flush out other bugs.
-> I noticed one other you discovered, and will look at that next.
+On Mon, Mar 20, 2017 at 11:08:41AM -0700, hpa@zytor.com wrote:
+> This *better* be conditional on some kind of settable limit.  Having a
+> barrier in the middle of the address space for no apparent reason to
+> "clean" software is insane.
 
-syzkaller systematically targets all of the kernel code. So far I've
-seen only these 2 involving hugetlbfs code. I don't think we need to
-do anything special for hugetlbfs.
+I had the same argument (on your side) before, but if you look on numbers
+it's far from the middle of address space. The barrier is around 0.2% from
+the start 56-bit address space.
+
+And it's we have vdso/vvar/stack just below the barier anyway.
+
+I don't think we would loose much if wouldn't not allow VMA to sit
+across it.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
