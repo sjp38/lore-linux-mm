@@ -1,363 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13AFA6B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:50:47 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b16so776839wmi.14
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:50:47 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id h132si3325567wmf.127.2017.03.24.07.50.44
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 72BD16B0343
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 11:04:33 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q126so8167231pga.0
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 08:04:33 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0136.outbound.protection.outlook.com. [104.47.0.136])
+        by mx.google.com with ESMTPS id d11si3173544pln.319.2017.03.24.08.04.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 07:50:45 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id u132so1074677wmg.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:50:44 -0700 (PDT)
-Date: Fri, 24 Mar 2017 17:50:42 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v4 06/11] mm: thp: check pmd migration entry in common
- path
-Message-ID: <20170324145042.bda52glerop5wydx@node.shutemov.name>
-References: <20170313154507.3647-1-zi.yan@sent.com>
- <20170313154507.3647-7-zi.yan@sent.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 24 Mar 2017 08:04:32 -0700 (PDT)
+Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
+References: <1490352808-7187-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
+ <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <fe511b26-f2e5-0a0e-09cc-303d38d2ad05@virtuozzo.com>
+Date: Fri, 24 Mar 2017 18:05:45 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170313154507.3647-7-zi.yan@sent.com>
+In-Reply-To: <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org
+Cc: willy@infradead.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu
 
-On Mon, Mar 13, 2017 at 11:45:02AM -0400, Zi Yan wrote:
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+
+On 03/24/2017 03:40 PM, Tetsuo Handa wrote:
+> Andrey Ryabinin wrote:
+>> On 03/24/2017 01:53 PM, Tetsuo Handa wrote:
+>>> Commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem
+>>> as potentially sleeping") added might_sleep() to remove_vm_area() from
+>>> vfree(), and is causing
+>>>
+>>> [    2.616064] BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
+>>> [    2.616125] in_atomic(): 1, irqs_disabled(): 0, pid: 341, name: plymouthd
+>>> [    2.616156] 2 locks held by plymouthd/341:
+>>> [    2.616158]  #0:  (drm_global_mutex){+.+.+.}, at: [<ffffffffc01c274b>] drm_release+0x3b/0x3b0 [drm]
+>>> [    2.616256]  #1:  (&(&tfile->lock)->rlock){+.+...}, at: [<ffffffffc0173038>] ttm_object_file_release+0x28/0x90 [ttm]
+>>> [    2.616270] CPU: 2 PID: 341 Comm: plymouthd Not tainted 4.11.0-0.rc3.git0.1.kmallocwd.fc25.x86_64+debug #1
+>>> [    2.616271] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
+>>> [    2.616273] Call Trace:
+>>> [    2.616281]  dump_stack+0x86/0xc3
+>>> [    2.616285]  ___might_sleep+0x17d/0x250
+>>> [    2.616289]  __might_sleep+0x4a/0x80
+>>> [    2.616293]  remove_vm_area+0x22/0x90
+>>> [    2.616296]  __vunmap+0x2e/0x110
+>>> [    2.616299]  vfree+0x42/0x90
+>>> [    2.616304]  kvfree+0x2c/0x40
+>>> [    2.616312]  drm_ht_remove+0x1a/0x30 [drm]
+>>> [    2.616317]  ttm_object_file_release+0x50/0x90 [ttm]
+>>> [    2.616324]  vmw_postclose+0x47/0x60 [vmwgfx]
+>>> [    2.616331]  drm_release+0x290/0x3b0 [drm]
+>>> [    2.616338]  __fput+0xf8/0x210
+>>> [    2.616342]  ____fput+0xe/0x10
+>>> [    2.616345]  task_work_run+0x85/0xc0
+>>> [    2.616351]  exit_to_usermode_loop+0xb4/0xc0
+>>> [    2.616355]  do_syscall_64+0x185/0x1f0
+>>> [    2.616359]  entry_SYSCALL64_slow_path+0x25/0x25
+>>>
+>>> warning.
+>>>
+>>> But commit f9e09977671b618a ("mm: turn vmap_purge_lock into a mutex") did
+>>> not make vfree() potentially sleeping because try_purge_vmap_area_lazy()
+>>> is still using mutex_trylock(). Thus, this is a false positive warning.
+>>>
+>>
+>> Commit f9e09977671b618a did not made vfree() sleeping.
+>> Commit 763b218ddfa "mm: add preempt points into __purge_vmap_area_lazy()"
+>> did this, thus it's not a false positive.
+>>
+>>
+>>> ___might_sleep() via cond_resched_lock() in __purge_vmap_area_lazy() from
+>>> try_purge_vmap_area_lazy() from free_vmap_area_noflush() from
+>>> free_unmap_vmap_area() from remove_vm_area() which might trigger same
+>>> false positive warning is remaining. But so far we haven't heard about
+>>> warning from that path.
+>>
+>> And why that would be a false positive?
+>>
 > 
-> If one of callers of page migration starts to handle thp,
-> memory management code start to see pmd migration entry, so we need
-> to prepare for it before enabling. This patch changes various code
-> point which checks the status of given pmds in order to prevent race
-> between thp migration and the pmd-related works.
+> #define cond_resched_lock(lock) ({                              \
+> 	___might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);\
+> 	__cond_resched_lock(lock);                              \
+> 	})
 > 
-> ChangeLog v1 -> v2:
-> - introduce pmd_related() (I know the naming is not good, but can't
->   think up no better name. Any suggesntion is welcomed.)
+> cond_resched_lock() calls ___might_sleep() even when
+> __cond_resched_lock() will not call preempt_schedule_common()
+> because should_resched() returns false due to preemption counter
+> being already elevated by holding &(&tfile->lock)->rlock spinlock.
+ 
+That is true only for preemptible kernel. On non-preempt kernel should_resched()
+might return true under spin_lock.
+
+Just fix the drm code. There is zero point in releasing memory under spinlock.
+
+
+
+> If should_resched() is known to return false, calling
+> ___might_sleep() from cond_resched_lock() is a false positive.
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> 
-> ChangeLog v2 -> v3:
-> - add is_swap_pmd()
-> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
->   pmd_trans_huge(), pmd_devmap(), or pmd_none()
-> - use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear()
-> - flush_cache_range() while set_pmd_migration_entry()
-> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() return
->   true on pmd_migration_entry, so that migration entries are not
->   treated as pmd page table entries.
-> 
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> ---
->  arch/x86/mm/gup.c             |  4 +--
->  fs/proc/task_mmu.c            | 22 +++++++++------
->  include/asm-generic/pgtable.h |  3 +-
->  include/linux/huge_mm.h       | 14 +++++++--
->  mm/gup.c                      | 22 +++++++++++++--
->  mm/huge_memory.c              | 66 ++++++++++++++++++++++++++++++++++++++-----
->  mm/madvise.c                  |  2 ++
->  mm/memcontrol.c               |  2 ++
->  mm/memory.c                   |  9 ++++--
->  mm/mprotect.c                 |  6 ++--
->  mm/mremap.c                   |  2 +-
->  11 files changed, 124 insertions(+), 28 deletions(-)
-> 
-> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-> index 1f3b6ef105cd..23bb071f286d 100644
-> --- a/arch/x86/mm/gup.c
-> +++ b/arch/x86/mm/gup.c
-> @@ -243,9 +243,9 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		pmd_t pmd = *pmdp;
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		if (!pmd_present(pmd))
->  			return 0;
-> -		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
-> +		if (unlikely(pmd_large(pmd))) {
->  			/*
->  			 * NUMA hinting faults need to be handled in the GUP
->  			 * slowpath for accounting purposes and so that they
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 5c8359704601..f2b0f3ba25ac 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -600,7 +600,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  
->  	ptl = pmd_trans_huge_lock(pmd, vma);
->  	if (ptl) {
-> -		smaps_pmd_entry(pmd, addr, walk);
-> +		if (pmd_present(*pmd))
-> +			smaps_pmd_entry(pmd, addr, walk);
->  		spin_unlock(ptl);
->  		return 0;
->  	}
-> @@ -942,6 +943,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
->  			goto out;
->  		}
->  
-> +		if (!pmd_present(*pmd))
-> +			goto out;
-> +
->  		page = pmd_page(*pmd);
->  
->  		/* Clear accessed and referenced bits. */
-> @@ -1221,19 +1225,19 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
->  	if (ptl) {
->  		u64 flags = 0, frame = 0;
->  		pmd_t pmd = *pmdp;
-> +		struct page *page;
->  
->  		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
->  			flags |= PM_SOFT_DIRTY;
->  
-> -		/*
-> -		 * Currently pmd for thp is always present because thp
-> -		 * can not be swapped-out, migrated, or HWPOISONed
-> -		 * (split in such cases instead.)
-> -		 * This if-check is just to prepare for future implementation.
-> -		 */
-> -		if (pmd_present(pmd)) {
-> -			struct page *page = pmd_page(pmd);
-> +		if (is_pmd_migration_entry(pmd)) {
-> +			swp_entry_t entry = pmd_to_swp_entry(pmd);
->  
-> +			frame = swp_type(entry) |
-> +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-> +			page = migration_entry_to_page(entry);
-> +		} else if (pmd_present(pmd)) {
-> +			page = pmd_page(pmd);
->  			if (page_mapcount(page) == 1)
->  				flags |= PM_MMAP_EXCLUSIVE;
->  
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index f4ca23b158b3..f98a028100b6 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -790,7 +790,8 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  	barrier();
->  #endif
-> -	if (pmd_none(pmdval) || pmd_trans_huge(pmdval))
-> +	if (pmd_none(pmdval) || pmd_trans_huge(pmdval)
-> +			|| !pmd_present(pmdval))
->  		return 1;
-
-pmd_none() check is redundant now.
-
->  	if (unlikely(pmd_bad(pmdval))) {
->  		pmd_clear_bad(pmd);
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 1b81cb57ff0f..6f44a2352597 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -126,7 +126,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  #define split_huge_pmd(__vma, __pmd, __address)				\
->  	do {								\
->  		pmd_t *____pmd = (__pmd);				\
-> -		if (pmd_trans_huge(*____pmd)				\
-> +		if (is_swap_pmd(*____pmd) || pmd_trans_huge(*____pmd)	\
->  					|| pmd_devmap(*____pmd))	\
->  			__split_huge_pmd(__vma, __pmd, __address,	\
->  						false, NULL);		\
-> @@ -157,12 +157,18 @@ extern spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma);
->  extern spinlock_t *__pud_trans_huge_lock(pud_t *pud,
->  		struct vm_area_struct *vma);
-> +
-> +static inline int is_swap_pmd(pmd_t pmd)
-> +{
-> +	return !pmd_none(pmd) && !pmd_present(pmd);
-> +}
-> +
->  /* mmap_sem must be held on entry */
->  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma)
->  {
->  	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
-> -	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
-> +	if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
->  		return __pmd_trans_huge_lock(pmd, vma);
->  	else
->  		return NULL;
-> @@ -269,6 +275,10 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
->  					 long adjust_next)
->  {
->  }
-> +static inline int is_swap_pmd(pmd_t pmd)
-> +{
-> +	return 0;
-> +}
->  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma)
->  {
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 94fab8fa432b..2b1effb16242 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -272,6 +272,15 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
->  			return page;
->  		return no_page_table(vma, flags);
->  	}
-> +	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
-> +		return no_page_table(vma, flags);
-> +	if (!pmd_present(*pmd)) {
-> +retry:
-> +		if (likely(!(flags & FOLL_MIGRATION)))
-> +			return no_page_table(vma, flags);
-> +		pmd_migration_entry_wait(mm, pmd);
-> +		goto retry;
-
-This looks a lot like endless loop if flags contain FOLL_MIGRATION. Hm?
-
-I guess retry label should be on previous line.
-
-> +	}
->  	if (pmd_devmap(*pmd)) {
->  		ptl = pmd_lock(mm, pmd);
->  		page = follow_devmap_pmd(vma, address, pmd, flags);
-> @@ -286,6 +295,15 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
->  		return no_page_table(vma, flags);
->  
->  	ptl = pmd_lock(mm, pmd);
-> +	if (unlikely(!pmd_present(*pmd))) {
-> +retry_locked:
-> +		if (likely(!(flags & FOLL_MIGRATION))) {
-> +			spin_unlock(ptl);
-> +			return no_page_table(vma, flags);
-> +		}
-> +		pmd_migration_entry_wait(mm, pmd);
-> +		goto retry_locked;
-
-Again. That's doesn't look right..
-
-> +	}
->  	if (unlikely(!pmd_trans_huge(*pmd))) {
->  		spin_unlock(ptl);
->  		return follow_page_pte(vma, address, pmd, flags);
-> @@ -341,7 +359,7 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
->  	pud = pud_offset(pgd, address);
->  	BUG_ON(pud_none(*pud));
->  	pmd = pmd_offset(pud, address);
-> -	if (pmd_none(*pmd))
-> +	if (!pmd_present(*pmd))
->  		return -EFAULT;
->  	VM_BUG_ON(pmd_trans_huge(*pmd));
->  	pte = pte_offset_map(pmd, address);
-> @@ -1369,7 +1387,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		pmd_t pmd = READ_ONCE(*pmdp);
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		if (!pmd_present(pmd))
->  			return 0;
->  
->  		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a9c2a0ef5b9b..3f18452f3eb1 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -898,6 +898,21 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  
->  	ret = -EAGAIN;
->  	pmd = *src_pmd;
-> +
-> +	if (unlikely(is_pmd_migration_entry(pmd))) {
-
-Shouldn't you first check that the pmd is not present?
-
-> +		swp_entry_t entry = pmd_to_swp_entry(pmd);
-> +
-> +		if (is_write_migration_entry(entry)) {
-> +			make_migration_entry_read(&entry);
-> +			pmd = swp_entry_to_pmd(entry);
-> +			set_pmd_at(src_mm, addr, src_pmd, pmd);
-> +		}
-> +		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-> +		ret = 0;
-> +		goto out_unlock;
-> +	}
-> +	WARN_ONCE(!pmd_present(pmd), "Uknown non-present format on pmd.\n");
-
-Typo.
-
-> +
->  	if (unlikely(!pmd_trans_huge(pmd))) {
->  		pte_free(dst_mm, pgtable);
->  		goto out_unlock;
-> @@ -1204,6 +1219,9 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
->  	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
->  		goto out_unlock;j
->  
-> +	if (unlikely(!pmd_present(orig_pmd)))
-> +		goto out_unlock;
-> +
->  	page = pmd_page(orig_pmd);
->  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
->  	/*
-> @@ -1338,7 +1356,15 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
->  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
->  		goto out;
->  
-> -	page = pmd_page(*pmd);
-> +	if (is_pmd_migration_entry(*pmd)) {
-
-Again, I don't think it's it's safe to check if pmd is migration entry
-before checking if it's present.
-
-> +		swp_entry_t entry;
-> +
-> +		entry = pmd_to_swp_entry(*pmd);
-> +		page = pfn_to_page(swp_offset(entry));
-> +		if (!is_migration_entry(entry))
-> +			goto out;
-
-I don't understand how it suppose to work.
-You take swp_offset() of entry before checking if it's migration entry.
-What's going on?
-
-> +	} else
-> +		page = pmd_page(*pmd);
->  	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
->  	if (flags & FOLL_TOUCH)
->  		touch_pmd(vma, addr, pmd);
-> @@ -1534,6 +1560,9 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	if (is_huge_zero_pmd(orig_pmd))
->  		goto out;
->  
-> +	if (unlikely(!pmd_present(orig_pmd)))
-> +		goto out;
-> +
->  	page = pmd_page(orig_pmd);
->  	/*
->  	 * If other processes are mapping this page, we couldn't discard
-> @@ -1766,6 +1795,20 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  	if (prot_numa && pmd_protnone(*pmd))
->  		goto unlock;
->  
-> +	if (is_pmd_migration_entry(*pmd)) {
-> +		swp_entry_t entry = pmd_to_swp_entry(*pmd);
-> +
-> +		if (is_write_migration_entry(entry)) {
-> +			pmd_t newpmd;
-> +
-> +			make_migration_entry_read(&entry);
-> +			newpmd = swp_entry_to_pmd(entry);
-> +			set_pmd_at(mm, addr, pmd, newpmd);
-> +		}
-> +		goto unlock;
-> +	} else if (!pmd_present(*pmd))
-> +		WARN_ONCE(1, "Uknown non-present format on pmd.\n");
-
-Another typo.
-
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
