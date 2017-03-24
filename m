@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 120EB6B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:30:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y90so6389711wrb.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 02:30:26 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id n107si2346966wrb.4.2017.03.24.02.30.21
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A4E6B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:36:59 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x124so9050387wmf.1
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 02:36:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m6si2039116pgn.163.2017.03.24.02.36.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 02:30:21 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id u132so2028470wmg.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 02:30:21 -0700 (PDT)
-Date: Fri, 24 Mar 2017 12:30:19 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 26/26] x86/mm: allow to have userspace mappings above
- 47-bits
-Message-ID: <20170324093019.ts7sljfg32kpajd2@node.shutemov.name>
-References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
- <20170313055020.69655-27-kirill.shutemov@linux.intel.com>
- <8760j4sfcz.fsf@skywalker.in.ibm.com>
- <20170324090408.xsj7othssj547w5k@node.shutemov.name>
- <d1007940-5066-4fcf-9744-0bb0514b33d4@linux.vnet.ibm.com>
+        Fri, 24 Mar 2017 02:36:07 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2O9Y5Q7125985
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:36:06 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29cyr5k9ne-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:36:04 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Fri, 24 Mar 2017 09:36:00 -0000
+Date: Fri, 24 Mar 2017 10:35:55 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [v1 0/5] parallelized "struct page" zeroing
+References: <1490310113-824438-1-git-send-email-pasha.tatashin@oracle.com>
+ <341568c3-0473-860f-aa20-63723aa40b87@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d1007940-5066-4fcf-9744-0bb0514b33d4@linux.vnet.ibm.com>
+In-Reply-To: <341568c3-0473-860f-aa20-63723aa40b87@de.ibm.com>
+Message-Id: <20170324093555.GB5891@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390 <linux-s390@vger.kernel.org>
 
-On Fri, Mar 24, 2017 at 02:44:10PM +0530, Aneesh Kumar K.V wrote:
-> 
-> 
-> On Friday 24 March 2017 02:34 PM, Kirill A. Shutemov wrote:
-> > On Mon, Mar 20, 2017 at 10:40:20AM +0530, Aneesh Kumar K.V wrote:
-> > > "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
-> > >  @@ -168,6 +182,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
-> > > >  	unsigned long addr = addr0;
-> > > >  	struct vm_unmapped_area_info info;
-> > > > 
-> > > > +	addr = mpx_unmapped_area_check(addr, len, flags);
-> > > > +	if (IS_ERR_VALUE(addr))
-> > > > +		return addr;
-> > > > +
-> > > >  	/* requested length too big for entire address space */
-> > > >  	if (len > TASK_SIZE)
-> > > >  		return -ENOMEM;
-> > > > @@ -192,6 +210,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
-> > > >  	info.length = len;
-> > > >  	info.low_limit = PAGE_SIZE;
-> > > >  	info.high_limit = mm->mmap_base;
-> > > > +
-> > > > +	/*
-> > > > +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> > > > +	 * in the full address space.
-> > > > +	 */
-> > > > +	if (addr > DEFAULT_MAP_WINDOW)
-> > > > +		info.high_limit += TASK_SIZE - DEFAULT_MAP_WINDOW;
-> > > > +
-> > > 
-> > > Is this ok for 32 bit application ?
+On Fri, Mar 24, 2017 at 09:51:09AM +0100, Christian Borntraeger wrote:
+> On 03/24/2017 12:01 AM, Pavel Tatashin wrote:
+> > When deferred struct page initialization feature is enabled, we get a
+> > performance gain of initializing vmemmap in parallel after other CPUs are
+> > started. However, we still zero the memory for vmemmap using one boot CPU.
+> > This patch-set fixes the memset-zeroing limitation by deferring it as well.
 > > 
-> > DEFAULT_MAP_WINDOW is equal to TASK_SIZE on 32-bit, so it's nop and will
-> > be compile out.
+> > Here is example performance gain on SPARC with 32T:
+> > base
+> > https://hastebin.com/ozanelatat.go
 > > 
+> > fix
+> > https://hastebin.com/utonawukof.go
+> > 
+> > As you can see without the fix it takes: 97.89s to boot
+> > With the fix it takes: 46.91 to boot.
+> > 
+> > On x86 time saving is going to be even greater (proportionally to memory size)
+> > because there are twice as many "struct page"es for the same amount of memory,
+> > as base pages are twice smaller.
 > 
-> That is not about CONFIG_X86_32 but about 32 bit application on a 64 bit
-> kernel. I guess we will never find addr > DEFAULT_MAP_WINDOW with
-> a 32 bit app ?
+> Fixing the linux-s390 mailing list email.
+> This might be useful for s390 as well.
 
-I have local change to avoid this within 32-bit syscall, but I'll need to
-recheck everthing.
+Unfortunately only for the fake numa case, since as far as I understand it,
+parallelization happens only on a node granularity. And since we are
+usually only having one node...
 
--- 
- Kirill A. Shutemov
+But anyway, it won't hurt to set ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT on
+s390 also. I'll do some testing and then we'll see.
+
+Pavel, could you please change your patch 5 so it also converts the s390
+call sites of vmemmap_alloc_block() so they use VMEMMAP_ZERO instead of
+'true' as argument?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
