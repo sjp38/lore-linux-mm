@@ -1,66 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B5B076B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:10:41 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 20so3131247wrx.6
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:10:41 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id 88si3473956wre.255.2017.03.24.07.10.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4986B0337
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:11:22 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 79so6177042pgf.2
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:11:22 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id u29si3030844pgn.124.2017.03.24.07.11.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 07:10:40 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id z133so832635wmb.2
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:10:39 -0700 (PDT)
-Date: Fri, 24 Mar 2017 17:10:37 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v4 04/11] mm: thp: introduce
- CONFIG_ARCH_ENABLE_THP_MIGRATION
-Message-ID: <20170324141037.2eyovzq2bmcdmwzu@node.shutemov.name>
-References: <20170313154507.3647-1-zi.yan@sent.com>
- <20170313154507.3647-5-zi.yan@sent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170313154507.3647-5-zi.yan@sent.com>
+        Fri, 24 Mar 2017 07:11:21 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id 79so724017pgf.0
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:11:21 -0700 (PDT)
+From: Geliang Tang <geliangtang@gmail.com>
+Subject: [PATCH] mm/page_alloc: use nth_page helper
+Date: Fri, 24 Mar 2017 22:10:50 +0800
+Message-Id: <b75be84c34466eb063bd44ee1ff7f2bf085002b2.1490323567.git.geliangtang@gmail.com>
+In-Reply-To: <ab50f7fbf9826ac7275f0513ca04bf1073b41a36.1490323750.git.geliangtang@gmail.com>
+References: <ab50f7fbf9826ac7275f0513ca04bf1073b41a36.1490323750.git.geliangtang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Geliang Tang <geliangtang@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 13, 2017 at 11:45:00AM -0400, Zi Yan wrote:
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> 
-> Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
-> functionality to x86_64, which should be safer at the first step.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
-> v1 -> v2:
-> - fixed config name in subject and patch description
-> ---
->  arch/x86/Kconfig        |  4 ++++
->  include/linux/huge_mm.h | 10 ++++++++++
->  mm/Kconfig              |  3 +++
->  3 files changed, 17 insertions(+)
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 69188841717a..a24bc11c7aed 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -2276,6 +2276,10 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
->  	def_bool y
->  	depends on X86_64 && HUGETLB_PAGE && MIGRATION
->  
-> +config ARCH_ENABLE_THP_MIGRATION
-> +	def_bool y
-> +	depends on X86_64 && TRANSPARENT_HUGEPAGE && MIGRATION
-> +
+Use nth_page() helper instead of page_to_pfn() and pfn_to_page() to
+simplify the code.
 
-TRANSPARENT_HUGEPAGE implies MIGRATION due to COMPACTION.
+Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+---
+ mm/page_alloc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f749b7f..3354f56 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2511,9 +2511,8 @@ void mark_free_pages(struct zone *zone)
+ 				&zone->free_area[order].free_list[t], lru) {
+ 			unsigned long i;
+ 
+-			pfn = page_to_pfn(page);
+ 			for (i = 0; i < (1UL << order); i++)
+-				swsusp_set_page_free(pfn_to_page(pfn + i));
++				swsusp_set_page_free(nth_page(page, i));
+ 		}
+ 	}
+ 	spin_unlock_irqrestore(&zone->lock, flags);
 -- 
- Kirill A. Shutemov
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
