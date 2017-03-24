@@ -1,90 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EA6FA6B0343
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 02:11:23 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 79so11359063pgf.2
-        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 23:11:23 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id y14si971950pfa.159.2017.03.23.23.11.20
-        for <linux-mm@kvack.org>;
-        Thu, 23 Mar 2017 23:11:22 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1490328162-21245-1-git-send-email-mike.kravetz@oracle.com> <00da01d2a464$488ab360$d9a01a20$@alibaba-inc.com>
-In-Reply-To: <00da01d2a464$488ab360$d9a01a20$@alibaba-inc.com>
-Subject: Re: [PATCH] mm/hugetlb: Don't call region_abort if region_chg fails
-Date: Fri, 24 Mar 2017 14:11:06 +0800
-Message-ID: <00df01d2a465$6cac77a0$460566e0$@alibaba-inc.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 374476B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 02:48:41 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c23so11557044pfj.0
+        for <linux-mm@kvack.org>; Thu, 23 Mar 2017 23:48:41 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id v198si1475777pgb.216.2017.03.23.23.48.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Mar 2017 23:48:40 -0700 (PDT)
+Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap data
+ structure
+References: <20170320084732.3375-1-ying.huang@intel.com>
+ <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
+ <8737e3z992.fsf@yhuang-dev.intel.com>
+ <f17cb7e4-4d47-4aed-6fdb-cda5c5d47fa4@nvidia.com>
+ <87poh7xoms.fsf@yhuang-dev.intel.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <2d55e06d-a0b6-771a-bba0-f9517d422789@nvidia.com>
+Date: Thu, 23 Mar 2017 23:48:35 -0700
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+In-Reply-To: <87poh7xoms.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: 'Dmitry Vyukov' <dvyukov@google.com>, 'Michal Hocko' <mhocko@suse.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Andrey Ryabinin' <aryabinin@virtuozzo.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill
+ A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Reply again with Andrew's mail address corrected:)
+On 03/23/2017 09:52 PM, Huang, Ying wrote:
+> John Hubbard <jhubbard@nvidia.com> writes:
+>
+>> On 03/23/2017 07:41 PM, Huang, Ying wrote:
+>>> David Rientjes <rientjes@google.com> writes:
+>>>
+>>>> On Mon, 20 Mar 2017, Huang, Ying wrote:
+>>>>
+>>>>> From: Huang Ying <ying.huang@intel.com>
+>>>>>
+>>>>> Now vzalloc() is used in swap code to allocate various data
+>>>>> structures, such as swap cache, swap slots cache, cluster info, etc.
+>>>>> Because the size may be too large on some system, so that normal
+>>>>> kzalloc() may fail.  But using kzalloc() has some advantages, for
+>>>>> example, less memory fragmentation, less TLB pressure, etc.  So change
+>>>>> the data structure allocation in swap code to use kvzalloc() which
+>>>>> will try kzalloc() firstly, and fallback to vzalloc() if kzalloc()
+>>>>> failed.
+>>>>>
+>>>>
+>>>> As questioned in -v1 of this patch, what is the benefit of directly
+>>>> compacting and reclaiming memory for high-order pages by first preferring
+>>>> kmalloc() if this does not require contiguous memory?
+>>>
+>>> The memory allocation here is only for swap on time, not for swap out/in
+>>> time.  The performance of swap on is not considered critical.  But if
+>>> the kmalloc() is used instead of the vmalloc(), the swap out/in
+>>> performance could be improved (marginally).  More importantly, the
+>>> interference for the other activity on the system could be reduced, For
+>>> example, less memory fragmentation, less TLB usage of swap subsystem,
+>>> etc.
+>>
+>> Hi Ying,
+>>
+>> I'm a little surprised to see vmalloc calls replaced with
+>> kmalloc-then-vmalloc calls, because that actually makes fragmentation
+>> worse (contrary to the above claim). That's because you will consume
+>> contiguous memory (even though you don't need it to be contiguous),
+>> whereas before, you would have been able to get by with page-at-a-time
+>> for vmalloc.
+>>
+>> So, things like THP will find fewer contiguous chunks, as a result of patches such as this.
+>
+> Hi, John,
+>
+> I don't think so.  The pages allocated by vmalloc() cannot be moved
+> during de-fragment.  For example, if 512 dis-continuous physical pages
+> are allocated via vmalloc(), at worst, one page will be allocate from
+> one distinct 2MB continous physical pages.  This makes 512 * 2MB = 1GB
+> memory cannot be used for THP allocation.  Because these pages cannot be
+> defragmented until vfree().
 
--'Andrew Morton' <akpm@linux^Coundation.org>
-+'Andrew Morton' <akpm@linux-foundation.org>
-> 
-> On March 24, 2017 12:03 PM Mike Kravetz wrote:
-> >
-> > Changes to hugetlbfs reservation maps is a two step process.  The first
-> > step is a call to region_chg to determine what needs to be changed, and
-> > prepare that change.  This should be followed by a call to call to
-> > region_add to commit the change, or region_abort to abort the change.
-> >
-> > The error path in hugetlb_reserve_pages called region_abort after a
-> > failed call to region_chg.  As a result, the adds_in_progress counter
-> > in the reservation map is off by 1.  This is caught by a VM_BUG_ON
-> > in resv_map_release when the reservation map is freed.
-> >
-> > syzkaller fuzzer found this bug, that resulted in the following:
-> >
-> >  kernel BUG at mm/hugetlb.c:742!
-> >  Call Trace:
-> >   hugetlbfs_evict_inode+0x7b/0xa0 fs/hugetlbfs/inode.c:493
-> >   evict+0x481/0x920 fs/inode.c:553
-> >   iput_final fs/inode.c:1515 [inline]
-> >   iput+0x62b/0xa20 fs/inode.c:1542
-> >   hugetlb_file_setup+0x593/0x9f0 fs/hugetlbfs/inode.c:1306
-> >   newseg+0x422/0xd30 ipc/shm.c:575
-> >   ipcget_new ipc/util.c:285 [inline]
-> >   ipcget+0x21e/0x580 ipc/util.c:639
-> >   SYSC_shmget ipc/shm.c:673 [inline]
-> >   SyS_shmget+0x158/0x230 ipc/shm.c:657
-> >   entry_SYSCALL_64_fastpath+0x1f/0xc2
-> >  RIP: resv_map_release+0x265/0x330 mm/hugetlb.c:742
-> >
-> > Reported-by: Dmitry Vyukov <dvyukov@google.com>
-> > Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> > ---
-> 
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> 
-> >  mm/hugetlb.c | 4 +++-
-> >  1 file changed, 3 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index c7025c1..c65d45c 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -4233,7 +4233,9 @@ int hugetlb_reserve_pages(struct inode *inode,
-> >  	return 0;
-> >  out_err:
-> >  	if (!vma || vma->vm_flags & VM_MAYSHARE)
-> > -		region_abort(resv_map, from, to);
-> > +		/* Don't call region_abort if region_chg failed */
-> > +		if (chg >= 0)
-> > +			region_abort(resv_map, from, to);
-> >  	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
-> >  		kref_put(&resv_map->refs, resv_map_release);
-> >  	return ret;
-> > --
-> > 2.7.4
+kmalloc requires a resource that vmalloc does not: contiguous pages. Therefore, 
+given the same mix of pages (some groups of contiguous pages, and a scattering of 
+isolated single-page, or too-small-to-satisfy-entire-alloc groups of pages, and the 
+same underlying page allocator, kmalloc *must* consume the more valuable contiguous 
+pages. However, vmalloc *may* consume those same pages.
+
+So, if you run kmalloc a bunch of times, with higher-order requests, you *will* run 
+out of contiguous pages (until more are freed up). If you run vmalloc with the same 
+initial conditions and the same requests, you may not necessary use up those 
+contiguous pages.
+
+It's true that there are benefits to doing a kmalloc-then-vmalloc, of course: if the 
+pages are available, it's faster and uses less resources. Yes. I just don't think 
+"less fragmentation" should be listed as a benefit, because you can definitely cause 
+*more* fragmentation if you use up contiguous blocks unnecessarily.
+
+--
+thanks,
+john h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
