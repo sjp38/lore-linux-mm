@@ -1,52 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A4986B0337
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:11:22 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 79so6177042pgf.2
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:11:22 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id u29si3030844pgn.124.2017.03.24.07.11.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7E566B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:22:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id k11so1386445pfk.11
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:22:43 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0125.outbound.protection.outlook.com. [104.47.40.125])
+        by mx.google.com with ESMTPS id s1si3081520plk.31.2017.03.24.07.22.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 07:11:21 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id 79so724017pgf.0
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 07:11:21 -0700 (PDT)
-From: Geliang Tang <geliangtang@gmail.com>
-Subject: [PATCH] mm/page_alloc: use nth_page helper
-Date: Fri, 24 Mar 2017 22:10:50 +0800
-Message-Id: <b75be84c34466eb063bd44ee1ff7f2bf085002b2.1490323567.git.geliangtang@gmail.com>
-In-Reply-To: <ab50f7fbf9826ac7275f0513ca04bf1073b41a36.1490323750.git.geliangtang@gmail.com>
-References: <ab50f7fbf9826ac7275f0513ca04bf1073b41a36.1490323750.git.geliangtang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 24 Mar 2017 07:22:37 -0700 (PDT)
+Message-ID: <58D52B78.9040303@cs.rutgers.edu>
+Date: Fri, 24 Mar 2017 09:21:44 -0500
+From: Zi Yan <zi.yan@cs.rutgers.edu>
+MIME-Version: 1.0
+Subject: Re: [PATCH v4 04/11] mm: thp: introduce CONFIG_ARCH_ENABLE_THP_MIGRATION
+References: <20170313154507.3647-1-zi.yan@sent.com> <20170313154507.3647-5-zi.yan@sent.com> <20170324141037.2eyovzq2bmcdmwzu@node.shutemov.name>
+In-Reply-To: <20170324141037.2eyovzq2bmcdmwzu@node.shutemov.name>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature";
+	boundary="------------enig5D705F49D9F339D812D23E26"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Geliang Tang <geliangtang@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, dnellans@nvidia.com
 
-Use nth_page() helper instead of page_to_pfn() and pfn_to_page() to
-simplify the code.
+--------------enig5D705F49D9F339D812D23E26
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Geliang Tang <geliangtang@gmail.com>
----
- mm/page_alloc.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f749b7f..3354f56 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2511,9 +2511,8 @@ void mark_free_pages(struct zone *zone)
- 				&zone->free_area[order].free_list[t], lru) {
- 			unsigned long i;
- 
--			pfn = page_to_pfn(page);
- 			for (i = 0; i < (1UL << order); i++)
--				swsusp_set_page_free(pfn_to_page(pfn + i));
-+				swsusp_set_page_free(nth_page(page, i));
- 		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
--- 
-2.9.3
+
+Kirill A. Shutemov wrote:
+> On Mon, Mar 13, 2017 at 11:45:00AM -0400, Zi Yan wrote:
+>> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>
+>> Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+>> functionality to x86_64, which should be safer at the first step.
+>>
+>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> ---
+>> v1 -> v2:
+>> - fixed config name in subject and patch description
+>> ---
+>>  arch/x86/Kconfig        |  4 ++++
+>>  include/linux/huge_mm.h | 10 ++++++++++
+>>  mm/Kconfig              |  3 +++
+>>  3 files changed, 17 insertions(+)
+>>
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index 69188841717a..a24bc11c7aed 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -2276,6 +2276,10 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+>>  	def_bool y
+>>  	depends on X86_64 && HUGETLB_PAGE && MIGRATION
+>> =20
+>> +config ARCH_ENABLE_THP_MIGRATION
+>> +	def_bool y
+>> +	depends on X86_64 && TRANSPARENT_HUGEPAGE && MIGRATION
+>> +
+>=20
+> TRANSPARENT_HUGEPAGE implies MIGRATION due to COMPACTION.
+>=20
+
+Sure. I will change it to:
+
++config ARCH_ENABLE_THP_MIGRATION
++	def_bool y
++	depends on X86_64 && TRANSPARENT_HUGEPAGE
++
+
+
+Thanks.
+
+--=20
+Best Regards,
+Yan Zi
+
+
+--------------enig5D705F49D9F339D812D23E26
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iQEcBAEBCAAGBQJY1SuhAAoJEEGLLxGcTqbM0BUH/iMBTNr7Nrc154brgXZ6qd1t
+sbS9UaaYsC3OwKMr34x5aW2pbSIsN4m3+fVX2y3BjbuNeUsE0V7ZgHzF7jrYj4Ve
+9iEye/HtJYdzSwG460h/YrMyqmdYZ8qhUc5so6s0AwC9SByssNxob7PZkosZQOMj
+1INE77dg+4mdHnrziSbhCdvHjAOvtf4AuedGPqcVQURU3NGVNo0R8EbfRNfAaR+L
+0sf6yjmbACBSeDSkTFSZ6ZjEtuR5tvacVlQ28kaDs9dd3M49SQ56h0Sj2jO/gRDP
+mZsOhZUzUIwR9eYJsB5yKnyc76Yp+iNXzz+PfMu5AMMXgXeUQIshJQcHzMyIzZA=
+=BHEx
+-----END PGP SIGNATURE-----
+
+--------------enig5D705F49D9F339D812D23E26--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
