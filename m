@@ -1,189 +1,310 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E4F966B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 11:30:33 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e13so279078itc.12
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 08:30:33 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0095.outbound.protection.outlook.com. [104.47.33.95])
-        by mx.google.com with ESMTPS id q64si2999812ioi.231.2017.03.24.08.30.32
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EBD096B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:09:39 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d10so3779154qke.8
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 09:09:39 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0104.outbound.protection.outlook.com. [104.47.33.104])
+        by mx.google.com with ESMTPS id t56si2305447qta.24.2017.03.24.09.09.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 24 Mar 2017 08:30:32 -0700 (PDT)
-Message-ID: <58D53B8A.9040508@cs.rutgers.edu>
-Date: Fri, 24 Mar 2017 10:30:18 -0500
+        Fri, 24 Mar 2017 09:09:38 -0700 (PDT)
+Message-ID: <58D544B5.20102@cs.rutgers.edu>
+Date: Fri, 24 Mar 2017 11:09:25 -0500
 From: Zi Yan <zi.yan@cs.rutgers.edu>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 05/11] mm: thp: enable thp migration in generic path
-References: <20170313154507.3647-1-zi.yan@sent.com> <20170313154507.3647-6-zi.yan@sent.com> <20170324142829.qkqymugqp4ge33ky@node.shutemov.name>
-In-Reply-To: <20170324142829.qkqymugqp4ge33ky@node.shutemov.name>
+Subject: Re: [PATCH v4 06/11] mm: thp: check pmd migration entry in common
+ path
+References: <20170313154507.3647-1-zi.yan@sent.com> <20170313154507.3647-7-zi.yan@sent.com> <20170324145042.bda52glerop5wydx@node.shutemov.name>
+In-Reply-To: <20170324145042.bda52glerop5wydx@node.shutemov.name>
 Content-Type: multipart/signed; micalg=pgp-sha256;
 	protocol="application/pgp-signature";
-	boundary="------------enig5AA7F2B0050CD50B25544333"
+	boundary="------------enig987999214556999BA2161050"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, dnellans@nvidia.com
 
---------------enig5AA7F2B0050CD50B25544333
+--------------enig987999214556999BA2161050
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 
-Hi Kirill,
+
 
 Kirill A. Shutemov wrote:
-> On Mon, Mar 13, 2017 at 11:45:01AM -0400, Zi Yan wrote:
+> On Mon, Mar 13, 2017 at 11:45:02AM -0400, Zi Yan wrote:
 >> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >>
->> This patch adds thp migration's core code, including conversions
->> between a PMD entry and a swap entry, setting PMD migration entry,
->> removing PMD migration entry, and waiting on PMD migration entries.
->>
->> This patch makes it possible to support thp migration.
->> If you fail to allocate a destination page as a thp, you just split
->> the source thp as we do now, and then enter the normal page migration.=
-
->> If you succeed to allocate destination thp, you enter thp migration.
->> Subsequent patches actually enable thp migration for each caller of
->> page migration by allowing its get_new_page() callback to
->> allocate thps.
+>> If one of callers of page migration starts to handle thp,
+>> memory management code start to see pmd migration entry, so we need
+>> to prepare for it before enabling. This patch changes various code
+>> point which checks the status of given pmds in order to prevent race
+>> between thp migration and the pmd-related works.
 >>
 >> ChangeLog v1 -> v2:
->> - support pte-mapped thp, doubly-mapped thp
+>> - introduce pmd_related() (I know the naming is not good, but can't
+>>   think up no better name. Any suggesntion is welcomed.)
 >>
 >> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >>
 >> ChangeLog v2 -> v3:
->> - use page_vma_mapped_walk()
->>
->> ChangeLog v3 -> v4:
->> - factor out the code of removing pte pgtable page in zap_huge_pmd()
+>> - add is_swap_pmd()
+>> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
+>>   pmd_trans_huge(), pmd_devmap(), or pmd_none()
+>> - use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear()
+>> - flush_cache_range() while set_pmd_migration_entry()
+>> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() retur=
+n
+>>   true on pmd_migration_entry, so that migration entries are not
+>>   treated as pmd page table entries.
 >>
 >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
->=20
-> See few questions below.
->=20
-> It would be nice to split it into few patches. Probably three or four.
-
-This patch was two separate ones in v2:
-1. introduce remove_pmd_migration_entry(), set_migration_pmd() and other
-auxiliary functions,
-2. enable THP migration in the migration path.
-
-But the first one of these two patches would be dead code, since no one
-else uses it. Michal also suggested merging two patches into one when he
-reviewed v2.
-
-If you have any suggestion, I am OK to split this patch and make it
-smaller.
-
+>> ---
+>>  arch/x86/mm/gup.c             |  4 +--
+>>  fs/proc/task_mmu.c            | 22 +++++++++------
+>>  include/asm-generic/pgtable.h |  3 +-
+>>  include/linux/huge_mm.h       | 14 +++++++--
+>>  mm/gup.c                      | 22 +++++++++++++--
+>>  mm/huge_memory.c              | 66 ++++++++++++++++++++++++++++++++++=
+++++-----
+>>  mm/madvise.c                  |  2 ++
+>>  mm/memcontrol.c               |  2 ++
+>>  mm/memory.c                   |  9 ++++--
+>>  mm/mprotect.c                 |  6 ++--
+>>  mm/mremap.c                   |  2 +-
+>>  11 files changed, 124 insertions(+), 28 deletions(-)
+>>
 <snip>
-
->> diff --git a/mm/migrate.c b/mm/migrate.c
->> index cda4c2778d04..0bbad6dcf95a 100644
->> --- a/mm/migrate.c
->> +++ b/mm/migrate.c
->> @@ -211,6 +211,12 @@ static int remove_migration_pte(struct page *page=
-, struct vm_area_struct *vma,
->>  		new =3D page - pvmw.page->index +
->>  			linear_page_index(vma, pvmw.address);
->> =20
->> +		/* PMD-mapped THP migration entry */
->> +		if (!PageHuge(page) && PageTransCompound(page)) {
->> +			remove_migration_pmd(&pvmw, new);
->> +			continue;
->> +		}
->> +
->=20
-> Any reason not to share PTE handling of non-THP with THP?
-
-You mean PTE-mapped THPs? I was mostly reuse Naoya's patches. But at
-first look, it seems PTE-mapped THP handling code is the same as
-existing PTE handling code.
-
-This part of code can be changed to:
-
-+		/* PMD-mapped THP migration entry */
-+		if (!pvmw.pte && pvmw.page) {
-+                       VM_BUG_ON_PAGE(!PageTransCompound(page), page);
-+			remove_migration_pmd(&pvmw, new);
-+			continue;
-+		}
-+
-
->=20
->>  		get_page(new);
->>  		pte =3D pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
->>  		if (pte_swp_soft_dirty(*pvmw.pte))
-
-<snip>
-
->> diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
->> index 4ed5908c65b0..9d550a8a0c71 100644
->> --- a/mm/pgtable-generic.c
->> +++ b/mm/pgtable-generic.c
->> @@ -118,7 +118,8 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct =
-*vma, unsigned long address,
->>  {
->>  	pmd_t pmd;
->>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->> -	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
->> +	VM_BUG_ON(pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
->> +		  !pmd_devmap(*pmdp));
->=20
-> How does this? _flush doesn't make sense for !present.
-
-Right. It should be:
-
--	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-+	VM_BUG_ON((pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
-+		  !pmd_devmap(*pmdp)) || !pmd_present(*pmdp));
-
-
->=20
->>  	pmd =3D pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
->>  	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
->>  	return pmd;
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index 555cc7ebacf6..2c65abbd7a0e 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -1298,6 +1298,7 @@ static int try_to_unmap_one(struct page *page, s=
-truct vm_area_struct *vma,
->>  	int ret =3D SWAP_AGAIN;
->>  	enum ttu_flags flags =3D (enum ttu_flags)arg;
->> =20
->> +
->>  	/* munlock has nothing to gain from examining un-locked vmas */
->>  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
->>  		return SWAP_AGAIN;
->> @@ -1308,6 +1309,14 @@ static int try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
+>> diff --git a/mm/gup.c b/mm/gup.c
+>> index 94fab8fa432b..2b1effb16242 100644
+>> --- a/mm/gup.c
+>> +++ b/mm/gup.c
+>> @@ -272,6 +272,15 @@ struct page *follow_page_mask(struct vm_area_stru=
+ct *vma,
+>>  			return page;
+>>  		return no_page_table(vma, flags);
 >>  	}
->> =20
->>  	while (page_vma_mapped_walk(&pvmw)) {
->> +		/* THP migration */
->> +		if (flags & TTU_MIGRATION) {
->> +			if (!PageHuge(page) && PageTransCompound(page)) {
->> +				set_pmd_migration_entry(&pvmw, page);
+>> +	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+>> +		return no_page_table(vma, flags);
+>> +	if (!pmd_present(*pmd)) {
+>> +retry:
+>> +		if (likely(!(flags & FOLL_MIGRATION)))
+>> +			return no_page_table(vma, flags);
+>> +		pmd_migration_entry_wait(mm, pmd);
+>> +		goto retry;
 >=20
-> Again, it would be nice share PTE handling. It should be rather similar=
-,
-> no?
+> This looks a lot like endless loop if flags contain FOLL_MIGRATION. Hm?=
 
-At first look, it should work. I will change it. If it works, it will be
-included in the next version.
+>=20
+> I guess retry label should be on previous line.
 
-This can also shrink the patch size.
+You are right. It should be:
 
-Thanks.
++	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
++		return no_page_table(vma, flags);
++retry:
++	if (!pmd_present(*pmd)) {
++		if (likely(!(flags & FOLL_MIGRATION)))
++			return no_page_table(vma, flags);
++		pmd_migration_entry_wait(mm, pmd);
++		goto retry;
 
+>=20
+>> +	}
+>>  	if (pmd_devmap(*pmd)) {
+>>  		ptl =3D pmd_lock(mm, pmd);
+>>  		page =3D follow_devmap_pmd(vma, address, pmd, flags);
+>> @@ -286,6 +295,15 @@ struct page *follow_page_mask(struct vm_area_stru=
+ct *vma,
+>>  		return no_page_table(vma, flags);
+>> =20
+>>  	ptl =3D pmd_lock(mm, pmd);
+>> +	if (unlikely(!pmd_present(*pmd))) {
+>> +retry_locked:
+>> +		if (likely(!(flags & FOLL_MIGRATION))) {
+>> +			spin_unlock(ptl);
+>> +			return no_page_table(vma, flags);
+>> +		}
+>> +		pmd_migration_entry_wait(mm, pmd);
+>> +		goto retry_locked;
+>=20
+> Again. That's doesn't look right..
+
+It will be changed:
+
+ 	ptl =3D pmd_lock(mm, pmd);
++retry_locked:
++	if (unlikely(!pmd_present(*pmd))) {
++		if (likely(!(flags & FOLL_MIGRATION))) {
++			spin_unlock(ptl);
++			return no_page_table(vma, flags);
++		}
++		pmd_migration_entry_wait(mm, pmd);
++		goto retry_locked;
+
+>=20
+>> +	}
+>>  	if (unlikely(!pmd_trans_huge(*pmd))) {
+>>  		spin_unlock(ptl);
+>>  		return follow_page_pte(vma, address, pmd, flags);
+>> @@ -341,7 +359,7 @@ static int get_gate_page(struct mm_struct *mm, uns=
+igned long address,
+>>  	pud =3D pud_offset(pgd, address);
+>>  	BUG_ON(pud_none(*pud));
+>>  	pmd =3D pmd_offset(pud, address);
+>> -	if (pmd_none(*pmd))
+>> +	if (!pmd_present(*pmd))
+>>  		return -EFAULT;
+>>  	VM_BUG_ON(pmd_trans_huge(*pmd));
+>>  	pte =3D pte_offset_map(pmd, address);
+>> @@ -1369,7 +1387,7 @@ static int gup_pmd_range(pud_t pud, unsigned lon=
+g addr, unsigned long end,
+>>  		pmd_t pmd =3D READ_ONCE(*pmdp);
+>> =20
+>>  		next =3D pmd_addr_end(addr, end);
+>> -		if (pmd_none(pmd))
+>> +		if (!pmd_present(pmd))
+>>  			return 0;
+>> =20
+>>  		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index a9c2a0ef5b9b..3f18452f3eb1 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -898,6 +898,21 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struc=
+t mm_struct *src_mm,
+>> =20
+>>  	ret =3D -EAGAIN;
+>>  	pmd =3D *src_pmd;
+>> +
+>> +	if (unlikely(is_pmd_migration_entry(pmd))) {
+>=20
+> Shouldn't you first check that the pmd is not present?
+
+is_pmd_migration_entry() checks !pmd_present().
+
+in linux/swapops.h, is_pmd_migration_entry is defined as:
+
+static inline int is_pmd_migration_entry(pmd_t pmd)
+{
+    return !pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(pmd))=
+;
+}
+
+
+>=20
+>> +		swp_entry_t entry =3D pmd_to_swp_entry(pmd);
+>> +
+>> +		if (is_write_migration_entry(entry)) {
+>> +			make_migration_entry_read(&entry);
+>> +			pmd =3D swp_entry_to_pmd(entry);
+>> +			set_pmd_at(src_mm, addr, src_pmd, pmd);
+>> +		}
+>> +		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+>> +		ret =3D 0;
+>> +		goto out_unlock;
+>> +	}
+>> +	WARN_ONCE(!pmd_present(pmd), "Uknown non-present format on pmd.\n");=
+
+>=20
+> Typo.
+
+Got it.
+
+>=20
+>> +
+>>  	if (unlikely(!pmd_trans_huge(pmd))) {
+>>  		pte_free(dst_mm, pgtable);
+>>  		goto out_unlock;
+>> @@ -1204,6 +1219,9 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pm=
+d_t orig_pmd)
+>>  	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
+>>  		goto out_unlock;j
+>> =20
+>> +	if (unlikely(!pmd_present(orig_pmd)))
+>> +		goto out_unlock;
+>> +
+>>  	page =3D pmd_page(orig_pmd);
+>>  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+>>  	/*
+>> @@ -1338,7 +1356,15 @@ struct page *follow_trans_huge_pmd(struct vm_ar=
+ea_struct *vma,
+>>  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+>>  		goto out;
+>> =20
+>> -	page =3D pmd_page(*pmd);
+>> +	if (is_pmd_migration_entry(*pmd)) {
+>=20
+> Again, I don't think it's it's safe to check if pmd is migration entry
+> before checking if it's present.
+>=20
+>> +		swp_entry_t entry;
+>> +
+>> +		entry =3D pmd_to_swp_entry(*pmd);
+>> +		page =3D pfn_to_page(swp_offset(entry));
+>> +		if (!is_migration_entry(entry))
+>> +			goto out;
+>=20
+> I don't understand how it suppose to work.
+> You take swp_offset() of entry before checking if it's migration entry.=
+
+> What's going on?
+
+This chunk of change inside follow_trans_huge_pmd() is not needed.
+Because two callers, smaps_pmd_entry() and follow_page_mask(), guarantee
+that the pmd points to a present entry.
+
+I will drop this chunk in the next version.
+
+>=20
+>> +	} else
+>> +		page =3D pmd_page(*pmd);
+>>  	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);=
+
+>>  	if (flags & FOLL_TOUCH)
+>>  		touch_pmd(vma, addr, pmd);
+>> @@ -1534,6 +1560,9 @@ bool madvise_free_huge_pmd(struct mmu_gather *tl=
+b, struct vm_area_struct *vma,
+>>  	if (is_huge_zero_pmd(orig_pmd))
+>>  		goto out;
+>> =20
+>> +	if (unlikely(!pmd_present(orig_pmd)))
+>> +		goto out;
+>> +
+>>  	page =3D pmd_page(orig_pmd);
+>>  	/*
+>>  	 * If other processes are mapping this page, we couldn't discard
+>> @@ -1766,6 +1795,20 @@ int change_huge_pmd(struct vm_area_struct *vma,=
+ pmd_t *pmd,
+>>  	if (prot_numa && pmd_protnone(*pmd))
+>>  		goto unlock;
+>> =20
+>> +	if (is_pmd_migration_entry(*pmd)) {
+>> +		swp_entry_t entry =3D pmd_to_swp_entry(*pmd);
+>> +
+>> +		if (is_write_migration_entry(entry)) {
+>> +			pmd_t newpmd;
+>> +
+>> +			make_migration_entry_read(&entry);
+>> +			newpmd =3D swp_entry_to_pmd(entry);
+>> +			set_pmd_at(mm, addr, pmd, newpmd);
+>> +		}
+>> +		goto unlock;
+>> +	} else if (!pmd_present(*pmd))
+>> +		WARN_ONCE(1, "Uknown non-present format on pmd.\n");
+>=20
+> Another typo.
+
+Got it.
+
+Thanks for all your comments.
 
 --=20
 Best Regards,
 Yan Zi
 
 
---------------enig5AA7F2B0050CD50B25544333
+--------------enig987999214556999BA2161050
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
@@ -192,16 +313,16 @@ Content-Disposition: attachment; filename="signature.asc"
 Version: GnuPG v2
 Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
 
-iQEcBAEBCAAGBQJY1TuLAAoJEEGLLxGcTqbM8kwH/jzQHYz1mobmrhjihLiD6wbg
-bxTHBa7LSQ4YDgmsketcKpMbD/eDyh0wGBUQznsjQzIVNwpI229x4/tdfopdiDpN
-lA3IDwMBIVck/8Bd6jEwV6Wu6cMV6UT6jDyoKcsgqNcWDHEOMu3s2un+tSCLtRJ6
-qIYhqkfLzK4tju9bf3Myc5PolM0mrcnBLSAmZU2bCzrFl4st5WrYjy5pKXDzBKWl
-KIl7Bi7hf8cUC3/L14cuMsd+PxZCXkghJLCT6hUrJwpFX+/KFQ8VDxDIVoM4x83R
-WYe+w8cyJBPWC9r3Oc8VWQam+5HjNCWm52XLRZg763KtsewIuc+ask0Yc4TGlqM=
-=fiAz
+iQEcBAEBCAAGBQJY1US2AAoJEEGLLxGcTqbMooMH+wYgd5Lm3zvaMZn4S7JJK9KD
+WcvaNB3k7OPz/S4X3Tcrp1pLuReCfmt57EZ8Hz2DjT9TnAT7u0OYRQR9KR2xD1ER
+iJ01X8+lXX1bI1zSvdq6aqLpRj11oCHvtuSp1DXym6QEVH5mJMtdHRvYSuXjg4Cj
+Nq3FwWBXMzt3Ixr4uib2hHPDhwvSEkerQ3usYAJeonvALnTNCWFCa8oabBcmQVBA
+ltWF6WqKEqb6vu8XaT2RhElqJ3pnWotm0Vy50sEiU+uKet8I/o52uZvwYM7tafGc
+05OxWjHBNo0WzYmo51ag9IGqjXPQb7iRKawpoh55wmLh0+Et5nui1hX+d4qMOM4=
+=SKiM
 -----END PGP SIGNATURE-----
 
---------------enig5AA7F2B0050CD50B25544333--
+--------------enig987999214556999BA2161050--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
