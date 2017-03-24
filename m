@@ -1,93 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 743336B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 08:43:03 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b140so561493wme.3
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:43:03 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l13si2722535pgc.255.2017.03.24.05.42.01
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 52EA56B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 08:46:22 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id d188so1378165vka.2
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:46:22 -0700 (PDT)
+Received: from mail-vk0-x231.google.com (mail-vk0-x231.google.com. [2607:f8b0:400c:c05::231])
+        by mx.google.com with ESMTPS id h72si871779vkd.25.2017.03.24.05.46.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Mar 2017 05:42:02 -0700 (PDT)
-Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1490352808-7187-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
-In-Reply-To: <59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
-Message-Id: <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
-Date: Fri, 24 Mar 2017 21:40:29 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Mar 2017 05:46:21 -0700 (PDT)
+Received: by mail-vk0-x231.google.com with SMTP id r69so1444337vke.2
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:46:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170324105700.GB20282@gmail.com>
+References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
+ <20170324065203.GA5229@gmail.com> <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
+ <20170324105700.GB20282@gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 24 Mar 2017 13:46:00 +0100
+Message-ID: <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
+Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, linux-mm@kvack.org
-Cc: willy@infradead.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
-Andrey Ryabinin wrote:
-> On 03/24/2017 01:53 PM, Tetsuo Handa wrote:
-> > Commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem
-> > as potentially sleeping") added might_sleep() to remove_vm_area() from
-> > vfree(), and is causing
-> > 
-> > [    2.616064] BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
-> > [    2.616125] in_atomic(): 1, irqs_disabled(): 0, pid: 341, name: plymouthd
-> > [    2.616156] 2 locks held by plymouthd/341:
-> > [    2.616158]  #0:  (drm_global_mutex){+.+.+.}, at: [<ffffffffc01c274b>] drm_release+0x3b/0x3b0 [drm]
-> > [    2.616256]  #1:  (&(&tfile->lock)->rlock){+.+...}, at: [<ffffffffc0173038>] ttm_object_file_release+0x28/0x90 [ttm]
-> > [    2.616270] CPU: 2 PID: 341 Comm: plymouthd Not tainted 4.11.0-0.rc3.git0.1.kmallocwd.fc25.x86_64+debug #1
-> > [    2.616271] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
-> > [    2.616273] Call Trace:
-> > [    2.616281]  dump_stack+0x86/0xc3
-> > [    2.616285]  ___might_sleep+0x17d/0x250
-> > [    2.616289]  __might_sleep+0x4a/0x80
-> > [    2.616293]  remove_vm_area+0x22/0x90
-> > [    2.616296]  __vunmap+0x2e/0x110
-> > [    2.616299]  vfree+0x42/0x90
-> > [    2.616304]  kvfree+0x2c/0x40
-> > [    2.616312]  drm_ht_remove+0x1a/0x30 [drm]
-> > [    2.616317]  ttm_object_file_release+0x50/0x90 [ttm]
-> > [    2.616324]  vmw_postclose+0x47/0x60 [vmwgfx]
-> > [    2.616331]  drm_release+0x290/0x3b0 [drm]
-> > [    2.616338]  __fput+0xf8/0x210
-> > [    2.616342]  ____fput+0xe/0x10
-> > [    2.616345]  task_work_run+0x85/0xc0
-> > [    2.616351]  exit_to_usermode_loop+0xb4/0xc0
-> > [    2.616355]  do_syscall_64+0x185/0x1f0
-> > [    2.616359]  entry_SYSCALL64_slow_path+0x25/0x25
-> > 
-> > warning.
-> > 
-> > But commit f9e09977671b618a ("mm: turn vmap_purge_lock into a mutex") did
-> > not make vfree() potentially sleeping because try_purge_vmap_area_lazy()
-> > is still using mutex_trylock(). Thus, this is a false positive warning.
-> > 
-> 
-> Commit f9e09977671b618a did not made vfree() sleeping.
-> Commit 763b218ddfa "mm: add preempt points into __purge_vmap_area_lazy()"
-> did this, thus it's not a false positive.
-> 
-> 
-> > ___might_sleep() via cond_resched_lock() in __purge_vmap_area_lazy() from
-> > try_purge_vmap_area_lazy() from free_vmap_area_noflush() from
-> > free_unmap_vmap_area() from remove_vm_area() which might trigger same
-> > false positive warning is remaining. But so far we haven't heard about
-> > warning from that path.
-> 
-> And why that would be a false positive?
-> 
+On Fri, Mar 24, 2017 at 11:57 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Dmitry Vyukov <dvyukov@google.com> wrote:
+>
+>> > Are just utterly disgusting that turn perfectly readable code into an
+>> > unreadable, unmaintainable mess.
+>> >
+>> > You need to find some better, cleaner solution please, or convince me that no
+>> > such solution is possible. NAK for the time being.
+>>
+>> Well, I can just write all functions as is. Does it better confirm to kernel
+>> style?
+>
+> I think writing the prototypes out as-is, properly organized, beats any of these
+> macro based solutions.
 
-#define cond_resched_lock(lock) ({                              \
-	___might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);\
-	__cond_resched_lock(lock);                              \
-	})
+You mean write out the prototypes, but use what for definitions? Macros again?
 
-cond_resched_lock() calls ___might_sleep() even when
-__cond_resched_lock() will not call preempt_schedule_common()
-because should_resched() returns false due to preemption counter
-being already elevated by holding &(&tfile->lock)->rlock spinlock.
+>> [...] I've just looked at the x86 atomic.h and it uses macros for similar
+>> purpose (ATOMIC_OP/ATOMIC_FETCH_OP), so I thought that must be idiomatic kernel
+>> style...
+>
+> Mind fixing those too while at it?
 
-If should_resched() is known to return false, calling
-___might_sleep() from cond_resched_lock() is a false positive.
+I don't mind once I understand how exactly you want it to look.
+
+> And please squash any bug fixes and re-send a clean series against latest upstream
+> or so.
+>
+> Thanks,
+>
+>         Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
