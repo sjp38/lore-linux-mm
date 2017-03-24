@@ -1,226 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DAA16B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 03:15:08 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id r69so8393519vke.4
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 00:15:08 -0700 (PDT)
-Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
-        by mx.google.com with ESMTPS id h89si548271uah.130.2017.03.24.00.15.07
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 56B776B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 03:22:07 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l43so4717758wre.4
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 00:22:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d62si1520151wmc.155.2017.03.24.00.22.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 00:15:07 -0700 (PDT)
-Received: by mail-vk0-x230.google.com with SMTP id r69so6258237vke.2
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 00:15:07 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Mar 2017 00:22:06 -0700 (PDT)
+Date: Fri, 24 Mar 2017 08:22:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: fix a coding style issue
+Message-ID: <20170324072203.GA14875@dhcp22.suse.cz>
+References: <20170323074902.23768-1-kristaps.civkulis@gmail.com>
+ <52c53f8a-ef23-46ce-040b-d63498a7dfa5@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170324065203.GA5229@gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170324065203.GA5229@gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 24 Mar 2017 08:14:46 +0100
-Message-ID: <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52c53f8a-ef23-46ce-040b-d63498a7dfa5@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Kristaps Civkulis <kristaps.civkulis@gmail.com>
+Cc: akpm@linux-foundation.org, mike.kravetz@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 24, 2017 at 7:52 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Dmitry Vyukov <dvyukov@google.com> wrote:
->
->> KASAN uses compiler instrumentation to intercept all memory accesses.
->> But it does not see memory accesses done in assembly code.
->> One notable user of assembly code is atomic operations. Frequently,
->> for example, an atomic reference decrement is the last access to an
->> object and a good candidate for a racy use-after-free.
->>
->> Atomic operations are defined in arch files, but KASAN instrumentation
->> is required for several archs that support KASAN. Later we will need
->> similar hooks for KMSAN (uninit use detector) and KTSAN (data race
->> detector).
->>
->> This change introduces wrappers around atomic operations that can be
->> used to add KASAN/KMSAN/KTSAN instrumentation across several archs.
->> This patch uses the wrappers only for x86 arch. Arm64 will be switched
->> later.
->>
->> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
->> Cc: Mark Rutland <mark.rutland@arm.com>
->> Cc: Peter Zijlstra <peterz@infradead.org>
->> Cc: Will Deacon <will.deacon@arm.com>,
->> Cc: Andrew Morton <akpm@linux-foundation.org>,
->> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
->> Cc: Ingo Molnar <mingo@redhat.com>,
->> Cc: kasan-dev@googlegroups.com
->> Cc: linux-mm@kvack.org
->> Cc: linux-kernel@vger.kernel.org
->> Cc: x86@kernel.org
->> ---
->>  arch/x86/include/asm/atomic.h             | 100 +++++++-------
->>  arch/x86/include/asm/atomic64_32.h        |  86 ++++++------
->>  arch/x86/include/asm/atomic64_64.h        |  90 ++++++-------
->>  arch/x86/include/asm/cmpxchg.h            |  12 +-
->>  arch/x86/include/asm/cmpxchg_32.h         |   8 +-
->>  arch/x86/include/asm/cmpxchg_64.h         |   4 +-
->>  include/asm-generic/atomic-instrumented.h | 210 ++++++++++++++++++++++++++++++
->>  7 files changed, 367 insertions(+), 143 deletions(-)
->
-> Ugh, that's disgusting really...
->
->>
->> diff --git a/arch/x86/include/asm/atomic.h b/arch/x86/include/asm/atomic.h
->> index 14635c5ea025..95dd167eb3af 100644
->> --- a/arch/x86/include/asm/atomic.h
->> +++ b/arch/x86/include/asm/atomic.h
->> @@ -16,36 +16,46 @@
->>  #define ATOMIC_INIT(i)       { (i) }
->>
->>  /**
->> - * atomic_read - read atomic variable
->> + * arch_atomic_read - read atomic variable
->>   * @v: pointer of type atomic_t
->>   *
->>   * Atomically reads the value of @v.
->>   */
->> -static __always_inline int atomic_read(const atomic_t *v)
->> +static __always_inline int arch_atomic_read(const atomic_t *v)
->>  {
->> -     return READ_ONCE((v)->counter);
->> +     /*
->> +      * We use READ_ONCE_NOCHECK() because atomic_read() contains KASAN
->> +      * instrumentation. Double instrumentation is unnecessary.
->> +      */
->> +     return READ_ONCE_NOCHECK((v)->counter);
->>  }
+On Thu 23-03-17 10:12:44, Kristaps Civkulis wrote:
+> Fix a coding style issue.
 
-Hello Ingo,
+I believe style fixes are worth applying only when part of a larger
+change which does something useful or where the resulting code is much
+easier to read. This doesn't seem to be the case here.
+ 
+> Signed-off-by: Kristaps Civkulis <kristaps.civkulis@gmail.com>
+> ---
+> Resend, because it should be only [PATCH] in subject.
+> ---
+>  mm/hugetlb.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 3d0aab9ee80d..4c72c1974c8c 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1916,8 +1916,7 @@ static long __vma_reservation_common(struct hstate *h,
+>  			return 0;
+>  		else
+>  			return 1;
+> -	}
+> -	else
+> +	} else
+>  		return ret < 0 ? ret : 0;
+>  }
+> 
+> -- 
+> 2.12.0
+> 
 
-> Firstly, the patch is way too large, please split off new the documentation parts
-> of the patch to reduce the size and to make it easier to read!
->
-> Secondly, the next patch should do the rename to arch_atomic_*() pattern - and
-> nothing else:
-
-Next after what? Please provide full list of patches as you see them.
-How do we avoid build breakage if we do only the rename in a separate patch?
-
-
-
->>  /**
->> - * atomic_set - set atomic variable
->> + * arch_atomic_set - set atomic variable
->>   * @v: pointer of type atomic_t
->>   * @i: required value
->>   *
->>   * Atomically sets the value of @v to @i.
->>   */
->> -static __always_inline void atomic_set(atomic_t *v, int i)
->> +static __always_inline void arch_atomic_set(atomic_t *v, int i)
->
->
-> Third, the prototype CPP complications:
->
->> +#define __INSTR_VOID1(op, sz)                                                \
->> +static __always_inline void atomic##sz##_##op(atomic##sz##_t *v)     \
->> +{                                                                    \
->> +     arch_atomic##sz##_##op(v);                                      \
->> +}
->> +
->> +#define INSTR_VOID1(op)      \
->> +__INSTR_VOID1(op,);  \
->> +__INSTR_VOID1(op, 64)
->> +
->> +INSTR_VOID1(inc);
->> +INSTR_VOID1(dec);
->> +
->> +#undef __INSTR_VOID1
->> +#undef INSTR_VOID1
->> +
->> +#define __INSTR_VOID2(op, sz, type)                                  \
->> +static __always_inline void atomic##sz##_##op(type i, atomic##sz##_t *v)\
->> +{                                                                    \
->> +     arch_atomic##sz##_##op(i, v);                                   \
->> +}
->> +
->> +#define INSTR_VOID2(op)              \
->> +__INSTR_VOID2(op, , int);    \
->> +__INSTR_VOID2(op, 64, long long)
->> +
->> +INSTR_VOID2(add);
->> +INSTR_VOID2(sub);
->> +INSTR_VOID2(and);
->> +INSTR_VOID2(or);
->> +INSTR_VOID2(xor);
->> +
->> +#undef __INSTR_VOID2
->> +#undef INSTR_VOID2
->> +
->> +#define __INSTR_RET1(op, sz, type, rtype)                            \
->> +static __always_inline rtype atomic##sz##_##op(atomic##sz##_t *v)    \
->> +{                                                                    \
->> +     return arch_atomic##sz##_##op(v);                               \
->> +}
->> +
->> +#define INSTR_RET1(op)               \
->> +__INSTR_RET1(op, , int, int);        \
->> +__INSTR_RET1(op, 64, long long, long long)
->> +
->> +INSTR_RET1(inc_return);
->> +INSTR_RET1(dec_return);
->> +__INSTR_RET1(inc_not_zero, 64, long long, long long);
->> +__INSTR_RET1(dec_if_positive, 64, long long, long long);
->> +
->> +#define INSTR_RET_BOOL1(op)  \
->> +__INSTR_RET1(op, , int, bool);       \
->> +__INSTR_RET1(op, 64, long long, bool)
->> +
->> +INSTR_RET_BOOL1(dec_and_test);
->> +INSTR_RET_BOOL1(inc_and_test);
->> +
->> +#undef __INSTR_RET1
->> +#undef INSTR_RET1
->> +#undef INSTR_RET_BOOL1
->> +
->> +#define __INSTR_RET2(op, sz, type, rtype)                            \
->> +static __always_inline rtype atomic##sz##_##op(type i, atomic##sz##_t *v) \
->> +{                                                                    \
->> +     return arch_atomic##sz##_##op(i, v);                            \
->> +}
->> +
->> +#define INSTR_RET2(op)               \
->> +__INSTR_RET2(op, , int, int);        \
->> +__INSTR_RET2(op, 64, long long, long long)
->> +
->> +INSTR_RET2(add_return);
->> +INSTR_RET2(sub_return);
->> +INSTR_RET2(fetch_add);
->> +INSTR_RET2(fetch_sub);
->> +INSTR_RET2(fetch_and);
->> +INSTR_RET2(fetch_or);
->> +INSTR_RET2(fetch_xor);
->> +
->> +#define INSTR_RET_BOOL2(op)          \
->> +__INSTR_RET2(op, , int, bool);               \
->> +__INSTR_RET2(op, 64, long long, bool)
->> +
->> +INSTR_RET_BOOL2(sub_and_test);
->> +INSTR_RET_BOOL2(add_negative);
->> +
->> +#undef __INSTR_RET2
->> +#undef INSTR_RET2
->> +#undef INSTR_RET_BOOL2
->
-> Are just utterly disgusting that turn perfectly readable code into an unreadable,
-> unmaintainable mess.
->
-> You need to find some better, cleaner solution please, or convince me that no such
-> solution is possible. NAK for the time being.
-
-Well, I can just write all functions as is. Does it better confirm to
-kernel style? I've just looked at the x86 atomic.h and it uses macros
-for similar purpose (ATOMIC_OP/ATOMIC_FETCH_OP), so I thought that
-must be idiomatic kernel style...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
