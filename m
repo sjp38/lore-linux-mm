@@ -1,77 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8916B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 13:09:42 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id n141so8146222qke.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:09:42 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id i5si2448812qtb.52.2017.03.24.10.09.41
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 47F766B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 13:13:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b16so2498826wmi.14
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 10:13:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y106si4246057wrc.2.2017.03.24.10.13.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 10:09:41 -0700 (PDT)
-Message-ID: <58D552D2.9030307@sent.com>
-Date: Fri, 24 Mar 2017 12:09:38 -0500
-From: Zi Yan <zi.yan@sent.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Mar 2017 10:13:29 -0700 (PDT)
+Date: Fri, 24 Mar 2017 18:12:57 +0100
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v2 15/32] x86: Add support for changing memory
+ encryption attribute in early boot
+Message-ID: <20170324171257.lgvqcdqec3nla5nb@pd.tnic>
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846772794.2349.1396854638510933455.stgit@brijesh-build-machine>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 06/11] mm: thp: check pmd migration entry in common
- path
-References: <20170313154507.3647-1-zi.yan@sent.com> <20170313154507.3647-7-zi.yan@sent.com> <20170324145042.bda52glerop5wydx@node.shutemov.name> <58D544B5.20102@cs.rutgers.edu> <20170324165014.2ibdmurirjd4pa7r@node.shutemov.name>
-In-Reply-To: <20170324165014.2ibdmurirjd4pa7r@node.shutemov.name>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <148846772794.2349.1396854638510933455.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, dnellans@nvidia.com
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-
-
-Kirill A. Shutemov wrote:
-> On Fri, Mar 24, 2017 at 11:09:25AM -0500, Zi Yan wrote:
->> Kirill A. Shutemov wrote:
->>> On Mon, Mar 13, 2017 at 11:45:02AM -0400, Zi Yan wrote:
->>> Again. That's doesn't look right..
->> It will be changed:
->>
->>  	ptl = pmd_lock(mm, pmd);
->> +retry_locked:
->> +	if (unlikely(!pmd_present(*pmd))) {
->> +		if (likely(!(flags & FOLL_MIGRATION))) {
->> +			spin_unlock(ptl);
->> +			return no_page_table(vma, flags);
->> +		}
->> +		pmd_migration_entry_wait(mm, pmd);
->> +		goto retry_locked;
+On Thu, Mar 02, 2017 at 10:15:28AM -0500, Brijesh Singh wrote:
+> Some KVM-specific custom MSRs shares the guest physical address with
+> hypervisor. When SEV is active, the shared physical address must be mapped
+> with encryption attribute cleared so that both hypervsior and guest can
+> access the data.
 > 
-> Nope. pmd_migration_entry_wait() unlocks the ptl.
+> Add APIs to change memory encryption attribute in early boot code.
+> 
+> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
+> ---
+>  arch/x86/include/asm/mem_encrypt.h |   15 +++++++++
+>  arch/x86/mm/mem_encrypt.c          |   63 ++++++++++++++++++++++++++++++++++++
+>  2 files changed, 78 insertions(+)
+> 
+> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+> index 9799835..95bbe4c 100644
+> --- a/arch/x86/include/asm/mem_encrypt.h
+> +++ b/arch/x86/include/asm/mem_encrypt.h
+> @@ -47,6 +47,9 @@ void __init sme_unmap_bootdata(char *real_mode_data);
+>  
+>  void __init sme_early_init(void);
+>  
+> +int __init early_set_memory_decrypted(void *addr, unsigned long size);
+> +int __init early_set_memory_encrypted(void *addr, unsigned long size);
+> +
+>  /* Architecture __weak replacement functions */
+>  void __init mem_encrypt_init(void);
+>  
+> @@ -110,6 +113,18 @@ static inline void __init sme_early_init(void)
+>  {
+>  }
+>  
+> +static inline int __init early_set_memory_decrypted(void *addr,
+> +						    unsigned long size)
+> +{
+> +	return 1;
+	^^^^^^^^
 
-Right. This chunk is wrong. pmd_migrtion_entry_wait() actually locks
-pmd, then unlocks it and waits on the page if it is suitable.
+return 1 when !CONFIG_AMD_MEM_ENCRYPT ?
 
-An simple fix could be:
+The non-early variants return 0.
 
-+retry_locked:
- 	ptl = pmd_lock(mm, pmd);
-+	if (unlikely(!pmd_present(*pmd))) {
-+	        spin_unlock(ptl);
-+		if (likely(!(flags & FOLL_MIGRATION)))
-+			return no_page_table(vma, flags);
-+		pmd_migration_entry_wait(mm, pmd);
-+		goto retry_locked;
-+       }
+> +}
+> +
+> +static inline int __init early_set_memory_encrypted(void *addr,
+> +						    unsigned long size)
+> +{
+> +	return 1;
+> +}
+> +
+>  #define __sme_pa		__pa
+>  #define __sme_pa_nodebug	__pa_nodebug
+>  
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index 7df5f4c..567e0d8 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -15,6 +15,7 @@
+>  #include <linux/mm.h>
+>  #include <linux/dma-mapping.h>
+>  #include <linux/swiotlb.h>
+> +#include <linux/mem_encrypt.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/fixmap.h>
+> @@ -258,6 +259,68 @@ static void sme_free(struct device *dev, size_t size, void *vaddr,
+>  	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
+>  }
+>  
+> +static unsigned long __init get_pte_flags(unsigned long address)
+> +{
+> +	int level;
+> +	pte_t *pte;
+> +	unsigned long flags = _KERNPG_TABLE_NOENC | _PAGE_ENC;
+> +
+> +	pte = lookup_address(address, &level);
+> +	if (!pte)
+> +		return flags;
+> +
+> +	switch (level) {
+> +	case PG_LEVEL_4K:
+> +		flags = pte_flags(*pte);
+> +		break;
+> +	case PG_LEVEL_2M:
+> +		flags = pmd_flags(*(pmd_t *)pte);
+> +		break;
+> +	case PG_LEVEL_1G:
+> +		flags = pud_flags(*(pud_t *)pte);
+> +		break;
+> +	default:
+> +		break;
+> +	}
+> +
+> +	return flags;
+> +}
+> +
+> +int __init early_set_memory_enc_dec(void *vaddr, unsigned long size,
+> +				    unsigned long flags)
+> +{
+> +	unsigned long pfn, npages;
+> +	unsigned long addr = (unsigned long)vaddr & PAGE_MASK;
+> +
+> +	/* We are going to change the physical page attribute from C=1 to C=0.
+> +	 * Flush the caches to ensure that all the data with C=1 is flushed to
+> +	 * memory. Any caching of the vaddr after function returns will
+> +	 * use C=0.
+> +	 */
 
-Or is it better to change pmd_migration_entry_wait() to
-void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
-spinlock_t *ptl)? So that if ptl is NULL, then it takes the pmd lock and
-unlocks it; if ptl is specified, it only unlocks it. This can avoid the
-redundant unlock and lock in the code above, when
-pmd_migration_entry_wait() is called.
+Kernel comments style is:
 
-Thanks.
+	/*
+	 * A sentence ending with a full-stop.
+	 * Another sentence. ...
+	 * More sentences. ...
+	 */
 
---
-Best Regards,
-Yan Zi
+> +	clflush_cache_range(vaddr, size);
+> +
+> +	npages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+> +	pfn = slow_virt_to_phys((void *)addr) >> PAGE_SHIFT;
+> +
+> +	return kernel_map_pages_in_pgd(init_mm.pgd, pfn, addr, npages,
+> +					flags & ~sme_me_mask);
+> +
+> +}
+> +
+> +int __init early_set_memory_decrypted(void *vaddr, unsigned long size)
+> +{
+> +	unsigned long flags = get_pte_flags((unsigned long)vaddr);
+
+So this does lookup_address()...
+
+> +	return early_set_memory_enc_dec(vaddr, size, flags & ~sme_me_mask);
+
+... and this does it too in slow_virt_to_phys(). So you do it twice per
+vaddr.
+
+So why don't you define a __slow_virt_to_phys() helper - notice
+the "__" - which returns flags in its second parameter and which
+slow_virt_to_phys() calls with a NULL second parameter in the other
+cases?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
