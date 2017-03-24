@@ -1,74 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9915B6B0343
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 14:15:52 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t143so13522196pgb.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 11:15:52 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id x184si3699295pgd.398.2017.03.24.11.15.51
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 461B26B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 14:23:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m1so5270583pgd.13
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 11:23:51 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id o9si3729291pgi.274.2017.03.24.11.23.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 11:15:51 -0700 (PDT)
-Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap data
- structure
-References: <20170320084732.3375-1-ying.huang@intel.com>
- <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
- <8737e3z992.fsf@yhuang-dev.intel.com>
- <f17cb7e4-4d47-4aed-6fdb-cda5c5d47fa4@nvidia.com>
- <87poh7xoms.fsf@yhuang-dev.intel.com>
- <2d55e06d-a0b6-771a-bba0-f9517d422789@nvidia.com>
- <87d1d7uoti.fsf@yhuang-dev.intel.com>
- <624b8e59-34e5-3538-0a93-d33d9e4ac555@nvidia.com>
- <e79064f1-8594-bef2-fbd8-1579afb4aac3@linux.intel.com>
- <1490374331.2733.130.camel@linux.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <8d4c5c25-947a-e186-dbb8-1bbfb44f4fed@nvidia.com>
-Date: Fri, 24 Mar 2017 11:15:49 -0700
-MIME-Version: 1.0
-In-Reply-To: <1490374331.2733.130.camel@linux.intel.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+        Fri, 24 Mar 2017 11:23:50 -0700 (PDT)
+Message-ID: <1490379805.2733.133.camel@linux.intel.com>
+Subject: Re: [PATCH v4 01/11] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7
+ to bit 1
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Fri, 24 Mar 2017 11:23:25 -0700
+In-Reply-To: <20170313154507.3647-2-zi.yan@sent.com>
+References: <20170313154507.3647-1-zi.yan@sent.com>
+	 <20170313154507.3647-2-zi.yan@sent.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill
- A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
 
-On 03/24/2017 09:52 AM, Tim Chen wrote:
-> On Fri, 2017-03-24 at 06:56 -0700, Dave Hansen wrote:
->> On 03/24/2017 12:33 AM, John Hubbard wrote:
->>>
->>> There might be some additional information you are using to come up with
->>> that conclusion, that is not obvious to me. Any thoughts there? These
->>> calls use the same underlying page allocator (and I thought that both
->>> were subject to the same constraints on defragmentation, as a result of
->>> that). So I am not seeing any way that kmalloc could possibly be a
->>> less-fragmenting call than vmalloc.
->> You guys are having quite a discussion over a very small point.
->>
->> But, Ying is right.
->>
->> Let's say we have a two-page data structure.  vmalloc() takes two
->> effectively random order-0 pages, probably from two different 2M pages
->> and pins them.  That "kills" two 2M pages.
->>
->> kmalloc(), allocating two *contiguous* pages, is very unlikely to cross
->> a 2M boundary (it theoretically could).  That means it will only "kill"
->> the possibility of a single 2M page.  More 2M pages == less fragmentation.
->
-> In vmalloc, it eventually calls __vmalloc_area_node that allocates the
-> page one at a time.  There's no attempt there to make the pages contiguous
-> if I am reading the code correctly.  So that will increase the memory
-> fragmentation as we will be piecing together pages from all over the places.
->
-> Tim
+On Mon, 2017-03-13 at 11:44 -0400, Zi Yan wrote:
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> 
+> pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid
+> false negative return when it races with thp spilt
+> (during which _PAGE_PRESENT is temporary cleared.) I don't think that
+> dropping _PAGE_PSE check in pmd_present() works well because it can
+> hurt optimization of tlb handling in thp split.
+> In the current kernel, bits 1-4 are not used in non-present format
+> since commit 00839ee3b299 ("x86/mm: Move swap offset/type up in PTE to
+> work around erratum"). So let's move _PAGE_SWP_SOFT_DIRTY to bit 1.
+> Bit 7 is used as reserved (always clear), so please don't use it for
+> other purpose.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+> A arch/x86/include/asm/pgtable_64.hA A A A | 12 +++++++++---
+> A arch/x86/include/asm/pgtable_types.h | 10 +++++-----
+> A 2 files changed, 14 insertions(+), 8 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+> index 73c7ccc38912..a5c4fc62e078 100644
+> --- a/arch/x86/include/asm/pgtable_64.h
+> +++ b/arch/x86/include/asm/pgtable_64.h
+> @@ -157,15 +157,21 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+> A /*
+> A  * Encode and de-code a swap entry
+> A  *
+> - * |A A A A A ...A A A A A A A A A A A A | 11| 10|A A 9|8|7|6|5| 4| 3|2|1|0| <- bit number
+> - * |A A A A A ...A A A A A A A A A A A A |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
+> - * | OFFSET (14->63) | TYPE (9-13)A A |0|X|X|X| X| X|X|X|0| <- swp entry
+> + * |A A A A A ...A A A A A A A A A A A A | 11| 10|A A 9|8|7|6|5| 4| 3|2| 1|0| <- bit number
+> + * |A A A A A ...A A A A A A A A A A A A |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
+> + * | OFFSET (14->63) | TYPE (9-13)A A |0|0|X|X| X| X|X|SD|0| <- swp entry
+> A  *
+> A  * G (8) is aliased and used as a PROT_NONE indicator for
+> A  * !present ptes.A A We need to start storing swap entries above
+> A  * there.A A We also need to avoid using A and D because of an
+> A  * erratum where they can be incorrectly set by hardware on
+> A  * non-present PTEs.
+> + *
+> + * SD (1) in swp entry is used to store soft dirty bit, which helps us
+> + * remember soft dirty over page migration
+> + *
+> + * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
+> + * but also G.
 
-OK. Thanks everyone for spelling it out for me, before I started doing larger projects, with an 
-incorrect way of looking at the fragmentation behavior. :)
+but also L and G.
 
---
-thanks,
-john h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
