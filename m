@@ -1,91 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 29C476B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 03:33:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t87so12838071pfk.4
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 00:33:31 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id t10si1607423pgn.358.2017.03.24.00.33.28
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 155DE6B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:39:58 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id j137so10620426vke.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:39:58 -0700 (PDT)
+Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
+        by mx.google.com with ESMTPS id z5si615849uag.50.2017.03.24.01.39.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 00:33:28 -0700 (PDT)
-Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap data
- structure
-References: <20170320084732.3375-1-ying.huang@intel.com>
- <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
- <8737e3z992.fsf@yhuang-dev.intel.com>
- <f17cb7e4-4d47-4aed-6fdb-cda5c5d47fa4@nvidia.com>
- <87poh7xoms.fsf@yhuang-dev.intel.com>
- <2d55e06d-a0b6-771a-bba0-f9517d422789@nvidia.com>
- <87d1d7uoti.fsf@yhuang-dev.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <624b8e59-34e5-3538-0a93-d33d9e4ac555@nvidia.com>
-Date: Fri, 24 Mar 2017 00:33:25 -0700
+        Fri, 24 Mar 2017 01:39:55 -0700 (PDT)
+Received: by mail-vk0-x236.google.com with SMTP id s68so7952134vke.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:39:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <87d1d7uoti.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
+References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
+ <20170324065203.GA5229@gmail.com> <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 24 Mar 2017 09:39:34 +0100
+Message-ID: <CACT4Y+YQ+3i=gY5M8UjFnw4NqR1x3XcEexUDcMMLfY_mV6TaQg@mail.gmail.com>
+Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill
- A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
-[...]
->>>> Hi Ying,
->>>>
->>>> I'm a little surprised to see vmalloc calls replaced with
->>>> kmalloc-then-vmalloc calls, because that actually makes fragmentation
->>>> worse (contrary to the above claim). That's because you will consume
->>>> contiguous memory (even though you don't need it to be contiguous),
->>>> whereas before, you would have been able to get by with page-at-a-time
->>>> for vmalloc.
->>>>
->>>> So, things like THP will find fewer contiguous chunks, as a result of patches such as this.
+On Fri, Mar 24, 2017 at 8:14 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Fri, Mar 24, 2017 at 7:52 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>>
+>> * Dmitry Vyukov <dvyukov@google.com> wrote:
+>>
+>>> KASAN uses compiler instrumentation to intercept all memory accesses.
+>>> But it does not see memory accesses done in assembly code.
+>>> One notable user of assembly code is atomic operations. Frequently,
+>>> for example, an atomic reference decrement is the last access to an
+>>> object and a good candidate for a racy use-after-free.
 >>>
->>> Hi, John,
+>>> Atomic operations are defined in arch files, but KASAN instrumentation
+>>> is required for several archs that support KASAN. Later we will need
+>>> similar hooks for KMSAN (uninit use detector) and KTSAN (data race
+>>> detector).
 >>>
->>> I don't think so.  The pages allocated by vmalloc() cannot be moved
->>> during de-fragment.  For example, if 512 dis-continuous physical pages
->>> are allocated via vmalloc(), at worst, one page will be allocate from
->>> one distinct 2MB continous physical pages.  This makes 512 * 2MB = 1GB
->>> memory cannot be used for THP allocation.  Because these pages cannot be
->>> defragmented until vfree().
+>>> This change introduces wrappers around atomic operations that can be
+>>> used to add KASAN/KMSAN/KTSAN instrumentation across several archs.
+>>> This patch uses the wrappers only for x86 arch. Arm64 will be switched
+>>> later.
+>>>
+>>> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+>>> Cc: Mark Rutland <mark.rutland@arm.com>
+>>> Cc: Peter Zijlstra <peterz@infradead.org>
+>>> Cc: Will Deacon <will.deacon@arm.com>,
+>>> Cc: Andrew Morton <akpm@linux-foundation.org>,
+>>> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+>>> Cc: Ingo Molnar <mingo@redhat.com>,
+>>> Cc: kasan-dev@googlegroups.com
+>>> Cc: linux-mm@kvack.org
+>>> Cc: linux-kernel@vger.kernel.org
+>>> Cc: x86@kernel.org
+>>> ---
+>>>  arch/x86/include/asm/atomic.h             | 100 +++++++-------
+>>>  arch/x86/include/asm/atomic64_32.h        |  86 ++++++------
+>>>  arch/x86/include/asm/atomic64_64.h        |  90 ++++++-------
+>>>  arch/x86/include/asm/cmpxchg.h            |  12 +-
+>>>  arch/x86/include/asm/cmpxchg_32.h         |   8 +-
+>>>  arch/x86/include/asm/cmpxchg_64.h         |   4 +-
+>>>  include/asm-generic/atomic-instrumented.h | 210 ++++++++++++++++++++++++++++++
+>>>  7 files changed, 367 insertions(+), 143 deletions(-)
 >>
->> kmalloc requires a resource that vmalloc does not: contiguous
->> pages. Therefore, given the same mix of pages (some groups of
->> contiguous pages, and a scattering of isolated single-page, or
->> too-small-to-satisfy-entire-alloc groups of pages, and the same
->> underlying page allocator, kmalloc *must* consume the more valuable
->> contiguous pages. However, vmalloc *may* consume those same pages.
+>> Ugh, that's disgusting really...
 >>
->> So, if you run kmalloc a bunch of times, with higher-order requests,
->> you *will* run out of contiguous pages (until more are freed up). If
->> you run vmalloc with the same initial conditions and the same
->> requests, you may not necessary use up those contiguous pages.
->>
->> It's true that there are benefits to doing a kmalloc-then-vmalloc, of
->> course: if the pages are available, it's faster and uses less
->> resources. Yes. I just don't think "less fragmentation" should be
->> listed as a benefit, because you can definitely cause *more*
->> fragmentation if you use up contiguous blocks unnecessarily.
+>>>
+>>> diff --git a/arch/x86/include/asm/atomic.h b/arch/x86/include/asm/atomic.h
+>>> index 14635c5ea025..95dd167eb3af 100644
+>>> --- a/arch/x86/include/asm/atomic.h
+>>> +++ b/arch/x86/include/asm/atomic.h
+>>> @@ -16,36 +16,46 @@
+>>>  #define ATOMIC_INIT(i)       { (i) }
+>>>
+>>>  /**
+>>> - * atomic_read - read atomic variable
+>>> + * arch_atomic_read - read atomic variable
+>>>   * @v: pointer of type atomic_t
+>>>   *
+>>>   * Atomically reads the value of @v.
+>>>   */
+>>> -static __always_inline int atomic_read(const atomic_t *v)
+>>> +static __always_inline int arch_atomic_read(const atomic_t *v)
+>>>  {
+>>> -     return READ_ONCE((v)->counter);
+>>> +     /*
+>>> +      * We use READ_ONCE_NOCHECK() because atomic_read() contains KASAN
+>>> +      * instrumentation. Double instrumentation is unnecessary.
+>>> +      */
+>>> +     return READ_ONCE_NOCHECK((v)->counter);
+>>>  }
 >
-> Yes, I agree that for some cases, kmalloc() will use more contiguous
-> blocks, for example, non-movable pages are scattered all over the
-> memory.  But I still think in common cases, if defragement is enabled,
-> and non-movable pages allocation is restricted to some memory area if
-> possible, kmalloc() is better than vmalloc() as for fragmentation.
+> Hello Ingo,
+>
+>> Firstly, the patch is way too large, please split off new the documentation parts
+>> of the patch to reduce the size and to make it easier to read!
+>>
+>> Secondly, the next patch should do the rename to arch_atomic_*() pattern - and
+>> nothing else:
+>
+> Next after what? Please provide full list of patches as you see them.
+> How do we avoid build breakage if we do only the rename in a separate patch?
+>
+>
+>
+>>>  /**
+>>> - * atomic_set - set atomic variable
+>>> + * arch_atomic_set - set atomic variable
+>>>   * @v: pointer of type atomic_t
+>>>   * @i: required value
+>>>   *
+>>>   * Atomically sets the value of @v to @i.
+>>>   */
+>>> -static __always_inline void atomic_set(atomic_t *v, int i)
+>>> +static __always_inline void arch_atomic_set(atomic_t *v, int i)
+>>
+>>
+>> Third, the prototype CPP complications:
+>>
+>>> +#define __INSTR_VOID1(op, sz)                                                \
+>>> +static __always_inline void atomic##sz##_##op(atomic##sz##_t *v)     \
+>>> +{                                                                    \
+>>> +     arch_atomic##sz##_##op(v);                                      \
+>>> +}
+>>> +
+>>> +#define INSTR_VOID1(op)      \
+>>> +__INSTR_VOID1(op,);  \
+>>> +__INSTR_VOID1(op, 64)
+>>> +
+>>> +INSTR_VOID1(inc);
+>>> +INSTR_VOID1(dec);
+>>> +
+>>> +#undef __INSTR_VOID1
+>>> +#undef INSTR_VOID1
+>>> +
+>>> +#define __INSTR_VOID2(op, sz, type)                                  \
+>>> +static __always_inline void atomic##sz##_##op(type i, atomic##sz##_t *v)\
+>>> +{                                                                    \
+>>> +     arch_atomic##sz##_##op(i, v);                                   \
+>>> +}
+>>> +
+>>> +#define INSTR_VOID2(op)              \
+>>> +__INSTR_VOID2(op, , int);    \
+>>> +__INSTR_VOID2(op, 64, long long)
+>>> +
+>>> +INSTR_VOID2(add);
+>>> +INSTR_VOID2(sub);
+>>> +INSTR_VOID2(and);
+>>> +INSTR_VOID2(or);
+>>> +INSTR_VOID2(xor);
+>>> +
+>>> +#undef __INSTR_VOID2
+>>> +#undef INSTR_VOID2
+>>> +
+>>> +#define __INSTR_RET1(op, sz, type, rtype)                            \
+>>> +static __always_inline rtype atomic##sz##_##op(atomic##sz##_t *v)    \
+>>> +{                                                                    \
+>>> +     return arch_atomic##sz##_##op(v);                               \
+>>> +}
+>>> +
+>>> +#define INSTR_RET1(op)               \
+>>> +__INSTR_RET1(op, , int, int);        \
+>>> +__INSTR_RET1(op, 64, long long, long long)
+>>> +
+>>> +INSTR_RET1(inc_return);
+>>> +INSTR_RET1(dec_return);
+>>> +__INSTR_RET1(inc_not_zero, 64, long long, long long);
+>>> +__INSTR_RET1(dec_if_positive, 64, long long, long long);
+>>> +
+>>> +#define INSTR_RET_BOOL1(op)  \
+>>> +__INSTR_RET1(op, , int, bool);       \
+>>> +__INSTR_RET1(op, 64, long long, bool)
+>>> +
+>>> +INSTR_RET_BOOL1(dec_and_test);
+>>> +INSTR_RET_BOOL1(inc_and_test);
+>>> +
+>>> +#undef __INSTR_RET1
+>>> +#undef INSTR_RET1
+>>> +#undef INSTR_RET_BOOL1
+>>> +
+>>> +#define __INSTR_RET2(op, sz, type, rtype)                            \
+>>> +static __always_inline rtype atomic##sz##_##op(type i, atomic##sz##_t *v) \
+>>> +{                                                                    \
+>>> +     return arch_atomic##sz##_##op(i, v);                            \
+>>> +}
+>>> +
+>>> +#define INSTR_RET2(op)               \
+>>> +__INSTR_RET2(op, , int, int);        \
+>>> +__INSTR_RET2(op, 64, long long, long long)
+>>> +
+>>> +INSTR_RET2(add_return);
+>>> +INSTR_RET2(sub_return);
+>>> +INSTR_RET2(fetch_add);
+>>> +INSTR_RET2(fetch_sub);
+>>> +INSTR_RET2(fetch_and);
+>>> +INSTR_RET2(fetch_or);
+>>> +INSTR_RET2(fetch_xor);
+>>> +
+>>> +#define INSTR_RET_BOOL2(op)          \
+>>> +__INSTR_RET2(op, , int, bool);               \
+>>> +__INSTR_RET2(op, 64, long long, bool)
+>>> +
+>>> +INSTR_RET_BOOL2(sub_and_test);
+>>> +INSTR_RET_BOOL2(add_negative);
+>>> +
+>>> +#undef __INSTR_RET2
+>>> +#undef INSTR_RET2
+>>> +#undef INSTR_RET_BOOL2
+>>
+>> Are just utterly disgusting that turn perfectly readable code into an unreadable,
+>> unmaintainable mess.
+>>
+>> You need to find some better, cleaner solution please, or convince me that no such
+>> solution is possible. NAK for the time being.
+>
+> Well, I can just write all functions as is. Does it better confirm to
+> kernel style? I've just looked at the x86 atomic.h and it uses macros
+> for similar purpose (ATOMIC_OP/ATOMIC_FETCH_OP), so I thought that
+> must be idiomatic kernel style...
 
 
-There might be some additional information you are using to come up with that 
-conclusion, that is not obvious to me. Any thoughts there? These calls use the same 
-underlying page allocator (and I thought that both were subject to the same 
-constraints on defragmentation, as a result of that). So I am not seeing any way 
-that kmalloc could possibly be a less-fragmenting call than vmalloc.
+Stephen Rothwell reported that this patch conflicts with:
+  a9ebf306f52c ("locking/atomic: Introduce atomic_try_cmpxchg()")
+  e6790e4b5d5e ("locking/atomic/x86: Use atomic_try_cmpxchg()")
+does it make sense to base my patch on the tree where these patches
+were added and then submit to that tree?
 
---
-thanks,
-john h
+I've also sent 2 fixes for this patch, if I resent this I also squash
+these fixes, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
