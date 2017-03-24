@@ -1,237 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 155DE6B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:39:58 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id j137so10620426vke.3
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:39:58 -0700 (PDT)
-Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
-        by mx.google.com with ESMTPS id z5si615849uag.50.2017.03.24.01.39.55
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 111C56B0343
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:51:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c23so15881156pfj.0
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:51:19 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y21si1867988pgi.329.2017.03.24.01.51.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 01:39:55 -0700 (PDT)
-Received: by mail-vk0-x236.google.com with SMTP id s68so7952134vke.3
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 01:39:55 -0700 (PDT)
+        Fri, 24 Mar 2017 01:51:16 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2O8imPL006276
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:51:16 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29cyr5heru-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 04:51:15 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Fri, 24 Mar 2017 02:51:15 -0600
+Subject: Re: [v1 0/5] parallelized "struct page" zeroing
+References: <1490310113-824438-1-git-send-email-pasha.tatashin@oracle.com>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Date: Fri, 24 Mar 2017 09:51:09 +0100
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com> <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170324065203.GA5229@gmail.com> <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 24 Mar 2017 09:39:34 +0100
-Message-ID: <CACT4Y+YQ+3i=gY5M8UjFnw4NqR1x3XcEexUDcMMLfY_mV6TaQg@mail.gmail.com>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1490310113-824438-1-git-send-email-pasha.tatashin@oracle.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <341568c3-0473-860f-aa20-63723aa40b87@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390 <linux-s390@vger.kernel.org>
 
-On Fri, Mar 24, 2017 at 8:14 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Fri, Mar 24, 2017 at 7:52 AM, Ingo Molnar <mingo@kernel.org> wrote:
->>
->> * Dmitry Vyukov <dvyukov@google.com> wrote:
->>
->>> KASAN uses compiler instrumentation to intercept all memory accesses.
->>> But it does not see memory accesses done in assembly code.
->>> One notable user of assembly code is atomic operations. Frequently,
->>> for example, an atomic reference decrement is the last access to an
->>> object and a good candidate for a racy use-after-free.
->>>
->>> Atomic operations are defined in arch files, but KASAN instrumentation
->>> is required for several archs that support KASAN. Later we will need
->>> similar hooks for KMSAN (uninit use detector) and KTSAN (data race
->>> detector).
->>>
->>> This change introduces wrappers around atomic operations that can be
->>> used to add KASAN/KMSAN/KTSAN instrumentation across several archs.
->>> This patch uses the wrappers only for x86 arch. Arm64 will be switched
->>> later.
->>>
->>> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
->>> Cc: Mark Rutland <mark.rutland@arm.com>
->>> Cc: Peter Zijlstra <peterz@infradead.org>
->>> Cc: Will Deacon <will.deacon@arm.com>,
->>> Cc: Andrew Morton <akpm@linux-foundation.org>,
->>> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
->>> Cc: Ingo Molnar <mingo@redhat.com>,
->>> Cc: kasan-dev@googlegroups.com
->>> Cc: linux-mm@kvack.org
->>> Cc: linux-kernel@vger.kernel.org
->>> Cc: x86@kernel.org
->>> ---
->>>  arch/x86/include/asm/atomic.h             | 100 +++++++-------
->>>  arch/x86/include/asm/atomic64_32.h        |  86 ++++++------
->>>  arch/x86/include/asm/atomic64_64.h        |  90 ++++++-------
->>>  arch/x86/include/asm/cmpxchg.h            |  12 +-
->>>  arch/x86/include/asm/cmpxchg_32.h         |   8 +-
->>>  arch/x86/include/asm/cmpxchg_64.h         |   4 +-
->>>  include/asm-generic/atomic-instrumented.h | 210 ++++++++++++++++++++++++++++++
->>>  7 files changed, 367 insertions(+), 143 deletions(-)
->>
->> Ugh, that's disgusting really...
->>
->>>
->>> diff --git a/arch/x86/include/asm/atomic.h b/arch/x86/include/asm/atomic.h
->>> index 14635c5ea025..95dd167eb3af 100644
->>> --- a/arch/x86/include/asm/atomic.h
->>> +++ b/arch/x86/include/asm/atomic.h
->>> @@ -16,36 +16,46 @@
->>>  #define ATOMIC_INIT(i)       { (i) }
->>>
->>>  /**
->>> - * atomic_read - read atomic variable
->>> + * arch_atomic_read - read atomic variable
->>>   * @v: pointer of type atomic_t
->>>   *
->>>   * Atomically reads the value of @v.
->>>   */
->>> -static __always_inline int atomic_read(const atomic_t *v)
->>> +static __always_inline int arch_atomic_read(const atomic_t *v)
->>>  {
->>> -     return READ_ONCE((v)->counter);
->>> +     /*
->>> +      * We use READ_ONCE_NOCHECK() because atomic_read() contains KASAN
->>> +      * instrumentation. Double instrumentation is unnecessary.
->>> +      */
->>> +     return READ_ONCE_NOCHECK((v)->counter);
->>>  }
->
-> Hello Ingo,
->
->> Firstly, the patch is way too large, please split off new the documentation parts
->> of the patch to reduce the size and to make it easier to read!
->>
->> Secondly, the next patch should do the rename to arch_atomic_*() pattern - and
->> nothing else:
->
-> Next after what? Please provide full list of patches as you see them.
-> How do we avoid build breakage if we do only the rename in a separate patch?
->
->
->
->>>  /**
->>> - * atomic_set - set atomic variable
->>> + * arch_atomic_set - set atomic variable
->>>   * @v: pointer of type atomic_t
->>>   * @i: required value
->>>   *
->>>   * Atomically sets the value of @v to @i.
->>>   */
->>> -static __always_inline void atomic_set(atomic_t *v, int i)
->>> +static __always_inline void arch_atomic_set(atomic_t *v, int i)
->>
->>
->> Third, the prototype CPP complications:
->>
->>> +#define __INSTR_VOID1(op, sz)                                                \
->>> +static __always_inline void atomic##sz##_##op(atomic##sz##_t *v)     \
->>> +{                                                                    \
->>> +     arch_atomic##sz##_##op(v);                                      \
->>> +}
->>> +
->>> +#define INSTR_VOID1(op)      \
->>> +__INSTR_VOID1(op,);  \
->>> +__INSTR_VOID1(op, 64)
->>> +
->>> +INSTR_VOID1(inc);
->>> +INSTR_VOID1(dec);
->>> +
->>> +#undef __INSTR_VOID1
->>> +#undef INSTR_VOID1
->>> +
->>> +#define __INSTR_VOID2(op, sz, type)                                  \
->>> +static __always_inline void atomic##sz##_##op(type i, atomic##sz##_t *v)\
->>> +{                                                                    \
->>> +     arch_atomic##sz##_##op(i, v);                                   \
->>> +}
->>> +
->>> +#define INSTR_VOID2(op)              \
->>> +__INSTR_VOID2(op, , int);    \
->>> +__INSTR_VOID2(op, 64, long long)
->>> +
->>> +INSTR_VOID2(add);
->>> +INSTR_VOID2(sub);
->>> +INSTR_VOID2(and);
->>> +INSTR_VOID2(or);
->>> +INSTR_VOID2(xor);
->>> +
->>> +#undef __INSTR_VOID2
->>> +#undef INSTR_VOID2
->>> +
->>> +#define __INSTR_RET1(op, sz, type, rtype)                            \
->>> +static __always_inline rtype atomic##sz##_##op(atomic##sz##_t *v)    \
->>> +{                                                                    \
->>> +     return arch_atomic##sz##_##op(v);                               \
->>> +}
->>> +
->>> +#define INSTR_RET1(op)               \
->>> +__INSTR_RET1(op, , int, int);        \
->>> +__INSTR_RET1(op, 64, long long, long long)
->>> +
->>> +INSTR_RET1(inc_return);
->>> +INSTR_RET1(dec_return);
->>> +__INSTR_RET1(inc_not_zero, 64, long long, long long);
->>> +__INSTR_RET1(dec_if_positive, 64, long long, long long);
->>> +
->>> +#define INSTR_RET_BOOL1(op)  \
->>> +__INSTR_RET1(op, , int, bool);       \
->>> +__INSTR_RET1(op, 64, long long, bool)
->>> +
->>> +INSTR_RET_BOOL1(dec_and_test);
->>> +INSTR_RET_BOOL1(inc_and_test);
->>> +
->>> +#undef __INSTR_RET1
->>> +#undef INSTR_RET1
->>> +#undef INSTR_RET_BOOL1
->>> +
->>> +#define __INSTR_RET2(op, sz, type, rtype)                            \
->>> +static __always_inline rtype atomic##sz##_##op(type i, atomic##sz##_t *v) \
->>> +{                                                                    \
->>> +     return arch_atomic##sz##_##op(i, v);                            \
->>> +}
->>> +
->>> +#define INSTR_RET2(op)               \
->>> +__INSTR_RET2(op, , int, int);        \
->>> +__INSTR_RET2(op, 64, long long, long long)
->>> +
->>> +INSTR_RET2(add_return);
->>> +INSTR_RET2(sub_return);
->>> +INSTR_RET2(fetch_add);
->>> +INSTR_RET2(fetch_sub);
->>> +INSTR_RET2(fetch_and);
->>> +INSTR_RET2(fetch_or);
->>> +INSTR_RET2(fetch_xor);
->>> +
->>> +#define INSTR_RET_BOOL2(op)          \
->>> +__INSTR_RET2(op, , int, bool);               \
->>> +__INSTR_RET2(op, 64, long long, bool)
->>> +
->>> +INSTR_RET_BOOL2(sub_and_test);
->>> +INSTR_RET_BOOL2(add_negative);
->>> +
->>> +#undef __INSTR_RET2
->>> +#undef INSTR_RET2
->>> +#undef INSTR_RET_BOOL2
->>
->> Are just utterly disgusting that turn perfectly readable code into an unreadable,
->> unmaintainable mess.
->>
->> You need to find some better, cleaner solution please, or convince me that no such
->> solution is possible. NAK for the time being.
->
-> Well, I can just write all functions as is. Does it better confirm to
-> kernel style? I've just looked at the x86 atomic.h and it uses macros
-> for similar purpose (ATOMIC_OP/ATOMIC_FETCH_OP), so I thought that
-> must be idiomatic kernel style...
+On 03/24/2017 12:01 AM, Pavel Tatashin wrote:
+> When deferred struct page initialization feature is enabled, we get a
+> performance gain of initializing vmemmap in parallel after other CPUs are
+> started. However, we still zero the memory for vmemmap using one boot CPU.
+> This patch-set fixes the memset-zeroing limitation by deferring it as well.
+> 
+> Here is example performance gain on SPARC with 32T:
+> base
+> https://hastebin.com/ozanelatat.go
+> 
+> fix
+> https://hastebin.com/utonawukof.go
+> 
+> As you can see without the fix it takes: 97.89s to boot
+> With the fix it takes: 46.91 to boot.
+> 
+> On x86 time saving is going to be even greater (proportionally to memory size)
+> because there are twice as many "struct page"es for the same amount of memory,
+> as base pages are twice smaller.
 
+Fixing the linux-s390 mailing list email.
+This might be useful for s390 as well.
 
-Stephen Rothwell reported that this patch conflicts with:
-  a9ebf306f52c ("locking/atomic: Introduce atomic_try_cmpxchg()")
-  e6790e4b5d5e ("locking/atomic/x86: Use atomic_try_cmpxchg()")
-does it make sense to base my patch on the tree where these patches
-were added and then submit to that tree?
+> 
+> 
+> Pavel Tatashin (5):
+>   sparc64: simplify vmemmap_populate
+>   mm: defining memblock_virt_alloc_try_nid_raw
+>   mm: add "zero" argument to vmemmap allocators
+>   mm: zero struct pages during initialization
+>   mm: teach platforms not to zero struct pages memory
+> 
+>  arch/powerpc/mm/init_64.c |    4 +-
+>  arch/s390/mm/vmem.c       |    5 ++-
+>  arch/sparc/mm/init_64.c   |   26 +++++++----------------
+>  arch/x86/mm/init_64.c     |    3 +-
+>  include/linux/bootmem.h   |    3 ++
+>  include/linux/mm.h        |   15 +++++++++++--
+>  mm/memblock.c             |   46 ++++++++++++++++++++++++++++++++++++------
+>  mm/page_alloc.c           |    3 ++
+>  mm/sparse-vmemmap.c       |   48 +++++++++++++++++++++++++++++---------------
+>  9 files changed, 103 insertions(+), 50 deletions(-)
+> 
 
-I've also sent 2 fixes for this patch, if I resent this I also squash
-these fixes, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
