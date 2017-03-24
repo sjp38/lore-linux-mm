@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 525A76B036E
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C48FC6B0372
 	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 15:32:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t195so4685652wme.11
+Received: by mail-wr0-f197.google.com with SMTP id n55so7275114wrn.0
         for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:44 -0700 (PDT)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id d75si4377007wme.36.2017.03.24.12.32.42
+Received: from mail-wr0-x233.google.com (mail-wr0-x233.google.com. [2a00:1450:400c:c0c::233])
+        by mx.google.com with ESMTPS id 52si4725246wru.27.2017.03.24.12.32.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 24 Mar 2017 12:32:43 -0700 (PDT)
-Received: by mail-wm0-x231.google.com with SMTP id n11so10106667wma.0
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:42 -0700 (PDT)
+Received: by mail-wr0-x233.google.com with SMTP id u108so7958149wrb.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:43 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v4 1/9] kasan: introduce helper functions for determining bug type
-Date: Fri, 24 Mar 2017 20:32:27 +0100
-Message-Id: <69485dff9439fca82343965d3746b52c36716d91.1490383597.git.andreyknvl@google.com>
+Subject: [PATCH v4 5/9] kasan: change report header
+Date: Fri, 24 Mar 2017 20:32:31 +0100
+Message-Id: <1cf237df18589bbefc84d850aacb917931028f22.1490383597.git.andreyknvl@google.com>
 In-Reply-To: <cover.1490383597.git.andreyknvl@google.com>
 References: <cover.1490383597.git.andreyknvl@google.com>
 In-Reply-To: <cover.1490383597.git.andreyknvl@google.com>
@@ -24,84 +24,43 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrey Konovalov <andreyknvl@google.com>
 
-Introduce get_shadow_bug_type() function, which determines bug type
-based on the shadow value for a particular kernel address.
-Introduce get_wild_bug_type() function, which determines bug type
-for addresses which don't have a corresponding shadow value.
+Change report header format from:
+
+BUG: KASAN: use-after-free in unwind_get_return_address+0x28a/0x2c0 at addr ffff880069437950
+Read of size 8 by task insmod/3925
+
+to:
+
+BUG: KASAN: use-after-free in unwind_get_return_address+0x28a/0x2c0
+Read of size 8 at addr ffff880069437950 by task insmod/3925
+
+The exact access address is not usually important, so move it to the
+second line. This also makes the header look visually balanced.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/report.c | 40 ++++++++++++++++++++++++++++++----------
- 1 file changed, 30 insertions(+), 10 deletions(-)
+ mm/kasan/report.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index f479365530b6..e3af37b7a74c 100644
+index f77341979dae..156f998199e2 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -49,7 +49,13 @@ static const void *find_first_bad_addr(const void *addr, size_t size)
- 	return first_bad_addr;
+@@ -130,11 +130,10 @@ static void print_error_description(struct kasan_access_info *info)
+ {
+ 	const char *bug_type = get_bug_type(info);
+ 
+-	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+-		bug_type, (void *)info->ip, info->access_addr);
+-	pr_err("%s of size %zu by task %s/%d\n",
++	pr_err("BUG: KASAN: %s in %pS\n", bug_type, (void *)info->ip);
++	pr_err("%s of size %zu at addr %p by task %s/%d\n",
+ 		info->is_write ? "Write" : "Read", info->access_size,
+-		current->comm, task_pid_nr(current));
++		info->access_addr, current->comm, task_pid_nr(current));
  }
  
--static void print_error_description(struct kasan_access_info *info)
-+static bool addr_has_shadow(struct kasan_access_info *info)
-+{
-+	return (info->access_addr >=
-+		kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
-+}
-+
-+static const char *get_shadow_bug_type(struct kasan_access_info *info)
- {
- 	const char *bug_type = "unknown-crash";
- 	u8 *shadow_addr;
-@@ -96,6 +102,27 @@ static void print_error_description(struct kasan_access_info *info)
- 		break;
- 	}
- 
-+	return bug_type;
-+}
-+
-+static const char *get_wild_bug_type(struct kasan_access_info *info)
-+{
-+	const char *bug_type;
-+
-+	if ((unsigned long)info->access_addr < PAGE_SIZE)
-+		bug_type = "null-ptr-deref";
-+	else if ((unsigned long)info->access_addr < TASK_SIZE)
-+		bug_type = "user-memory-access";
-+	else
-+		bug_type = "wild-memory-access";
-+
-+	return bug_type;
-+}
-+
-+static void print_error_description(struct kasan_access_info *info)
-+{
-+	const char *bug_type = get_shadow_bug_type(info);
-+
- 	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
- 		bug_type, (void *)info->ip,
- 		info->access_addr);
-@@ -265,18 +292,11 @@ static void print_shadow_for_address(const void *addr)
- static void kasan_report_error(struct kasan_access_info *info)
- {
- 	unsigned long flags;
--	const char *bug_type;
- 
- 	kasan_start_report(&flags);
- 
--	if (info->access_addr <
--			kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) {
--		if ((unsigned long)info->access_addr < PAGE_SIZE)
--			bug_type = "null-ptr-deref";
--		else if ((unsigned long)info->access_addr < TASK_SIZE)
--			bug_type = "user-memory-access";
--		else
--			bug_type = "wild-memory-access";
-+	if (!addr_has_shadow(info)) {
-+		const char *bug_type = get_wild_bug_type(info);
- 		pr_err("BUG: KASAN: %s on address %p\n",
- 			bug_type, info->access_addr);
- 		pr_err("%s of size %zu by task %s/%d\n",
+ static inline bool kernel_or_module_addr(const void *addr)
 -- 
 2.12.1.578.ge9c3154ca4-goog
 
