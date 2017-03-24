@@ -1,38 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC286B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:17:45 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 79so10306193pgf.2
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 09:17:45 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b8si3402199pgn.113.2017.03.24.09.17.42
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 030566B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:50:18 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y90so4510630wrb.1
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 09:50:17 -0700 (PDT)
+Received: from mail-wr0-x229.google.com (mail-wr0-x229.google.com. [2a00:1450:400c:c0c::229])
+        by mx.google.com with ESMTPS id b2si3423343wra.295.2017.03.24.09.50.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 09:17:42 -0700 (PDT)
-Date: Fri, 24 Mar 2017 09:17:32 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
-Message-ID: <20170324161732.GA23110@bombadil.infradead.org>
-References: <1490352808-7187-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
- <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
- <fe511b26-f2e5-0a0e-09cc-303d38d2ad05@virtuozzo.com>
+        Fri, 24 Mar 2017 09:50:16 -0700 (PDT)
+Received: by mail-wr0-x229.google.com with SMTP id l43so5498667wre.1
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 09:50:16 -0700 (PDT)
+Date: Fri, 24 Mar 2017 19:50:14 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v4 06/11] mm: thp: check pmd migration entry in common
+ path
+Message-ID: <20170324165014.2ibdmurirjd4pa7r@node.shutemov.name>
+References: <20170313154507.3647-1-zi.yan@sent.com>
+ <20170313154507.3647-7-zi.yan@sent.com>
+ <20170324145042.bda52glerop5wydx@node.shutemov.name>
+ <58D544B5.20102@cs.rutgers.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fe511b26-f2e5-0a0e-09cc-303d38d2ad05@virtuozzo.com>
+In-Reply-To: <58D544B5.20102@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, dnellans@nvidia.com
 
-On Fri, Mar 24, 2017 at 06:05:45PM +0300, Andrey Ryabinin wrote:
-> Just fix the drm code. There is zero point in releasing memory under spinlock.
+On Fri, Mar 24, 2017 at 11:09:25AM -0500, Zi Yan wrote:
+> Kirill A. Shutemov wrote:
+> > On Mon, Mar 13, 2017 at 11:45:02AM -0400, Zi Yan wrote:
+> > Again. That's doesn't look right..
+> 
+> It will be changed:
+> 
+>  	ptl = pmd_lock(mm, pmd);
+> +retry_locked:
+> +	if (unlikely(!pmd_present(*pmd))) {
+> +		if (likely(!(flags & FOLL_MIGRATION))) {
+> +			spin_unlock(ptl);
+> +			return no_page_table(vma, flags);
+> +		}
+> +		pmd_migration_entry_wait(mm, pmd);
+> +		goto retry_locked;
 
-I disagree.  The spinlock has to be held while deleting from the hash
-table.  Sure, we could change the API to return the object removed, and
-then force the caller to free the object that was removed from the hash
-table outside the lock it's holding, but that's a really inelegant API.
+Nope. pmd_migration_entry_wait() unlocks the ptl.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
