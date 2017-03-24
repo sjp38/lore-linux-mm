@@ -1,149 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D3C76B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 15:31:57 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 81so15470010pgh.3
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:31:57 -0700 (PDT)
-Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
-        by mx.google.com with ESMTPS id y10si2773133pfk.375.2017.03.24.12.31.56
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CC8816B0343
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 15:32:41 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u108so6714186wrb.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:41 -0700 (PDT)
+Received: from mail-wr0-x229.google.com (mail-wr0-x229.google.com. [2a00:1450:400c:c0c::229])
+        by mx.google.com with ESMTPS id l30si4669475wrl.334.2017.03.24.12.32.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 12:31:56 -0700 (PDT)
-Received: by mail-pf0-x22e.google.com with SMTP id 20so4915853pfk.2
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:31:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4220fac8-b193-e1f7-5f31-3614ce4bef9e@virtuozzo.com>
-References: <20170302134851.101218-1-andreyknvl@google.com>
- <20170302134851.101218-7-andreyknvl@google.com> <db0b6605-32bc-4c7a-0c99-2e60e4bdb11f@virtuozzo.com>
- <CAG_fn=Vn1tWsRbt4ohkE0E2ijAZsBvVuPS-Ond2KHVh9WK1zkg@mail.gmail.com>
- <2bbe7bdc-8842-8ec0-4b5a-6a8dce39216d@virtuozzo.com> <CAAeHK+xnHx5fvhq158+oxMxieG7a+gG7i0MQS92DqxYGe0O=Ww@mail.gmail.com>
- <576aeb81-9408-13fa-041d-a6bd1e2cf895@virtuozzo.com> <CAAeHK+w087z_pEWN=ZBDZN=XqqQMFZ9eevX44LERFV-d=G3F8g@mail.gmail.com>
- <CAAeHK+xCo+JcFstGz+xhgX2qvkP1zpwOg9VD0N-oD4Q=YcSi7A@mail.gmail.com>
- <69679f30-e502-d2cf-8dee-4ee88f64f887@virtuozzo.com> <CAAeHK+yMCqcLW1UbJ+iEG5628wO6j=d9a7cRdPTbZTBoK-CfbQ@mail.gmail.com>
- <4220fac8-b193-e1f7-5f31-3614ce4bef9e@virtuozzo.com>
+        Fri, 24 Mar 2017 12:32:40 -0700 (PDT)
+Received: by mail-wr0-x229.google.com with SMTP id u108so7957573wrb.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:40 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 24 Mar 2017 20:31:55 +0100
-Message-ID: <CAAeHK+zGaUQtm+q8tpDnggDWbqKqPNpDbVHpgFTqwXevf8eAUw@mail.gmail.com>
-Subject: Re: [PATCH v2 6/9] kasan: improve slab object description
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH v4 0/9] kasan: improve error reports
+Date: Fri, 24 Mar 2017 20:32:26 +0100
+Message-Id: <cover.1490383597.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrey Konovalov <andreyknvl@google.com>
 
-On Mon, Mar 20, 2017 at 4:39 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
-> On 03/14/2017 08:15 PM, Andrey Konovalov wrote:
->> On Thu, Mar 9, 2017 at 1:56 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>> On 03/06/2017 08:16 PM, Andrey Konovalov wrote:
->>>
->>>>>
->>>>> What about
->>>>>
->>>>> Object at ffff880068388540 belongs to cache kmalloc-128 of size 128
->>>>> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
->>>>>
->>>>> ?
->>>>
->>>> Another alternative:
->>>>
->>>> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
->>>> Object belongs to cache kmalloc-128 of size 128
->>>>
->>>
->>> Is it something wrong with just printing offset at the end as I suggested earlier?
->>> It's more compact and also more clear IMO.
->>
->> This is what you suggested:
->>
->> Object at ffff880068388540, in cache kmalloc-128 size: 128 accessed at
->> offset 123
->>
->> After minor reworking of punctuation, etc, we get:
->>
->> Object at ffff880068388540, in cache kmalloc-128 of size 128, accessed
->> at offset 123
->>
->> It's good, but I still don't like two things:
->>
->> 1. The line is quite long. Over 84 characters in this example, but
->> might be longer for different cache names. The solution would be to
->> split it into two lines.
->
-> One line slightly larger than 80 chars is easier to read than
-> two IMO.
->
->>
->> 2. The access might be within the object (for example use-after-free),
->> or outside the object (slab-out-of-bounds). In this case just saying
->> "accessed at offset X" might be confusing, since the offset might be
->> from the start of the object, or might be from the end. The solution
->> would be to specifically describe this.
->>
->
-> It's not confusing IMO.
-> It's pretty obvious that offset in the message "Object at <addr> ... accessed at offset <x>"
-> specifies the offset from the start of the object.
->
->
->> Out of all options above this one I like the most:
->>
->>>> Accessed address is 123 bytes inside of [ffff880068388540, ffff8800683885c0)
->>>> Object belongs to cache kmalloc-128 of size 128
->>
->> as:
->>
->> 1. It specifies whether the offset is inside or outside the object.
->
-> It doesn't really matter much whether is offset inside or outside.
-> Offset is only useful to identify what exactly struct/field accessed in situation like this:
->   x = a->b->c->d;
-> In other cases it usually just useless.
->
-> Also, note that you comparing access_addr against cache->object_size (which may be not equal to
-> the size requested by kmalloc)
->
-> +       if (access_addr < object_addr) {
-> +               rel_type = "to the left";
-> +               rel_bytes = object_addr - access_addr;
-> +       } else if (access_addr >= object_addr + cache->object_size) {
-> +               rel_type = "to the right";
-> +               rel_bytes = access_addr - (object_addr + cache->object_size);
-> +       } else {
-> +               rel_type = "inside";
-> +               rel_bytes = access_addr - object_addr;
-> +       }
-> +
->
-> So let's say we did kmalloc(100, GFP_KERNEL); This would mean that allocation
-> was from kmalloc-128 cache.
->
->  a) If we have off-by-one OOB access, we would see:
->         Accessed address is 100 bytes inside of [<start>, <start> + 128)
->         belongs to cache kmalloc-128 of size 128
->
->  b) And for the off-by-28 OOB, we would see:
->         Accessed address is 0 bytes to the right [<start>, <start> + 128)
->         belongs to cache kmalloc-128 of size 128
->
-> But I don't really see why we supposed to have different message for case a) b).
->
-> Comparing against requested size is possible only by looking into shadow. However that would
-> be complicated and also racy which means that you occasionally end up with some random numbers.
+This patchset improves KASAN reports by making them easier to read
+and a little more detailed.
+Also improves mm/kasan/report.c readability.
 
-OK, makes sense.
-I hope you don't mind if I put the offset at the next line.
+Effectively changes a use-after-free report to:
 
->
-> Also, I couldn't imagine why would anyone need to know the offset from the end of the object.
->
->> 2. The lines are not too long (the first one is 76 chars).
->> 3. Accounts for larger cache names (the second line has some spare space).
->> 4. Shows exact addresses of start and end of the object (it's possible
->> to calculate the end address using the start and the size, but it's
->> nicer to have it already calculated and shown).
->
-> Come on we can do the simple math if needed.
+==================================================================
+BUG: KASAN: use-after-free in kmalloc_uaf+0xaa/0xb6 [test_kasan]
+Write of size 1 at addr ffff88006aa59da8 by task insmod/3951
+
+CPU: 1 PID: 3951 Comm: insmod Tainted: G    B           4.10.0+ #84
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+Call Trace:
+ dump_stack+0x292/0x398
+ print_address_description+0x73/0x280
+ kasan_report.part.2+0x207/0x2f0
+ __asan_report_store1_noabort+0x2c/0x30
+ kmalloc_uaf+0xaa/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+RIP: 0033:0x7f22cfd0b9da
+RSP: 002b:00007ffe69118a78 EFLAGS: 00000206 ORIG_RAX: 00000000000000af
+RAX: ffffffffffffffda RBX: 0000555671242090 RCX: 00007f22cfd0b9da
+RDX: 00007f22cffcaf88 RSI: 000000000004df7e RDI: 00007f22d0399000
+RBP: 00007f22cffcaf88 R08: 0000000000000003 R09: 0000000000000000
+R10: 00007f22cfd07d0a R11: 0000000000000206 R12: 0000555671243190
+R13: 000000000001fe81 R14: 0000000000000000 R15: 0000000000000004
+
+Allocated by task 3951:
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_kmalloc+0xad/0xe0
+ kmem_cache_alloc_trace+0x82/0x270
+ kmalloc_uaf+0x56/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+
+Freed by task 3951:
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_slab_free+0x72/0xc0
+ kfree+0xe8/0x2b0
+ kmalloc_uaf+0x85/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc
+
+Object at ffff88006bfb0da0 belongs to cache kmalloc-16 of size 16
+ accessed at offset 8
+The buggy address belongs to the page:
+page:ffffea0001aa9640 count:1 mapcount:0 mapping:          (null) index:0x0
+flags: 0x100000000000100(slab)
+raw: 0100000000000100 0000000000000000 0000000000000000 0000000180800080
+raw: ffffea0001abe380 0000000700000007 ffff88006c401b40 0000000000000000
+page dumped because: kasan: bad access detected
+
+Memory state around the buggy address:
+ ffff88006aa59c80: 00 00 fc fc 00 00 fc fc 00 00 fc fc 00 00 fc fc
+ ffff88006aa59d00: 00 00 fc fc 00 00 fc fc 00 00 fc fc 00 00 fc fc
+>ffff88006aa59d80: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+                                  ^
+ ffff88006aa59e00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+ ffff88006aa59e80: fb fb fc fc 00 00 fc fc 00 00 fc fc 00 00 fc fc
+==================================================================
+
+from:
+
+==================================================================
+BUG: KASAN: use-after-free in kmalloc_uaf+0xaa/0xb6 [test_kasan] at addr ffff88006c4dcb28
+Write of size 1 by task insmod/3984
+CPU: 1 PID: 3984 Comm: insmod Tainted: G    B           4.10.0+ #83
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+Call Trace:
+ dump_stack+0x292/0x398
+ kasan_object_err+0x1c/0x70
+ kasan_report.part.1+0x20e/0x4e0
+ __asan_report_store1_noabort+0x2c/0x30
+ kmalloc_uaf+0xaa/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+RIP: 0033:0x7feca0f779da
+RSP: 002b:00007ffdfeae5218 EFLAGS: 00000206 ORIG_RAX: 00000000000000af
+RAX: ffffffffffffffda RBX: 000055a064c13090 RCX: 00007feca0f779da
+RDX: 00007feca1236f88 RSI: 000000000004df7e RDI: 00007feca1605000
+RBP: 00007feca1236f88 R08: 0000000000000003 R09: 0000000000000000
+R10: 00007feca0f73d0a R11: 0000000000000206 R12: 000055a064c14190
+R13: 000000000001fe81 R14: 0000000000000000 R15: 0000000000000004
+Object at ffff88006c4dcb20, in cache kmalloc-16 size: 16
+Allocated:
+PID = 3984
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_kmalloc+0xad/0xe0
+ kmem_cache_alloc_trace+0x82/0x270
+ kmalloc_uaf+0x56/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+Freed:
+PID = 3984
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xd0
+ kasan_slab_free+0x73/0xc0
+ kfree+0xe8/0x2b0
+ kmalloc_uaf+0x85/0xb6 [test_kasan]
+ kmalloc_tests_init+0x4f/0xa48 [test_kasan]
+ do_one_initcall+0xf3/0x390
+ do_init_module+0x215/0x5d0
+ load_module+0x54de/0x82b0
+ SYSC_init_module+0x3be/0x430
+ SyS_init_module+0x9/0x10
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
+Memory state around the buggy address:
+ ffff88006c4dca00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+ ffff88006c4dca80: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+>ffff88006c4dcb00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+                                  ^
+ ffff88006c4dcb80: fb fb fc fc 00 00 fc fc fb fb fc fc fb fb fc fc
+ ffff88006c4dcc00: fb fb fc fc fb fb fc fc fb fb fc fc fb fb fc fc
+==================================================================
+
+Changes in v4:
+- reduced amount of info printed in slab object description
+
+Changes in v3:
+- make slab objects description shorter
+- pass caller addr from SLUB/SLAB instead of usign __builtin_return_address
+- make get_wild_bug_type() static
+- combine consequent lines into one when possible
+
+Changes in v2:
+- split patch in multiple smaller ones
+- improve double-free reports
+
+Andrey Konovalov (9):
+  kasan: introduce helper functions for determining bug type
+  kasan: unify report headers
+  kasan: change allocation and freeing stack traces headers
+  kasan: simplify address description logic
+  kasan: change report header
+  kasan: improve slab object description
+  kasan: print page description after stacks
+  kasan: improve double-free report format
+  kasan: separate report parts by empty lines
+
+ include/linux/kasan.h |   2 +-
+ mm/kasan/kasan.c      |   5 +-
+ mm/kasan/kasan.h      |   2 +-
+ mm/kasan/report.c     | 172 +++++++++++++++++++++++++++++++-------------------
+ mm/slab.c             |   2 +-
+ mm/slub.c             |  12 ++--
+ 6 files changed, 121 insertions(+), 74 deletions(-)
+
+-- 
+2.12.1.578.ge9c3154ca4-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
