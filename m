@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2539A6B0351
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 15:32:42 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id h188so6342763wma.4
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:42 -0700 (PDT)
-Received: from mail-wr0-x236.google.com (mail-wr0-x236.google.com. [2a00:1450:400c:c0c::236])
-        by mx.google.com with ESMTPS id v8si4361033wmb.31.2017.03.24.12.32.40
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4A96B0359
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 15:32:43 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 20so7225144wrx.6
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:43 -0700 (PDT)
+Received: from mail-wr0-x22c.google.com (mail-wr0-x22c.google.com. [2a00:1450:400c:c0c::22c])
+        by mx.google.com with ESMTPS id i63si4349919wmd.135.2017.03.24.12.32.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 12:32:40 -0700 (PDT)
-Received: by mail-wr0-x236.google.com with SMTP id u1so7987785wra.2
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:40 -0700 (PDT)
+        Fri, 24 Mar 2017 12:32:41 -0700 (PDT)
+Received: by mail-wr0-x22c.google.com with SMTP id y90so8023470wrb.0
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 12:32:41 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v4 3/9] kasan: change allocation and freeing stack traces headers
-Date: Fri, 24 Mar 2017 20:32:29 +0100
-Message-Id: <7191548e9fda9658cea0d6a2313bc8ba0424e5c4.1490383597.git.andreyknvl@google.com>
+Subject: [PATCH v4 4/9] kasan: simplify address description logic
+Date: Fri, 24 Mar 2017 20:32:30 +0100
+Message-Id: <91b198a9825326a3f3e9037df60d49704f5479ad.1490383597.git.andreyknvl@google.com>
 In-Reply-To: <cover.1490383597.git.andreyknvl@google.com>
 References: <cover.1490383597.git.andreyknvl@google.com>
 In-Reply-To: <cover.1490383597.git.andreyknvl@google.com>
@@ -24,51 +24,87 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrey Konovalov <andreyknvl@google.com>
 
-Change stack traces headers from:
+Simplify logic for describing a memory address.
+Add addr_to_page() helper function.
 
-Allocated:
-PID = 42
-
-to:
-
-Allocated by task 42:
-
-Makes the report one line shorter and look better.
+Makes the code easier to follow.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/report.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ mm/kasan/report.c | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)
 
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index fc0577d15671..382d4d2b9052 100644
+index 382d4d2b9052..f77341979dae 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -175,9 +175,9 @@ static void kasan_end_report(unsigned long *flags)
- 	kasan_enable_current();
+@@ -188,11 +188,17 @@ static void print_track(struct kasan_track *track, const char *prefix)
+ 	}
  }
  
--static void print_track(struct kasan_track *track)
-+static void print_track(struct kasan_track *track, const char *prefix)
+-static void kasan_object_err(struct kmem_cache *cache, void *object)
++static struct page *addr_to_page(const void *addr)
++{
++	if ((addr >= (void *)PAGE_OFFSET) && (addr < high_memory))
++		return virt_to_head_page(addr);
++	return NULL;
++}
++
++static void describe_object(struct kmem_cache *cache, void *object)
  {
--	pr_err("PID = %u\n", track->pid);
-+	pr_err("%s by task %u:\n", prefix, track->pid);
- 	if (track->stack) {
- 		struct stack_trace trace;
+ 	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
  
-@@ -199,10 +199,8 @@ static void kasan_object_err(struct kmem_cache *cache, void *object)
- 	if (!(cache->flags & SLAB_KASAN))
- 		return;
+-	dump_stack();
+ 	pr_err("Object at %p, in cache %s size: %d\n", object, cache->name,
+ 		cache->object_size);
  
--	pr_err("Allocated:\n");
--	print_track(&alloc_info->alloc_track);
--	pr_err("Freed:\n");
--	print_track(&alloc_info->free_track);
-+	print_track(&alloc_info->alloc_track, "Allocated");
-+	print_track(&alloc_info->free_track, "Freed");
+@@ -211,34 +217,32 @@ void kasan_report_double_free(struct kmem_cache *cache, void *object,
+ 	kasan_start_report(&flags);
+ 	pr_err("BUG: Double free or freeing an invalid pointer\n");
+ 	pr_err("Unexpected shadow byte: 0x%hhX\n", shadow);
+-	kasan_object_err(cache, object);
++	dump_stack();
++	describe_object(cache, object);
+ 	kasan_end_report(&flags);
  }
  
- void kasan_report_double_free(struct kmem_cache *cache, void *object,
+ static void print_address_description(struct kasan_access_info *info)
+ {
+ 	const void *addr = info->access_addr;
++	struct page *page = addr_to_page(addr);
+ 
+-	if ((addr >= (void *)PAGE_OFFSET) &&
+-		(addr < high_memory)) {
+-		struct page *page = virt_to_head_page(addr);
+-
+-		if (PageSlab(page)) {
+-			void *object;
+-			struct kmem_cache *cache = page->slab_cache;
+-			object = nearest_obj(cache, page,
+-						(void *)info->access_addr);
+-			kasan_object_err(cache, object);
+-			return;
+-		}
++	if (page)
+ 		dump_page(page, "kasan: bad access detected");
++
++	dump_stack();
++
++	if (page && PageSlab(page)) {
++		struct kmem_cache *cache = page->slab_cache;
++		void *object = nearest_obj(cache, page,	(void *)addr);
++
++		describe_object(cache, object);
+ 	}
+ 
+ 	if (kernel_or_module_addr(addr)) {
+ 		if (!init_task_stack_addr(addr))
+ 			pr_err("Address belongs to variable %pS\n", addr);
+ 	}
+-	dump_stack();
+ }
+ 
+ static bool row_is_guilty(const void *row, const void *guilty)
 -- 
 2.12.1.578.ge9c3154ca4-goog
 
