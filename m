@@ -1,73 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E25336B0333
-	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 08:38:51 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y90so853397wrb.1
-        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:38:51 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id v21si2715499pgh.155.2017.03.24.05.37.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 743336B0333
+	for <linux-mm@kvack.org>; Fri, 24 Mar 2017 08:43:03 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b140so561493wme.3
+        for <linux-mm@kvack.org>; Fri, 24 Mar 2017 05:43:03 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id l13si2722535pgc.255.2017.03.24.05.42.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Mar 2017 05:37:00 -0700 (PDT)
-Date: Fri, 24 Mar 2017 20:37:10 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
-Message-ID: <20170324123710.GA10672@aaronlu.sh.intel.com>
-References: <1489568404-7817-1-git-send-email-aaron.lu@intel.com>
- <1489568404-7817-4-git-send-email-aaron.lu@intel.com>
- <20170322063335.GF30149@bbox>
- <20170322084103.GC2360@aaronlu.sh.intel.com>
- <4549498a-befc-133d-b204-dd69b191e579@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4549498a-befc-133d-b204-dd69b191e579@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Mar 2017 05:42:02 -0700 (PDT)
+Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1490352808-7187-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
+In-Reply-To: <59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
+Message-Id: <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
+Date: Fri, 24 Mar 2017 21:40:29 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>
+To: aryabinin@virtuozzo.com, linux-mm@kvack.org
+Cc: willy@infradead.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu
 
-On Thu, Mar 23, 2017 at 08:38:43AM -0700, Dave Hansen wrote:
-> On 03/22/2017 01:41 AM, Aaron Lu wrote:
-> > On Wed, Mar 22, 2017 at 03:33:35PM +0900, Minchan Kim wrote:
-> >> On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:
-> >>> Introduce a workqueue for all the free workers so that user can fine
-> >>> tune how many workers can be active through sysfs interface: max_active.
-> >>> More workers will normally lead to better performance, but too many can
-> >>> cause severe lock contention.
-> >>
-> >> Let me ask a question.
-> >>
-> >> How well can workqueue distribute the jobs in multiple CPU?
+Andrey Ryabinin wrote:
+> On 03/24/2017 01:53 PM, Tetsuo Handa wrote:
+> > Commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem
+> > as potentially sleeping") added might_sleep() to remove_vm_area() from
+> > vfree(), and is causing
 > > 
-> > I would say it's good enough for my needs.
-> > After all, it doesn't need many kworkers to achieve the 50% time
-> > decrease: 2-4 kworkers for EP and 4-8 kworkers for EX are enough from
-> > previous attched data.
+> > [    2.616064] BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
+> > [    2.616125] in_atomic(): 1, irqs_disabled(): 0, pid: 341, name: plymouthd
+> > [    2.616156] 2 locks held by plymouthd/341:
+> > [    2.616158]  #0:  (drm_global_mutex){+.+.+.}, at: [<ffffffffc01c274b>] drm_release+0x3b/0x3b0 [drm]
+> > [    2.616256]  #1:  (&(&tfile->lock)->rlock){+.+...}, at: [<ffffffffc0173038>] ttm_object_file_release+0x28/0x90 [ttm]
+> > [    2.616270] CPU: 2 PID: 341 Comm: plymouthd Not tainted 4.11.0-0.rc3.git0.1.kmallocwd.fc25.x86_64+debug #1
+> > [    2.616271] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
+> > [    2.616273] Call Trace:
+> > [    2.616281]  dump_stack+0x86/0xc3
+> > [    2.616285]  ___might_sleep+0x17d/0x250
+> > [    2.616289]  __might_sleep+0x4a/0x80
+> > [    2.616293]  remove_vm_area+0x22/0x90
+> > [    2.616296]  __vunmap+0x2e/0x110
+> > [    2.616299]  vfree+0x42/0x90
+> > [    2.616304]  kvfree+0x2c/0x40
+> > [    2.616312]  drm_ht_remove+0x1a/0x30 [drm]
+> > [    2.616317]  ttm_object_file_release+0x50/0x90 [ttm]
+> > [    2.616324]  vmw_postclose+0x47/0x60 [vmwgfx]
+> > [    2.616331]  drm_release+0x290/0x3b0 [drm]
+> > [    2.616338]  __fput+0xf8/0x210
+> > [    2.616342]  ____fput+0xe/0x10
+> > [    2.616345]  task_work_run+0x85/0xc0
+> > [    2.616351]  exit_to_usermode_loop+0xb4/0xc0
+> > [    2.616355]  do_syscall_64+0x185/0x1f0
+> > [    2.616359]  entry_SYSCALL64_slow_path+0x25/0x25
+> > 
+> > warning.
+> > 
+> > But commit f9e09977671b618a ("mm: turn vmap_purge_lock into a mutex") did
+> > not make vfree() potentially sleeping because try_purge_vmap_area_lazy()
+> > is still using mutex_trylock(). Thus, this is a false positive warning.
+> > 
 > 
-> It's also worth noting that we'd like to *also* like to look into
-> increasing how scalable freeing pages to a given zone is.
+> Commit f9e09977671b618a did not made vfree() sleeping.
+> Commit 763b218ddfa "mm: add preempt points into __purge_vmap_area_lazy()"
+> did this, thus it's not a false positive.
+> 
+> 
+> > ___might_sleep() via cond_resched_lock() in __purge_vmap_area_lazy() from
+> > try_purge_vmap_area_lazy() from free_vmap_area_noflush() from
+> > free_unmap_vmap_area() from remove_vm_area() which might trigger same
+> > false positive warning is remaining. But so far we haven't heard about
+> > warning from that path.
+> 
+> And why that would be a false positive?
+> 
 
-Still on EX, I restricted the allocation to be only on node 1, with
-120G memory allocated there:
+#define cond_resched_lock(lock) ({                              \
+	___might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);\
+	__cond_resched_lock(lock);                              \
+	})
 
-max_active            time            compared to base  lock from perf
-base(no parallel)     3.81s A+-3.3%     N/A               <1%
-1                     3.10s A+-7.7%     a??18.6%            14.76%
-2                     2.44s A+-13.6%    a??35.9%            36.95%
-4                     2.07s A+-13.6%    a??45.6%            59.67%
-8                     1.98s A+-0.4%     a??48.0%            62.59%
-16                    2.01s A+-2.4%     a??47.2%            79.62%
+cond_resched_lock() calls ___might_sleep() even when
+__cond_resched_lock() will not call preempt_schedule_common()
+because should_resched() returns false due to preemption counter
+being already elevated by holding &(&tfile->lock)->rlock spinlock.
 
-If we can improve the scalibility of freeing a given zone, then parallel
-free will be able to achieve more.
-
-BTW, the lock is basically pgdat->lru_lock in release_pages and
-zone->lock in free_pcppages_bulk:
-    62.59%    62.59%  [kernel.kallsyms]  [k] native_queued_spin_lock_slowpath
-37.17% native_queued_spin_lock_slowpath;_raw_spin_lock_irqsave;free_pcppages_bulk;free_hot_cold_page;free_hot_cold_page_list;release_pages;free_pages_and_swap_cache;tlb_flush_mmu_free_batches;batch_free_work;process_one_work;worker_thread;kthread;ret_from_fork
-25.27% native_queued_spin_lock_slowpath;_raw_spin_lock_irqsave;release_pages;free_pages_and_swap_cache;tlb_flush_mmu_free_batches;batch_free_work;process_one_work;worker_thread;kthread;ret_from_fork
+If should_resched() is known to return false, calling
+___might_sleep() from cond_resched_lock() is a false positive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
