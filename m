@@ -1,68 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4756B0343
-	for <linux-mm@kvack.org>; Sat, 25 Mar 2017 14:14:05 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id c72so6839396lfh.22
-        for <linux-mm@kvack.org>; Sat, 25 Mar 2017 11:14:05 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id f77si3449178lfg.388.2017.03.25.11.14.03
-        for <linux-mm@kvack.org>;
-        Sat, 25 Mar 2017 11:14:04 -0700 (PDT)
-Date: Sat, 25 Mar 2017 19:13:44 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [locking/lockdep] 383776fa75:  INFO: trying to register
- non-static key.
-Message-ID: <20170325181344.46xj4k3xsuq4xxjy@pd.tnic>
-References: <58cad449.RTO+aYLdogbZs5Le%fengguang.wu@intel.com>
- <20170317134109.e7qmjwpryelpbgz2@hirez.programming.kicks-ass.net>
- <20170317144140.cpsdlpairb2falsv@linutronix.de>
- <20170320114108.kbvcsuepem45j5cr@hirez.programming.kicks-ass.net>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 721736B0038
+	for <linux-mm@kvack.org>; Sat, 25 Mar 2017 17:26:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s29so14951027pfg.21
+        for <linux-mm@kvack.org>; Sat, 25 Mar 2017 14:26:04 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 71si5227530pfh.141.2017.03.25.14.26.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 25 Mar 2017 14:26:03 -0700 (PDT)
+Date: Sat, 25 Mar 2017 14:25:58 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [v2 0/5] parallelized "struct page" zeroing
+Message-ID: <20170325212558.GA1288@bombadil.infradead.org>
+References: <1490383192-981017-1-git-send-email-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170320114108.kbvcsuepem45j5cr@hirez.programming.kicks-ass.net>
+In-Reply-To: <1490383192-981017-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, kernel test robot <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, LKP <lkp@01.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, wfg@linux.intel.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-On Mon, Mar 20, 2017 at 12:41:08PM +0100, Peter Zijlstra wrote:
-> Subject: lockdep: Fix per-cpu static objects
-> From: Peter Zijlstra <peterz@infradead.org>
-> Date: Mon Mar 20 12:26:55 CET 2017
+On Fri, Mar 24, 2017 at 03:19:47PM -0400, Pavel Tatashin wrote:
+> Changelog:
+> 	v1 - v2
+> 	- Per request, added s390 to deferred "struct page" zeroing
+> 	- Collected performance data on x86 which proofs the importance to
+> 	  keep memset() as prefetch (see below).
 > 
-> Since commit:
+> When deferred struct page initialization feature is enabled, we get a
+> performance gain of initializing vmemmap in parallel after other CPUs are
+> started. However, we still zero the memory for vmemmap using one boot CPU.
+> This patch-set fixes the memset-zeroing limitation by deferring it as well.
 > 
->   383776fa7527 ("locking/lockdep: Handle statically initialized PER_CPU locks properly")
+> Performance gain on SPARC with 32T:
+> base:	https://hastebin.com/ozanelatat.go
+> fix:	https://hastebin.com/utonawukof.go
 > 
-> we try to collapse per-cpu locks into a single class by giving them
-> all the same key. For this key we choose the canonical address of the
-> per-cpu object, which would be the offset into the per-cpu area.
+> As you can see without the fix it takes: 97.89s to boot
+> With the fix it takes: 46.91 to boot.
 > 
-> This has two problems:
+> Performance gain on x86 with 1T:
+> base:	https://hastebin.com/uvifasohon.pas
+> fix:	https://hastebin.com/anodiqaguj.pas
 > 
->  - there is a case where we run !0 lock->key through static_obj() and
->    expect this to pass; it doesn't for canonical pointers.
+> On Intel we save 10.66s/T while on SPARC we save 1.59s/T. Intel has
+> twice as many pages, and also fewer nodes than SPARC (sparc 32 nodes, vs.
+> intel 8 nodes).
 > 
->  - 0 is a valid canonical address.
-> 
-> Cure both issues by redefining the canonical address as the address of
-> the per-cpu variable on the boot CPU.
-> 
-> Since I didn't want to rely on CPU0 being the boot-cpu, or even
-> existing at all, track the boot CPU in a variable.
-> 
-> Fixes: 383776fa7527 ("locking/lockdep: Handle statically initialized PER_CPU locks properly")
-> Reported-by: kernel test robot <fengguang.wu@intel.com>
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> It takes one thread 11.25s to zero vmemmap on Intel for 1T, so it should
+> take additional 11.25 / 8 = 1.4s  (this machine has 8 nodes) per node to
+> initialize the memory, but it takes only additional 0.456s per node, which
+> means on Intel we also benefit from having memset() and initializing all
+> other fields in one place.
 
-Tested-by: Borislav Petkov <bp@suse.de>
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+My question was how long it takes if you memset in neither place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
