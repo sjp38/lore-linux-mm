@@ -1,141 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55DD86B0343
-	for <linux-mm@kvack.org>; Sat, 25 Mar 2017 17:37:58 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id s138so33328857ywg.12
-        for <linux-mm@kvack.org>; Sat, 25 Mar 2017 14:37:58 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id y129si2106742ywe.458.2017.03.25.14.37.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Mar 2017 14:37:57 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2] hugetlbfs: initialize shared policy as part of inode allocation
-Date: Sat, 25 Mar 2017 14:37:30 -0700
-Message-Id: <1490477850-7944-1-git-send-email-mike.kravetz@oracle.com>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EDEDE6B0343
+	for <linux-mm@kvack.org>; Sat, 25 Mar 2017 17:50:33 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 76so8129892lft.18
+        for <linux-mm@kvack.org>; Sat, 25 Mar 2017 14:50:33 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id v24si2130044ljd.133.2017.03.25.14.50.32
+        for <linux-mm@kvack.org>;
+        Sat, 25 Mar 2017 14:50:32 -0700 (PDT)
+Date: Sat, 25 Mar 2017 22:50:12 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: Splat during resume
+Message-ID: <20170325215012.v5vywew7pfi3qk5f@pd.tnic>
+References: <20170325185855.4itsyevunczus7sc@pd.tnic>
+ <20170325214615.eqgmkwbkyldt7wwl@pd.tnic>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170325214615.eqgmkwbkyldt7wwl@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86-ml <x86@kernel.org>
 
-Any time after inode allocation, destroy_inode can be called.  The
-hugetlbfs inode contains a shared_policy structure, and
-mpol_free_shared_policy is unconditionally called as part of
-hugetlbfs_destroy_inode.  Initialize the policy as part of inode
-allocation so that any quick (error path) calls to destroy_inode
-will be handed an initialized policy.
+On Sat, Mar 25, 2017 at 10:46:15PM +0100, Borislav Petkov wrote:
+> On Sat, Mar 25, 2017 at 07:58:55PM +0100, Borislav Petkov wrote:
+> > Hey Rafael,
+> > 
+> > have you seen this already (partial splat photo attached)? Happens
+> > during resume from s2d. Judging by the timestamps, this looks like the
+> > resume kernel before we switch to the original, boot one but I could be
+> > mistaken.
+> > 
+> > This is -rc3+tip/master.
+> > 
+> > I can't catch a full splat because this is a laptop and it doesn't have
+> > serial. netconsole is helping me for shit so we'd need some guess work.
+> > 
+> > So I'm open to suggestions.
+> > 
+> > Please don't say "bisect" yet ;-)))
+> 
+> No need, I found it. Reverting
+> 
+>   ea3b5e60ce80 ("x86/mm/ident_map: Add 5-level paging support")
+> 
+> makes the machine suspend and resume just fine again. Lemme add people to CC.
 
-syzkaller fuzzer found this bug, that resulted in the following:
+So I see rIP pointing to ident_pmd_init() and the stack trace has
+load_image_and_restore() so if I try to connect the dots, I get:
 
-BUG: KASAN: user-memory-access in atomic_inc
-include/asm-generic/atomic-instrumented.h:87 [inline] at addr
-000000131730bd7a
-BUG: KASAN: user-memory-access in __lock_acquire+0x21a/0x3a80
-kernel/locking/lockdep.c:3239 at addr 000000131730bd7a
-Write of size 4 by task syz-executor6/14086
-CPU: 3 PID: 14086 Comm: syz-executor6 Not tainted 4.11.0-rc3+ #364
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-Call Trace:
- __dump_stack lib/dump_stack.c:16 [inline]
- dump_stack+0x1b8/0x28d lib/dump_stack.c:52
- kasan_report_error mm/kasan/report.c:291 [inline]
- kasan_report.part.2+0x34a/0x480 mm/kasan/report.c:316
- kasan_report+0x21/0x30 mm/kasan/report.c:303
- check_memory_region_inline mm/kasan/kasan.c:326 [inline]
- check_memory_region+0x137/0x190 mm/kasan/kasan.c:333
- kasan_check_write+0x14/0x20 mm/kasan/kasan.c:344
- atomic_inc include/asm-generic/atomic-instrumented.h:87 [inline]
- __lock_acquire+0x21a/0x3a80 kernel/locking/lockdep.c:3239
- lock_acquire+0x1ee/0x590 kernel/locking/lockdep.c:3762
- __raw_write_lock include/linux/rwlock_api_smp.h:210 [inline]
- _raw_write_lock+0x33/0x50 kernel/locking/spinlock.c:295
- mpol_free_shared_policy+0x43/0xb0 mm/mempolicy.c:2536
- hugetlbfs_destroy_inode+0xca/0x120 fs/hugetlbfs/inode.c:952
- alloc_inode+0x10d/0x180 fs/inode.c:216
- new_inode_pseudo+0x69/0x190 fs/inode.c:889
- new_inode+0x1c/0x40 fs/inode.c:918
- hugetlbfs_get_inode+0x40/0x420 fs/hugetlbfs/inode.c:734
- hugetlb_file_setup+0x329/0x9f0 fs/hugetlbfs/inode.c:1282
- newseg+0x422/0xd30 ipc/shm.c:575
- ipcget_new ipc/util.c:285 [inline]
- ipcget+0x21e/0x580 ipc/util.c:639
- SYSC_shmget ipc/shm.c:673 [inline]
- SyS_shmget+0x158/0x230 ipc/shm.c:657
- entry_SYSCALL_64_fastpath+0x1f/0xc2
+load_image_and_restore
+|-> hibernation_restore
+ |-> resume_target_kernel
+  |-> swsusp_arch_resume
+   |-> set_up_temporary_mappings
+    |-> kernel_ident_mapping_init
+     |-> ... ident_pmd_init
 
-Analysis provided by Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-v2: Remove now redundant initialization in hugetlbfs_get_root
+I'll let you folks make sense of what's going on.
 
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/hugetlbfs/inode.c | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+Thanks.
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 54de77e..cf3669d 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -695,14 +695,11 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
- 
- 	inode = new_inode(sb);
- 	if (inode) {
--		struct hugetlbfs_inode_info *info;
- 		inode->i_ino = get_next_ino();
- 		inode->i_mode = S_IFDIR | config->mode;
- 		inode->i_uid = config->uid;
- 		inode->i_gid = config->gid;
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
--		info = HUGETLBFS_I(inode);
--		mpol_shared_policy_init(&info->policy, NULL);
- 		inode->i_op = &hugetlbfs_dir_inode_operations;
- 		inode->i_fop = &simple_dir_operations;
- 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-@@ -733,7 +730,6 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
- 
- 	inode = new_inode(sb);
- 	if (inode) {
--		struct hugetlbfs_inode_info *info;
- 		inode->i_ino = get_next_ino();
- 		inode_init_owner(inode, dir, mode);
- 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
-@@ -741,15 +737,6 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
- 		inode->i_mapping->a_ops = &hugetlbfs_aops;
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
- 		inode->i_mapping->private_data = resv_map;
--		info = HUGETLBFS_I(inode);
--		/*
--		 * The policy is initialized here even if we are creating a
--		 * private inode because initialization simply creates an
--		 * an empty rb tree and calls rwlock_init(), later when we
--		 * call mpol_free_shared_policy() it will just return because
--		 * the rb tree will still be empty.
--		 */
--		mpol_shared_policy_init(&info->policy, NULL);
- 		switch (mode & S_IFMT) {
- 		default:
- 			init_special_inode(inode, mode, dev);
-@@ -937,6 +924,18 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
- 		hugetlbfs_inc_free_inodes(sbinfo);
- 		return NULL;
- 	}
-+
-+	/*
-+	 * Any time after allocation, hugetlbfs_destroy_inode can be called
-+	 * for the inode.  mpol_free_shared_policy is unconditionally called
-+	 * as part of hugetlbfs_destroy_inode.  So, initialize policy here
-+	 * in case of a quick call to destroy.
-+	 *
-+	 * Note that the policy is initialized even if we are creating a
-+	 * private inode.  This simplifies hugetlbfs_destroy_inode.
-+	 */
-+	mpol_shared_policy_init(&p->policy, NULL);
-+
- 	return &p->vfs_inode;
- }
- 
 -- 
-2.7.4
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
