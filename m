@@ -1,92 +1,43 @@
-From: Andy Lutomirski <luto@amacapital.net>
-Subject: Re: [RFC PATCH 00/13] Introduce first class virtual address spaces
-Date: Wed, 15 Mar 2017 13:06:50 -0700
-Message-ID: <CALCETrXfGgxaLivhci0VL=wUaWAnBiUXC47P7TUaEuOYV_-X_g__29923.052507411$1489608441$gmane$org@mail.gmail.com>
-References: <CALCETrX5gv+zdhOYro4-u3wGWjVCab28DFHPSm5=BVG_hKxy3A@mail.gmail.com>
- <20170315194447.scsf3fiwvf7z5gzc@arch-dev>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: Splat during resume
+Date: Sat, 25 Mar 2017 22:46:15 +0100
+Message-ID: <20170325214615.eqgmkwbkyldt7wwl@pd.tnic>
+References: <20170325185855.4itsyevunczus7sc@pd.tnic>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by blaine.gmane.org with esmtp (Exim 4.84_2)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1coFCN-0006kA-T2
-	for glkm-linux-mm-2@m.gmane.org; Wed, 15 Mar 2017 21:07:08 +0100
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 371996B038A
-	for <linux-mm@kvack.org>; Wed, 15 Mar 2017 16:07:13 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id 62so7028894uas.1
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 13:07:13 -0700 (PDT)
-Received: from mail-vk0-x22c.google.com (mail-vk0-x22c.google.com. [2607:f8b0:400c:c05::22c])
-        by mx.google.com with ESMTPS id k23si931722uaa.75.2017.03.15.13.07.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Mar 2017 13:07:12 -0700 (PDT)
-Received: by mail-vk0-x22c.google.com with SMTP id d188so13785668vka.0
-        for <linux-mm@kvack.org>; Wed, 15 Mar 2017 13:07:11 -0700 (PDT)
-In-Reply-To: <20170315194447.scsf3fiwvf7z5gzc@arch-dev>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, Till Smejkal <till.smejkal@googlemail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steven Miao <realmz6@gmail.com>, Richard Kuo <rkuo@codeaurora.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de>
+Content-Type: text/plain; charset=utf-8
+Return-path: <linux-arch-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20170325185855.4itsyevunczus7sc@pd.tnic>
+Sender: linux-arch-owner@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86-ml <x86@kernel.org>
+List-Id: linux-mm.kvack.org
 
-On Wed, Mar 15, 2017 at 12:44 PM, Till Smejkal
-<till.smejkal@googlemail.com> wrote:
-> On Wed, 15 Mar 2017, Andy Lutomirski wrote:
->> > One advantage of VAS segments is that they can be globally queried by user programs
->> > which means that VAS segments can be shared by applications that not necessarily have
->> > to be related. If I am not mistaken, MAP_SHARED of pure in memory data will only work
->> > if the tasks that share the memory region are related (aka. have a common parent that
->> > initialized the shared mapping). Otherwise, the shared mapping have to be backed by a
->> > file.
->>
->> What's wrong with memfd_create()?
->>
->> > VAS segments on the other side allow sharing of pure in memory data by
->> > arbitrary related tasks without the need of a file. This becomes especially
->> > interesting if one combines VAS segments with non-volatile memory since one can keep
->> > data structures in the NVM and still be able to share them between multiple tasks.
->>
->> What's wrong with regular mmap?
->
-> I never wanted to say that there is something wrong with regular mmap. We just
-> figured that with VAS segments you could remove the need to mmap your shared data but
-> instead can keep everything purely in memory.
+On Sat, Mar 25, 2017 at 07:58:55PM +0100, Borislav Petkov wrote:
+> Hey Rafael,
+> 
+> have you seen this already (partial splat photo attached)? Happens
+> during resume from s2d. Judging by the timestamps, this looks like the
+> resume kernel before we switch to the original, boot one but I could be
+> mistaken.
+> 
+> This is -rc3+tip/master.
+> 
+> I can't catch a full splat because this is a laptop and it doesn't have
+> serial. netconsole is helping me for shit so we'd need some guess work.
+> 
+> So I'm open to suggestions.
+> 
+> Please don't say "bisect" yet ;-)))
 
-memfd does that.
+No need, I found it. Reverting
 
->
-> Unfortunately, I am not at full speed with memfds. Is my understanding correct that
-> if the last user of such a file descriptor closes it, the corresponding memory is
-> freed? Accordingly, memfd cannot be used to keep data in memory while no program is
-> currently using it, can it?
+  ea3b5e60ce80 ("x86/mm/ident_map: Add 5-level paging support")
 
-No, stop right here.  If you want to have a bunch of memory that
-outlives the program that allocates it, use a filesystem (tmpfs,
-hugetlbfs, ext4, whatever).  Don't create new persistent kernel
-things.
+makes the machine suspend and resume just fine again. Lemme add people to CC.
 
-> VAS segments on the other side would provide a functionality to
-> achieve the same without the need of any mounted filesystem. However, I agree, that
-> this is just a small advantage compared to what can already be achieved with the
-> existing functionality provided by the Linux kernel.
+-- 
+Regards/Gruss,
+    Boris.
 
-I see this "small advantage" as "resource leak and security problem".
-
->> This sounds complicated and fragile.  What happens if a heuristically
->> shared region coincides with a region in the "first class address
->> space" being selected?
->
-> If such a conflict happens, the task cannot use the first class address space and the
-> corresponding system call will return an error. However, with the current available
-> virtual address space size that programs can use, such conflicts are probably rare.
-
-A bug that hits 1% of the time is often worse than one that hits 100%
-of the time because debugging it is miserable.
-
---Andy
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Good mailing practices for 400: avoid top-posting and trim the reply.
