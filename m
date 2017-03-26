@@ -1,90 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D8DF46B0038
-	for <linux-mm@kvack.org>; Sun, 26 Mar 2017 04:32:23 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v44so16017811wrc.9
-        for <linux-mm@kvack.org>; Sun, 26 Mar 2017 01:32:23 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.15])
-        by mx.google.com with ESMTPS id b188si9884958wmc.96.2017.03.26.01.32.22
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2F66B0038
+	for <linux-mm@kvack.org>; Sun, 26 Mar 2017 04:37:19 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p81so15240228lfp.9
+        for <linux-mm@kvack.org>; Sun, 26 Mar 2017 01:37:19 -0700 (PDT)
+Received: from vps01.wiesinger.com ([2a02:25b0:aaaa:57a::affe:bade])
+        by mx.google.com with ESMTPS id i15si4349626ljd.14.2017.03.26.01.37.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Mar 2017 01:32:22 -0700 (PDT)
-Message-ID: <1490516743.17559.7.camel@gmx.de>
-Subject: Re: Splat during resume
-From: Mike Galbraith <efault@gmx.de>
-Date: Sun, 26 Mar 2017 10:25:43 +0200
-In-Reply-To: <20170325214615.eqgmkwbkyldt7wwl@pd.tnic>
-References: <20170325185855.4itsyevunczus7sc@pd.tnic>
-	 <20170325214615.eqgmkwbkyldt7wwl@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Sun, 26 Mar 2017 01:37:17 -0700 (PDT)
+Subject: Re: Still OOM problems with 4.9er/4.10er kernels
+References: <20170302071721.GA32632@bbox>
+ <feebcc24-2863-1bdf-e586-1ac9648b35ba@wiesinger.com>
+ <20170316082714.GC30501@dhcp22.suse.cz>
+ <20170316084733.GP802@shells.gnugeneration.com>
+ <20170316090844.GG30501@dhcp22.suse.cz>
+ <20170316092318.GQ802@shells.gnugeneration.com>
+ <20170316093931.GH30501@dhcp22.suse.cz>
+ <a65e4b73-5c97-d915-c79e-7df0771db823@wiesinger.com>
+ <20170317171339.GA23957@dhcp22.suse.cz>
+ <8cb1d796-aff3-0063-3ef8-880e76d437c0@wiesinger.com>
+ <20170319151837.GD12414@dhcp22.suse.cz>
+ <555d1f95-7c9e-2691-b14f-0260f90d23a9@wiesinger.com>
+ <1489979147.4273.22.camel@gmx.de>
+ <798104b6-091d-5415-2c51-8992b6b231e5@wiesinger.com>
+ <1490080422.14658.39.camel@gmx.de>
+ <1ce2621b-0573-0cc7-a1df-49d6c68df792@wiesinger.com>
+ <1490258325.27756.42.camel@gmx.de>
+From: Gerhard Wiesinger <lists@wiesinger.com>
+Message-ID: <da13c3c7-b514-67b0-2eb9-6d6af277901b@wiesinger.com>
+Date: Sun, 26 Mar 2017 10:36:53 +0200
+MIME-Version: 1.0
+In-Reply-To: <1490258325.27756.42.camel@gmx.de>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86-ml <x86@kernel.org>
+To: Mike Galbraith <efault@gmx.de>, Michal Hocko <mhocko@kernel.org>
+Cc: lkml@pengaru.com, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Sat, 2017-03-25 at 22:46 +0100, Borislav Petkov wrote:
-> On Sat, Mar 25, 2017 at 07:58:55PM +0100, Borislav Petkov wrote:
-> > Hey Rafael,
-> > 
-> > have you seen this already (partial splat photo attached)? Happens
-> > during resume from s2d. Judging by the timestamps, this looks like the
-> > resume kernel before we switch to the original, boot one but I could be
-> > mistaken.
-> > 
-> > This is -rc3+tip/master.
-> > 
-> > I can't catch a full splat because this is a laptop and it doesn't have
-> > serial. netconsole is helping me for shit so we'd need some guess work.
-> > 
-> > So I'm open to suggestions.
-> > 
-> > Please don't say "bisect" yet ;-)))
-> 
-> No need, I found it. Reverting
-> 
->   ea3b5e60ce80 ("x86/mm/ident_map: Add 5-level paging support")
-> 
-> makes the machine suspend and resume just fine again. Lemme add people to CC.
+On 23.03.2017 09:38, Mike Galbraith wrote:
+> On Thu, 2017-03-23 at 08:16 +0100, Gerhard Wiesinger wrote:
+>> On 21.03.2017 08:13, Mike Galbraith wrote:
+>>> On Tue, 2017-03-21 at 06:59 +0100, Gerhard Wiesinger wrote:
+>>>
+>>>> Is this the correct information?
+>>> Incomplete, but enough to reiterate cgroup_disable=memory
+>>> suggestion.
+>>>
+>> How to collect complete information?
+> If Michal wants specifics, I suspect he'll ask.  I posted only to pass
+> along a speck of information, and offer a test suggestion.. twice.
 
-To be filed under "_maybe_ interesting", my tip-rt tree hits the below
-on boot (survives), ONLY on vaporite (kvm), silicon boots clean, works
-fine, hibernate/suspend gripe free.  The revert fixed up vaporite.
+Still OOM with cgroup_disable=memory, kernel 
+4.11.0-0.rc3.git0.2.fc26.x86_64,I set vm.min_free_kbytes = 10240 in 
+these tests.
+# Full config
+grep "vm\." /etc/sysctl.d/*
+/etc/sysctl.d/00-dirty_background_ratio.conf:vm.dirty_background_ratio = 3
+/etc/sysctl.d/00-dirty_ratio.conf:vm.dirty_ratio = 15
+/etc/sysctl.d/00-kernel-vm-min-free-kbyzes.conf:vm.min_free_kbytes = 10240
+/etc/sysctl.d/00-overcommit_memory.conf:vm.overcommit_memory = 2
+/etc/sysctl.d/00-overcommit_ratio.conf:vm.overcommit_ratio = 80
+/etc/sysctl.d/00-swappiness.conf:vm.swappiness=10
 
-[   16.566554] BUG: unable to handle kernel paging request at ffffc753f000f000
-[   16.566562] IP: ident_pmd_init.isra.4+0x56/0xb0
-[   16.566563] PGD 0 
+[31880.623557] sa1: page allocation stalls for 10942ms, order:0, 
+mode:0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null)
+[31880.623623] sa1 cpuset=/ mems_allowed=0
+[31880.623630] CPU: 1 PID: 17112 Comm: sa1 Not tainted 
+4.11.0-0.rc3.git0.2.fc26.x86_64 #1
+[31880.623724] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), 
+BIOS 1.9.3 04/01/2014
+[31880.623819] Call Trace:
+[31880.623893]  dump_stack+0x63/0x84
+[31880.623971]  warn_alloc+0x10c/0x1b0
+[31880.624046]  __alloc_pages_slowpath+0x93d/0xe60
+[31880.624142]  ? get_page_from_freelist+0x122/0xbf0
+[31880.624225]  ? unmap_region+0xf7/0x130
+[31880.624312]  __alloc_pages_nodemask+0x290/0x2b0
+[31880.624388]  alloc_pages_vma+0xa0/0x2b0
+[31880.624463]  __handle_mm_fault+0x4d0/0x1160
+[31880.624550]  handle_mm_fault+0xb3/0x250
+[31880.624628]  __do_page_fault+0x23f/0x4c0
+[31880.624701]  trace_do_page_fault+0x41/0x120
+[31880.624781]  do_async_page_fault+0x51/0xa0
+[31880.624866]  async_page_fault+0x28/0x30
+[31880.624941] RIP: 0033:0x7f9218d4914f
+[31880.625032] RSP: 002b:00007ffe0d1376a8 EFLAGS: 00010206
+[31880.625153] RAX: 00007f9218d2a314 RBX: 00007f9218f4e658 RCX: 
+00007f9218d2a354
+[31880.625235] RDX: 00000000000005ec RSI: 0000000000000000 RDI: 
+00007f9218d2a314
+[31880.625324] RBP: 00007ffe0d137950 R08: 00007f9218d2a900 R09: 
+0000000000027000
+[31880.625423] R10: 00007ffe0d1376e0 R11: 00007f9218d2a900 R12: 
+0000000000000003
+[31880.625505] R13: 00007ffe0d137a38 R14: 000000000000fd01 R15: 
+0000000000000002
+[31880.625688] Mem-Info:
+[31880.625762] active_anon:36671 inactive_anon:36711 isolated_anon:88
+                 active_file:1399 inactive_file:1410 isolated_file:0
+                 unevictable:0 dirty:5 writeback:15 unstable:0
+                 slab_reclaimable:3099 slab_unreclaimable:3558
+                 mapped:2037 shmem:3 pagetables:3340 bounce:0
+                 free:2972 free_pcp:102 free_cma:0
+[31880.627334] Node 0 active_anon:146684kB inactive_anon:146816kB 
+active_file:5596kB inactive_file:5572kB unevictable:0kB 
+isolated(anon):368kB isolated(file):0kB mapped:8044kB dirty:20kB 
+writeback:136kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 
+12kB writeback_tmp:0kB unstable:0kB pages_scanned:82 all_unreclaimable? no
+[31880.627606] Node 0 DMA free:1816kB min:440kB low:548kB high:656kB 
+active_anon:5636kB inactive_anon:6844kB active_file:132kB 
+inactive_file:148kB unevictable:0kB writepending:4kB present:15992kB 
+managed:15908kB mlocked:0kB slab_reclaimable:284kB 
+slab_unreclaimable:532kB kernel_stack:0kB pagetables:188kB bounce:0kB 
+free_pcp:0kB local_pcp:0kB free_cma:0kB
+[31880.627883] lowmem_reserve[]: 0 327 327 327 327
+[31880.627959] Node 0 DMA32 free:10072kB min:9796kB low:12244kB 
+high:14692kB active_anon:141048kB inactive_anon:140000kB 
+active_file:5432kB inactive_file:5444kB unevictable:0kB 
+writepending:152kB present:376688kB managed:353760kB mlocked:0kB 
+slab_reclaimable:12112kB slab_unreclaimable:13700kB kernel_stack:2464kB 
+pagetables:13172kB bounce:0kB free_pcp:504kB local_pcp:272kB free_cma:0kB
+[31880.628334] lowmem_reserve[]: 0 0 0 0 0
+[31880.629882] Node 0 DMA: 33*4kB (UME) 24*8kB (UM) 26*16kB (UME) 4*32kB 
+(UME) 5*64kB (UME) 1*128kB (E) 2*256kB (M) 0*512kB 0*1024kB 0*2048kB 
+0*4096kB = 1828kB
+[31880.632255] Node 0 DMA32: 174*4kB (UMEH) 107*8kB (UMEH) 96*16kB 
+(UMEH) 59*32kB (UME) 30*64kB (UMEH) 8*128kB (UEH) 8*256kB (UMEH) 1*512kB 
+(E) 0*1024kB 0*2048kB 0*4096kB = 10480kB
+[31880.634344] Node 0 hugepages_total=0 hugepages_free=0 
+hugepages_surp=0 hugepages_size=2048kB
+[31880.634346] 7276 total pagecache pages
+[31880.635277] 4367 pages in swap cache
+[31880.636206] Swap cache stats: add 5639999, delete 5635551, find 
+6573228/8496821
+[31880.637145] Free swap  = 973736kB
+[31880.638038] Total swap = 2064380kB
+[31880.638988] 98170 pages RAM
+[31880.640309] 0 pages HighMem/MovableOnly
+[31880.641791] 5753 pages reserved
+[31880.642908] 0 pages cma reserved
+[31880.643978] 0 pages hwpoisoned
 
-[   16.566565] Oops: 0000 [#1] PREEMPT SMP
-[   16.566569] Dumping ftrace buffer:
-[   16.566593]    (ftrace buffer empty)
-[   16.566593] Modules linked in: nf_conntrack_ipv6(E) nf_defrag_ipv6(E) ip6table_raw(E) ipt_REJECT(E) iptable_raw(E) xt_CT(E) iptable_filter(E) ip6table_mangle(E) nf_conntrack_netbios_ns(E) nf_conntrack_broadcast(E) nf_conntrack_ipv4(E) nf_defrag_ipv4(E) ip_tables(E) xt_conntrack(E) nf_conntrack(E) libcrc32c(E) ip6table_filter(E) ip6_tables(E) x_tables(E) joydev(E) snd_hda_codec_generic(E) snd_hda_intel(E) snd_hda_codec(E) snd_hda_core(E) snd_hwdep(E) snd_pcm(E) snd_timer(E) snd(E) soundcore(E) 8139too(E) i2c_piix4(E) virtio_balloon(E) crct10dif_pclmul(E) crc32_pclmul(E) ghash_clmulni_intel(E) pcbc(E) ppdev(E) aesni_intel(E) serio_raw(E) pcspkr(E) aes_x86_64(E) parport_pc(E) crypto_simd(E) parport(E) acpi_cpufreq(E) glue_helper(E) button(E) cryptd(E) nfsd(E) auth_rpcgss(E) nfs_acl(E) lockd(E) grace(E)
-[   16.566611]  sunrpc(E) ext4(E) crc16(E) jbd2(E) mbcache(E) hid_generic(E) usbhid(E) sr_mod(E) cdrom(E) ata_generic(E) virtio_rng(E) virtio_blk(E) virtio_console(E) ata_piix(E) qxl(E) crc32c_intel(E) drm_kms_helper(E) syscopyarea(E) uhci_hcd(E) ehci_pci(E) sysfillrect(E) sysimgblt(E) ehci_hcd(E) fb_sys_fops(E) ahci(E) virtio_pci(E) libahci(E) ttm(E) virtio_ring(E) 8139cp(E) virtio(E) usbcore(E) drm(E) libata(E) mii(E) floppy(E) sg(E) scsi_mod(E) autofs4(E)
-[   16.566625] CPU: 6 PID: 1295 Comm: kexec Tainted: G            E   4.11.0-rt12-tip-rt #80
-[   16.566626] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.8.1-0-g4adadbd-20161202_174313-build11a 04/01/2014
-[   16.566626] task: ffff88022a3daf40 task.stack: ffffc90002520000
-[   16.566628] RIP: 0010:ident_pmd_init.isra.4+0x56/0xb0
-[   16.566628] RSP: 0018:ffffc90002523da0 EFLAGS: 00010286
-[   16.566629] RAX: ffffc000001fffff RBX: 0000000000000000 RCX: 0000000000000000
-[   16.566629] RDX: ffffc753f000f000 RSI: ffffc90002523e90 RDI: ffffc90002523e88
-[   16.566629] RBP: 0000000040000000 R08: 0000000040000000 R09: 0000000035ff6fff
-[   16.566630] R10: 0000000026000000 R11: 000000000009f000 R12: ffffc000001fffff
-[   16.566630] R13: ffffc00000000fff R14: ffffc753f000f000 R15: ffffc90002523e88
-[   16.566631] FS:  00007f7ad2486700(0000) GS:ffff88023fd80000(0000) knlGS:0000000000000000
-[   16.566631] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   16.566632] CR2: ffffc753f000f000 CR3: 000000023fd68000 CR4: 00000000001406e0
-[   16.566634] Call Trace:
-[   16.566639]  ? ident_pud_init+0x7a/0x180
-[   16.566641]  ? kernel_ident_mapping_init+0x152/0x1f0
-[   16.566643]  ? machine_kexec_prepare+0xa7/0x470
-[   16.566644]  ? kexec_mark_crashkres+0x70/0x70
-[   16.566647]  ? SyS_kexec_file_load+0x2e4/0x6b0
-[   16.566651]  ? do_sys_open+0x182/0x1e0
-[   16.566655]  ? entry_SYSCALL_64_fastpath+0x1a/0xa5
-[   16.566656] Code: 53 48 89 cb 48 81 e3 00 00 e0 ff 48 83 ec 08 4c 39 c3 48 89 34 24 73 54 48 89 da 4c 89 e0 48 c1 ea 12 81 e2 f8 0f 00 00 4c 01 f2 <48> 8b 0a f6 c1 80 49 0f 44 c5 48 21 c8 a9 81 01 00 00 75 21 48 
-[   16.566665] RIP: ident_pmd_init.isra.4+0x56/0xb0 RSP: ffffc90002523da0
-[   16.566665] CR2: ffffc753f000f000
+Will try your suggestions with the custom build kernel.
+
+Ciao,
+Gerhard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
