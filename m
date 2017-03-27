@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E156C6B0333
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 09:32:14 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id i18so16592815wrb.21
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 06:32:14 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id v22si791180wra.229.2017.03.27.06.32.13
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 468F16B0333
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 10:06:20 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id p20so66332820pgd.21
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 07:06:20 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f6si786399plj.60.2017.03.27.07.06.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Mar 2017 06:32:13 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 07F1C1C2161
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 14:32:13 +0100 (IST)
-Date: Mon, 27 Mar 2017 14:32:12 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: Page allocator order-0 optimizations merged
-Message-ID: <20170327133212.6azfgrariwocdzzd@techsingularity.net>
-References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
- <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
- <20170322234004.kffsce4owewgpqnm@techsingularity.net>
- <20170323144347.1e6f29de@redhat.com>
- <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
- <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
- <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
- <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
- <20170327105514.1ed5b1ba@redhat.com>
- <20170327143947.4c237e54@redhat.com>
+        Mon, 27 Mar 2017 07:06:19 -0700 (PDT)
+Date: Mon, 27 Mar 2017 07:06:10 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
+Message-ID: <20170327140610.GA27285@bombadil.infradead.org>
+References: <1490352808-7187-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <59149d48-2a8e-d7c0-8009-1d0b3ea8290b@virtuozzo.com>
+ <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
+ <fe511b26-f2e5-0a0e-09cc-303d38d2ad05@virtuozzo.com>
+ <20170324161732.GA23110@bombadil.infradead.org>
+ <0eceef23-a20c-bca7-2153-b9b5baf1f1d8@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170327143947.4c237e54@redhat.com>
+In-Reply-To: <0eceef23-a20c-bca7-2153-b9b5baf1f1d8@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu, Thomas Hellstrom <thellstrom@vmware.com>, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>
 
-On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:
-> On Mon, 27 Mar 2017 10:55:14 +0200
-> Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+On Mon, Mar 27, 2017 at 04:26:02PM +0300, Andrey Ryabinin wrote:
+> [+CC drm folks, see the following threads:
+> 	http://lkml.kernel.org/r/201703232349.BGB95898.QHLVFFOMtFOOJS@I-love.SAKURA.ne.jp
+> 	http://lkml.kernel.org/r/1490352808-7187-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> ]
 > 
-> > A possible solution, would be use the local_bh_{disable,enable} instead
-> > of the {preempt_disable,enable} calls.  But it is slower, using numbers
-> > from [1] (19 vs 11 cycles), thus the expected cycles saving is 38-19=19.
+> On 03/24/2017 07:17 PM, Matthew Wilcox wrote:
+> > On Fri, Mar 24, 2017 at 06:05:45PM +0300, Andrey Ryabinin wrote:
+> >> Just fix the drm code. There is zero point in releasing memory under spinlock.
 > > 
-> > The problematic part of using local_bh_enable is that this adds a
-> > softirq/bottom-halves rescheduling point (as it checks for pending
-> > BHs).  Thus, this might affects real workloads.
+> > I disagree.  The spinlock has to be held while deleting from the hash
+> > table. 
 > 
-> I implemented this solution in patch below... and tested it on mlx5 at
-> 50G with manually disabled driver-page-recycling.  It works for me.
-> 
-> To Mel, that do you prefer... a partial-revert or something like this?
-> 
+> And what makes you think so?
 
-If Tariq confirms it works for him as well, this looks far safer patch
-than having a dedicate IRQ-safe queue. Your concern about the BH
-scheduling point is valid but if it's proven to be a problem, there is
-still the option of a partial revert.
-
--- 
-Mel Gorman
-SUSE Labs
+The bad naming of the function.  If somebody has a function called
+'hashtable_remove' I naturally think it means "remove something from
+the hash table".  This function should be called drm_ht_destroy().
+And then, yes, it becomes obvious that there is no need to protect
+destuction against usage because if anyone is still using the hashtable,
+they're about to get a NULL pointer dereference.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
