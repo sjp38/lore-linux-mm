@@ -1,40 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 416CF6B0337
-	for <linux-mm@kvack.org>; Sun, 26 Mar 2017 06:18:11 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id l43so16920111wre.4
-        for <linux-mm@kvack.org>; Sun, 26 Mar 2017 03:18:11 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.18])
-        by mx.google.com with ESMTPS id h7si10171469wma.43.2017.03.26.03.18.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Mar 2017 03:18:09 -0700 (PDT)
-Message-ID: <1490523018.5920.3.camel@gmx.de>
-Subject: Re: Splat during resume
-From: Mike Galbraith <efault@gmx.de>
-Date: Sun, 26 Mar 2017 12:10:18 +0200
-In-Reply-To: <20170326084149.pisqkhngxjd65u6g@pd.tnic>
-References: <20170325185855.4itsyevunczus7sc@pd.tnic>
-	 <20170325214615.eqgmkwbkyldt7wwl@pd.tnic> <1490516743.17559.7.camel@gmx.de>
-	 <20170326084149.pisqkhngxjd65u6g@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B58DD6B0333
+	for <linux-mm@kvack.org>; Sun, 26 Mar 2017 23:57:59 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g124so25512103pgc.1
+        for <linux-mm@kvack.org>; Sun, 26 Mar 2017 20:57:59 -0700 (PDT)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTP id x188si11241495pgb.304.2017.03.26.20.57.57
+        for <linux-mm@kvack.org>;
+        Sun, 26 Mar 2017 20:57:58 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1490207346-9703-1-git-send-email-a.perevalov@samsung.com> <CGME20170322182918eucas1p204ef2f7aadb0ac41d11f15ef434c74c4@eucas1p2.samsung.com> <1490207346-9703-2-git-send-email-a.perevalov@samsung.com> <00af01d2a3b9$c23b5030$46b1f090$@alibaba-inc.com> <105a751b-254a-d2e3-441e-1418a8e30905@samsung.com>
+In-Reply-To: <105a751b-254a-d2e3-441e-1418a8e30905@samsung.com>
+Subject: Re: [PATCH v2] userfaultfd: provide pid in userfault msg
+Date: Mon, 27 Mar 2017 11:57:43 +0800
+Message-ID: <015d01d2a6ae$4a3abf10$deb03d30$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86-ml <x86@kernel.org>
+To: 'Alexey Perevalov' <a.perevalov@samsung.com>, 'Andrea Arcangeli' <aarcange@redhat.com>
+Cc: "'Dr . David Alan Gilbert'" <dgilbert@redhat.com>, linux-mm@kvack.org, i.maximets@samsung.com
 
-On Sun, 2017-03-26 at 10:41 +0200, Borislav Petkov wrote:
 
-> Btw, try the 6 patches here: 
-> https://marc.info/?l=linux-mm&m=148977696117208&w=2
-> ontop of tip. Should fix your vaporite too.
+On March 25, 2017 7:48 PM Alexey Perevalov wrote:
+> On 03/23/2017 12:42 PM, Hillf Danton wrote:
+> > On March 23, 2017 2:29 AM Alexey Perevalov wrote:
+> >>   static inline struct uffd_msg userfault_msg(unsigned long address,
+> >>   					    unsigned int flags,
+> >> -					    unsigned long reason)
+> >> +					    unsigned long reason,
+> >> +					    unsigned int features)
+> > Nit: the type of feature is u64 by define.
+> 
+> Yes, let me clarify once again,
 
-Yeah, silicon is still happy, vaporite boots gripe free.  Trying to
-hibernate vaporite was a bad idea, but is unrelated to this thread.
+Thanks:)
 
-	-Mike
+> type of features is u64, but in struct uffdio_api, which used for handling
+> UFFDIO_API.
+> Function userfault_msg is using in handle_userfault, when only
+> context (struct userfaultfd_ctx) is available, features inside context is
+> type of unsigned int and uffd_ctx_features is using for casting.
+> It's more likely question to maintainer, but due to userfaultfd_ctx is
+> internal only
+> structure, it's not a big problem to extend it in the future.
+> 
+You are right.
+
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
