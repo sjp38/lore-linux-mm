@@ -1,87 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C2D6B0333
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 02:00:43 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id r129so51744935pgr.18
-        for <linux-mm@kvack.org>; Sun, 26 Mar 2017 23:00:43 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t61si11525054plb.278.2017.03.26.23.00.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Mar 2017 23:00:42 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2R5s8a3095712
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 02:00:42 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29dn2ywsnm-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 02:00:41 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Mon, 27 Mar 2017 07:00:39 +0100
-Date: Mon, 27 Mar 2017 08:00:32 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [v2 5/5] mm: teach platforms not to zero struct pages memory
-References: <1490383192-981017-1-git-send-email-pasha.tatashin@oracle.com>
- <1490383192-981017-6-git-send-email-pasha.tatashin@oracle.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BC96B0333
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 02:24:06 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 133so58868106itu.17
+        for <linux-mm@kvack.org>; Sun, 26 Mar 2017 23:24:06 -0700 (PDT)
+Received: from out0-158.mail.aliyun.com (out0-158.mail.aliyun.com. [140.205.0.158])
+        by mx.google.com with ESMTP id f16si3560709plj.212.2017.03.26.23.24.05
+        for <linux-mm@kvack.org>;
+        Sun, 26 Mar 2017 23:24:05 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1490477850-7944-1-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1490477850-7944-1-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH v2] hugetlbfs: initialize shared policy as part of inode allocation
+Date: Mon, 27 Mar 2017 14:24:00 +0800
+Message-ID: <016101d2a6c2$b98e9080$2cabb180$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1490383192-981017-6-git-send-email-pasha.tatashin@oracle.com>
-Message-Id: <20170327060032.GB5092@osiris>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, davem@davemloft.net, willy@infradead.org
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: 'Dmitry Vyukov' <dvyukov@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'Michal Hocko' <mhocko@suse.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Fri, Mar 24, 2017 at 03:19:52PM -0400, Pavel Tatashin wrote:
-> If we are using deferred struct page initialization feature, most of
-> "struct page"es are getting initialized after other CPUs are started, and
-> hence we are benefiting from doing this job in parallel. However, we are
-> still zeroing all the memory that is allocated for "struct pages" using the
-> boot CPU.  This patch solves this problem, by deferring zeroing "struct
-> pages" to only when they are initialized.
+
+On March 26, 2017 5:38 AM Mike Kravetz wrote:
 > 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
+> Any time after inode allocation, destroy_inode can be called.  The
+> hugetlbfs inode contains a shared_policy structure, and
+> mpol_free_shared_policy is unconditionally called as part of
+> hugetlbfs_destroy_inode.  Initialize the policy as part of inode
+> allocation so that any quick (error path) calls to destroy_inode
+> will be handed an initialized policy.
+> 
+> syzkaller fuzzer found this bug, that resulted in the following:
+> 
+> BUG: KASAN: user-memory-access in atomic_inc
+> include/asm-generic/atomic-instrumented.h:87 [inline] at addr
+> 000000131730bd7a
+> BUG: KASAN: user-memory-access in __lock_acquire+0x21a/0x3a80
+> kernel/locking/lockdep.c:3239 at addr 000000131730bd7a
+> Write of size 4 by task syz-executor6/14086
+> CPU: 3 PID: 14086 Comm: syz-executor6 Not tainted 4.11.0-rc3+ #364
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:16 [inline]
+>  dump_stack+0x1b8/0x28d lib/dump_stack.c:52
+>  kasan_report_error mm/kasan/report.c:291 [inline]
+>  kasan_report.part.2+0x34a/0x480 mm/kasan/report.c:316
+>  kasan_report+0x21/0x30 mm/kasan/report.c:303
+>  check_memory_region_inline mm/kasan/kasan.c:326 [inline]
+>  check_memory_region+0x137/0x190 mm/kasan/kasan.c:333
+>  kasan_check_write+0x14/0x20 mm/kasan/kasan.c:344
+>  atomic_inc include/asm-generic/atomic-instrumented.h:87 [inline]
+>  __lock_acquire+0x21a/0x3a80 kernel/locking/lockdep.c:3239
+>  lock_acquire+0x1ee/0x590 kernel/locking/lockdep.c:3762
+>  __raw_write_lock include/linux/rwlock_api_smp.h:210 [inline]
+>  _raw_write_lock+0x33/0x50 kernel/locking/spinlock.c:295
+>  mpol_free_shared_policy+0x43/0xb0 mm/mempolicy.c:2536
+>  hugetlbfs_destroy_inode+0xca/0x120 fs/hugetlbfs/inode.c:952
+>  alloc_inode+0x10d/0x180 fs/inode.c:216
+>  new_inode_pseudo+0x69/0x190 fs/inode.c:889
+>  new_inode+0x1c/0x40 fs/inode.c:918
+>  hugetlbfs_get_inode+0x40/0x420 fs/hugetlbfs/inode.c:734
+>  hugetlb_file_setup+0x329/0x9f0 fs/hugetlbfs/inode.c:1282
+>  newseg+0x422/0xd30 ipc/shm.c:575
+>  ipcget_new ipc/util.c:285 [inline]
+>  ipcget+0x21e/0x580 ipc/util.c:639
+>  SYSC_shmget ipc/shm.c:673 [inline]
+>  SyS_shmget+0x158/0x230 ipc/shm.c:657
+>  entry_SYSCALL_64_fastpath+0x1f/0xc2
+> 
+> Analysis provided by Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> v2: Remove now redundant initialization in hugetlbfs_get_root
+> 
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 > ---
->  arch/powerpc/mm/init_64.c |    2 +-
->  arch/s390/mm/vmem.c       |    2 +-
->  arch/sparc/mm/init_64.c   |    2 +-
->  arch/x86/mm/init_64.c     |    2 +-
->  4 files changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-> index eb4c270..24faf2d 100644
-> --- a/arch/powerpc/mm/init_64.c
-> +++ b/arch/powerpc/mm/init_64.c
-> @@ -181,7 +181,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
->  		if (vmemmap_populated(start, page_size))
->  			continue;
-> 
-> -		p = vmemmap_alloc_block(page_size, node, true);
-> +		p = vmemmap_alloc_block(page_size, node, VMEMMAP_ZERO);
->  		if (!p)
->  			return -ENOMEM;
-> 
-> diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-> index 9c75214..ffe9ba1 100644
-> --- a/arch/s390/mm/vmem.c
-> +++ b/arch/s390/mm/vmem.c
-> @@ -252,7 +252,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
->  				void *new_page;
-> 
->  				new_page = vmemmap_alloc_block(PMD_SIZE, node,
-> -							       true);
-> +							       VMEMMAP_ZERO);
->  				if (!new_page)
->  					goto out;
->  				pmd_val(*pm_dir) = __pa(new_page) | sgt_prot;
 
-s390 has two call sites that need to be converted, like you did in one of
-your previous patches. The same seems to be true for powerpc, unless there
-is a reason to not convert them?
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
