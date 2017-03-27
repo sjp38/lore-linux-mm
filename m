@@ -1,61 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D3B106B0333
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:08:41 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k6so6689504wre.3
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 05:08:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v21si510952wra.330.2017.03.27.05.08.40
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 600286B0333
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:28:19 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l95so39260369wrc.12
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 05:28:19 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id c14si590284wrb.192.2017.03.27.05.28.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Mar 2017 05:08:40 -0700 (PDT)
-Date: Mon, 27 Mar 2017 14:08:37 +0200
-From: Richard Palethorpe <rpalethorpe@suse.com>
-Subject: Re: [LTP] Is MADV_HWPOISON supposed to work only on faulted-in
- pages?
-Message-ID: <20170327140837.502b1296@linux-v3j5>
-In-Reply-To: <20170227063308.GA14387@hori1.linux.bs1.fc.nec.co.jp>
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
-	<20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
-	<20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
-	<1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
-	<20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
-	<22763879-C335-41E6-8102-2022EED75DAE@cs.rutgers.edu>
-	<20170227063308.GA14387@hori1.linux.bs1.fc.nec.co.jp>
+        Mon, 27 Mar 2017 05:28:17 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 0401399242
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 12:28:17 +0000 (UTC)
+Date: Mon, 27 Mar 2017 13:28:16 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: Page allocator order-0 optimizations merged
+Message-ID: <20170327122816.dvnfxkyqxasfiknj@techsingularity.net>
+References: <58b48b1f.F/jo2/WiSxvvGm/z%akpm@linux-foundation.org>
+ <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
+ <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
+ <20170322234004.kffsce4owewgpqnm@techsingularity.net>
+ <20170323144347.1e6f29de@redhat.com>
+ <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
+ <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
+ <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
+ <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
+ <20170327105514.1ed5b1ba@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170327105514.1ed5b1ba@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
 
-Hi Naoya,
-
-On Mon, 27 Feb 2017 06:33:09 +0000
-"Naoya Horiguchi" <n-horiguchi@ah.jp.nec.com> wrote:
-
+On Mon, Mar 27, 2017 at 10:55:14AM +0200, Jesper Dangaard Brouer wrote:
+> On Mon, 27 Mar 2017 03:32:47 -0400 (EDT)
+> Pankaj Gupta <pagupta@redhat.com> wrote:
 > 
-> > I expected either madvise should fail because HWPOISON does not work on
-> > non-existing physical pages or madvise_hwpoison() should populate
-> > some physical pages for that virtual address range and poison them.  
+> > Hello,
+> > 
+> > It looks like a race with softirq and normal process context.
+> > 
+> > Just thinking if we really want allocations from 'softirqs' to be
+> > done using per cpu list? 
 > 
-> The latter is the current behavior. It just comes from get_user_pages_fast()
-> which not only finds the page and takes refcount, but also touch the page.
+> Yes, softirq need fast page allocs. The softirq use-case is refilling
+> the DMA RX rings, which is time critical, especially for NIC drivers.
+> For this reason most drivers implement different page recycling tricks.
+> 
+> > Or we can have some check in  'free_hot_cold_page' for softirqs 
+> > to check if we are on a path of returning from hard interrupt don't
+> > allocate from per cpu list.
+> 
+> A possible solution, would be use the local_bh_{disable,enable} instead
+> of the {preempt_disable,enable} calls.  But it is slower, using numbers
+> from [1] (19 vs 11 cycles), thus the expected cycles saving is 38-19=19.
+> 
+> The problematic part of using local_bh_enable is that this adds a
+> softirq/bottom-halves rescheduling point (as it checks for pending
+> BHs).  Thus, this might affects real workloads.
+> 
+> 
+> I'm unsure what the best option is.  I'm leaning towards partly
+> reverting[1] and go back to doing the slower local_irq_save +
+> local_irq_restore as before.
+> 
+> Afterwards we can add a bulk page alloc+free call, that can amortize
+> this 38 cycles cost (of local_irq_{save,restore}).  Or add a function
+> call that MUST only be called from contexts with IRQs enabled, which
+> allow using the unconditionally local_irq_{disable,enable} as it only
+> costs 7 cycles.
+> 
 
-To clarify, the current behaviour seems to be the following:
+It's possible to have a separate list for hard/soft IRQ that are protected
+although great care is needed to drain properly. I have a partial prototype
+lying around marked as "interesting if we ever need it" but it needs more
+work. It's sufficiently complex that I couldn't rush it as a fix with the
+time I currently have available. For 4.11, it's safer to revert and try
+again later bearing in mind that softirqs are in the critical allocation
+path for some drivers.
 
-1st madvise_hwpoison() -> EBUSY,
-2nd madvise_hwpoison() -> SUCCESS, but no SIGBUS when the memory is accessed.
+I'll prepare a patch.
 
-So it touches the zero page and madvise succeeds on the second attempt because
-it is now mapped, but still the memory is not poisoned.
-
-This means that when I modify the LTP test to accept EBUSY, it still fails if
-a user runs it twice. This is OK, but I will need to document it in the test.
-
-Thank you,
-Richard.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
