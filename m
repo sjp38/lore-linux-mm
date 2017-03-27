@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD936B03A1
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 707A26B03A2
 	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 12:29:42 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id o123so70845526pga.16
+Received: by mail-pg0-f71.google.com with SMTP id x125so80745082pgb.5
         for <linux-mm@kvack.org>; Mon, 27 Mar 2017 09:29:42 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id s1si1139574plj.269.2017.03.27.09.29.41
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v41si1155873pgn.116.2017.03.27.09.29.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 27 Mar 2017 09:29:41 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 5/8] x86/mm: Add basic defines/helpers for CONFIG_X86_5LEVEL
-Date: Mon, 27 Mar 2017 19:29:22 +0300
-Message-Id: <20170327162925.16092-6-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 6/8] x86/dump_pagetables: Add support 5-level paging
+Date: Mon, 27 Mar 2017 19:29:23 +0300
+Message-Id: <20170327162925.16092-7-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170327162925.16092-1-kirill.shutemov@linux.intel.com>
 References: <20170327162925.16092-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,165 +20,101 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Extends pagetable headers to support new paging mode.
+Simple extension to support one more page table level.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/pgtable_64.h       | 11 +++++++++++
- arch/x86/include/asm/pgtable_64_types.h | 20 +++++++++++++++++++
- arch/x86/include/asm/pgtable_types.h    | 10 +++++++++-
- arch/x86/mm/pgtable.c                   | 34 ++++++++++++++++++++++++++++++++-
- 4 files changed, 73 insertions(+), 2 deletions(-)
+ arch/x86/mm/dump_pagetables.c | 49 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 42 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 0593a1ae7573..12ea31274eb6 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -35,6 +35,13 @@ extern void paging_init(void);
- #define pud_ERROR(e)					\
- 	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
- 	       __FILE__, __LINE__, &(e), pud_val(e))
-+
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+#define p4d_ERROR(e)					\
-+	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
-+	       __FILE__, __LINE__, &(e), p4d_val(e))
-+#endif
-+
- #define pgd_ERROR(e)					\
- 	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
- 	       __FILE__, __LINE__, &(e), pgd_val(e))
-@@ -128,7 +135,11 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 58b5bee7ea27..0effac6989cd 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -110,7 +110,8 @@ static struct addr_marker address_markers[] = {
+ #define PTE_LEVEL_MULT (PAGE_SIZE)
+ #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
+ #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
+-#define PGD_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
++#define P4D_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
++#define PGD_LEVEL_MULT (PTRS_PER_PUD * P4D_LEVEL_MULT)
  
- static inline void native_p4d_clear(p4d_t *p4d)
+ #define pt_dump_seq_printf(m, to_dmesg, fmt, args...)		\
+ ({								\
+@@ -347,7 +348,7 @@ static bool pud_already_checked(pud_t *prev_pud, pud_t *pud, bool checkwx)
+ 	return checkwx && prev_pud && (pud_val(*prev_pud) == pud_val(*pud));
+ }
+ 
+-static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
++static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
+ 							unsigned long P)
  {
-+#ifdef CONFIG_X86_5LEVEL
-+	native_set_p4d(p4d, native_make_p4d(0));
-+#else
- 	native_set_p4d(p4d, (p4d_t) { .pgd = native_make_pgd(0)});
-+#endif
+ 	int i;
+@@ -355,7 +356,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
+ 	pgprotval_t prot;
+ 	pud_t *prev_pud = NULL;
+ 
+-	start = (pud_t *) pgd_page_vaddr(addr);
++	start = (pud_t *) p4d_page_vaddr(addr);
+ 
+ 	for (i = 0; i < PTRS_PER_PUD; i++) {
+ 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
+@@ -377,9 +378,43 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
  }
  
- static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 4edc97917382..d3df6dc05d19 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -23,12 +23,32 @@ typedef struct { pteval_t pte; } pte_t;
- 
- #define SHARED_KERNEL_PMD	0
- 
-+#ifdef CONFIG_X86_5LEVEL
-+
-+/*
-+ * PGDIR_SHIFT determines what a top-level page table entry can map
-+ */
-+#define PGDIR_SHIFT	48
-+#define PTRS_PER_PGD	512
-+
-+/*
-+ * 4rd level page in 5-level paging case
-+ */
-+#define P4D_SHIFT	39
-+#define PTRS_PER_P4D	512
-+#define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
-+#define P4D_MASK	(~(P4D_SIZE - 1))
-+
-+#else  /* CONFIG_X86_5LEVEL */
-+
- /*
-  * PGDIR_SHIFT determines what a top-level page table entry can map
-  */
- #define PGDIR_SHIFT	39
- #define PTRS_PER_PGD	512
- 
-+#endif  /* CONFIG_X86_5LEVEL */
-+
- /*
-  * 3rd level page
-  */
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 4930afe9df0a..bf9638e1ee42 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -273,9 +273,17 @@ static inline pgdval_t pgd_flags(pgd_t pgd)
- }
- 
- #if CONFIG_PGTABLE_LEVELS > 4
-+typedef struct { p4dval_t p4d; } p4d_t;
- 
--#error FIXME
-+static inline p4d_t native_make_p4d(pudval_t val)
-+{
-+	return (p4d_t) { val };
-+}
- 
-+static inline p4dval_t native_p4d_val(p4d_t p4d)
-+{
-+	return p4d.p4d;
-+}
  #else
- #include <asm-generic/pgtable-nop4d.h>
- 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 38b6daf72deb..d26b066944a5 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -81,6 +81,14 @@ void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
- 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
- 	tlb_remove_page(tlb, virt_to_page(pud));
- }
-+
-+#if CONFIG_PGTABLE_LEVELS > 4
-+void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d)
-+{
-+	paravirt_release_p4d(__pa(p4d) >> PAGE_SHIFT);
-+	tlb_remove_page(tlb, virt_to_page(p4d));
-+}
-+#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
- #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
- #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
- 
-@@ -120,7 +128,7 @@ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
- 	   references from swapper_pg_dir. */
- 	if (CONFIG_PGTABLE_LEVELS == 2 ||
- 	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
--	    CONFIG_PGTABLE_LEVELS == 4) {
-+	    CONFIG_PGTABLE_LEVELS >= 4) {
- 		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
- 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
- 				KERNEL_PGD_PTRS);
-@@ -582,6 +590,30 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
- }
- 
- #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-+#ifdef CONFIG_X86_5LEVEL
-+/**
-+ * p4d_set_huge - setup kernel P4D mapping
-+ *
-+ * No 512GB pages yet -- always return 0
-+ *
-+ * Returns 1 on success and 0 on failure.
-+ */
-+int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
-+{
-+	return 0;
-+}
-+
-+/**
-+ * p4d_clear_huge - clear kernel P4D mapping when it is set
-+ *
-+ * No 512GB pages yet -- always return 0
-+ */
-+int p4d_clear_huge(p4d_t *p4d)
-+{
-+	return 0;
-+}
+-#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(pgd_val(a)),p)
+-#define pgd_large(a) pud_large(__pud(pgd_val(a)))
+-#define pgd_none(a)  pud_none(__pud(pgd_val(a)))
++#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(p4d_val(a)),p)
++#define p4d_large(a) pud_large(__pud(p4d_val(a)))
++#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
 +#endif
 +
- /**
-  * pud_set_huge - setup kernel PUD mapping
-  *
++#if PTRS_PER_P4D > 1
++
++static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
++							unsigned long P)
++{
++	int i;
++	p4d_t *start;
++	pgprotval_t prot;
++
++	start = (p4d_t *) pgd_page_vaddr(addr);
++
++	for (i = 0; i < PTRS_PER_P4D; i++) {
++		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
++		if (!p4d_none(*start)) {
++			if (p4d_large(*start) || !p4d_present(*start)) {
++				prot = p4d_flags(*start);
++				note_page(m, st, __pgprot(prot), 2);
++			} else {
++				walk_pud_level(m, st, *start,
++					       P + i * P4D_LEVEL_MULT);
++			}
++		} else
++			note_page(m, st, __pgprot(0), 2);
++
++		start++;
++	}
++}
++
++#else
++#define walk_p4d_level(m,s,a,p) walk_pud_level(m,s,__p4d(pgd_val(a)),p)
++#define pgd_large(a) p4d_large(__p4d(pgd_val(a)))
++#define pgd_none(a)  p4d_none(__p4d(pgd_val(a)))
+ #endif
+ 
+ static inline bool is_hypervisor_range(int idx)
+@@ -424,7 +459,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				prot = pgd_flags(*start);
+ 				note_page(m, &st, __pgprot(prot), 1);
+ 			} else {
+-				walk_pud_level(m, &st, *start,
++				walk_p4d_level(m, &st, *start,
+ 					       i * PGD_LEVEL_MULT);
+ 			}
+ 		} else
 -- 
 2.11.0
 
