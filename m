@@ -1,107 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CF966B0333
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 11:15:11 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id f11so41261361qkb.16
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:15:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v125si777374qkb.216.2017.03.27.08.15.09
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF5476B0333
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 11:30:55 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m189so25548285lfg.21
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:30:55 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id y1si456521lja.206.2017.03.27.08.30.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Mar 2017 08:15:10 -0700 (PDT)
-Date: Mon, 27 Mar 2017 17:15:00 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Page allocator order-0 optimizations merged
-Message-ID: <20170327171500.4beef762@redhat.com>
-In-Reply-To: <20170327141518.GB27285@bombadil.infradead.org>
-References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
-	<83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
-	<20170322234004.kffsce4owewgpqnm@techsingularity.net>
-	<20170323144347.1e6f29de@redhat.com>
-	<20170323145133.twzt4f5ci26vdyut@techsingularity.net>
-	<779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
-	<1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
-	<2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
-	<20170327105514.1ed5b1ba@redhat.com>
-	<20170327143947.4c237e54@redhat.com>
-	<20170327141518.GB27285@bombadil.infradead.org>
+        Mon, 27 Mar 2017 08:30:53 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id x137so7688926lff.1
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:30:53 -0700 (PDT)
+Date: Mon, 27 Mar 2017 18:30:50 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [x86/mm/gup] 2947ba054a [   71.329069] kernel BUG at
+ include/linux/pagemap.h:151!
+Message-ID: <20170327153050.43xobvj3ycbueaof@node.shutemov.name>
+References: <20170319225124.xodpqjldom6ceazz@wfg-t540p.sh.intel.com>
+ <20170324102436.xltop6udkx5pg4oq@node.shutemov.name>
+ <20170324105153.xvy5rcuawicqoanl@hirez.programming.kicks-ass.net>
+ <20170324114709.pcytvyb3d6ajux33@black.fi.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170324114709.pcytvyb3d6ajux33@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>, brouer@redhat.com
+To: Ingo Molnar <mingo@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Fengguang Wu <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, LKP <lkp@01.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Mon, 27 Mar 2017 07:15:18 -0700
-Matthew Wilcox <willy@infradead.org> wrote:
+On Fri, Mar 24, 2017 at 02:47:09PM +0300, Kirill A. Shutemov wrote:
+> 
+> From d2f416a3ee3e5dbb10e59d0b374d382fdc4ba082 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Fri, 24 Mar 2017 14:13:05 +0300
+> Subject: [PATCH] mm: Fix false-positive VM_BUG_ON() in
+>  page_cache_{get,add}_speculative
+> 
+> 0day triggered this:
+> 
+>   kernel BUG at include/linux/pagemap.h:151!
+>   invalid opcode: 0000 [#1]
+>   CPU: 0 PID: 458 Comm: trinity-c0 Not tainted 4.11.0-rc2-00251-g2947ba0 #1
+>   task: ffff88001f19ab00 task.stack: ffff88001f084000
+>   RIP: 0010:gup_pud_range+0x56f/0x63d
+>   RSP: 0018:ffff88001f087ba8 EFLAGS: 00010046
+>   RAX: 0000000080000000 RBX: 000000000164e000 RCX: ffff88001e0badc0
+>   RDX: dead000000000100 RSI: 0000000000000001 RDI: ffff88001e0badc0
+>   RBP: ffff88001f087c38 R08: ffff88001f087cf8 R09: ffff88001f087c6c
+>   R10: 0000000000000000 R11: ffff88001f19b0f0 R12: ffff88001f087c6c
+>   R13: ffff88001e0badc0 R14: 800000001e7b7867 R15: 0000000000000000
+>   FS:  00007f7ea7b60700(0000) GS:ffffffffae02f000(0000) knlGS:0000000000000000
+>   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>   CR2: 00000000013eb130 CR3: 0000000017ddb000 CR4: 00000000000006f0
+>   DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>   DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 00000000000d0602
+>   Call Trace:
+>    __get_user_pages_fast+0x107/0x136
+>    get_user_pages_fast+0x78/0x89
+>    get_futex_key+0xfd/0x350
+>    ? simple_write_end+0x83/0xbe
+>    futex_requeue+0x1a3/0x585
+>    do_futex+0x834/0x86f
+>    ? kvm_clock_read+0x16/0x1e
+>    ? paravirt_sched_clock+0x9/0xd
+>    ? lock_release+0x11e/0x328
+>    SyS_futex+0x125/0x135
+>    ? write_seqcount_end+0x1a/0x1f
+>    ? vtime_account_user+0x4b/0x50
+>    do_syscall_64+0x61/0x74
+>    entry_SYSCALL64_slow_path+0x25/0x25
+> 
+> It' VM_BUG_ON() due to false-negative in_atomic(). We call
+> page_cache_get_speculative() with disabled local interrupts.
+> It should be atomic enough.
+> 
+> Let's check for disabled interrupts in the VM_BUG_ON() too.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
 
-> On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:
-> > =20
-> > +static __always_inline int in_irq_or_nmi(void)
-> > +{
-> > +	return in_irq() || in_nmi();
-> > +// XXX: hoping compiler will optimize this (todo verify) into:
-> > +// #define in_irq_or_nmi()	(preempt_count() & (HARDIRQ_MASK | NMI_MASK=
-))
-> > +
-> > +	/* compiler was smart enough to only read __preempt_count once
-> > +	 * but added two branches
-> > +asm code:
-> > + =E2=94=82       mov    __preempt_count,%eax
-> > + =E2=94=82       test   $0xf0000,%eax    // HARDIRQ_MASK: 0x000f0000
-> > + =E2=94=82    =E2=94=8C=E2=94=80=E2=94=80jne    2a
-> > + =E2=94=82    =E2=94=82  test   $0x100000,%eax   // NMI_MASK:     0x00=
-100000
-> > + =E2=94=82    =E2=94=82=E2=86=93 je     3f
-> > + =E2=94=82 2a:=E2=94=94=E2=94=80=E2=86=92mov    %rbx,%rdi
-> > +
-> > +	 */
-> > +} =20
->=20
-> To be fair, you told the compiler to do that with your use of fancy-pants=
- ||
-> instead of optimisable |.  Try this instead:
+Ingo, could you get it applied along x86-gup transition?
 
-Thanks you! -- good point! :-)
+Or do you see any problem with the patch?
 
-> static __always_inline int in_irq_or_nmi(void)
-> {
-> 	return in_irq() | in_nmi();
-> }
->=20
-> 0000000000001770 <test_fn>:
->     1770:       65 8b 05 00 00 00 00    mov    %gs:0x0(%rip),%eax        =
-# 1777 <test_fn+0x7>
->                         1773: R_X86_64_PC32     __preempt_count-0x4
-> #define in_nmi()                (preempt_count() & NMI_MASK)
-> #define in_task()               (!(preempt_count() & \
->                                    (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFF=
-SET)))
-> static __always_inline int in_irq_or_nmi(void)
-> {
->         return in_irq() | in_nmi();
->     1777:       25 00 00 1f 00          and    $0x1f0000,%eax
-> }
->     177c:       c3                      retq  =20
->     177d:       0f 1f 00                nopl   (%rax)
-
-And I also verified it worked:
-
-  0.63 =E2=94=82       mov    __preempt_count,%eax
-       =E2=94=82     free_hot_cold_page():
-  1.25 =E2=94=82       test   $0x1f0000,%eax
-       =E2=94=82     =E2=86=93 jne    1e4
-
-And this simplification also made the compiler change this into a
-unlikely branch, which is a micro-optimization (that I will leave up to
-the compiler).
-
---=20
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+> ---
+>  include/linux/pagemap.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> index f84cf5f76366..e7bbd9d4dc6c 100644
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -148,7 +148,7 @@ static inline int page_cache_get_speculative(struct page *page)
+>  
+>  #ifdef CONFIG_TINY_RCU
+>  # ifdef CONFIG_PREEMPT_COUNT
+> -	VM_BUG_ON(!in_atomic());
+> +	VM_BUG_ON(!in_atomic() && !irqs_disabled());
+>  # endif
+>  	/*
+>  	 * Preempt must be disabled here - we rely on rcu_read_lock doing
+> @@ -186,7 +186,7 @@ static inline int page_cache_add_speculative(struct page *page, int count)
+>  
+>  #if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
+>  # ifdef CONFIG_PREEMPT_COUNT
+> -	VM_BUG_ON(!in_atomic());
+> +	VM_BUG_ON(!in_atomic() && !irqs_disabled());
+>  # endif
+>  	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+>  	page_ref_add(page, count);
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
