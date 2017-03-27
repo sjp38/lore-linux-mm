@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 129E66B0333
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 06:26:16 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 133so63641920itu.17
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 03:26:16 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r70si142121iod.216.2017.03.27.03.26.14
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D3B106B0333
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:08:41 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k6so6689504wre.3
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 05:08:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v21si510952wra.330.2017.03.27.05.08.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Mar 2017 03:26:15 -0700 (PDT)
-Subject: [RFC PATCH] smack: Use __GFP_NOFAIL than panic()
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201703271926.JJI69202.MJVQFSFLOFtOOH@I-love.SAKURA.ne.jp>
-Date: Mon, 27 Mar 2017 19:26:12 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Mon, 27 Mar 2017 05:08:40 -0700 (PDT)
+Date: Mon, 27 Mar 2017 14:08:37 +0200
+From: Richard Palethorpe <rpalethorpe@suse.com>
+Subject: Re: [LTP] Is MADV_HWPOISON supposed to work only on faulted-in
+ pages?
+Message-ID: <20170327140837.502b1296@linux-v3j5>
+In-Reply-To: <20170227063308.GA14387@hori1.linux.bs1.fc.nec.co.jp>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+	<20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+	<20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
+	<1ba376aa-5e7c-915f-35d1-2d4eef0cad88@huawei.com>
+	<20170227012029.GA28934@hori1.linux.bs1.fc.nec.co.jp>
+	<22763879-C335-41E6-8102-2022EED75DAE@cs.rutgers.edu>
+	<20170227063308.GA14387@hori1.linux.bs1.fc.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-security-module@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
->From dbdac6060ac1a741cb95f370121339bcc4176aea Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Mon, 27 Mar 2017 14:06:52 +0900
-Subject: [RFC PATCH] smack: Use __GFP_NOFAIL than panic()
+Hi Naoya,
 
-smk_cipso_doi() is called by two locations; upon boot up and upon writing
-to /smack/doi interface.
+On Mon, 27 Feb 2017 06:33:09 +0000
+"Naoya Horiguchi" <n-horiguchi@ah.jp.nec.com> wrote:
 
-It is theoretically possible that kmalloc(GFP_KERNEL) for the latter fails
-due to being killed by the OOM killer or memory allocation fault injection.
-Although use of __GFP_NOFAIL is not recommended, is it tolerable to use
-__GFP_NOFAIL when adding a recovery path for unlikely failure is not
-worthwhile but allocation is single-shot and amount of memory to allocate
-is known to be small enough?
+> 
+> > I expected either madvise should fail because HWPOISON does not work on
+> > non-existing physical pages or madvise_hwpoison() should populate
+> > some physical pages for that virtual address range and poison them.  
+> 
+> The latter is the current behavior. It just comes from get_user_pages_fast()
+> which not only finds the page and takes refcount, but also touch the page.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- security/smack/smackfs.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+To clarify, the current behaviour seems to be the following:
 
-diff --git a/security/smack/smackfs.c b/security/smack/smackfs.c
-index 366b835..4e45a77 100644
---- a/security/smack/smackfs.c
-+++ b/security/smack/smackfs.c
-@@ -721,9 +721,7 @@ static void smk_cipso_doi(void)
- 		printk(KERN_WARNING "%s:%d remove rc = %d\n",
- 		       __func__, __LINE__, rc);
- 
--	doip = kmalloc(sizeof(struct cipso_v4_doi), GFP_KERNEL);
--	if (doip == NULL)
--		panic("smack:  Failed to initialize cipso DOI.\n");
-+	doip = kmalloc(sizeof(struct cipso_v4_doi), GFP_KERNEL | __GFP_NOFAIL);
- 	doip->map.std = NULL;
- 	doip->doi = smk_cipso_doi_value;
- 	doip->type = CIPSO_V4_MAP_PASS;
--- 
-1.8.3.1
+1st madvise_hwpoison() -> EBUSY,
+2nd madvise_hwpoison() -> SUCCESS, but no SIGBUS when the memory is accessed.
+
+So it touches the zero page and madvise succeeds on the second attempt because
+it is now mapped, but still the memory is not poisoned.
+
+This means that when I modify the LTP test to accept EBUSY, it still fails if
+a user runs it twice. This is OK, but I will need to document it in the test.
+
+Thank you,
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
