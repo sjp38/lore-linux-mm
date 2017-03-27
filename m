@@ -1,71 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C26AC6B0333
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 11:01:40 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id u4so45123318qtc.4
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:01:40 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0103.outbound.protection.outlook.com. [104.47.0.103])
-        by mx.google.com with ESMTPS id h124si910206pgc.322.2017.03.27.08.01.38
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F6B36B0333
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 11:07:16 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 76so80036633itj.0
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 08:07:16 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0070.outbound.protection.outlook.com. [104.47.38.70])
+        by mx.google.com with ESMTPS id i93si941121ioo.45.2017.03.27.08.07.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 27 Mar 2017 08:01:39 -0700 (PDT)
-Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
-References: <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
- <fe511b26-f2e5-0a0e-09cc-303d38d2ad05@virtuozzo.com>
- <20170324161732.GA23110@bombadil.infradead.org>
- <0eceef23-a20c-bca7-2153-b9b5baf1f1d8@virtuozzo.com>
- <f1c0b9ec-c0c8-502c-c7f0-fe692c73ab04@vmware.com>
- <201703272329.AIE32232.LtVSOOOFFQJFHM@I-love.SAKURA.ne.jp>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <4a4f546c-4a92-1cea-14b6-bf3a8725b0e8@virtuozzo.com>
-Date: Mon, 27 Mar 2017 18:02:52 +0300
+        Mon, 27 Mar 2017 08:07:15 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 15/32] x86: Add support for changing memory
+ encryption attribute in early boot
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846772794.2349.1396854638510933455.stgit@brijesh-build-machine>
+ <20170324171257.lgvqcdqec3nla5nb@pd.tnic>
+From: Brijesh Singh <brijesh.singh@amd.com>
+Message-ID: <f8c57c98-4d42-4bfe-f05f-37c607a81a42@amd.com>
+Date: Mon, 27 Mar 2017 10:07:00 -0500
 MIME-Version: 1.0
-In-Reply-To: <201703272329.AIE32232.LtVSOOOFFQJFHM@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <20170324171257.lgvqcdqec3nla5nb@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, thellstrom@vmware.com, willy@infradead.org
-Cc: linux-mm@kvack.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu, dri-devel@lists.freedesktop.org, airlied@linux.ie, linux-security-module@vger.kernel.org
+To: Borislav Petkov <bp@suse.de>
+Cc: brijesh.singh@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+
+Hi Boris,
+
+On 03/24/2017 12:12 PM, Borislav Petkov wrote:
+>>  }
+>>
+>> +static inline int __init early_set_memory_decrypted(void *addr,
+>> +						    unsigned long size)
+>> +{
+>> +	return 1;
+> 	^^^^^^^^
+>
+> return 1 when !CONFIG_AMD_MEM_ENCRYPT ?
+>
+> The non-early variants return 0.
+>
+
+I will fix it and use the same return value.
+
+>> +}
+>> +
+>> +static inline int __init early_set_memory_encrypted(void *addr,
+>> +						    unsigned long size)
+>> +{
+>> +	return 1;
+>> +}
+>> +
+>>  #define __sme_pa		__pa
+
+>> +	unsigned long pfn, npages;
+>> +	unsigned long addr = (unsigned long)vaddr & PAGE_MASK;
+>> +
+>> +	/* We are going to change the physical page attribute from C=1 to C=0.
+>> +	 * Flush the caches to ensure that all the data with C=1 is flushed to
+>> +	 * memory. Any caching of the vaddr after function returns will
+>> +	 * use C=0.
+>> +	 */
+>
+> Kernel comments style is:
+>
+> 	/*
+> 	 * A sentence ending with a full-stop.
+> 	 * Another sentence. ...
+> 	 * More sentences. ...
+> 	 */
+>
+
+I will update to use kernel comment style.
 
 
+>> +	clflush_cache_range(vaddr, size);
+>> +
+>> +	npages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+>> +	pfn = slow_virt_to_phys((void *)addr) >> PAGE_SHIFT;
+>> +
+>> +	return kernel_map_pages_in_pgd(init_mm.pgd, pfn, addr, npages,
+>> +					flags & ~sme_me_mask);
+>> +
+>> +}
+>> +
+>> +int __init early_set_memory_decrypted(void *vaddr, unsigned long size)
+>> +{
+>> +	unsigned long flags = get_pte_flags((unsigned long)vaddr);
+>
+> So this does lookup_address()...
+>
+>> +	return early_set_memory_enc_dec(vaddr, size, flags & ~sme_me_mask);
+>
+> ... and this does it too in slow_virt_to_phys(). So you do it twice per
+> vaddr.
+>
+> So why don't you define a __slow_virt_to_phys() helper - notice
+> the "__" - which returns flags in its second parameter and which
+> slow_virt_to_phys() calls with a NULL second parameter in the other
+> cases?
+>
 
-On 03/27/2017 05:29 PM, Tetsuo Handa wrote:
-> Thomas Hellstrom wrote:
->> So to summarize. Yes, the drm callers can be fixed up, but IMO requiring
->> vfree() to be non-atomic is IMO not a good idea if avoidable.
-> 
-> I agree.
-> 
-> I don't know about drm code. But I can find AppArmor code doing
-> kvfree() from dfa_free() from aa_dfa_free_kref() from kref_put() from
-> aa_put_dfa() from aa_free_profile() which says
-> 
->  * If the profile was referenced from a task context, free_profile() will
->  * be called from an rcu callback routine, so we must not sleep here.
-> 
+I will look into creating a helper function. thanks
 
-It's safe to call vfree() from rcu callback as in any other interrupt context.
-Commits you listed bellow didn't change anything in that respect.
-They made impossible to call vfree() under stuff like preempt_disable()/spin_lock()
-
-
-> which means that below changes broke things without properly auditing
-> all vfree()/kvfree() users.
-> 
->   commit bf22e37a641327e3 ("mm: add vfree_atomic()")
->   commit 0f110a9b956c1678 ("kernel/fork: use vfree_atomic() to free thread stack")
->   commit 8d5341a6260a59cf ("x86/ldt: use vfree_atomic() to free ldt entries")
->   commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem as potentially sleeping")
->   commit f9e09977671b618a ("mm: turn vmap_purge_lock into a mutex")
->   commit 763b218ddfaf5676 ("mm: add preempt points into __purge_vmap_area_lazy()")
-> 
-> Since above commits did not take appropriate proceedure for changing
-> non-blocking API to blocking API, we must fix vfree() part for 4.10 and 4.11.
-> 
-> Updated patch is at
-> http://lkml.kernel.org/r/201703271916.FBI69340.SQFtOFVJHOLOMF@I-love.SAKURA.ne.jp .
-> 
+-Brijesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
