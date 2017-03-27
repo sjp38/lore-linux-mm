@@ -1,81 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A94E6B0343
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 10:15:27 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id g124so42763568pgc.1
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 07:15:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z64si798563pgz.214.2017.03.27.07.15.25
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 08B7C6B0343
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 10:31:20 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id e188so40342572oif.18
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 07:31:20 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id w82si418779oig.47.2017.03.27.07.31.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Mar 2017 07:15:25 -0700 (PDT)
-Date: Mon, 27 Mar 2017 07:15:18 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Page allocator order-0 optimizations merged
-Message-ID: <20170327141518.GB27285@bombadil.infradead.org>
-References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
- <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
- <20170322234004.kffsce4owewgpqnm@techsingularity.net>
- <20170323144347.1e6f29de@redhat.com>
- <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
- <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
- <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
- <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
- <20170327105514.1ed5b1ba@redhat.com>
- <20170327143947.4c237e54@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170327143947.4c237e54@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Mar 2017 07:31:19 -0700 (PDT)
+Subject: Re: [PATCH] mm: Remove pointless might_sleep() in remove_vm_area().
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201703242140.CHJ64587.LFSFQOJOOMtFHV@I-love.SAKURA.ne.jp>
+	<fe511b26-f2e5-0a0e-09cc-303d38d2ad05@virtuozzo.com>
+	<20170324161732.GA23110@bombadil.infradead.org>
+	<0eceef23-a20c-bca7-2153-b9b5baf1f1d8@virtuozzo.com>
+	<f1c0b9ec-c0c8-502c-c7f0-fe692c73ab04@vmware.com>
+In-Reply-To: <f1c0b9ec-c0c8-502c-c7f0-fe692c73ab04@vmware.com>
+Message-Id: <201703272329.AIE32232.LtVSOOOFFQJFHM@I-love.SAKURA.ne.jp>
+Date: Mon, 27 Mar 2017 23:29:44 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
+To: thellstrom@vmware.com, aryabinin@virtuozzo.com, willy@infradead.org
+Cc: linux-mm@kvack.org, hch@lst.de, jszhang@marvell.com, joelaf@google.com, chris@chris-wilson.co.uk, joaodias@google.com, tglx@linutronix.de, hpa@zytor.com, mingo@elte.hu, dri-devel@lists.freedesktop.org, airlied@linux.ie, linux-security-module@vger.kernel.org
 
-On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:
->  
-> +static __always_inline int in_irq_or_nmi(void)
-> +{
-> +	return in_irq() || in_nmi();
-> +// XXX: hoping compiler will optimize this (todo verify) into:
-> +// #define in_irq_or_nmi()	(preempt_count() & (HARDIRQ_MASK | NMI_MASK))
-> +
-> +	/* compiler was smart enough to only read __preempt_count once
-> +	 * but added two branches
-> +asm code:
-> + a??       mov    __preempt_count,%eax
-> + a??       test   $0xf0000,%eax    // HARDIRQ_MASK: 0x000f0000
-> + a??    a??a??a??jne    2a
-> + a??    a??  test   $0x100000,%eax   // NMI_MASK:     0x00100000
-> + a??    a??a?? je     3f
-> + a?? 2a:a??a??a??mov    %rbx,%rdi
-> +
-> +	 */
-> +}
+Thomas Hellstrom wrote:
+> So to summarize. Yes, the drm callers can be fixed up, but IMO requiring
+> vfree() to be non-atomic is IMO not a good idea if avoidable.
 
-To be fair, you told the compiler to do that with your use of fancy-pants ||
-instead of optimisable |.  Try this instead:
+I agree.
 
-static __always_inline int in_irq_or_nmi(void)
-{
-	return in_irq() | in_nmi();
-}
+I don't know about drm code. But I can find AppArmor code doing
+kvfree() from dfa_free() from aa_dfa_free_kref() from kref_put() from
+aa_put_dfa() from aa_free_profile() which says
 
-0000000000001770 <test_fn>:
-    1770:       65 8b 05 00 00 00 00    mov    %gs:0x0(%rip),%eax        # 1777 <test_fn+0x7>
-                        1773: R_X86_64_PC32     __preempt_count-0x4
-#define in_nmi()                (preempt_count() & NMI_MASK)
-#define in_task()               (!(preempt_count() & \
-                                   (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
-static __always_inline int in_irq_or_nmi(void)
-{
-        return in_irq() | in_nmi();
-    1777:       25 00 00 1f 00          and    $0x1f0000,%eax
-}
-    177c:       c3                      retq   
-    177d:       0f 1f 00                nopl   (%rax)
+ * If the profile was referenced from a task context, free_profile() will
+ * be called from an rcu callback routine, so we must not sleep here.
 
+which means that below changes broke things without properly auditing
+all vfree()/kvfree() users.
+
+  commit bf22e37a641327e3 ("mm: add vfree_atomic()")
+  commit 0f110a9b956c1678 ("kernel/fork: use vfree_atomic() to free thread stack")
+  commit 8d5341a6260a59cf ("x86/ldt: use vfree_atomic() to free ldt entries")
+  commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem as potentially sleeping")
+  commit f9e09977671b618a ("mm: turn vmap_purge_lock into a mutex")
+  commit 763b218ddfaf5676 ("mm: add preempt points into __purge_vmap_area_lazy()")
+
+Since above commits did not take appropriate proceedure for changing
+non-blocking API to blocking API, we must fix vfree() part for 4.10 and 4.11.
+
+Updated patch is at
+http://lkml.kernel.org/r/201703271916.FBI69340.SQFtOFVJHOLOMF@I-love.SAKURA.ne.jp .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
