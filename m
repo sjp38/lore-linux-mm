@@ -1,47 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 336296B0390
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 19:54:44 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id r129so82925844pgr.18
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 16:54:44 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id t6si2091487plj.122.2017.03.27.16.54.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Mar 2017 16:54:43 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Is MADV_HWPOISON supposed to work only on faulted-in pages?
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
-	<20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
-	<20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
-Date: Mon, 27 Mar 2017 16:54:42 -0700
-In-Reply-To: <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp> (Naoya
-	Horiguchi's message of "Thu, 23 Feb 2017 03:23:49 +0000")
-Message-ID: <87zig6uvgd.fsf@firstfloor.org>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EC006B0390
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 20:51:20 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 37so77279264pgx.8
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 17:51:20 -0700 (PDT)
+Received: from shells.gnugeneration.com (shells.gnugeneration.com. [66.240.222.126])
+        by mx.google.com with ESMTP id v63si2249363pgd.13.2017.03.27.17.51.19
+        for <linux-mm@kvack.org>;
+        Mon, 27 Mar 2017 17:51:19 -0700 (PDT)
+Date: Mon, 27 Mar 2017 17:52:27 -0700
+From: vcaputo@pengaru.com
+Subject: Re: [PATCH] shmem: fix __shmem_file_setup error path leaks
+Message-ID: <20170328005227.GW802@shells.gnugeneration.com>
+References: <20170327170534.GA16903@shells.gnugeneration.com>
+ <20170327212127.GF29622@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170327212127.GF29622@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Jan Stancek <jstancek@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: hughd@google.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
->
-> I think that what the testcase effectively does is to test whether memory
-> handling on zero pages works or not.
-> And the testcase's failure seems acceptable, because it's simply not-implemented yet.
-> Maybe recovering from error on zero page is possible (because there's no data
-> loss for memory error,) but I'm not sure that code might be simple enough and/or
-> it's worth doing ...
+On Mon, Mar 27, 2017 at 10:21:27PM +0100, Al Viro wrote:
+> On Mon, Mar 27, 2017 at 10:05:34AM -0700, Vito Caputo wrote:
+> > The existing path and memory cleanups appear to be in reverse order, and
+> > there's no iput() potentially leaking the inode in the last two error gotos.
+> > 
+> > Also make put_memory shmem_unacct_size() conditional on !inode since if we
+> > entered cleanup at put_inode, shmem_evict_inode() occurs via
+> > iput()->iput_final(), which performs the shmem_unacct_size() for us.
+> > 
+> > Signed-off-by: Vito Caputo <vcaputo@pengaru.com>
+> > ---
+> > 
+> > This caught my eye while looking through the memfd_create() implementation.
+> > Included patch was compile tested only...
+> 
+> Obviously so, since you've just introduced a double iput() there.  After
+>         d_instantiate(path.dentry, inode);
+> dropping the reference to path.dentry (done by path_put(&path)) will drop
+> the reference to inode transferred into that dentry by d_instantiate().
+> NAK.
 
-I doubt it's worth doing, it's just too unlikely that a specific page
-is hit. Memory error handling is all about probabilities.
+I see, so it's correct as-is, thanks for the review and apologies for the
+noise!
 
-The test is just broken and should be fixed.
-
-mce-test had similar problems at some point, but they were all fixed.
-
--Andi
+Cheers,
+Vito Caputo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
