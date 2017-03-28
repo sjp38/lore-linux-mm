@@ -1,155 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F73D6B039F
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:48:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m66so108515521pga.15
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:48:15 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id i5si3825922pgh.191.2017.03.28.03.48.14
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0146B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 07:17:32 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p20so99688096pgd.21
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:17:32 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id o5si3928513pgc.29.2017.03.28.04.17.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 03:48:14 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 6/8] x86/dump_pagetables: Add support 5-level paging
-Date: Tue, 28 Mar 2017 13:48:06 +0300
-Message-Id: <20170328104806.41711-1-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170328093946.GA30567@gmail.com>
-References: <20170328093946.GA30567@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 28 Mar 2017 04:17:31 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH V5 16/17] mm: Let arch choose the initial value of task size
+In-Reply-To: <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1490153823-29241-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Date: Tue, 28 Mar 2017 22:17:27 +1100
+Message-ID: <87vaqtabw8.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org
+Cc: linuxppc-dev@lists.ozlabs.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Simple extension to support one more page table level.
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/mm/dump_pagetables.c | 59 +++++++++++++++++++++++++++++++++----------
- 1 file changed, 45 insertions(+), 14 deletions(-)
+> As we start supporting larger address space (>128TB), we want to give
+> architecture a control on max task size of an application which is different
+> from the TASK_SIZE. For ex: ppc64 needs to track the base page size of a segment
+> and it is copied from mm_context_t to PACA on each context switch. If we know that
+> application has not used an address range above 128TB we only need to copy
+> details about 128TB range to PACA. This will help in improving context switch
+> performance by avoiding larger copy operation.
+>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  fs/exec.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 58b5bee7ea27..9f305be71a72 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -110,7 +110,8 @@ static struct addr_marker address_markers[] = {
- #define PTE_LEVEL_MULT (PAGE_SIZE)
- #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
- #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
--#define PGD_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
-+#define P4D_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
-+#define PGD_LEVEL_MULT (PTRS_PER_PUD * P4D_LEVEL_MULT)
- 
- #define pt_dump_seq_printf(m, to_dmesg, fmt, args...)		\
- ({								\
-@@ -286,14 +287,13 @@ static void note_page(struct seq_file *m, struct pg_state *st,
- 	}
- }
- 
--static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
--							unsigned long P)
-+static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr, unsigned long P)
- {
- 	int i;
- 	pte_t *start;
- 	pgprotval_t prot;
- 
--	start = (pte_t *) pmd_page_vaddr(addr);
-+	start = (pte_t *)pmd_page_vaddr(addr);
- 	for (i = 0; i < PTRS_PER_PTE; i++) {
- 		prot = pte_flags(*start);
- 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
-@@ -304,14 +304,13 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
- 
- #if PTRS_PER_PMD > 1
- 
--static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
--							unsigned long P)
-+static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr, unsigned long P)
- {
- 	int i;
- 	pmd_t *start;
- 	pgprotval_t prot;
- 
--	start = (pmd_t *) pud_page_vaddr(addr);
-+	start = (pmd_t *)pud_page_vaddr(addr);
- 	for (i = 0; i < PTRS_PER_PMD; i++) {
- 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
- 		if (!pmd_none(*start)) {
-@@ -347,15 +346,14 @@ static bool pud_already_checked(pud_t *prev_pud, pud_t *pud, bool checkwx)
- 	return checkwx && prev_pud && (pud_val(*prev_pud) == pud_val(*pud));
- }
- 
--static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
--							unsigned long P)
-+static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, unsigned long P)
- {
- 	int i;
- 	pud_t *start;
- 	pgprotval_t prot;
- 	pud_t *prev_pud = NULL;
- 
--	start = (pud_t *) pgd_page_vaddr(addr);
-+	start = (pud_t *)p4d_page_vaddr(addr);
- 
- 	for (i = 0; i < PTRS_PER_PUD; i++) {
- 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
-@@ -377,9 +375,42 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
- }
- 
- #else
--#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(pgd_val(a)),p)
--#define pgd_large(a) pud_large(__pud(pgd_val(a)))
--#define pgd_none(a)  pud_none(__pud(pgd_val(a)))
-+#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(p4d_val(a)),p)
-+#define p4d_large(a) pud_large(__pud(p4d_val(a)))
-+#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
-+#endif
-+
-+#if PTRS_PER_P4D > 1
-+
-+static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, unsigned long P)
-+{
-+	int i;
-+	p4d_t *start;
-+	pgprotval_t prot;
-+
-+	start = (p4d_t *)pgd_page_vaddr(addr);
-+
-+	for (i = 0; i < PTRS_PER_P4D; i++) {
-+		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
-+		if (!p4d_none(*start)) {
-+			if (p4d_large(*start) || !p4d_present(*start)) {
-+				prot = p4d_flags(*start);
-+				note_page(m, st, __pgprot(prot), 2);
-+			} else {
-+				walk_pud_level(m, st, *start,
-+					       P + i * P4D_LEVEL_MULT);
-+			}
-+		} else
-+			note_page(m, st, __pgprot(0), 2);
-+
-+		start++;
-+	}
-+}
-+
-+#else
-+#define walk_p4d_level(m,s,a,p) walk_pud_level(m,s,__p4d(pgd_val(a)),p)
-+#define pgd_large(a) p4d_large(__p4d(pgd_val(a)))
-+#define pgd_none(a)  p4d_none(__p4d(pgd_val(a)))
- #endif
- 
- static inline bool is_hypervisor_range(int idx)
-@@ -424,7 +455,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 				prot = pgd_flags(*start);
- 				note_page(m, &st, __pgprot(prot), 1);
- 			} else {
--				walk_pud_level(m, &st, *start,
-+				walk_p4d_level(m, &st, *start,
- 					       i * PGD_LEVEL_MULT);
- 			}
- 		} else
--- 
-2.11.0
+I'll need an ACK at least on this from someone in mm land.
+
+I assume there's no way I can merge patch 17 without this?
+
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 65145a3df065..5550a56d03c3 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -1308,6 +1308,14 @@ void would_dump(struct linux_binprm *bprm, struct file *file)
+>  }
+>  EXPORT_SYMBOL(would_dump);
+>  
+> +#ifndef arch_init_task_size
+> +static inline void arch_init_task_size(void)
+> +{
+> +	current->mm->task_size = TASK_SIZE;
+> +}
+> +#define arch_init_task_size arch_init_task_size
+
+I don't think you need to do the #define in the fallback case, it's
+just extra noise.
+
+> +#endif
+> +
+>  void setup_new_exec(struct linux_binprm * bprm)
+>  {
+>  	arch_pick_mmap_layout(current->mm);
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
