@@ -1,140 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD372806CB
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 05:48:43 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 133so10517115itu.17
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 02:48:43 -0700 (PDT)
-Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
-        by mx.google.com with ESMTPS id t12si2613663ite.96.2017.03.28.02.48.43
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF2512806CB
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 05:51:55 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id r71so48789193wrb.17
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 02:51:55 -0700 (PDT)
+Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
+        by mx.google.com with ESMTPS id f1si707669wrc.275.2017.03.28.02.51.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 02:48:43 -0700 (PDT)
-Received: by mail-it0-x229.google.com with SMTP id 190so12333973itm.0
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 02:48:43 -0700 (PDT)
+        Tue, 28 Mar 2017 02:51:54 -0700 (PDT)
+Received: by mail-wr0-x243.google.com with SMTP id p52so18051569wrc.2
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 02:51:54 -0700 (PDT)
+Date: Tue, 28 Mar 2017 11:51:51 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
+Message-ID: <20170328095151.GC30567@gmail.com>
+References: <cover.1489519233.git.dvyukov@google.com>
+ <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
+ <20170324065203.GA5229@gmail.com>
+ <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
+ <20170324105700.GB20282@gmail.com>
+ <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
+ <20170328075232.GA19590@gmail.com>
+ <20170328092712.bk32k5iteqqm6pgh@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20170328065033.15966-2-takahiro.akashi@linaro.org>
-References: <20170328064831.15894-1-takahiro.akashi@linaro.org> <20170328065033.15966-2-takahiro.akashi@linaro.org>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Tue, 28 Mar 2017 10:48:42 +0100
-Message-ID: <CAKv+Gu-3tEu8LYv-jzn3G+LNcBff6fzPLF38nszx_botgD6_NA@mail.gmail.com>
-Subject: Re: [PATCH v34 02/14] memblock: add memblock_cap_memory_range()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170328092712.bk32k5iteqqm6pgh@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, James Morse <james.morse@arm.com>, Geoff Levand <geoff@infradead.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Dave Young <dyoung@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Pratyush Anand <panand@redhat.com>, Sameer Goel <sgoel@codeaurora.org>, David Woodhouse <dwmw2@infradead.org>, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 28 March 2017 at 07:50, AKASHI Takahiro <takahiro.akashi@linaro.org> wrote:
-> Add memblock_cap_memory_range() which will remove all the memblock regions
-> except the memory range specified in the arguments. In addition, rework is
-> done on memblock_mem_limit_remove_map() to re-implement it using
-> memblock_cap_memory_range().
->
-> This function, like memblock_mem_limit_remove_map(), will not remove
-> memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
-> later as "device memory."
-> See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
-> address the mem limit issue").
->
-> This function is used, in a succeeding patch in the series of arm64 kdump
-> suuport, to limit the range of usable memory, or System RAM, on crash dump
-> kernel.
-> (Please note that "mem=" parameter is of little use for this purpose.)
->
-> Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
-> Reviewed-by: Will Deacon <will.deacon@arm.com>
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> Acked-by: Dennis Chen <dennis.chen@arm.com>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+* Peter Zijlstra <peterz@infradead.org> wrote:
 
-> ---
->  include/linux/memblock.h |  1 +
->  mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
->  2 files changed, 30 insertions(+), 15 deletions(-)
->
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index e82daffcfc44..4ce24a376262 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -336,6 +336,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
->  phys_addr_t memblock_start_of_DRAM(void);
->  phys_addr_t memblock_end_of_DRAM(void);
->  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-> +void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
->  void memblock_mem_limit_remove_map(phys_addr_t limit);
->  bool memblock_is_memory(phys_addr_t addr);
->  int memblock_is_map_memory(phys_addr_t addr);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 2f4ca8104ea4..b049c9b2dba8 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1543,11 +1543,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
->                               (phys_addr_t)ULLONG_MAX);
->  }
->
-> +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-> +{
-> +       int start_rgn, end_rgn;
-> +       int i, ret;
-> +
-> +       if (!size)
-> +               return;
-> +
-> +       ret = memblock_isolate_range(&memblock.memory, base, size,
-> +                                               &start_rgn, &end_rgn);
-> +       if (ret)
-> +               return;
-> +
-> +       /* remove all the MAP regions */
-> +       for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-> +               if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +                       memblock_remove_region(&memblock.memory, i);
-> +
-> +       for (i = start_rgn - 1; i >= 0; i--)
-> +               if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +                       memblock_remove_region(&memblock.memory, i);
-> +
-> +       /* truncate the reserved regions */
-> +       memblock_remove_range(&memblock.reserved, 0, base);
-> +       memblock_remove_range(&memblock.reserved,
-> +                       base + size, (phys_addr_t)ULLONG_MAX);
-> +}
-> +
->  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
->  {
-> -       struct memblock_type *type = &memblock.memory;
->         phys_addr_t max_addr;
-> -       int i, ret, start_rgn, end_rgn;
->
->         if (!limit)
->                 return;
-> @@ -1558,19 +1584,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
->         if (max_addr == (phys_addr_t)ULLONG_MAX)
->                 return;
->
-> -       ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
-> -                               &start_rgn, &end_rgn);
-> -       if (ret)
-> -               return;
-> -
-> -       /* remove all the MAP regions above the limit */
-> -       for (i = end_rgn - 1; i >= start_rgn; i--) {
-> -               if (!memblock_is_nomap(&type->regions[i]))
-> -                       memblock_remove_region(type, i);
-> -       }
-> -       /* truncate the reserved regions */
-> -       memblock_remove_range(&memblock.reserved, max_addr,
-> -                             (phys_addr_t)ULLONG_MAX);
-> +       memblock_cap_memory_range(0, max_addr);
->  }
->
->  static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
-> --
-> 2.11.1
->
+> On Tue, Mar 28, 2017 at 09:52:32AM +0200, Ingo Molnar wrote:
+> 
+> > No, regular C code.
+> > 
+> > I don't see the point of generating all this code via CPP - it's certainly not 
+> > making it more readable to me. I.e. this patch I commented on is a step backwards 
+> > for readability.
+> 
+> Note that much of the atomic stuff we have today is all CPP already.
+
+Yeah, but there it's implementational: we pick up arch primitives depending on 
+whether they are defined, such as:
+
+#ifndef atomic_read_acquire
+# define atomic_read_acquire(v)		smp_load_acquire(&(v)->counter)
+#endif
+
+> x86 is the exception because its 'weird', but most other archs are
+> almost pure CPP -- check Alpha for example, or asm-generic/atomic.h.
+
+include/asm-generic/atomic.h looks pretty clean and readable overall.
+
+> Also, look at linux/atomic.h, its a giant maze of CPP.
+
+Nah, that's OK, much of is is essentially __weak inlines implemented via CPP - 
+i.e. CPP is filling in a missing compiler feature.
+
+But this patch I replied to appears to add instrumentation wrappery via CPP which 
+looks like excessive and avoidable obfuscation to me.
+
+If it's much more readable and much more compact than the C version then maybe, 
+but I'd like to see the C version first and see ...
+
+> The CPP help us generate functions, reduces endless copy/paste (which induces 
+> random differences -- read bugs) and construct variants depending on the 
+> architecture input.
+> 
+> Yes, the CPP is a pain, but writing all that out explicitly is more of a
+> pain.
+
+So I'm not convinced that it's true in this case.
+
+Could we see the C version and compare? I could be wrong about it all.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
