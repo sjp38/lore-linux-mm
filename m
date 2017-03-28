@@ -1,138 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 09F466B039F
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 21:11:43 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m28so95508570pgn.14
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 18:11:43 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id d185si2268297pgc.362.2017.03.27.18.11.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Mar 2017 18:11:42 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id 79so17146599pgf.0
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 18:11:41 -0700 (PDT)
-Date: Tue, 28 Mar 2017 09:11:37 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [RFC] calc_memmap_size() isn't accurate and one suggestion to improve
-Message-ID: <20170328011137.GA8655@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 31DA76B0390
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2017 23:54:49 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id a72so98448734pge.10
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 20:54:49 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id i67si1948843pfk.218.2017.03.27.20.54.47
+        for <linux-mm@kvack.org>;
+        Mon, 27 Mar 2017 20:54:48 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170327170534.GA16903@shells.gnugeneration.com>
+In-Reply-To: <20170327170534.GA16903@shells.gnugeneration.com>
+Subject: Re: [PATCH] shmem: fix __shmem_file_setup error path leaks
+Date: Tue, 28 Mar 2017 11:54:33 +0800
+Message-ID: <018001d2a777$031dff10$0959fd30$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="4Ckj6UjgE2iN1+kY"
-Content-Disposition: inline
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@techsingularity.net, jiang.liu@linux.intel.com, mhocko@suse.com, akpm@linux-foundation.org, tj@kernel.org, mingo@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Vito Caputo' <vcaputo@pengaru.com>, hughd@google.com
+Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
 
---4Ckj6UjgE2iN1+kY
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On March 28, 2017 1:06 AM Vito Caputo wrote:
+> 
+> The existing path and memory cleanups appear to be in reverse order, and
+> there's no iput() potentially leaking the inode in the last two error gotos.
+> 
+> Also make put_memory shmem_unacct_size() conditional on !inode since if we
+> entered cleanup at put_inode, shmem_evict_inode() occurs via
+> iput()->iput_final(), which performs the shmem_unacct_size() for us.
+> 
+> Signed-off-by: Vito Caputo <vcaputo@pengaru.com>
+> ---
+> 
+> This caught my eye while looking through the memfd_create() implementation.
+> Included patch was compile tested only...
+> 
+>  mm/shmem.c | 15 +++++++++------
+>  1 file changed, 9 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index e67d6ba..a1a84eaf 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -4134,7 +4134,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  				       unsigned long flags, unsigned int i_flags)
+>  {
+>  	struct file *res;
+> -	struct inode *inode;
+> +	struct inode *inode = NULL;
+>  	struct path path;
+>  	struct super_block *sb;
+>  	struct qstr this;
+> @@ -4162,7 +4162,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  	res = ERR_PTR(-ENOSPC);
+>  	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
+>  	if (!inode)
+> -		goto put_memory;
+> +		goto put_path;
+> 
+>  	inode->i_flags |= i_flags;
+>  	d_instantiate(path.dentry, inode);
 
-Hi, masters,
+After this routine, the inode is in use of the dcache, as its comment says.
 
-# What I found
-
-I found the function calc_memmap_size() may not be that accurate to get the
-pages for memmap.
-
-The reason is:
-
-> memmap is allocated on a node base,
-> while the calculation is on a zone base
-
-This applies both to SPARSEMEM and FLATMEM.
-
-For example, on my laptop with 6G memory, all the memmap space is allocated
-=66rom ZONE_NORMAL.
-
-# My suggestion=20
-
-Current code path is:
-
-    sparse_init()                          <- memmap allocated
-    zone_sizes_init()
-        free_area_init_nodes()
-	    calculate_node_totalpages()
-	    free_area_init_core()          <- where we do the calculation
-
-=46rom the code snippet, memmap is already allocated in memblock, which
-means we can get the information by comparing memblock.memory and
-memblock.reserved.
-
-My suggestion is to record this information in pg_data_t in
-calculate_node_totalpages(), which is already doing the calculation on each
-zone's spanned_pages and present_pages.
-
-# Other solutions came to my mind
-
-1. Assume all the memmap is allocated from the highest zone.
-
-Pro:
-
-Easy to calculate
-
-Cor:
-
-Not good to do this assumption. How to set the boundary. And there is the c=
-ase
-memory is allocated bottom-up.
-
-2. Record the memmap area for each allocation
-
-Pro:
-
-Accurate and exact the size and zone index is recorded.
-
-Cor:
-
-Too expensive, especially when VMEMMAP && !ALLOC_MEM_MAP_TOGETHER. There wo=
-uld
-be too many.
-
-# Look for you comment
-
-This code path applies to most of the arch, while I am not 100% for sure th=
-is
-applies to all the arch. If isn't, this change may not be a good one.
-
-The solution looks good to me, while I may miss some corner case or some
-important facts.
-
-Willing to hear from you :-)
-
---=20
-Wei Yang
-Help you, Help me
-
---=20
-Wei Yang
-Help you, Help me
-
---4Ckj6UjgE2iN1+kY
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJY2bhJAAoJEKcLNpZP5cTdYUsP/2OaqgfN7EM08yP9cRV+I2Xp
-3eUSANJGDRCRIKYhprfpXyvfPdnpnMOO+Hy/H2orrt3C2dxQa93s+IIXjH0PCyNS
-KlbC/T3bwHksVTqFifqllKAbs5nttbOvCf8lr/xs8RtMEb4+kjDWC3dRlPwDezU5
-Q1RurBV3N4u4qlpC2rzvV8K6PvoSPFwOjomDFOOrH+lrHrYUdZPo2XuNtrGgyUPt
-+Y0j0MGugIM2fCcspyFeuobF1JReDH0a5bCSEtHyQcF0u14/U1cyAnxXYuVVG98r
-CyZUZ7toI1n+a8ChpyyYqTVYshY/aT50mn+5FYNOKxnl9FMmQ1KcFk0VWjyYYoTh
-10IVPzgVwc687MEUr+B4/oW1DyRu2reHQunY673XFIOwtn4tPdv/sNKSn3U7F69f
-Bz3AwIB/3GiFjq69yNvWdaJcauLGqN2WEGQFEn6xytqUR1ZyroOytzJVLA+p0GBD
-irnVHAkIQLk/wYlios72+aeWe8ALrac7SS8JT0LSczYHnyjRLm3jb3PONzo8U3rF
-7sAbsLSoRz2V30ws2rjo1NLhq2vvFlHpowtq8p60zwxTblPZdR4AdbYkD4EU6YaK
-9C6YcRM6eZcVSYyiUhMQ8FzdqjOZ5bfoU8T3W1FV8X5Z0Cz+lK/URhn1n1ctKfqO
-rVuSHYUNVqatnzU/SqeV
-=dbgO
------END PGP SIGNATURE-----
-
---4Ckj6UjgE2iN1+kY--
+> @@ -4170,19 +4170,22 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  	clear_nlink(inode);	/* It is unlinked */
+>  	res = ERR_PTR(ramfs_nommu_expand_for_mapping(inode, size));
+>  	if (IS_ERR(res))
+> -		goto put_path;
+> +		goto put_inode;
+> 
+>  	res = alloc_file(&path, FMODE_WRITE | FMODE_READ,
+>  		  &shmem_file_operations);
+>  	if (IS_ERR(res))
+> -		goto put_path;
+> +		goto put_inode;
+> 
+>  	return res;
+> 
+> -put_memory:
+> -	shmem_unacct_size(flags, size);
+> +put_inode:
+> +	iput(inode);
+>  put_path:
+>  	path_put(&path);
+> +put_memory:
+> +	if (!inode)
+> +		shmem_unacct_size(flags, size);
+>  	return res;
+>  }
+> 
+> --
+> 2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
