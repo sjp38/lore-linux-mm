@@ -1,85 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC056B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 14:55:34 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b127so38237828lfe.10
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 11:55:34 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id s65si2300867lfi.167.2017.03.28.11.55.31
-        for <linux-mm@kvack.org>;
-        Tue, 28 Mar 2017 11:55:31 -0700 (PDT)
-Date: Tue, 28 Mar 2017 20:55:22 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHv2 6/8] x86/dump_pagetables: Add support 5-level paging
-Message-ID: <20170328185522.5akqgfh4niqi3ptf@pd.tnic>
-References: <20170328093946.GA30567@gmail.com>
- <20170328104806.41711-1-kirill.shutemov@linux.intel.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 19F5C6B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:26:55 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id o70so55066046wrb.11
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 13:26:55 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id k6si4511674wma.165.2017.03.28.13.26.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Mar 2017 13:26:53 -0700 (PDT)
+Date: Tue, 28 Mar 2017 13:26:52 -0700
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [LTP] Is MADV_HWPOISON supposed to work only on faulted-in pages?
+Message-ID: <20170328202652.GC8285@two.firstfloor.org>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+ <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+ <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
+ <87zig6uvgd.fsf@firstfloor.org>
+ <20170328082506.GA30388@rei>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170328104806.41711-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170328082506.GA30388@rei>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Cyril Hrubis <chrubis@suse.cz>
+Cc: Andi Kleen <andi@firstfloor.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
-On Tue, Mar 28, 2017 at 01:48:06PM +0300, Kirill A. Shutemov wrote:
-> Simple extension to support one more page table level.
+> Well I disagree, the reason why the test fails is that MADV_HWPOISON on
+> not-faulted private mappings fails silently, which is a bug, albeit
+> minor one. If something is not implemented, it should report a failure,
+> the usual error return would be EINVAL in this case.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/mm/dump_pagetables.c | 59 +++++++++++++++++++++++++++++++++----------
->  1 file changed, 45 insertions(+), 14 deletions(-)
+> It appears that it fails with EBUSY on first try on newer kernels, but
+> still fails silently when we try for a second time.
+> 
+> Why can't we simply check if the page is faulted or not and return error
+> in the latter case?
 
-Hmm, so without this I get the splat below.
+It's a debug interface. You're supposed to know what you're doing.
 
-Can we do something about this bisection breakage? I mean, this is the
-second explosion caused by 5level paging I trigger. Maybe we should
-merge the whole thing into a single big patch when everything is applied
-and tested, more or less, so that bisection is fine.
-
-Or someone might have a better idea...
-
-[    2.801262] BUG: unable to handle kernel paging request at ffffc753f000f000
-[    2.803013] IP: ptdump_walk_pgd_level_core+0x236/0x3a0
-[    2.804472] PGD 0 
-[    2.804473] P4D 0 
-[    2.805231] 
-[    2.805231] Oops: 0000 [#1] PREEMPT SMP
-[    2.805231] Modules linked in:
-[    2.805231] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.11.0-rc4+ #1
-[    2.805231] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Debian-1.8.2-1 04/01/2014
-[    2.805231] task: ffff88007c1c8040 task.stack: ffffc90000008000
-[    2.805231] RIP: 0010:ptdump_walk_pgd_level_core+0x236/0x3a0
-[    2.805231] RSP: 0018:ffffc9000000be48 EFLAGS: 00010256
-[    2.805231] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000000
-[    2.805231] RDX: ffff880000001000 RSI: ffff880000000000 RDI: ffffc9000000bed0
-[    2.805231] RBP: ffffc9000000bef8 R08: 0000000000000000 R09: 000000000000017f
-[    2.805231] R10: 000000000000001f R11: 0000000000000001 R12: ffffc9000000be90
-[    2.805231] R13: 0000000000000000 R14: ffffc753f000f000 R15: 00000000ffffff00
-[    2.805231] FS:  0000000000000000(0000) GS:ffff88007ed00000(0000) knlGS:0000000000000000
-[    2.805231] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    2.805231] CR2: ffffc753f000f000 CR3: 0000000001c09000 CR4: 00000000000406e0
-[    2.805231] Call Trace:
-[    2.805231]  ? 0xffffffff81000000
-[    2.805231]  ptdump_walk_pgd_level_checkwx+0x17/0x20
-[    2.805231]  mark_rodata_ro+0xec/0x100
-[    2.805231]  ? rest_init+0x90/0x90
-[    2.805231]  kernel_init+0x2a/0x100
-[    2.805231]  ret_from_fork+0x2e/0x40
-[    2.805231] Code: 00 88 ff ff 48 8b 5d 88 4c 8d 34 10 48 ba 00 10 00 00 00 88 ff ff 48 01 d0 48 89 85 70 ff ff ff 48 89 d8 48 c1 f8 10 48 89 45 b0 <49> 8b 06 48 a9 9f ff ff ff 74 7c 48 89 c1 48 be ff 0f 00 00 00 
-[    2.805231] RIP: ptdump_walk_pgd_level_core+0x236/0x3a0 RSP: ffffc9000000be48
-[    2.805231] CR2: ffffc753f000f000
-[    2.805231] ---[ end trace 3ec6e2c757df799d ]---
-[    2.805231] Kernel panic - not syncing: Fatal exception
-[    2.805231] Kernel Offset: disabled
-[    2.805231] ---[ end Kernel panic - not syncing: Fatal exception
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
