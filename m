@@ -1,74 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0146B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 07:17:32 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p20so99688096pgd.21
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:17:32 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id o5si3928513pgc.29.2017.03.28.04.17.31
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D3D6C6B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 07:40:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id r129so98962939pgr.18
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:40:51 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0126.outbound.protection.outlook.com. [104.47.0.126])
+        by mx.google.com with ESMTPS id d23si3989948pgn.60.2017.03.28.04.40.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 28 Mar 2017 04:17:31 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH V5 16/17] mm: Let arch choose the initial value of task size
-In-Reply-To: <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1490153823-29241-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Date: Tue, 28 Mar 2017 22:17:27 +1100
-Message-ID: <87vaqtabw8.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 28 Mar 2017 04:40:50 -0700 (PDT)
+Subject: Re: [PATCHv3] x86/mm: set x32 syscall bit in SET_PERSONALITY()
+References: <20170321174711.29880-1-dsafonov@virtuozzo.com>
+ <alpine.DEB.2.20.1703212319440.3776@nanos>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <cccc8f91-bd0d-fea0-b9b9-71653be38f61@virtuozzo.com>
+Date: Tue, 28 Mar 2017 14:37:07 +0300
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <alpine.DEB.2.20.1703212319440.3776@nanos>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org
-Cc: linuxppc-dev@lists.ozlabs.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill
+ A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, "H. Peter
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
-
-> As we start supporting larger address space (>128TB), we want to give
-> architecture a control on max task size of an application which is different
-> from the TASK_SIZE. For ex: ppc64 needs to track the base page size of a segment
-> and it is copied from mm_context_t to PACA on each context switch. If we know that
-> application has not used an address range above 128TB we only need to copy
-> details about 128TB range to PACA. This will help in improving context switch
-> performance by avoiding larger copy operation.
+On 03/22/2017 01:21 AM, Thomas Gleixner wrote:
+> On Tue, 21 Mar 2017, Dmitry Safonov wrote:
+>> v3:
+>> - clear x32 syscall flag during x32 -> x86-64 exec() (thanks, HPA).
 >
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  fs/exec.c | 10 +++++++++-
->  1 file changed, 9 insertions(+), 1 deletion(-)
+> For correctness sake, this wants to be cleared in the IA32 path as
+> well. It's not causing any harm, but ....
+>
+> I'll amend the patch.
 
-I'll need an ACK at least on this from someone in mm land.
+So, just a gentle reminder about this problem.
+Should I resend v4 with clearing x32 bit in ia32 path?
+Or should I resend with this fixup:
+https://lkml.org/lkml/2017/3/22/343
 
-I assume there's no way I can merge patch 17 without this?
+The fixup doesn't look as simple as clearing x32 syscall bit, but I may
+be wrong.
 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 65145a3df065..5550a56d03c3 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -1308,6 +1308,14 @@ void would_dump(struct linux_binprm *bprm, struct file *file)
->  }
->  EXPORT_SYMBOL(would_dump);
->  
-> +#ifndef arch_init_task_size
-> +static inline void arch_init_task_size(void)
-> +{
-> +	current->mm->task_size = TASK_SIZE;
-> +}
-> +#define arch_init_task_size arch_init_task_size
-
-I don't think you need to do the #define in the fallback case, it's
-just extra noise.
-
-> +#endif
-> +
->  void setup_new_exec(struct linux_binprm * bprm)
->  {
->  	arch_pick_mmap_layout(current->mm);
-
-cheers
+-- 
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
