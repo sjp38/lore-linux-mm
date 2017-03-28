@@ -1,159 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCCD6B039F
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 09:02:42 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id o123so102210297pga.16
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:02:42 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0117.outbound.protection.outlook.com. [104.47.0.117])
-        by mx.google.com with ESMTPS id t25si4153071pgo.353.2017.03.28.06.02.40
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D6CF86B03A0
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 09:02:58 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id p66so56526199vkd.5
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:02:58 -0700 (PDT)
+Received: from mail-vk0-x22b.google.com (mail-vk0-x22b.google.com. [2607:f8b0:400c:c05::22b])
+        by mx.google.com with ESMTPS id 61si1632650uav.125.2017.03.28.06.02.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 28 Mar 2017 06:02:41 -0700 (PDT)
-Subject: Re: [PATCHv3] x86/mm: set x32 syscall bit in SET_PERSONALITY()
-References: <20170321174711.29880-1-dsafonov@virtuozzo.com>
- <alpine.DEB.2.20.1703212319440.3776@nanos>
- <cccc8f91-bd0d-fea0-b9b9-71653be38f61@virtuozzo.com>
- <alpine.DEB.2.20.1703281449070.3616@nanos>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <66372d92-8fc1-301e-df21-7020514d7dbb@virtuozzo.com>
-Date: Tue, 28 Mar 2017 15:59:00 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Mar 2017 06:02:57 -0700 (PDT)
+Received: by mail-vk0-x22b.google.com with SMTP id s68so86804805vke.3
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:02:57 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1703281449070.3616@nanos>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAC5umyi0Yq7spQW=nQEEnkZ1Ar7VBwaZPPdstThnyJzg2tSKUg@mail.gmail.com>
+References: <20170324200837.82451-1-dvyukov@google.com> <CAC5umyi0Yq7spQW=nQEEnkZ1Ar7VBwaZPPdstThnyJzg2tSKUg@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 28 Mar 2017 15:02:36 +0200
+Message-ID: <CACT4Y+arx7_g4k60G-orVoV2r=kyEjCDO99OhYDjyp6MnvgNeA@mail.gmail.com>
+Subject: Re: [PATCH] fault-inject: support systematic fault injection
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill
- A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, "H. Peter
- Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, syzkaller <syzkaller@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/28/2017 03:51 PM, Thomas Gleixner wrote:
-> On Tue, 28 Mar 2017, Dmitry Safonov wrote:
->> On 03/22/2017 01:21 AM, Thomas Gleixner wrote:
->>> On Tue, 21 Mar 2017, Dmitry Safonov wrote:
->>>> v3:
->>>> - clear x32 syscall flag during x32 -> x86-64 exec() (thanks, HPA).
->>>
->>> For correctness sake, this wants to be cleared in the IA32 path as
->>> well. It's not causing any harm, but ....
->>>
->>> I'll amend the patch.
+On Sat, Mar 25, 2017 at 10:54 AM, Akinobu Mita <akinobu.mita@gmail.com> wrote:
+> 2017-03-25 5:08 GMT+09:00 Dmitry Vyukov <dvyukov@google.com>:
+>> Add /sys/kernel/debug/fail_once file that allows failing 0-th, 1-st, 2-nd
+>> and so on calls systematically. Excerpt from the added documentation:
 >>
->> So, just a gentle reminder about this problem.
->> Should I resend v4 with clearing x32 bit in ia32 path?
->> Or should I resend with this fixup:
->> https://lkml.org/lkml/2017/3/22/343
+>> ===
+>> Write to this file of integer N makes N-th call in the current task fail
+>> (N is 0-based). Read from this file returns a single char 'Y' or 'N'
+>> that says if the fault setup with a previous write to this file was
+>> injected or not, and disables the fault if it wasn't yet injected.
+>> Note that this file enables all types of faults (slab, futex, etc).
+>> This setting takes precedence over all other generic settings like
+>> probability, interval, times, etc. But per-capability settings
+>> (e.g. fail_futex/ignore-private) take precedence over it.
+>> This feature is intended for systematic testing of faults in a single
+>> system call. See an example below.
+>> ===
+>
+> The "/sys/kernel/debug/fail_once" contains per-task data.
+>
+> Should we introduce new per-task file like "/proc/<pid>/fail-nth"
+> instead of adding a single global debugfs file?
+
+Mailed v2 that uses /proc/self/task/tid/fail-nth.
+
+
+>> Why adding new setting:
+>> 1. Existing settings are global rather than per-task.
+>>    So parallel testing is not possible.
+>> 2. attr->interval is close but it depends on attr->count
+>>    which is non reset to 0, so interval does not work as expected.
+>> 3. Trying to model this with existing settings requires manipulations
+>>    of all of probability, interval, times, space, task-filter and
+>>    unexposed count and per-task make-it-fail files.
+>> 4. Existing settings are per-failure-type, and the set of failure
+>>    types is potentially expanding.
+>> 5. make-it-fail can't be changed by unprivileged user and aggressive
+>>    stress testing better be done from an unprivileged user.
+>>    Similarly, this would require opening the debugfs files to the
+>>    unprivileged user, as he would need to reopen at least times file
+>>    (not possible to pre-open before dropping privs).
 >>
->> The fixup doesn't look as simple as clearing x32 syscall bit, but I may
->> be wrong.
->
-> Something like the below should set it correctly for all possible
-> scenarios.
-
-Ok, I'll check the ifdeffery, define __NR_{x32_,ia32_}execve,
-test it and resend v4 today or tomorrow.
-Thanks.
-
->
-> Thanks,
->
-> 	tglx
->
-> 8<------------------
->
->  arch/x86/kernel/process_64.c |   63 ++++++++++++++++++++++++++++---------------
->  1 file changed, 42 insertions(+), 21 deletions(-)
->
-> --- a/arch/x86/kernel/process_64.c
-> +++ b/arch/x86/kernel/process_64.c
-> @@ -494,6 +494,8 @@ void set_personality_64bit(void)
->  	clear_thread_flag(TIF_IA32);
->  	clear_thread_flag(TIF_ADDR32);
->  	clear_thread_flag(TIF_X32);
-> +	/* Pretend that this comes from a 64bit execve */
-> +	task_pt_regs(current)->orig_ax = __NR_execve;
->
->  	/* Ensure the corresponding mm is not marked. */
->  	if (current->mm)
-> @@ -506,32 +508,51 @@ void set_personality_64bit(void)
->  	current->personality &= ~READ_IMPLIES_EXEC;
->  }
->
-> -void set_personality_ia32(bool x32)
-> +static void __set_personality_x32(void)
-> +{
-> +#ifdef CONFIG_X86_X32
-> +	clear_thread_flag(TIF_IA32);
-> +	set_thread_flag(TIF_X32);
-> +	if (current->mm)
-> +		current->mm->context.ia32_compat = TIF_X32;
-> +	current->personality &= ~READ_IMPLIES_EXEC;
-> +	/*
-> +	 * in_compat_syscall() uses the presence of the x32
-> +	 * syscall bit flag to determine compat status.
-> +	 * The x86 mmap() code relies on the syscall bitness
-> +	 * so set x32 syscall bit right here to make
-> +	 * in_compat_syscall() work during exec().
-> +	 *
-> +	 * Pretend to come from a x32 execve.
-> +	 */
-> +	task_pt_regs(current)->orig_ax = __NR_x32_execve | __X32_SYSCALL_BIT;
-> +	current->thread.status &= ~TS_COMPAT;
-> +#endif
-> +}
-> +
-> +static void __set_personality_ia32(void)
->  {
-> -	/* inherit personality from parent */
-> +#ifdef CONFIG_COMPAT_32
-> +	set_thread_flag(TIF_IA32);
-> +	clear_thread_flag(TIF_X32);
-> +	if (current->mm)
-> +		current->mm->context.ia32_compat = TIF_IA32;
-> +	current->personality |= force_personality32;
-> +	/* Prepare the first "return" to user space */
-> +	task_pt_regs(current)->orig_ax = __NR_ia32_execve;
-> +	current->thread.status |= TS_COMPAT;
-> +#endif
-> +}
->
-> +void set_personality_ia32(bool x32)
-> +{
->  	/* Make sure to be in 32bit mode */
->  	set_thread_flag(TIF_ADDR32);
->
-> -	/* Mark the associated mm as containing 32-bit tasks. */
-> -	if (x32) {
-> -		clear_thread_flag(TIF_IA32);
-> -		set_thread_flag(TIF_X32);
-> -		if (current->mm)
-> -			current->mm->context.ia32_compat = TIF_X32;
-> -		current->personality &= ~READ_IMPLIES_EXEC;
-> -		/* in_compat_syscall() uses the presence of the x32
-> -		   syscall bit flag to determine compat status */
-> -		current->thread.status &= ~TS_COMPAT;
-> -	} else {
-> -		set_thread_flag(TIF_IA32);
-> -		clear_thread_flag(TIF_X32);
-> -		if (current->mm)
-> -			current->mm->context.ia32_compat = TIF_IA32;
-> -		current->personality |= force_personality32;
-> -		/* Prepare the first "return" to user space */
-> -		current->thread.status |= TS_COMPAT;
-> -	}
-> +	if (x32)
-> +		__set_personality_x32();
-> +	else
-> +		__set_personality_ia32();
->  }
->  EXPORT_SYMBOL_GPL(set_personality_ia32);
->
->
-
-
--- 
-              Dmitry
+>> The proposed interface solves all of the above (see the example).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
