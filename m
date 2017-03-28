@@ -1,301 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 84B666B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 09:01:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id f50so52897760wrf.7
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:01:35 -0700 (PDT)
-Received: from mail-wr0-x22b.google.com (mail-wr0-x22b.google.com. [2a00:1450:400c:c0c::22b])
-        by mx.google.com with ESMTPS id l127si3352389wmf.62.2017.03.28.06.01.32
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FCCD6B039F
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 09:02:42 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id o123so102210297pga.16
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:02:42 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0117.outbound.protection.outlook.com. [104.47.0.117])
+        by mx.google.com with ESMTPS id t25si4153071pgo.353.2017.03.28.06.02.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 06:01:33 -0700 (PDT)
-Received: by mail-wr0-x22b.google.com with SMTP id u1so104250686wra.2
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:01:32 -0700 (PDT)
-From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH v2] fault-inject: support systematic fault injection
-Date: Tue, 28 Mar 2017 15:01:28 +0200
-Message-Id: <20170328130128.101773-1-dvyukov@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 28 Mar 2017 06:02:41 -0700 (PDT)
+Subject: Re: [PATCHv3] x86/mm: set x32 syscall bit in SET_PERSONALITY()
+References: <20170321174711.29880-1-dsafonov@virtuozzo.com>
+ <alpine.DEB.2.20.1703212319440.3776@nanos>
+ <cccc8f91-bd0d-fea0-b9b9-71653be38f61@virtuozzo.com>
+ <alpine.DEB.2.20.1703281449070.3616@nanos>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <66372d92-8fc1-301e-df21-7020514d7dbb@virtuozzo.com>
+Date: Tue, 28 Mar 2017 15:59:00 +0300
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1703281449070.3616@nanos>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akinobu.mita@gmail.com, akpm@linux-foundation.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill
+ A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, "H. Peter
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
 
-Add /proc/self/task/<current-tid>/fail-nth file that allows failing
-0-th, 1-st, 2-nd and so on calls systematically.
-Excerpt from the added documentation:
+On 03/28/2017 03:51 PM, Thomas Gleixner wrote:
+> On Tue, 28 Mar 2017, Dmitry Safonov wrote:
+>> On 03/22/2017 01:21 AM, Thomas Gleixner wrote:
+>>> On Tue, 21 Mar 2017, Dmitry Safonov wrote:
+>>>> v3:
+>>>> - clear x32 syscall flag during x32 -> x86-64 exec() (thanks, HPA).
+>>>
+>>> For correctness sake, this wants to be cleared in the IA32 path as
+>>> well. It's not causing any harm, but ....
+>>>
+>>> I'll amend the patch.
+>>
+>> So, just a gentle reminder about this problem.
+>> Should I resend v4 with clearing x32 bit in ia32 path?
+>> Or should I resend with this fixup:
+>> https://lkml.org/lkml/2017/3/22/343
+>>
+>> The fixup doesn't look as simple as clearing x32 syscall bit, but I may
+>> be wrong.
+>
+> Something like the below should set it correctly for all possible
+> scenarios.
 
-===
-Write to this file of integer N makes N-th call in the current task fail
-(N is 0-based). Read from this file returns a single char 'Y' or 'N'
-that says if the fault setup with a previous write to this file was
-injected or not, and disables the fault if it wasn't yet injected.
-Note that this file enables all types of faults (slab, futex, etc).
-This setting takes precedence over all other generic settings like
-probability, interval, times, etc. But per-capability settings
-(e.g. fail_futex/ignore-private) take precedence over it.
-This feature is intended for systematic testing of faults in a single
-system call. See an example below.
-===
+Ok, I'll check the ifdeffery, define __NR_{x32_,ia32_}execve,
+test it and resend v4 today or tomorrow.
+Thanks.
 
-Why adding new setting:
-1. Existing settings are global rather than per-task.
-   So parallel testing is not possible.
-2. attr->interval is close but it depends on attr->count
-   which is non reset to 0, so interval does not work as expected.
-3. Trying to model this with existing settings requires manipulations
-   of all of probability, interval, times, space, task-filter and
-   unexposed count and per-task make-it-fail files.
-4. Existing settings are per-failure-type, and the set of failure
-   types is potentially expanding.
-5. make-it-fail can't be changed by unprivileged user and aggressive
-   stress testing better be done from an unprivileged user.
-   Similarly, this would require opening the debugfs files to the
-   unprivileged user, as he would need to reopen at least times file
-   (not possible to pre-open before dropping privs).
+>
+> Thanks,
+>
+> 	tglx
+>
+> 8<------------------
+>
+>  arch/x86/kernel/process_64.c |   63 ++++++++++++++++++++++++++++---------------
+>  1 file changed, 42 insertions(+), 21 deletions(-)
+>
+> --- a/arch/x86/kernel/process_64.c
+> +++ b/arch/x86/kernel/process_64.c
+> @@ -494,6 +494,8 @@ void set_personality_64bit(void)
+>  	clear_thread_flag(TIF_IA32);
+>  	clear_thread_flag(TIF_ADDR32);
+>  	clear_thread_flag(TIF_X32);
+> +	/* Pretend that this comes from a 64bit execve */
+> +	task_pt_regs(current)->orig_ax = __NR_execve;
+>
+>  	/* Ensure the corresponding mm is not marked. */
+>  	if (current->mm)
+> @@ -506,32 +508,51 @@ void set_personality_64bit(void)
+>  	current->personality &= ~READ_IMPLIES_EXEC;
+>  }
+>
+> -void set_personality_ia32(bool x32)
+> +static void __set_personality_x32(void)
+> +{
+> +#ifdef CONFIG_X86_X32
+> +	clear_thread_flag(TIF_IA32);
+> +	set_thread_flag(TIF_X32);
+> +	if (current->mm)
+> +		current->mm->context.ia32_compat = TIF_X32;
+> +	current->personality &= ~READ_IMPLIES_EXEC;
+> +	/*
+> +	 * in_compat_syscall() uses the presence of the x32
+> +	 * syscall bit flag to determine compat status.
+> +	 * The x86 mmap() code relies on the syscall bitness
+> +	 * so set x32 syscall bit right here to make
+> +	 * in_compat_syscall() work during exec().
+> +	 *
+> +	 * Pretend to come from a x32 execve.
+> +	 */
+> +	task_pt_regs(current)->orig_ax = __NR_x32_execve | __X32_SYSCALL_BIT;
+> +	current->thread.status &= ~TS_COMPAT;
+> +#endif
+> +}
+> +
+> +static void __set_personality_ia32(void)
+>  {
+> -	/* inherit personality from parent */
+> +#ifdef CONFIG_COMPAT_32
+> +	set_thread_flag(TIF_IA32);
+> +	clear_thread_flag(TIF_X32);
+> +	if (current->mm)
+> +		current->mm->context.ia32_compat = TIF_IA32;
+> +	current->personality |= force_personality32;
+> +	/* Prepare the first "return" to user space */
+> +	task_pt_regs(current)->orig_ax = __NR_ia32_execve;
+> +	current->thread.status |= TS_COMPAT;
+> +#endif
+> +}
+>
+> +void set_personality_ia32(bool x32)
+> +{
+>  	/* Make sure to be in 32bit mode */
+>  	set_thread_flag(TIF_ADDR32);
+>
+> -	/* Mark the associated mm as containing 32-bit tasks. */
+> -	if (x32) {
+> -		clear_thread_flag(TIF_IA32);
+> -		set_thread_flag(TIF_X32);
+> -		if (current->mm)
+> -			current->mm->context.ia32_compat = TIF_X32;
+> -		current->personality &= ~READ_IMPLIES_EXEC;
+> -		/* in_compat_syscall() uses the presence of the x32
+> -		   syscall bit flag to determine compat status */
+> -		current->thread.status &= ~TS_COMPAT;
+> -	} else {
+> -		set_thread_flag(TIF_IA32);
+> -		clear_thread_flag(TIF_X32);
+> -		if (current->mm)
+> -			current->mm->context.ia32_compat = TIF_IA32;
+> -		current->personality |= force_personality32;
+> -		/* Prepare the first "return" to user space */
+> -		current->thread.status |= TS_COMPAT;
+> -	}
+> +	if (x32)
+> +		__set_personality_x32();
+> +	else
+> +		__set_personality_ia32();
+>  }
+>  EXPORT_SYMBOL_GPL(set_personality_ia32);
+>
+>
 
-The proposed interface solves all of the above (see the example).
 
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-
----
-We want to integrate this into syzkaller fuzzer.
-A prototype has found 10 bugs in kernel in first day of usage:
-https://groups.google.com/forum/#!searchin/syzkaller/%22FAULT_INJECTION%22%7Csort:relevance
-
-Changes since v1:
- - change file name from /sys/kernel/debug/fail_once
-   to /proc/self/task/<current-tid>/fail-nth as per
-   Akinobu suggestion
-
----
- Documentation/fault-injection/fault-injection.txt | 78 +++++++++++++++++++++++
- fs/proc/base.c                                    | 52 +++++++++++++++
- include/linux/sched.h                             |  1 +
- kernel/fork.c                                     |  4 ++
- lib/fault-inject.c                                |  7 ++
- 5 files changed, 142 insertions(+)
-
-diff --git a/Documentation/fault-injection/fault-injection.txt b/Documentation/fault-injection/fault-injection.txt
-index 415484f3d59a..192d8cbcc5f9 100644
---- a/Documentation/fault-injection/fault-injection.txt
-+++ b/Documentation/fault-injection/fault-injection.txt
-@@ -134,6 +134,22 @@ use the boot option:
- 	fail_futex=
- 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
- 
-+o proc entries
-+
-+- /proc/self/task/<current-tid>/fail-nth:
-+
-+	Write to this file of integer N makes N-th call in the current task fail
-+	(N is 0-based). Read from this file returns a single char 'Y' or 'N'
-+	that says if the fault setup with a previous write to this file was
-+	injected or not, and disables the fault if it wasn't yet injected.
-+	Note that this file enables all types of faults (slab, futex, etc).
-+	This setting takes precedence over all other generic debugfs settings
-+	like probability, interval, times, etc. But per-capability settings
-+	(e.g. fail_futex/ignore-private) take precedence over it.
-+
-+	This feature is intended for systematic testing of faults in a single
-+	system call. See an example below.
-+
- How to add new fault injection capability
- -----------------------------------------
- 
-@@ -278,3 +294,65 @@ allocation failure.
- 	# env FAILCMD_TYPE=fail_page_alloc \
- 		./tools/testing/fault-injection/failcmd.sh --times=100 \
-                 -- make -C tools/testing/selftests/ run_tests
-+
-+Systematic faults using fail-nth
-+---------------------------------
-+
-+The following code systematically faults 0-th, 1-st, 2-nd and so on
-+capabilities in the socketpair() system call.
-+
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <sys/socket.h>
-+#include <sys/syscall.h>
-+#include <fcntl.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <stdlib.h>
-+#include <stdio.h>
-+#include <errno.h>
-+
-+int main()
-+{
-+	int i, err, res, fail_nth, fds[2];
-+	char buf[128];
-+
-+	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
-+	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
-+	fail_nth = open(buf, O_RDWR);
-+	for (i = 0;; i++) {
-+		sprintf(buf, "%d", i);
-+		write(fail_nth, buf, strlen(buf));
-+		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
-+		err = errno;
-+		read(fail_nth, buf, 1);
-+		if (res == 0) {
-+			close(fds[0]);
-+			close(fds[1]);
-+		}
-+		printf("%d-th fault %c: res=%d/%d\n", i, buf[0], res, err);
-+		if (buf[0] != 'Y')
-+			break;
-+	}
-+	return 0;
-+}
-+
-+An example output:
-+
-+0-th fault Y: res=-1/23
-+1-th fault Y: res=-1/23
-+2-th fault Y: res=-1/23
-+3-th fault Y: res=-1/12
-+4-th fault Y: res=-1/12
-+5-th fault Y: res=-1/23
-+6-th fault Y: res=-1/23
-+7-th fault Y: res=-1/23
-+8-th fault Y: res=-1/12
-+9-th fault Y: res=-1/12
-+10-th fault Y: res=-1/12
-+11-th fault Y: res=-1/12
-+12-th fault Y: res=-1/12
-+13-th fault Y: res=-1/12
-+14-th fault Y: res=-1/12
-+15-th fault Y: res=-1/12
-+16-th fault N: res=0/12
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 6e8655845830..66001172249b 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1353,6 +1353,53 @@ static const struct file_operations proc_fault_inject_operations = {
- 	.write		= proc_fault_inject_write,
- 	.llseek		= generic_file_llseek,
- };
-+
-+static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
-+				   size_t count, loff_t *ppos)
-+{
-+	struct task_struct *task;
-+	int err, n;
-+
-+	task = get_proc_task(file_inode(file));
-+	if (!task)
-+		return -ESRCH;
-+	put_task_struct(task);
-+	if (task != current)
-+		return -EPERM;
-+	err = kstrtoint_from_user(buf, count, 10, &n);
-+	if (err)
-+		return err;
-+	if (n < 0 || n == INT_MAX)
-+		return -EINVAL;
-+	current->fail_nth = n + 1;
-+	return len;
-+}
-+
-+static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
-+				  size_t count, loff_t *ppos)
-+{
-+	struct task_struct *task;
-+	int err;
-+
-+	task = get_proc_task(file_inode(file));
-+	if (!task)
-+		return -ESRCH;
-+	put_task_struct(task);
-+	if (task != current)
-+		return -EPERM;
-+	if (count < 1)
-+		return -EINVAL;
-+	err = put_user((char)(current->fail_nth ? 'N' : 'Y'), buf);
-+	if (err)
-+		return err;
-+	current->fail_nth = 0;
-+	return 1;
-+}
-+
-+static const struct file_operations proc_fail_nth_operations = {
-+	.read		= proc_fail_nth_read,
-+	.write		= proc_fail_nth_write,
-+};
- #endif
- 
- 
-@@ -3296,6 +3343,11 @@ static const struct pid_entry tid_base_stuff[] = {
- #endif
- #ifdef CONFIG_FAULT_INJECTION
- 	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
-+	/*
-+	 * Operations on the file check that the task is current,
-+	 * so we create it with 0666 to support testing under unprivileged user.
-+	 */
-+	REG("fail-nth", 0666, proc_fail_nth_operations),
- #endif
- #ifdef CONFIG_TASK_IO_ACCOUNTING
- 	ONE("io",	S_IRUSR, proc_tid_io_accounting),
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 543e0ea82684..7b50221fea51 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1897,6 +1897,7 @@ struct task_struct {
- #endif
- #ifdef CONFIG_FAULT_INJECTION
- 	int make_it_fail;
-+	int fail_nth;
- #endif
- 	/*
- 	 * when (nr_dirtied >= nr_dirtied_pause), it's time to call
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 61284d8122fa..869c97a0a930 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -545,6 +545,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
- 
- 	kcov_task_init(tsk);
- 
-+#ifdef CONFIG_FAULT_INJECTION
-+	tsk->fail_nth = 0;
-+#endif
-+
- 	return tsk;
- 
- free_stack:
-diff --git a/lib/fault-inject.c b/lib/fault-inject.c
-index 6a823a53e357..d6516ba64d33 100644
---- a/lib/fault-inject.c
-+++ b/lib/fault-inject.c
-@@ -107,6 +107,12 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
- 
- bool should_fail(struct fault_attr *attr, ssize_t size)
- {
-+	if (in_task() && current->fail_nth) {
-+		if (--current->fail_nth == 0)
-+			goto fail;
-+		return false;
-+	}
-+
- 	/* No need to check any other properties if the probability is 0 */
- 	if (attr->probability == 0)
- 		return false;
-@@ -134,6 +140,7 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
- 	if (!fail_stacktrace(attr))
- 		return false;
- 
-+fail:
- 	fail_dump(attr);
- 
- 	if (atomic_read(&attr->times) != -1)
 -- 
-2.12.2.564.g063fe858b8-goog
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
