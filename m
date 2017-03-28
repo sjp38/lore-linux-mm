@@ -1,69 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 927236B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:32:23 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y77so25163998wrb.22
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:32:23 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 430056B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:52:38 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w96so51099870wrb.13
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:52:38 -0700 (PDT)
 Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
-        by mx.google.com with ESMTPS id e17si2430031wmf.12.2017.03.28.00.32.22
+        by mx.google.com with ESMTPS id d75si2468496wme.36.2017.03.28.00.52.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 00:32:22 -0700 (PDT)
-Received: by mail-wr0-x243.google.com with SMTP id u1so19935928wra.3
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:32:22 -0700 (PDT)
-Subject: Re: Page allocator order-0 optimizations merged
-References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
- <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
- <20170322234004.kffsce4owewgpqnm@techsingularity.net>
- <20170323144347.1e6f29de@redhat.com>
- <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
- <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
- <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
- <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
- <20170327105514.1ed5b1ba@redhat.com> <20170327143947.4c237e54@redhat.com>
- <20170327133212.6azfgrariwocdzzd@techsingularity.net>
-From: Tariq Toukan <ttoukan.linux@gmail.com>
-Message-ID: <0873b65b-2217-005d-0b42-4af6ad66cc0f@gmail.com>
-Date: Tue, 28 Mar 2017 10:32:19 +0300
+        Tue, 28 Mar 2017 00:52:36 -0700 (PDT)
+Received: by mail-wr0-x243.google.com with SMTP id w43so17172372wrb.1
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:52:35 -0700 (PDT)
+Date: Tue, 28 Mar 2017 09:52:32 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
+Message-ID: <20170328075232.GA19590@gmail.com>
+References: <cover.1489519233.git.dvyukov@google.com>
+ <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
+ <20170324065203.GA5229@gmail.com>
+ <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
+ <20170324105700.GB20282@gmail.com>
+ <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170327133212.6azfgrariwocdzzd@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
 
+* Dmitry Vyukov <dvyukov@google.com> wrote:
 
-On 27/03/2017 4:32 PM, Mel Gorman wrote:
-> On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:
->> On Mon, 27 Mar 2017 10:55:14 +0200
->> Jesper Dangaard Brouer <brouer@redhat.com> wrote:
->>
->>> A possible solution, would be use the local_bh_{disable,enable} instead
->>> of the {preempt_disable,enable} calls.  But it is slower, using numbers
->>> from [1] (19 vs 11 cycles), thus the expected cycles saving is 38-19=19.
->>>
->>> The problematic part of using local_bh_enable is that this adds a
->>> softirq/bottom-halves rescheduling point (as it checks for pending
->>> BHs).  Thus, this might affects real workloads.
->>
->> I implemented this solution in patch below... and tested it on mlx5 at
->> 50G with manually disabled driver-page-recycling.  It works for me.
->>
->> To Mel, that do you prefer... a partial-revert or something like this?
->>
->
-> If Tariq confirms it works for him as well, this looks far safer patch
+> On Fri, Mar 24, 2017 at 11:57 AM, Ingo Molnar <mingo@kernel.org> wrote:
+> >
+> > * Dmitry Vyukov <dvyukov@google.com> wrote:
+> >
+> >> > Are just utterly disgusting that turn perfectly readable code into an
+> >> > unreadable, unmaintainable mess.
+> >> >
+> >> > You need to find some better, cleaner solution please, or convince me that no
+> >> > such solution is possible. NAK for the time being.
+> >>
+> >> Well, I can just write all functions as is. Does it better confirm to kernel
+> >> style?
+> >
+> > I think writing the prototypes out as-is, properly organized, beats any of these
+> > macro based solutions.
+> 
+> You mean write out the prototypes, but use what for definitions? Macros again?
 
-Great.
-I will test Jesper's patch today in the afternoon.
+No, regular C code.
 
-> than having a dedicate IRQ-safe queue. Your concern about the BH
-> scheduling point is valid but if it's proven to be a problem, there is
-> still the option of a partial revert.
->
+I don't see the point of generating all this code via CPP - it's certainly not 
+making it more readable to me. I.e. this patch I commented on is a step backwards 
+for readability.
+
+I'd prefer repetition and a higher overall line count over complex CPP constructs.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
