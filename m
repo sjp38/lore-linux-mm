@@ -1,128 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 528136B0397
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 11:23:13 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id p22so60545951qka.4
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 08:23:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 144si3675600qkj.311.2017.03.28.08.23.12
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E08D66B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 11:28:41 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n78so37389356lfi.4
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 08:28:41 -0700 (PDT)
+Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with ESMTPS id 9si1559144ljg.235.2017.03.28.08.28.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 08:23:12 -0700 (PDT)
-Date: Tue, 28 Mar 2017 17:23:03 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
-Message-ID: <20170328172303.78a3c6d4@redhat.com>
-In-Reply-To: <20170328143431.GB4216@lerouge>
-References: <20170328101403.34a82fbf@redhat.com>
-	<20170328143431.GB4216@lerouge>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 28 Mar 2017 08:28:40 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: memory hotplug and force_remove
+Date: Tue, 28 Mar 2017 17:22:58 +0200
+Message-ID: <2203902.lsAnRkUs2Y@aspire.rjw.lan>
+In-Reply-To: <20170328075808.GB18241@dhcp22.suse.cz>
+References: <20170320192938.GA11363@dhcp22.suse.cz> <2735706.OR0SQDpVy6@aspire.rjw.lan> <20170328075808.GB18241@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: linux-kernel@vger.kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, brouer@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, Jiri Kosina <jkosina@suse.cz>, joeyli <jlee@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-On Tue, 28 Mar 2017 16:34:36 +0200
-Frederic Weisbecker <fweisbec@gmail.com> wrote:
-
-> On Tue, Mar 28, 2017 at 10:14:03AM +0200, Jesper Dangaard Brouer wrote:
+On Tuesday, March 28, 2017 09:58:08 AM Michal Hocko wrote:
+> On Mon 20-03-17 22:24:42, Rafael J. Wysocki wrote:
+> > On Monday, March 20, 2017 03:29:39 PM Michal Hocko wrote:
+> > > Hi Rafael,
 > > 
-> > (While evaluating some changes to the page allocator) I ran into an
-> > issue with ksoftirqd getting too much CPU sched time.
+> > Hi,
 > > 
-> > I bisected the problem to
-> >  a499a5a14dbd ("sched/cputime: Increment kcpustat directly on irqtime account")
+> > > we have been chasing the following BUG() triggering during the memory
+> > > hotremove (remove_memory):
+> > > 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> > > 				check_memblock_offlined_cb);
+> > > 	if (ret)
+> > > 		BUG();
+> > > 
+> > > and it took a while to learn that the issue is caused by
+> > > /sys/firmware/acpi/hotplug/force_remove being enabled. I was really
+> > > surprised to see such an option because at least for the memory hotplug
+> > > it cannot work at all. Memory hotplug fails when the memory is still
+> > > in use. Even if we do not BUG() here enforcing the hotplug operation
+> > > will lead to problematic behavior later like crash or a silent memory
+> > > corruption if the memory gets onlined back and reused by somebody else.
+> > > 
+> > > I am wondering what was the motivation for introducing this behavior and
+> > > whether there is a way to disallow it for memory hotplug. Or maybe drop
+> > > it completely. What would break in such a case?
 > > 
-> >  a499a5a14dbd1d0315a96fc62a8798059325e9e6 is the first bad commit
-> >  commit a499a5a14dbd1d0315a96fc62a8798059325e9e6
-> >  Author: Frederic Weisbecker <fweisbec@gmail.com>
-> >  Date:   Tue Jan 31 04:09:32 2017 +0100
+> > Honestly, I don't remember from the top of my head and I haven't looked at
+> > that code for several months.
 > > 
-> >     sched/cputime: Increment kcpustat directly on irqtime account
-> >     
-> >     The irqtime is accounted is nsecs and stored in
-> >     cpu_irq_time.hardirq_time and cpu_irq_time.softirq_time. Once the
-> >     accumulated amount reaches a new jiffy, this one gets accounted to the
-> >     kcpustat.
-> >     
-> >     This was necessary when kcpustat was stored in cputime_t, which could at
-> >     worst have jiffies granularity. But now kcpustat is stored in nsecs
-> >     so this whole discretization game with temporary irqtime storage has
-> >     become unnecessary.
-> >     
-> >     We can now directly account the irqtime to the kcpustat.
-> >     
-> >     Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
-> >     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> >     Cc: Fenghua Yu <fenghua.yu@intel.com>
-> >     Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> >     Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> >     Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> >     Cc: Michael Ellerman <mpe@ellerman.id.au>
-> >     Cc: Paul Mackerras <paulus@samba.org>
-> >     Cc: Peter Zijlstra <peterz@infradead.org>
-> >     Cc: Rik van Riel <riel@redhat.com>
-> >     Cc: Stanislaw Gruszka <sgruszka@redhat.com>
-> >     Cc: Thomas Gleixner <tglx@linutronix.de>
-> >     Cc: Tony Luck <tony.luck@intel.com>
-> >     Cc: Wanpeng Li <wanpeng.li@hotmail.com>
-> >     Link: http://lkml.kernel.org/r/1485832191-26889-17-git-send-email-fweisbec@gmail.com
-> >     Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> > 
-> > The reproducer is running a userspace udp_sink[1] program, and taskset
-> > pinning the process to the same CPU as softirq RX is running on, and
-> > starting a UDP flood with pktgen (tool part of kernel tree:
-> > samples/pktgen/pktgen_sample03_burst_single_flow.sh).  
+> > I need some time to recall that.
 > 
-> So that means I need to run udp_sink on the same CPU than pktgen?
+> Did you have any chance to look into this?
 
-No, you misunderstood.  I run pktgen on another physical machine, which
-is sending UDP packets towards my Device-Under-Test (DUT) target.  The
-DUT-target is receiving packets and I observe which CPU the NIC is
-delivering these packets to.
+Well, yes.
 
-E.g determine RX-CPU via mpstat command:
- mpstat -P ALL -u -I SCPU -I SUM 2
+It looks like that was added for some people who depended on the old behavior
+at that time.
 
-I then start udp_sink, pinned to the RX-CPU, like:
- sudo taskset -c 2 ./udp_sink --port 9 --count $((10**6)) --recvmsg --repeat 1000
+I guess we can try to drop it and see what happpens. :-)
 
-
-> > [1] udp_sink
-> >  https://github.com/netoptimizer/network-testing/blob/master/src/udp_sink.c
-> > 
-> > The expected results (after commit 4cd13c21b207 ("softirq: Let
-> > ksoftirqd do its job")) is that the scheduler split the CPU time 50/50
-> > between udp_sink and ksoftirqd.  
-> 
-> I guess you mean that this is what happened before this commit?
-
-Yes. (I just pointed out the kernel had another softirq bug, that I was
-involved in fixing)
- 
-> > 
-> > After this commit, the udp_sink program does not get any sched CPU
-> > time, and no packets are delivered to userspace.  (All packets are
-> > dropped by softirq due to a full socket queue, nstat
-> > UdpRcvbufErrors).
-> > 
-> > A related symptom is that ksoftirqd no longer get accounted in
-> > top.  
-> 
-> That's indeed what I observe. udp_sink has almost no CPU time,
-> neither has ksoftirqd but kpktgend_0 has everything.
-> 
-> Finally a bug I can reproduce!
-
-Good to hear you can reproduce it! :-)
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
