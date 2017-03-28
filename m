@@ -1,58 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DAC916B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 17:39:16 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id f66so35537870lfe.23
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 14:39:16 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id c187si2476141lfc.70.2017.03.28.14.39.15
-        for <linux-mm@kvack.org>;
-        Tue, 28 Mar 2017 14:39:15 -0700 (PDT)
-Date: Tue, 28 Mar 2017 23:38:59 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHv2 6/8] x86/dump_pagetables: Add support 5-level paging
-Message-ID: <20170328213859.cltufwo5pdrhzna6@pd.tnic>
-References: <20170328093946.GA30567@gmail.com>
- <20170328104806.41711-1-kirill.shutemov@linux.intel.com>
- <20170328185522.5akqgfh4niqi3ptf@pd.tnic>
- <20170328211507.ungejuigkewn6prl@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170328211507.ungejuigkewn6prl@node.shutemov.name>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D0B36B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 17:40:06 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id n77so271777itn.8
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 14:40:06 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d140si5699404iof.28.2017.03.28.14.40.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Mar 2017 14:40:05 -0700 (PDT)
+Date: Tue, 28 Mar 2017 14:40:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] fault-inject: support systematic fault injection
+Message-Id: <20170328144003.b7f7b699f3d22616064e8f7e@linux-foundation.org>
+In-Reply-To: <20170328130128.101773-1-dvyukov@google.com>
+References: <20170328130128.101773-1-dvyukov@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: akinobu.mita@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Mar 29, 2017 at 12:15:07AM +0300, Kirill A. Shutemov wrote:
-> On current tip/master?
+On Tue, 28 Mar 2017 15:01:28 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
 
-tip/master from Monday:
+> Add /proc/self/task/<current-tid>/fail-nth file that allows failing
+> 0-th, 1-st, 2-nd and so on calls systematically.
+> Excerpt from the added documentation:
+> 
+> ===
+> Write to this file of integer N makes N-th call in the current task fail
+> (N is 0-based). Read from this file returns a single char 'Y' or 'N'
+> that says if the fault setup with a previous write to this file was
+> injected or not, and disables the fault if it wasn't yet injected.
+> Note that this file enables all types of faults (slab, futex, etc).
+> This setting takes precedence over all other generic settings like
+> probability, interval, times, etc. But per-capability settings
+> (e.g. fail_futex/ignore-private) take precedence over it.
+> This feature is intended for systematic testing of faults in a single
+> system call. See an example below.
+> ===
+> 
+> Why adding new setting:
+> 1. Existing settings are global rather than per-task.
+>    So parallel testing is not possible.
+> 2. attr->interval is close but it depends on attr->count
+>    which is non reset to 0, so interval does not work as expected.
+> 3. Trying to model this with existing settings requires manipulations
+>    of all of probability, interval, times, space, task-filter and
+>    unexposed count and per-task make-it-fail files.
+> 4. Existing settings are per-failure-type, and the set of failure
+>    types is potentially expanding.
+> 5. make-it-fail can't be changed by unprivileged user and aggressive
+>    stress testing better be done from an unprivileged user.
+>    Similarly, this would require opening the debugfs files to the
+>    unprivileged user, as he would need to reopen at least times file
+>    (not possible to pre-open before dropping privs).
+> 
+> The proposed interface solves all of the above (see the example).
 
-commit d3b6ed97fbc63219e262faca86da2fe62885eff2 (refs/remotes/tip/master)
-Merge: 399c980bd22b f2a6a7050109
-Author: Ingo Molnar <mingo@kernel.org>
-Date:   Mon Mar 27 10:48:30 2017 +0200
+Seems reasonable.
 
-    Merge branch 'x86/mm'
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1897,6 +1897,7 @@ struct task_struct {
+>  #endif
+>  #ifdef CONFIG_FAULT_INJECTION
+>  	int make_it_fail;
+> +	int fail_nth;
+>  #endif
 
-> I'm not sure that collapsing history in one commit to fix bisectability is
-> any better than having broken bisectability.
+Nit: fail_nth should really be unsigned.  And make_it_fail could be
+made a single bit which shares storage with brk_randomized (for
+example).
 
-Of course it is better. How do you tell everyone who bisects in the
-future to jump over those commits?
-
-So perhaps not a single commit but at least meld those together which
-change pagetable walking like the current example and cause a breakage.
-
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
