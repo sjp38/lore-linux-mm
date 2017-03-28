@@ -1,65 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B91CA6B03A2
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:15:37 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id f50so51604041wrf.7
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:15:37 -0700 (PDT)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id z65si4158978wrc.101.2017.03.28.03.15.36
+	by kanga.kvack.org (Postfix) with ESMTP id 290D86B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 06:34:55 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id w11so51835439wrc.2
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:34:55 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id e21si4212942wrc.144.2017.03.28.03.34.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 03:15:36 -0700 (PDT)
-Received: by mail-wr0-x242.google.com with SMTP id u18so1712535wrc.0
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:15:36 -0700 (PDT)
-Date: Tue, 28 Mar 2017 12:15:32 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Message-ID: <20170328101532.GA13819@gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com>
- <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170324065203.GA5229@gmail.com>
- <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
- <20170324105700.GB20282@gmail.com>
- <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
- <20170328075232.GA19590@gmail.com>
- <20170328092712.bk32k5iteqqm6pgh@hirez.programming.kicks-ass.net>
- <20170328095151.GC30567@gmail.com>
- <CACT4Y+Y0YGifJhw0sFpSYh=SapUv93M0QDwZFyP-9q1fnqWZug@mail.gmail.com>
+        Tue, 28 Mar 2017 03:34:53 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id w43so18481478wrb.1
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:34:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+Y0YGifJhw0sFpSYh=SapUv93M0QDwZFyP-9q1fnqWZug@mail.gmail.com>
+In-Reply-To: <20170328101403.34a82fbf@redhat.com>
+References: <20170328101403.34a82fbf@redhat.com>
+From: Wanpeng Li <kernellwp@gmail.com>
+Date: Tue, 28 Mar 2017 18:34:52 +0800
+Message-ID: <CANRm+Cwb3uAiZdufqDsyzQ1GZYh3nUr2uTyg1Hb2oVoxJZKMvg@mail.gmail.com>
+Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
 
+2017-03-28 16:14 GMT+08:00 Jesper Dangaard Brouer <brouer@redhat.com>:
+>
+> (While evaluating some changes to the page allocator) I ran into an
+> issue with ksoftirqd getting too much CPU sched time.
+>
+> I bisected the problem to
+>  a499a5a14dbd ("sched/cputime: Increment kcpustat directly on irqtime account")
+>
+>  a499a5a14dbd1d0315a96fc62a8798059325e9e6 is the first bad commit
+>  commit a499a5a14dbd1d0315a96fc62a8798059325e9e6
+>  Author: Frederic Weisbecker <fweisbec@gmail.com>
+>  Date:   Tue Jan 31 04:09:32 2017 +0100
+>
+>     sched/cputime: Increment kcpustat directly on irqtime account
+>
+>     The irqtime is accounted is nsecs and stored in
+>     cpu_irq_time.hardirq_time and cpu_irq_time.softirq_time. Once the
+>     accumulated amount reaches a new jiffy, this one gets accounted to the
+>     kcpustat.
+>
+>     This was necessary when kcpustat was stored in cputime_t, which could at
+>     worst have jiffies granularity. But now kcpustat is stored in nsecs
+>     so this whole discretization game with temporary irqtime storage has
+>     become unnecessary.
+>
+>     We can now directly account the irqtime to the kcpustat.
+>
+>     Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
+>     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>     Cc: Fenghua Yu <fenghua.yu@intel.com>
+>     Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+>     Cc: Linus Torvalds <torvalds@linux-foundation.org>
+>     Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+>     Cc: Michael Ellerman <mpe@ellerman.id.au>
+>     Cc: Paul Mackerras <paulus@samba.org>
+>     Cc: Peter Zijlstra <peterz@infradead.org>
+>     Cc: Rik van Riel <riel@redhat.com>
+>     Cc: Stanislaw Gruszka <sgruszka@redhat.com>
+>     Cc: Thomas Gleixner <tglx@linutronix.de>
+>     Cc: Tony Luck <tony.luck@intel.com>
+>     Cc: Wanpeng Li <wanpeng.li@hotmail.com>
+>     Link: http://lkml.kernel.org/r/1485832191-26889-17-git-send-email-fweisbec@gmail.com
+>     Signed-off-by: Ingo Molnar <mingo@kernel.org>
+>
+> The reproducer is running a userspace udp_sink[1] program, and taskset
+> pinning the process to the same CPU as softirq RX is running on, and
+> starting a UDP flood with pktgen (tool part of kernel tree:
+> samples/pktgen/pktgen_sample03_burst_single_flow.sh).
+>
+> [1] udp_sink
+>  https://github.com/netoptimizer/network-testing/blob/master/src/udp_sink.c
+>
+> The expected results (after commit 4cd13c21b207 ("softirq: Let
+> ksoftirqd do its job")) is that the scheduler split the CPU time 50/50
+> between udp_sink and ksoftirqd.
+>
+> After this commit, the udp_sink program does not get any sched CPU
+> time, and no packets are delivered to userspace.  (All packets are
+> dropped by softirq due to a full socket queue, nstat UdpRcvbufErrors).
+>
+> A related symptom is that ksoftirqd no longer get accounted in top.
+>
+> $ grep CONFIG_IRQ_TIME_ACCOUNTING .config
+> CONFIG_IRQ_TIME_ACCOUNTING=y
+>
+> Full .config uploaded here[2]:
+>  [2] http://people.netfilter.org/hawk/kconfig/config02-bisect-softirq-a499a5a14dbd
 
-* Dmitry Vyukov <dvyukov@google.com> wrote:
+void irqtime_account_irq(struct task_struct *curr)
+{
+    struct irqtime *irqtime = this_cpu_ptr(&cpu_irqtime);
+    u64 *cpustat = kcpustat_this_cpu->cpustat;
+    s64 delta;
+    int cpu;
 
-> > So I'm not convinced that it's true in this case.
-> >
-> > Could we see the C version and compare? I could be wrong about it all.
-> 
-> Here it is (without instrumentation):
-> https://gist.github.com/dvyukov/e33d580f701019e0cd99429054ff1f9a
+    if (!sched_clock_irqtime)
+        return;
 
-Could you please include the full patch so that it can be discussed via email and 
-such?
+    cpu = smp_processor_id();
+    delta = sched_clock_cpu(cpu) - irqtime->irq_start_time;
 
-> Instrumentation will add for each function:
-> 
->  static __always_inline void atomic64_set(atomic64_t *v, long long i)
->  {
-> +       kasan_check_write(v, sizeof(*v));
->         arch_atomic64_set(v, i);
->  }
+sched_clock_cpu(cpu) should be converted from cputime to ns. However,
+cputime_to_nsecs() API is removed by
+https://lkml.org/lkml/2017/1/22/230 for generic usage, so could you
+try the below patch just for testing?
 
-That in itself looks sensible and readable.
+diff --git a/include/linux/sched/cputime.h b/include/linux/sched/cputime.h
+index 4c5b973..166efba 100644
+--- a/include/linux/sched/cputime.h
++++ b/include/linux/sched/cputime.h
+@@ -7,14 +7,14 @@
+  * cputime accounting APIs:
+  */
 
-Thanks,
+-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+-#include <asm/cputime.h>
++#define cputime_div(__ct, divisor) div_u64((__force u64)__ct, divisor)
++#define cputime_to_usecs(__ct) \
++    cputime_div(__ct, NSEC_PER_USEC)
 
-	Ingo
+ #ifndef cputime_to_nsecs
+ # define cputime_to_nsecs(__ct)    \
+     (cputime_to_usecs(__ct) * NSEC_PER_USEC)
+ #endif
+-#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
+
+ #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+ extern void task_cputime(struct task_struct *t,
+diff --git a/kernel/sched/cputime.c b/kernel/sched/cputime.c
+index f3778e2b..68064d1 100644
+--- a/kernel/sched/cputime.c
++++ b/kernel/sched/cputime.c
+@@ -49,7 +49,7 @@ void irqtime_account_irq(struct task_struct *curr)
+         return;
+
+     cpu = smp_processor_id();
+-    delta = sched_clock_cpu(cpu) - irqtime->irq_start_time;
++    delta = cputime_to_nsecs(sched_clock_cpu(cpu)) - irqtime->irq_start_time;
+     irqtime->irq_start_time += delta;
+
+     u64_stats_update_begin(&irqtime->sync);
+
+Regards,
+Wanpeng Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
