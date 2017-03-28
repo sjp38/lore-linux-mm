@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3DB6B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:20:19 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m28so104961726pgn.14
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:20:19 -0700 (PDT)
-Received: from mail-pg0-x230.google.com (mail-pg0-x230.google.com. [2607:f8b0:400e:c05::230])
-        by mx.google.com with ESMTPS id e62si3488491pgc.26.2017.03.28.01.20.19
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C28646B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:27:20 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id f50so50708108wrf.7
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:27:20 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z103si3860967wrb.95.2017.03.28.01.27.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 01:20:19 -0700 (PDT)
-Received: by mail-pg0-x230.google.com with SMTP id 81so51222777pgh.2
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:20:19 -0700 (PDT)
-Date: Tue, 28 Mar 2017 01:20:16 -0700
-From: Jakub Kicinski <jakub.kicinski@netronome.com>
-Subject: Re: [PATCH] mm: fix section name for .data..ro_after_init
-Message-ID: <20170328011951.33dc329c@cakuba.lan>
-In-Reply-To: <20170327192213.GA129375@beast>
-References: <20170327192213.GA129375@beast>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Mar 2017 01:27:19 -0700 (PDT)
+Date: Tue, 28 Mar 2017 10:25:06 +0200
+From: Cyril Hrubis <chrubis@suse.cz>
+Subject: Re: [LTP] Is MADV_HWPOISON supposed to work only on faulted-in pages?
+Message-ID: <20170328082506.GA30388@rei>
+References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
+ <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
+ <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
+ <87zig6uvgd.fsf@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87zig6uvgd.fsf@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@mellanox.com>, linux-s390@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Eddie Kovsky <ewk@edkovsky.org>, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
 
-On Mon, 27 Mar 2017 12:22:13 -0700, Kees Cook wrote:
-> A section name for .data..ro_after_init was added by both:
+Hi!
+> > I think that what the testcase effectively does is to test whether memory
+> > handling on zero pages works or not.
+> > And the testcase's failure seems acceptable, because it's simply not-implemented yet.
+> > Maybe recovering from error on zero page is possible (because there's no data
+> > loss for memory error,) but I'm not sure that code might be simple enough and/or
+> > it's worth doing ...
 > 
->     commit d07a980c1b8d ("s390: add proper __ro_after_init support")
+> I doubt it's worth doing, it's just too unlikely that a specific page
+> is hit. Memory error handling is all about probabilities.
 > 
-> and
+> The test is just broken and should be fixed.
 > 
->     commit d7c19b066dcf ("mm: kmemleak: scan .data.ro_after_init")
-> 
-> The latter adds incorrect wrapping around the existing s390 section,
-> and came later. I'd prefer the s390 naming, so this moves the
-> s390-specific name up to the asm-generic/sections.h and renames the
-> section as used by kmemleak (and in the future, kernel/extable.c).
-> 
-> Cc: Jakub Kicinski <jakub.kicinski@netronome.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Eddie Kovsky <ewk@edkovsky.org>
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+> mce-test had similar problems at some point, but they were all fixed.
 
-Acked-by: Jakub Kicinski <jakub.kicinski@netronome.com>
+Well I disagree, the reason why the test fails is that MADV_HWPOISON on
+not-faulted private mappings fails silently, which is a bug, albeit
+minor one. If something is not implemented, it should report a failure,
+the usual error return would be EINVAL in this case.
+
+It appears that it fails with EBUSY on first try on newer kernels, but
+still fails silently when we try for a second time.
+
+Why can't we simply check if the page is faulted or not and return error
+in the latter case?
+
+-- 
+Cyril Hrubis
+chrubis@suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
