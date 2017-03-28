@@ -1,73 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B78236B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 19:29:45 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 79so129591281pgf.2
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:29:45 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e3si5377865plj.114.2017.03.28.16.29.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 716FD6B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 19:30:59 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 187so1658274wmn.5
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:30:59 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id q69si4964424wmd.149.2017.03.28.16.30.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 16:29:44 -0700 (PDT)
-Date: Tue, 28 Mar 2017 16:29:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] kasan: avoid -Wmaybe-uninitialized warning
-Message-Id: <20170328162942.eb08b50af725428a4be25f2b@linux-foundation.org>
-In-Reply-To: <20170323150415.301180-1-arnd@arndb.de>
-References: <20170323150415.301180-1-arnd@arndb.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 28 Mar 2017 16:30:58 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id x124so2250858wmf.3
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:30:58 -0700 (PDT)
+Date: Wed, 29 Mar 2017 02:30:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH -mm -v7 1/9] mm, swap: Make swap cluster size same of THP
+ size on x86_64
+Message-ID: <20170328233056.zkp733h5kij7lfdb@node.shutemov.name>
+References: <20170328053209.25876-1-ying.huang@intel.com>
+ <20170328053209.25876-2-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170328053209.25876-2-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, Peter Zijlstra <peterz@infradead.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Thu, 23 Mar 2017 16:04:09 +0100 Arnd Bergmann <arnd@arndb.de> wrote:
-
-> gcc-7 produces this warning:
+On Tue, Mar 28, 2017 at 01:32:01PM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> mm/kasan/report.c: In function 'kasan_report':
-> mm/kasan/report.c:351:3: error: 'info.first_bad_addr' may be used uninitialized in this function [-Werror=maybe-uninitialized]
->    print_shadow_for_address(info->first_bad_addr);
->    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> mm/kasan/report.c:360:27: note: 'info.first_bad_addr' was declared here
+> In this patch, the size of the swap cluster is changed to that of the
+> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
+> the THP swap support on x86_64.  Where one swap cluster will be used to
+> hold the contents of each THP swapped out.  And some information of the
+> swapped out THP (such as compound map count) will be recorded in the
+> swap_cluster_info data structure.
 > 
-> The code seems fine as we only print info.first_bad_addr when there is a shadow,
-> and we always initialize it in that case, but this is relatively hard
-> for gcc to figure out after the latest rework. Adding an intialization
-> in the other code path gets rid of the warning.
-> 
-> ...
->
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -109,6 +109,8 @@ const char *get_wild_bug_type(struct kasan_access_info *info)
->  {
->  	const char *bug_type = "unknown-crash";
->  
-> +	info->first_bad_addr = (void *)(-1ul);
-> +
->  	if ((unsigned long)info->access_addr < PAGE_SIZE)
->  		bug_type = "null-ptr-deref";
->  	else if ((unsigned long)info->access_addr < TASK_SIZE)
+> For other architectures which want THP swap support,
+> ARCH_USES_THP_SWAP_CLUSTER need to be selected in the Kconfig file for
+> the architecture.
 
-A weird, ugly and seemingly-unneeded statement should have a comment
-explaining its existence, no?
+Intreseting case could be architecture with HPAGE_PMD_NR < 256.
+Can current code pack more than one THP per claster.
 
-Fortunately it is no longer needed.  We now have:
+If not we need to have BUILG_BUG_ON() to catch attempt of such enabling.
 
-static void print_error_description(struct kasan_access_info *info)
-{
-	const char *bug_type = "unknown-crash";
-	u8 *shadow_addr;
-
-	info->first_bad_addr = find_first_bad_addr(info->access_addr,
-						info->access_size);
-
-	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
-
-	...
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
