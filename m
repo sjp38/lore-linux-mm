@@ -1,35 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A536B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 08:26:48 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 8so13596543itg.6
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 05:26:48 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id j74si4119659iod.215.2017.03.28.05.26.47
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D8C276B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 08:51:46 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id s66so53239472wrc.15
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 05:51:46 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id v124si3315796wmd.89.2017.03.28.05.51.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 05:26:47 -0700 (PDT)
-Date: Tue, 28 Mar 2017 14:26:42 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
-Message-ID: <20170328122642.dhw2zkjbghfw4fzn@hirez.programming.kicks-ass.net>
-References: <20170328101403.34a82fbf@redhat.com>
- <CANRm+Cwb3uAiZdufqDsyzQ1GZYh3nUr2uTyg1Hb2oVoxJZKMvg@mail.gmail.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Mar 2017 05:51:45 -0700 (PDT)
+Date: Tue, 28 Mar 2017 14:51:31 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv3] x86/mm: set x32 syscall bit in SET_PERSONALITY()
+In-Reply-To: <cccc8f91-bd0d-fea0-b9b9-71653be38f61@virtuozzo.com>
+Message-ID: <alpine.DEB.2.20.1703281449070.3616@nanos>
+References: <20170321174711.29880-1-dsafonov@virtuozzo.com> <alpine.DEB.2.20.1703212319440.3776@nanos> <cccc8f91-bd0d-fea0-b9b9-71653be38f61@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANRm+Cwb3uAiZdufqDsyzQ1GZYh3nUr2uTyg1Hb2oVoxJZKMvg@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <kernellwp@gmail.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
 
-On Tue, Mar 28, 2017 at 06:34:52PM +0800, Wanpeng Li wrote:
+On Tue, 28 Mar 2017, Dmitry Safonov wrote:
+> On 03/22/2017 01:21 AM, Thomas Gleixner wrote:
+> > On Tue, 21 Mar 2017, Dmitry Safonov wrote:
+> > > v3:
+> > > - clear x32 syscall flag during x32 -> x86-64 exec() (thanks, HPA).
+> > 
+> > For correctness sake, this wants to be cleared in the IA32 path as
+> > well. It's not causing any harm, but ....
+> > 
+> > I'll amend the patch.
 > 
-> sched_clock_cpu(cpu) should be converted from cputime to ns.
+> So, just a gentle reminder about this problem.
+> Should I resend v4 with clearing x32 bit in ia32 path?
+> Or should I resend with this fixup:
+> https://lkml.org/lkml/2017/3/22/343
+> 
+> The fixup doesn't look as simple as clearing x32 syscall bit, but I may
+> be wrong.
 
-Uhm, no. sched_clock_cpu() returns u64 in ns.
+Something like the below should set it correctly for all possible
+scenarios.
 
+Thanks,
+
+	tglx
+
+8<------------------
+
+ arch/x86/kernel/process_64.c |   63 ++++++++++++++++++++++++++++---------------
+ 1 file changed, 42 insertions(+), 21 deletions(-)
+
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -494,6 +494,8 @@ void set_personality_64bit(void)
+ 	clear_thread_flag(TIF_IA32);
+ 	clear_thread_flag(TIF_ADDR32);
+ 	clear_thread_flag(TIF_X32);
++	/* Pretend that this comes from a 64bit execve */
++	task_pt_regs(current)->orig_ax = __NR_execve;
+ 
+ 	/* Ensure the corresponding mm is not marked. */
+ 	if (current->mm)
+@@ -506,32 +508,51 @@ void set_personality_64bit(void)
+ 	current->personality &= ~READ_IMPLIES_EXEC;
+ }
+ 
+-void set_personality_ia32(bool x32)
++static void __set_personality_x32(void)
++{
++#ifdef CONFIG_X86_X32
++	clear_thread_flag(TIF_IA32);
++	set_thread_flag(TIF_X32);
++	if (current->mm)
++		current->mm->context.ia32_compat = TIF_X32;
++	current->personality &= ~READ_IMPLIES_EXEC;
++	/*
++	 * in_compat_syscall() uses the presence of the x32
++	 * syscall bit flag to determine compat status.
++	 * The x86 mmap() code relies on the syscall bitness
++	 * so set x32 syscall bit right here to make
++	 * in_compat_syscall() work during exec().
++	 *
++	 * Pretend to come from a x32 execve.
++	 */
++	task_pt_regs(current)->orig_ax = __NR_x32_execve | __X32_SYSCALL_BIT;
++	current->thread.status &= ~TS_COMPAT;
++#endif
++}
++
++static void __set_personality_ia32(void)
+ {
+-	/* inherit personality from parent */
++#ifdef CONFIG_COMPAT_32
++	set_thread_flag(TIF_IA32);
++	clear_thread_flag(TIF_X32);
++	if (current->mm)
++		current->mm->context.ia32_compat = TIF_IA32;
++	current->personality |= force_personality32;
++	/* Prepare the first "return" to user space */
++	task_pt_regs(current)->orig_ax = __NR_ia32_execve;
++	current->thread.status |= TS_COMPAT;
++#endif
++}
+ 
++void set_personality_ia32(bool x32)
++{
+ 	/* Make sure to be in 32bit mode */
+ 	set_thread_flag(TIF_ADDR32);
+ 
+-	/* Mark the associated mm as containing 32-bit tasks. */
+-	if (x32) {
+-		clear_thread_flag(TIF_IA32);
+-		set_thread_flag(TIF_X32);
+-		if (current->mm)
+-			current->mm->context.ia32_compat = TIF_X32;
+-		current->personality &= ~READ_IMPLIES_EXEC;
+-		/* in_compat_syscall() uses the presence of the x32
+-		   syscall bit flag to determine compat status */
+-		current->thread.status &= ~TS_COMPAT;
+-	} else {
+-		set_thread_flag(TIF_IA32);
+-		clear_thread_flag(TIF_X32);
+-		if (current->mm)
+-			current->mm->context.ia32_compat = TIF_IA32;
+-		current->personality |= force_personality32;
+-		/* Prepare the first "return" to user space */
+-		current->thread.status |= TS_COMPAT;
+-	}
++	if (x32)
++		__set_personality_x32();
++	else
++		__set_personality_ia32();
+ }
+ EXPORT_SYMBOL_GPL(set_personality_ia32);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
