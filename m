@@ -1,67 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 430056B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:52:38 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w96so51099870wrb.13
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:52:38 -0700 (PDT)
-Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
-        by mx.google.com with ESMTPS id d75si2468496wme.36.2017.03.28.00.52.35
+	by kanga.kvack.org (Postfix) with ESMTP id E6AA76B0397
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 03:58:10 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id o70so50597471wrb.11
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:58:10 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b73si2498494wmf.0.2017.03.28.00.58.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 00:52:36 -0700 (PDT)
-Received: by mail-wr0-x243.google.com with SMTP id w43so17172372wrb.1
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 00:52:35 -0700 (PDT)
-Date: Tue, 28 Mar 2017 09:52:32 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/3] asm-generic, x86: wrap atomic operations
-Message-ID: <20170328075232.GA19590@gmail.com>
-References: <cover.1489519233.git.dvyukov@google.com>
- <6bb1c71b87b300d04977c34f0cd8586363bc6170.1489519233.git.dvyukov@google.com>
- <20170324065203.GA5229@gmail.com>
- <CACT4Y+af=UPjL9EUCv9Z5SjHMRdOdUC1OOpq7LLKEHHKm8zysA@mail.gmail.com>
- <20170324105700.GB20282@gmail.com>
- <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Mar 2017 00:58:09 -0700 (PDT)
+Date: Tue, 28 Mar 2017 09:58:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: memory hotplug and force_remove
+Message-ID: <20170328075808.GB18241@dhcp22.suse.cz>
+References: <20170320192938.GA11363@dhcp22.suse.cz>
+ <2735706.OR0SQDpVy6@aspire.rjw.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+YaFhVpu8-37=rOfOT1UN5K_bKMsMVQ+qiPZUWuSSERuw@mail.gmail.com>
+In-Reply-To: <2735706.OR0SQDpVy6@aspire.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Toshi Kani <toshi.kani@hp.com>, Jiri Kosina <jkosina@suse.cz>, joeyli <jlee@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-
-* Dmitry Vyukov <dvyukov@google.com> wrote:
-
-> On Fri, Mar 24, 2017 at 11:57 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > * Dmitry Vyukov <dvyukov@google.com> wrote:
-> >
-> >> > Are just utterly disgusting that turn perfectly readable code into an
-> >> > unreadable, unmaintainable mess.
-> >> >
-> >> > You need to find some better, cleaner solution please, or convince me that no
-> >> > such solution is possible. NAK for the time being.
-> >>
-> >> Well, I can just write all functions as is. Does it better confirm to kernel
-> >> style?
-> >
-> > I think writing the prototypes out as-is, properly organized, beats any of these
-> > macro based solutions.
+On Mon 20-03-17 22:24:42, Rafael J. Wysocki wrote:
+> On Monday, March 20, 2017 03:29:39 PM Michal Hocko wrote:
+> > Hi Rafael,
 > 
-> You mean write out the prototypes, but use what for definitions? Macros again?
+> Hi,
+> 
+> > we have been chasing the following BUG() triggering during the memory
+> > hotremove (remove_memory):
+> > 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> > 				check_memblock_offlined_cb);
+> > 	if (ret)
+> > 		BUG();
+> > 
+> > and it took a while to learn that the issue is caused by
+> > /sys/firmware/acpi/hotplug/force_remove being enabled. I was really
+> > surprised to see such an option because at least for the memory hotplug
+> > it cannot work at all. Memory hotplug fails when the memory is still
+> > in use. Even if we do not BUG() here enforcing the hotplug operation
+> > will lead to problematic behavior later like crash or a silent memory
+> > corruption if the memory gets onlined back and reused by somebody else.
+> > 
+> > I am wondering what was the motivation for introducing this behavior and
+> > whether there is a way to disallow it for memory hotplug. Or maybe drop
+> > it completely. What would break in such a case?
+> 
+> Honestly, I don't remember from the top of my head and I haven't looked at
+> that code for several months.
+> 
+> I need some time to recall that.
 
-No, regular C code.
-
-I don't see the point of generating all this code via CPP - it's certainly not 
-making it more readable to me. I.e. this patch I commented on is a step backwards 
-for readability.
-
-I'd prefer repetition and a higher overall line count over complex CPP constructs.
-
-Thanks,
-
-	Ingo
+Did you have any chance to look into this?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
