@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C28646B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:27:20 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id f50so50708108wrf.7
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:27:20 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z103si3860967wrb.95.2017.03.28.01.27.18
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CA496B039F
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 04:28:57 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 30so48884916qtw.19
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:28:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d68si2897297qkg.136.2017.03.28.01.28.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 28 Mar 2017 01:27:19 -0700 (PDT)
-Date: Tue, 28 Mar 2017 10:25:06 +0200
-From: Cyril Hrubis <chrubis@suse.cz>
-Subject: Re: [LTP] Is MADV_HWPOISON supposed to work only on faulted-in pages?
-Message-ID: <20170328082506.GA30388@rei>
-References: <6a445beb-119c-9a9a-0277-07866afe4924@redhat.com>
- <20170220050016.GA15533@hori1.linux.bs1.fc.nec.co.jp>
- <20170223032342.GA18740@hori1.linux.bs1.fc.nec.co.jp>
- <87zig6uvgd.fsf@firstfloor.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Mar 2017 01:28:56 -0700 (PDT)
+Date: Tue, 28 Mar 2017 04:28:51 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <880114946.7747224.1490689731036.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20170327133212.6azfgrariwocdzzd@techsingularity.net>
+References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com> <20170323145133.twzt4f5ci26vdyut@techsingularity.net> <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com> <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com> <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com> <20170327105514.1ed5b1ba@redhat.com> <20170327143947.4c237e54@redhat.com> <20170327133212.6azfgrariwocdzzd@techsingularity.net>
+Subject: Re: Page allocator order-0 optimizations merged
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87zig6uvgd.fsf@firstfloor.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ltp@lists.linux.it" <ltp@lists.linux.it>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
 
-Hi!
-> > I think that what the testcase effectively does is to test whether memory
-> > handling on zero pages works or not.
-> > And the testcase's failure seems acceptable, because it's simply not-implemented yet.
-> > Maybe recovering from error on zero page is possible (because there's no data
-> > loss for memory error,) but I'm not sure that code might be simple enough and/or
-> > it's worth doing ...
+
 > 
-> I doubt it's worth doing, it's just too unlikely that a specific page
-> is hit. Memory error handling is all about probabilities.
+> On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:
+> > On Mon, 27 Mar 2017 10:55:14 +0200
+> > Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+> > 
+> > > A possible solution, would be use the local_bh_{disable,enable} instead
+> > > of the {preempt_disable,enable} calls.  But it is slower, using numbers
+> > > from [1] (19 vs 11 cycles), thus the expected cycles saving is 38-19=19.
+> > > 
+> > > The problematic part of using local_bh_enable is that this adds a
+> > > softirq/bottom-halves rescheduling point (as it checks for pending
+> > > BHs).  Thus, this might affects real workloads.
+> > 
+> > I implemented this solution in patch below... and tested it on mlx5 at
+> > 50G with manually disabled driver-page-recycling.  It works for me.
+> > 
+> > To Mel, that do you prefer... a partial-revert or something like this?
+> > 
 > 
-> The test is just broken and should be fixed.
+> If Tariq confirms it works for him as well, this looks far safer patch
+> than having a dedicate IRQ-safe queue. Your concern about the BH
+> scheduling point is valid but if it's proven to be a problem, there is
+> still the option of a partial revert.
+
+I also feel the same.
+
+Thanks,
+Pankaj
+
 > 
-> mce-test had similar problems at some point, but they were all fixed.
-
-Well I disagree, the reason why the test fails is that MADV_HWPOISON on
-not-faulted private mappings fails silently, which is a bug, albeit
-minor one. If something is not implemented, it should report a failure,
-the usual error return would be EINVAL in this case.
-
-It appears that it fails with EBUSY on first try on newer kernels, but
-still fails silently when we try for a second time.
-
-Why can't we simply check if the page is faulted or not and return error
-in the latter case?
-
--- 
-Cyril Hrubis
-chrubis@suse.cz
+> --
+> Mel Gorman
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
