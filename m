@@ -1,108 +1,370 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 12C296B0397
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:32:28 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 37so83366862pgx.8
-        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 22:32:28 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 25F2B6B03A0
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 01:32:30 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u202so100531013pgb.9
+        for <linux-mm@kvack.org>; Mon, 27 Mar 2017 22:32:30 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id m8si3006807pga.117.2017.03.27.22.32.26
+        by mx.google.com with ESMTPS id m8si3006807pga.117.2017.03.27.22.32.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Mar 2017 22:32:27 -0700 (PDT)
+        Mon, 27 Mar 2017 22:32:29 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v7 1/9] mm, swap: Make swap cluster size same of THP size on x86_64
-Date: Tue, 28 Mar 2017 13:32:01 +0800
-Message-Id: <20170328053209.25876-2-ying.huang@intel.com>
+Subject: [PATCH -mm -v7 2/9] mm, memcg: Support to charge/uncharge multiple swap entries
+Date: Tue, 28 Mar 2017 13:32:02 +0800
+Message-Id: <20170328053209.25876-3-ying.huang@intel.com>
 In-Reply-To: <20170328053209.25876-1-ying.huang@intel.com>
 References: <20170328053209.25876-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
 
 From: Huang Ying <ying.huang@intel.com>
 
-In this patch, the size of the swap cluster is changed to that of the
-THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
-the THP swap support on x86_64.  Where one swap cluster will be used to
-hold the contents of each THP swapped out.  And some information of the
-swapped out THP (such as compound map count) will be recorded in the
-swap_cluster_info data structure.
+This patch make it possible to charge or uncharge a set of continuous
+swap entries in the swap cgroup.  The number of swap entries is
+specified via an added parameter.
 
-For other architectures which want THP swap support,
-ARCH_USES_THP_SWAP_CLUSTER need to be selected in the Kconfig file for
-the architecture.
+This will be used for the THP (Transparent Huge Page) swap support.
+Where a swap cluster backing a THP may be allocated and freed as a
+whole.  So a set of (HPAGE_PMD_NR) continuous swap entries backing one
+THP need to be charged or uncharged together.  This will batch the
+cgroup operations for the THP swap too.
 
-In effect, this will enlarge swap cluster size by 2 times on x86_64.
-Which may make it harder to find a free cluster when the swap space
-becomes fragmented.  So that, this may reduce the continuous swap space
-allocation and sequential write in theory.  The performance test in 0day
-shows no regressions caused by this.
-
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: cgroups@vger.kernel.org
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- arch/x86/Kconfig |  1 +
- mm/Kconfig       | 13 +++++++++++++
- mm/swapfile.c    |  4 ++++
- 3 files changed, 18 insertions(+)
+ include/linux/swap.h        | 12 ++++++----
+ include/linux/swap_cgroup.h |  6 +++--
+ mm/memcontrol.c             | 57 +++++++++++++++++++++++++--------------------
+ mm/shmem.c                  |  2 +-
+ mm/swap_cgroup.c            | 40 +++++++++++++++++++++++--------
+ mm/swap_state.c             |  2 +-
+ mm/swapfile.c               |  2 +-
+ 7 files changed, 77 insertions(+), 44 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index abfc31fb0bee..852d13878793 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -178,6 +178,7 @@ config X86
- 	select USER_STACKTRACE_SUPPORT
- 	select VIRT_TO_BUS
- 	select X86_FEATURE_NAMES		if PROC_FS
-+	select ARCH_USES_THP_SWAP_CLUSTER	if X86_64
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 486494e6b2fc..278e1349a424 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -550,8 +550,10 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
  
- config INSTRUCTION_DECODER
- 	def_bool y
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9b8fccb969dc..7b708e200c29 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -499,6 +499,19 @@ config FRONTSWAP
+ #ifdef CONFIG_MEMCG_SWAP
+ extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+-extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
+-extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
++extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry,
++				      unsigned int nr_entries);
++extern void mem_cgroup_uncharge_swap(swp_entry_t entry,
++				     unsigned int nr_entries);
+ extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
+ extern bool mem_cgroup_swap_full(struct page *page);
+ #else
+@@ -560,12 +562,14 @@ static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ }
  
- 	  If unsure, say Y to enable frontswap.
+ static inline int mem_cgroup_try_charge_swap(struct page *page,
+-					     swp_entry_t entry)
++					     swp_entry_t entry,
++					     unsigned int nr_entries)
+ {
+ 	return 0;
+ }
  
-+config ARCH_USES_THP_SWAP_CLUSTER
-+	bool
-+	default n
-+
-+config THP_SWAP_CLUSTER
-+	bool
-+	depends on SWAP && TRANSPARENT_HUGEPAGE && ARCH_USES_THP_SWAP_CLUSTER
-+	default y
-+	help
-+	  Use one swap cluster to hold the contents of the THP
-+	  (Transparent Huge Page) swapped out.  The size of the swap
-+	  cluster will be same as that of THP.
-+
- config CMA
- 	bool "Contiguous Memory Allocator"
- 	depends on HAVE_MEMBLOCK && MMU
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 53b5881ee0d6..abc401f72a0a 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -199,7 +199,11 @@ static void discard_swap_cluster(struct swap_info_struct *si,
+-static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
++static inline void mem_cgroup_uncharge_swap(swp_entry_t entry,
++					    unsigned int nr_entries)
+ {
+ }
+ 
+diff --git a/include/linux/swap_cgroup.h b/include/linux/swap_cgroup.h
+index 145306bdc92f..b2b8ec7bda3f 100644
+--- a/include/linux/swap_cgroup.h
++++ b/include/linux/swap_cgroup.h
+@@ -7,7 +7,8 @@
+ 
+ extern unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+ 					unsigned short old, unsigned short new);
+-extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id);
++extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
++					 unsigned int nr_ents);
+ extern unsigned short lookup_swap_cgroup_id(swp_entry_t ent);
+ extern int swap_cgroup_swapon(int type, unsigned long max_pages);
+ extern void swap_cgroup_swapoff(int type);
+@@ -15,7 +16,8 @@ extern void swap_cgroup_swapoff(int type);
+ #else
+ 
+ static inline
+-unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
++unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
++				  unsigned int nr_ents)
+ {
+ 	return 0;
+ }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 490d5b4676c1..13ee82fe81c8 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2393,10 +2393,9 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+ 
+ #ifdef CONFIG_MEMCG_SWAP
+ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+-					 bool charge)
++				       int nr_entries)
+ {
+-	int val = (charge) ? 1 : -1;
+-	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], val);
++	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], nr_entries);
+ }
+ 
+ /**
+@@ -2422,8 +2421,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 	new_id = mem_cgroup_id(to);
+ 
+ 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+-		mem_cgroup_swap_statistics(from, false);
+-		mem_cgroup_swap_statistics(to, true);
++		mem_cgroup_swap_statistics(from, -1);
++		mem_cgroup_swap_statistics(to, 1);
+ 		return 0;
+ 	}
+ 	return -EINVAL;
+@@ -5451,7 +5450,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+ 		 * let's not wait for it.  The page already received a
+ 		 * memory+swap charge, drop the swap entry duplicate.
+ 		 */
+-		mem_cgroup_uncharge_swap(entry);
++		mem_cgroup_uncharge_swap(entry, nr_pages);
  	}
  }
  
-+#ifdef CONFIG_THP_SWAP_CLUSTER
-+#define SWAPFILE_CLUSTER	HPAGE_PMD_NR
-+#else
- #define SWAPFILE_CLUSTER	256
-+#endif
- #define LATENCY_LIMIT		256
+@@ -5879,9 +5878,9 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 	 * ancestor for the swap instead and transfer the memory+swap charge.
+ 	 */
+ 	swap_memcg = mem_cgroup_id_get_online(memcg);
+-	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg));
++	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg), 1);
+ 	VM_BUG_ON_PAGE(oldid, page);
+-	mem_cgroup_swap_statistics(swap_memcg, true);
++	mem_cgroup_swap_statistics(swap_memcg, 1);
  
- static inline void cluster_set_flag(struct swap_cluster_info *info,
+ 	page->mem_cgroup = NULL;
+ 
+@@ -5908,16 +5907,19 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 		css_put(&memcg->css);
+ }
+ 
+-/*
+- * mem_cgroup_try_charge_swap - try charging a swap entry
++/**
++ * mem_cgroup_try_charge_swap - try charging a set of swap entries
+  * @page: page being added to swap
+- * @entry: swap entry to charge
++ * @entry: the first swap entry to charge
++ * @nr_entries: the number of swap entries to charge
+  *
+- * Try to charge @entry to the memcg that @page belongs to.
++ * Try to charge @nr_entries swap entries starting from @entry to the
++ * memcg that @page belongs to.
+  *
+  * Returns 0 on success, -ENOMEM on failure.
+  */
+-int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
++int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry,
++			       unsigned int nr_entries)
+ {
+ 	struct mem_cgroup *memcg;
+ 	struct page_counter *counter;
+@@ -5935,25 +5937,29 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
+ 	memcg = mem_cgroup_id_get_online(memcg);
+ 
+ 	if (!mem_cgroup_is_root(memcg) &&
+-	    !page_counter_try_charge(&memcg->swap, 1, &counter)) {
++	    !page_counter_try_charge(&memcg->swap, nr_entries, &counter)) {
+ 		mem_cgroup_id_put(memcg);
+ 		return -ENOMEM;
+ 	}
+ 
+-	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
++	if (nr_entries > 1)
++		mem_cgroup_id_get_many(memcg, nr_entries - 1);
++	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg), nr_entries);
+ 	VM_BUG_ON_PAGE(oldid, page);
+-	mem_cgroup_swap_statistics(memcg, true);
++	mem_cgroup_swap_statistics(memcg, nr_entries);
+ 
+ 	return 0;
+ }
+ 
+ /**
+- * mem_cgroup_uncharge_swap - uncharge a swap entry
+- * @entry: swap entry to uncharge
++ * mem_cgroup_uncharge_swap - uncharge a set of swap entries
++ * @entry: the first swap entry to uncharge
++ * @nr_entries: the number of swap entries to uncharge
+  *
+- * Drop the swap charge associated with @entry.
++ * Drop the swap charge associated with @nr_entries swap entries
++ * starting from @entry.
+  */
+-void mem_cgroup_uncharge_swap(swp_entry_t entry)
++void mem_cgroup_uncharge_swap(swp_entry_t entry, unsigned int nr_entries)
+ {
+ 	struct mem_cgroup *memcg;
+ 	unsigned short id;
+@@ -5961,18 +5967,19 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
+ 	if (!do_swap_account)
+ 		return;
+ 
+-	id = swap_cgroup_record(entry, 0);
++	id = swap_cgroup_record(entry, 0, nr_entries);
+ 	rcu_read_lock();
+ 	memcg = mem_cgroup_from_id(id);
+ 	if (memcg) {
+ 		if (!mem_cgroup_is_root(memcg)) {
+ 			if (cgroup_subsys_on_dfl(memory_cgrp_subsys))
+-				page_counter_uncharge(&memcg->swap, 1);
++				page_counter_uncharge(&memcg->swap, nr_entries);
+ 			else
+-				page_counter_uncharge(&memcg->memsw, 1);
++				page_counter_uncharge(&memcg->memsw,
++						      nr_entries);
+ 		}
+-		mem_cgroup_swap_statistics(memcg, false);
+-		mem_cgroup_id_put(memcg);
++		mem_cgroup_swap_statistics(memcg, -nr_entries);
++		mem_cgroup_id_put_many(memcg, nr_entries);
+ 	}
+ 	rcu_read_unlock();
+ }
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e67d6ba4e98e..effe07ef5c26 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1294,7 +1294,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 	if (!swap.val)
+ 		goto redirty;
+ 
+-	if (mem_cgroup_try_charge_swap(page, swap))
++	if (mem_cgroup_try_charge_swap(page, swap, 1))
+ 		goto free_swap;
+ 
+ 	/*
+diff --git a/mm/swap_cgroup.c b/mm/swap_cgroup.c
+index 310ac0b8f974..8cee2d125815 100644
+--- a/mm/swap_cgroup.c
++++ b/mm/swap_cgroup.c
+@@ -58,21 +58,27 @@ static int swap_cgroup_prepare(int type)
+ 	return -ENOMEM;
+ }
+ 
++static struct swap_cgroup *__lookup_swap_cgroup(struct swap_cgroup_ctrl *ctrl,
++						pgoff_t offset)
++{
++	struct page *mappage;
++	struct swap_cgroup *sc;
++
++	mappage = ctrl->map[offset / SC_PER_PAGE];
++	sc = page_address(mappage);
++	return sc + offset % SC_PER_PAGE;
++}
++
+ static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
+ 					struct swap_cgroup_ctrl **ctrlp)
+ {
+ 	pgoff_t offset = swp_offset(ent);
+ 	struct swap_cgroup_ctrl *ctrl;
+-	struct page *mappage;
+-	struct swap_cgroup *sc;
+ 
+ 	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
+ 	if (ctrlp)
+ 		*ctrlp = ctrl;
+-
+-	mappage = ctrl->map[offset / SC_PER_PAGE];
+-	sc = page_address(mappage);
+-	return sc + offset % SC_PER_PAGE;
++	return __lookup_swap_cgroup(ctrl, offset);
+ }
+ 
+ /**
+@@ -105,25 +111,39 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+ }
+ 
+ /**
+- * swap_cgroup_record - record mem_cgroup for this swp_entry.
+- * @ent: swap entry to be recorded into
++ * swap_cgroup_record - record mem_cgroup for a set of swap entries
++ * @ent: the first swap entry to be recorded into
+  * @id: mem_cgroup to be recorded
++ * @nr_ents: number of swap entries to be recorded
+  *
+  * Returns old value at success, 0 at failure.
+  * (Of course, old value can be 0.)
+  */
+-unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
++unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
++				  unsigned int nr_ents)
+ {
+ 	struct swap_cgroup_ctrl *ctrl;
+ 	struct swap_cgroup *sc;
+ 	unsigned short old;
+ 	unsigned long flags;
++	pgoff_t offset = swp_offset(ent);
++	pgoff_t end = offset + nr_ents;
+ 
+ 	sc = lookup_swap_cgroup(ent, &ctrl);
+ 
+ 	spin_lock_irqsave(&ctrl->lock, flags);
+ 	old = sc->id;
+-	sc->id = id;
++	for (;;) {
++		VM_BUG_ON(sc->id != old);
++		sc->id = id;
++		offset++;
++		if (offset == end)
++			break;
++		if (offset % SC_PER_PAGE)
++			sc++;
++		else
++			sc = __lookup_swap_cgroup(ctrl, offset);
++	}
+ 	spin_unlock_irqrestore(&ctrl->lock, flags);
+ 
+ 	return old;
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 7bfb9bd1ca21..199a07efc44d 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -182,7 +182,7 @@ int add_to_swap(struct page *page, struct list_head *list)
+ 	if (!entry.val)
+ 		return 0;
+ 
+-	if (mem_cgroup_try_charge_swap(page, entry)) {
++	if (mem_cgroup_try_charge_swap(page, entry, 1)) {
+ 		swapcache_free(entry);
+ 		return 0;
+ 	}
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index abc401f72a0a..1ef4fc82c0fa 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1012,7 +1012,7 @@ static void swap_entry_free(struct swap_info_struct *p, swp_entry_t entry)
+ 	dec_cluster_info_page(p, p->cluster_info, offset);
+ 	unlock_cluster(ci);
+ 
+-	mem_cgroup_uncharge_swap(entry);
++	mem_cgroup_uncharge_swap(entry, 1);
+ 	if (offset < p->lowest_bit)
+ 		p->lowest_bit = offset;
+ 	if (offset > p->highest_bit) {
 -- 
 2.11.0
 
