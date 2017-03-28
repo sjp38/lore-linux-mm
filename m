@@ -1,48 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D381A6B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 18:47:23 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x124so1544717wmf.1
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 15:47:23 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id r128si4916970wmf.16.2017.03.28.15.47.22
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B78236B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 19:29:45 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 79so129591281pgf.2
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:29:45 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e3si5377865plj.114.2017.03.28.16.29.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 15:47:22 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id u132so2138743wmg.1
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 15:47:22 -0700 (PDT)
-Date: Wed, 29 Mar 2017 01:47:20 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 3/8] x86/mm: Define virtual memory map for 5-level paging
-Message-ID: <20170328224720.7ir7godugb6eqzm5@node.shutemov.name>
-References: <20170327162925.16092-1-kirill.shutemov@linux.intel.com>
- <20170327162925.16092-4-kirill.shutemov@linux.intel.com>
- <1ae86ad3-deae-1b27-d7a9-ea6b20edc039@zytor.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1ae86ad3-deae-1b27-d7a9-ea6b20edc039@zytor.com>
+        Tue, 28 Mar 2017 16:29:44 -0700 (PDT)
+Date: Tue, 28 Mar 2017 16:29:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] kasan: avoid -Wmaybe-uninitialized warning
+Message-Id: <20170328162942.eb08b50af725428a4be25f2b@linux-foundation.org>
+In-Reply-To: <20170323150415.301180-1-arnd@arndb.de>
+References: <20170323150415.301180-1-arnd@arndb.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, Peter Zijlstra <peterz@infradead.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 28, 2017 at 03:21:39PM -0700, H. Peter Anvin wrote:
-> On 03/27/17 09:29, Kirill A. Shutemov wrote:
-> > +fffe000000000000 - fffe007fffffffff (=39 bits) %esp fixup stacks
+On Thu, 23 Mar 2017 16:04:09 +0100 Arnd Bergmann <arnd@arndb.de> wrote:
+
+> gcc-7 produces this warning:
 > 
-> Why move this?
+> mm/kasan/report.c: In function 'kasan_report':
+> mm/kasan/report.c:351:3: error: 'info.first_bad_addr' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+>    print_shadow_for_address(info->first_bad_addr);
+>    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> mm/kasan/report.c:360:27: note: 'info.first_bad_addr' was declared here
+> 
+> The code seems fine as we only print info.first_bad_addr when there is a shadow,
+> and we always initialize it in that case, but this is relatively hard
+> for gcc to figure out after the latest rework. Adding an intialization
+> in the other code path gets rid of the warning.
+> 
+> ...
+>
+> --- a/mm/kasan/report.c
+> +++ b/mm/kasan/report.c
+> @@ -109,6 +109,8 @@ const char *get_wild_bug_type(struct kasan_access_info *info)
+>  {
+>  	const char *bug_type = "unknown-crash";
+>  
+> +	info->first_bad_addr = (void *)(-1ul);
+> +
+>  	if ((unsigned long)info->access_addr < PAGE_SIZE)
+>  		bug_type = "null-ptr-deref";
+>  	else if ((unsigned long)info->access_addr < TASK_SIZE)
 
-You're right. There's no reason to.
+A weird, ugly and seemingly-unneeded statement should have a comment
+explaining its existence, no?
 
-It's accident due to ESPFIX_BASE_ADDR being defined using PGDIR_SHIFT.
-We should use P4D_SHIFT instead to produce consistent result across
-paging modes.
+Fortunately it is no longer needed.  We now have:
 
-I'll update the patch tomorrow. Thanks for noticing this.
+static void print_error_description(struct kasan_access_info *info)
+{
+	const char *bug_type = "unknown-crash";
+	u8 *shadow_addr;
 
--- 
- Kirill A. Shutemov
+	info->first_bad_addr = find_first_bad_addr(info->access_addr,
+						info->access_size);
+
+	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
+
+	...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
