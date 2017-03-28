@@ -1,137 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E9EB6B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 13:54:11 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v21so110802925pgo.22
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 10:54:11 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id p5si4764202pgk.146.2017.03.28.10.54.10
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E6366B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 14:24:39 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id n21so59584121qta.3
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 11:24:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si4104622qkd.150.2017.03.28.11.24.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 10:54:10 -0700 (PDT)
-Date: Tue, 28 Mar 2017 10:54:08 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-Message-ID: <20170328175408.GD7838@bombadil.infradead.org>
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
- <20170328165343.GB27446@linux-80c1.suse>
- <20170328165513.GC27446@linux-80c1.suse>
+        Tue, 28 Mar 2017 11:24:38 -0700 (PDT)
+Date: Tue, 28 Mar 2017 20:24:26 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Page allocator order-0 optimizations merged
+Message-ID: <20170328202426.6485bd91@redhat.com>
+In-Reply-To: <26c4d7a4-c8a7-fbad-d2be-a5a90f6d93d3@gmail.com>
+References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
+	<83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
+	<20170322234004.kffsce4owewgpqnm@techsingularity.net>
+	<20170323144347.1e6f29de@redhat.com>
+	<20170323145133.twzt4f5ci26vdyut@techsingularity.net>
+	<779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
+	<1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
+	<2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
+	<20170327105514.1ed5b1ba@redhat.com>
+	<20170327143947.4c237e54@redhat.com>
+	<20170327133212.6azfgrariwocdzzd@techsingularity.net>
+	<0873b65b-2217-005d-0b42-4af6ad66cc0f@gmail.com>
+	<26c4d7a4-c8a7-fbad-d2be-a5a90f6d93d3@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170328165513.GC27446@linux-80c1.suse>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, ak@linux.intel.com, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
+To: Tariq Toukan <ttoukan.linux@gmail.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>, brouer@redhat.com
 
-On Tue, Mar 28, 2017 at 09:55:13AM -0700, Davidlohr Bueso wrote:
-> Do we have any consensus here? Keeping SHM_HUGE_* is currently
-> winning 2-1. If there are in fact users out there computing the
-> value manually, then I am ok with keeping it and properly exporting
-> it. Michal?
+On Tue, 28 Mar 2017 19:05:12 +0300
+Tariq Toukan <ttoukan.linux@gmail.com> wrote:
 
-Well, let's see what it looks like to do that.  I went down the rabbit
-hole trying to understand why some of the SHM_ flags had the same value
-as each other until I realised some of them were internal flags, some
-were flags to shmat() and others were flags to shmget().  Hopefully I
-disambiguated them nicely in this patch.  I also added 8MB and 16GB sizes.
-Any more architectures with a pet favourite huge/giant page size we
-should add convenience defines for?
+> On 28/03/2017 10:32 AM, Tariq Toukan wrote:
+> >
+> >
+> > On 27/03/2017 4:32 PM, Mel Gorman wrote:  
+> >> On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:  
+> >>> On Mon, 27 Mar 2017 10:55:14 +0200
+> >>> Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+> >>>  
+> >>>> A possible solution, would be use the local_bh_{disable,enable} instead
+> >>>> of the {preempt_disable,enable} calls.  But it is slower, using numbers
+> >>>> from [1] (19 vs 11 cycles), thus the expected cycles saving is
+> >>>> 38-19=19.
+> >>>>
+> >>>> The problematic part of using local_bh_enable is that this adds a
+> >>>> softirq/bottom-halves rescheduling point (as it checks for pending
+> >>>> BHs).  Thus, this might affects real workloads.  
+> >>>
+> >>> I implemented this solution in patch below... and tested it on mlx5 at
+> >>> 50G with manually disabled driver-page-recycling.  It works for me.
+> >>>
+> >>> To Mel, that do you prefer... a partial-revert or something like this?
+> >>>  
+> >>
+> >> If Tariq confirms it works for him as well, this looks far safer patch  
+> >
+> > Great.
+> > I will test Jesper's patch today in the afternoon.
+> >  
+> 
+> It looks very good!
+> I get line-rate (94Gbits/sec) with 8 streams, in comparison to less than 
+> 55Gbits/sec before.
 
-diff --git a/include/linux/shm.h b/include/linux/shm.h
-index 04e881829625..cd95243efd1a 100644
---- a/include/linux/shm.h
-+++ b/include/linux/shm.h
-@@ -24,26 +24,13 @@ struct shmid_kernel /* private to the kernel */
- 	struct list_head	shm_clist;	/* list by creator */
- };
- 
--/* shm_mode upper byte flags */
--#define	SHM_DEST	01000	/* segment will be destroyed on last detach */
--#define SHM_LOCKED      02000   /* segment will not be swapped */
--#define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
--#define SHM_NORESERVE   010000  /* don't check for reservations */
--
--/* Bits [26:31] are reserved */
--
- /*
-- * When SHM_HUGETLB is set bits [26:31] encode the log2 of the huge page size.
-- * This gives us 6 bits, which is enough until someone invents 128 bit address
-- * spaces.
-- *
-- * Assume these are all power of twos.
-- * When 0 use the default page size.
-+ * These flags are used internally; they cannot be specified by the user.
-+ * They are masked off in newseg().  These values are used by IPC_CREAT
-+ * and IPC_EXCL when calling shmget().
-  */
--#define SHM_HUGE_SHIFT  26
--#define SHM_HUGE_MASK   0x3f
--#define SHM_HUGE_2MB    (21 << SHM_HUGE_SHIFT)
--#define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
-+#define	SHM_DEST	01000	/* segment will be destroyed on last detach */
-+#define SHM_LOCKED      02000   /* segment will not be swapped */
- 
- #ifdef CONFIG_SYSVIPC
- struct sysv_shm {
-diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-index 1fbf24ea37fd..44b36cb228d7 100644
---- a/include/uapi/linux/shm.h
-+++ b/include/uapi/linux/shm.h
-@@ -40,15 +40,34 @@ struct shmid_ds {
- /* Include the definition of shmid64_ds and shminfo64 */
- #include <asm/shmbuf.h>
- 
--/* permission flag for shmget */
-+/* shmget() shmflg values. */
-+/* The bottom nine bits are the same as open(2) mode flags */
- #define SHM_R		0400	/* or S_IRUGO from <linux/stat.h> */
- #define SHM_W		0200	/* or S_IWUGO from <linux/stat.h> */
-+/* Bits 9 & 10 are IPC_CREAT and IPC_EXCL */
-+#define SHM_HUGETLB     (1 << 11) /* segment will use huge TLB pages */
-+#define SHM_NORESERVE   (1 << 12) /* don't check for reservations */
- 
--/* mode for attach */
--#define	SHM_RDONLY	010000	/* read-only access */
--#define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
--#define	SHM_REMAP	040000	/* take-over region on attach */
--#define	SHM_EXEC	0100000	/* execution access */
-+/*
-+ * When SHM_HUGETLB is set bits [26:31] encode the log2 of the huge page size.
-+ * This gives us 6 bits, which is enough until someone invents 128 bit address
-+ * spaces.  These match MAP_HUGE_SHIFT and MAP_HUGE_MASK.
-+ *
-+ * Assume these are all powers of two.
-+ * When 0 use the default page size.
-+ */
-+#define SHM_HUGE_SHIFT	26
-+#define SHM_HUGE_MASK	0x3f
-+#define SHM_HUGE_2MB	(21 << SHM_HUGE_SHIFT)
-+#define SHM_HUGE_8MB	(23 << SHM_HUGE_SHIFT)
-+#define SHM_HUGE_1GB	(30 << SHM_HUGE_SHIFT)
-+#define SHM_HUGE_16GB	(34 << SHM_HUGE_SHIFT)
-+
-+/* shmat() shmflg values */
-+#define	SHM_RDONLY	(1 << 12) /* read-only access */
-+#define	SHM_RND		(1 << 13) /* round attach address to SHMLBA boundary */
-+#define	SHM_REMAP	(1 << 14) /* take-over region on attach */
-+#define	SHM_EXEC	(1 << 15) /* execution access */
- 
- /* super user shmctl commands */
- #define SHM_LOCK 	11
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 499b988b1639..40b29aca18c1 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1479,7 +1479,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
- 		struct user_struct *user = NULL;
- 		struct hstate *hs;
- 
--		hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & SHM_HUGE_MASK);
-+		hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
- 		if (!hs)
- 			return -EINVAL;
- 
+Just confirming, this is when you have disabled mlx5 driver
+page-recycling, right?
+
+
+> >> than having a dedicate IRQ-safe queue. Your concern about the BH
+> >> scheduling point is valid but if it's proven to be a problem, there is
+> >> still the option of a partial revert.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
