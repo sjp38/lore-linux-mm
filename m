@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 716FD6B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 19:30:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 187so1658274wmn.5
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:30:59 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id q69si4964424wmd.149.2017.03.28.16.30.58
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF786B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 19:38:25 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 34so2098066pgx.6
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:38:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c7si5357551pgn.352.2017.03.28.16.38.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 16:30:58 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id x124so2250858wmf.3
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 16:30:58 -0700 (PDT)
-Date: Wed, 29 Mar 2017 02:30:56 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH -mm -v7 1/9] mm, swap: Make swap cluster size same of THP
- size on x86_64
-Message-ID: <20170328233056.zkp733h5kij7lfdb@node.shutemov.name>
-References: <20170328053209.25876-1-ying.huang@intel.com>
- <20170328053209.25876-2-ying.huang@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170328053209.25876-2-ying.huang@intel.com>
+        Tue, 28 Mar 2017 16:38:25 -0700 (PDT)
+Date: Tue, 28 Mar 2017 16:38:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mm: BUG in resv_map_release
+Message-Id: <20170328163823.3a0445a058670be9254e115c@linux-foundation.org>
+In-Reply-To: <CACT4Y+Z-trVe0Oqzs8c+mTG6_iL7hPBBFgOm0p0iQsCz9Q2qiw@mail.gmail.com>
+References: <CACT4Y+Z-trVe0Oqzs8c+mTG6_iL7hPBBFgOm0p0iQsCz9Q2qiw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: nyc@holomorphy.com, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Tue, Mar 28, 2017 at 01:32:01PM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Thu, 23 Mar 2017 11:19:38 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
+
+> Hello,
 > 
-> In this patch, the size of the swap cluster is changed to that of the
-> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
-> the THP swap support on x86_64.  Where one swap cluster will be used to
-> hold the contents of each THP swapped out.  And some information of the
-> swapped out THP (such as compound map count) will be recorded in the
-> swap_cluster_info data structure.
+> I've got the following BUG while running syzkaller fuzzer.
+> Note the injected kmalloc failure, most likely it's the root cause.
 > 
-> For other architectures which want THP swap support,
-> ARCH_USES_THP_SWAP_CLUSTER need to be selected in the Kconfig file for
-> the architecture.
 
-Intreseting case could be architecture with HPAGE_PMD_NR < 256.
-Can current code pack more than one THP per claster.
+Yes, probably the logic(?) in region_chg() leaked a
+resv->adds_in_progress++, although I'm not sure how.  And afaict that
+code can leak the memory at *nrg if the `trg' allocation attempt failed
+on the second or later pass around the retry loop.
 
-If not we need to have BUILG_BUG_ON() to catch attempt of such enabling.
-
--- 
- Kirill A. Shutemov
+Blah.  Does someone want to take a look at it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
