@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DE36B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 11:33:06 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p52so3815817wrc.8
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:33:06 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE826B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 11:50:01 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id i18so3893434wrb.21
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:50:01 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v132si7611037wmg.99.2017.03.29.08.33.05
+        by mx.google.com with ESMTPS id 45si8969400wrb.329.2017.03.29.08.49.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 08:33:05 -0700 (PDT)
-Date: Wed, 29 Mar 2017 17:32:53 +0200
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC PATCH v2 16/32] x86: kvm: Provide support to create Guest
- and HV shared per-CPU variables
-Message-ID: <20170329153252.kwwyedndwnfgvzcb@pd.tnic>
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846773666.2349.9492983018843773590.stgit@brijesh-build-machine>
- <20170328183931.rqorduu5fnp5r3y2@pd.tnic>
- <9a8723fc-300d-eb76-deb1-cbc8492e9d49@redhat.com>
+        Wed, 29 Mar 2017 08:49:59 -0700 (PDT)
+Subject: Re: [PATCH v3 4/8] mm, page_alloc: count movable pages when stealing
+ from pageblock
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-5-vbabka@suse.cz>
+ <20170316015323.GB14063@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0da9d0e1-59f3-79f2-2bc4-6c381f103813@suse.cz>
+Date: Wed, 29 Mar 2017 17:49:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <9a8723fc-300d-eb76-deb1-cbc8492e9d49@redhat.com>
+In-Reply-To: <20170316015323.GB14063@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-On Wed, Mar 29, 2017 at 05:21:13PM +0200, Paolo Bonzini wrote:
-> The GHCB would have to be allocated much earlier, possibly even by
-> firmware depending on how things will be designed.
+On 03/16/2017 02:53 AM, Joonsoo Kim wrote:
+> On Tue, Mar 07, 2017 at 02:15:41PM +0100, Vlastimil Babka wrote:
+>> When stealing pages from pageblock of a different migratetype, we count how
+>> many free pages were stolen, and change the pageblock's migratetype if more
+>> than half of the pageblock was free. This might be too conservative, as there
+>> might be other pages that are not free, but were allocated with the same
+>> migratetype as our allocation requested.
+> 
+> I think that too conservative is good for movable case. In my experiments,
+> fragmentation spreads out when unmovable/reclaimable pageblock is
+> changed to movable pageblock prematurely ('prematurely' means that
+> allocated unmovable pages remains). As you said below, movable allocations
+> falling back to other pageblocks don't causes permanent fragmentation.
+> Therefore, we don't need to be less conservative for movable
+> allocation. So, how about following change to keep the criteria for
+> movable allocation conservative even with this counting improvement?
+> 
+> threshold = (1 << (pageblock_order - 1));
+> if (start_type == MIGRATE_MOVABLE)
+>         threshold += (1 << (pageblock_order - 2));
+> 
+> if (free_pages + alike_pages >= threshold)
+>         ...
 
-How about a statically allocated page like we do with the early
-pagetable pages in head_64.S?
+That could help, or also not. Keeping more pageblocks marked as unmovable also
+means that more unmovable allocations will spread out to them all, even if they
+would fit within less pageblocks. MIGRATE_MIXED was an idea to help in this
+case, as truly unmovable pageblocks would be preferred to the mixed ones.
 
-> I think it's premature to consider SEV-ES requirements.
+Can't decide about such change without testing :/
 
-My only concern is not to have to redo a lot when SEV-ES gets enabled.
-So it would be prudent to design with SEV-ES in the back of our minds.
-
--- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
