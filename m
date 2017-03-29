@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 902506B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 21:11:02 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q189so1754710pgq.17
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 18:11:02 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id b21si2453346pgi.115.2017.03.28.18.11.01
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C36986B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 22:15:05 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id f63so234075pfc.23
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 19:15:05 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id g12si5796566pla.125.2017.03.28.19.15.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 18:11:01 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v7 1/9] mm, swap: Make swap cluster size same of THP size on x86_64
-References: <20170328053209.25876-1-ying.huang@intel.com>
-	<20170328053209.25876-2-ying.huang@intel.com>
-	<20170328233056.zkp733h5kij7lfdb@node.shutemov.name>
-Date: Wed, 29 Mar 2017 09:10:58 +0800
-In-Reply-To: <20170328233056.zkp733h5kij7lfdb@node.shutemov.name> (Kirill
-	A. Shutemov's message of "Wed, 29 Mar 2017 02:30:56 +0300")
-Message-ID: <87y3voyjj1.fsf@yhuang-dev.intel.com>
+        Tue, 28 Mar 2017 19:15:04 -0700 (PDT)
+Received: from willy by bombadil.infradead.org with local (Exim 4.87 #1 (Red Hat Linux))
+	id 1ct38Z-0007FK-N9
+	for linux-mm@kvack.org; Wed, 29 Mar 2017 02:15:03 +0000
+Date: Tue, 28 Mar 2017 19:15:03 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Consolidate calls to unmap_mapping_range in collapse_shmem
+Message-ID: <20170329021503.GA7760@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-> On Tue, Mar 28, 2017 at 01:32:01PM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> In this patch, the size of the swap cluster is changed to that of the
->> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
->> the THP swap support on x86_64.  Where one swap cluster will be used to
->> hold the contents of each THP swapped out.  And some information of the
->> swapped out THP (such as compound map count) will be recorded in the
->> swap_cluster_info data structure.
->> 
->> For other architectures which want THP swap support,
->> ARCH_USES_THP_SWAP_CLUSTER need to be selected in the Kconfig file for
->> the architecture.
->
-> Intreseting case could be architecture with HPAGE_PMD_NR < 256.
-> Can current code pack more than one THP per claster.
+Is there a reason we call unmap_mapping_range() for a single page at a
+time instead of the entire hugepage?  This is surely more efficient ...
+but does it do something like increase the refcount on the page?
 
-No.  Only one THP for each swap cluster is supported.  But in current
-implementation, if HPAGE_PMD_NR < 256, the swap cluster will be < 256
-too.  The size of swap cluster will be exact same as HPAGE_PMD_NR.
+I suppose we might be able to skip all the calls to unmap_mapping_range()
+if none of the pages are mapped, but surely anonymous pages are usually
+mapped?
 
-Best Regards,
-Huang, Ying
-
-> If not we need to have BUILG_BUG_ON() to catch attempt of such enabling.
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 34bce5c308e3..2c686ba6a32b 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1396,17 +1396,11 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			goto out_isolate_failed;
+ 		}
+ 
+-		if (page_mapped(page))
+-			unmap_mapping_range(mapping, index << PAGE_SHIFT,
+-					PAGE_SIZE, 0);
+-
+ 		spin_lock_irq(&mapping->tree_lock);
+ 
+ 		slot = radix_tree_lookup_slot(&mapping->page_tree, index);
+ 		VM_BUG_ON_PAGE(page != radix_tree_deref_slot_protected(slot,
+ 					&mapping->tree_lock), page);
+-		VM_BUG_ON_PAGE(page_mapped(page), page);
+-
+ 		/*
+ 		 * The page is expected to have page_count() == 3:
+ 		 *  - we hold a pin on it;
+@@ -1472,6 +1466,9 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		unsigned long flags;
+ 		struct zone *zone = page_zone(new_page);
+ 
++		unmap_mapping_range(mapping, start << PAGE_SHIFT,
++					HPAGE_PMD_SIZE, 0);
++
+ 		/*
+ 		 * Replacing old pages with new one has succeed, now we need to
+ 		 * copy the content and free old pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
