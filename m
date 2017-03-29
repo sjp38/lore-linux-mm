@@ -1,44 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 472EE6B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 04:21:38 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id y16so3396108vky.9
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:21:38 -0700 (PDT)
-Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
-        by mx.google.com with ESMTPS id 104si532596uan.178.2017.03.29.01.21.37
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C48D06B0397
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 04:48:38 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id x7so3352393qka.9
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:48:38 -0700 (PDT)
+Received: from mail-qt0-x234.google.com (mail-qt0-x234.google.com. [2607:f8b0:400d:c0d::234])
+        by mx.google.com with ESMTPS id l63si5679940qkb.301.2017.03.29.01.48.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 01:21:37 -0700 (PDT)
-Received: by mail-vk0-x230.google.com with SMTP id s68so9131268vke.3
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:21:37 -0700 (PDT)
+        Wed, 29 Mar 2017 01:48:37 -0700 (PDT)
+Received: by mail-qt0-x234.google.com with SMTP id i34so6901870qtc.0
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:48:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170328213513.GB12803@bombadil.infradead.org>
-References: <cover.1490717337.git.dvyukov@google.com> <ffaaa56d5099d2926004f0290f73396d0bd842c8.1490717337.git.dvyukov@google.com>
- <20170328213513.GB12803@bombadil.infradead.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 29 Mar 2017 10:21:16 +0200
-Message-ID: <CACT4Y+bawF=f_VNoYzfqpwT7FV7+iYA0QW+4NXZCdSh=vDgcMg@mail.gmail.com>
-Subject: Re: [PATCH 4/8] asm-generic: add atomic-instrumented.h
+In-Reply-To: <1489798493-16600-3-git-send-email-labbott@redhat.com>
+References: <1489798493-16600-1-git-send-email-labbott@redhat.com> <1489798493-16600-3-git-send-email-labbott@redhat.com>
+From: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+Date: Wed, 29 Mar 2017 10:48:36 +0200
+Message-ID: <CA+M3ks6F_9dhfD4DLMJ=GNsr=H86_XLyiBHvzvz6+akjLSNBUw@mail.gmail.com>
+Subject: Re: [RFC PATCHv2 02/21] cma: Introduce cma_for_each_area
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, Rom Lemarchand <romlem@google.com>, devel@driverdev.osuosl.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Linux MM <linux-mm@kvack.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-On Tue, Mar 28, 2017 at 11:35 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Tue, Mar 28, 2017 at 06:15:41PM +0200, Dmitry Vyukov wrote:
->> The new header allows to wrap per-arch atomic operations
->> and add common functionality to all of them.
+2017-03-18 1:54 GMT+01:00 Laura Abbott <labbott@redhat.com>:
 >
-> Why a new header instead of putting this in linux/atomic.h?
+> Frameworks (e.g. Ion) may want to iterate over each possible CMA area to
+> allow for enumeration. Introduce a function to allow a callback.
+
+even outside ION rework that could be useful
+
+Reviewed-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+
+>
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> ---
+>  include/linux/cma.h |  2 ++
+>  mm/cma.c            | 14 ++++++++++++++
+>  2 files changed, 16 insertions(+)
+>
+> diff --git a/include/linux/cma.h b/include/linux/cma.h
+> index d41d1f8..3e8fbf5 100644
+> --- a/include/linux/cma.h
+> +++ b/include/linux/cma.h
+> @@ -34,4 +34,6 @@ extern int cma_init_reserved_mem(phys_addr_t base, phys=
+_addr_t size,
+>  extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned in=
+t align,
+>                               gfp_t gfp_mask);
+>  extern bool cma_release(struct cma *cma, const struct page *pages, unsig=
+ned int count);
+> +
+> +extern int cma_for_each_area(int (*it)(struct cma *cma, void *data), voi=
+d *data);
+>  #endif
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 0d187b1..9a040e1 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -498,3 +498,17 @@ bool cma_release(struct cma *cma, const struct page =
+*pages, unsigned int count)
+>
+>         return true;
+>  }
+> +
+> +int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data=
+)
+> +{
+> +       int i;
+> +
+> +       for (i =3D 0; i < cma_area_count; i++) {
+> +               int ret =3D it(&cma_areas[i], data);
+> +
+> +               if (ret)
+> +                       return ret;
+> +       }
+> +
+> +       return 0;
+> +}
+> --
+> 2.7.4
+>
 
 
-Only a subset of archs include this header. If we pre-include it for
-all arches without changing their atomic.h, we will break build. We of
-course play some tricks with preprocessor.
-It's also large enough to put into a separate header IMO.
-Also a reasonable question: why put it into linux/atomic.h instead of
-a new header? :)
+
+--=20
+Benjamin Gaignard
+
+Graphic Study Group
+
+Linaro.org =E2=94=82 Open source software for ARM SoCs
+
+Follow Linaro: Facebook | Twitter | Blog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
