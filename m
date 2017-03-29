@@ -1,111 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 40DCE6B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 02:03:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id k62so2332416pfc.16
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 23:03:20 -0700 (PDT)
-Received: from epoutp01.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id 1si6346158pgt.210.2017.03.28.23.03.18
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 361046B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 02:43:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j4so2671265pfc.8
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 23:43:19 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id w13si6452676pgm.221.2017.03.28.23.43.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 23:03:19 -0700 (PDT)
-Received: from epcas2p2.samsung.com (unknown [182.195.41.54])
-	by epoutp01.samsung.com (KnoxPortal) with ESMTP id 20170329060316epoutp01ddecd7b371fac8df3e22471adf2c212e~wRQxiS1H-1600516005epoutp01K
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:03:16 +0000 (GMT)
-From: Maninder Singh <maninder1.s@samsung.com>
-Subject: [PATCH v2] module: check if memory leak by module.
-Date: Wed, 29 Mar 2017 11:32:02 +0530
-Message-Id: <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
-Content-Type: text/plain; charset="utf-8"
-References: <CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcas5p1.samsung.com>
+        Tue, 28 Mar 2017 23:43:18 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id 79so1473548pgf.0
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 23:43:18 -0700 (PDT)
+Date: Wed, 29 Mar 2017 15:42:06 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC]mm/zsmalloc,: trigger BUG_ON in function zs_map_object.
+Message-ID: <20170329064206.GA512@tigerII.localdomain>
+References: <e8aa282e-ad53-bfb8-2b01-33d2779f247a@huawei.com>
+ <20170329002029.GA18979@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170329002029.GA18979@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jeyu@redhat.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, chris@chris-wilson.co.uk, aryabinin@virtuozzo.com, joonas.lahtinen@linux.intel.com, mhocko@suse.com, keescook@chromium.org, pavel@ucw.cz, jinb.park7@gmail.com, anisse@astier.eu, rafael.j.wysocki@intel.com, zijun_hu@htc.com, mingo@kernel.org, mawilcox@microsoft.com, thgarnie@google.com, joelaf@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: pankaj.m@samsung.com, ajeet.y@samsung.com, hakbong5.lee@samsung.com, a.sahrawat@samsung.com, lalit.mohan@samsung.com, cpgs@samsung.com, Maninder Singh <maninder1.s@samsung.com>, Vaneet Narang <v.narang@samsung.com>
+To: Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>
+Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-This patch checks if any module which is going to be unloaded
-is doing vmalloc memory leak or not.
+On (03/29/17 09:20), Minchan Kim wrote:
+> Hello,
+> 
+> On Tue, Mar 28, 2017 at 03:20:22PM +0800, Yisheng Xie wrote:
+> > Hi, all,
+> > 
+> > We had backport the no-lru migration to linux-4.1, meanwhile change the
+> > ZS_MAX_ZSPAGE_ORDER to 3. Then we met a BUG_ON(!page[1]).
+> 
+> Hmm, I don't know how you backported.
+> 
+> There isn't any problem with default ZS_MAX_ZSPAGE_ORDER. Right?
+> So, it happens only if you changed it to 3?
 
-Logs:-
-[  129.336368] Module [test_module] is getting unloaded before doing vfree
-[  129.336371] Memory still allocated: addr:0xffffc90001461000 - 0xffffc900014c7000, pages 101
-[  129.336376] Allocating function kernel_init+0x1c/0x20 [test_module]
+I agree with Minchan. too much things could have gone wrong during the backport.
 
-Signed-off-by: Vaneet Narang <v.narang@samsung.com>
-Signed-off-by: Maninder Singh <maninder1.s@samsung.com>
----
-v1->v2: made code generic rather than dependent on config.
-	changed pr_alert to pr_err.
+> Could you tell me what is your base kernel? and what zram/zsmalloc
+> version(ie, from what kernel version) you backported to your
+> base kernel?
 
- include/linux/vmalloc.h |  2 ++
- kernel/module.c         | 22 ++++++++++++++++++++++
- mm/vmalloc.c            |  2 --
- 3 files changed, 24 insertions(+), 2 deletions(-)
+agree again.
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 46991ad..5531af3 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -29,6 +29,8 @@
- #define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
- #endif
- 
-+#define VM_VM_AREA  0x04
-+
- struct vm_struct {
- 	struct vm_struct	*next;
- 	void			*addr;
-diff --git a/kernel/module.c b/kernel/module.c
-index f953df9..98a8018 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -2117,9 +2117,31 @@ void __weak module_arch_freeing_init(struct module *mod)
- {
- }
- 
-+static void check_memory_leak(struct module *mod)
-+{
-+	struct vmap_area *va;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(va, &vmap_area_list, list) {
-+		if (!(va->flags & VM_VM_AREA))
-+			continue;
-+		if ((mod->core_layout.base < va->vm->caller) &&
-+			(mod->core_layout.base + mod->core_layout.size) > va->vm->caller) {
-+			pr_err("Module [%s] is getting unloaded before doing vfree\n", mod->name);
-+			pr_err("Memory still allocated: addr:0x%lx - 0x%lx, pages %u\n",
-+				va->va_start, va->va_end, va->vm->nr_pages);
-+			pr_err("Allocating function %pS\n", va->vm->caller);
-+		}
-+
-+	}
-+	rcu_read_unlock();
-+}
-+
- /* Free a module, remove from lists, etc. */
- static void free_module(struct module *mod)
- {
-+	check_memory_leak(mod);
-+
- 	trace_module_free(mod);
- 
- 	mod_sysfs_teardown(mod);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 68eb002..0166a0a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -314,8 +314,6 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
- 
- /*** Global kva allocator ***/
- 
--#define VM_VM_AREA	0x04
--
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
- LIST_HEAD(vmap_area_list);
--- 
-1.9.1
+
+
+Yisheng, do you have this commit applied?
+
+commit c102f07ca0b04f2cb49cfc161c83f6239d17f491
+Author: Junil Lee <junil0814.lee@lge.com>
+Date:   Wed Jan 20 14:58:18 2016 -0800
+
+    zsmalloc: fix migrate_zspage-zs_free race condition
+
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
