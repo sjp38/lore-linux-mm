@@ -1,42 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A56B6B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 10:43:30 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 187so15833011ito.14
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 07:43:30 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v125si7044707itc.26.2017.03.29.07.43.28
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BF65A6B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 11:14:42 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p52so3698783wrc.8
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:14:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a27si8851464wra.258.2017.03.29.08.14.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 07:43:29 -0700 (PDT)
-Subject: Re: [PATCH v3] mm: Allow calling vfree() from non-schedulable context.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1490784712-4991-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<0065385b-8cf9-aec6-22bb-9e6d21501a8c@virtuozzo.com>
-	<20170329114705.GL27994@dhcp22.suse.cz>
-In-Reply-To: <20170329114705.GL27994@dhcp22.suse.cz>
-Message-Id: <201703292341.AJG51076.JFSFOLOOMQHFtV@I-love.SAKURA.ne.jp>
-Date: Wed, 29 Mar 2017 23:41:51 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Wed, 29 Mar 2017 08:14:40 -0700 (PDT)
+Date: Wed, 29 Mar 2017 17:14:13 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v2 18/32] kvm: svm: Use the hardware provided GPA
+ instead of page walk
+Message-ID: <20170329151413.l2on26mdyyskwqlu@pd.tnic>
+References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
+ <148846776540.2349.3123530065053870721.stgit@brijesh-build-machine>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <148846776540.2349.3123530065053870721.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, aryabinin@virtuozzo.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-Michal Hocko wrote:
-> On Wed 29-03-17 14:36:10, Andrey Ryabinin wrote:
-> [...]
-> > So I just get a better idea. How about just always deferring
-> > __purge_vmap_area_lazy()?
+On Thu, Mar 02, 2017 at 10:16:05AM -0500, Brijesh Singh wrote:
+> From: Tom Lendacky <thomas.lendacky@amd.com>
 > 
-> I didn't get to look closer but from the high level POV this makes a lot
-> of sense. __purge_vmap_area_lazy shouldn't be called all that often that
-> the deferred mode would matter.
+> When a guest causes a NPF which requires emulation, KVM sometimes walks
+> the guest page tables to translate the GVA to a GPA. This is unnecessary
+> most of the time on AMD hardware since the hardware provides the GPA in
+> EXITINFO2.
+> 
+> The only exception cases involve string operations involving rep or
+> operations that use two memory locations. With rep, the GPA will only be
+> the value of the initial NPF and with dual memory locations we won't know
+> which memory address was translated into EXITINFO2.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> Reviewed-by: Borislav Petkov <bp@suse.de>
 
-I tested this change and confirmed that warnings went away.
-This change is simple enough to send to 4.10-stable and 4.11-rc.
-If you are OK with this change, I'm OK with this change.
+I think I already asked you to remove Revewed-by tags when you have to
+change an already reviewed patch in non-trivial manner. Why does this
+one still have my Reviewed-by tag?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
