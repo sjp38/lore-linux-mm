@@ -1,72 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C73926B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 11:57:01 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v21so12359645pgo.22
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:57:01 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id n1si7800631pld.289.2017.03.29.08.57.00
-        for <linux-mm@kvack.org>;
-        Wed, 29 Mar 2017 08:57:01 -0700 (PDT)
-Date: Wed, 29 Mar 2017 16:56:32 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH 7/8] asm-generic: add KASAN instrumentation to atomic
- operations
-Message-ID: <20170329155631.GA26135@leverpostej>
-References: <cover.1490717337.git.dvyukov@google.com>
- <b560d54e8be963f4155036a1f4b94d7f48b20af5.1490717337.git.dvyukov@google.com>
- <20170329140000.GK23442@leverpostej>
- <CACT4Y+ay7J4kdLG1i2Czop6H3pDKxpcRVxM0xoNiZ2pJ0emHQw@mail.gmail.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 833F46B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 12:06:45 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g7so4029456wrd.16
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:06:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 17si7727483wmj.152.2017.03.29.09.06.43
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Mar 2017 09:06:43 -0700 (PDT)
+Subject: Re: [PATCH v3 7/8] mm, compaction: restrict async compaction to
+ pageblocks of same migratetype
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-8-vbabka@suse.cz>
+ <20170316021403.GC14063@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
+Date: Wed, 29 Mar 2017 18:06:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+ay7J4kdLG1i2Czop6H3pDKxpcRVxM0xoNiZ2pJ0emHQw@mail.gmail.com>
+In-Reply-To: <20170316021403.GC14063@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-On Wed, Mar 29, 2017 at 05:52:43PM +0200, Dmitry Vyukov wrote:
-> On Wed, Mar 29, 2017 at 4:00 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Tue, Mar 28, 2017 at 06:15:44PM +0200, Dmitry Vyukov wrote:
-> >> KASAN uses compiler instrumentation to intercept all memory accesses.
-> >> But it does not see memory accesses done in assembly code.
-> >> One notable user of assembly code is atomic operations. Frequently,
-> >> for example, an atomic reference decrement is the last access to an
-> >> object and a good candidate for a racy use-after-free.
-> >>
-> >> Add manual KASAN checks to atomic operations.
-> >>
-> >> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-> >> Cc: Mark Rutland <mark.rutland@arm.com>
-> >> Cc: Peter Zijlstra <peterz@infradead.org>
-> >> Cc: Will Deacon <will.deacon@arm.com>,
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>,
-> >> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
-> >> Cc: Ingo Molnar <mingo@redhat.com>,
-> >> Cc: kasan-dev@googlegroups.com
-> >> Cc: linux-mm@kvack.org
-> >> Cc: linux-kernel@vger.kernel.org
-> >> Cc: x86@kernel.org
-> >
-> > FWIW, I think that structuring the file this way will make it easier to
-> > add the {acquire,release,relaxed} variants (as arm64 will need),
-> > so this looks good to me.
-> >
-> > As a heads-up, I wanted to have a go at that, but I wasn't able to apply
-> > patch two onwards on v4.11-rc{3,4} or next-20170329. I was not able to
-> > cleanly revert the instrumentation patches currently in next-20170329,
-> > since other patches built atop of them.
+On 03/16/2017 03:14 AM, Joonsoo Kim wrote:
+> On Tue, Mar 07, 2017 at 02:15:44PM +0100, Vlastimil Babka wrote:
+>> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
+>> pageblocks. This is a heuristic intended to reduce latency, based on the
+>> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+>> 
+>> However, with the exception of THP's, most high-order allocations are not
+>> movable. Should the async compaction succeed, this increases the chance that
+>> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
+>> long-term fragmentation worse.
 > 
-> I based it on git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git
-> locking/core
+> I agree with this idea but have some concerns on this change.
+> 
+> *ASYNC* compaction is designed for reducing latency and this change
+> doesn't fit it. If everything works fine, there is a few movable pages
+> in non-MOVABLE pageblocks as you noted above. Moreover, there is quite
+> less the number of non-MOVABLE pageblock than MOVABLE one so finding
+> non-MOVABLE pageblock takes long time. These two factors will increase
+> the latency of *ASYNC* compaction.
 
-Ah; I should have guessed. ;)
+Right. I lately started to doubt the whole idea of async compaction (for
+non-movable allocations). Seems it's one of the compaction heuristics tuned
+towards the THP usecase. But for non-movable allocations, we just can't have
+both the low latency and long-term fragmentation avoidance. I see now even my
+own skip_on_failure mode in isolate_migratepages_block() as a mistake for
+non-movable allocations.
 
-Thanks for the pointer!  I'll give that a go shortly.
+Ideally I'd like to make async compaction redundant by kcompactd, and direct
+compaction would mean a serious situation which should warrant sync compaction.
+Meanwhile I see several options to modify this patch
+- async compaction for non-movable allocations will stop doing the
+skip_on_failure mode, and won't restrict the pageblock at all. patch 8/8 will
+make sure that also this kind of compaction finishes the whole pageblock
+- non-movable allocations will skip async compaction completely and go for sync
+compaction immediately
 
-Thanks,
-Mark.
+Both options mean we won't clean the unmovable/reclaimable pageblocks as
+aggressively, but perhaps the tradeoff won't be bad. What do you think?
+Johannes, would you be able/willing to test such modification?
+
+Thanks
+
+> And, there is a concern in implementaion side. With this change, there
+> is much possibilty that compaction scanner's met by ASYNC compaction.
+> It resets the scanner position and SYNC compaction would start the
+> scan at the beginning of the zone every time. It would make cached
+> position useless and inefficient.
+> 
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
