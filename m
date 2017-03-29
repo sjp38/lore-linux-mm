@@ -1,41 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E05F22806CB
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 11:25:13 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y77so3723274wrb.22
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:25:13 -0700 (PDT)
-Received: from mail-wr0-x232.google.com (mail-wr0-x232.google.com. [2a00:1450:400c:c0c::232])
-        by mx.google.com with ESMTPS id q27si8696180wra.35.2017.03.29.08.25.12
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FD9A6B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 11:31:02 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l43so3781057wre.4
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:31:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v30si6110219wra.229.2017.03.29.08.31.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 08:25:12 -0700 (PDT)
-Received: by mail-wr0-x232.google.com with SMTP id w43so20107157wrb.0
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:25:12 -0700 (PDT)
-Date: Wed, 29 Mar 2017 18:00:10 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 6/8] x86/dump_pagetables: Add support 5-level paging
-Message-ID: <20170329150010.dy47s4kcqsv4dmgz@node.shutemov.name>
-References: <20170328093946.GA30567@gmail.com>
- <20170328104806.41711-1-kirill.shutemov@linux.intel.com>
- <20170328185522.5akqgfh4niqi3ptf@pd.tnic>
- <20170328211507.ungejuigkewn6prl@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Mar 2017 08:31:00 -0700 (PDT)
+Subject: Re: [PATCH v3 2/8] mm, compaction: remove redundant watermark check
+ in compact_finished()
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-3-vbabka@suse.cz>
+ <20170316013018.GA14063@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6af76744-260d-fc39-b6e0-fb47d7d6348b@suse.cz>
+Date: Wed, 29 Mar 2017 17:30:58 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170328211507.ungejuigkewn6prl@node.shutemov.name>
+In-Reply-To: <20170316013018.GA14063@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-On Wed, Mar 29, 2017 at 12:15:07AM +0300, Kirill A. Shutemov wrote:
-> I'll try to look more into this issue tomorrow.
+On 03/16/2017 02:30 AM, Joonsoo Kim wrote:
+> Hello,
 
-Putting this commit before seems f2a6a7050109 ("x86: Convert the rest of
-the code to support p4d_t") seems fixes the issue.
+Hi, sorry for the late replies.
 
--- 
- Kirill A. Shutemov
+> On Tue, Mar 07, 2017 at 02:15:39PM +0100, Vlastimil Babka wrote:
+>> When detecting whether compaction has succeeded in forming a high-order page,
+>> __compact_finished() employs a watermark check, followed by an own search for
+>> a suitable page in the freelists. This is not ideal for two reasons:
+>> 
+>> - The watermark check also searches high-order freelists, but has a less strict
+>>   criteria wrt fallback. It's therefore redundant and waste of cycles. This was
+>>   different in the past when high-order watermark check attempted to apply
+>>   reserves to high-order pages.
+> 
+> Although it looks redundant now, I don't like removal of the watermark
+> check here. Criteria in watermark check would be changed to more strict
+> later and we would easily miss to apply it on compaction side if the
+> watermark check is removed.
+
+I see, but compaction is already full of various watermark(-like) checks that
+have to be considered/updated if watermark checking changes significantly, or
+things will go subtly wrong. I doubt this extra check can really help much in
+such cases.
+
+>> 
+>> - The watermark check might actually fail due to lack of order-0 pages.
+>>   Compaction can't help with that, so there's no point in continuing because of
+>>   that. It's possible that high-order page still exists and it terminates.
+> 
+> If lack of order-0 pages is the reason for stopping compaction, we
+> need to insert the watermark check for order-0 to break the compaction
+> instead of removing it. Am I missing something?
+
+You proposed that once IIRC, but didn't follow up? Currently we learn about
+insufficient order-0 watermark in __isolate_free_page() from the free scanner.
+We could potentially stop compacting earlier by checking it also in
+compact_finished(), but maybe it doesn't happen that often and it's just extra
+checking overhead.
+
+So I wouldn't be terribly opposed by converting the current check to an order-0
+fail-compaction check (instead of removing it), but I really wouldn't like to
+insert the order-0 one and also keep the current one.
+
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
