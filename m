@@ -1,152 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5E06B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:13:26 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id f50so2889840wrf.7
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:13:26 -0700 (PDT)
-Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
-        by mx.google.com with ESMTPS id 70si397434wmo.95.2017.03.29.06.13.24
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D0E6B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:20:25 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id p20so10150621pgd.21
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:20:25 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id u2si7464549plk.164.2017.03.29.06.20.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 06:13:25 -0700 (PDT)
-Received: by mail-wr0-x241.google.com with SMTP id k6so1635121wre.3
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:13:24 -0700 (PDT)
-Date: Wed, 29 Mar 2017 15:13:22 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
-Message-ID: <20170329131321.GC8306@lerouge>
-References: <20170328101403.34a82fbf@redhat.com>
- <20170328143431.GB4216@lerouge>
- <20170328172303.78a3c6d4@redhat.com>
- <20170328211121.GA8615@lerouge>
- <20170329113030.671ff443@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170329113030.671ff443@redhat.com>
+        Wed, 29 Mar 2017 06:20:24 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 3/8] x86/mm: Define virtual memory map for 5-level paging
+Date: Wed, 29 Mar 2017 16:20:16 +0300
+Message-Id: <20170329132016.51446-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170327162925.16092-4-kirill.shutemov@linux.intel.com>
+References: <20170327162925.16092-4-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-kernel@vger.kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Mar 29, 2017 at 11:30:30AM +0200, Jesper Dangaard Brouer wrote:
-> On Tue, 28 Mar 2017 23:11:22 +0200
-> Frederic Weisbecker <fweisbec@gmail.com> wrote:
-> 
-> > On Tue, Mar 28, 2017 at 05:23:03PM +0200, Jesper Dangaard Brouer wrote:
-> > > On Tue, 28 Mar 2017 16:34:36 +0200
-> > > Frederic Weisbecker <fweisbec@gmail.com> wrote:
-> > >   
-> > > > On Tue, Mar 28, 2017 at 10:14:03AM +0200, Jesper Dangaard Brouer wrote:  
-> > > > > 
-> > > > > (While evaluating some changes to the page allocator) I ran into an
-> > > > > issue with ksoftirqd getting too much CPU sched time.
-> > > > > 
-> > > > > I bisected the problem to
-> > > > >  a499a5a14dbd ("sched/cputime: Increment kcpustat directly on irqtime account")
-> > > > > 
-> > > > >  a499a5a14dbd1d0315a96fc62a8798059325e9e6 is the first bad commit
-> > > > >  commit a499a5a14dbd1d0315a96fc62a8798059325e9e6
-> > > > >  Author: Frederic Weisbecker <fweisbec@gmail.com>
-> > > > >  Date:   Tue Jan 31 04:09:32 2017 +0100
-> > > > > 
-> > > > >     sched/cputime: Increment kcpustat directly on irqtime account
-> > > > >     
-> > > > >     The irqtime is accounted is nsecs and stored in
-> > > > >     cpu_irq_time.hardirq_time and cpu_irq_time.softirq_time. Once the
-> > > > >     accumulated amount reaches a new jiffy, this one gets accounted to the
-> > > > >     kcpustat.
-> > > > >     
-> > > > >     This was necessary when kcpustat was stored in cputime_t, which could at
-> > > > >     worst have jiffies granularity. But now kcpustat is stored in nsecs
-> > > > >     so this whole discretization game with temporary irqtime storage has
-> > > > >     become unnecessary.
-> > > > >     
-> > > > >     We can now directly account the irqtime to the kcpustat.
-> > > > >     
-> > > > >     Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
-> > > > >     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> > > > >     Cc: Fenghua Yu <fenghua.yu@intel.com>
-> > > > >     Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > > > >     Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> > > > >     Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> > > > >     Cc: Michael Ellerman <mpe@ellerman.id.au>
-> > > > >     Cc: Paul Mackerras <paulus@samba.org>
-> > > > >     Cc: Peter Zijlstra <peterz@infradead.org>
-> > > > >     Cc: Rik van Riel <riel@redhat.com>
-> > > > >     Cc: Stanislaw Gruszka <sgruszka@redhat.com>
-> > > > >     Cc: Thomas Gleixner <tglx@linutronix.de>
-> > > > >     Cc: Tony Luck <tony.luck@intel.com>
-> > > > >     Cc: Wanpeng Li <wanpeng.li@hotmail.com>
-> > > > >     Link: http://lkml.kernel.org/r/1485832191-26889-17-git-send-email-fweisbec@gmail.com
-> > > > >     Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> > > > > 
-> > > > > The reproducer is running a userspace udp_sink[1] program, and taskset
-> > > > > pinning the process to the same CPU as softirq RX is running on, and
-> > > > > starting a UDP flood with pktgen (tool part of kernel tree:
-> > > > > samples/pktgen/pktgen_sample03_burst_single_flow.sh).    
-> > > > 
-> > > > So that means I need to run udp_sink on the same CPU than pktgen?  
-> > > 
-> > > No, you misunderstood.  I run pktgen on another physical machine, which
-> > > is sending UDP packets towards my Device-Under-Test (DUT) target.  The
-> > > DUT-target is receiving packets and I observe which CPU the NIC is
-> > > delivering these packets to.  
-> > 
-> > Ah ok, so I tried to run pktgen on another machine and I get that strange write error:
-> > 
-> >     # ./pktgen_sample03_burst_single_flow.sh -d 192.168.1.3  -i wlan0
-> >     ./functions.sh: ligne 76 : echo: erreur d'i? 1/2 criture : Erreur inconnue 524
-> >     ERROR: Write error(1) occurred cmd: "clone_skb 100000 > /proc/net/pktgen/wlan0@0"
-> > 
-> > Any idea?
-> 
-> Yes, this interface does not support pktgen "clone_skb".  You can
-> supply cmdline argument "-c 0" to fix this.  But I suspect that this
-> interface also does not support "burst", thus you also need "-b 0".
-> 
-> See all cmdline args via: ./pktgen_sample03_burst_single_flow.sh -h
-> 
-> Why are you using a wifi interface for this kind of overload testing?
-> (the basic test here is making sure softirq is busy 100%, and at slow
-> wifi speeds this might not be possible to force ksoftirqd into this
-> scheduler state)
+The first part of memory map (up to %esp fixup) simply scales existing
+map for 4-level paging by factor of 9 -- number of bits addressed by
+additional page table level.
 
-What? I need to raise from the couch and plug an ethernet cable?? ;-) ;-)
+The rest of the map is unchanged.
 
-More seriously you're right, wifi probably won't be enough to trigger
-the desired storm on the destination interface. I'm going to try with eth0,
-that should also fix the clone_skb issues.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-> > > > > After this commit, the udp_sink program does not get any sched CPU
-> > > > > time, and no packets are delivered to userspace.  (All packets are
-> > > > > dropped by softirq due to a full socket queue, nstat
-> > > > > UdpRcvbufErrors).
-> > > > > 
-> > > > > A related symptom is that ksoftirqd no longer get accounted in
-> > > > > top.    
-> > > > 
-> > > > That's indeed what I observe. udp_sink has almost no CPU time,
-> > > > neither has ksoftirqd but kpktgend_0 has everything.
-> > > > 
-> > > > Finally a bug I can reproduce!  
-> > > 
-> > > Good to hear you can reproduce it! :-)  
-> > 
-> > Well, since I was generating the packets locally, maybe it didn't trigger
-> > the expected interrupts...
-> 
-> Well, you definitely didn't create the test case I was using.  I cannot
-> remember if the pktgen kthreads runs in softirq context, but I suspect
-> it does. If so, you can recreate the main problem, which is a softirq
-> thread using 100% CPU time, which cause no other processes getting
-> sched time on that CPU.
+---
+ v2:
+  - Document esp fixup stack for 5-level paging at the same place as for
+    4-level mode (actual change is in v2 of 8/8).
+---
+ Documentation/x86/x86_64/mm.txt         | 33 ++++++++++++++++++++++++++++++---
+ arch/x86/Kconfig                        |  1 +
+ arch/x86/include/asm/kasan.h            |  9 ++++++---
+ arch/x86/include/asm/page_64_types.h    | 10 ++++++++++
+ arch/x86/include/asm/pgtable_64_types.h |  6 ++++++
+ arch/x86/include/asm/sparsemem.h        |  9 +++++++--
+ 6 files changed, 60 insertions(+), 8 deletions(-)
 
-Well, I prefer to reproduce the same thing than you to make sure I'm chasing
-the right problem.
-
-Thanks!
+diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
+index ee3f9c30957c..b0798e281aa6 100644
+--- a/Documentation/x86/x86_64/mm.txt
++++ b/Documentation/x86/x86_64/mm.txt
+@@ -4,7 +4,7 @@
+ Virtual memory map with 4 level page tables:
+ 
+ 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
+-hole caused by [48:63] sign extension
++hole caused by [47:63] sign extension
+ ffff800000000000 - ffff87ffffffffff (=43 bits) guard hole, reserved for hypervisor
+ ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
+ ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
+@@ -23,12 +23,39 @@ ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space (variable)
+ ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
+ ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+ 
++Virtual memory map with 5 level page tables:
++
++0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
++hole caused by [56:63] sign extension
++ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
++ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
++ff90000000000000 - ff91ffffffffffff (=49 bits) hole
++ff92000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space
++ffd2000000000000 - ffd3ffffffffffff (=49 bits) hole
++ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
++... unused hole ...
++ffd8000000000000 - fff7ffffffffffff (=53 bits) kasan shadow memory (8PB)
++... unused hole ...
++ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
++... unused hole ...
++ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
++... unused hole ...
++ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
++ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
++ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
++ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
++
++Architecture defines a 64-bit virtual address. Implementations can support
++less. Currently supported are 48- and 57-bit virtual addresses. Bits 63
++through to the most-significant implemented bit are set to either all ones
++or all zero. This causes hole between user space and kernel addresses.
++
+ The direct mapping covers all memory in the system up to the highest
+ memory address (this means in some cases it can also include PCI memory
+ holes).
+ 
+-vmalloc space is lazily synchronized into the different PML4 pages of
+-the processes using the page fault handler, with init_level4_pgt as
++vmalloc space is lazily synchronized into the different PML4/PML5 pages of
++the processes using the page fault handler, with init_top_pgt as
+ reference.
+ 
+ Current X86-64 implementations support up to 46 bits of address space (64 TB),
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index ff5c43af7b4e..6a8535a893e2 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -291,6 +291,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ config KASAN_SHADOW_OFFSET
+ 	hex
+ 	depends on KASAN
++	default 0xdff8000000000000 if X86_5LEVEL
+ 	default 0xdffffc0000000000
+ 
+ config HAVE_INTEL_TXT
+diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+index 1410b567ecde..f527b02a0ee3 100644
+--- a/arch/x86/include/asm/kasan.h
++++ b/arch/x86/include/asm/kasan.h
+@@ -11,9 +11,12 @@
+  * 'kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT
+  */
+ #define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET + \
+-					(0xffff800000000000ULL >> 3))
+-/* 47 bits for kernel address -> (47 - 3) bits for shadow */
+-#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (47 - 3)))
++					((-1UL << __VIRTUAL_MASK_SHIFT) >> 3))
++/*
++ * 47 bits for kernel address -> (47 - 3) bits for shadow
++ * 56 bits for kernel address -> (56 - 3) bits for shadow
++ */
++#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (__VIRTUAL_MASK_SHIFT - 3)))
+ 
+ #ifndef __ASSEMBLY__
+ 
+diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
+index 9215e0527647..3f5f08b010d0 100644
+--- a/arch/x86/include/asm/page_64_types.h
++++ b/arch/x86/include/asm/page_64_types.h
+@@ -36,7 +36,12 @@
+  * hypervisor to fit.  Choosing 16 slots here is arbitrary, but it's
+  * what Xen requires.
+  */
++#ifdef CONFIG_X86_5LEVEL
++#define __PAGE_OFFSET_BASE      _AC(0xff10000000000000, UL)
++#else
+ #define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
++#endif
++
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ #define __PAGE_OFFSET           page_offset_base
+ #else
+@@ -46,8 +51,13 @@
+ #define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
+ 
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
++#ifdef CONFIG_X86_5LEVEL
++#define __PHYSICAL_MASK_SHIFT	52
++#define __VIRTUAL_MASK_SHIFT	56
++#else
+ #define __PHYSICAL_MASK_SHIFT	46
+ #define __VIRTUAL_MASK_SHIFT	47
++#endif
+ 
+ /*
+  * Kernel image size is limited to 1GiB due to the fixmap living in the
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 516593e66bd6..4edc97917382 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -56,9 +56,15 @@ typedef struct { pteval_t pte; } pte_t;
+ 
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+ #define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
++#ifdef CONFIG_X86_5LEVEL
++#define VMALLOC_SIZE_TB _AC(16384, UL)
++#define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
++#define __VMEMMAP_BASE	_AC(0xffd4000000000000, UL)
++#else
+ #define VMALLOC_SIZE_TB	_AC(32, UL)
+ #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
+ #define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
++#endif
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ #define VMALLOC_START	vmalloc_base
+ #define VMEMMAP_START	vmemmap_base
+diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
+index 4517d6b93188..1f5bee2c202f 100644
+--- a/arch/x86/include/asm/sparsemem.h
++++ b/arch/x86/include/asm/sparsemem.h
+@@ -26,8 +26,13 @@
+ # endif
+ #else /* CONFIG_X86_32 */
+ # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+-# define MAX_PHYSADDR_BITS	44
+-# define MAX_PHYSMEM_BITS	46
++# ifdef CONFIG_X86_5LEVEL
++#  define MAX_PHYSADDR_BITS	52
++#  define MAX_PHYSMEM_BITS	52
++# else
++#  define MAX_PHYSADDR_BITS	44
++#  define MAX_PHYSMEM_BITS	46
++# endif
+ #endif
+ 
+ #endif /* CONFIG_SPARSEMEM */
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
