@@ -1,140 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B12A6B03A1
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 05:21:09 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id r129so7094771pgr.18
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 02:21:09 -0700 (PDT)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id p18si6871714pli.174.2017.03.29.02.21.08
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39BEE6B03A3
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 05:30:42 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id q46so3556969qtb.16
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 02:30:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y33si5768345qtb.91.2017.03.29.02.30.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 02:21:08 -0700 (PDT)
-Received: by mail-pg0-x244.google.com with SMTP id 81so1913007pgh.3
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 02:21:08 -0700 (PDT)
-Subject: Re: [PATCH V5 16/17] mm: Let arch choose the initial value of task
- size
-References: <1490153823-29241-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-From: Anshuman Khandual <anshuman.linux@gmail.com>
-Message-ID: <00df9abd-b023-0d1c-6753-654f682cd754@gmail.com>
-Date: Wed, 29 Mar 2017 14:50:51 +0530
+        Wed, 29 Mar 2017 02:30:40 -0700 (PDT)
+Date: Wed, 29 Mar 2017 11:30:30 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
+Message-ID: <20170329113030.671ff443@redhat.com>
+In-Reply-To: <20170328211121.GA8615@lerouge>
+References: <20170328101403.34a82fbf@redhat.com>
+	<20170328143431.GB4216@lerouge>
+	<20170328172303.78a3c6d4@redhat.com>
+	<20170328211121.GA8615@lerouge>
 MIME-Version: 1.0
-In-Reply-To: <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: multipart/alternative;
- boundary="------------D1740DB1BDDFFECE9575679A"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: linux-kernel@vger.kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, brouer@redhat.com
 
-This is a multi-part message in MIME format.
---------------D1740DB1BDDFFECE9575679A
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+On Tue, 28 Mar 2017 23:11:22 +0200
+Frederic Weisbecker <fweisbec@gmail.com> wrote:
+
+> On Tue, Mar 28, 2017 at 05:23:03PM +0200, Jesper Dangaard Brouer wrote:
+> > On Tue, 28 Mar 2017 16:34:36 +0200
+> > Frederic Weisbecker <fweisbec@gmail.com> wrote:
+> >  =20
+> > > On Tue, Mar 28, 2017 at 10:14:03AM +0200, Jesper Dangaard Brouer wrot=
+e: =20
+> > > >=20
+> > > > (While evaluating some changes to the page allocator) I ran into an
+> > > > issue with ksoftirqd getting too much CPU sched time.
+> > > >=20
+> > > > I bisected the problem to
+> > > >  a499a5a14dbd ("sched/cputime: Increment kcpustat directly on irqti=
+me account")
+> > > >=20
+> > > >  a499a5a14dbd1d0315a96fc62a8798059325e9e6 is the first bad commit
+> > > >  commit a499a5a14dbd1d0315a96fc62a8798059325e9e6
+> > > >  Author: Frederic Weisbecker <fweisbec@gmail.com>
+> > > >  Date:   Tue Jan 31 04:09:32 2017 +0100
+> > > >=20
+> > > >     sched/cputime: Increment kcpustat directly on irqtime account
+> > > >    =20
+> > > >     The irqtime is accounted is nsecs and stored in
+> > > >     cpu_irq_time.hardirq_time and cpu_irq_time.softirq_time. Once t=
+he
+> > > >     accumulated amount reaches a new jiffy, this one gets accounted=
+ to the
+> > > >     kcpustat.
+> > > >    =20
+> > > >     This was necessary when kcpustat was stored in cputime_t, which=
+ could at
+> > > >     worst have jiffies granularity. But now kcpustat is stored in n=
+secs
+> > > >     so this whole discretization game with temporary irqtime storag=
+e has
+> > > >     become unnecessary.
+> > > >    =20
+> > > >     We can now directly account the irqtime to the kcpustat.
+> > > >    =20
+> > > >     Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
+> > > >     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> > > >     Cc: Fenghua Yu <fenghua.yu@intel.com>
+> > > >     Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> > > >     Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> > > >     Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> > > >     Cc: Michael Ellerman <mpe@ellerman.id.au>
+> > > >     Cc: Paul Mackerras <paulus@samba.org>
+> > > >     Cc: Peter Zijlstra <peterz@infradead.org>
+> > > >     Cc: Rik van Riel <riel@redhat.com>
+> > > >     Cc: Stanislaw Gruszka <sgruszka@redhat.com>
+> > > >     Cc: Thomas Gleixner <tglx@linutronix.de>
+> > > >     Cc: Tony Luck <tony.luck@intel.com>
+> > > >     Cc: Wanpeng Li <wanpeng.li@hotmail.com>
+> > > >     Link: http://lkml.kernel.org/r/1485832191-26889-17-git-send-ema=
+il-fweisbec@gmail.com
+> > > >     Signed-off-by: Ingo Molnar <mingo@kernel.org>
+> > > >=20
+> > > > The reproducer is running a userspace udp_sink[1] program, and task=
+set
+> > > > pinning the process to the same CPU as softirq RX is running on, and
+> > > > starting a UDP flood with pktgen (tool part of kernel tree:
+> > > > samples/pktgen/pktgen_sample03_burst_single_flow.sh).   =20
+> > >=20
+> > > So that means I need to run udp_sink on the same CPU than pktgen? =20
+> >=20
+> > No, you misunderstood.  I run pktgen on another physical machine, which
+> > is sending UDP packets towards my Device-Under-Test (DUT) target.  The
+> > DUT-target is receiving packets and I observe which CPU the NIC is
+> > delivering these packets to. =20
+>=20
+> Ah ok, so I tried to run pktgen on another machine and I get that strange=
+ write error:
+>=20
+>     # ./pktgen_sample03_burst_single_flow.sh -d 192.168.1.3  -i wlan0
+>     ./functions.sh: ligne 76 : echo: erreur d'=EF=BF=BDcriture : Erreur i=
+nconnue 524
+>     ERROR: Write error(1) occurred cmd: "clone_skb 100000 > /proc/net/pkt=
+gen/wlan0@0"
+>=20
+> Any idea?
+
+Yes, this interface does not support pktgen "clone_skb".  You can
+supply cmdline argument "-c 0" to fix this.  But I suspect that this
+interface also does not support "burst", thus you also need "-b 0".
+
+See all cmdline args via: ./pktgen_sample03_burst_single_flow.sh -h
+
+Why are you using a wifi interface for this kind of overload testing?
+(the basic test here is making sure softirq is busy 100%, and at slow
+wifi speeds this might not be possible to force ksoftirqd into this
+scheduler state)
 
 
+> >=20
+> > E.g determine RX-CPU via mpstat command:
+> >  mpstat -P ALL -u -I SCPU -I SUM 2
+> >=20
+> > I then start udp_sink, pinned to the RX-CPU, like:
+> >  sudo taskset -c 2 ./udp_sink --port 9 --count $((10**6)) --recvmsg --r=
+epeat 1000 =20
+>=20
+> Ah thanks for these hints!
+>=20
+> > > > After this commit, the udp_sink program does not get any sched CPU
+> > > > time, and no packets are delivered to userspace.  (All packets are
+> > > > dropped by softirq due to a full socket queue, nstat
+> > > > UdpRcvbufErrors).
+> > > >=20
+> > > > A related symptom is that ksoftirqd no longer get accounted in
+> > > > top.   =20
+> > >=20
+> > > That's indeed what I observe. udp_sink has almost no CPU time,
+> > > neither has ksoftirqd but kpktgend_0 has everything.
+> > >=20
+> > > Finally a bug I can reproduce! =20
+> >=20
+> > Good to hear you can reproduce it! :-) =20
+>=20
+> Well, since I was generating the packets locally, maybe it didn't trigger
+> the expected interrupts...
 
-On Wednesday 22 March 2017 09:07 AM, Aneesh Kumar K.V wrote:
-> As we start supporting larger address space (>128TB), we want to give
-> architecture a control on max task size of an application which is different
-> from the TASK_SIZE. For ex: ppc64 needs to track the base page size of a segment
-> and it is copied from mm_context_t to PACA on each context switch. If we know that
-> application has not used an address range above 128TB we only need to copy
-> details about 128TB range to PACA. This will help in improving context switch
-> performance by avoiding larger copy operation.
->
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->   fs/exec.c | 10 +++++++++-
->   1 file changed, 9 insertions(+), 1 deletion(-)
->
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 65145a3df065..5550a56d03c3 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -1308,6 +1308,14 @@ void would_dump(struct linux_binprm *bprm, struct file *file)
->   }
->   EXPORT_SYMBOL(would_dump);
->   
-> +#ifndef arch_init_task_size
-> +static inline void arch_init_task_size(void)
-> +{
-> +	current->mm->task_size = TASK_SIZE;
-> +}
-> +#define arch_init_task_size arch_init_task_size
-> +#endif
+Well, you definitely didn't create the test case I was using.  I cannot
+remember if the pktgen kthreads runs in softirq context, but I suspect
+it does. If so, you can recreate the main problem, which is a softirq
+thread using 100% CPU time, which cause no other processes getting
+sched time on that CPU.
 
-Why not a proper CONFIG_ARCH_DEFINED_TASK_SIZE kind of option for this ? 
-Also
-are there no assumptions about task current->mm->size being TASK_SIZE in 
-other
-places which might get broken ?
-
---------------D1740DB1BDDFFECE9575679A
-Content-Type: text/html; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-
-<html>
-  <head>
-    <meta content="text/html; charset=windows-1252"
-      http-equiv="Content-Type">
-  </head>
-  <body bgcolor="#FFFFFF" text="#000000">
-    <p><br>
-    </p>
-    <br>
-    <div class="moz-cite-prefix">On Wednesday 22 March 2017 09:07 AM,
-      Aneesh Kumar K.V wrote:<br>
-    </div>
-    <blockquote
-cite="mid:1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com"
-      type="cite">
-      <pre wrap="">As we start supporting larger address space (&gt;128TB), we want to give
-architecture a control on max task size of an application which is different
-from the TASK_SIZE. For ex: ppc64 needs to track the base page size of a segment
-and it is copied from mm_context_t to PACA on each context switch. If we know that
-application has not used an address range above 128TB we only need to copy
-details about 128TB range to PACA. This will help in improving context switch
-performance by avoiding larger copy operation.
-
-Cc: Kirill A. Shutemov <a class="moz-txt-link-rfc2396E" href="mailto:kirill.shutemov@linux.intel.com">&lt;kirill.shutemov@linux.intel.com&gt;</a>
-Cc: <a class="moz-txt-link-abbreviated" href="mailto:linux-mm@kvack.org">linux-mm@kvack.org</a>
-Cc: Andrew Morton <a class="moz-txt-link-rfc2396E" href="mailto:akpm@linux-foundation.org">&lt;akpm@linux-foundation.org&gt;</a>
-Signed-off-by: Aneesh Kumar K.V <a class="moz-txt-link-rfc2396E" href="mailto:aneesh.kumar@linux.vnet.ibm.com">&lt;aneesh.kumar@linux.vnet.ibm.com&gt;</a>
----
- fs/exec.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
-
-diff --git a/fs/exec.c b/fs/exec.c
-index 65145a3df065..5550a56d03c3 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -1308,6 +1308,14 @@ void would_dump(struct linux_binprm *bprm, struct file *file)
- }
- EXPORT_SYMBOL(would_dump);
- 
-+#ifndef arch_init_task_size
-+static inline void arch_init_task_size(void)
-+{
-+	current-&gt;mm-&gt;task_size = TASK_SIZE;
-+}
-+#define arch_init_task_size arch_init_task_size
-+#endif</pre>
-    </blockquote>
-    <br>
-    <font size="-1">Why not a proper CONFIG_ARCH_DEFINED_TASK_SIZE kind
-      of option for this ? Also<br>
-      are there no assumptions about task current-&gt;mm-&gt;size being
-      TASK_SIZE in other<br>
-      places which might get broken ?<br>
-    </font><font size="-1"></font>
-  </body>
-</html>
-
---------------D1740DB1BDDFFECE9575679A--
+--=20
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
