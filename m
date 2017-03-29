@@ -1,92 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CFA766B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 03:13:11 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id c67so2758560wmi.19
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 00:13:11 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id h66si6146514wmi.3.2017.03.29.00.13.10
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 334AE6B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 03:45:29 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id i18so1285186wrb.21
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 00:45:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w132si6197766wmg.127.2017.03.29.00.45.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 00:13:10 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id u132so3346889wmg.1
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 00:13:10 -0700 (PDT)
-Subject: Re: Page allocator order-0 optimizations merged
-References: <d4c1625e-cacf-52a9-bfcb-b32a185a2008@mellanox.com>
- <83a0e3ef-acfa-a2af-2770-b9a92bda41bb@mellanox.com>
- <20170322234004.kffsce4owewgpqnm@techsingularity.net>
- <20170323144347.1e6f29de@redhat.com>
- <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
- <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
- <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
- <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
- <20170327105514.1ed5b1ba@redhat.com> <20170327143947.4c237e54@redhat.com>
- <20170327133212.6azfgrariwocdzzd@techsingularity.net>
- <0873b65b-2217-005d-0b42-4af6ad66cc0f@gmail.com>
- <26c4d7a4-c8a7-fbad-d2be-a5a90f6d93d3@gmail.com>
- <20170328202426.6485bd91@redhat.com>
-From: Tariq Toukan <ttoukan.linux@gmail.com>
-Message-ID: <4f9f5f04-039c-ce56-3456-4f04022f80e8@gmail.com>
-Date: Wed, 29 Mar 2017 10:13:07 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Mar 2017 00:45:27 -0700 (PDT)
+Date: Wed, 29 Mar 2017 09:45:22 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] module: check if memory leak by module.
+Message-ID: <20170329074522.GB27994@dhcp22.suse.cz>
+References: <CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcas5p1.samsung.com>
+ <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
 MIME-Version: 1.0
-In-Reply-To: <20170328202426.6485bd91@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>
+To: Maninder Singh <maninder1.s@samsung.com>
+Cc: jeyu@redhat.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, chris@chris-wilson.co.uk, aryabinin@virtuozzo.com, joonas.lahtinen@linux.intel.com, keescook@chromium.org, pavel@ucw.cz, jinb.park7@gmail.com, anisse@astier.eu, rafael.j.wysocki@intel.com, zijun_hu@htc.com, mingo@kernel.org, mawilcox@microsoft.com, thgarnie@google.com, joelaf@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pankaj.m@samsung.com, ajeet.y@samsung.com, hakbong5.lee@samsung.com, a.sahrawat@samsung.com, lalit.mohan@samsung.com, cpgs@samsung.com, Vaneet Narang <v.narang@samsung.com>
 
+On Wed 29-03-17 11:32:02, Maninder Singh wrote:
+> This patch checks if any module which is going to be unloaded
+> is doing vmalloc memory leak or not.
 
+Hmm, how can you track _all_ vmalloc allocations done on behalf of the
+module? It is quite some time since I've checked kernel/module.c but
+from my vague understading your check is basically only about statically
+vmalloced areas by module loader. Is that correct? If yes then is this
+actually useful? Were there any bugs in the loader code recently? What
+led you to prepare this patch? All this should be part of the changelog!
+ 
+> Logs:-
+> [  129.336368] Module [test_module] is getting unloaded before doing vfree
+> [  129.336371] Memory still allocated: addr:0xffffc90001461000 - 0xffffc900014c7000, pages 101
+> [  129.336376] Allocating function kernel_init+0x1c/0x20 [test_module]
+> 
+> Signed-off-by: Vaneet Narang <v.narang@samsung.com>
+> Signed-off-by: Maninder Singh <maninder1.s@samsung.com>
+> ---
+> v1->v2: made code generic rather than dependent on config.
+> 	changed pr_alert to pr_err.
+> 
+>  include/linux/vmalloc.h |  2 ++
+>  kernel/module.c         | 22 ++++++++++++++++++++++
+>  mm/vmalloc.c            |  2 --
+>  3 files changed, 24 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 46991ad..5531af3 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -29,6 +29,8 @@
+>  #define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
+>  #endif
+>  
+> +#define VM_VM_AREA  0x04
+> +
+>  struct vm_struct {
+>  	struct vm_struct	*next;
+>  	void			*addr;
+> diff --git a/kernel/module.c b/kernel/module.c
+> index f953df9..98a8018 100644
+> --- a/kernel/module.c
+> +++ b/kernel/module.c
+> @@ -2117,9 +2117,31 @@ void __weak module_arch_freeing_init(struct module *mod)
+>  {
+>  }
+>  
+> +static void check_memory_leak(struct module *mod)
+> +{
+> +	struct vmap_area *va;
+> +
+> +	rcu_read_lock();
+> +	list_for_each_entry_rcu(va, &vmap_area_list, list) {
+> +		if (!(va->flags & VM_VM_AREA))
+> +			continue;
+> +		if ((mod->core_layout.base < va->vm->caller) &&
+> +			(mod->core_layout.base + mod->core_layout.size) > va->vm->caller) {
+> +			pr_err("Module [%s] is getting unloaded before doing vfree\n", mod->name);
+> +			pr_err("Memory still allocated: addr:0x%lx - 0x%lx, pages %u\n",
+> +				va->va_start, va->va_end, va->vm->nr_pages);
+> +			pr_err("Allocating function %pS\n", va->vm->caller);
+> +		}
+> +
+> +	}
+> +	rcu_read_unlock();
+> +}
+> +
+>  /* Free a module, remove from lists, etc. */
+>  static void free_module(struct module *mod)
+>  {
+> +	check_memory_leak(mod);
+> +
+>  	trace_module_free(mod);
+>  
+>  	mod_sysfs_teardown(mod);
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 68eb002..0166a0a 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -314,8 +314,6 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+>  
+>  /*** Global kva allocator ***/
+>  
+> -#define VM_VM_AREA	0x04
+> -
+>  static DEFINE_SPINLOCK(vmap_area_lock);
+>  /* Export for kexec only */
+>  LIST_HEAD(vmap_area_list);
+> -- 
+> 1.9.1
+> 
 
-On 28/03/2017 9:24 PM, Jesper Dangaard Brouer wrote:
-> On Tue, 28 Mar 2017 19:05:12 +0300
-> Tariq Toukan <ttoukan.linux@gmail.com> wrote:
->
->> On 28/03/2017 10:32 AM, Tariq Toukan wrote:
->>>
->>>
->>> On 27/03/2017 4:32 PM, Mel Gorman wrote:
->>>> On Mon, Mar 27, 2017 at 02:39:47PM +0200, Jesper Dangaard Brouer wrote:
->>>>> On Mon, 27 Mar 2017 10:55:14 +0200
->>>>> Jesper Dangaard Brouer <brouer@redhat.com> wrote:
->>>>>
->>>>>> A possible solution, would be use the local_bh_{disable,enable} instead
->>>>>> of the {preempt_disable,enable} calls.  But it is slower, using numbers
->>>>>> from [1] (19 vs 11 cycles), thus the expected cycles saving is
->>>>>> 38-19=19.
->>>>>>
->>>>>> The problematic part of using local_bh_enable is that this adds a
->>>>>> softirq/bottom-halves rescheduling point (as it checks for pending
->>>>>> BHs).  Thus, this might affects real workloads.
->>>>>
->>>>> I implemented this solution in patch below... and tested it on mlx5 at
->>>>> 50G with manually disabled driver-page-recycling.  It works for me.
->>>>>
->>>>> To Mel, that do you prefer... a partial-revert or something like this?
->>>>>
->>>>
->>>> If Tariq confirms it works for him as well, this looks far safer patch
->>>
->>> Great.
->>> I will test Jesper's patch today in the afternoon.
->>>
->>
->> It looks very good!
->> I get line-rate (94Gbits/sec) with 8 streams, in comparison to less than
->> 55Gbits/sec before.
->
-> Just confirming, this is when you have disabled mlx5 driver
-> page-recycling, right?
->
->
-Right.
-This is a great result!
-
->>>> than having a dedicate IRQ-safe queue. Your concern about the BH
->>>> scheduling point is valid but if it's proven to be a problem, there is
->>>> still the option of a partial revert.
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
