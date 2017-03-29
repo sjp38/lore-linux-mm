@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 106716B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 20:25:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m1so800978pgd.13
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 17:25:17 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id q188si3894321pfb.323.2017.03.28.17.25.15
-        for <linux-mm@kvack.org>;
-        Tue, 28 Mar 2017 17:25:16 -0700 (PDT)
-Date: Wed, 29 Mar 2017 09:20:29 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC]mm/zsmalloc,: trigger BUG_ON in function zs_map_object.
-Message-ID: <20170329002029.GA18979@bbox>
-References: <e8aa282e-ad53-bfb8-2b01-33d2779f247a@huawei.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 902506B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 21:11:02 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q189so1754710pgq.17
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 18:11:02 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id b21si2453346pgi.115.2017.03.28.18.11.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Mar 2017 18:11:01 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v7 1/9] mm, swap: Make swap cluster size same of THP size on x86_64
+References: <20170328053209.25876-1-ying.huang@intel.com>
+	<20170328053209.25876-2-ying.huang@intel.com>
+	<20170328233056.zkp733h5kij7lfdb@node.shutemov.name>
+Date: Wed, 29 Mar 2017 09:10:58 +0800
+In-Reply-To: <20170328233056.zkp733h5kij7lfdb@node.shutemov.name> (Kirill
+	A. Shutemov's message of "Wed, 29 Mar 2017 02:30:56 +0300")
+Message-ID: <87y3voyjj1.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <e8aa282e-ad53-bfb8-2b01-33d2779f247a@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-Hello,
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-On Tue, Mar 28, 2017 at 03:20:22PM +0800, Yisheng Xie wrote:
-> Hi, all,
->=20
-> We had backport the no-lru migration to linux-4.1, meanwhile change the
-> ZS=5FMAX=5FZSPAGE=5FORDER to 3. Then we met a BUG=5FON(!page[1]).
+> On Tue, Mar 28, 2017 at 01:32:01PM +0800, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> In this patch, the size of the swap cluster is changed to that of the
+>> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
+>> the THP swap support on x86_64.  Where one swap cluster will be used to
+>> hold the contents of each THP swapped out.  And some information of the
+>> swapped out THP (such as compound map count) will be recorded in the
+>> swap_cluster_info data structure.
+>> 
+>> For other architectures which want THP swap support,
+>> ARCH_USES_THP_SWAP_CLUSTER need to be selected in the Kconfig file for
+>> the architecture.
+>
+> Intreseting case could be architecture with HPAGE_PMD_NR < 256.
+> Can current code pack more than one THP per claster.
 
-Hmm, I don't know how you backported.
+No.  Only one THP for each swap cluster is supported.  But in current
+implementation, if HPAGE_PMD_NR < 256, the swap cluster will be < 256
+too.  The size of swap cluster will be exact same as HPAGE_PMD_NR.
 
-There isn't any problem with default ZS=5FMAX=5FZSPAGE=5FORDER. Right?
-So, it happens only if you changed it to 3?
+Best Regards,
+Huang, Ying
 
-Could you tell me what is your base kernel? and what zram/zsmalloc
-version(ie, from what kernel version) you backported to your
-base kernel?
-
->=20
-> It rarely happen, and presently, what I get is:
-> [6823.316528s]obj=3Da160701f, obj=5Fidx=3D15, class{size:2176,objs=5Fper=
-=5Fzspage:15,pages=5Fper=5Fzspage:8}
-> [...]
-> [6823.316619s]BUG: failure at /home/ethan/kernel/linux-4.1/mm/zsmalloc.c:=
-1458/zs=5Fmap=5Fobject()! ----> BUG=5FON(!page[1])
->=20
-> It seems that we have allocated an object from a ZS=5FFULL group?
-> (Actually=EF=BC=8C I do not get the inuse number of this zspage, which I =
-am trying to.)
-> And presently, I can not find why it happened. Any idea about it?
-
-Although it happens rarely, always above same symptom once it happens?
-
->=20
-> Any comment is more than welcome!
->=20
-> Thanks
-> Yisheng Xie
->=20
->=20
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+> If not we need to have BUILG_BUG_ON() to catch attempt of such enabling.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
