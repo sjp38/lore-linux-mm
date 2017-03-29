@@ -1,55 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 516996B0390
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 20:07:47 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o81so2848377itg.2
-        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 17:07:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id b77si6076475iob.144.2017.03.28.17.07.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Mar 2017 17:07:46 -0700 (PDT)
-Subject: Re: mm: BUG in resv_map_release
-References: <CACT4Y+Z-trVe0Oqzs8c+mTG6_iL7hPBBFgOm0p0iQsCz9Q2qiw@mail.gmail.com>
- <20170328163823.3a0445a058670be9254e115c@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <8e87e893-526b-7324-33fb-783a544bab11@oracle.com>
-Date: Tue, 28 Mar 2017 17:07:34 -0700
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 106716B0390
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2017 20:25:17 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id m1so800978pgd.13
+        for <linux-mm@kvack.org>; Tue, 28 Mar 2017 17:25:17 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id q188si3894321pfb.323.2017.03.28.17.25.15
+        for <linux-mm@kvack.org>;
+        Tue, 28 Mar 2017 17:25:16 -0700 (PDT)
+Date: Wed, 29 Mar 2017 09:20:29 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC]mm/zsmalloc,: trigger BUG_ON in function zs_map_object.
+Message-ID: <20170329002029.GA18979@bbox>
+References: <e8aa282e-ad53-bfb8-2b01-33d2779f247a@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20170328163823.3a0445a058670be9254e115c@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <e8aa282e-ad53-bfb8-2b01-33d2779f247a@huawei.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
-Cc: nyc@holomorphy.com, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On 03/28/2017 04:38 PM, Andrew Morton wrote:
-> On Thu, 23 Mar 2017 11:19:38 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
-> 
->> Hello,
->>
->> I've got the following BUG while running syzkaller fuzzer.
->> Note the injected kmalloc failure, most likely it's the root cause.
->>
-> 
-> Yes, probably the logic(?) in region_chg() leaked a
-> resv->adds_in_progress++, although I'm not sure how.  And afaict that
-> code can leak the memory at *nrg if the `trg' allocation attempt failed
-> on the second or later pass around the retry loop.
-> 
-> Blah.  Does someone want to take a look at it?
+Hello,
 
-I sent out a patch to address this and Hillf Acked.  Unfortunately,
-there was a typo in your e-mail when I sent out the patch.  So, you
-may not have noticed.
+On Tue, Mar 28, 2017 at 03:20:22PM +0800, Yisheng Xie wrote:
+> Hi, all,
+>=20
+> We had backport the no-lru migration to linux-4.1, meanwhile change the
+> ZS=5FMAX=5FZSPAGE=5FORDER to 3. Then we met a BUG=5FON(!page[1]).
 
-[PATCH] mm/hugetlb: Don't call region_abort if region_chg fails
-http://marc.info/?l=linux-mm&m=149033588500724&w=2
+Hmm, I don't know how you backported.
 
-If you need/want me to send again, let me know.
--- 
-Mike Kravetz
+There isn't any problem with default ZS=5FMAX=5FZSPAGE=5FORDER. Right?
+So, it happens only if you changed it to 3?
+
+Could you tell me what is your base kernel? and what zram/zsmalloc
+version(ie, from what kernel version) you backported to your
+base kernel?
+
+>=20
+> It rarely happen, and presently, what I get is:
+> [6823.316528s]obj=3Da160701f, obj=5Fidx=3D15, class{size:2176,objs=5Fper=
+=5Fzspage:15,pages=5Fper=5Fzspage:8}
+> [...]
+> [6823.316619s]BUG: failure at /home/ethan/kernel/linux-4.1/mm/zsmalloc.c:=
+1458/zs=5Fmap=5Fobject()! ----> BUG=5FON(!page[1])
+>=20
+> It seems that we have allocated an object from a ZS=5FFULL group?
+> (Actually=EF=BC=8C I do not get the inuse number of this zspage, which I =
+am trying to.)
+> And presently, I can not find why it happened. Any idea about it?
+
+Although it happens rarely, always above same symptom once it happens?
+
+>=20
+> Any comment is more than welcome!
+>=20
+> Thanks
+> Yisheng Xie
+>=20
+>=20
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
