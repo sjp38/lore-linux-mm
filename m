@@ -1,90 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 55B1F6B039F
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:22:20 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b10so10262677pgn.8
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:22:20 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 10si3378466pfk.296.2017.03.29.06.22.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 06:22:19 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 8/8] x86/espfix: Add support 5-level paging
-Date: Wed, 29 Mar 2017 16:22:11 +0300
-Message-Id: <20170329132211.51612-1-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170327162925.16092-9-kirill.shutemov@linux.intel.com>
-References: <20170327162925.16092-9-kirill.shutemov@linux.intel.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 168DE6B039F
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:27:40 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 197so3529534pfv.13
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:27:40 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 90si7465842plc.317.2017.03.29.06.27.39
+        for <linux-mm@kvack.org>;
+        Wed, 29 Mar 2017 06:27:39 -0700 (PDT)
+Date: Wed, 29 Mar 2017 14:27:18 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH 4/8] asm-generic: add atomic-instrumented.h
+Message-ID: <20170329132718.GI23442@leverpostej>
+References: <cover.1490717337.git.dvyukov@google.com>
+ <ffaaa56d5099d2926004f0290f73396d0bd842c8.1490717337.git.dvyukov@google.com>
+ <20170328213513.GB12803@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170328213513.GB12803@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, peterz@infradead.org, mingo@redhat.com, akpm@linux-foundation.org, will.deacon@arm.com, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-We don't need extra virtual address space for ESPFIX, so it stays within
-one PUD page table for both 4- and 5-level paging.
+On Tue, Mar 28, 2017 at 02:35:13PM -0700, Matthew Wilcox wrote:
+> On Tue, Mar 28, 2017 at 06:15:41PM +0200, Dmitry Vyukov wrote:
+> > The new header allows to wrap per-arch atomic operations
+> > and add common functionality to all of them.
+> 
+> Why a new header instead of putting this in linux/atomic.h?
 
-Redefining ESPFIX_BASE_ADDR using P4D_SHIFT instead of PGDIR_SHIFT would
-make it stay in the same place regarding of paging mode.
+The idea was that doing it this way allowed architectures to switch over
+to the arch_* naming without a flag day. Currently this only matters for
+KASAN, which is only supported by a couple of architectures (arm64,
+x86).
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- v2:
-  - make ESPFIX_BASE_ADDR the same for both paging modes.
----
- arch/x86/include/asm/pgtable_64_types.h |  2 +-
- arch/x86/kernel/espfix_64.c             | 12 +++++++-----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+I seem to recall that there was an issue that prevented us from solving
+this with ifdeffery early in linux/atomic.h like:
 
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index adc3e7b107ee..06470da156ba 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -98,7 +98,7 @@ typedef struct { pteval_t pte; } pte_t;
- #define MODULES_END   __fix_to_virt(__end_of_fixed_addresses + 1)
- #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
- #define ESPFIX_PGD_ENTRY _AC(-2, UL)
--#define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << PGDIR_SHIFT)
-+#define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << P4D_SHIFT)
- #define EFI_VA_START	 ( -4 * (_AC(1, UL) << 30))
- #define EFI_VA_END	 (-68 * (_AC(1, UL) << 30))
- 
-diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
-index 04f89caef9c4..8e598a1ad986 100644
---- a/arch/x86/kernel/espfix_64.c
-+++ b/arch/x86/kernel/espfix_64.c
-@@ -50,11 +50,11 @@
- #define ESPFIX_STACKS_PER_PAGE	(PAGE_SIZE/ESPFIX_STACK_SIZE)
- 
- /* There is address space for how many espfix pages? */
--#define ESPFIX_PAGE_SPACE	(1UL << (PGDIR_SHIFT-PAGE_SHIFT-16))
-+#define ESPFIX_PAGE_SPACE	(1UL << (P4D_SHIFT-PAGE_SHIFT-16))
- 
- #define ESPFIX_MAX_CPUS		(ESPFIX_STACKS_PER_PAGE * ESPFIX_PAGE_SPACE)
- #if CONFIG_NR_CPUS > ESPFIX_MAX_CPUS
--# error "Need more than one PGD for the ESPFIX hack"
-+# error "Need more virtual address space for the ESPFIX hack"
- #endif
- 
- #define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-@@ -121,11 +121,13 @@ static void init_espfix_random(void)
- 
- void __init init_espfix_bsp(void)
- {
--	pgd_t *pgd_p;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
- 
- 	/* Install the espfix pud into the kernel page directory */
--	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
--	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
-+	pgd = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
-+	p4d = p4d_alloc(&init_mm, pgd, ESPFIX_BASE_ADDR);
-+	p4d_populate(&init_mm, p4d, espfix_pud_page);
- 
- 	/* Randomize the locations */
- 	init_espfix_random();
--- 
-2.11.0
+#ifdef arch_op
+#define op(...) ({ 		\
+	kasna_whatever(...)	\
+	arch_op(...)		\
+})
+#endif
+
+... but I can't recall specifically what it was.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
