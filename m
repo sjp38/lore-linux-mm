@@ -1,165 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 39BEE6B03A3
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 05:30:42 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id q46so3556969qtb.16
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 02:30:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y33si5768345qtb.91.2017.03.29.02.30.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 07B606B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:28:52 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j4so4983384pfc.8
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 03:28:52 -0700 (PDT)
+Received: from epoutp02.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id e6si7028232pgf.259.2017.03.29.03.28.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 02:30:40 -0700 (PDT)
-Date: Wed, 29 Mar 2017 11:30:30 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
-Message-ID: <20170329113030.671ff443@redhat.com>
-In-Reply-To: <20170328211121.GA8615@lerouge>
-References: <20170328101403.34a82fbf@redhat.com>
-	<20170328143431.GB4216@lerouge>
-	<20170328172303.78a3c6d4@redhat.com>
-	<20170328211121.GA8615@lerouge>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Wed, 29 Mar 2017 03:28:50 -0700 (PDT)
+Received: from epcas2p2.samsung.com (unknown [182.195.41.54])
+	by epoutp02.samsung.com (KnoxPortal) with ESMTP id 20170329102847epoutp0229afb84d3bb7e0caa7561ab9b3516ae2~wU4m_2Trf1247812478epoutp02I
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 10:28:47 +0000 (GMT)
+Mime-Version: 1.0
+Subject: Re: [PATCH v2] module: check if memory leak by module.
+Reply-To: v.narang@samsung.com
+From: Vaneet Narang <v.narang@samsung.com>
+In-Reply-To: <alpine.LSU.2.20.1703290958390.4250@pobox.suse.cz>
+Message-ID: <20170329092332epcms5p10ae8263c6e3ef14eac40e08a09eff9e6@epcms5p1>
+Date: Wed, 29 Mar 2017 09:23:32 +0000
+Content-Type: multipart/related;
+	boundary="----=_Part_233510_75706858.1490779412459"
+References: <alpine.LSU.2.20.1703290958390.4250@pobox.suse.cz>
+	<1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
+	<20170329074522.GB27994@dhcp22.suse.cz>
+	<CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcms5p1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: linux-kernel@vger.kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, brouer@redhat.com
+To: Miroslav Benes <mbenes@suse.cz>, Michal Hocko <mhocko@kernel.org>
+Cc: Maninder Singh <maninder1.s@samsung.com>, "jeyu@redhat.com" <jeyu@redhat.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris@chris-wilson.co.uk" <chris@chris-wilson.co.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "joonas.lahtinen@linux.intel.com" <joonas.lahtinen@linux.intel.com>, "keescook@chromium.org" <keescook@chromium.org>, "pavel@ucw.cz" <pavel@ucw.cz>, "jinb.park7@gmail.com" <jinb.park7@gmail.com>, "anisse@astier.eu" <anisse@astier.eu>, "rafael.j.wysocki@intel.com" <rafael.j.wysocki@intel.com>, "zijun_hu@htc.com" <zijun_hu@htc.com>, "mingo@kernel.org" <mingo@kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "thgarnie@google.com" <thgarnie@google.com>, "joelaf@google.com" <joelaf@google.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, PANKAJ MISHRA <pankaj.m@samsung.com>, Ajeet Kumar Yadav <ajeet.y@samsung.com>, =?UTF-8?B?7J207ZWZ67SJ?= <hakbong5.lee@samsung.com>, AMIT SAHRAWAT <a.sahrawat@samsung.com>, =?UTF-8?B?656E66a/?= <lalit.mohan@samsung.com>, CPGS <cpgs@samsung.com>
 
-On Tue, 28 Mar 2017 23:11:22 +0200
-Frederic Weisbecker <fweisbec@gmail.com> wrote:
+------=_Part_233510_75706858.1490779412459
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="utf-8"
 
-> On Tue, Mar 28, 2017 at 05:23:03PM +0200, Jesper Dangaard Brouer wrote:
-> > On Tue, 28 Mar 2017 16:34:36 +0200
-> > Frederic Weisbecker <fweisbec@gmail.com> wrote:
-> >  =20
-> > > On Tue, Mar 28, 2017 at 10:14:03AM +0200, Jesper Dangaard Brouer wrot=
-e: =20
-> > > >=20
-> > > > (While evaluating some changes to the page allocator) I ran into an
-> > > > issue with ksoftirqd getting too much CPU sched time.
-> > > >=20
-> > > > I bisected the problem to
-> > > >  a499a5a14dbd ("sched/cputime: Increment kcpustat directly on irqti=
-me account")
-> > > >=20
-> > > >  a499a5a14dbd1d0315a96fc62a8798059325e9e6 is the first bad commit
-> > > >  commit a499a5a14dbd1d0315a96fc62a8798059325e9e6
-> > > >  Author: Frederic Weisbecker <fweisbec@gmail.com>
-> > > >  Date:   Tue Jan 31 04:09:32 2017 +0100
-> > > >=20
-> > > >     sched/cputime: Increment kcpustat directly on irqtime account
-> > > >    =20
-> > > >     The irqtime is accounted is nsecs and stored in
-> > > >     cpu_irq_time.hardirq_time and cpu_irq_time.softirq_time. Once t=
-he
-> > > >     accumulated amount reaches a new jiffy, this one gets accounted=
- to the
-> > > >     kcpustat.
-> > > >    =20
-> > > >     This was necessary when kcpustat was stored in cputime_t, which=
- could at
-> > > >     worst have jiffies granularity. But now kcpustat is stored in n=
-secs
-> > > >     so this whole discretization game with temporary irqtime storag=
-e has
-> > > >     become unnecessary.
-> > > >    =20
-> > > >     We can now directly account the irqtime to the kcpustat.
-> > > >    =20
-> > > >     Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
-> > > >     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> > > >     Cc: Fenghua Yu <fenghua.yu@intel.com>
-> > > >     Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > > >     Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> > > >     Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> > > >     Cc: Michael Ellerman <mpe@ellerman.id.au>
-> > > >     Cc: Paul Mackerras <paulus@samba.org>
-> > > >     Cc: Peter Zijlstra <peterz@infradead.org>
-> > > >     Cc: Rik van Riel <riel@redhat.com>
-> > > >     Cc: Stanislaw Gruszka <sgruszka@redhat.com>
-> > > >     Cc: Thomas Gleixner <tglx@linutronix.de>
-> > > >     Cc: Tony Luck <tony.luck@intel.com>
-> > > >     Cc: Wanpeng Li <wanpeng.li@hotmail.com>
-> > > >     Link: http://lkml.kernel.org/r/1485832191-26889-17-git-send-ema=
-il-fweisbec@gmail.com
-> > > >     Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> > > >=20
-> > > > The reproducer is running a userspace udp_sink[1] program, and task=
-set
-> > > > pinning the process to the same CPU as softirq RX is running on, and
-> > > > starting a UDP flood with pktgen (tool part of kernel tree:
-> > > > samples/pktgen/pktgen_sample03_burst_single_flow.sh).   =20
-> > >=20
-> > > So that means I need to run udp_sink on the same CPU than pktgen? =20
-> >=20
-> > No, you misunderstood.  I run pktgen on another physical machine, which
-> > is sending UDP packets towards my Device-Under-Test (DUT) target.  The
-> > DUT-target is receiving packets and I observe which CPU the NIC is
-> > delivering these packets to. =20
->=20
-> Ah ok, so I tried to run pktgen on another machine and I get that strange=
- write error:
->=20
->     # ./pktgen_sample03_burst_single_flow.sh -d 192.168.1.3  -i wlan0
->     ./functions.sh: ligne 76 : echo: erreur d'=EF=BF=BDcriture : Erreur i=
-nconnue 524
->     ERROR: Write error(1) occurred cmd: "clone_skb 100000 > /proc/net/pkt=
-gen/wlan0@0"
->=20
-> Any idea?
-
-Yes, this interface does not support pktgen "clone_skb".  You can
-supply cmdline argument "-c 0" to fix this.  But I suspect that this
-interface also does not support "burst", thus you also need "-b 0".
-
-See all cmdline args via: ./pktgen_sample03_burst_single_flow.sh -h
-
-Why are you using a wifi interface for this kind of overload testing?
-(the basic test here is making sure softirq is busy 100%, and at slow
-wifi speeds this might not be possible to force ksoftirqd into this
-scheduler state)
-
-
-> >=20
-> > E.g determine RX-CPU via mpstat command:
-> >  mpstat -P ALL -u -I SCPU -I SUM 2
-> >=20
-> > I then start udp_sink, pinned to the RX-CPU, like:
-> >  sudo taskset -c 2 ./udp_sink --port 9 --count $((10**6)) --recvmsg --r=
-epeat 1000 =20
->=20
-> Ah thanks for these hints!
->=20
-> > > > After this commit, the udp_sink program does not get any sched CPU
-> > > > time, and no packets are delivered to userspace.  (All packets are
-> > > > dropped by softirq due to a full socket queue, nstat
-> > > > UdpRcvbufErrors).
-> > > >=20
-> > > > A related symptom is that ksoftirqd no longer get accounted in
-> > > > top.   =20
-> > >=20
-> > > That's indeed what I observe. udp_sink has almost no CPU time,
-> > > neither has ksoftirqd but kpktgend_0 has everything.
-> > >=20
-> > > Finally a bug I can reproduce! =20
-> >=20
-> > Good to hear you can reproduce it! :-) =20
->=20
-> Well, since I was generating the packets locally, maybe it didn't trigger
-> the expected interrupts...
-
-Well, you definitely didn't create the test case I was using.  I cannot
-remember if the pktgen kthreads runs in softirq context, but I suspect
-it does. If so, you can recreate the main problem, which is a softirq
-thread using 100% CPU time, which cause no other processes getting
-sched time on that CPU.
-
---=20
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+SGksDQoNCj4+IEhtbSwgaG93IGNhbiB5b3UgdHJhY2sgX2FsbF8gdm1hbGxvYyBhbGxvY2F0aW9u
+cyBkb25lIG9uIGJlaGFsZiBvZiB0aGUNCj4+IG1vZHVsZT8gSXQgaXMgcXVpdGUgc29tZSB0aW1l
+IHNpbmNlIEkndmUgY2hlY2tlZCBrZXJuZWwvbW9kdWxlLmMgYnV0DQo+PiBmcm9tIG15IHZhZ3Vl
+IHVuZGVyc3RhZGluZyB5b3VyIGNoZWNrIGlzIGJhc2ljYWxseSBvbmx5IGFib3V0IHN0YXRpY2Fs
+bHkNCj4+IHZtYWxsb2NlZCBhcmVhcyBieSBtb2R1bGUgbG9hZGVyLiBJcyB0aGF0IGNvcnJlY3Q/
+IElmIHllcyB0aGVuIGlzIHRoaXMNCj4+IGFjdHVhbGx5IHVzZWZ1bD8gV2VyZSB0aGVyZSBhbnkg
+YnVncyBpbiB0aGUgbG9hZGVyIGNvZGUgcmVjZW50bHk/IFdoYXQNCj4+IGxlZCB5b3UgdG8gcHJl
+cGFyZSB0aGlzIHBhdGNoPyBBbGwgdGhpcyBzaG91bGQgYmUgcGFydCBvZiB0aGUgY2hhbmdlbG9n
+IQ0KDQpGaXJzdCBvZiBhbGwgdGhlcmUgaXMgbm8gaXNzdWUgaW4ga2VybmVsL21vZHVsZS5jLiBU
+aGlzIHBhdGNoIGFkZCBmdW5jdGlvbmFsaXR5DQp0byBkZXRlY3Qgc2NlbmFyaW8gd2hlcmUgc29t
+ZSBrZXJuZWwgbW9kdWxlIGRvZXMgc29tZSBtZW1vcnkgYWxsb2NhdGlvbiBidXQgZ2V0cw0KdW5s
+b2FkZWQgd2l0aG91dCBkb2luZyB2ZnJlZS4gRm9yIGV4YW1wbGUNCnN0YXRpYyBpbnQga2VybmVs
+X2luaXQodm9pZCkNCnsNCiAgICAgICAgY2hhciAqIHB0ciA9IHZtYWxsb2MoNDAwICogMTAyNCk7
+DQogICAgICAgIHJldHVybiAwOw0KfQ0KDQpzdGF0aWMgdm9pZCBrZXJuZWxfZXhpdCh2b2lkKQ0K
+eyAgICAgICAgDQp9DQoNCk5vdyBpbiB0aGlzIGNhc2UgaWYgd2UgZG8gcm1tb2QgdGhlbiBtZW1v
+cnkgYWxsb2NhdGVkIGJ5IGtlcm5lbF9pbml0DQp3aWxsIG5vdCBiZSBmcmVlZCBidXQgdGhpcyBw
+YXRjaCB3aWxsIGRldGVjdCBzdWNoIGtpbmQgb2YgYnVncyBpbiBrZXJuZWwgbW9kdWxlIA0KY29k
+ZS4NCg0KQWxzbyBXZSBoYXZlIHNlZW4gYnVncyBpbiBzb21lIGtlcm5lbCBtb2R1bGVzIHdoZXJl
+IHRoZXkgYWxsb2NhdGUgc29tZSBtZW1vcnkgYW5kDQpnZXRzIHJlbW92ZWQgd2l0aG91dCBmcmVl
+aW5nIHRoZW0gYW5kIGlmIG5ldyBtb2R1bGUgZ2V0cyBsb2FkZWQgaW4gcGxhY2UNCm9mIHJlbW92
+ZWQgbW9kdWxlIHRoZW4gL3Byb2Mvdm1hbGxvY2luZm8gc2hvd3Mgd3JvbmcgaW5mb3JtYXRpb24u
+IHZtYWxsb2MgaW5mbyB3aWxsDQpzaG93IHBhZ2VzIGdldHRpbmcgYWxsb2NhdGVkIGJ5IG5ldyBt
+b2R1bGUuIFNvIHRoZXNlIGxvZ3Mgd2lsbCBoZWxwIGluIGRldGVjdGluZyANCnN1Y2ggaXNzdWVz
+Lg0KDQo+ID4gIHN0YXRpYyB2b2lkIGZyZWVfbW9kdWxlKHN0cnVjdCBtb2R1bGUgKm1vZCkNCj4g
+PiAgew0KPiA+ICsJY2hlY2tfbWVtb3J5X2xlYWsobW9kKTsNCj4gPiArDQoNCj5PZiBjb3Vyc2Us
+IHZmcmVlKCkgaGFzIG5vdCBiZWVuIGNhbGxlZCB5ZXQuIEl0IGlzIHRoZSBiZWdpbm5pbmcgb2Yg
+DQo+ZnJlZV9tb2R1bGUoKS4gdmZyZWUoKSBpcyBvbmUgb2YgdGhlIGxhc3QgdGhpbmdzIHlvdSBu
+ZWVkIHRvIGRvLiBTZWUgDQo+bW9kdWxlX21lbWZyZWUoKS4gSWYgSSBhbSBub3QgbWlzc2luZyBz
+b21ldGhpbmcsIHlvdSBnZXQgcHJfZXJyKCkgDQo+ZXZlcnl0aW1lIGEgbW9kdWxlIGlzIHVubG9h
+ZGVkLg0KDQpUaGlzIHBhdGNoIGlzIG5vdCB0byBkZXRlY3QgbWVtb3J5IGFsbG9jYXRlZCBieSBr
+ZXJuZWwuIG1vZHVsZV9tZW1mcmVlDQp3aWxsIGFsbG9jYXRlZCBieSBrZXJuZWwgZm9yIGtlcm5l
+bCBtb2R1bGVzIGJ1dCBvdXIgaW50ZW50IGlzIHRvIGRldGVjdA0KbWVtb3J5IGFsbG9jYXRlZCBk
+aXJlY3RseSBieSBrZXJuZWwgbW9kdWxlcyBhbmQgbm90IGdldHRpbmcgZnJlZWQuDQoNClJlZ2Fy
+ZHMsDQpWYW5lZXQgTmFyYW5n
+------=_Part_233510_75706858.1490779412459--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
