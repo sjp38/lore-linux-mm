@@ -1,65 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 87F9B6B0397
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 13:08:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v21so13474786pgo.22
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 10:08:53 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0042.outbound.protection.outlook.com. [104.47.32.42])
-        by mx.google.com with ESMTPS id k2si5891799pfe.119.2017.03.29.10.08.52
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C87E36B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 13:14:09 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id r140so7246170qke.11
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 10:14:09 -0700 (PDT)
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com. [209.85.220.170])
+        by mx.google.com with ESMTPS id u8si6689915qtu.197.2017.03.29.10.14.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 10:08:52 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 18/32] kvm: svm: Use the hardware provided GPA
- instead of page walk
-References: <148846752022.2349.13667498174822419498.stgit@brijesh-build-machine>
- <148846776540.2349.3123530065053870721.stgit@brijesh-build-machine>
- <20170329151413.l2on26mdyyskwqlu@pd.tnic>
-From: Brijesh Singh <brijesh.singh@amd.com>
-Message-ID: <fc944319-ce21-7ba7-ffc3-9b0bb3c710b6@amd.com>
-Date: Wed, 29 Mar 2017 12:08:38 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Mar 2017 10:14:08 -0700 (PDT)
+Received: by mail-qk0-f170.google.com with SMTP id p22so18799804qka.3
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 10:14:08 -0700 (PDT)
+Subject: Re: [PATCH] mm: enable page poisoning early at boot
+References: <1490358246-11001-1-git-send-email-vinmenon@codeaurora.org>
+ <d9e8b184-b2a9-1174-4a6b-17ae1d2d6444@redhat.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <765ba1d2-d273-e4b1-7ec2-523fe2784ae2@redhat.com>
+Date: Wed, 29 Mar 2017 10:14:04 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170329151413.l2on26mdyyskwqlu@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <d9e8b184-b2a9-1174-4a6b-17ae1d2d6444@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: brijesh.singh@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, mst@redhat.com, linux-crypto@vger.kernel.org, tj@kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Vinayak Menon <vinmenon@codeaurora.org>, iamjoonsoo.kim@lge.com, mhocko@suse.com, akpm@linux-foundation.org
+Cc: shashim@codeaurora.org, linux-mm@kvack.org
 
-Hi Boris,
-
-On 03/29/2017 10:14 AM, Borislav Petkov wrote:
-> On Thu, Mar 02, 2017 at 10:16:05AM -0500, Brijesh Singh wrote:
->> From: Tom Lendacky <thomas.lendacky@amd.com>
+On 03/29/2017 10:04 AM, Laura Abbott wrote:
+> On 03/24/2017 05:24 AM, Vinayak Menon wrote:
+>> On SPARSEMEM systems page poisoning is enabled after buddy is up, because
+>> of the dependency on page extension init. This causes the pages released
+>> by free_all_bootmem not to be poisoned. This either delays or misses
+>> the identification of some issues because the pages have to undergo another
+>> cycle of alloc-free-alloc for any corruption to be detected.
+>> Enable page poisoning early by getting rid of the PAGE_EXT_DEBUG_POISON
+>> flag. Since all the free pages will now be poisoned, the flag need not be
+>> verified before checking the poison during an alloc.
 >>
->> When a guest causes a NPF which requires emulation, KVM sometimes walks
->> the guest page tables to translate the GVA to a GPA. This is unnecessary
->> most of the time on AMD hardware since the hardware provides the GPA in
->> EXITINFO2.
+>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+>> ---
 >>
->> The only exception cases involve string operations involving rep or
->> operations that use two memory locations. With rep, the GPA will only be
->> the value of the initial NPF and with dual memory locations we won't know
->> which memory address was translated into EXITINFO2.
+>> An RFC was sent earlier (http://www.spinics.net/lists/linux-mm/msg123142.html)
+>> Not sure if there exists a code path that can free pages to buddy skipping
+>> kernel_poison_pages, making the flag PAGE_EXT_DEBUG_POISON a necessity. But
+>> the tests have not shown any issues. As per Laura's suggestion, the patch was
+>> tested with HIBERNATION enabled and no issues were seen.
 >>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> Reviewed-by: Borislav Petkov <bp@suse.de>
->
-> I think I already asked you to remove Revewed-by tags when you have to
-> change an already reviewed patch in non-trivial manner. Why does this
-> one still have my Reviewed-by tag?
->
+> 
+> I gave this a spin on some of my machines and it appears to be working
+> okay. I wish we had a bit more context about why it was necessary to track
+> the poison in the page itself.
+> 
+> This change means that we shouldn't need the "select PAGE_EXTENSION"
+> anymore so that can be dropped. If you do that, you can add
+> 
+> Acked-by: Laura Abbott <labbott@redhat.com>
+> 
 
-Actually this patch is included in RFCv2 series for the completeness.
+Actually never mind on dropping the select. It's still needed for
+the guard page as well. Longer term it might be worth separating
+that out as well.
 
-The patch is already been reviewed and accepted in kvm upstream tree but it
-was not present in the tip branch hence I cherry-picked into RFC so that we do
-not break the build. SEV runtime behavior needs this patch. I have tried to
-highlight it in cover letter. It was my bad that I missed fixing the Reviewed-by
-tag during cherry picking. Sorry about that and will be extra careful next time around. Thanks
+You can still take my Ack.
 
-
-~ Brijesh
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
