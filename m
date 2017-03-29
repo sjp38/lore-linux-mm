@@ -1,199 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8916B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:54:03 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id w11so6175712itb.0
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 03:54:03 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m9si7524762iod.66.2017.03.29.03.54.00
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A689E6B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 07:04:28 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id d69so11718923ith.20
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 04:04:28 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0125.outbound.protection.outlook.com. [104.47.1.125])
+        by mx.google.com with ESMTPS id o127si6392195ite.99.2017.03.29.04.04.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 03:54:01 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH v3] mm: Allow calling vfree() from non-schedulable context.
-Date: Wed, 29 Mar 2017 19:51:52 +0900
-Message-Id: <1490784712-4991-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 29 Mar 2017 04:04:27 -0700 (PDT)
+Subject: Re: [PATCH v2] module: check if memory leak by module.
+References: <CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcas5p1.samsung.com>
+ <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <460c5798-1f4d-6fd0-cf32-349fbd605862@virtuozzo.com>
+Date: Wed, 29 Mar 2017 14:05:39 +0300
+MIME-Version: 1.0
+In-Reply-To: <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, Christoph Hellwig <hch@lst.de>, Ingo Molnar <mingo@elte.hu>, Jisheng Zhang <jszhang@marvell.com>, Joel Fernandes <joelaf@google.com>, John Dias <joaodias@google.com>, Matthew Wilcox <willy@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Maninder Singh <maninder1.s@samsung.com>, jeyu@redhat.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, chris@chris-wilson.co.uk, joonas.lahtinen@linux.intel.com, mhocko@suse.com, keescook@chromium.org, pavel@ucw.cz, jinb.park7@gmail.com, anisse@astier.eu, rafael.j.wysocki@intel.com, zijun_hu@htc.com, mingo@kernel.org, mawilcox@microsoft.com, thgarnie@google.com, joelaf@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: pankaj.m@samsung.com, ajeet.y@samsung.com, hakbong5.lee@samsung.com, a.sahrawat@samsung.com, lalit.mohan@samsung.com, cpgs@samsung.com, Vaneet Narang <v.narang@samsung.com>
 
-Commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem
-as potentially sleeping") added might_sleep() to remove_vm_area() from
-vfree(), and commit 763b218ddfaf5676 ("mm: add preempt points into
-__purge_vmap_area_lazy()") actually made vfree() potentially sleeping on
-non-preemptible kernels.
+On 03/29/2017 09:02 AM, Maninder Singh wrote:
 
-  commit bf22e37a641327e3 ("mm: add vfree_atomic()")
-  commit 0f110a9b956c1678 ("kernel/fork: use vfree_atomic() to free thread stack")
-  commit 8d5341a6260a59cf ("x86/ldt: use vfree_atomic() to free ldt entries")
-  commit 5803ed292e63a1bf ("mm: mark all calls into the vmalloc subsystem as potentially sleeping")
-  commit f9e09977671b618a ("mm: turn vmap_purge_lock into a mutex")
-  commit 763b218ddfaf5676 ("mm: add preempt points into __purge_vmap_area_lazy()")
+> diff --git a/kernel/module.c b/kernel/module.c
+> index f953df9..98a8018 100644
+> --- a/kernel/module.c
+> +++ b/kernel/module.c
+> @@ -2117,9 +2117,31 @@ void __weak module_arch_freeing_init(struct module *mod)
+>  {
+>  }
+>  
+> +static void check_memory_leak(struct module *mod)
+> +{
+> +	struct vmap_area *va;
+> +
+> +	rcu_read_lock();
+> +	list_for_each_entry_rcu(va, &vmap_area_list, list) {
 
-But these commits did not take appropriate precautions for changing
-non-sleeping API to sleeping API. Only two callers are updated to use
-non-sleeping version, and remaining callers are silently using sleeping
-version which might cause problems. For example, if we try
+vmap_area_list is protected by spin_lock(&vmap_area_lock); not the RCU.
 
-----------
- void kvfree(const void *addr)
- {
-+	/* Detect errors before kvmalloc() falls back to vmalloc(). */
-+	if (addr) {
-+		WARN_ON(in_nmi());
-+		if (likely(!in_interrupt()))
-+			might_sleep();
-+	}
- 	if (is_vmalloc_addr(addr))
- 		vfree(addr);
- 	else
-----------
+Also some other points:
+ 1) kmemleak already detects leaks of that kind.
 
-change, we can find a caller who is calling kvfree() with a spinlock held.
+ 2) All this could be implemented in userspace, e.g. in rmmod tool
+      - Read /proc/vmalloc and find areas belonging to the module
+      - unload module
+      - read /proc/vmalloc and check if anything left from that module
 
-[   23.635540] BUG: sleeping function called from invalid context at mm/util.c:338
-[   23.638701] in_atomic(): 1, irqs_disabled(): 0, pid: 478, name: kworker/0:1H
-[   23.641516] 3 locks held by kworker/0:1H/478:
-[   23.643476]  #0:  ("xfs-log/%s"mp->m_fsname){.+.+..}, at: [<ffffffffb20d1e64>] process_one_work+0x194/0x6c0
-[   23.647176]  #1:  ((&bp->b_ioend_work)){+.+...}, at: [<ffffffffb20d1e64>] process_one_work+0x194/0x6c0
-[   23.650939]  #2:  (&(&pag->pagb_lock)->rlock){+.+...}, at: [<ffffffffc02b42ee>] xfs_extent_busy_clear+0x9e/0xe0 [xfs]
-[   23.655132] CPU: 0 PID: 478 Comm: kworker/0:1H Not tainted 4.11.0-rc4+ #212
-[   23.657974] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[   23.662041] Workqueue: xfs-log/sda1 xfs_buf_ioend_work [xfs]
-[   23.664463] Call Trace:
-[   23.665866]  dump_stack+0x85/0xc9
-[   23.667538]  ___might_sleep+0x184/0x250
-[   23.669371]  __might_sleep+0x4a/0x90
-[   23.671137]  kvfree+0x41/0x90
-[   23.672748]  xfs_extent_busy_clear_one+0x51/0x190 [xfs]
-[   23.675110]  xfs_extent_busy_clear+0xbb/0xe0 [xfs]
-[   23.677278]  xlog_cil_committed+0x241/0x420 [xfs]
-[   23.679431]  xlog_state_do_callback+0x170/0x2d0 [xfs]
-[   23.681717]  xlog_state_done_syncing+0x7f/0xa0 [xfs]
-[   23.683971]  ? xfs_buf_ioend_work+0x15/0x20 [xfs]
-[   23.686112]  xlog_iodone+0x86/0xc0 [xfs]
-[   23.688007]  xfs_buf_ioend+0xd3/0x440 [xfs]
-[   23.689999]  xfs_buf_ioend_work+0x15/0x20 [xfs]
-[   23.692060]  process_one_work+0x21c/0x6c0
-[   23.694177]  ? process_one_work+0x194/0x6c0
-[   23.696120]  worker_thread+0x137/0x4b0
-[   23.697973]  kthread+0x10f/0x150
-[   23.699607]  ? process_one_work+0x6c0/0x6c0
-[   23.701561]  ? kthread_create_on_node+0x70/0x70
-[   23.703617]  ret_from_fork+0x31/0x40
-
-It is not trivial to audit all vfree()/kvfree() users and correct them
-not to use spin_lock()/preempt_disable()/rcu_read_lock() etc. before
-calling vfree()/kvfree(). At least it is not doable for 4.10-stable and
-4.11-rc fixes. Therefore, we must choose from either reverting these
-commits or keeping vfree() as non-sleeping API for 4.10-stable and 4.11.
-I assume that the latter is less painful for future development.
-
-This patch updates the condition to use __vfree_deferred() in order to
-make sure that all vfree()/kvfree() users who did not notice these
-commits will remain safe.
-
-console_unlock() is a function which is prepared for being called from
-non-schedulable context (e.g. spinlock held, inside RCU). It is using
-
-  !oops_in_progress && preemptible() && !rcu_preempt_depth()
-
-as a condition for whether it is safe to schedule. This patch uses that
-condition with oops_in_progress check (which is not important for
-__vunmap() case) removed.
-
-Straightforward change will be
-
--	if (unlikely(in_interrupt()))
-+	if (unlikely(in_interrupt() || !(preemptible() && !rcu_preempt_depth())))
-
-in vfree(). But we can remove in_interrupt() check due to reasons below.
-
-If CONFIG_PREEMPT_COUNT=y, in_interrupt() and preemptible() are defined as
-
-  #define in_interrupt() (irq_count())
-  #define irq_count()    (preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK))
-  #define preemptible()  (preempt_count() == 0 && !irqs_disabled())
-
-and therefore this condition can be rewritten as below.
-
--	if (unlikely(in_interrupt() || !(preemptible() && !rcu_preempt_depth())))
-+	if (unlikely((preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK)) ||
-+		     !(preempt_count() == 0 && !irqs_disabled()) || rcu_preempt_depth()))
-
--	if (unlikely((preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK)) ||
--		     !(preempt_count() == 0 && !irqs_disabled()) || rcu_preempt_depth()))
-+	if (unlikely((preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK)) ||
-+		     (preempt_count() != 0 || irqs_disabled()) || rcu_preempt_depth()))
-
--	if (unlikely((preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK)) ||
--		     (preempt_count() != 0 || irqs_disabled()) || rcu_preempt_depth()))
-+	if (unlikely((preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK)) ||
-+		     preempt_count() != 0 || irqs_disabled() || rcu_preempt_depth()))
-
--	if (unlikely((preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK)) ||
--		     preempt_count() != 0 || irqs_disabled() || rcu_preempt_depth()))
-+	if (unlikely(preempt_count() != 0 || irqs_disabled() || rcu_preempt_depth()))
-
--	if (unlikely(preempt_count() != 0 || irqs_disabled() || rcu_preempt_depth()))
-+	if (unlikely(!(preempt_count() == 0 && !irqs_disabled()) || rcu_preempt_depth()))
-
--	if (unlikely(!(preempt_count() == 0 && !irqs_disabled()) || rcu_preempt_depth()))
-+	if (unlikely(!preemptible() || rcu_preempt_depth()))
-
-If CONFIG_PREEMPT_COUNT=n, preemptible() is defined as
-
-  #define preemptible() 0
-
-and therefore this condition can be rewritten as below.
-
--       if (unlikely(in_interrupt() || !(preemptible() && !rcu_preempt_depth())))
-+       if (unlikely(in_interrupt() || !(0 && !rcu_preempt_depth())))
-
--       if (unlikely(in_interrupt() || !(0 && !rcu_preempt_depth())))
-+       if (unlikely(in_interrupt() || !(0)))
-
--       if (unlikely(in_interrupt() || !(0)))
-+       if (unlikely(in_interrupt() || 1))
-
--       if (unlikely(in_interrupt() || 1))
-+       if (unlikely(1))
-
-Also drop unlikely() part because caller being inside non-schedulable
-context is not such uncommon cases.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Jisheng Zhang <jszhang@marvell.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Joel Fernandes <joelaf@google.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: John Dias <joaodias@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: <stable@vger.kernel.org> # v4.10
----
- mm/vmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0b05762..36334ff 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1589,7 +1589,7 @@ void vfree(const void *addr)
- 
- 	if (!addr)
- 		return;
--	if (unlikely(in_interrupt()))
-+	if (!preemptible() || rcu_preempt_depth())
- 		__vfree_deferred(addr);
- 	else
- 		__vunmap(addr, 1);
--- 
-1.8.3.1
+ 3) This might produce false positives. E.g. module may defer vfree() in workqueue, so the 
+     actual vfree() call happens after module unloaded.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
