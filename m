@@ -1,75 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2EE6B039F
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 03:54:59 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z109so1341996wrb.1
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 00:54:59 -0700 (PDT)
-Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
-        by mx.google.com with ESMTPS id f74si6257827wmi.20.2017.03.29.00.54.57
+	by kanga.kvack.org (Postfix) with ESMTP id C75866B03A0
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 04:02:29 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l95so1346706wrc.12
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:02:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n106si7563787wrb.62.2017.03.29.01.02.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 00:54:58 -0700 (PDT)
-Subject: Re: [RFC]mm/zsmalloc,: trigger BUG_ON in function zs_map_object.
-References: <e8aa282e-ad53-bfb8-2b01-33d2779f247a@huawei.com>
- <20170329002029.GA18979@bbox> <20170329064206.GA512@tigerII.localdomain>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <cb7a4f4f-f6cc-0856-80f7-d42a0ce4e8c8@huawei.com>
-Date: Wed, 29 Mar 2017 15:53:21 +0800
+        Wed, 29 Mar 2017 01:02:28 -0700 (PDT)
+Date: Wed, 29 Mar 2017 10:02:24 +0200 (CEST)
+From: Miroslav Benes <mbenes@suse.cz>
+Subject: Re: [PATCH v2] module: check if memory leak by module.
+In-Reply-To: <20170329074522.GB27994@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.20.1703290958390.4250@pobox.suse.cz>
+References: <CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcas5p1.samsung.com> <1490767322-9914-1-git-send-email-maninder1.s@samsung.com> <20170329074522.GB27994@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170329064206.GA512@tigerII.localdomain>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>
-Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Maninder Singh <maninder1.s@samsung.com>, jeyu@redhat.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, chris@chris-wilson.co.uk, aryabinin@virtuozzo.com, joonas.lahtinen@linux.intel.com, keescook@chromium.org, pavel@ucw.cz, jinb.park7@gmail.com, anisse@astier.eu, rafael.j.wysocki@intel.com, zijun_hu@htc.com, mingo@kernel.org, mawilcox@microsoft.com, thgarnie@google.com, joelaf@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pankaj.m@samsung.com, ajeet.y@samsung.com, hakbong5.lee@samsung.com, a.sahrawat@samsung.com, lalit.mohan@samsung.com, cpgs@samsung.com, Vaneet Narang <v.narang@samsung.com>
 
-Hi Sergey,
+On Wed, 29 Mar 2017, Michal Hocko wrote:
 
-Thanks for your comment!
-On 2017/3/29 14:42, Sergey Senozhatsky wrote:
-> On (03/29/17 09:20), Minchan Kim wrote:
->> Hello,
->>
->> On Tue, Mar 28, 2017 at 03:20:22PM +0800, Yisheng Xie wrote:
->>> Hi, all,
->>>
->>> We had backport the no-lru migration to linux-4.1, meanwhile change the
->>> ZS_MAX_ZSPAGE_ORDER to 3. Then we met a BUG_ON(!page[1]).
->>
->> Hmm, I don't know how you backported.
->>
->> There isn't any problem with default ZS_MAX_ZSPAGE_ORDER. Right?
->> So, it happens only if you changed it to 3?
+> On Wed 29-03-17 11:32:02, Maninder Singh wrote:
+> > This patch checks if any module which is going to be unloaded
+> > is doing vmalloc memory leak or not.
 > 
-> I agree with Minchan. too much things could have gone wrong during the backport.
-> 
->> Could you tell me what is your base kernel? and what zram/zsmalloc
->> version(ie, from what kernel version) you backported to your
->> base kernel?
-> 
-> agree again.
-> 
-> 
-> 
-> Yisheng, do you have this commit applied?
-No, we missed this patch, I will try it. Really thanks for that.
+> Hmm, how can you track _all_ vmalloc allocations done on behalf of the
+> module? It is quite some time since I've checked kernel/module.c but
+> from my vague understading your check is basically only about statically
+> vmalloced areas by module loader. Is that correct? If yes then is this
+> actually useful? Were there any bugs in the loader code recently? What
+> led you to prepare this patch? All this should be part of the changelog!
 
-Thanks
-Yisheng Xie
+Moreover, I don't understand one thing:
+  
+> > Logs:-
+> > [  129.336368] Module [test_module] is getting unloaded before doing vfree
 
-> 
-> commit c102f07ca0b04f2cb49cfc161c83f6239d17f491
-> Author: Junil Lee <junil0814.lee@lge.com>
-> Date:   Wed Jan 20 14:58:18 2016 -0800
-> 
->     zsmalloc: fix migrate_zspage-zs_free race condition
-> 
-> 
-> 	-ss
-> 
-> .
-> 
+ok, but...
+
+> > +static void check_memory_leak(struct module *mod)
+> > +{
+> > +	struct vmap_area *va;
+> > +
+> > +	rcu_read_lock();
+> > +	list_for_each_entry_rcu(va, &vmap_area_list, list) {
+> > +		if (!(va->flags & VM_VM_AREA))
+> > +			continue;
+> > +		if ((mod->core_layout.base < va->vm->caller) &&
+> > +			(mod->core_layout.base + mod->core_layout.size) > va->vm->caller) {
+> > +			pr_err("Module [%s] is getting unloaded before doing vfree\n", mod->name);
+> > +			pr_err("Memory still allocated: addr:0x%lx - 0x%lx, pages %u\n",
+> > +				va->va_start, va->va_end, va->vm->nr_pages);
+> > +			pr_err("Allocating function %pS\n", va->vm->caller);
+> > +		}
+> > +
+> > +	}
+> > +	rcu_read_unlock();
+> > +}
+> > +
+> >  /* Free a module, remove from lists, etc. */
+> >  static void free_module(struct module *mod)
+> >  {
+> > +	check_memory_leak(mod);
+> > +
+
+Of course, vfree() has not been called yet. It is the beginning of 
+free_module(). vfree() is one of the last things you need to do. See 
+module_memfree(). If I am not missing something, you get pr_err() 
+everytime a module is unloaded.
+
+Regards,
+Miroslav
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
