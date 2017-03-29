@@ -1,79 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 833F46B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 12:06:45 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g7so4029456wrd.16
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:06:45 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A4F6B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 12:13:18 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l95so4074054wrc.12
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:13:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 17si7727483wmj.152.2017.03.29.09.06.43
+        by mx.google.com with ESMTPS id f185si7765377wma.135.2017.03.29.09.13.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 09:06:43 -0700 (PDT)
-Subject: Re: [PATCH v3 7/8] mm, compaction: restrict async compaction to
- pageblocks of same migratetype
+        Wed, 29 Mar 2017 09:13:17 -0700 (PDT)
+Subject: Re: [PATCH v3 8/8] mm, compaction: finish whole pageblock to reduce
+ fragmentation
 References: <20170307131545.28577-1-vbabka@suse.cz>
- <20170307131545.28577-8-vbabka@suse.cz>
- <20170316021403.GC14063@js1304-P5Q-DELUXE>
+ <20170307131545.28577-9-vbabka@suse.cz>
+ <20170316021814.GD14063@js1304-P5Q-DELUXE>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
-Date: Wed, 29 Mar 2017 18:06:41 +0200
+Message-ID: <d224471c-0369-c967-fc83-b34ab49b245f@suse.cz>
+Date: Wed, 29 Mar 2017 18:13:14 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170316021403.GC14063@js1304-P5Q-DELUXE>
+In-Reply-To: <20170316021814.GD14063@js1304-P5Q-DELUXE>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-On 03/16/2017 03:14 AM, Joonsoo Kim wrote:
-> On Tue, Mar 07, 2017 at 02:15:44PM +0100, Vlastimil Babka wrote:
->> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
->> pageblocks. This is a heuristic intended to reduce latency, based on the
->> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+On 03/16/2017 03:18 AM, Joonsoo Kim wrote:
+> On Tue, Mar 07, 2017 at 02:15:45PM +0100, Vlastimil Babka wrote:
+>> The main goal of direct compaction is to form a high-order page for allocation,
+>> but it should also help against long-term fragmentation when possible. Most
+>> lower-than-pageblock-order compactions are for non-movable allocations, which
+>> means that if we compact in a movable pageblock and terminate as soon as we
+>> create the high-order page, it's unlikely that the fallback heuristics will
+>> claim the whole block. Instead there might be a single unmovable page in a
+>> pageblock full of movable pages, and the next unmovable allocation might pick
+>> another pageblock and increase long-term fragmentation.
 >> 
->> However, with the exception of THP's, most high-order allocations are not
->> movable. Should the async compaction succeed, this increases the chance that
->> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
->> long-term fragmentation worse.
+>> To help against such scenarios, this patch changes the termination criteria for
+>> compaction so that the current pageblock is finished even though the high-order
+>> page already exists. Note that it might be possible that the high-order page
+>> formed elsewhere in the zone due to parallel activity, but this patch doesn't
+>> try to detect that.
+>> 
+>> This is only done with sync compaction, because async compaction is limited to
+>> pageblock of the same migratetype, where it cannot result in a migratetype
+>> fallback. (Async compaction also eagerly skips order-aligned blocks where
+>> isolation fails, which is against the goal of migrating away as much of the
+>> pageblock as possible.)
+>> 
+>> As a result of this patch, long-term memory fragmentation should be reduced.
+>> 
+>> In testing based on 4.9 kernel with stress-highalloc from mmtests configured
+>> for order-4 GFP_KERNEL allocations, this patch has reduced the number of
+>> unmovable allocations falling back to movable pageblocks by 20%. The number
+>> 
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+>> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+>> ---
+>>  mm/compaction.c | 36 ++++++++++++++++++++++++++++++++++--
+>>  mm/internal.h   |  1 +
+>>  2 files changed, 35 insertions(+), 2 deletions(-)
+>> 
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 2c288e75840d..bc7903130501 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -1318,6 +1318,17 @@ static enum compact_result __compact_finished(struct zone *zone,
+>>  	if (is_via_compact_memory(cc->order))
+>>  		return COMPACT_CONTINUE;
+>>  
+>> +	if (cc->finishing_block) {
+>> +		/*
+>> +		 * We have finished the pageblock, but better check again that
+>> +		 * we really succeeded.
+>> +		 */
+>> +		if (IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
+>> +			cc->finishing_block = false;
+>> +		else
+>> +			return COMPACT_CONTINUE;
+>> +	}
+>> +
+>>  	/* Direct compactor: Is a suitable page free? */
+>>  	for (order = cc->order; order < MAX_ORDER; order++) {
+>>  		struct free_area *area = &zone->free_area[order];
+>> @@ -1338,8 +1349,29 @@ static enum compact_result __compact_finished(struct zone *zone,
+>>  		 * other migratetype buddy lists.
+>>  		 */
+>>  		if (find_suitable_fallback(area, order, migratetype,
+>> -						true, &can_steal) != -1)
+>> -			return COMPACT_SUCCESS;
+>> +						true, &can_steal) != -1) {
+>> +
+>> +			/* movable pages are OK in any pageblock */
+>> +			if (migratetype == MIGRATE_MOVABLE)
+>> +				return COMPACT_SUCCESS;
+>> +
+>> +			/*
+>> +			 * We are stealing for a non-movable allocation. Make
+>> +			 * sure we finish compacting the current pageblock
+>> +			 * first so it is as free as possible and we won't
+>> +			 * have to steal another one soon. This only applies
+>> +			 * to sync compaction, as async compaction operates
+>> +			 * on pageblocks of the same migratetype.
+>> +			 */
+>> +			if (cc->mode == MIGRATE_ASYNC ||
+>> +					IS_ALIGNED(cc->migrate_pfn,
+>> +							pageblock_nr_pages)) {
+>> +				return COMPACT_SUCCESS;
+>> +			}
 > 
-> I agree with this idea but have some concerns on this change.
-> 
-> *ASYNC* compaction is designed for reducing latency and this change
-> doesn't fit it. If everything works fine, there is a few movable pages
-> in non-MOVABLE pageblocks as you noted above. Moreover, there is quite
-> less the number of non-MOVABLE pageblock than MOVABLE one so finding
-> non-MOVABLE pageblock takes long time. These two factors will increase
-> the latency of *ASYNC* compaction.
+> If cc->migratetype and cc->migrate_pfn's migratetype is the same, stopping
+> the compaction here doesn't cause any fragmentation. Do we need to
+> compact full pageblock in this case?
 
-Right. I lately started to doubt the whole idea of async compaction (for
-non-movable allocations). Seems it's one of the compaction heuristics tuned
-towards the THP usecase. But for non-movable allocations, we just can't have
-both the low latency and long-term fragmentation avoidance. I see now even my
-own skip_on_failure mode in isolate_migratepages_block() as a mistake for
-non-movable allocations.
+Probably not, but if we make patch 7/8 less aggressive, then I'd rather keep
+this chance of clearing a whole unmovable pageblock of movable pages.
 
-Ideally I'd like to make async compaction redundant by kcompactd, and direct
-compaction would mean a serious situation which should warrant sync compaction.
-Meanwhile I see several options to modify this patch
-- async compaction for non-movable allocations will stop doing the
-skip_on_failure mode, and won't restrict the pageblock at all. patch 8/8 will
-make sure that also this kind of compaction finishes the whole pageblock
-- non-movable allocations will skip async compaction completely and go for sync
-compaction immediately
+I also realized that the finishing_block flag is just an unnecessary
+complication. Just keep going until migrate_pfn hits the end of pageblock, and
+only then check the termination criteria.
 
-Both options mean we won't clean the unmovable/reclaimable pageblocks as
-aggressively, but perhaps the tradeoff won't be bad. What do you think?
-Johannes, would you be able/willing to test such modification?
-
-Thanks
-
-> And, there is a concern in implementaion side. With this change, there
-> is much possibilty that compaction scanner's met by ASYNC compaction.
-> It resets the scanner position and SYNC compaction would start the
-> scan at the beginning of the zone every time. It would make cached
-> position useless and inefficient.
-> 
 > Thanks.
 > 
 
