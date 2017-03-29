@@ -1,166 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 432566B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 08:26:35 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q189so9346051pgq.17
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 05:26:35 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00105.outbound.protection.outlook.com. [40.107.0.105])
-        by mx.google.com with ESMTPS id l91si7355018plb.85.2017.03.29.05.26.33
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5E06B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 09:13:26 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id f50so2889840wrf.7
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:13:26 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id 70si397434wmo.95.2017.03.29.06.13.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 05:26:34 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv4] x86/mm: make in_compat_syscall() work during exec
-Date: Wed, 29 Mar 2017 15:22:48 +0300
-Message-ID: <20170329122249.22570-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Mar 2017 06:13:25 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id k6so1635121wre.3
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 06:13:24 -0700 (PDT)
+Date: Wed, 29 Mar 2017 15:13:22 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: Bisected softirq accounting issue in v4.11-rc1~170^2~28
+Message-ID: <20170329131321.GC8306@lerouge>
+References: <20170328101403.34a82fbf@redhat.com>
+ <20170328143431.GB4216@lerouge>
+ <20170328172303.78a3c6d4@redhat.com>
+ <20170328211121.GA8615@lerouge>
+ <20170329113030.671ff443@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170329113030.671ff443@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Adam Borowski <kilobyte@angband.pl>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Andrei Vagin <avagin@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-kernel@vger.kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
 
-After my changes to mmap(), its code now relies on the bitness of
-performing syscall. According to that, it chooses the base of allocation:
-mmap_base for 64-bit mmap() and mmap_compat_base for 32-bit syscall.
-It was done by:
-  commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for
-32-bit mmap()").
+On Wed, Mar 29, 2017 at 11:30:30AM +0200, Jesper Dangaard Brouer wrote:
+> On Tue, 28 Mar 2017 23:11:22 +0200
+> Frederic Weisbecker <fweisbec@gmail.com> wrote:
+> 
+> > On Tue, Mar 28, 2017 at 05:23:03PM +0200, Jesper Dangaard Brouer wrote:
+> > > On Tue, 28 Mar 2017 16:34:36 +0200
+> > > Frederic Weisbecker <fweisbec@gmail.com> wrote:
+> > >   
+> > > > On Tue, Mar 28, 2017 at 10:14:03AM +0200, Jesper Dangaard Brouer wrote:  
+> > > > > 
+> > > > > (While evaluating some changes to the page allocator) I ran into an
+> > > > > issue with ksoftirqd getting too much CPU sched time.
+> > > > > 
+> > > > > I bisected the problem to
+> > > > >  a499a5a14dbd ("sched/cputime: Increment kcpustat directly on irqtime account")
+> > > > > 
+> > > > >  a499a5a14dbd1d0315a96fc62a8798059325e9e6 is the first bad commit
+> > > > >  commit a499a5a14dbd1d0315a96fc62a8798059325e9e6
+> > > > >  Author: Frederic Weisbecker <fweisbec@gmail.com>
+> > > > >  Date:   Tue Jan 31 04:09:32 2017 +0100
+> > > > > 
+> > > > >     sched/cputime: Increment kcpustat directly on irqtime account
+> > > > >     
+> > > > >     The irqtime is accounted is nsecs and stored in
+> > > > >     cpu_irq_time.hardirq_time and cpu_irq_time.softirq_time. Once the
+> > > > >     accumulated amount reaches a new jiffy, this one gets accounted to the
+> > > > >     kcpustat.
+> > > > >     
+> > > > >     This was necessary when kcpustat was stored in cputime_t, which could at
+> > > > >     worst have jiffies granularity. But now kcpustat is stored in nsecs
+> > > > >     so this whole discretization game with temporary irqtime storage has
+> > > > >     become unnecessary.
+> > > > >     
+> > > > >     We can now directly account the irqtime to the kcpustat.
+> > > > >     
+> > > > >     Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
+> > > > >     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> > > > >     Cc: Fenghua Yu <fenghua.yu@intel.com>
+> > > > >     Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> > > > >     Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> > > > >     Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> > > > >     Cc: Michael Ellerman <mpe@ellerman.id.au>
+> > > > >     Cc: Paul Mackerras <paulus@samba.org>
+> > > > >     Cc: Peter Zijlstra <peterz@infradead.org>
+> > > > >     Cc: Rik van Riel <riel@redhat.com>
+> > > > >     Cc: Stanislaw Gruszka <sgruszka@redhat.com>
+> > > > >     Cc: Thomas Gleixner <tglx@linutronix.de>
+> > > > >     Cc: Tony Luck <tony.luck@intel.com>
+> > > > >     Cc: Wanpeng Li <wanpeng.li@hotmail.com>
+> > > > >     Link: http://lkml.kernel.org/r/1485832191-26889-17-git-send-email-fweisbec@gmail.com
+> > > > >     Signed-off-by: Ingo Molnar <mingo@kernel.org>
+> > > > > 
+> > > > > The reproducer is running a userspace udp_sink[1] program, and taskset
+> > > > > pinning the process to the same CPU as softirq RX is running on, and
+> > > > > starting a UDP flood with pktgen (tool part of kernel tree:
+> > > > > samples/pktgen/pktgen_sample03_burst_single_flow.sh).    
+> > > > 
+> > > > So that means I need to run udp_sink on the same CPU than pktgen?  
+> > > 
+> > > No, you misunderstood.  I run pktgen on another physical machine, which
+> > > is sending UDP packets towards my Device-Under-Test (DUT) target.  The
+> > > DUT-target is receiving packets and I observe which CPU the NIC is
+> > > delivering these packets to.  
+> > 
+> > Ah ok, so I tried to run pktgen on another machine and I get that strange write error:
+> > 
+> >     # ./pktgen_sample03_burst_single_flow.sh -d 192.168.1.3  -i wlan0
+> >     ./functions.sh: ligne 76 : echo: erreur d'i? 1/2 criture : Erreur inconnue 524
+> >     ERROR: Write error(1) occurred cmd: "clone_skb 100000 > /proc/net/pktgen/wlan0@0"
+> > 
+> > Any idea?
+> 
+> Yes, this interface does not support pktgen "clone_skb".  You can
+> supply cmdline argument "-c 0" to fix this.  But I suspect that this
+> interface also does not support "burst", thus you also need "-b 0".
+> 
+> See all cmdline args via: ./pktgen_sample03_burst_single_flow.sh -h
+> 
+> Why are you using a wifi interface for this kind of overload testing?
+> (the basic test here is making sure softirq is busy 100%, and at slow
+> wifi speeds this might not be possible to force ksoftirqd into this
+> scheduler state)
 
-The code afterwards relies on in_compat_syscall() returning true for
-32-bit syscalls. It's usually so while we're in context of application
-that does 32-bit syscalls. But during exec() it is not valid for x32 ELF.
-The reason is that the application hasn't yet done any syscall, so x32
-bit has not being set.
+What? I need to raise from the couch and plug an ethernet cable?? ;-) ;-)
 
-But do_execve() calls load_elf_binary(), which adds mappings with
-elf_map(). That results in -ENOMEM for x32 ELF binaries as
-in_compat_syscall() says we're in 64-bit syscall and so mmap_base
-is used instead of mmap_compat_base.
-For i386 ELFs it works as SET_PERSONALITY() sets TS_COMPAT flag.
+More seriously you're right, wifi probably won't be enough to trigger
+the desired storm on the destination interface. I'm going to try with eth0,
+that should also fix the clone_skb issues.
 
-As suggested by HPA and with diff by Thomas, make SET_PERSONALITY()
-change original syscall number to appropriate execve() number to
-pretend that we've come from the same bitness syscall as loading binary.
+> > > > > After this commit, the udp_sink program does not get any sched CPU
+> > > > > time, and no packets are delivered to userspace.  (All packets are
+> > > > > dropped by softirq due to a full socket queue, nstat
+> > > > > UdpRcvbufErrors).
+> > > > > 
+> > > > > A related symptom is that ksoftirqd no longer get accounted in
+> > > > > top.    
+> > > > 
+> > > > That's indeed what I observe. udp_sink has almost no CPU time,
+> > > > neither has ksoftirqd but kpktgend_0 has everything.
+> > > > 
+> > > > Finally a bug I can reproduce!  
+> > > 
+> > > Good to hear you can reproduce it! :-)  
+> > 
+> > Well, since I was generating the packets locally, maybe it didn't trigger
+> > the expected interrupts...
+> 
+> Well, you definitely didn't create the test case I was using.  I cannot
+> remember if the pktgen kthreads runs in softirq context, but I suspect
+> it does. If so, you can recreate the main problem, which is a softirq
+> thread using 100% CPU time, which cause no other processes getting
+> sched time on that CPU.
 
-Fixes: commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for
-32-bit mmap()")
-Cc: 0x7f454c46@gmail.com
-Cc: linux-mm@kvack.org
-Cc: Andrei Vagin <avagin@gmail.com>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: x86@kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Reported-by: Adam Borowski <kilobyte@angband.pl>
-Suggested-by: H. Peter Anvin <hpa@zytor.com>
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- arch/x86/kernel/process_64.c | 67 ++++++++++++++++++++++++++++++--------------
- 1 file changed, 46 insertions(+), 21 deletions(-)
+Well, I prefer to reproduce the same thing than you to make sure I'm chasing
+the right problem.
 
-diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index ea1a6180bf39..4af8ef0b0a08 100644
---- a/arch/x86/kernel/process_64.c
-+++ b/arch/x86/kernel/process_64.c
-@@ -486,6 +486,10 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
- 	return prev_p;
- }
- 
-+#define __NR_execve		59
-+#define __NR_x32_execve		520
-+#define __NR_ia32_execve	11
-+
- void set_personality_64bit(void)
- {
- 	/* inherit personality from parent */
-@@ -494,6 +498,8 @@ void set_personality_64bit(void)
- 	clear_thread_flag(TIF_IA32);
- 	clear_thread_flag(TIF_ADDR32);
- 	clear_thread_flag(TIF_X32);
-+	/* Pretend that this comes from a 64bit execve */
-+	task_pt_regs(current)->orig_ax = __NR_execve;
- 
- 	/* Ensure the corresponding mm is not marked. */
- 	if (current->mm)
-@@ -506,32 +512,51 @@ void set_personality_64bit(void)
- 	current->personality &= ~READ_IMPLIES_EXEC;
- }
- 
--void set_personality_ia32(bool x32)
-+static void __set_personality_x32(void)
- {
--	/* inherit personality from parent */
-+#ifdef CONFIG_X86_X32
-+	clear_thread_flag(TIF_IA32);
-+	set_thread_flag(TIF_X32);
-+	if (current->mm)
-+		current->mm->context.ia32_compat = TIF_X32;
-+	current->personality &= ~READ_IMPLIES_EXEC;
-+	/*
-+	 * in_compat_syscall() uses the presence of the x32
-+	 * syscall bit flag to determine compat status.
-+	 * The x86 mmap() code relies on the syscall bitness
-+	 * so set x32 syscall bit right here to make
-+	 * in_compat_syscall() work during exec().
-+	 *
-+	 * Pretend to come from a x32 execve.
-+	 */
-+	task_pt_regs(current)->orig_ax = __NR_x32_execve | __X32_SYSCALL_BIT;
-+	current->thread.status &= ~TS_COMPAT;
-+#endif
-+}
- 
-+static void __set_personality_ia32(void)
-+{
-+#ifdef CONFIG_IA32_EMULATION
-+	set_thread_flag(TIF_IA32);
-+	clear_thread_flag(TIF_X32);
-+	if (current->mm)
-+		current->mm->context.ia32_compat = TIF_IA32;
-+	current->personality |= force_personality32;
-+	/* Prepare the first "return" to user space */
-+	task_pt_regs(current)->orig_ax = __NR_ia32_execve;
-+	current->thread.status |= TS_COMPAT;
-+#endif
-+}
-+
-+void set_personality_ia32(bool x32)
-+{
- 	/* Make sure to be in 32bit mode */
- 	set_thread_flag(TIF_ADDR32);
- 
--	/* Mark the associated mm as containing 32-bit tasks. */
--	if (x32) {
--		clear_thread_flag(TIF_IA32);
--		set_thread_flag(TIF_X32);
--		if (current->mm)
--			current->mm->context.ia32_compat = TIF_X32;
--		current->personality &= ~READ_IMPLIES_EXEC;
--		/* in_compat_syscall() uses the presence of the x32
--		   syscall bit flag to determine compat status */
--		current->thread.status &= ~TS_COMPAT;
--	} else {
--		set_thread_flag(TIF_IA32);
--		clear_thread_flag(TIF_X32);
--		if (current->mm)
--			current->mm->context.ia32_compat = TIF_IA32;
--		current->personality |= force_personality32;
--		/* Prepare the first "return" to user space */
--		current->thread.status |= TS_COMPAT;
--	}
-+	if (x32)
-+		__set_personality_x32();
-+	else
-+		__set_personality_ia32();
- }
- EXPORT_SYMBOL_GPL(set_personality_ia32);
- 
--- 
-2.12.0
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
