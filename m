@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E076B03A0
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 04:06:31 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id q19so1366967wra.6
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:06:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p5si6223531wmg.155.2017.03.29.01.06.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 30F126B03A0
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 04:12:26 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s29so3568992pfg.21
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 01:12:26 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id c7si6663717pgn.352.2017.03.29.01.12.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 01:06:30 -0700 (PDT)
-Date: Wed, 29 Mar 2017 10:06:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-Message-ID: <20170329080625.GC27994@dhcp22.suse.cz>
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
- <20170328165343.GB27446@linux-80c1.suse>
- <20170328165513.GC27446@linux-80c1.suse>
- <20170328175408.GD7838@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Mar 2017 01:12:24 -0700 (PDT)
+Date: Wed, 29 Mar 2017 10:12:19 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: in_irq_or_nmi()
+Message-ID: <20170329081219.lto7t4fwmponokzh@hirez.programming.kicks-ass.net>
+References: <20170323144347.1e6f29de@redhat.com>
+ <20170323145133.twzt4f5ci26vdyut@techsingularity.net>
+ <779ab72d-94b9-1a28-c192-377e91383b4e@gmail.com>
+ <1fc7338f-2b36-75f7-8a7e-8321f062207b@gmail.com>
+ <2123321554.7161128.1490599967015.JavaMail.zimbra@redhat.com>
+ <20170327105514.1ed5b1ba@redhat.com>
+ <20170327143947.4c237e54@redhat.com>
+ <20170327141518.GB27285@bombadil.infradead.org>
+ <20170327171500.4beef762@redhat.com>
+ <20170327165817.GA28494@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170328175408.GD7838@bombadil.infradead.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170327165817.GA28494@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: akpm@linux-foundation.org, ak@linux.intel.com, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>, linux-kernel@vger.kernel.org
 
-On Tue 28-03-17 10:54:08, Matthew Wilcox wrote:
-> On Tue, Mar 28, 2017 at 09:55:13AM -0700, Davidlohr Bueso wrote:
-> > Do we have any consensus here? Keeping SHM_HUGE_* is currently
-> > winning 2-1. If there are in fact users out there computing the
-> > value manually, then I am ok with keeping it and properly exporting
-> > it. Michal?
+On Mon, Mar 27, 2017 at 09:58:17AM -0700, Matthew Wilcox wrote:
+> On Mon, Mar 27, 2017 at 05:15:00PM +0200, Jesper Dangaard Brouer wrote:
+> > And I also verified it worked:
+> > 
+> >   0.63 a??       mov    __preempt_count,%eax
+> >        a??     free_hot_cold_page():
+> >   1.25 a??       test   $0x1f0000,%eax
+> >        a??     a?? jne    1e4
+> > 
+> > And this simplification also made the compiler change this into a
+> > unlikely branch, which is a micro-optimization (that I will leave up to
+> > the compiler).
 > 
-> Well, let's see what it looks like to do that.  I went down the rabbit
-> hole trying to understand why some of the SHM_ flags had the same value
-> as each other until I realised some of them were internal flags, some
-> were flags to shmat() and others were flags to shmget().  Hopefully I
-> disambiguated them nicely in this patch.  I also added 8MB and 16GB sizes.
-> Any more architectures with a pet favourite huge/giant page size we
-> should add convenience defines for?
+> Excellent!  That said, I think we should define in_irq_or_nmi() in
+> preempt.h, rather than hiding it in the memory allocator.  And since we're
+> doing that, we might as well make it look like the other definitions:
+> 
+> diff --git a/include/linux/preempt.h b/include/linux/preempt.h
+> index 7eeceac52dea..af98c29abd9d 100644
+> --- a/include/linux/preempt.h
+> +++ b/include/linux/preempt.h
+> @@ -81,6 +81,7 @@
+>  #define in_interrupt()		(irq_count())
+>  #define in_serving_softirq()	(softirq_count() & SOFTIRQ_OFFSET)
+>  #define in_nmi()		(preempt_count() & NMI_MASK)
+> +#define in_irq_or_nmi()		(preempt_count() & (HARDIRQ_MASK | NMI_MASK))
+>  #define in_task()		(!(preempt_count() & \
+>  				   (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
+>  
 
-Do we actually have any users?
--- 
-Michal Hocko
-SUSE Labs
+No, that's horrible. Also, wth is this about? A memory allocator that
+needs in_nmi()? That sounds beyond broken.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
