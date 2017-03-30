@@ -1,59 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FD7C2806DF
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 10:30:29 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id n129so47103734pga.0
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 07:30:29 -0700 (PDT)
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10127.outbound.protection.outlook.com. [40.107.1.127])
-        by mx.google.com with ESMTPS id k5si2316145pgh.227.2017.03.30.07.30.27
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31AD82806DF
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 10:47:22 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id a72so47382639pge.10
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 07:47:22 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0137.outbound.protection.outlook.com. [104.47.0.137])
+        by mx.google.com with ESMTPS id q9si2345870plk.300.2017.03.30.07.47.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 30 Mar 2017 07:30:28 -0700 (PDT)
-Subject: Re: [PATCH v2] module: check if memory leak by module.
-References: <CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcas5p1.samsung.com>
- <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
- <460c5798-1f4d-6fd0-cf32-349fbd605862@virtuozzo.com>
- <20170330133712.GA23946@amd>
+        Thu, 30 Mar 2017 07:47:21 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
+References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
+ <2cfc601e-3093-143e-b93d-402f330a748a@vmware.com>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <06383e49-148e-e31f-e66e-e50db7df470b@virtuozzo.com>
-Date: Thu, 30 Mar 2017 17:31:45 +0300
+Message-ID: <a28cc48d-3d6f-b4dd-10c2-a75d2e83ef14@virtuozzo.com>
+Date: Thu, 30 Mar 2017 17:48:39 +0300
 MIME-Version: 1.0
-In-Reply-To: <20170330133712.GA23946@amd>
+In-Reply-To: <2cfc601e-3093-143e-b93d-402f330a748a@vmware.com>
 Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Maninder Singh <maninder1.s@samsung.com>, jeyu@redhat.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, chris@chris-wilson.co.uk, joonas.lahtinen@linux.intel.com, mhocko@suse.com, keescook@chromium.org, jinb.park7@gmail.com, anisse@astier.eu, rafael.j.wysocki@intel.com, zijun_hu@htc.com, mingo@kernel.org, mawilcox@microsoft.com, thgarnie@google.com, joelaf@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pankaj.m@samsung.com, ajeet.y@samsung.com, hakbong5.lee@samsung.com, a.sahrawat@samsung.com, lalit.mohan@samsung.com, cpgs@samsung.com, Vaneet Narang <v.narang@samsung.com>
+To: Thomas Hellstrom <thellstrom@vmware.com>, akpm@linux-foundation.org
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, stable@vger.kernel.org
 
+On 03/30/2017 03:00 PM, Thomas Hellstrom wrote:
 
-
-On 03/30/2017 04:37 PM, Pavel Machek wrote:
->  
->>  3) This might produce false positives. E.g. module may defer vfree() in workqueue, so the 
->>      actual vfree() call happens after module unloaded.
+>>  
+>>  	if (unlikely(nr_lazy > lazy_max_pages()))
+>> -		try_purge_vmap_area_lazy();
 > 
-> Umm. Really?
-> 
-
-I should have been more specific. I meant vfree() called by module from the interrupt context.
-In that case the actual __vunmap() will be deferred via schedule_work() thus it might happen
-after the module unloaded.
-See 32fcfd40715e ("make vfree() safe to call from interrupt contexts")
-
-> I agree that module may alloc memory and pass it to someone else. Ok
-> so far.
+> Perhaps a slight optimization would be to schedule work iff
+> !mutex_locked(&vmap_purge_lock) below?
 > 
 
-Right. In the case with vfree() from interrupt we actually pass the memory to
-the core code to free it later. 
-
-> But if module code executes after module is unloaded -- that is use
-> after free -- right?
-
-Sure, module code can't execute after module unloaded, it doesn't exist anymore.
+Makes sense, we don't need to spawn workers if we already purging.
 
 
+
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: mm/vmalloc: allow to call vfree() in atomic context fix
+
+Don't spawn worker if we already purging.
+
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+ mm/vmalloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ea1b4ab..88168b8 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -737,7 +737,8 @@ static void free_vmap_area_noflush(struct vmap_area *va)
+ 	/* After this point, we may free va at any time */
+ 	llist_add(&va->purge_list, &vmap_purge_list);
+ 
+-	if (unlikely(nr_lazy > lazy_max_pages()))
++	if (unlikely(nr_lazy > lazy_max_pages()) &&
++	    !mutex_is_locked(&vmap_purge_lock))
+ 		schedule_work(&purge_vmap_work);
+ }
+ 
+-- 
+2.10.2
 
 
 --
