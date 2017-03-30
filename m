@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 156CF6B039F
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 17:17:13 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u3so19910903pgn.12
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 14:17:13 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n64si115039pgn.27.2017.03.29.14.17.12
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C1726B0390
+	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 20:46:01 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 79so26776734pgf.2
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 17:46:01 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id l3si441269pln.127.2017.03.29.17.46.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 14:17:12 -0700 (PDT)
-Date: Wed, 29 Mar 2017 14:17:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND] mm/hugetlb: Don't call region_abort if
- region_chg fails
-Message-Id: <20170329141711.50c183a7bb1bfa75e24d4426@linux-foundation.org>
-In-Reply-To: <1490821682-23228-1-git-send-email-mike.kravetz@oracle.com>
-References: <1490821682-23228-1-git-send-email-mike.kravetz@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 29 Mar 2017 17:46:00 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v7 1/9] mm, swap: Make swap cluster size same of THP size on x86_64
+References: <20170328053209.25876-1-ying.huang@intel.com>
+	<20170328053209.25876-2-ying.huang@intel.com>
+	<20170329165522.GA31821@cmpxchg.org>
+Date: Thu, 30 Mar 2017 08:45:56 +0800
+In-Reply-To: <20170329165522.GA31821@cmpxchg.org> (Johannes Weiner's message
+	of "Wed, 29 Mar 2017 12:55:22 -0400")
+Message-ID: <87o9wjtwvv.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Wed, 29 Mar 2017 14:08:02 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+Johannes Weiner <hannes@cmpxchg.org> writes:
 
-> Resending because of typo in Andrew's e-mail when first sent
-> 
-> Changes to hugetlbfs reservation maps is a two step process.  The first
-> step is a call to region_chg to determine what needs to be changed, and
-> prepare that change.  This should be followed by a call to call to
-> region_add to commit the change, or region_abort to abort the change.
-> 
-> The error path in hugetlb_reserve_pages called region_abort after a
-> failed call to region_chg.  As a result, the adds_in_progress counter
-> in the reservation map is off by 1.  This is caught by a VM_BUG_ON
-> in resv_map_release when the reservation map is freed.
-> 
-> syzkaller fuzzer found this bug, that resulted in the following:
+> On Tue, Mar 28, 2017 at 01:32:01PM +0800, Huang, Ying wrote:
+>> @@ -499,6 +499,19 @@ config FRONTSWAP
+>>  
+>>  	  If unsure, say Y to enable frontswap.
+>>  
+>> +config ARCH_USES_THP_SWAP_CLUSTER
+>> +	bool
+>> +	default n
+>
+> This is fine.
+>
+>> +config THP_SWAP_CLUSTER
+>> +	bool
+>> +	depends on SWAP && TRANSPARENT_HUGEPAGE && ARCH_USES_THP_SWAP_CLUSTER
+>> +	default y
+>> +	help
+>> +	  Use one swap cluster to hold the contents of the THP
+>> +	  (Transparent Huge Page) swapped out.  The size of the swap
+>> +	  cluster will be same as that of THP.
+>
+> But this is a super weird thing to ask the user. How would they know
+> what to say, if we don't know? I don't think this should be a config
+> knob at all. Merge the two config items into a simple
 
-I'll change the above to
+The user will not see this, because there is no string after "bool" to
+let user to select it.  The help here is for document only, so that
+architecture developers could know what this is for.
 
-: syzkaller fuzzer (when using an injected kmalloc failure) found this bug,
-: that resulted in the following:
+> config THP_SWAP_CLUSTER
+>      bool
+>      default n
+>
+> and let the archs with reasonable THP sizes select it.
 
-it's important, because this bug won't be triggered (at all easily, at
-least) in real-world workloads.
+This will have same effect as the original solution except the document
+is removed.
 
->  kernel BUG at mm/hugetlb.c:742!
->  Call Trace:
->   hugetlbfs_evict_inode+0x7b/0xa0 fs/hugetlbfs/inode.c:493
->   evict+0x481/0x920 fs/inode.c:553
->   iput_final fs/inode.c:1515 [inline]
->   iput+0x62b/0xa20 fs/inode.c:1542
->   hugetlb_file_setup+0x593/0x9f0 fs/hugetlbfs/inode.c:1306
->   newseg+0x422/0xd30 ipc/shm.c:575
->   ipcget_new ipc/util.c:285 [inline]
->   ipcget+0x21e/0x580 ipc/util.c:639
->   SYSC_shmget ipc/shm.c:673 [inline]
->   SyS_shmget+0x158/0x230 ipc/shm.c:657
->   entry_SYSCALL_64_fastpath+0x1f/0xc2
->  RIP: resv_map_release+0x265/0x330 mm/hugetlb.c:742
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
