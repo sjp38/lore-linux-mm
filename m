@@ -1,38 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E1A16B0390
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 06:07:42 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 81so40729748pgh.3
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 03:07:42 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0113.outbound.protection.outlook.com. [104.47.0.113])
-        by mx.google.com with ESMTPS id c9si1708266pge.334.2017.03.30.03.07.41
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C31A66B0390
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 06:26:16 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 21so41029478pgg.4
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 03:26:16 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0095.outbound.protection.outlook.com. [104.47.2.95])
+        by mx.google.com with ESMTPS id t8si1756743pfg.364.2017.03.30.03.26.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 30 Mar 2017 03:07:41 -0700 (PDT)
-Subject: Re: [PATCH v3] mm: Allow calling vfree() from non-schedulable
- context.
-References: <1490784712-4991-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170330082001.GB11344@lst.de>
+        Thu, 30 Mar 2017 03:26:15 -0700 (PDT)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <58c68d9c-ee81-82e0-3a2d-df7dd8f39dcd@virtuozzo.com>
-Date: Thu, 30 Mar 2017 13:09:00 +0300
+Subject: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
+Date: Thu, 30 Mar 2017 13:27:16 +0300
+Message-ID: <20170330102719.13119-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20170330082001.GB11344@lst.de>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@elte.hu>, Jisheng Zhang <jszhang@marvell.com>, Joel Fernandes <joelaf@google.com>, John Dias <joaodias@google.com>, Matthew Wilcox <willy@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: akpm@linux-foundation.org
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, mhocko@kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, thellstrom@vmware.com, stable@vger.kernel.org
 
-On 03/30/2017 11:20 AM, Christoph Hellwig wrote:
-> Maybe the right fix is to drop any support for non-user context in
-> vfree and call vfree_deferred explicitly?
-> 
+Commit 5803ed292e63 ("mm: mark all calls into the vmalloc subsystem
+as potentially sleeping") added might_sleep() to remove_vm_area() from
+vfree(), and commit 763b218ddfaf ("mm: add preempt points into
+__purge_vmap_area_lazy()") actually made vfree() potentially sleeping.
 
-Sounds like a lot of work. Also we could easily miss some calls.
-And I don't see the point of it, it's just easier and safer to make vfree()
-atomic-safe.
+This broke vmwgfx driver which calls vfree() under spin_lock().
+
+    BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
+    in_atomic(): 1, irqs_disabled(): 0, pid: 341, name: plymouthd
+    2 locks held by plymouthd/341:
+     #0:  (drm_global_mutex){+.+.+.}, at: [<ffffffffc01c274b>] drm_release+0x3b/0x3b0 [drm]
+     #1:  (&(&tfile->lock)->rlock){+.+...}, at: [<ffffffffc0173038>] ttm_object_file_release+0x28/0x90 [ttm]
+
+    Call Trace:
+     dump_stack+0x86/0xc3
+     ___might_sleep+0x17d/0x250
+     __might_sleep+0x4a/0x80
+     remove_vm_area+0x22/0x90
+     __vunmap+0x2e/0x110
+     vfree+0x42/0x90
+     kvfree+0x2c/0x40
+     drm_ht_remove+0x1a/0x30 [drm]
+     ttm_object_file_release+0x50/0x90 [ttm]
+     vmw_postclose+0x47/0x60 [vmwgfx]
+     drm_release+0x290/0x3b0 [drm]
+     __fput+0xf8/0x210
+     ____fput+0xe/0x10
+     task_work_run+0x85/0xc0
+     exit_to_usermode_loop+0xb4/0xc0
+     do_syscall_64+0x185/0x1f0
+     entry_SYSCALL64_slow_path+0x25/0x25
+
+This can be fixed in vmgfx, but it would be better to make vfree()
+non-sleeping again because we may have other bugs like this one.
+
+__purge_vmap_area_lazy() is the only function in the vfree() path that
+wants to be able to sleep. So it make sense to schedule
+__purge_vmap_area_lazy() via schedule_work() so it runs only in sleepable
+context. This will have a minimal effect on the regular vfree() path.
+since __purge_vmap_area_lazy() is rarely called.
+
+Fixes: 5803ed292e63 ("mm: mark all calls into the vmalloc subsystem as
+                      potentially sleeping")
+Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: <stable@vger.kernel.org>
+
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+ mm/vmalloc.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 68eb002..ea1b4ab 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -701,7 +701,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+  * Kick off a purge of the outstanding lazy areas. Don't bother if somebody
+  * is already purging.
+  */
+-static void try_purge_vmap_area_lazy(void)
++static void try_purge_vmap_area_lazy(struct work_struct *work)
+ {
+ 	if (mutex_trylock(&vmap_purge_lock)) {
+ 		__purge_vmap_area_lazy(ULONG_MAX, 0);
+@@ -720,6 +720,8 @@ static void purge_vmap_area_lazy(void)
+ 	mutex_unlock(&vmap_purge_lock);
+ }
+ 
++static DECLARE_WORK(purge_vmap_work, try_purge_vmap_area_lazy);
++
+ /*
+  * Free a vmap area, caller ensuring that the area has been unmapped
+  * and flush_cache_vunmap had been called for the correct range
+@@ -736,7 +738,7 @@ static void free_vmap_area_noflush(struct vmap_area *va)
+ 	llist_add(&va->purge_list, &vmap_purge_list);
+ 
+ 	if (unlikely(nr_lazy > lazy_max_pages()))
+-		try_purge_vmap_area_lazy();
++		schedule_work(&purge_vmap_work);
+ }
+ 
+ /*
+@@ -1125,7 +1127,6 @@ void vm_unmap_ram(const void *mem, unsigned int count)
+ 	unsigned long addr = (unsigned long)mem;
+ 	struct vmap_area *va;
+ 
+-	might_sleep();
+ 	BUG_ON(!addr);
+ 	BUG_ON(addr < VMALLOC_START);
+ 	BUG_ON(addr > VMALLOC_END);
+@@ -1477,8 +1478,6 @@ struct vm_struct *remove_vm_area(const void *addr)
+ {
+ 	struct vmap_area *va;
+ 
+-	might_sleep();
+-
+ 	va = find_vmap_area((unsigned long)addr);
+ 	if (va && va->flags & VM_VM_AREA) {
+ 		struct vm_struct *vm = va->vm;
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
