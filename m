@@ -1,103 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 624316B0390
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 05:47:01 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id b9so15191222qtg.4
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 02:47:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u57si1399218qtb.149.2017.03.30.02.47.00
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E1A16B0390
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 06:07:42 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 81so40729748pgh.3
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 03:07:42 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0113.outbound.protection.outlook.com. [104.47.0.113])
+        by mx.google.com with ESMTPS id c9si1708266pge.334.2017.03.30.03.07.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Mar 2017 02:47:00 -0700 (PDT)
-Date: Thu, 30 Mar 2017 11:46:50 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: in_irq_or_nmi() and RFC patch
-Message-ID: <20170330114650.297573a4@redhat.com>
-In-Reply-To: <20170330073502.4wl66zyz7e4z4aes@hirez.programming.kicks-ass.net>
-References: <20170327171500.4beef762@redhat.com>
-	<20170327165817.GA28494@bombadil.infradead.org>
-	<20170329081219.lto7t4fwmponokzh@hirez.programming.kicks-ass.net>
-	<20170329105928.609bc581@redhat.com>
-	<20170329091949.o2kozhhdnszgwvtn@hirez.programming.kicks-ass.net>
-	<20170329181226.GA8256@bombadil.infradead.org>
-	<20170329211144.3e362ac9@redhat.com>
-	<20170329214441.08332799@redhat.com>
-	<20170330064958.uxih6ik5fkwvjqf6@hirez.programming.kicks-ass.net>
-	<20170330091223.05aa0efe@redhat.com>
-	<20170330073502.4wl66zyz7e4z4aes@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Mar 2017 03:07:41 -0700 (PDT)
+Subject: Re: [PATCH v3] mm: Allow calling vfree() from non-schedulable
+ context.
+References: <1490784712-4991-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170330082001.GB11344@lst.de>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <58c68d9c-ee81-82e0-3a2d-df7dd8f39dcd@virtuozzo.com>
+Date: Thu, 30 Mar 2017 13:09:00 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20170330082001.GB11344@lst.de>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, brouer@redhat.com
+To: Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@elte.hu>, Jisheng Zhang <jszhang@marvell.com>, Joel Fernandes <joelaf@google.com>, John Dias <joaodias@google.com>, Matthew Wilcox <willy@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu, 30 Mar 2017 09:35:02 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
-
-> On Thu, Mar 30, 2017 at 09:12:23AM +0200, Jesper Dangaard Brouer wrote:
-> > On Thu, 30 Mar 2017 08:49:58 +0200
-> > Peter Zijlstra <peterz@infradead.org> wrote:
-> >   
-> > > On Wed, Mar 29, 2017 at 09:44:41PM +0200, Jesper Dangaard Brouer wrote:  
-> > > > @@ -2481,7 +2481,11 @@ void free_hot_cold_page(struct page *page, bool cold)
-> > > >  	unsigned long pfn = page_to_pfn(page);
-> > > >  	int migratetype;
-> > > >  
-> > > > -	if (in_interrupt()) {
-> > > > +	/*
-> > > > +	 * Exclude (hard) IRQ and NMI context from using the pcplists.
-> > > > +	 * But allow softirq context, via disabling BH.
-> > > > +	 */
-> > > > +	if (in_irq() || irqs_disabled()) {    
-> > > 
-> > > Why do you need irqs_disabled() ?   
-> > 
-> > Because further down I call local_bh_enable(), which calls
-> > __local_bh_enable_ip() which triggers a warning during early boot on:
-> > 
-> >   WARN_ON_ONCE(in_irq() || irqs_disabled());
-> > 
-> > It looks like it is for supporting CONFIG_TRACE_IRQFLAGS.  
+On 03/30/2017 11:20 AM, Christoph Hellwig wrote:
+> Maybe the right fix is to drop any support for non-user context in
+> vfree and call vfree_deferred explicitly?
 > 
-> Ah, no. Its because when you do things like:
-> 
-> 	local_irq_disable();
-> 	local_bh_enable();
-> 	local_irq_enable();
-> 
-> you can loose a pending softirq.
-> 
-> Bugger.. that irqs_disabled() is something we could do without.
 
-Yes, I really don't like adding this irqs_disabled() check here.
-
-> I'm thinking that when tglx finishes his soft irq disable patches for
-> x86 (same thing ppc also does) we can go revert all these patches.
-> 
-> Thomas, see:
-> 
->   https://lkml.kernel.org/r/20170301144845.783f8cad@redhat.com
-
-The summary is Mel and I found a way to optimized the page allocator,
-by avoiding a local_irq_{save,restore} operation, see commit
-374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe
-requests")  [1] https://git.kernel.org/davem/net-next/c/374ad05ab64d696
-
-But Tariq discovered that this caused a regression for 100Gbit/s NICs,
-as the patch excluded softirq from using the per-cpu-page (PCP) lists.
-As DMA RX page-refill happens in softirq context.
-
-Now we are trying to re-enable allowing softirq to use the PCP.
-My proposal is: https://lkml.kernel.org/r/20170329214441.08332799@redhat.com
-The alternative is to revert this optimization.
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Sounds like a lot of work. Also we could easily miss some calls.
+And I don't see the point of it, it's just easier and safer to make vfree()
+atomic-safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
