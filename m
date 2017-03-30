@@ -1,269 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EB082806D7
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 08:47:21 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a72so44128468pge.10
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 05:47:21 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id k126si2089393pgc.176.2017.03.30.05.47.20
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E782806D7
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 09:04:39 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w11so10193769wrc.2
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 06:04:39 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id b69si12026284wmg.33.2017.03.30.06.04.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Mar 2017 05:47:20 -0700 (PDT)
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [PATCH v2] mm: enable page poisoning early at boot
-Date: Thu, 30 Mar 2017 18:16:42 +0530
-Message-Id: <1490878002-14423-1-git-send-email-vinmenon@codeaurora.org>
+        Thu, 30 Mar 2017 06:04:37 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 220501C13F3
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 14:04:37 +0100 (IST)
+Date: Thu, 30 Mar 2017 14:04:36 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: in_irq_or_nmi() and RFC patch
+Message-ID: <20170330130436.l37yazbxlrkvcbf3@techsingularity.net>
+References: <20170327143947.4c237e54@redhat.com>
+ <20170327141518.GB27285@bombadil.infradead.org>
+ <20170327171500.4beef762@redhat.com>
+ <20170327165817.GA28494@bombadil.infradead.org>
+ <20170329081219.lto7t4fwmponokzh@hirez.programming.kicks-ass.net>
+ <20170329105928.609bc581@redhat.com>
+ <20170329091949.o2kozhhdnszgwvtn@hirez.programming.kicks-ass.net>
+ <20170329181226.GA8256@bombadil.infradead.org>
+ <20170329211144.3e362ac9@redhat.com>
+ <20170329214441.08332799@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170329214441.08332799@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: iamjoonsoo.kim@lge.com, labbott@redhat.com, mhocko@suse.com, akpm@linux-foundation.org, akinobu.mita@gmail.com
-Cc: shashim@codeaurora.org, linux-mm@kvack.org, Vinayak Menon <vinmenon@codeaurora.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Pankaj Gupta <pagupta@redhat.com>, Tariq Toukan <ttoukan.linux@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>, Saeed Mahameed <saeedm@mellanox.com>, linux-kernel@vger.kernel.org
 
-On SPARSEMEM systems page poisoning is enabled after buddy is up, because
-of the dependency on page extension init. This causes the pages released
-by free_all_bootmem not to be poisoned. This either delays or misses the
-identification of some issues because the pages have to undergo another
-cycle of alloc-free-alloc for any corruption to be detected. Enable page
-poisoning early by getting rid of the PAGE_EXT_DEBUG_POISON flag. Since
-all the free pages will now be poisoned, the flag need not be verified
-before checking the poison during an alloc.
+On Wed, Mar 29, 2017 at 09:44:41PM +0200, Jesper Dangaard Brouer wrote:
+> > Regardless or using in_irq() (or in combi with in_nmi()) I get the
+> > following warning below:
+> > 
+> > [    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-4.11.0-rc3-net-next-page-alloc-softirq+ root=UUID=2e8451ff-6797-49b5-8d3a-eed5a42d7dc9 ro rhgb quiet LANG=en_DK.UTF
+> > -8
+> > [    0.000000] PID hash table entries: 4096 (order: 3, 32768 bytes)
+> > [    0.000000] ------------[ cut here ]------------
+> > [    0.000000] WARNING: CPU: 0 PID: 0 at kernel/softirq.c:161 __local_bh_enable_ip+0x70/0x90
+> > [    0.000000] Modules linked in:
+> > [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.11.0-rc3-net-next-page-alloc-softirq+ #235
+> > [    0.000000] Hardware name: MSI MS-7984/Z170A GAMING PRO (MS-7984), BIOS 1.60 12/16/2015
+> > [    0.000000] Call Trace:
+> > [    0.000000]  dump_stack+0x4f/0x73
+> > [    0.000000]  __warn+0xcb/0xf0
+> > [    0.000000]  warn_slowpath_null+0x1d/0x20
+> > [    0.000000]  __local_bh_enable_ip+0x70/0x90
+> > [    0.000000]  free_hot_cold_page+0x1a4/0x2f0
+> > [    0.000000]  __free_pages+0x1f/0x30
+> > [    0.000000]  __free_pages_bootmem+0xab/0xb8
+> > [    0.000000]  __free_memory_core+0x79/0x91
+> > [    0.000000]  free_all_bootmem+0xaa/0x122
+> > [    0.000000]  mem_init+0x71/0xa4
+> > [    0.000000]  start_kernel+0x1e5/0x3f1
+> > [    0.000000]  x86_64_start_reservations+0x2a/0x2c
+> > [    0.000000]  x86_64_start_kernel+0x178/0x18b
+> > [    0.000000]  start_cpu+0x14/0x14
+> > [    0.000000]  ? start_cpu+0x14/0x14
+> > [    0.000000] ---[ end trace a57944bec8fc985c ]---
+> > [    0.000000] Memory: 32739472K/33439416K available (7624K kernel code, 1528K rwdata, 3168K rodata, 1860K init, 2260K bss, 699944K reserved, 0K cma-reserved)
+> > 
+> > And kernel/softirq.c:161 contains:
+> > 
+> >  WARN_ON_ONCE(in_irq() || irqs_disabled());
+> > 
+> > Thus, I don't think the change in my RFC-patch[1] is safe.
+> > Of changing[2] to support softirq allocations by replacing
+> > preempt_disable() with local_bh_disable().
+> > 
+> > [1] http://lkml.kernel.org/r/20170327143947.4c237e54@redhat.com
+> > 
+> > [2] commit 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
+> >  https://git.kernel.org/torvalds/c/374ad05ab64d
+> 
+> A patch that avoids the above warning is inlined below, but I'm not
+> sure if this is best direction.  Or we should rather consider reverting
+> part of commit 374ad05ab64d to avoid the softirq performance regression?
+>  
 
-Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
----
+At the moment, I'm not seeing a better alternative. If this works, I
+think it would still be far superior in terms of performance than a
+revert. As before, if there are bad consequences to adding a BH
+rescheduling point then we'll have to revert. However, I don't like a
+revert being the first option as it'll keep encouraging drivers to build
+sub-allocators to avoid the page allocator.
 
-v2:
- (1) Removed "select PAGE_EXTENSION" on CONFIG_PAGE_POISONING
- (2) Removed CONFIG_PAGE_POISONING checks in page_ext.c
+> [PATCH] mm, page_alloc: re-enable softirq use of per-cpu page allocator
+> 
+> From: Jesper Dangaard Brouer <brouer@redhat.com>
+> 
 
- include/linux/mm.h |  1 -
- mm/Kconfig.debug   |  1 -
- mm/page_alloc.c    | 13 +++------
- mm/page_ext.c      | 13 ++-------
- mm/page_poison.c   | 77 +++++++++---------------------------------------------
- 5 files changed, 17 insertions(+), 88 deletions(-)
+Other than the slightly misleading comments about NMI which could
+explain "this potentially misses an NMI but an NMI allocating pages is
+brain damaged", I don't see a problem. The irqs_disabled() check is a
+subtle but it's not earth shattering and it still helps the 100GiB cases
+with the limited cycle budget to process packets.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0d65dd7..b881966 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2473,7 +2473,6 @@ extern long copy_huge_page_from_user(struct page *dst_page,
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
- 
- extern struct page_ext_operations debug_guardpage_ops;
--extern struct page_ext_operations page_poisoning_ops;
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
- extern unsigned int _debug_guardpage_minorder;
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 79d0fd1..5b0adf1 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -42,7 +42,6 @@ config DEBUG_PAGEALLOC_ENABLE_DEFAULT
- 
- config PAGE_POISONING
- 	bool "Poison pages after freeing"
--	select PAGE_EXTENSION
- 	select PAGE_POISONING_NO_SANITY if HIBERNATION
- 	---help---
- 	  Fill the pages with poison patterns after free_pages() and verify
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fc5db1b..860b36f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1694,10 +1694,10 @@ static inline int check_new_page(struct page *page)
- 	return 1;
- }
- 
--static inline bool free_pages_prezeroed(bool poisoned)
-+static inline bool free_pages_prezeroed(void)
- {
- 	return IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) &&
--		page_poisoning_enabled() && poisoned;
-+		page_poisoning_enabled();
- }
- 
- #ifdef CONFIG_DEBUG_VM
-@@ -1751,17 +1751,10 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
- 							unsigned int alloc_flags)
- {
- 	int i;
--	bool poisoned = true;
--
--	for (i = 0; i < (1 << order); i++) {
--		struct page *p = page + i;
--		if (poisoned)
--			poisoned &= page_is_poisoned(p);
--	}
- 
- 	post_alloc_hook(page, order, gfp_flags);
- 
--	if (!free_pages_prezeroed(poisoned) && (gfp_flags & __GFP_ZERO))
-+	if (!free_pages_prezeroed() && (gfp_flags & __GFP_ZERO))
- 		for (i = 0; i < (1 << order); i++)
- 			clear_highpage(page + i);
- 
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index 121dcff..88ccc044 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -59,9 +59,6 @@
- 
- static struct page_ext_operations *page_ext_ops[] = {
- 	&debug_guardpage_ops,
--#ifdef CONFIG_PAGE_POISONING
--	&page_poisoning_ops,
--#endif
- #ifdef CONFIG_PAGE_OWNER
- 	&page_owner_ops,
- #endif
-@@ -127,15 +124,12 @@ struct page_ext *lookup_page_ext(struct page *page)
- 	struct page_ext *base;
- 
- 	base = NODE_DATA(page_to_nid(page))->node_page_ext;
--#if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
-+#if defined(CONFIG_DEBUG_VM)
- 	/*
- 	 * The sanity checks the page allocator does upon freeing a
- 	 * page can reach here before the page_ext arrays are
- 	 * allocated when feeding a range of pages to the allocator
- 	 * for the first time during bootup or memory hotplug.
--	 *
--	 * This check is also necessary for ensuring page poisoning
--	 * works as expected when enabled
- 	 */
- 	if (unlikely(!base))
- 		return NULL;
-@@ -204,15 +198,12 @@ struct page_ext *lookup_page_ext(struct page *page)
- {
- 	unsigned long pfn = page_to_pfn(page);
- 	struct mem_section *section = __pfn_to_section(pfn);
--#if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
-+#if defined(CONFIG_DEBUG_VM)
- 	/*
- 	 * The sanity checks the page allocator does upon freeing a
- 	 * page can reach here before the page_ext arrays are
- 	 * allocated when feeding a range of pages to the allocator
- 	 * for the first time during bootup or memory hotplug.
--	 *
--	 * This check is also necessary for ensuring page poisoning
--	 * works as expected when enabled
- 	 */
- 	if (!section->page_ext)
- 		return NULL;
-diff --git a/mm/page_poison.c b/mm/page_poison.c
-index 2e647c6..be19e98 100644
---- a/mm/page_poison.c
-+++ b/mm/page_poison.c
-@@ -6,7 +6,6 @@
- #include <linux/poison.h>
- #include <linux/ratelimit.h>
- 
--static bool __page_poisoning_enabled __read_mostly;
- static bool want_page_poisoning __read_mostly;
- 
- static int early_page_poison_param(char *buf)
-@@ -19,74 +18,21 @@ static int early_page_poison_param(char *buf)
- 
- bool page_poisoning_enabled(void)
- {
--	return __page_poisoning_enabled;
--}
--
--static bool need_page_poisoning(void)
--{
--	return want_page_poisoning;
--}
--
--static void init_page_poisoning(void)
--{
- 	/*
--	 * page poisoning is debug page alloc for some arches. If either
--	 * of those options are enabled, enable poisoning
-+	 * Assumes that debug_pagealloc_enabled is set before
-+	 * free_all_bootmem.
-+	 * Page poisoning is debug page alloc for some arches. If
-+	 * either of those options are enabled, enable poisoning.
- 	 */
--	if (!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC)) {
--		if (!want_page_poisoning && !debug_pagealloc_enabled())
--			return;
--	} else {
--		if (!want_page_poisoning)
--			return;
--	}
--
--	__page_poisoning_enabled = true;
--}
--
--struct page_ext_operations page_poisoning_ops = {
--	.need = need_page_poisoning,
--	.init = init_page_poisoning,
--};
--
--static inline void set_page_poison(struct page *page)
--{
--	struct page_ext *page_ext;
--
--	page_ext = lookup_page_ext(page);
--	if (unlikely(!page_ext))
--		return;
--
--	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
--}
--
--static inline void clear_page_poison(struct page *page)
--{
--	struct page_ext *page_ext;
--
--	page_ext = lookup_page_ext(page);
--	if (unlikely(!page_ext))
--		return;
--
--	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
--}
--
--bool page_is_poisoned(struct page *page)
--{
--	struct page_ext *page_ext;
--
--	page_ext = lookup_page_ext(page);
--	if (unlikely(!page_ext))
--		return false;
--
--	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
-+	return (want_page_poisoning ||
-+		(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
-+		debug_pagealloc_enabled()));
- }
- 
- static void poison_page(struct page *page)
- {
- 	void *addr = kmap_atomic(page);
- 
--	set_page_poison(page);
- 	memset(addr, PAGE_POISON, PAGE_SIZE);
- 	kunmap_atomic(addr);
- }
-@@ -140,12 +86,13 @@ static void unpoison_page(struct page *page)
- {
- 	void *addr;
- 
--	if (!page_is_poisoned(page))
--		return;
--
- 	addr = kmap_atomic(page);
-+	/*
-+	 * Page poisoning when enabled poisons each and every page
-+	 * that is freed to buddy. Thus no extra check is done to
-+	 * see if a page was posioned.
-+	 */
- 	check_poison_mem(addr, PAGE_SIZE);
--	clear_page_poison(page);
- 	kunmap_atomic(addr);
- }
- 
 -- 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
