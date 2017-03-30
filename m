@@ -1,66 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A03E6B0038
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 19:04:13 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j70so60547805pge.11
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 16:04:13 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r11si3169690plj.231.2017.03.30.16.04.11
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DDDA6B039F
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 19:21:45 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 8so2027937itb.22
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 16:21:45 -0700 (PDT)
+Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
+        by mx.google.com with ESMTPS id x6si643770itf.53.2017.03.30.16.21.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Mar 2017 16:04:12 -0700 (PDT)
-Date: Thu, 30 Mar 2017 16:04:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] fault-inject: support systematic fault injection
-Message-Id: <20170330160411.06fb19fa0f80eafe7190d045@linux-foundation.org>
-In-Reply-To: <20170328130128.101773-1-dvyukov@google.com>
-References: <20170328130128.101773-1-dvyukov@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 30 Mar 2017 16:21:44 -0700 (PDT)
+Received: by mail-pg0-x22d.google.com with SMTP id x125so52923996pgb.0
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 16:21:44 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170306103327.2766-3-mhocko@kernel.org>
+References: <20170306103032.2540-1-mhocko@kernel.org> <20170306103327.2766-1-mhocko@kernel.org>
+ <20170306103327.2766-3-mhocko@kernel.org>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 30 Mar 2017 16:21:43 -0700
+Message-ID: <CALvZod73-ddnbMAWXF9QpXMcpjZMLreLXheUo-CgcB7s_5iBnQ@mail.gmail.com>
+Subject: Re: [PATCH 7/9] net: use kvmalloc with __GFP_REPEAT rather than open
+ coded variant
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: akinobu.mita@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Eric Dumazet <edumazet@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, 28 Mar 2017 15:01:28 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
+On Mon, Mar 6, 2017 at 2:33 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> fq_alloc_node, alloc_netdev_mqs and netif_alloc* open code kmalloc
+> with vmalloc fallback. Use the kvmalloc variant instead. Keep the
+> __GFP_REPEAT flag based on explanation from Eric:
+> "
+> At the time, tests on the hardware I had in my labs showed that
+> vmalloc() could deliver pages spread all over the memory and that was a
+> small penalty (once memory is fragmented enough, not at boot time)
+> "
+>
+> The way how the code is constructed means, however, that we prefer to go
+> and hit the OOM killer before we fall back to the vmalloc for requests
+> <=32kB (with 4kB pages) in the current code. This is rather disruptive for
+> something that can be achived with the fallback. On the other hand
+> __GFP_REPEAT doesn't have any useful semantic for these requests. So the
+> effect of this patch is that requests smaller than 64kB will fallback to
 
-> +static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
-> +				   size_t count, loff_t *ppos)
-> +{
-> +	struct task_struct *task;
-> +	int err, n;
-> +
-> +	task = get_proc_task(file_inode(file));
-> +	if (!task)
-> +		return -ESRCH;
-> +	put_task_struct(task);
-> +	if (task != current)
-> +		return -EPERM;
-> +	err = kstrtoint_from_user(buf, count, 10, &n);
-> +	if (err)
-> +		return err;
-> +	if (n < 0 || n == INT_MAX)
-> +		return -EINVAL;
-> +	current->fail_nth = n + 1;
-> +	return len;
-> +}
+I am a bit confused about this 64kB, shouldn't it be <=32kB (with 4kB
+pages & PAGE_ALLOC_COSTLY_ORDER = 3)?
 
-Well that didn't go too well.
-
---- a/fs/proc/base.c~fault-inject-support-systematic-fault-injection-fix
-+++ a/fs/proc/base.c
-@@ -1377,7 +1377,7 @@ static ssize_t proc_fail_nth_write(struc
- 	if (n < 0 || n == INT_MAX)
- 		return -EINVAL;
- 	current->fail_nth = n + 1;
--	return len;
-+	return count;
- }
- 
- static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
-
-Are you sure I merged the correct version of this?
+> vmalloc easier now.
+>
+> Cc: Eric Dumazet <edumazet@google.com>
+> Cc: netdev@vger.kernel.org
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
