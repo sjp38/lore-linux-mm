@@ -1,61 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 629DC6B03A3
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 02:12:52 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id q19so8100298wra.6
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 23:12:52 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u190si10520981wmf.146.2017.03.29.23.12.48
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8231C2806CB
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 02:22:53 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g7so8095832wrd.16
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 23:22:53 -0700 (PDT)
+Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
+        by mx.google.com with ESMTPS id t5si2004897wra.75.2017.03.29.23.22.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Mar 2017 23:12:50 -0700 (PDT)
-Date: Thu, 30 Mar 2017 08:12:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-Message-ID: <20170330061245.GA1972@dhcp22.suse.cz>
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
- <20170328165343.GB27446@linux-80c1.suse>
- <20170328165513.GC27446@linux-80c1.suse>
- <20170328175408.GD7838@bombadil.infradead.org>
- <20170329080625.GC27994@dhcp22.suse.cz>
- <20170329174514.GB4543@tassilo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Mar 2017 23:22:52 -0700 (PDT)
+Received: by mail-wr0-x242.google.com with SMTP id w43so8978820wrb.1
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 23:22:52 -0700 (PDT)
+Date: Thu, 30 Mar 2017 08:22:48 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCHv2 6/8] x86/dump_pagetables: Add support 5-level paging
+Message-ID: <20170330062248.GA32658@gmail.com>
+References: <20170328093946.GA30567@gmail.com>
+ <20170328104806.41711-1-kirill.shutemov@linux.intel.com>
+ <20170328185522.5akqgfh4niqi3ptf@pd.tnic>
+ <20170328211507.ungejuigkewn6prl@node.shutemov.name>
+ <20170329150010.dy47s4kcqsv4dmgz@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170329174514.GB4543@tassilo.jf.intel.com>
+In-Reply-To: <20170329150010.dy47s4kcqsv4dmgz@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, akpm@linux-foundation.org, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 29-03-17 10:45:14, Andi Kleen wrote:
-> On Wed, Mar 29, 2017 at 10:06:25AM +0200, Michal Hocko wrote:
-> > On Tue 28-03-17 10:54:08, Matthew Wilcox wrote:
-> > > On Tue, Mar 28, 2017 at 09:55:13AM -0700, Davidlohr Bueso wrote:
-> > > > Do we have any consensus here? Keeping SHM_HUGE_* is currently
-> > > > winning 2-1. If there are in fact users out there computing the
-> > > > value manually, then I am ok with keeping it and properly exporting
-> > > > it. Michal?
-> > > 
-> > > Well, let's see what it looks like to do that.  I went down the rabbit
-> > > hole trying to understand why some of the SHM_ flags had the same value
-> > > as each other until I realised some of them were internal flags, some
-> > > were flags to shmat() and others were flags to shmget().  Hopefully I
-> > > disambiguated them nicely in this patch.  I also added 8MB and 16GB sizes.
-> > > Any more architectures with a pet favourite huge/giant page size we
-> > > should add convenience defines for?
-> > 
-> > Do we actually have any users?
+
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+
+> On Wed, Mar 29, 2017 at 12:15:07AM +0300, Kirill A. Shutemov wrote:
+> > I'll try to look more into this issue tomorrow.
 > 
-> Yes this feature is widely used.
+> Putting this commit before seems f2a6a7050109 ("x86: Convert the rest of
+> the code to support p4d_t") seems fixes the issue.
 
-Considering that none of SHM_HUGE* has been exported to the userspace
-headers all the users would have to use the this flag by the value and I
-am quite skeptical that application actually do that. Could you point me
-to some projects that use this?
--- 
-Michal Hocko
-SUSE Labs
+Ok, I've applied this patch standalone to make tip:x86/mm boot again.
+
+Since half of the patches in this series got iterated please send out a clean v3 
+series against the tip:x86/mm that I'm going to push out later today.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
