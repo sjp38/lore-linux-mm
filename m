@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 434AB6B039F
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9282806CB
 	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 04:07:40 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m1so37446851pgd.13
+Received: by mail-pg0-f70.google.com with SMTP id n129so37411852pga.0
         for <linux-mm@kvack.org>; Thu, 30 Mar 2017 01:07:40 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id b1si1440235pfc.192.2017.03.30.01.07.39
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id a11si1434418pfl.214.2017.03.30.01.07.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 30 Mar 2017 01:07:39 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 1/7] x86/boot: Detect 5-level paging support
-Date: Thu, 30 Mar 2017 11:07:25 +0300
-Message-Id: <20170330080731.65421-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 4/7] x86/paravirt: Make paravirt code support 5-level paging
+Date: Thu, 30 Mar 2017 11:07:28 +0300
+Message-Id: <20170330080731.65421-5-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170330080731.65421-1-kirill.shutemov@linux.intel.com>
 References: <20170330080731.65421-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,128 +20,161 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-5-level paging support is required from hardware when compiled with
-CONFIG_X86_5LEVEL=y.
+Add operations to allocate/release p4ds.
 
-We will implement boot-time switch between 4- and 5-level paging later.
+Xen requires more work. We will need to come back to it.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/cpucheck.c                 |  9 +++++++++
- arch/x86/boot/cpuflags.c                 | 12 ++++++++++--
- arch/x86/include/asm/disabled-features.h |  8 +++++++-
- arch/x86/include/asm/required-features.h |  8 +++++++-
- 4 files changed, 33 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/paravirt.h       | 37 ++++++++++++++++++++++++-----------
+ arch/x86/include/asm/paravirt_types.h |  7 ++++++-
+ arch/x86/include/asm/pgalloc.h        |  2 ++
+ arch/x86/kernel/paravirt.c            |  9 +++++++--
+ 4 files changed, 41 insertions(+), 14 deletions(-)
 
-diff --git a/arch/x86/boot/cpucheck.c b/arch/x86/boot/cpucheck.c
-index 4ad7d70e8739..8f0c4c9fc904 100644
---- a/arch/x86/boot/cpucheck.c
-+++ b/arch/x86/boot/cpucheck.c
-@@ -44,6 +44,15 @@ static const u32 req_flags[NCAPINTS] =
- 	0, /* REQUIRED_MASK5 not implemented in this file */
- 	REQUIRED_MASK6,
- 	0, /* REQUIRED_MASK7 not implemented in this file */
-+	0, /* REQUIRED_MASK8 not implemented in this file */
-+	0, /* REQUIRED_MASK9 not implemented in this file */
-+	0, /* REQUIRED_MASK10 not implemented in this file */
-+	0, /* REQUIRED_MASK11 not implemented in this file */
-+	0, /* REQUIRED_MASK12 not implemented in this file */
-+	0, /* REQUIRED_MASK13 not implemented in this file */
-+	0, /* REQUIRED_MASK14 not implemented in this file */
-+	0, /* REQUIRED_MASK15 not implemented in this file */
-+	REQUIRED_MASK16,
- };
- 
- #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
-diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
-index 6687ab953257..9e77c23c2422 100644
---- a/arch/x86/boot/cpuflags.c
-+++ b/arch/x86/boot/cpuflags.c
-@@ -70,16 +70,19 @@ int has_eflag(unsigned long mask)
- # define EBX_REG "=b"
- #endif
- 
--static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
-+static inline void cpuid_count(u32 id, u32 count,
-+		u32 *a, u32 *b, u32 *c, u32 *d)
- {
- 	asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif	\n\t"
- 		     "cpuid					\n\t"
- 		     ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif	\n\t"
- 		    : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
--		    : "a" (id)
-+		    : "a" (id), "c" (count)
- 	);
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 158d877ce9e9..55fa56fe4e45 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -357,6 +357,16 @@ static inline void paravirt_release_pud(unsigned long pfn)
+ 	PVOP_VCALL1(pv_mmu_ops.release_pud, pfn);
  }
  
-+#define cpuid(id, a, b, c, d) cpuid_count(id, 0, a, b, c, d)
++static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)
++{
++	PVOP_VCALL2(pv_mmu_ops.alloc_p4d, mm, pfn);
++}
 +
- void get_cpuflags(void)
++static inline void paravirt_release_p4d(unsigned long pfn)
++{
++	PVOP_VCALL1(pv_mmu_ops.release_p4d, pfn);
++}
++
+ static inline void pte_update(struct mm_struct *mm, unsigned long addr,
+ 			      pte_t *ptep)
  {
- 	u32 max_intel_level, max_amd_level;
-@@ -108,6 +111,11 @@ void get_cpuflags(void)
- 				cpu.model += ((tfms >> 16) & 0xf) << 4;
- 		}
+@@ -582,25 +592,25 @@ static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
+ 			    val);
+ }
  
-+		if (max_intel_level >= 0x00000007) {
-+			cpuid_count(0x00000007, 0, &ignored, &ignored,
-+					&cpu.flags[16], &ignored);
-+		}
+-static inline void p4d_clear(p4d_t *p4dp)
++#if CONFIG_PGTABLE_LEVELS >= 5
 +
- 		cpuid(0x80000000, &max_amd_level, &ignored, &ignored,
- 		      &ignored);
++static inline p4d_t __p4d(p4dval_t val)
+ {
+-	set_p4d(p4dp, __p4d(0));
+-}
++	p4dval_t ret = PVOP_CALLEE1(p4dval_t, pv_mmu_ops.make_p4d, val);
  
-diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
-index 85599ad4d024..5dff775af7cd 100644
---- a/arch/x86/include/asm/disabled-features.h
-+++ b/arch/x86/include/asm/disabled-features.h
-@@ -36,6 +36,12 @@
- # define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE & 31))
- #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
+-#if CONFIG_PGTABLE_LEVELS >= 5
++	return (p4d_t) { ret };
++}
  
-+#ifdef CONFIG_X86_5LEVEL
-+# define DISABLE_LA57	0
-+#else
-+# define DISABLE_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#endif
+-#error FIXME
++static inline p4dval_t p4d_val(p4d_t p4d)
++{
++	return PVOP_CALLEE1(p4dval_t, pv_mmu_ops.p4d_val, p4d.p4d);
++}
+ 
+ static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	pgdval_t val = native_pgd_val(pgd);
+ 
+-	if (sizeof(pgdval_t) > sizeof(long))
+-		PVOP_VCALL3(pv_mmu_ops.set_pgd, pgdp,
+-			    val, (u64)val >> 32);
+-	else
+-		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp,
+-			    val);
++	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, val);
+ }
+ 
+ static inline void pgd_clear(pgd_t *pgdp)
+@@ -610,6 +620,11 @@ static inline void pgd_clear(pgd_t *pgdp)
+ 
+ #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
+ 
++static inline void p4d_clear(p4d_t *p4dp)
++{
++	set_p4d(p4dp, __p4d(0));
++}
 +
- /*
-  * Make sure to add features to the correct mask
-  */
-@@ -55,7 +61,7 @@
- #define DISABLED_MASK13	0
- #define DISABLED_MASK14	0
- #define DISABLED_MASK15	0
--#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
-+#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57)
- #define DISABLED_MASK17	0
- #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
+ #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
  
-diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
-index fac9a5c0abe9..d91ba04dd007 100644
---- a/arch/x86/include/asm/required-features.h
-+++ b/arch/x86/include/asm/required-features.h
-@@ -53,6 +53,12 @@
- # define NEED_MOVBE	0
+ #endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index 93c49cf09b63..7465d6fe336f 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -238,9 +238,11 @@ struct pv_mmu_ops {
+ 	void (*alloc_pte)(struct mm_struct *mm, unsigned long pfn);
+ 	void (*alloc_pmd)(struct mm_struct *mm, unsigned long pfn);
+ 	void (*alloc_pud)(struct mm_struct *mm, unsigned long pfn);
++	void (*alloc_p4d)(struct mm_struct *mm, unsigned long pfn);
+ 	void (*release_pte)(unsigned long pfn);
+ 	void (*release_pmd)(unsigned long pfn);
+ 	void (*release_pud)(unsigned long pfn);
++	void (*release_p4d)(unsigned long pfn);
+ 
+ 	/* Pagetable manipulation functions */
+ 	void (*set_pte)(pte_t *ptep, pte_t pteval);
+@@ -286,7 +288,10 @@ struct pv_mmu_ops {
+ 	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
+ 
+ #if CONFIG_PGTABLE_LEVELS >= 5
+-#error FIXME
++	struct paravirt_callee_save p4d_val;
++	struct paravirt_callee_save make_p4d;
++
++	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
+ #endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
+ 
+ #endif	/* CONFIG_PGTABLE_LEVELS >= 4 */
+diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+index 2f585054c63c..b2d0cd8288aa 100644
+--- a/arch/x86/include/asm/pgalloc.h
++++ b/arch/x86/include/asm/pgalloc.h
+@@ -17,9 +17,11 @@ static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)	{
+ static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
+ 					    unsigned long start, unsigned long count) {}
+ static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned long pfn)	{}
++static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)	{}
+ static inline void paravirt_release_pte(unsigned long pfn) {}
+ static inline void paravirt_release_pmd(unsigned long pfn) {}
+ static inline void paravirt_release_pud(unsigned long pfn) {}
++static inline void paravirt_release_p4d(unsigned long pfn) {}
  #endif
  
-+#ifdef CONFIG_X86_5LEVEL
-+# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#else
-+# define NEED_LA57	0
-+#endif
+ /*
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+index 110daf22f5c7..3586996fc50d 100644
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -405,9 +405,11 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
+ 	.alloc_pte = paravirt_nop,
+ 	.alloc_pmd = paravirt_nop,
+ 	.alloc_pud = paravirt_nop,
++	.alloc_p4d = paravirt_nop,
+ 	.release_pte = paravirt_nop,
+ 	.release_pmd = paravirt_nop,
+ 	.release_pud = paravirt_nop,
++	.release_p4d = paravirt_nop,
+ 
+ 	.set_pte = native_set_pte,
+ 	.set_pte_at = native_set_pte_at,
+@@ -437,8 +439,11 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
+ 	.set_p4d = native_set_p4d,
+ 
+ #if CONFIG_PGTABLE_LEVELS >= 5
+-#error FIXME
+-#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
++	.p4d_val = PTE_IDENT,
++	.make_p4d = PTE_IDENT,
 +
- #ifdef CONFIG_X86_64
- #ifdef CONFIG_PARAVIRT
- /* Paravirtualized systems may not have PSE or PGE available */
-@@ -98,7 +104,7 @@
- #define REQUIRED_MASK13	0
- #define REQUIRED_MASK14	0
- #define REQUIRED_MASK15	0
--#define REQUIRED_MASK16	0
-+#define REQUIRED_MASK16	(NEED_LA57)
- #define REQUIRED_MASK17	0
- #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
++	.set_pgd = native_set_pgd,
++#endif /* CONFIG_PGTABLE_LEVELS >= 5 */
+ #endif /* CONFIG_PGTABLE_LEVELS >= 4 */
+ #endif /* CONFIG_PGTABLE_LEVELS >= 3 */
  
 -- 
 2.11.0
