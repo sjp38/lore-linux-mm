@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 736E46B039F
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B33696B03A1
 	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 04:07:43 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j70so37041828pge.11
+Received: by mail-pg0-f72.google.com with SMTP id x125so37513648pgb.5
         for <linux-mm@kvack.org>; Thu, 30 Mar 2017 01:07:43 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
         by mx.google.com with ESMTPS id r39si1440453pld.105.2017.03.30.01.07.42
@@ -10,9 +10,9 @@ Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 30 Mar 2017 01:07:42 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 7/7] x86/espfix: Add support 5-level paging
-Date: Thu, 30 Mar 2017 11:07:31 +0300
-Message-Id: <20170330080731.65421-8-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 5/7] x86/mm: Add basic defines/helpers for CONFIG_X86_5LEVEL
+Date: Thu, 30 Mar 2017 11:07:29 +0300
+Message-Id: <20170330080731.65421-6-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170330080731.65421-1-kirill.shutemov@linux.intel.com>
 References: <20170330080731.65421-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,66 +20,163 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We don't need extra virtual address space for ESPFIX, so it stays within
-one PUD page table for both 4- and 5-level paging.
-
-Redefining ESPFIX_BASE_ADDR using P4D_SHIFT instead of PGDIR_SHIFT would
-make it stay in the same place regarding of paging mode.
+Extends pagetable headers to support new paging mode.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/pgtable_64_types.h |  2 +-
- arch/x86/kernel/espfix_64.c             | 12 +++++++-----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/pgtable_64.h       | 11 +++++++++++
+ arch/x86/include/asm/pgtable_64_types.h | 20 ++++++++++++++++++++
+ arch/x86/include/asm/pgtable_types.h    | 10 +++++++++-
+ arch/x86/mm/pgtable.c                   | 32 +++++++++++++++++++++++++++++++-
+ 4 files changed, 71 insertions(+), 2 deletions(-)
 
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 0593a1ae7573..12ea31274eb6 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -35,6 +35,13 @@ extern void paging_init(void);
+ #define pud_ERROR(e)					\
+ 	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
+ 	       __FILE__, __LINE__, &(e), pud_val(e))
++
++#if CONFIG_PGTABLE_LEVELS >= 5
++#define p4d_ERROR(e)					\
++	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
++	       __FILE__, __LINE__, &(e), p4d_val(e))
++#endif
++
+ #define pgd_ERROR(e)					\
+ 	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
+ 	       __FILE__, __LINE__, &(e), pgd_val(e))
+@@ -128,7 +135,11 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ 
+ static inline void native_p4d_clear(p4d_t *p4d)
+ {
++#ifdef CONFIG_X86_5LEVEL
++	native_set_p4d(p4d, native_make_p4d(0));
++#else
+ 	native_set_p4d(p4d, (p4d_t) { .pgd = native_make_pgd(0)});
++#endif
+ }
+ 
+ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index adc3e7b107ee..06470da156ba 100644
+index 4edc97917382..adc3e7b107ee 100644
 --- a/arch/x86/include/asm/pgtable_64_types.h
 +++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -98,7 +98,7 @@ typedef struct { pteval_t pte; } pte_t;
- #define MODULES_END   __fix_to_virt(__end_of_fixed_addresses + 1)
- #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
- #define ESPFIX_PGD_ENTRY _AC(-2, UL)
--#define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << PGDIR_SHIFT)
-+#define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << P4D_SHIFT)
- #define EFI_VA_START	 ( -4 * (_AC(1, UL) << 30))
- #define EFI_VA_END	 (-68 * (_AC(1, UL) << 30))
+@@ -23,12 +23,32 @@ typedef struct { pteval_t pte; } pte_t;
  
-diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
-index 04f89caef9c4..8e598a1ad986 100644
---- a/arch/x86/kernel/espfix_64.c
-+++ b/arch/x86/kernel/espfix_64.c
-@@ -50,11 +50,11 @@
- #define ESPFIX_STACKS_PER_PAGE	(PAGE_SIZE/ESPFIX_STACK_SIZE)
+ #define SHARED_KERNEL_PMD	0
  
- /* There is address space for how many espfix pages? */
--#define ESPFIX_PAGE_SPACE	(1UL << (PGDIR_SHIFT-PAGE_SHIFT-16))
-+#define ESPFIX_PAGE_SPACE	(1UL << (P4D_SHIFT-PAGE_SHIFT-16))
++#ifdef CONFIG_X86_5LEVEL
++
++/*
++ * PGDIR_SHIFT determines what a top-level page table entry can map
++ */
++#define PGDIR_SHIFT	48
++#define PTRS_PER_PGD	512
++
++/*
++ * 4th level page in 5-level paging case
++ */
++#define P4D_SHIFT	39
++#define PTRS_PER_P4D	512
++#define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
++#define P4D_MASK	(~(P4D_SIZE - 1))
++
++#else /* CONFIG_X86_5LEVEL */
++
+ /*
+  * PGDIR_SHIFT determines what a top-level page table entry can map
+  */
+ #define PGDIR_SHIFT	39
+ #define PTRS_PER_PGD	512
  
- #define ESPFIX_MAX_CPUS		(ESPFIX_STACKS_PER_PAGE * ESPFIX_PAGE_SPACE)
- #if CONFIG_NR_CPUS > ESPFIX_MAX_CPUS
--# error "Need more than one PGD for the ESPFIX hack"
-+# error "Need more virtual address space for the ESPFIX hack"
- #endif
++#endif /* CONFIG_X86_5LEVEL */
++
+ /*
+  * 3rd level page
+  */
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 4930afe9df0a..bf9638e1ee42 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -273,9 +273,17 @@ static inline pgdval_t pgd_flags(pgd_t pgd)
+ }
  
- #define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-@@ -121,11 +121,13 @@ static void init_espfix_random(void)
+ #if CONFIG_PGTABLE_LEVELS > 4
++typedef struct { p4dval_t p4d; } p4d_t;
  
- void __init init_espfix_bsp(void)
- {
--	pgd_t *pgd_p;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
+-#error FIXME
++static inline p4d_t native_make_p4d(pudval_t val)
++{
++	return (p4d_t) { val };
++}
  
- 	/* Install the espfix pud into the kernel page directory */
--	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
--	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
-+	pgd = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
-+	p4d = p4d_alloc(&init_mm, pgd, ESPFIX_BASE_ADDR);
-+	p4d_populate(&init_mm, p4d, espfix_pud_page);
++static inline p4dval_t native_p4d_val(p4d_t p4d)
++{
++	return p4d.p4d;
++}
+ #else
+ #include <asm-generic/pgtable-nop4d.h>
  
- 	/* Randomize the locations */
- 	init_espfix_random();
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 38b6daf72deb..508a708eb9a6 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -81,6 +81,14 @@ void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
+ 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
+ 	tlb_remove_page(tlb, virt_to_page(pud));
+ }
++
++#if CONFIG_PGTABLE_LEVELS > 4
++void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d)
++{
++	paravirt_release_p4d(__pa(p4d) >> PAGE_SHIFT);
++	tlb_remove_page(tlb, virt_to_page(p4d));
++}
++#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
+ #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+ #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
+ 
+@@ -120,7 +128,7 @@ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
+ 	   references from swapper_pg_dir. */
+ 	if (CONFIG_PGTABLE_LEVELS == 2 ||
+ 	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
+-	    CONFIG_PGTABLE_LEVELS == 4) {
++	    CONFIG_PGTABLE_LEVELS >= 4) {
+ 		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
+ 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
+ 				KERNEL_PGD_PTRS);
+@@ -582,6 +590,28 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
+ }
+ 
+ #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
++#ifdef CONFIG_X86_5LEVEL
++/**
++ * p4d_set_huge - setup kernel P4D mapping
++ *
++ * No 512GB pages yet -- always return 0
++ */
++int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
++{
++	return 0;
++}
++
++/**
++ * p4d_clear_huge - clear kernel P4D mapping when it is set
++ *
++ * No 512GB pages yet -- always return 0
++ */
++int p4d_clear_huge(p4d_t *p4d)
++{
++	return 0;
++}
++#endif
++
+ /**
+  * pud_set_huge - setup kernel PUD mapping
+  *
 -- 
 2.11.0
 
