@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CB486B0038
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 18:30:20 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 81so60553506pgh.3
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 15:30:20 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A03E6B0038
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 19:04:13 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id j70so60547805pge.11
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 16:04:13 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a26si3109570pgd.131.2017.03.30.15.30.19
+        by mx.google.com with ESMTPS id r11si3169690plj.231.2017.03.30.16.04.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Mar 2017 15:30:19 -0700 (PDT)
-Date: Thu, 30 Mar 2017 15:30:18 -0700
+        Thu, 30 Mar 2017 16:04:12 -0700 (PDT)
+Date: Thu, 30 Mar 2017 16:04:11 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] x86, kasan: add KASAN checks to atomic operations
-Message-Id: <20170330153018.d59cab6e3819a6dcf86bc609@linux-foundation.org>
-In-Reply-To: <cover.1489519233.git.dvyukov@google.com>
-References: <cover.1489519233.git.dvyukov@google.com>
+Subject: Re: [PATCH v2] fault-inject: support systematic fault injection
+Message-Id: <20170330160411.06fb19fa0f80eafe7190d045@linux-foundation.org>
+In-Reply-To: <20170328130128.101773-1-dvyukov@google.com>
+References: <20170328130128.101773-1-dvyukov@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dmitry Vyukov <dvyukov@google.com>
-Cc: mark.rutland@arm.com, peterz@infradead.org, aryabinin@virtuozzo.com, mingo@redhat.com, will.deacon@arm.com, kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: akinobu.mita@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 14 Mar 2017 20:24:11 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
+On Tue, 28 Mar 2017 15:01:28 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
 
-> KASAN uses compiler instrumentation to intercept all memory accesses.
-> But it does not see memory accesses done in assembly code.
-> One notable user of assembly code is atomic operations. Frequently,
-> for example, an atomic reference decrement is the last access to an
-> object and a good candidate for a racy use-after-free.
+> +static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
+> +				   size_t count, loff_t *ppos)
+> +{
+> +	struct task_struct *task;
+> +	int err, n;
+> +
+> +	task = get_proc_task(file_inode(file));
+> +	if (!task)
+> +		return -ESRCH;
+> +	put_task_struct(task);
+> +	if (task != current)
+> +		return -EPERM;
+> +	err = kstrtoint_from_user(buf, count, 10, &n);
+> +	if (err)
+> +		return err;
+> +	if (n < 0 || n == INT_MAX)
+> +		return -EINVAL;
+> +	current->fail_nth = n + 1;
+> +	return len;
+> +}
 
-I'm getting a pile of build errors from this patchset (and related
-patches).  Due to messed up merge fixing, probably.  Please the review
-process has been a bit bumpy.
+Well that didn't go too well.
 
-So I'll drop
+--- a/fs/proc/base.c~fault-inject-support-systematic-fault-injection-fix
++++ a/fs/proc/base.c
+@@ -1377,7 +1377,7 @@ static ssize_t proc_fail_nth_write(struc
+ 	if (n < 0 || n == INT_MAX)
+ 		return -EINVAL;
+ 	current->fail_nth = n + 1;
+-	return len;
++	return count;
+ }
+ 
+ static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
 
-kasan-allow-kasan_check_read-write-to-accept-pointers-to-volatiles.patch
-asm-generic-x86-wrap-atomic-operations.patch
-asm-generic-x86-wrap-atomic-operations-fix.patch
-asm-generic-add-kasan-instrumentation-to-atomic-operations.patch
-asm-generic-fix-compilation-failure-in-cmpxchg_double.patch
-x86-remove-unused-atomic_inc_short.patch
-x86-asm-generic-add-kasan-instrumentation-to-bitops.patch
-
-for now.  Please resend (against -mm or linux-next) when the dust has
-settled.
+Are you sure I merged the correct version of this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
