@@ -1,67 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4836B03BB
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 12:31:33 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g7so11297707wrd.16
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 09:31:33 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s196si4614744wmb.102.2017.03.30.09.31.32
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Mar 2017 09:31:32 -0700 (PDT)
-Date: Thu, 30 Mar 2017 18:31:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap
- data structure
-Message-ID: <20170330163128.GF4326@dhcp22.suse.cz>
-References: <20170320084732.3375-1-ying.huang@intel.com>
- <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
- <8737e3z992.fsf@yhuang-dev.intel.com>
- <f17cb7e4-4d47-4aed-6fdb-cda5c5d47fa4@nvidia.com>
- <87poh7xoms.fsf@yhuang-dev.intel.com>
- <2d55e06d-a0b6-771a-bba0-f9517d422789@nvidia.com>
- <87d1d7uoti.fsf@yhuang-dev.intel.com>
- <624b8e59-34e5-3538-0a93-d33d9e4ac555@nvidia.com>
- <e79064f1-8594-bef2-fbd8-1579afb4aac3@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e79064f1-8594-bef2-fbd8-1579afb4aac3@linux.intel.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D1336B03AD
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 12:39:14 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id o123so50680977pga.16
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 09:39:14 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t9si2613626pfa.157.2017.03.30.09.39.13
+        for <linux-mm@kvack.org>;
+        Thu, 30 Mar 2017 09:39:13 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: [PATCH 0/4] Add hstate parameter to huge_pte_offset()
+Date: Thu, 30 Mar 2017 17:38:45 +0100
+Message-Id: <20170330163849.18402-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, "Huang, Ying" <ying.huang@intel.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, tbaicar@codeaurora.org, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com
 
-On Fri 24-03-17 06:56:10, Dave Hansen wrote:
-> On 03/24/2017 12:33 AM, John Hubbard wrote:
-> > There might be some additional information you are using to come up with
-> > that conclusion, that is not obvious to me. Any thoughts there? These
-> > calls use the same underlying page allocator (and I thought that both
-> > were subject to the same constraints on defragmentation, as a result of
-> > that). So I am not seeing any way that kmalloc could possibly be a
-> > less-fragmenting call than vmalloc.
-> 
-> You guys are having quite a discussion over a very small point.
-> 
-> But, Ying is right.
-> 
-> Let's say we have a two-page data structure.  vmalloc() takes two
-> effectively random order-0 pages, probably from two different 2M pages
-> and pins them.  That "kills" two 2M pages.
-> 
-> kmalloc(), allocating two *contiguous* pages, is very unlikely to cross
-> a 2M boundary (it theoretically could).  That means it will only "kill"
-> the possibility of a single 2M page.  More 2M pages == less fragmentation.
+On architectures that support hugepages composed of contiguous pte(s)
+as well as block entries at the same level in the page table,
+huge_pte_offset() is not able to determine the correct offset to
+return when it encounters a swap entry (which is used to mark poisoned
+as well as migrated pages in the page table).
 
-Yes I agree with this. And the patch is no brainer. kvmalloc makes sure
-to not try too hard on the kmalloc side so I really didn't get the
-objection about direct compaction and reclaim which initially started
-this discussion. Besides that the swapon path usually happens early
-during the boot where we should have those larger blocks available.
+huge_pte_offset() needs to know the size of the hugepage at the
+requested address to determine the offset to return - the current
+entry or the first entry of a set of contiguous hugepages. This came
+up while enabling support for memory failure handling on arm64 (Patch
+3-4 add this support and are included here for completeness).
+
+Patch 1 adds a hstate parameter to huge_pte_offset() to provide
+additional information about the target address. It also updates the
+signatures (and usage) of huge_pte_offset() for architectures that
+override the generic implementation.
+
+Patch 2 uses the size determined by the parameter added in Patch 1, to
+return the correct page table offset in the arm64 implementation of
+huge_pte_offset().
+
+The patchset is based on top of v4.11-rc4 and the arm64 huge page
+cleanup for break-before-make[0]. Previous posting can be found at
+[1].
+
+Changes RFC -> v1
+
+* Fixed a missing conversion of huge_pte_offset() prototype to add
+  hstate parameter. Reported by 0-day.
+
+[0] http://lists.infradead.org/pipermail/linux-arm-kernel/2017-March/497027.html
+[1] https://lkml.org/lkml/2017/3/23/293
+
+
+Jonathan (Zhixiong) Zhang (2):
+  arm64: hwpoison: add VM_FAULT_HWPOISON[_LARGE] handling
+  arm64: kconfig: allow support for memory failure handling
+
+Punit Agrawal (2):
+  mm/hugetlb.c: add hstate parameter to huge_pte_offset()
+  arm64: hugetlbpages: Correctly handle swap entries in
+    huge_pte_offset()
+
+ arch/arm64/Kconfig            |  1 +
+ arch/arm64/mm/fault.c         | 22 +++++++++++++++++++---
+ arch/arm64/mm/hugetlbpage.c   | 34 ++++++++++++++++++----------------
+ arch/ia64/mm/hugetlbpage.c    |  4 ++--
+ arch/metag/mm/hugetlbpage.c   |  3 ++-
+ arch/mips/mm/hugetlbpage.c    |  3 ++-
+ arch/parisc/mm/hugetlbpage.c  |  3 ++-
+ arch/powerpc/mm/hugetlbpage.c |  2 +-
+ arch/s390/mm/hugetlbpage.c    |  3 ++-
+ arch/sh/mm/hugetlbpage.c      |  3 ++-
+ arch/sparc/mm/hugetlbpage.c   |  3 ++-
+ arch/tile/mm/hugetlbpage.c    |  3 ++-
+ arch/x86/mm/hugetlbpage.c     |  2 +-
+ drivers/acpi/apei/Kconfig     |  1 +
+ fs/userfaultfd.c              |  7 +++++--
+ include/linux/hugetlb.h       |  5 +++--
+ mm/hugetlb.c                  | 21 ++++++++++++---------
+ mm/page_vma_mapped.c          |  3 ++-
+ mm/pagewalk.c                 |  2 +-
+ 19 files changed, 80 insertions(+), 45 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
