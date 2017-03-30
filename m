@@ -1,83 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF2BD6B0390
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 23:03:17 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b10so29782988pgn.8
-        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 20:03:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 80si733240pga.172.2017.03.29.20.03.16
+	by kanga.kvack.org (Postfix) with ESMTP id 0E0086B0390
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 00:15:16 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j70so31128081pge.11
+        for <linux-mm@kvack.org>; Wed, 29 Mar 2017 21:15:16 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id f1si909856pld.13.2017.03.29.21.15.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Mar 2017 20:03:16 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v2U2sTji058668
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 23:03:16 -0400
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29gfrj8kp3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 Mar 2017 23:03:15 -0400
-Received: from localhost
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 30 Mar 2017 08:33:13 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v2U33COE11206728
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 08:33:12 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v2U33BMm019177
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 08:33:11 +0530
-Subject: Re: [PATCH V5 16/17] mm: Let arch choose the initial value of task
- size
-References: <1490153823-29241-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 30 Mar 2017 08:33:11 +0530
+        Wed, 29 Mar 2017 21:15:15 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v7 9/9] mm, THP, swap: Delay splitting THP during swap out
+References: <20170328053209.25876-1-ying.huang@intel.com>
+	<20170328053209.25876-10-ying.huang@intel.com>
+	<20170329171654.GD31821@cmpxchg.org>
+Date: Thu, 30 Mar 2017 12:15:13 +0800
+In-Reply-To: <20170329171654.GD31821@cmpxchg.org> (Johannes Weiner's message
+	of "Wed, 29 Mar 2017 13:16:54 -0400")
+Message-ID: <871stftn72.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1490153823-29241-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <77aeea83-0334-45b7-3f40-4a1d8619d191@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/22/2017 09:07 AM, Aneesh Kumar K.V wrote:
-> As we start supporting larger address space (>128TB), we want to give
-> architecture a control on max task size of an application which is different
-> from the TASK_SIZE. For ex: ppc64 needs to track the base page size of a segment
-> and it is copied from mm_context_t to PACA on each context switch. If we know that
-> application has not used an address range above 128TB we only need to copy
-> details about 128TB range to PACA. This will help in improving context switch
-> performance by avoiding larger copy operation.
-> 
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  fs/exec.c | 10 +++++++++-
->  1 file changed, 9 insertions(+), 1 deletion(-)
-> 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 65145a3df065..5550a56d03c3 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -1308,6 +1308,14 @@ void would_dump(struct linux_binprm *bprm, struct file *file)
->  }
->  EXPORT_SYMBOL(would_dump);
->  
-> +#ifndef arch_init_task_size
-> +static inline void arch_init_task_size(void)
-> +{
-> +	current->mm->task_size = TASK_SIZE;
-> +}
-> +#define arch_init_task_size arch_init_task_size
-> +#endif
+Johannes Weiner <hannes@cmpxchg.org> writes:
 
-Why not a proper CONFIG_ARCH_DEFINED_TASK_SIZE kind of option for
-this ? Also are there no assumptions about task current->mm->size
-being TASK_SIZE in other places which might get broken ?
+> On Tue, Mar 28, 2017 at 01:32:09PM +0800, Huang, Ying wrote:
+>> @@ -183,12 +184,53 @@ void __delete_from_swap_cache(struct page *page)
+>>  	ADD_CACHE_INFO(del_total, nr);
+>>  }
+>>  
+>> +#ifdef CONFIG_THP_SWAP_CLUSTER
+>> +int add_to_swap_trans_huge(struct page *page, struct list_head *list)
+>> +{
+>> +	swp_entry_t entry;
+>> +	int ret = 0;
+>> +
+>> +	/* cannot split, which may be needed during swap in, skip it */
+>> +	if (!can_split_huge_page(page, NULL))
+>> +		return -EBUSY;
+>> +	/* fallback to split huge page firstly if no PMD map */
+>> +	if (!compound_mapcount(page))
+>> +		return 0;
+>> +	entry = get_huge_swap_page();
+>> +	if (!entry.val)
+>> +		return 0;
+>> +	if (mem_cgroup_try_charge_swap(page, entry, HPAGE_PMD_NR)) {
+>> +		__swapcache_free(entry, true);
+>> +		return -EOVERFLOW;
+>> +	}
+>> +	ret = add_to_swap_cache(page, entry,
+>> +				__GFP_HIGH | __GFP_NOMEMALLOC|__GFP_NOWARN);
+>> +	/* -ENOMEM radix-tree allocation failure */
+>> +	if (ret) {
+>> +		__swapcache_free(entry, true);
+>> +		return 0;
+>> +	}
+>> +	ret = split_huge_page_to_list(page, list);
+>> +	if (ret) {
+>> +		delete_from_swap_cache(page);
+>> +		return -EBUSY;
+>> +	}
+>> +	return 1;
+>> +}
+>> +#else
+>> +static inline int add_to_swap_trans_huge(struct page *page,
+>> +					 struct list_head *list)
+>> +{
+>> +	return 0;
+>> +}
+>> +#endif
+>> +
+>>  /**
+>>   * add_to_swap - allocate swap space for a page
+>>   * @page: page we want to move to swap
+>>   *
+>>   * Allocate swap space for the page and add the page to the
+>> - * swap cache.  Caller needs to hold the page lock. 
+>> + * swap cache.  Caller needs to hold the page lock.
+>>   */
+>>  int add_to_swap(struct page *page, struct list_head *list)
+>>  {
+>> @@ -198,6 +240,18 @@ int add_to_swap(struct page *page, struct list_head *list)
+>>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>>  	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+>>  
+>> +	if (unlikely(PageTransHuge(page))) {
+>> +		err = add_to_swap_trans_huge(page, list);
+>> +		switch (err) {
+>> +		case 1:
+>> +			return 1;
+>> +		case 0:
+>> +			/* fallback to split firstly if return 0 */
+>> +			break;
+>> +		default:
+>> +			return 0;
+>> +		}
+>> +	}
+>>  	entry = get_swap_page();
+>>  	if (!entry.val)
+>>  		return 0;
+>
+> add_to_swap_trans_huge() is too close a copy of add_to_swap(), which
+> makes the code error prone for future modifications to the swap slot
+> allocation protocol.
+>
+> This should read:
+>
+> retry:
+> 	entry = get_swap_page(page);
+> 	if (!entry.val) {
+> 		if (PageTransHuge(page)) {
+> 			split_huge_page_to_list(page, list);
+> 			goto retry;
+> 		}
+> 		return 0;
+> 	}
+
+If the swap space is used up, that is, get_swap_page() cannot allocate
+even 1 swap entry for a normal page.  We will split THP unnecessarily
+with the change, but in the original code, we just skip the THP.  There
+may be a performance regression here.  Similar problem exists for
+mem_cgroup_try_charge_swap() too.  If the mem cgroup exceeds the swap
+limit, the THP will be split unnecessary with the change too.
+
+> And get_swap_page(), mem_cgroup_try_charge_swap() etc. should all
+> check PageTransHuge() instead of having extra parameters or separate
+> code paths for the huge page case.
+>
+> In general, don't try to tack this feature onto the side of the
+> VM. Because right now, this looks a bit like the hugetlb code, with
+> one big branch in the beginning that opens up an alternate
+> reality. Instead, these functions should handle THP all the way down
+> the stack, and without passing down redundant information.
+
+Yes.  We should share the code as much as possible.  I just have some
+questions as above.  Could you help me on that?
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
