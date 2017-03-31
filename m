@@ -1,80 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 33F856B0038
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 11:24:27 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g7so16577365wrd.16
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 08:24:27 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f3si3867874wme.93.2017.03.31.08.24.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7673C6B039F
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 11:28:53 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id v4so82867837pgc.20
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 08:28:53 -0700 (PDT)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10092.outbound.protection.outlook.com. [40.107.1.92])
+        by mx.google.com with ESMTPS id a11si5536084pfl.214.2017.03.31.08.28.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Mar 2017 08:24:25 -0700 (PDT)
-Date: Fri, 31 Mar 2017 11:24:18 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm -v7 4/9] mm, THP, swap: Add get_huge_swap_page()
-Message-ID: <20170331152418.GA9410@cmpxchg.org>
-References: <20170328053209.25876-1-ying.huang@intel.com>
- <20170328053209.25876-5-ying.huang@intel.com>
- <20170329170800.GC31821@cmpxchg.org>
- <87o9wjs80u.fsf@yhuang-dev.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 31 Mar 2017 08:28:52 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH] mm/zswap: fix potential deadlock in zswap_frontswap_store()
+Date: Fri, 31 Mar 2017 18:30:09 +0300
+Message-ID: <20170331153009.11397-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87o9wjs80u.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Thu, Mar 30, 2017 at 12:28:17PM +0800, Huang, Ying wrote:
-> Johannes Weiner <hannes@cmpxchg.org> writes:
-> > On Tue, Mar 28, 2017 at 01:32:04PM +0800, Huang, Ying wrote:
-> >> @@ -527,6 +527,23 @@ static inline swp_entry_t get_swap_page(void)
-> >>  
-> >>  #endif /* CONFIG_SWAP */
-> >>  
-> >> +#ifdef CONFIG_THP_SWAP_CLUSTER
-> >> +static inline swp_entry_t get_huge_swap_page(void)
-> >> +{
-> >> +	swp_entry_t entry;
-> >> +
-> >> +	if (get_swap_pages(1, &entry, true))
-> >> +		return entry;
-> >> +	else
-> >> +		return (swp_entry_t) {0};
-> >> +}
-> >> +#else
-> >> +static inline swp_entry_t get_huge_swap_page(void)
-> >> +{
-> >> +	return (swp_entry_t) {0};
-> >> +}
-> >> +#endif
-> >
-> > Your introducing a function without a user, making it very hard to
-> > judge whether the API is well-designed for the callers or not.
-> >
-> > I pointed this out as a systemic problem with this patch series in v3,
-> > along with other stuff, but with the way this series is structured I'm
-> > having a hard time seeing whether you implemented my other feedback or
-> > whether your counter arguments to them are justified.
-> >
-> > I cannot review and ack these patches this way.
-> 
-> Sorry for inconvenience, I will send a new version to combine the
-> function definition and usage into one patch at least for you to
-> review.
+zswap_frontswap_store() is called during memory reclaim from
+__frontswap_store() from swap_writepage() from shrink_page_list().
+This may happen in NOFS context, thus zswap shouldn't use __GFP_FS,
+otherwise we may renter into fs code and deadlock.
+zswap_frontswap_store() also shouldn't use __GFP_IO to avoid recursion
+into itself.
 
-We tried this before. I reviewed the self-contained patch and you
-incorporated the feedback into the split-out structure that made it
-impossible for me to verify the updates.
+zswap_frontswap_store() call zpool_malloc() with __GFP_NORETRY |
+__GFP_NOWARN | __GFP_KSWAPD_RECLAIM, so let's use the same flags for
+zswap_entry_cache_alloc() as well, instead of GFP_KERNEL.
 
-I'm not sure why you insist on preserving this series format. It's not
-good for review, and it's not good for merging and git history.
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+ mm/zswap.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-> But I think we can continue our discussion in the comments your
-> raised so far firstly, what do you think about that?
-
-Yeah, let's finish the discussions before -v8.
+diff --git a/mm/zswap.c b/mm/zswap.c
+index eedc278..12ad7e9 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -966,6 +966,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	struct zswap_tree *tree = zswap_trees[type];
+ 	struct zswap_entry *entry, *dupentry;
+ 	struct crypto_comp *tfm;
++	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
+ 	int ret;
+ 	unsigned int dlen = PAGE_SIZE, len;
+ 	unsigned long handle;
+@@ -989,7 +990,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	}
+ 
+ 	/* allocate entry */
+-	entry = zswap_entry_cache_alloc(GFP_KERNEL);
++	entry = zswap_entry_cache_alloc(gfp);
+ 	if (!entry) {
+ 		zswap_reject_kmemcache_fail++;
+ 		ret = -ENOMEM;
+@@ -1017,9 +1018,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 
+ 	/* store */
+ 	len = dlen + sizeof(struct zswap_header);
+-	ret = zpool_malloc(entry->pool->zpool, len,
+-			   __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
+-			   &handle);
++	ret = zpool_malloc(entry->pool->zpool, len, gfp, &handle);
+ 	if (ret == -ENOSPC) {
+ 		zswap_reject_compress_poor++;
+ 		goto put_dstmem;
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
