@@ -1,134 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4726B0038
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 05:51:30 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v21so73943594pgo.22
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 02:51:30 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id f10si4690727pge.327.2017.03.31.02.51.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Mar 2017 02:51:29 -0700 (PDT)
-Message-ID: <58DE26FC.7090403@intel.com>
-Date: Fri, 31 Mar 2017 17:53:00 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 485616B0397
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 05:52:35 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id m1so74189890pgd.13
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 02:52:35 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f26si4709214pgn.194.2017.03.31.02.52.34
+        for <linux-mm@kvack.org>;
+        Fri, 31 Mar 2017 02:52:34 -0700 (PDT)
+Date: Fri, 31 Mar 2017 10:52:06 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH 2/4] arm64: hugetlbpages: Correctly handle swap entries
+ in huge_pte_offset()
+Message-ID: <20170331095155.GA31398@leverpostej>
+References: <20170330163849.18402-1-punit.agrawal@arm.com>
+ <20170330163849.18402-3-punit.agrawal@arm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH kernel v8 3/4] mm: add inerface to offer info about unused
- pages
-References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com> <1489648127-37282-4-git-send-email-wei.w.wang@intel.com> <20170316142842.69770813b98df70277431b1e@linux-foundation.org> <58CB8865.5030707@intel.com> <20170329204418-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170329204418-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170330163849.18402-3-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org, David Woods <dwoods@mellanox.com>, tbaicar@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com
 
-On 03/30/2017 01:48 AM, Michael S. Tsirkin wrote:
-> On Fri, Mar 17, 2017 at 02:55:33PM +0800, Wei Wang wrote:
->> On 03/17/2017 05:28 AM, Andrew Morton wrote:
->>> On Thu, 16 Mar 2017 15:08:46 +0800 Wei Wang <wei.w.wang@intel.com> wrote:
->>>
->>>> From: Liang Li <liang.z.li@intel.com>
->>>>
->>>> This patch adds a function to provides a snapshot of the present system
->>>> unused pages. An important usage of this function is to provide the
->>>> unsused pages to the Live migration thread, which skips the transfer of
->>>> thoses unused pages. Newly used pages can be re-tracked by the dirty
->>>> page logging mechanisms.
->>> I don't think this will be useful for anything other than
->>> virtio-balloon.  I guess it would be better to keep this code in the
->>> virtio-balloon driver if possible, even though that's rather a layering
->>> violation :( What would have to be done to make that possible?  Perhaps
->>> we can put some *small* helpers into page_alloc.c to prevent things
->>> from becoming too ugly.
->> The patch description was too narrowed and may have caused some
->> confusion, sorry about that. This function is aimed to be generic. I
->> agree with the description suggested by Michael.
->>
->> Since the main body of the function is related to operating on the
->> free_list. I think it is better to have them located here.
->> Small helpers may be less efficient and thereby causing some
->> performance loss as well.
->> I think one improvement we can make is to remove the "chunk format"
->> related things from this function. The function can generally offer the
->> base pfn to the caller's recording buffer. Then it will be the caller's
->> responsibility to format the pfn if they need.
-> Sounds good at a high level, but we'd have to see the implementation
-> to judge it properly.
->
->>>> --- a/mm/page_alloc.c
->>>> +++ b/mm/page_alloc.c
->>>> @@ -4498,6 +4498,120 @@ void show_free_areas(unsigned int filter)
->>>>    	show_swap_cache_info();
->>>>    }
->>>> +static int __record_unused_pages(struct zone *zone, int order,
->>>> +				 __le64 *buf, unsigned int size,
->>>> +				 unsigned int *offset, bool part_fill)
->>>> +{
->>>> +	unsigned long pfn, flags;
->>>> +	int t, ret = 0;
->>>> +	struct list_head *curr;
->>>> +	__le64 *chunk;
->>>> +
->>>> +	if (zone_is_empty(zone))
->>>> +		return 0;
->>>> +
->>>> +	spin_lock_irqsave(&zone->lock, flags);
->>>> +
->>>> +	if (*offset + zone->free_area[order].nr_free > size && !part_fill) {
->>>> +		ret = -ENOSPC;
->>>> +		goto out;
->>>> +	}
->>>> +	for (t = 0; t < MIGRATE_TYPES; t++) {
->>>> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
->>>> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
->>>> +			chunk = buf + *offset;
->>>> +			if (*offset + 2 > size) {
->>>> +				ret = -ENOSPC;
->>>> +				goto out;
->>>> +			}
->>>> +			/* Align to the chunk format used in virtio-balloon */
->>>> +			*chunk = cpu_to_le64(pfn << 12);
->>>> +			*(chunk + 1) = cpu_to_le64((1 << order) << 12);
->>>> +			*offset += 2;
->>>> +		}
->>>> +	}
->>>> +
->>>> +out:
->>>> +	spin_unlock_irqrestore(&zone->lock, flags);
->>>> +
->>>> +	return ret;
->>>> +}
->>> This looks like it could disable interrupts for a long time.  Too long?
->> What do you think if we give "budgets" to the above function?
->> For example, budget=1000, and there are 2000 nodes on the list.
->> record() returns with "incomplete" status in the first round, along with the
->> status info, "*continue_node".
->>
->> *continue_node: pointer to the starting node of the leftover. If
->> *continue_node
->> has been used at the time of the second call (i.e. continue_node->next ==
->> NULL),
->> which implies that the previous 1000 nodes have been used, then the record()
->> function can simply start from the head of the list.
->>
->> It is up to the caller whether it needs to continue the second round
->> when getting "incomplete".
-> It might be cleaner to add APIs to
-> 	- start iteration
-> 	- do one step
-> 	- end iteration
->
-> caller can then iterate without too many issues
->
+Hi Punit,
 
-OK. I will re-implement it with this simple one - get only one node(page 
-block) from the list in each call, and check if the time would increase 
-a lot in comparison to v8.
+On Thu, Mar 30, 2017 at 05:38:47PM +0100, Punit Agrawal wrote:
+> huge_pte_offset() does not correctly handle poisoned or migration page
+> table entries. 
 
-Best,
-Wei
+What exactly does it do wrong?
+
+Judging by the patch, we return NULL in some cases we shouldn't, right?
+
+What can result from this? e.g. can we see data corruption?
+
+> Not knowing the size of the hugepage entry being
+> requested only compounded the problem.
+> 
+> The recently added hstate parameter can be used to determine the size of
+> hugepage being accessed. Use the size to find the correct page table
+> entry to return when coming across a swap page table entry.
+> 
+> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: David Woods <dwoods@mellanox.com>
+
+Given this is a fix for a bug, it sounds like it should have a fixes
+tag, or a Cc stable...
+
+Thanks,
+Mark.
+
+> ---
+>  arch/arm64/mm/hugetlbpage.c | 31 ++++++++++++++++---------------
+>  1 file changed, 16 insertions(+), 15 deletions(-)
+> 
+> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+> index 9ca742c4c1ab..44014403081f 100644
+> --- a/arch/arm64/mm/hugetlbpage.c
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -192,38 +192,39 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+>  pte_t *huge_pte_offset(struct mm_struct *mm,
+>  		       unsigned long addr, struct hstate *h)
+>  {
+> +	unsigned long sz = huge_page_size(h);
+>  	pgd_t *pgd;
+>  	pud_t *pud;
+> -	pmd_t *pmd = NULL;
+> -	pte_t *pte = NULL;
+> +	pmd_t *pmd;
+> +	pte_t *pte;
+>  
+>  	pgd = pgd_offset(mm, addr);
+>  	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
+>  	if (!pgd_present(*pgd))
+>  		return NULL;
+> +
+>  	pud = pud_offset(pgd, addr);
+> -	if (!pud_present(*pud))
+> +	if (pud_none(*pud) && sz != PUD_SIZE)
+>  		return NULL;
+> -
+> -	if (pud_huge(*pud))
+> +	else if (!pud_table(*pud))
+>  		return (pte_t *)pud;
+> +
+> +	if (sz == CONT_PMD_SIZE)
+> +		addr &= CONT_PMD_MASK;
+> +
+>  	pmd = pmd_offset(pud, addr);
+> -	if (!pmd_present(*pmd))
+> +	if (pmd_none(*pmd) &&
+> +	    !(sz == PMD_SIZE || sz == CONT_PMD_SIZE))
+>  		return NULL;
+> -
+> -	if (pte_cont(pmd_pte(*pmd))) {
+> -		pmd = pmd_offset(
+> -			pud, (addr & CONT_PMD_MASK));
+> -		return (pte_t *)pmd;
+> -	}
+> -	if (pmd_huge(*pmd))
+> +	else if (!pmd_table(*pmd))
+>  		return (pte_t *)pmd;
+> -	pte = pte_offset_kernel(pmd, addr);
+> -	if (pte_present(*pte) && pte_cont(*pte)) {
+> +
+> +	if (sz == CONT_PTE_SIZE) {
+>  		pte = pte_offset_kernel(
+>  			pmd, (addr & CONT_PTE_MASK));
+>  		return pte;
+>  	}
+> +
+>  	return NULL;
+>  }
+>  
+> -- 
+> 2.11.0
+> 
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
