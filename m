@@ -1,101 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E3AD46B039F
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 18:41:02 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 76so17908314lft.18
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 15:41:02 -0700 (PDT)
-Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with ESMTPS id u6si3984490lff.372.2017.03.31.15.41.00
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E1B7E6B0390
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 19:58:10 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 8so13533782itb.22
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 16:58:10 -0700 (PDT)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id d184si4291944itg.22.2017.03.31.16.58.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 31 Mar 2017 15:41:01 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: memory hotplug and force_remove
-Date: Sat, 01 Apr 2017 00:35:16 +0200
-Message-ID: <1544048.hoAj1vGYsS@aspire.rjw.lan>
-In-Reply-To: <20170331120236.GO27098@dhcp22.suse.cz>
-References: <20170320192938.GA11363@dhcp22.suse.cz> <20170331115530.GB28365@linux-l9pv.suse> <20170331120236.GO27098@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Mar 2017 16:58:10 -0700 (PDT)
+Received: by mail-io0-x234.google.com with SMTP id f84so48827245ioj.0
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 16:58:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
+References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
+ <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
+ <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
+ <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk> <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
+ <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 31 Mar 2017 16:58:09 -0700
+Message-ID: <CAGXu5jK-ARrQA4fgyAvOBcFx=K0PiWU=H5qa768FgrD6hexEEA@mail.gmail.com>
+Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: joeyli <jlee@suse.com>, Kani Toshimitsu <toshi.kani@hpe.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Jones <davej@codemonkey.org.uk>, Tommi Rantala <tommi.t.rantala@nokia.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
 
-On Friday, March 31, 2017 02:02:36 PM Michal Hocko wrote:
-> On Fri 31-03-17 19:55:30, Joey Lee wrote:
-> > On Fri, Mar 31, 2017 at 12:55:05PM +0200, Michal Hocko wrote:
-> > > On Fri 31-03-17 18:49:05, Joey Lee wrote:
-> > > > Hi Michal,
-> > > > 
-> > > > On Fri, Mar 31, 2017 at 10:30:17AM +0200, Michal Hocko wrote:
-> > > [...]
-> > > > > @@ -241,11 +232,10 @@ static int acpi_scan_try_to_offline(struct acpi_device *device)
-> > > > >  		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-> > > > >  				    NULL, acpi_bus_offline, (void *)true,
-> > > > >  				    (void **)&errdev);
-> > > > > -		if (!errdev || acpi_force_hot_remove)
-> > > > > +		if (!errdev)
-> > > > >  			acpi_bus_offline(handle, 0, (void *)true,
-> > > > >  					 (void **)&errdev);
-> > > > > -
-> > > > > -		if (errdev && !acpi_force_hot_remove) {
-> > > > > +		else {
-> > > >               ^^^^^^^^^^^^^
-> > > > Here should still checks the parent's errdev state then rollback
-> > > > parent/children to online state:
-> > > > 
-> > > > -		if (errdev && !acpi_force_hot_remove) {
-> > > > +		if (errdev) {
-> > > 
-> > > You are right, I have missed that acpi_bus_offline modifies errdev.
-> > > Thanks for spotting that! Updated patch is below.
-> > > ---
-> > > >From 8df0abd29988ffb52b6df52407b96d6015861bb7 Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > Date: Fri, 31 Mar 2017 10:08:41 +0200
-> > > Subject: [PATCH] acpi: drop support for force_remove
-> > > 
-> > > /sys/firmware/acpi/hotplug/force_remove was presumably added to support
-> > > auto offlining in the past. This is, however, inherently dangerous for
-> > > some hotplugable resources like memory. The memory offlining fails when
-> > > the memory is still in use and cannot be dropped or migrated. If we
-> > > ignore the failure we are basically allowing for subtle memory
-> > > corruption or a crash.
-> > > 
-> > > We have actually noticed the later while hitting BUG() during the memory
-> > > hotremove (remove_memory):
-> > > 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
-> > > 			check_memblock_offlined_cb);
-> > > 	if (ret)
-> > > 		BUG();
-> > > 
-> > > it took us quite non-trivial time realize that the customer had
-> > > force_remove enabled. Even if the BUG was removed here and we could
-> > > propagate the error up the call chain it wouldn't help at all because
-> > > then we would hit a crash or a memory corruption later and harder to
-> > > debug. So force_remove is unfixable for the memory hotremove. We haven't
-> > > checked other hotplugable resources to be prone to a similar problems.
-> > > 
-> > > Remove the force_remove functionality because it is not fixable currently.
-> > > Keep the sysfs file and report an error if somebody tries to enable it.
-> > > Encourage users to report about the missing functionality and work with
-> > > them with an alternative solution.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > 
-> > This patch is good to me. Please feel free to add:
-> > 
-> > Reviewed-by: Lee, Chun-Yi <jlee@suse.com>
-> 
-> Thanks for the review Joey!
+On Fri, Mar 31, 2017 at 11:26 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> On Fri, Mar 31, 2017 at 10:32 AM, Kees Cook <keescook@chromium.org> wrote:
+>>
+>> How is ffff880000090000 both in the direct mapping and a slab object?
+>
+> I think this is just very regular /dev/mem behavior, that is hidden by
+> the fact that the *normal* case for /dev/mem is all to reserved RAM,
+> which will never be a slab object.
+>
+> And this is all hidden with STRICT_DEVMEM, which pretty much everybody
+> has enabled, but Tommi for some reason did not.
 
-Can you please resend it with a CC to linux-acpi to give the people on that list
-a chance to speak up if they have any concerns?
+(It tripped under Fedora (with STRICT_DEVMEM) too, but I see below you
+isolated it...)
 
-Thanks,
-Rafael
+>
+>> It would need to pass all of these checks, and be marked as PageSlab
+>> before it could be evaluated by __check_heap_object:
+>
+> It trivially passes those checks, because it's a normal kernel address
+> for a page that is just used for kernel stuff.
+>
+> I think we have two options:
+>
+>  - just get rid of STRICT_DEVMEM and make that unconditional
+
+I'm a fan of this whatever the case; have all the video drivers moved
+away from crazy userspace direct memory access? (Or am I
+misremembering the reason for allowing /dev/mem to read RAM?)
+
+>  - make the read_mem/write_mem code use some non-checking copy
+> routines, since they are obviously designed to access any memory
+> location (including kernel memory) unless STRICT_DEVMEM is set.
+
+I don't think this is a probably with the usercopy code: it is
+attempting to read RAM which should be blocked. It just _happens_ that
+this RAM got used for slab cache.
+
+> Hmm. Thinking more about this, we do allow access to the first 1MB of
+> physical memory unconditionally (see devmem_is_allowed() in
+
+Oooh, yes, that's the issue here. If the location is bypassing
+devmem_is_allowed(), oops.
+
+> arch/x86/mm/init.c). And I think we only _reserve_ the first 64kB or
+> something. So I guess even STRICT_DEVMEM isn't actually all that
+> strict.
+>
+> So this should be visible even *with* STRICT_DEVMEM.
+>
+> Does a simple
+>
+>      sudo dd if=/dev/mem of=/dev/null bs=4096 count=256
+>
+> also show the same issue? Maybe regardless of STRICT_DEVMEM?
+>
+> Maybe we should change devmem_is_allowed() to return a ternary value,
+> and then have it be "allow access" (for reserved pages), "disallow
+> access" (for various random stuff), and "just read zero" (for pages in
+> the low 1M that aren't marked reserved).
+
+If that doesn't break x86info, that would be nice too.
+
+> That way things like that read the low 1M (like x86info) will
+> hopefully not be unhappy, but also won't be reading random kernel
+> data.
+
+So, this seems like an uncommon situation where <1M memory ended up in
+as regular RAM. It seems like this exception is the problem?
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
