@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 391016B0038
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 01:44:52 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 13so22310026ioe.13
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 22:44:52 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0106.outbound.protection.outlook.com. [104.47.1.106])
-        by mx.google.com with ESMTPS id 124si1514914itz.32.2017.03.30.22.44.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 30 Mar 2017 22:44:51 -0700 (PDT)
-Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
-References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
- <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
- <3890813c-c891-89a5-c16f-66240a794319@redhat.com>
- <CAGXu5jLSp737ZQEtyO7AZCHbmtEj55Q5UVjGQX-SS_rc2upuJA@mail.gmail.com>
- <a0abf5c5-f2f1-04f4-d660-f8c70042b11b@redhat.com>
-From: Tommi Rantala <tommi.t.rantala@nokia.com>
-Message-ID: <bc2fa666-cbfb-e78d-39f7-be7ab66bf34d@nokia.com>
-Date: Fri, 31 Mar 2017 08:44:43 +0300
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E7F716B0038
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 02:18:20 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g2so67664485pge.7
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 23:18:20 -0700 (PDT)
+Received: from out0-250.mail.aliyun.com (out0-250.mail.aliyun.com. [140.205.0.250])
+        by mx.google.com with ESMTP id q87si4141872pfi.271.2017.03.30.23.18.19
+        for <linux-mm@kvack.org>;
+        Thu, 30 Mar 2017 23:18:20 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170330115454.32154-1-mhocko@kernel.org> <20170330115454.32154-6-mhocko@kernel.org>
+In-Reply-To: <20170330115454.32154-6-mhocko@kernel.org>
+Subject: Re: [PATCH 5/6] mm, memory_hotplug: do not associate hotadded memory to zones until online
+Date: Fri, 31 Mar 2017 14:18:08 +0800
+Message-ID: <04c901d2a9e6$91968a20$b4c39e60$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <a0abf5c5-f2f1-04f4-d660-f8c70042b11b@redhat.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>, Dave Jones <davej@codemonkey.org.uk>
+To: 'Michal Hocko' <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Reza Arbab' <arbab@linux.vnet.ibm.com>, 'Yasuaki Ishimatsu' <yasu.isimatu@gmail.com>, 'Tang Chen' <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, 'Kani Toshimitsu' <toshi.kani@hpe.com>, slaoub@gmail.com, 'Joonsoo Kim' <js1304@gmail.com>, 'Andi Kleen' <ak@linux.intel.com>, 'David Rientjes' <rientjes@google.com>, 'Daniel Kiper' <daniel.kiper@oracle.com>, 'Igor Mammedov' <imammedo@redhat.com>, 'Vitaly Kuznetsov' <vkuznets@redhat.com>, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>, 'Dan Williams' <dan.j.williams@gmail.com>, 'Heiko Carstens' <heiko.carstens@de.ibm.com>, 'Lai Jiangshan' <laijs@cn.fujitsu.com>, 'Martin Schwidefsky' <schwidefsky@de.ibm.com>
 
-On 30.03.2017 20:44, Laura Abbott wrote:
-> On 03/30/2017 10:37 AM, Kees Cook wrote:
->>
->> Reads out of /dev/mem should be restricted to non-RAM on Fedora, yes?
->>
->> Tommi, do your kernels have CONFIG_STRICT_DEVMEM=y ?
->>
->> -Kees
->>
->
-> CONFIG_STRICT_DEVMEM should be on in all Fedora kernels.
 
-Yes, the fedora kernels do have it enabled:
+On March 30, 2017 7:55 PM Michal Hocko wrote:
+> 
+> +static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
+> +		unsigned long nr_pages)
+> +{
+> +	unsigned long old_end_pfn = zone_end_pfn(zone);
+> +
+> +	if (start_pfn < zone->zone_start_pfn)
+> +		zone->zone_start_pfn = start_pfn;
+> +
+> +	zone->spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - zone->zone_start_pfn;
+> +}
+The implementation above implies zone can only go bigger.
+Can we resize zone with the given data?
 
-   $ grep STRICT_DEVMEM /boot/config-4.9.14-200.fc25.x86_64
-   CONFIG_STRICT_DEVMEM=y
-   CONFIG_IO_STRICT_DEVMEM=y
+btw,  this mail address, Zhang Zhen <zhenzhang.zhang@huawei.com> , is not reachable. 
 
-But I do not have it in my own build:
-
-   $ grep STRICT_DEVMEM .config
-   # CONFIG_STRICT_DEVMEM is not set
-
--Tommi
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
