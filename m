@@ -1,97 +1,388 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B00016B0397
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 13:32:07 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id f193so51251771oib.1
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 10:32:07 -0700 (PDT)
-Received: from mail-it0-x22d.google.com (mail-it0-x22d.google.com. [2607:f8b0:4001:c0b::22d])
-        by mx.google.com with ESMTPS id p187si2898497oib.290.2017.03.31.10.32.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Mar 2017 10:32:06 -0700 (PDT)
-Received: by mail-it0-x22d.google.com with SMTP id 190so15855782itm.0
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 10:32:06 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D09A2806CB
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 13:59:08 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b10so86470346pgn.8
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 10:59:08 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id m12si5753229pgc.341.2017.03.31.10.59.06
+        for <linux-mm@kvack.org>;
+        Fri, 31 Mar 2017 10:59:06 -0700 (PDT)
+Date: Fri, 31 Mar 2017 18:58:45 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Bad page state splats on arm64, v4.11-rc{3,4}
+Message-ID: <20170331175845.GE6488@leverpostej>
 MIME-Version: 1.0
-In-Reply-To: <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk>
-References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
- <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
- <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
- <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 31 Mar 2017 10:32:04 -0700
-Message-ID: <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
-Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>, Kees Cook <keescook@chromium.org>, Tommi Rantala <tommi.t.rantala@nokia.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, will.deacon@arm.com, catalin.marinas@arm.com
 
-On Fri, Mar 31, 2017 at 10:17 AM, Dave Jones <davej@codemonkey.org.uk> wrote:
-> On Thu, Mar 30, 2017 at 12:52:31PM -0700, Kees Cook wrote:
->  > On Thu, Mar 30, 2017 at 12:41 PM, Dave Jones <davej@codemonkey.org.uk> wrote:
->  > > On Thu, Mar 30, 2017 at 09:45:26AM -0700, Kees Cook wrote:
->  > >  > On Wed, Mar 29, 2017 at 11:44 PM, Tommi Rantala
->  > >  > <tommi.t.rantala@nokia.com> wrote:
->  > >  > > Hi,
->  > >  > >
->  > >  > > Running:
->  > >  > >
->  > >  > >   $ sudo x86info -a
->  > >  > >
->  > >  > > On this HP ZBook 15 G3 laptop kills the x86info process with segfault and
->  > >  > > produces the following kernel BUG.
->  > >  > >
->  > >  > >   $ git describe
->  > >  > >   v4.11-rc4-40-gfe82203
->  > >  > >
->  > >  > > It is also reproducible with the fedora kernel: 4.9.14-200.fc25.x86_64
->  > >  > >
->  > >  > > Full dmesg output here: https://pastebin.com/raw/Kur2mpZq
->  > >  > >
->  > >  > > [   51.418954] usercopy: kernel memory exposure attempt detected from
->  > >  > > ffff880000090000 (dma-kmalloc-256) (4096 bytes)
->  > >  >
->  > >  > This seems like a real exposure: the copy is attempting to read 4096
->  > >  > bytes from a 256 byte object.
->  > >
->  > > The code[1] is doing a 4k read from /dev/mem in the range 0x90000 -> 0xa0000
->  > > According to arch/x86/mm/init.c:devmem_is_allowed, that's still valid..
->  > >
->  > > Note that the printk is using the direct mapping address. Is that what's
->  > > being passed down to devmem_is_allowed now ? If so, that's probably what broke.
->  >
->  > So this is attempting to read physical memory 0x90000 -> 0xa0000, but
->  > that's somehow resolving to a virtual address that is claimed by
->  > dma-kmalloc?? I'm confused how that's happening...
->
-> /dev/mem is using physical addresses that the kernel translates through the
-> direct mapping.  __check_object_size seems to think that anything passed
-> into it is always allocated by the kernel, but in this case, I think read_mem()
-> is just passing through the direct mapping to copy_to_user.
+Hi,
 
-How is ffff880000090000 both in the direct mapping and a slab object?
+I'm seeing intermittent bad page state splats on arm64 with 4.11-rc3 and
+v4.11-rc4. I have not tested earlier kernels, or other architectures.
 
-It would need to pass all of these checks, and be marked as PageSlab
-before it could be evaluated by __check_heap_object:
+So far, it looks like the flags are always bad in the same
+way:
 
-        if (is_vmalloc_or_module_addr(ptr))
-                return NULL;
+	bad because of flags: 0x80(waiters)
 
-        if (!virt_addr_valid(ptr))
-                return NULL;
+... though I don't know if that's definitely the case for splat 4, the
+BUG at mm/page_alloc.c:800.
 
-        page = virt_to_head_page(ptr);
+I see this in QEMU VMs launched by Syzkaller, triggering once every few
+hours. So far, I have not been able to reproduce the issue in any other
+way (including using syz-repro).
 
-        /* Check slab allocator for flags and size. */
-        if (PageSlab(page))
-                return __check_heap_object(ptr, n, page);
+Any ideas?
 
+Splats below.
 
--Kees
+Thanks,
+Mark.
 
--- 
-Kees Cook
-Pixel Security
+Splat 1:
+----
+BUG: Bad page state in process syz-fuzzer  pfn:50200
+page:ffff7e0000408000 count:0 mapcount:0 mapping:          (null) index:0x1
+flags: 0xfffc00000000080(waiters)
+raw: 0fffc00000000080 0000000000000000 0000000000000001 00000000ffffffff
+raw: dead000000000100 dead000000000200 0000000000000000 0000000000000000
+page dumped because: PAGE_FLAGS_CHECK_AT_PREP flag set
+bad because of flags: 0x80(waiters)
+Modules linked in:
+CPU: 1 PID: 1274 Comm: syz-fuzzer Not tainted 4.11.0-rc3 #13
+Hardware name: linux,dummy-virt (DT)
+Call trace:
+[<ffff200008094778>] dump_backtrace+0x0/0x538 arch/arm64/kernel/traps.c:73
+[<ffff200008094cd0>] show_stack+0x20/0x30 arch/arm64/kernel/traps.c:228
+[<ffff200008be82a8>] __dump_stack lib/dump_stack.c:16 [inline]
+[<ffff200008be82a8>] dump_stack+0x120/0x188 lib/dump_stack.c:52
+[<ffff20000842c858>] bad_page+0x1d8/0x2e8 mm/page_alloc.c:555
+[<ffff20000842cc68>] check_new_page_bad+0xf8/0x200 mm/page_alloc.c:1682
+[<ffff20000843a2a0>] check_new_pages mm/page_alloc.c:1694 [inline]
+[<ffff20000843a2a0>] rmqueue mm/page_alloc.c:2729 [inline]
+[<ffff20000843a2a0>] get_page_from_freelist+0xc58/0x2580 mm/page_alloc.c:3046
+[<ffff20000843cb80>] __alloc_pages_nodemask+0x1d0/0x1af0 mm/page_alloc.c:3965
+[<ffff200008548238>] __alloc_pages include/linux/gfp.h:426 [inline]
+[<ffff200008548238>] __alloc_pages_node include/linux/gfp.h:439 [inline]
+[<ffff200008548238>] alloc_pages_vma+0x438/0x7a8 mm/mempolicy.c:2015
+[<ffff20000858299c>] do_huge_pmd_wp_page+0x4bc/0x1630 mm/huge_memory.c:1230
+[<ffff2000084d7b80>] wp_huge_pmd mm/memory.c:3624 [inline]
+[<ffff2000084d7b80>] __handle_mm_fault+0x10a0/0x2760 mm/memory.c:3831
+[<ffff2000084d9530>] handle_mm_fault+0x2f0/0x998 mm/memory.c:3878
+[<ffff2000080bb9e4>] __do_page_fault arch/arm64/mm/fault.c:264 [inline]
+[<ffff2000080bb9e4>] do_page_fault+0x48c/0x730 arch/arm64/mm/fault.c:359
+[<ffff2000080816b8>] do_mem_abort+0xd8/0x2c8 arch/arm64/mm/fault.c:578
+Exception stack(0xffff800017fdfdb0 to 0xffff800017fdfee0)
+fda0:                                   0000000000000000 0000600015536000
+fdc0: ffffffffffffffff 00000000000fe340 0000000060000000 0000000000000024
+fde0: 000000009200004e 0000004421d722e8 00000000007ffff9 ffff800018bf1880
+fe00: 0000000041b58ab3 ffff20000a82f1f0 ffff2000080815e0 ffff20000808466c
+fe20: 0000000000000000 000000000003e3d4 0000000000000000 0000000000000024
+fe40: 000000009200004f 00000044205e5cd8 00000000011a6f80 ffff800018bf1880
+fe60: ffff800018bf1880 ffff20000a84e6f0 ffff20000ad734a0 ffff20000ad73580
+fe80: ffff800017fdfeb0 ffff2000082689c0 0000000000000000 0000600034524000
+fea0: ffffffffffffffff 000000000003e3d4 0000000000000000 ffff20000808466c
+fec0: 0000000000000000 0000000000000000 0000000000000138 0000004421d722c0
+[<ffff2000080843ac>] el0_da+0x18/0x1c
+Disabling lock debugging due to kernel taint
+----
+
+Splat 2:
+----
+BUG: Bad page state in process syz-fuzzer  pfn:51000
+page:ffff7e0000440000 count:0 mapcount:0 mapping:          (null) index:0x1
+flags: 0xfffc00000000080(waiters)
+raw: 0fffc00000000080 0000000000000000 0000000000000001 00000000ffffffff
+raw: dead000000000100 dead000000000200 0000000000000000 0000000000000000
+page dumped because: PAGE_FLAGS_CHECK_AT_PREP flag set
+bad because of flags: 0x80(waiters)
+Modules linked in:
+CPU: 0 PID: 1274 Comm: syz-fuzzer Not tainted 4.11.0-rc3 #13
+Hardware name: linux,dummy-virt (DT)
+Call trace:
+[<ffff200008094778>] dump_backtrace+0x0/0x538 arch/arm64/kernel/traps.c:73
+[<ffff200008094cd0>] show_stack+0x20/0x30 arch/arm64/kernel/traps.c:228
+[<ffff200008be82a8>] __dump_stack lib/dump_stack.c:16 [inline]
+[<ffff200008be82a8>] dump_stack+0x120/0x188 lib/dump_stack.c:52
+[<ffff20000842c858>] bad_page+0x1d8/0x2e8 mm/page_alloc.c:555
+[<ffff20000842cc68>] check_new_page_bad+0xf8/0x200 mm/page_alloc.c:1682
+[<ffff2000084365b0>] check_new_page mm/page_alloc.c:1694 [inline]
+[<ffff2000084365b0>] check_pcp_refill mm/page_alloc.c:1717 [inline]
+[<ffff2000084365b0>] rmqueue_bulk.constprop.21+0x330/0x610 mm/page_alloc.c:2230
+[<ffff20000843a9a8>] __rmqueue_pcplist mm/page_alloc.c:2654 [inline]
+[<ffff20000843a9a8>] rmqueue_pcplist mm/page_alloc.c:2686 [inline]
+[<ffff20000843a9a8>] rmqueue mm/page_alloc.c:2708 [inline]
+[<ffff20000843a9a8>] get_page_from_freelist+0x1360/0x2580 mm/page_alloc.c:3046
+[<ffff20000843cb80>] __alloc_pages_nodemask+0x1d0/0x1af0 mm/page_alloc.c:3965
+[<ffff200008547ef4>] alloc_pages_vma+0xf4/0x7a8 mm/mempolicy.c:2023
+[<ffff2000084d831c>] __alloc_zeroed_user_highpage include/linux/highmem.h:161 [inline]
+[<ffff2000084d831c>] alloc_zeroed_user_highpage_movable include/linux/highmem.h:183 [inline]
+[<ffff2000084d831c>] do_anonymous_page mm/memory.c:2948 [inline]
+[<ffff2000084d831c>] handle_pte_fault mm/memory.c:3721 [inline]
+[<ffff2000084d831c>] __handle_mm_fault+0x183c/0x2760 mm/memory.c:3841
+[<ffff2000084d9530>] handle_mm_fault+0x2f0/0x998 mm/memory.c:3878
+[<ffff2000080bb9e4>] __do_page_fault arch/arm64/mm/fault.c:264 [inline]
+[<ffff2000080bb9e4>] do_page_fault+0x48c/0x730 arch/arm64/mm/fault.c:359
+[<ffff2000080816b8>] do_mem_abort+0xd8/0x2c8 arch/arm64/mm/fault.c:578
+Exception stack(0xffff800018adbdb0 to 0xffff800018adbee0)
+bda0:                                   0000000000000000 000060001551e000
+bdc0: ffffffffffffffff 0000000000ac800c 0000000080000000 0000000000000024
+bde0: 0000000092000047 0000004428f6c000 00000000011c42a8 ffff80001903b080
+be00: 0000000041b58ab3 ffff20000a82f1f0 ffff2000080815e0 ffff2000082fd1f4
+be20: 0000000000000000 ffff200008084770 0000000000000000 000060001551e000
+be40: ffffffffffffffff 0000000000060934 0000000060000000 0000000000000015
+be60: 0000000041b58ab3 ffff20000a844740 ffff2000082fd0b0 ffff20000ad73580
+be80: 000000000000003c 00000000399cfaa0 0000000000000000 000060001551e000
+bea0: ffffffffffffffff 0000000000060a40 0000000020000000 0000000000000015
+bec0: 0000004428f6c000 000000000111b360 0000000000000000 00000000000000a0
+[<ffff2000080843ac>] el0_da+0x18/0x1c
+Disabling lock debugging due to kernel taint
+----
+
+Splat 3:
+----
+BUG: Bad page state in process syz-fuzzer  pfn:55c00
+page:ffff7e0000570000 count:0 mapcount:0 mapping:          (null) index:0x1
+flags: 0xfffc00000000080(waiters)
+raw: 0fffc00000000080 0000000000000000 0000000000000001 00000000ffffffff
+raw: dead000000000100 dead000000000200 0000000000000000 0000000000000000
+page dumped because: PAGE_FLAGS_CHECK_AT_PREP flag set
+bad because of flags: 0x80(waiters)
+Modules linked in:
+CPU: 0 PID: 1277 Comm: syz-fuzzer Not tainted 4.11.0-rc4-00009-g15bc66d #1
+Hardware name: linux,dummy-virt (DT)
+Call trace:
+[<ffff200008094778>] dump_backtrace+0x0/0x538 arch/arm64/kernel/traps.c:73
+[<ffff200008094cd0>] show_stack+0x20/0x30 arch/arm64/kernel/traps.c:228
+[<ffff200008c1bf28>] __dump_stack lib/dump_stack.c:16 [inline]
+[<ffff200008c1bf28>] dump_stack+0x120/0x188 lib/dump_stack.c:52
+[<ffff200008433088>] bad_page+0x1d8/0x2e8 mm/page_alloc.c:555
+[<ffff200008433498>] check_new_page_bad+0xf8/0x200 mm/page_alloc.c:1682
+[<ffff20000843f930>] check_new_pcp mm/page_alloc.c:1694 [inline]
+[<ffff20000843f930>] __rmqueue_pcplist mm/page_alloc.c:2668 [inline]
+[<ffff20000843f930>] rmqueue_pcplist+0x768/0xde0 mm/page_alloc.c:2686
+[<ffff200008443f08>] rmqueue mm/page_alloc.c:2708 [inline]
+[<ffff200008443f08>] get_page_from_freelist+0xdb0/0x2298 mm/page_alloc.c:3046
+[<ffff2000084463dc>] __alloc_pages_nodemask+0x1f4/0x1b10 mm/page_alloc.c:3965
+[<ffff2000085674ac>] alloc_pages_vma+0xf4/0x848 mm/mempolicy.c:2023
+[<ffff2000084e9a84>] __alloc_zeroed_user_highpage include/linux/highmem.h:161 [inline]
+[<ffff2000084e9a84>] alloc_zeroed_user_highpage_movable include/linux/highmem.h:183 [inline]
+[<ffff2000084e9a84>] do_anonymous_page+0x55c/0x12b8 mm/memory.c:2948
+[<ffff2000084ee79c>] handle_pte_fault mm/memory.c:3721 [inline]
+[<ffff2000084ee79c>] __handle_mm_fault+0xb24/0xea0 mm/memory.c:3841
+[<ffff2000084eee08>] handle_mm_fault+0x2f0/0x9a0 mm/memory.c:3878
+[<ffff2000080bb8bc>] __do_page_fault arch/arm64/mm/fault.c:264 [inline]
+[<ffff2000080bb8bc>] do_page_fault+0x4d4/0x790 arch/arm64/mm/fault.c:359
+[<ffff2000080816b8>] do_mem_abort+0xd8/0x2c8 arch/arm64/mm/fault.c:578
+Exception stack(0xffff800018ed3db0 to 0xffff800018ed3ee0)
+3da0:                                   0000000000000000 00006000154dd000
+3dc0: ffffffffffffffff 0000000000ac800c 0000000080000000 0000000000000024
+3de0: 0000000092000047 00000044299b4000 00000000011c42a8 ffff80001815c880
+3e00: 0000000041b58ab3 ffff20000a86d938 ffff2000080815e0 ffff2000082ff66c
+3e20: 0000000000000000 ffff200008084770 0000000000000000 00006000154dd000
+3e40: ffffffffffffffff 0000000000060934 0000000060000000 0000000000000015
+3e60: 0000000041b58ab3 ffff20000a882fa8 ffff2000082ff528 ffff20000adb97a0
+3e80: 000000000000004e 000000001cdb0b18 0000000000000000 00006000154dd000
+3ea0: ffffffffffffffff 0000000000060a40 0000000020000000 0000000000000015
+3ec0: 00000044299b4000 000000000111b360 0000000000000000 00000000000000a0
+[<ffff2000080843ac>] el0_da+0x18/0x1c
+Disabling lock debugging due to kernel taint
+----
+
+Splat 4
+----
+------------[ cut here ]------------
+kernel BUG at mm/page_alloc.c:800!
+Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+Modules linked in:
+CPU: 2 PID: 1267 Comm: syz-fuzzer Not tainted 4.11.0-rc3 #1
+Hardware name: linux,dummy-virt (DT)
+task: ffff800018d09880 task.stack: ffff800018c0c000
+PC is at __free_one_page mm/page_alloc.c:800 [inline]
+PC is at free_one_page+0xec4/0x1c00 mm/page_alloc.c:1164
+LR is at __free_one_page mm/page_alloc.c:800 [inline]
+LR is at free_one_page+0xec4/0x1c00 mm/page_alloc.c:1164
+pc : [<ffff200008436af4>] lr : [<ffff200008436af4>] pstate: 800001c5
+sp : ffff800018c0f250
+x29: ffff800018c0f250 x28: ffff7e00003f0000 
+x27: 0000000000000009 x26: 1ffff00003fffc78 
+x25: 0000000000000000 x24: ffff80001fffe3c0 
+x23: 0000000000000200 x22: 0000000000000000 
+x21: ffff80001fffe380 x20: 000000000004fc00 
+x19: 0000000000000200 x18: ffff800018d0a038 
+x17: 0000000000000000 x16: 0000000000000000 
+x15: 1ffff000031a1407 x14: 3030303030303030 
+x13: ffff20000adb9000 x12: 3030303030303030 
+x11: ffff20000e004000 x10: 0000000000000000 
+x9 : ffff100003181d90 x8 : ffff800018d0a0b8 
+x7 : ffff20000d5ba000 x6 : 0000000000000000 
+x5 : 0000000041b58ab3 x4 : 1fffe40001c00810 
+x3 : 1fffe40001c00810 x2 : 1fffefc00007e007 
+x1 : 0000000000000001 x0 : 0000000000000000 
+
+Process syz-fuzzer (pid: 1267, stack limit = 0xffff800018c0c000)
+Stack: (0xffff800018c0f250 to 0xffff800018c10000)
+f240:                                   ffff800018c0f3c0 ffff200008437c88
+f260: ffff7e00003f0000 ffff20000ab3fbb8 1ffff00003181e8c 0000000000000000
+f280: 0000000000000009 0000000000000000 000000000004fc00 0000000000000007
+f2a0: ffff80001fffd2b8 ffff20000e037d00 ffff800018c0f2f0 ffff2000080bff58
+f2c0: 000ffff80000fe00 000ffff80000fe00 1ffff00003181e66 ffff80001fffe3f8
+f2e0: 1ffff00003181e64 ffff80001fffe900 0000000000000140 ffff2000080c0348
+f300: 1ffff00003fffc7f 0000000000000200 0000000000000001 1fffefc00007e000
+f320: 0000000041b58ab3 ffff20000a873648 ffff200008435c30 ffff20000a8704a0
+f340: ffff2000080bfe70 ffff200008437b40 ffff800018c0f390 ffff2000080c034c
+f360: ffff80000fc00000 0000000000000200 0000000000000000 ffff7e00003f0008
+f380: 0000000000000000 0000000000000000 ffff800018c0f3c0 ffff200008437cf0
+f3a0: ffff7e00003f0000 0000000000000200 ffff800018c0f3c0 ffff200008437b64
+f3c0: ffff800018c0f4c0 ffff20000843897c ffff7e00003f0000 ffff7e00003f0040
+f3e0: ffff7e00003f0088 ffff7e00003f0090 ffff80001ffffdf0 ffff80001ffffdb8
+f400: 0000000000000140 ffff80001ffffdf0 04e800004fc00f10 ffff7e0000da8020
+f420: 0000000000000000 ffff20000aff1700 ffff80001ffffdf0 ffff20000aff0e00
+f440: ffff20000a1b6720 ffff80001ffffdf0 04e800004fc00f10 ffff7e0000000001
+f460: 0000000041b58ab3 ffff20000a86c150 ffff200008437830 ffff20000adb94a0
+f480: 0000000000000000 ffff20000826a398 ffff800018c0f4c0 ffff20000a133afc
+f4a0: ffff800018d09880 ffff80001ffffdb8 ffff7e00003f0088 ffff7e00003f0090
+f4c0: ffff800018c0f4e0 ffff2000085add14 ffff7e00003f0000 1ffff00003181ea6
+f4e0: ffff800018c0f590 ffff200008460c14 ffff7e00003f0000 ffff20000a1b9460
+f500: 0000000000000003 ffff20000ab3f000 ffff7e0000da8000 ffff80001782c800
+f520: ffff7e00003f0020 ffff800018e85298 0000000041b58ab3 ffff20000a86c150
+f540: ffff2000085adb88 ffff20000847359c ffff80001ffffdf0 ffff200008460be4
+f560: ffff7e00003f0000 ffff7e00003f0040 0000000000000003 ffff7e00003f001c
+f580: ffff7e00003f0000 ffff200008460cc8 ffff800018c0f5c0 ffff200008460cd0
+f5a0: ffff7e00003f0000 ffff7e00003f001c ffff7e00003f0000 ffff7e00003f001c
+f5c0: ffff800018c0f5e0 ffff20000859bffc ffff7e00003f0000 ffff7e00003f001c
+f5e0: ffff800018c0f6c0 ffff2000085a5ac4 0000000000000001 ffff7e00003f0000
+f600: 04e800004fc00f10 ffff800018e85298 ffff800018c0f788 ffff800018c0f838
+f620: ffff800039466640 1ffff00003181f08 0000000000000000 ffff800018cd34d8
+f640: 0000000041b58ab3 ffff20000a871ec8 ffff2000082788f0 ffff2000085a59f4
+f660: ffff800039466a20 1ffff000031d0a5b 0000000000000000 ffff8000394666a8
+f680: ffff800000000001 ffff7e00003f0000 0000004420200000 1ffff0000728cd44
+f6a0: 0000000018c0f6c0 1ffff00002f05900 0000004420000000 00a8000076a00f51
+f6c0: ffff800018c0f790 ffff2000084eda88 ffff800018e85298 ffff80001782c800
+f6e0: 04e800004fc00f10 1ffff00003181f00 ffff20000a8ef000 1ffff000031d0a5d
+f700: ffff800018e852e8 0000000040000000 ffff800039f3f880 1ffff000073e7f10
+f720: 1ffff000031a1407 0008000000000000 ffff7e00003f0000 ffff800018e852d8
+f740: ffff800018c0f840 ffff800018c0f878 0000000000003fff ffff2000084eda7c
+f760: ffff7e0000000001 1ffff000031d0a5b 1ffff00003181f07 0000004420000000
+f780: ffff7e0000000000 04e800004fc00f10 ffff800018c0f8c0 ffff2000084ee1f8
+f7a0: ffff800018e85298 0000000000000015 0000004420033000 0000000000000000
+f7c0: 000000000000001d 000000000000001e 0000000000000000 ffff8000394666e0
+f7e0: 0000000000020000 ffff800018e85298 ffff800018c0f830 ffff200008c85344
+f800: 0000000041b58ab3 ffff20000a8892e0 ffff2000084ed068 0000000000000015
+f820: ffff800018e85298 014000c000000015 0000000004420033 0000004420033000
+f840: ffff80001782c800 ffff800039f3f880 0000000000000000 0000000000000000
+f860: 0000000000000000 0000000000000000 0000000000000000 ffff8000394666a8
+f880: 0000000000000000 ffff2000084ee1e8 ffff800018e85298 0000000000000015
+f8a0: 0000004420033000 1ffff000031a1407 ffff2000084ee144 0000000000000140
+f8c0: ffff800018c0f910 ffff2000080bb8bc ffff800018d09880 ffff800018c0fae0
+f8e0: ffff800039466640 0000004420033f38 0000000096000046 0000000000000015
+f900: 1ffff00003181f7d ffff8000394666e0 ffff800018c0f990 ffff2000080bbc1c
+f920: 0001000000000000 0000004420033f38 0000000096000046 ffff800018c0fae0
+f940: 0000000096000046 0000004420033f38 ffff800018c0fae0 ffff20000a157a80
+f960: ffff20000a157b10 ffff20000a157000 0000000096000046 ffff800018d0a040
+f980: ffff800018c0fbe8 0000000000000002 ffff800018c0f9c0 ffff2000080816b8
+f9a0: 0000000000000090 1ffff00003181f44 ffff20000a157a80 0000dffff5ea8588
+f9c0: ffff800018c0fc10 ffff200008083e04 1ffff00003181f8c 0001000000000000
+f9e0: ffff800018c0fc10 ffff200008c17ea4 0000000080000145 0000000000000025
+fa00: 0000000000000000 ffff800018c0fd00 0000000000000000 ffff800018d09880
+fa20: 0000000041b58ab3 ffff20000a86d438 ffff2000080815e0 ffff20000ddfede8
+fa40: ffff800018c0fa80 ffff200008c85344 0000000000000002 ffff800018d09880
+fa60: ffff800018c0faa0 ffff200008c85344 ffff800018c0faf0 ffff20000826a138
+fa80: ffff800018d09880 ffff2000082e9f30 0000000000000000 1ffff00003181f76
+faa0: ffff800018c0fae0 ffff200009ad460c 000000039d47d4fe ffff800018c0fc80
+fac0: ffff20000e028780 ffff200009ad47cc ffff20000ccad9e0 ffff800018c0fc80
+fae0: 0000004420033f38 ffff800018c0fcd0 0000000000000010 0000000000000010
+fb00: 0000000000000000 0000004420033f48 0000004420033f38 0000000000000000
+fb20: 0000000000000000 dfff200000000000 ffff100003181f99 1ffff00003181f99
+fb40: 0000000000000007 ffff20000adb9000 ffff8000398164ec 1ffff000031a1407
+fb60: 1ffff000031a1341 0000ffffd349bf68 ffff800018d0a038 1ffff00003181f8c
+fb80: 0000000000000000 ffff800018c0fcc0 ffff800018d09880 0000004420033f38
+fba0: 0000000000000000 0000000000000000 ffff800018c0fd00 0000000000000000
+fbc0: ffff800018d09880 ffff800018c0fc10 ffff2000086314d0 ffff800018c0fc10
+fbe0: ffff200008c17ea4 0000000080000145 ffff800018c0fcc0 ffff20000858b9b0
+fc00: 0001000000000000 ffff200008631488 ffff800018c0fd40 ffff200008634908
+fc20: ffff800018c0fe80 0000000000000000 1ffff00003181fb4 0000004420033f38
+fc40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+fc60: 0000000041b58ab3 ffff20000a88d370 ffff200008631200 ffff20000863256c
+fc80: 0000000000000000 0000000000000000 0000000000000000 ffff800018c0fe80
+fca0: ffff20000e028700 ffff200009ad47cc ffff800018c0fd40 ffff200008634814
+fcc0: 0000000000000000 0000000000000000 1ffff00003181fb4 0000004420033f38
+fce0: 0000000041b58ab3 ffff20000a882350 ffff2000086324b0 ffff2000082e98ac
+fd00: ffffffffffffffff 000000003b9644f0 ffff800018c0fe80 0000000000000000
+fd20: 1ffff00003181fb4 ffff20000858b9d0 ffff800018c0fd40 ffff20000863466c
+fd40: 0000000000000000 ffff200008084770 0000000000000000 000060003429d000
+fd60: ffffffffffffffff 000000000006084c 0000000020000000 0000000000000015
+fd80: 0000000000000123 0000000000000048 ffff20000a146000 ffff800018d09880
+fda0: 0000000041b58ab3 ffff20000a88d440 ffff200008634538 ffffffffffffffea
+fdc0: ffff800018c0fe80 ffff2000082fa544 ffff800018c0fe80 ffffffffffffffea
+fde0: ffff800018c0fe20 ffff2000082fee10 1ffff00003181fcc 0000000000000000
+fe00: ffff800018c0fe80 ffff20000858b9b0 ffff800018c0fe20 ffff2000082feed4
+fe20: 0000000000000000 ffff200008084770 0000000000000000 000060003429d000
+fe40: 0000000000000000 0000000000989680 0000000020000000 0000000000000015
+fe60: 0000000041b58ab3 ffff20000a882a80 ffff2000082fed90 ffff20000adb94a0
+fe80: 000000000000003c 00000000194bd0b0 0000000000000000 000060003429d000
+fea0: ffffffffffffffff 000000000006084c 0000000000000000 ffff20000808466c
+fec0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+fee0: 0000004420033f38 0000000000000000 0000000000000000 fffffffffffffade
+ff00: 0000000000000048 000000000000064e 0000004420024000 00000044200004e0
+ff20: 000000000003ac40 00000000000000f3 0000000000000008 0000000000000000
+ff40: 0000004420033f50 0000ffffd349bf68 0000000000000000 0000000000000000
+ff60: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+ff80: 0000000000000000 0000000000000000 0000000000c200b8 0000000000002710
+ffa0: 00000044200004e0 0000000000000000 000000000004144c 0000004420033f30
+ffc0: 000000000006084c 0000000020000000 0000000000000000 0000000000000048
+ffe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+Call trace:
+Exception stack(0xffff800018c0f000 to 0xffff800018c0f130)
+f000: 0000000000000200 0001000000000000 ffff800018c0f250 ffff200008436af4
+f020: 00000000800001c5 000000000000003d 0000000000000000 1ffff00003fffc78
+f040: 0000000000000009 ffff800018d09880 ffff20000829a6d0 0000004420033f38
+f060: 0000000041b58ab3 ffff20000a86d438 ffff200008081ac8 ffff20000a1c6000
+f080: 1fffefc00007e000 ffff20000a1b7000 0000000004420000 0000000000000000
+f0a0: ffff800018c0f0e0 ffff200008416cec 1ffff00003181e26 dfff200000000000
+f0c0: ffff100003181e26 ffff20000ba03f20 1ffff00003181e1e ffff20000a281740
+f0e0: ffff800018c0f1d0 ffff2000084ceb20 ffff7e00003f0000 ffff20000a1c6040
+f100: 0000000000000000 ffff20000a1c6000 ffff800018c0f1d0 ffff800018c0f1d0
+f120: 0000000000000000 0000000000000001
+[<ffff200008436af4>] __free_one_page mm/page_alloc.c:800 [inline]
+[<ffff200008436af4>] free_one_page+0xec4/0x1c00 mm/page_alloc.c:1164
+[<ffff200008437c88>] __free_pages_ok+0x458/0x10c8 mm/page_alloc.c:1250
+[<ffff20000843897c>] free_compound_page+0x84/0xd8 mm/page_alloc.c:579
+[<ffff2000085add14>] free_transhuge_page+0x18c/0x320 mm/huge_memory.c:2495
+[<ffff200008460c14>] __put_compound_page+0x94/0x110 mm/swap.c:95
+[<ffff200008460cd0>] __put_page+0x40/0xe8 mm/swap.c:101
+[<ffff20000859bffc>] put_page include/linux/mm.h:797 [inline]
+[<ffff20000859bffc>] migrate_misplaced_transhuge_page+0x19dc/0x2538 mm/migrate.c:2021
+[<ffff2000085a5ac4>] do_huge_pmd_numa_page+0x484/0x1120 mm/huge_memory.c:1483
+[<ffff2000084eda88>] __handle_mm_fault+0xa20/0xea0 mm/memory.c:3827
+[<ffff2000084ee1f8>] handle_mm_fault+0x2f0/0x9a0 mm/memory.c:3878
+[<ffff2000080bb8bc>] __do_page_fault arch/arm64/mm/fault.c:264 [inline]
+[<ffff2000080bb8bc>] do_page_fault+0x4d4/0x790 arch/arm64/mm/fault.c:359
+[<ffff2000080bbc1c>] do_translation_fault+0xa4/0xe8 arch/arm64/mm/fault.c:470
+[<ffff2000080816b8>] do_mem_abort+0xd8/0x2c8 arch/arm64/mm/fault.c:578
+Exception stack(0xffff800018c0f9d0 to 0xffff800018c0fb00)
+f9c0:                                   1ffff00003181f8c 0001000000000000
+f9e0: ffff800018c0fc10 ffff200008c17ea4 0000000080000145 0000000000000025
+fa00: 0000000000000000 ffff800018c0fd00 0000000000000000 ffff800018d09880
+fa20: 0000000041b58ab3 ffff20000a86d438 ffff2000080815e0 ffff20000ddfede8
+fa40: ffff800018c0fa80 ffff200008c85344 0000000000000002 ffff800018d09880
+fa60: ffff800018c0faa0 ffff200008c85344 ffff800018c0faf0 ffff20000826a138
+fa80: ffff800018d09880 ffff2000082e9f30 0000000000000000 1ffff00003181f76
+faa0: ffff800018c0fae0 ffff200009ad460c 000000039d47d4fe ffff800018c0fc80
+fac0: ffff20000e028780 ffff200009ad47cc ffff20000ccad9e0 ffff800018c0fc80
+fae0: 0000004420033f38 ffff800018c0fcd0 0000000000000010 0000000000000010
+[<ffff200008083e04>] el1_da+0x18/0x78
+[<ffff200008634908>] do_pselect fs/select.c:689 [inline]
+[<ffff200008634908>] SYSC_pselect6 fs/select.c:729 [inline]
+[<ffff200008634908>] SyS_pselect6+0x3d0/0x498 fs/select.c:714
+[<ffff200008084770>] el0_svc_naked+0x24/0x28
+Code: aa1c03e0 911c8021 91238021 940260a0 (d4210000) 
+---[ end trace d0bbbea96ed9c1c1 ]---
+----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
