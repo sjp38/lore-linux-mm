@@ -1,127 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 55AFF6B0038
-	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 20:00:49 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k22so11527449wrk.5
-        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 17:00:49 -0700 (PDT)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id o67si857363wme.150.2017.03.30.17.00.47
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 880F76B0038
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2017 20:15:55 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j70so62199553pge.11
+        for <linux-mm@kvack.org>; Thu, 30 Mar 2017 17:15:55 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id k5si3281886pln.108.2017.03.30.17.15.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Mar 2017 17:00:47 -0700 (PDT)
-Date: Fri, 31 Mar 2017 08:00:30 +0800
-From: joeyli <jlee@suse.com>
-Subject: Re: memory hotplug and force_remove
-Message-ID: <20170331000030.GO28365@linux-l9pv.suse>
-References: <20170320192938.GA11363@dhcp22.suse.cz>
- <20170330162031.GE4326@dhcp22.suse.cz>
- <20170330165729.GN28365@linux-l9pv.suse>
- <8340752.8oM5M3L67Q@aspire.rjw.lan>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 30 Mar 2017 17:15:54 -0700 (PDT)
+Date: Fri, 31 Mar 2017 11:15:49 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2017-03-30-16-31 uploaded
+Message-ID: <20170331111549.4095877d@canb.auug.org.au>
+In-Reply-To: <58dd956b.QgnkRmcTNdLnV9Cm%akpm@linux-foundation.org>
+References: <58dd956b.QgnkRmcTNdLnV9Cm%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8340752.8oM5M3L67Q@aspire.rjw.lan>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Michal Hocko <mhocko@kernel.org>, Jiri Kosina <jikos@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, mhocko@suse.cz, broonie@kernel.org
 
-On Thu, Mar 30, 2017 at 10:15:04PM +0200, Rafael J. Wysocki wrote:
-> On Friday, March 31, 2017 12:57:29 AM joeyli wrote:
-> > On Thu, Mar 30, 2017 at 06:20:34PM +0200, Michal Hocko wrote:
-> > > On Thu 30-03-17 10:47:52, Jiri Kosina wrote:
-> > > > On Tue, 28 Mar 2017, Rafael J. Wysocki wrote:
-> > > > 
-> > > > > > > > we have been chasing the following BUG() triggering during the memory
-> > > > > > > > hotremove (remove_memory):
-> > > > > > > > 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
-> > > > > > > > 				check_memblock_offlined_cb);
-> > > > > > > > 	if (ret)
-> > > > > > > > 		BUG();
-> > > > > > > > 
-> > > > > > > > and it took a while to learn that the issue is caused by
-> > > > > > > > /sys/firmware/acpi/hotplug/force_remove being enabled. I was really
-> > > > > > > > surprised to see such an option because at least for the memory hotplug
-> > > > > > > > it cannot work at all. Memory hotplug fails when the memory is still
-> > > > > > > > in use. Even if we do not BUG() here enforcing the hotplug operation
-> > > > > > > > will lead to problematic behavior later like crash or a silent memory
-> > > > > > > > corruption if the memory gets onlined back and reused by somebody else.
-> > > > > > > > 
-> > > > > > > > I am wondering what was the motivation for introducing this behavior and
-> > > > > > > > whether there is a way to disallow it for memory hotplug. Or maybe drop
-> > > > > > > > it completely. What would break in such a case?
-> > > > > > > 
-> > > > > > > Honestly, I don't remember from the top of my head and I haven't looked at
-> > > > > > > that code for several months.
-> > > > > > > 
-> > > > > > > I need some time to recall that.
-> > > > > > 
-> > > > > > Did you have any chance to look into this?
-> > > > > 
-> > > > > Well, yes.
-> > > > > 
-> > > > > It looks like that was added for some people who depended on the old behavior
-> > > > > at that time.
-> > > > > 
-> > > > > I guess we can try to drop it and see what happpens. :-)
-> > > > 
-> > > > I'd agree with that; at the same time, udev rule should be submitted to 
-> > > > systemd folks though. I don't think there is anything existing in this 
-> > > > area yet (neither do distros ship their own udev rules for this AFAIK).
-> > > 
-> > > Another option would keepint the force_remove knob but make the code be
-> > > error handling aware. In other words rather than ignoring offline error
-> > > simply propagate it up the chain and do not consider the offline. Would
-> > > that be acceptable?
-> > 
-> > Then the only difference between normal mode is that the force_remove mode
-> > doesn't send out uevent for not-offline-yet container.
-> 
-> Which would be rather confusing.
-> 
-> The whole point of the thing was the "remove no matter what" behavior and
-> there's not much point in keeping it around without that.
+Hi Andrew,
+
+On Thu, 30 Mar 2017 16:31:55 -0700 akpm@linux-foundation.org wrote:
 >
+> * mm-page_alloc-split-smallest-stolen-page-in-fallback-fix.patch
 
-OK~ Understood.
+The above patch has an "Author:" header rather than a "From:" header
+and so "git am" chokes on it.
 
-Then back the "remove no matter waht" behavior, the point is
-force_remove knob causes that acpi_scan_try_to_offline() ignored
-the offline error of parent/children devices in the second pass:
-
-drivers/acpi/scan.c
-static int acpi_scan_try_to_offline(struct acpi_device *device)
-{  
-...
-	/* first pass to call bus offline for parent */
-	acpi_bus_offline(handle, 0, (void *)false, (void **)&errdev);
-	/* if failed, then second pass */
-	if (errdev) { 
-		errdev = NULL;
-		/* children devices, second pass */
-		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    NULL, acpi_bus_offline, (void *)true,
-				    (void **)&errdev);
-		/* ignored children's offline error here */
-		if (!errdev || acpi_force_hot_remove)
-			/* ignored parent's offline error */
-			acpi_bus_offline(handle, 0, (void *)true,
-					 (void **)&errdev);
-
-		/* will not set devices back to online */
-		if (errdev && !acpi_force_hot_remove) { 
-	...
-	}
-	return 0;
-}
-
-Then acpi_scan_try_to_offline() returns 0 and go to _remove_ stage, then
-memory subsystem raises BUG() because the device offline state doesn't sync
-with memory block state.
-
-
-Thanks a lot!
-Joey Lee
+-- 
+Cheers,
+Stephen Rothwell
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
