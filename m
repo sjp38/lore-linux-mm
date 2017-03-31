@@ -1,109 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 15DCC6B0038
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 05:25:36 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id s63so23957730ioe.3
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 02:25:36 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0120.outbound.protection.outlook.com. [104.47.1.120])
-        by mx.google.com with ESMTPS id r204si1985477itc.34.2017.03.31.02.25.34
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4726B0038
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 05:51:30 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v21so73943594pgo.22
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 02:51:30 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id f10si4690727pge.327.2017.03.31.02.51.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 31 Mar 2017 02:25:34 -0700 (PDT)
-Subject: Re: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
-References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
- <20170330152229.f2108e718114ed77acae7405@linux-foundation.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <d7d8bbc9-9f46-8c84-dcf3-c564dcccc7d7@virtuozzo.com>
-Date: Fri, 31 Mar 2017 12:26:53 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Mar 2017 02:51:29 -0700 (PDT)
+Message-ID: <58DE26FC.7090403@intel.com>
+Date: Fri, 31 Mar 2017 17:53:00 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170330152229.f2108e718114ed77acae7405@linux-foundation.org>
-Content-Type: text/plain; charset="windows-1252"
+Subject: Re: [PATCH kernel v8 3/4] mm: add inerface to offer info about unused
+ pages
+References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com> <1489648127-37282-4-git-send-email-wei.w.wang@intel.com> <20170316142842.69770813b98df70277431b1e@linux-foundation.org> <58CB8865.5030707@intel.com> <20170329204418-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170329204418-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, thellstrom@vmware.com, stable@vger.kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
 
-
-
-On 03/31/2017 01:22 AM, Andrew Morton wrote:
-> On Thu, 30 Mar 2017 13:27:16 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> 
->> Commit 5803ed292e63 ("mm: mark all calls into the vmalloc subsystem
->> as potentially sleeping") added might_sleep() to remove_vm_area() from
->> vfree(), and commit 763b218ddfaf ("mm: add preempt points into
->> __purge_vmap_area_lazy()") actually made vfree() potentially sleeping.
+On 03/30/2017 01:48 AM, Michael S. Tsirkin wrote:
+> On Fri, Mar 17, 2017 at 02:55:33PM +0800, Wei Wang wrote:
+>> On 03/17/2017 05:28 AM, Andrew Morton wrote:
+>>> On Thu, 16 Mar 2017 15:08:46 +0800 Wei Wang <wei.w.wang@intel.com> wrote:
+>>>
+>>>> From: Liang Li <liang.z.li@intel.com>
+>>>>
+>>>> This patch adds a function to provides a snapshot of the present system
+>>>> unused pages. An important usage of this function is to provide the
+>>>> unsused pages to the Live migration thread, which skips the transfer of
+>>>> thoses unused pages. Newly used pages can be re-tracked by the dirty
+>>>> page logging mechanisms.
+>>> I don't think this will be useful for anything other than
+>>> virtio-balloon.  I guess it would be better to keep this code in the
+>>> virtio-balloon driver if possible, even though that's rather a layering
+>>> violation :( What would have to be done to make that possible?  Perhaps
+>>> we can put some *small* helpers into page_alloc.c to prevent things
+>>> from becoming too ugly.
+>> The patch description was too narrowed and may have caused some
+>> confusion, sorry about that. This function is aimed to be generic. I
+>> agree with the description suggested by Michael.
 >>
->> This broke vmwgfx driver which calls vfree() under spin_lock().
->>
->>     BUG: sleeping function called from invalid context at mm/vmalloc.c:1480
->>     in_atomic(): 1, irqs_disabled(): 0, pid: 341, name: plymouthd
->>     2 locks held by plymouthd/341:
->>      #0:  (drm_global_mutex){+.+.+.}, at: [<ffffffffc01c274b>] drm_release+0x3b/0x3b0 [drm]
->>      #1:  (&(&tfile->lock)->rlock){+.+...}, at: [<ffffffffc0173038>] ttm_object_file_release+0x28/0x90 [ttm]
->>
->>     Call Trace:
->>      dump_stack+0x86/0xc3
->>      ___might_sleep+0x17d/0x250
->>      __might_sleep+0x4a/0x80
->>      remove_vm_area+0x22/0x90
->>      __vunmap+0x2e/0x110
->>      vfree+0x42/0x90
->>      kvfree+0x2c/0x40
->>      drm_ht_remove+0x1a/0x30 [drm]
->>      ttm_object_file_release+0x50/0x90 [ttm]
->>      vmw_postclose+0x47/0x60 [vmwgfx]
->>      drm_release+0x290/0x3b0 [drm]
->>      __fput+0xf8/0x210
->>      ____fput+0xe/0x10
->>      task_work_run+0x85/0xc0
->>      exit_to_usermode_loop+0xb4/0xc0
->>      do_syscall_64+0x185/0x1f0
->>      entry_SYSCALL64_slow_path+0x25/0x25
->>
->> This can be fixed in vmgfx, but it would be better to make vfree()
->> non-sleeping again because we may have other bugs like this one.
-> 
-> I tend to disagree: adding yet another schedule_work() introduces
-> additional overhead and adds some risk of ENOMEM errors which wouldn't
-> occur with a synchronous free.
-> 
->> __purge_vmap_area_lazy() is the only function in the vfree() path that
->> wants to be able to sleep. So it make sense to schedule
->> __purge_vmap_area_lazy() via schedule_work() so it runs only in sleepable
->> context.
-> 
-> vfree() already does
-> 
-> 	if (unlikely(in_interrupt()))
-> 		__vfree_deferred(addr);
-> 
-> so it seems silly to introduce another defer-to-kernel-thread thing
-> when we already have one.
-> 
->> This will have a minimal effect on the regular vfree() path.
->> since __purge_vmap_area_lazy() is rarely called.
-> 
-> hum, OK, so perhaps the overhead isn't too bad.
-> 
-> Remind me: where does __purge_vmap_area_lazy() sleep?
-
-It's cond_resched_lock(&vmap_area_lock);
-
-> 
-> Seems to me that a better fix would be to make vfree() atomic, if poss.
+>> Since the main body of the function is related to operating on the
+>> free_list. I think it is better to have them located here.
+>> Small helpers may be less efficient and thereby causing some
+>> performance loss as well.
+>> I think one improvement we can make is to remove the "chunk format"
+>> related things from this function. The function can generally offer the
+>> base pfn to the caller's recording buffer. Then it will be the caller's
+>> responsibility to format the pfn if they need.
+> Sounds good at a high level, but we'd have to see the implementation
+> to judge it properly.
 >
-> Otherwise, to fix callers so they call vfree from sleepable context. 
-> That will reduce kernel latencies as well.
-> 
+>>>> --- a/mm/page_alloc.c
+>>>> +++ b/mm/page_alloc.c
+>>>> @@ -4498,6 +4498,120 @@ void show_free_areas(unsigned int filter)
+>>>>    	show_swap_cache_info();
+>>>>    }
+>>>> +static int __record_unused_pages(struct zone *zone, int order,
+>>>> +				 __le64 *buf, unsigned int size,
+>>>> +				 unsigned int *offset, bool part_fill)
+>>>> +{
+>>>> +	unsigned long pfn, flags;
+>>>> +	int t, ret = 0;
+>>>> +	struct list_head *curr;
+>>>> +	__le64 *chunk;
+>>>> +
+>>>> +	if (zone_is_empty(zone))
+>>>> +		return 0;
+>>>> +
+>>>> +	spin_lock_irqsave(&zone->lock, flags);
+>>>> +
+>>>> +	if (*offset + zone->free_area[order].nr_free > size && !part_fill) {
+>>>> +		ret = -ENOSPC;
+>>>> +		goto out;
+>>>> +	}
+>>>> +	for (t = 0; t < MIGRATE_TYPES; t++) {
+>>>> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+>>>> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+>>>> +			chunk = buf + *offset;
+>>>> +			if (*offset + 2 > size) {
+>>>> +				ret = -ENOSPC;
+>>>> +				goto out;
+>>>> +			}
+>>>> +			/* Align to the chunk format used in virtio-balloon */
+>>>> +			*chunk = cpu_to_le64(pfn << 12);
+>>>> +			*(chunk + 1) = cpu_to_le64((1 << order) << 12);
+>>>> +			*offset += 2;
+>>>> +		}
+>>>> +	}
+>>>> +
+>>>> +out:
+>>>> +	spin_unlock_irqrestore(&zone->lock, flags);
+>>>> +
+>>>> +	return ret;
+>>>> +}
+>>> This looks like it could disable interrupts for a long time.  Too long?
+>> What do you think if we give "budgets" to the above function?
+>> For example, budget=1000, and there are 2000 nodes on the list.
+>> record() returns with "incomplete" status in the first round, along with the
+>> status info, "*continue_node".
+>>
+>> *continue_node: pointer to the starting node of the leftover. If
+>> *continue_node
+>> has been used at the time of the second call (i.e. continue_node->next ==
+>> NULL),
+>> which implies that the previous 1000 nodes have been used, then the record()
+>> function can simply start from the head of the list.
+>>
+>> It is up to the caller whether it needs to continue the second round
+>> when getting "incomplete".
+> It might be cleaner to add APIs to
+> 	- start iteration
+> 	- do one step
+> 	- end iteration
+>
+> caller can then iterate without too many issues
+>
 
-Currently we know only two such callers: ttm_object_file_release() and ttm_object_device_release().
-Both of them call vfree() under spin_lock() for no reason, Thomas said that he
-has patch to fix this: http://lkml.kernel.org/r/f1c0b9ec-c0c8-502c-c7f0-fe692c73ab04@vmware.com
+OK. I will re-implement it with this simple one - get only one node(page 
+block) from the list in each call, and check if the time would increase 
+a lot in comparison to v8.
 
-So this patch is more like an attempt to address other similar bugs possibly introduced by
-commit 5803ed292e63 ("mm: mark all calls into the vmalloc subsystem as potentially sleeping")
-It's quite possible that we overlooked something.
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
