@@ -1,55 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A4B196B0390
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 12:40:32 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id j127so9809637itj.17
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 09:40:32 -0700 (PDT)
-Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
-        by mx.google.com with ESMTPS id i21si6859368ioi.48.2017.03.31.09.40.31
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5125C6B0390
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 13:00:33 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l203so50852001oig.3
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 10:00:33 -0700 (PDT)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id d81si2836153oia.310.2017.03.31.10.00.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Mar 2017 09:40:32 -0700 (PDT)
-Received: by mail-pg0-x22f.google.com with SMTP id 21so76159080pgg.1
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 09:40:31 -0700 (PDT)
-Date: Fri, 31 Mar 2017 09:40:28 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH] mm: Add additional consistency check
-Message-ID: <20170331164028.GA118828@beast>
+        Fri, 31 Mar 2017 10:00:31 -0700 (PDT)
+Received: by mail-pg0-x234.google.com with SMTP id 21so76621768pgg.1
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 10:00:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20170331153009.11397-1-aryabinin@virtuozzo.com>
+References: <20170331153009.11397-1-aryabinin@virtuozzo.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Fri, 31 Mar 2017 10:00:30 -0700
+Message-ID: <CALvZod5rnV5ZjKYxFwPDX8NcRQKJfwN-iWyVD-Mm4+fKten1+A@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: fix potential deadlock in zswap_frontswap_store()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
 
-As found in PaX, this adds a cheap check on heap consistency, just to
-notice if things have gotten corrupted in the page lookup.
+On Fri, Mar 31, 2017 at 8:30 AM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+> zswap_frontswap_store() is called during memory reclaim from
+> __frontswap_store() from swap_writepage() from shrink_page_list().
+> This may happen in NOFS context, thus zswap shouldn't use __GFP_FS,
+> otherwise we may renter into fs code and deadlock.
+> zswap_frontswap_store() also shouldn't use __GFP_IO to avoid recursion
+> into itself.
+>
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- mm/slab.h | 1 +
- 1 file changed, 1 insertion(+)
+Is it possible to enter fs code (or IO) from zswap_frontswap_store()
+other than recursive memory reclaim? However recursive memory reclaim
+is protected through PF_MEMALLOC task flag. The change seems fine but
+IMHO reasoning needs an update. Adding Michal for expert opinion.
 
-diff --git a/mm/slab.h b/mm/slab.h
-index 65e7c3fcac72..64447640b70c 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -384,6 +384,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
- 		return s;
- 
- 	page = virt_to_head_page(x);
-+	BUG_ON(!PageSlab(page));
- 	cachep = page->slab_cache;
- 	if (slab_equal_or_root(cachep, s))
- 		return cachep;
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+> zswap_frontswap_store() call zpool_malloc() with __GFP_NORETRY |
+> __GFP_NOWARN | __GFP_KSWAPD_RECLAIM, so let's use the same flags for
+> zswap_entry_cache_alloc() as well, instead of GFP_KERNEL.
+>
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> ---
+>  mm/zswap.c | 7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index eedc278..12ad7e9 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -966,6 +966,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>         struct zswap_tree *tree = zswap_trees[type];
+>         struct zswap_entry *entry, *dupentry;
+>         struct crypto_comp *tfm;
+> +       gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
+>         int ret;
+>         unsigned int dlen = PAGE_SIZE, len;
+>         unsigned long handle;
+> @@ -989,7 +990,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>         }
+>
+>         /* allocate entry */
+> -       entry = zswap_entry_cache_alloc(GFP_KERNEL);
+> +       entry = zswap_entry_cache_alloc(gfp);
+>         if (!entry) {
+>                 zswap_reject_kmemcache_fail++;
+>                 ret = -ENOMEM;
+> @@ -1017,9 +1018,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>
+>         /* store */
+>         len = dlen + sizeof(struct zswap_header);
+> -       ret = zpool_malloc(entry->pool->zpool, len,
+> -                          __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
+> -                          &handle);
+> +       ret = zpool_malloc(entry->pool->zpool, len, gfp, &handle);
+>         if (ret == -ENOSPC) {
+>                 zswap_reject_compress_poor++;
+>                 goto put_dstmem;
+> --
+> 2.10.2
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
