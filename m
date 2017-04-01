@@ -1,103 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B7E6B0390
-	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 19:58:10 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 8so13533782itb.22
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 16:58:10 -0700 (PDT)
-Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
-        by mx.google.com with ESMTPS id d184si4291944itg.22.2017.03.31.16.58.10
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 17F566B0390
+	for <linux-mm@kvack.org>; Fri, 31 Mar 2017 20:04:02 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 68so31687437ioh.4
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 17:04:02 -0700 (PDT)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id 134si7989628ion.113.2017.03.31.17.04.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Mar 2017 16:58:10 -0700 (PDT)
-Received: by mail-io0-x234.google.com with SMTP id f84so48827245ioj.0
-        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 16:58:09 -0700 (PDT)
+        Fri, 31 Mar 2017 17:04:01 -0700 (PDT)
+Received: by mail-io0-x22a.google.com with SMTP id f84so48874768ioj.0
+        for <linux-mm@kvack.org>; Fri, 31 Mar 2017 17:04:01 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
-References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
- <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
- <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
- <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk> <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
- <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
+In-Reply-To: <20170331143317.3865149a6b6112f0d1a63499@linux-foundation.org>
+References: <20170331164028.GA118828@beast> <20170331143317.3865149a6b6112f0d1a63499@linux-foundation.org>
 From: Kees Cook <keescook@chromium.org>
-Date: Fri, 31 Mar 2017 16:58:09 -0700
-Message-ID: <CAGXu5jK-ARrQA4fgyAvOBcFx=K0PiWU=H5qa768FgrD6hexEEA@mail.gmail.com>
-Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
+Date: Fri, 31 Mar 2017 17:04:00 -0700
+Message-ID: <CAGXu5jK8RrHwa1Uv464=5+T5iBnhhx796CdLcJMAA88wi8bzaA@mail.gmail.com>
+Subject: Re: [PATCH] mm: Add additional consistency check
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Jones <davej@codemonkey.org.uk>, Tommi Rantala <tommi.t.rantala@nokia.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Mar 31, 2017 at 11:26 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Fri, Mar 31, 2017 at 10:32 AM, Kees Cook <keescook@chromium.org> wrote:
+On Fri, Mar 31, 2017 at 2:33 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 31 Mar 2017 09:40:28 -0700 Kees Cook <keescook@chromium.org> wrote:
+>
+>> As found in PaX, this adds a cheap check on heap consistency, just to
+>> notice if things have gotten corrupted in the page lookup.
+>
+> "As found in PaX" isn't a very illuminating justification for such a
+> change.  Was there a real kernel bug which this would have exposed, or
+> what?
+
+I don't know off the top of my head, but given the kinds of heap
+attacks I've been seeing, I think this added consistency check is
+worth it given how inexpensive it is. When heap metadata gets
+corrupted, we can get into nasty side-effects that can be
+attacker-controlled, so better to catch obviously bad states as early
+as possible.
+
+>> --- a/mm/slab.h
+>> +++ b/mm/slab.h
+>> @@ -384,6 +384,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
+>>               return s;
 >>
->> How is ffff880000090000 both in the direct mapping and a slab object?
+>>       page = virt_to_head_page(x);
+>> +     BUG_ON(!PageSlab(page));
+>>       cachep = page->slab_cache;
+>>       if (slab_equal_or_root(cachep, s))
+>>               return cachep;
 >
-> I think this is just very regular /dev/mem behavior, that is hidden by
-> the fact that the *normal* case for /dev/mem is all to reserved RAM,
-> which will never be a slab object.
->
-> And this is all hidden with STRICT_DEVMEM, which pretty much everybody
-> has enabled, but Tommi for some reason did not.
+> BUG_ON might be too severe.  I expect the kindest VM_WARN_ON_ONCE()
+> would suffice here, but without more details it is hard to say.
 
-(It tripped under Fedora (with STRICT_DEVMEM) too, but I see below you
-isolated it...)
-
->
->> It would need to pass all of these checks, and be marked as PageSlab
->> before it could be evaluated by __check_heap_object:
->
-> It trivially passes those checks, because it's a normal kernel address
-> for a page that is just used for kernel stuff.
->
-> I think we have two options:
->
->  - just get rid of STRICT_DEVMEM and make that unconditional
-
-I'm a fan of this whatever the case; have all the video drivers moved
-away from crazy userspace direct memory access? (Or am I
-misremembering the reason for allowing /dev/mem to read RAM?)
-
->  - make the read_mem/write_mem code use some non-checking copy
-> routines, since they are obviously designed to access any memory
-> location (including kernel memory) unless STRICT_DEVMEM is set.
-
-I don't think this is a probably with the usercopy code: it is
-attempting to read RAM which should be blocked. It just _happens_ that
-this RAM got used for slab cache.
-
-> Hmm. Thinking more about this, we do allow access to the first 1MB of
-> physical memory unconditionally (see devmem_is_allowed() in
-
-Oooh, yes, that's the issue here. If the location is bypassing
-devmem_is_allowed(), oops.
-
-> arch/x86/mm/init.c). And I think we only _reserve_ the first 64kB or
-> something. So I guess even STRICT_DEVMEM isn't actually all that
-> strict.
->
-> So this should be visible even *with* STRICT_DEVMEM.
->
-> Does a simple
->
->      sudo dd if=/dev/mem of=/dev/null bs=4096 count=256
->
-> also show the same issue? Maybe regardless of STRICT_DEVMEM?
->
-> Maybe we should change devmem_is_allowed() to return a ternary value,
-> and then have it be "allow access" (for reserved pages), "disallow
-> access" (for various random stuff), and "just read zero" (for pages in
-> the low 1M that aren't marked reserved).
-
-If that doesn't break x86info, that would be nice too.
-
-> That way things like that read the low 1M (like x86info) will
-> hopefully not be unhappy, but also won't be reading random kernel
-> data.
-
-So, this seems like an uncommon situation where <1M memory ended up in
-as regular RAM. It seems like this exception is the problem?
+So, WARN isn't enough to protect the kernel (execution continues and
+the memory is still dereferenced for malicious purposes, etc). Perhaps
+use CHECK_DATA_CORRUPTION() here, which can either WARN and take a
+"safe" path, or BUG (depending on config paranoia of the builder).
+I've got a series adding it in a number of other places, so I could
+add this patch to that series?
 
 -Kees
 
