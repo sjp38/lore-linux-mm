@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF4936B0038
-	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 09:36:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l43so20650716wre.4
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 06:36:32 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h34si16035922wrh.233.2017.04.02.06.36.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C39E6B039F
+	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 09:57:02 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 197so26611877pfv.13
+        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 06:57:02 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m9si11197671plk.225.2017.04.02.06.57.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Apr 2017 06:36:31 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v32DXXjm071582
-	for <linux-mm@kvack.org>; Sun, 2 Apr 2017 09:36:29 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29jyf0nepw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 02 Apr 2017 09:36:29 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sun, 2 Apr 2017 14:36:27 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH for 4.11] userfaultfd: report actual registered features in fdinfo
-Date: Sun,  2 Apr 2017 16:36:21 +0300
-Message-Id: <1491140181-22121-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Sun, 02 Apr 2017 06:57:00 -0700 (PDT)
+Date: Sun, 2 Apr 2017 06:56:59 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC] mm/crypto: add tunable compression algorithm for zswap
+Message-ID: <20170402135659.GA10812@bombadil.infradead.org>
+References: <20170401211813.15146-1-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170401211813.15146-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-fdinfo for userfault file descriptor reports UFFD_API_FEATURES. Up until
-recently, the UFFD_API_FEATURES was defined as 0, therefore corresponding
-field in fdinfo always contained zero. Now, with introduction of several
-additional features, UFFD_API_FEATURES is not longer 0 and it seems better
-to report actual features requested for the userfaultfd object described by
-the fdinfo. First, the applications that were using userfault will still
-see zero at the features field in fdinfo. Next, reporting actual features
-rather than available features, gives clear indication of what userfault
-features are used by an application.
+On Sat, Apr 01, 2017 at 11:18:13PM +0200, Vlastimil Babka wrote:
+> In this prototype patch, it offers three predefined ratios, but nothing
+> prevents more fine-grained settings, except the current crypto API (or my
+> limited knowledge of it, but I'm guessing nobody really expected the
+> compression ratio to be tunable). So by doing
+> 
+> echo tco50 > /sys/module/zswap/parameters/compressor
+> 
+> you get 50% compression ratio, guaranteed! This setting and zbud are just the
+> perfect buddies, if you prefer the nice and simple allocator. Zero internal
+> fragmentation!
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- fs/userfaultfd.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+[...]
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 1d227b0..f7555fc 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -1756,7 +1756,7 @@ static void userfaultfd_show_fdinfo(struct seq_file *m, struct file *f)
- 	 *	protocols: aa:... bb:...
- 	 */
- 	seq_printf(m, "pending:\t%lu\ntotal:\t%lu\nAPI:\t%Lx:%x:%Lx\n",
--		   pending, total, UFFD_API, UFFD_API_FEATURES,
-+		   pending, total, UFFD_API, ctx->features,
- 		   UFFD_API_IOCTLS|UFFD_API_RANGE_IOCTLS);
- }
- #endif
--- 
-1.9.1
+> +struct tco_ctx {
+> +	char ratio;
+> +};
+
+You say this is a ratio, but it's a plain char.  Clearly it should be
+a floating point number; what if I want to achieve 2/3 compression?
+Or if I'm a disgruntled sysadmin wanting to show how much more Linux
+suxks than BSD, I might want to expand memory when it goes to swap,
+perhaps taking up an extra 25%.
+
+Maybe we could get away with char numerator; char denominator to allow
+for the most common rationals, but a floating point ratio would be easier
+to program with and allow for maximum flexibility.  I don't think we
+need to have as much precision as a double; a plain float should suffice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
