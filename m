@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AE906B0038
-	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 07:37:36 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u3so137245003pgn.12
-        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 04:37:36 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g2si14084648pln.12.2017.04.03.04.37.35
-        for <linux-mm@kvack.org>;
-        Mon, 03 Apr 2017 04:37:35 -0700 (PDT)
-Date: Mon, 3 Apr 2017 12:37:51 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: Bad page state splats on arm64, v4.11-rc{3,4}
-Message-ID: <20170403113751.GD5706@arm.com>
-References: <20170331175845.GE6488@leverpostej>
- <20170403105629.GB18905@leverpostej>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A14DC6B039F
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 07:51:42 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id t30so23530342wrc.15
+        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 04:51:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 66si19654373wrb.134.2017.04.03.04.51.41
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 03 Apr 2017 04:51:41 -0700 (PDT)
+Date: Mon, 3 Apr 2017 13:51:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC][LSF/MM,ATTEND] shared TLB, hugetlb reservations
+Message-ID: <20170403115137.GB24668@dhcp22.suse.cz>
+References: <cad15568-221e-82b7-a387-f23567a0bc76@oracle.com>
+ <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170403105629.GB18905@leverpostej>
+In-Reply-To: <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, catalin.marinas@arm.com, punit.agrawal@arm.com
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 03, 2017 at 11:56:29AM +0100, Mark Rutland wrote:
-> On Fri, Mar 31, 2017 at 06:58:45PM +0100, Mark Rutland wrote:
-> > Hi,
-> > 
-> > I'm seeing intermittent bad page state splats on arm64 with 4.11-rc3 and
-> > v4.11-rc4. I have not tested earlier kernels, or other architectures.
-> > 
-> > So far, it looks like the flags are always bad in the same
-> > way:
-> > 
-> > 	bad because of flags: 0x80(waiters)
-> > 
-> > ... though I don't know if that's definitely the case for splat 4, the
-> > BUG at mm/page_alloc.c:800.
-> > 
-> > I see this in QEMU VMs launched by Syzkaller, triggering once every few
-> > hours. So far, I have not been able to reproduce the issue in any other
-> > way (including using syz-repro).
+On Wed 08-03-17 17:30:55, Mike Kravetz wrote:
+> On 01/10/2017 03:02 PM, Mike Kravetz wrote:
+> > Another more concrete topic is hugetlb reservations.  Michal Hocko
+> > proposed the topic "mm patches review bandwidth", and brought up the
+> > related subject of areas in need of attention from an architectural
+> > POV.  I suggested that hugetlb reservations was one such area.  I'm
+> > guessing it was introduced to solve a rather concrete problem.  However,
+> > over time additional hugetlb functionality was added and the
+> > capabilities of the reservation code was stretched to accommodate.
+> > It would be good to step back and take a look at the design of this
+> > code to determine if a rewrite/redesign is necessary.  Michal suggested
+> > documenting the current design/code as a first step.  If people think
+> > this is worth discussion at the summit, I could put together such a
+> > design before the gathering.
 > 
-> It looks like this may be an issue with the arm64 HUGETLB code.
-> 
-> I wasn't able to trigger the issue over the weekend on a kernel with
-> HUGETLBFS disabled. There are known issues with our handling of
-> contiguous entries, and this might be an artefact of that.
+> I attempted to put together a design/overview of how hugetlb reservations
+> currently work.  Hopefully, this will be useful.
 
-After chatting with Punit, it looks like this might be because the GUP
-code doesn't handle huge ptes (which we create using the contiguous hint),
-so follow_page_pte ends up with one of those and goes wrong. In particular,
-the migration code will certainly do the wrong thing.
-
-I'll probably revert the contiguous support (again) if testing indicates
-that it makes this issue disappear.
-
-Will
+I am still too busy to read through this carefuly and provide a useful
+feedback but I believe this should go int Documentation/vm/hugetlb$foo
+file. Care to send it as a patch please?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
