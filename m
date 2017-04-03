@@ -1,86 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFAB6B0038
-	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 23:40:52 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u195so66798336pgb.1
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 20:40:52 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id v21si12811021pgi.239.2017.04.02.20.40.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 02 Apr 2017 20:40:51 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] mm: Add additional consistency check
-In-Reply-To: <CAGXu5jK8RrHwa1Uv464=5+T5iBnhhx796CdLcJMAA88wi8bzaA@mail.gmail.com>
-References: <20170331164028.GA118828@beast> <20170331143317.3865149a6b6112f0d1a63499@linux-foundation.org> <CAGXu5jK8RrHwa1Uv464=5+T5iBnhhx796CdLcJMAA88wi8bzaA@mail.gmail.com>
-Date: Mon, 03 Apr 2017 13:40:47 +1000
-Message-ID: <874ly6gnuo.fsf@concordia.ellerman.id.au>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A382A6B0038
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 01:35:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 81so132017382pgh.3
+        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 22:35:33 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id v67si1207859pgv.147.2017.04.02.22.35.32
+        for <linux-mm@kvack.org>;
+        Sun, 02 Apr 2017 22:35:32 -0700 (PDT)
+Date: Mon, 3 Apr 2017 14:35:30 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] mm/crypto: add tunable compression algorithm for zswap
+Message-ID: <20170403053530.GA7463@bbox>
+References: <20170401211813.15146-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170401211813.15146-1-vbabka@suse.cz>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Kees Cook <keescook@chromium.org> writes:
+On Sat, Apr 01, 2017 at 11:18:13PM +0200, Vlastimil Babka wrote:
+> Zswap (and zram) save memory by compressing pages instead of swapping them
+> out. This is nice, but with traditional compression algorithms such as LZO,
+> one cannot know, how well the data will compress, so the overal savings are
+> unpredictable. This is further complicated by the choice of zpool
+> implementation for managing the compressed pages. Zbud and z3fold are
+> relatively simple, but cannot store more then 2 (zbud) or 3 (z3fold)
+> compressed pages in a page. The rest of the page is wasted. Zsmalloc is more
+> flexible, but also more complex.
+> 
+> Clearly things would be much easier if the compression ratio was predictable.
+> But why stop at that - what if we could actually *choose* the compression
+> ratio? This patch introduces a new compression algorithm that can do just
+> that! It's called Tunable COmpression, or TCO for short.
 
-> On Fri, Mar 31, 2017 at 2:33 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Fri, 31 Mar 2017 09:40:28 -0700 Kees Cook <keescook@chromium.org> wrote:
->>
->>> As found in PaX, this adds a cheap check on heap consistency, just to
->>> notice if things have gotten corrupted in the page lookup.
->>
->> "As found in PaX" isn't a very illuminating justification for such a
->> change.  Was there a real kernel bug which this would have exposed, or
->> what?
->
-> I don't know off the top of my head, but given the kinds of heap
-> attacks I've been seeing, I think this added consistency check is
-> worth it given how inexpensive it is. When heap metadata gets
-> corrupted, we can get into nasty side-effects that can be
-> attacker-controlled, so better to catch obviously bad states as early
-> as possible.
+That was totally same I had an idea since long time ago but I don't
+have enough to dive into that.
+Thanks for raising an issue!
 
-There's your changelog :)
+> 
+> In this prototype patch, it offers three predefined ratios, but nothing
+> prevents more fine-grained settings, except the current crypto API (or my
+> limited knowledge of it, but I'm guessing nobody really expected the
+> compression ratio to be tunable). So by doing
+> 
+> echo tco50 > /sys/module/zswap/parameters/compressor
+> 
+> you get 50% compression ratio, guaranteed! This setting and zbud are just the
+> perfect buddies, if you prefer the nice and simple allocator. Zero internal
+> fragmentation!
+> 
+> Or,
+> 
+> echo tco30 > /sys/module/zswap/parameters/compressor
+> 
+> is a great match for z3fold, if you want to be smarter and save 50% memory
+> over zbud, again with no memory wasted! But why stop at that? If you do
+> 
+> echo tco10 > /sys/module/zswap/parameters/compressor
 
->>> --- a/mm/slab.h
->>> +++ b/mm/slab.h
->>> @@ -384,6 +384,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
->>>               return s;
->>>
->>>       page = virt_to_head_page(x);
->>> +     BUG_ON(!PageSlab(page));
->>>       cachep = page->slab_cache;
->>>       if (slab_equal_or_root(cachep, s))
->>>               return cachep;
->>
->> BUG_ON might be too severe.  I expect the kindest VM_WARN_ON_ONCE()
->> would suffice here, but without more details it is hard to say.
->
-> So, WARN isn't enough to protect the kernel (execution continues and
-> the memory is still dereferenced for malicious purposes, etc).
+It's a great idea but a problem is we have very limited allocators.
+In short future, people might want z4fold, z8fold, z10fold and so on.
+So, I suggest to make zbud generic so it can cover every zXfold allocators.
 
-You could do:
+> 
+> within the next hour, and choose zsmalloc, you will be able to neatly store
+> 10 compressed pages within a single page! Yes, 90% savings!
+> In the full version of this patch, you'll be able to set any ratio, so you
+> can decide exactly how much money to waste on extra RAM instead of compressing
+> the data. Let TCO cut down your system's TCO!
+> 
+> This RFC was not yet tested, but it compiles fine and mostly passes checkpatch
+> so it must obviously work.
 
-	if (WARN_ON(!PageSlab(page)))
-        	return NULL.
+I did test and found sometime crash happens but it's hard to reproduce.
+It seems it's easier to reprocue the problem with tco50.
 
-Though I see at least two callers that don't check for a NULL return.
+Even though I stare at the code in detail, I can't find any bugs.
+Hmm, If there is an update in your side, let me know it.
 
-Looking at the context, the tail of the function already contains:
-
-	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
-	       __func__, s->name, cachep->name);
-	WARN_ON_ONCE(1);
-	return s;
-}
-
-At least in slab.c it seems that would allow you to "free" an object
-from one kmem_cache onto the array_cache of another kmem_cache, which
-seems fishy. But maybe there's a check somewhere I'm missing?
-
-cheers
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
