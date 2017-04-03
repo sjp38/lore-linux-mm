@@ -1,147 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BFD726B0038
-	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 20:03:11 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id h64so42040088oia.21
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 17:03:11 -0700 (PDT)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id l84si5801228oia.176.2017.04.02.17.03.10
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 365EE6B0038
+	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 21:19:35 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 34so21980387wrb.20
+        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 18:19:35 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 1si17775556wrd.118.2017.04.02.18.19.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Apr 2017 17:03:10 -0700 (PDT)
-Received: by mail-oi0-x22d.google.com with SMTP id o67so109105863oib.1
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 17:03:10 -0700 (PDT)
-Date: Sun, 2 Apr 2017 17:03:00 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: ksmd lockup - kernel 4.11-rc series
-In-Reply-To: <alpine.LSU.2.11.1703280008020.2599@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1704021651230.1618@eggly.anvils>
-References: <003401d2a750$19f98190$4dec84b0$@net> <20170327233617.353obb3m4wz7n5kv@node.shutemov.name> <alpine.LSU.2.11.1703280008020.2599@eggly.anvils>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 02 Apr 2017 18:19:32 -0700 (PDT)
+From: NeilBrown <neilb@suse.com>
+Date: Mon, 03 Apr 2017 11:18:51 +1000
+Subject: [PATCH] loop: Add PF_LESS_THROTTLE to block/loop device thread.
+Message-ID: <871staffus.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Doug Smythies <dsmythies@telus.net>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+To: Jens Axboe <axboe@fb.com>
+Cc: linux-block@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 28 Mar 2017, Hugh Dickins wrote:
-> On Tue, 28 Mar 2017, Kirill A. Shutemov wrote:
-> > On Mon, Mar 27, 2017 at 04:16:00PM -0700, Doug Smythies wrote:
-> > > Hi,
-> > > 
-> > > Note: I am not sure I have the correct e-mail list for this.
-> > > 
-> > > As of kernel 4.11-rc1 I have a very infrequent issue (only four times
-> > > so far, once with -rc1 and three times with -rc2 (I never used -rc3,
-> > > and am now running -rc4)) where ksmd becomes stuck, the load average
-> > > goes way up and one CPU keeps hitting the NMI watchdog. I have not
-> > > been able to figure out a way to recover and end up hitting the reset
-> > > button on the computer. I am running 2 VM guests on this host server at
-> > > the time.
-> > > 
-> > > Note: these events have always been preceded by some other event, and
-> > > so something else might be the root issue here. However, the preceding
-> > > event also seems to be ksm related, not sure.
-> > > 
-> > > Since the issue is so infrequent, and the event requires a hard reset,
-> > > it would be almost impossible to bi-sect the kernel to isolate it.
-> > > 
-> > > I am willing to do the work to isolate the issue, I just don't know
-> > > what to do. While I never had this issue before kernel 4.11-rc1, I also
-> > > do not run VM guests on this test computer all the time.
-> > > 
-> > > Doug Smythies
-> > > 
-> > > Log segment for one occurrence:
-> > > 
-> > > Mar 27 15:17:07 s15 kernel: [92420.587173] BUG: unable to handle kernel paging request at ffff88e680000000
-> > > Mar 27 15:17:07 s15 kernel: [92420.587203] IP: page_vma_mapped_walk+0xe6/0x5b0
-> > > Mar 27 15:17:07 s15 kernel: [92420.587217] PGD ac80a067
-> > > Mar 27 15:17:07 s15 kernel: [92420.587217] PUD 41f5ff067
-> > > Mar 27 15:17:07 s15 kernel: [92420.587226] PMD 0
-> > 
-> > +Hugh.
-> > 
-> > Thanks for report.
-> > 
-> > It's likely I've screwed something up with my page_vma_mapped_walk()
-> > transition. I don't see anything yet. And it's 2:30 AM. I'll look more
-> > into it tomorrow.
-> 
-> I've known for a while that there's something quite wrong with KSM in
-> v4.11-rc, but haven't taken out the time to investigate yet (and was
-> curious to see whether anyone else noticed - thank you Doug).
-> 
-> I've rather supposed that it comes from your walk changes; but that's
-> nothing more than a guess so far, and I haven't looked to see if what
-> I hit is the same thing as Doug reports.
-> 
-> I'll look back into it later today, or tomorrow.
-
-Worked out what it was yesterday, but my first patch failed overnight:
-I'd missed the placement of the next_pte label.  It had a similar fix
-to mm/migrate.c in it, that hit me too in testing; but this morning I
-find Naoya's 4b0ece6fa016 in git, which fixes that.  Same issue here.
+--=-=-=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
 
-[PATCH] mm: fix page_vma_mapped_walk() for ksm pages
+When a filesystem is mounted from a loop device, writes are
+throttled by balance_dirty_pages() twice: once when writing
+to the filesystem and once when the loop_handle_cmd() writes
+to the backing file.  This double-throttling can trigger
+positive feedback loops that create significant delays.  The
+throttling at the lower level is seen by the upper level as
+a slow device, so it throttles extra hard.
 
-Doug Smythies reports oops with KSM in this backtrace,
-I've been seeing the same:
+The PF_LESS_THROTTLE flag was created to handle exactly this
+circumstance, though with an NFS filesystem mounted from a
+local NFS server.  It reduces the throttling on the lower
+layer so that it can proceed largely unthrottled.
 
-page_vma_mapped_walk+0xe6/0x5b0
-page_referenced_one+0x91/0x1a0
-rmap_walk_ksm+0x100/0x190
-rmap_walk+0x4f/0x60
-page_referenced+0x149/0x170
-shrink_active_list+0x1c2/0x430
-shrink_node_memcg+0x67a/0x7a0
-shrink_node+0xe1/0x320
-kswapd+0x34b/0x720
+To demonstrate this, create a filesystem on a loop device
+and write (e.g. with dd) several large files which combine
+to consume significantly more than the limit set by
+/proc/sys/vm/dirty_ratio or dirty_bytes.  Measure the total
+time taken.
 
-Just as 4b0ece6fa016 ("mm: migrate: fix remove_migration_pte() for ksm
-pages") observed, you cannot use page->index calculations on ksm pages.
-page_vma_mapped_walk() is relying on __vma_address(), where a ksm page
-can lead it off the end of the page table, and into whatever nonsense
-is in the next page, ending as an oops inside check_pte()'s pte_page().
+When I do this directly on a device (no loop device) the
+total time for several runs (mkfs, mount, write 200 files,
+umount) is fairly stable: 28-35 seconds.
+When I do this over a loop device the times are much worse
+and less stable.  52-460 seconds.  Half below 100seconds,
+half above.
+When I apply this patch, the times become stable again,
+though not as fast as the no-loop-back case: 53-72 seconds.
 
-KSM tells page_vma_mapped_walk() exactly where to look for the page,
-it does not need any page->index calculation: and that's so also for
-all the normal and file and anon pages - just not for THPs and their
-subpages.  Get out early in most cases: I've used a not-THP-page test,
-which I think is clearer; but a PageKsm test would be enough to fix it.
+There may be room for further improvement as the total overhead still
+seems too high, but this is a big improvement.
 
-I'm also slightly worried that this loop can stray into other vmas,
-so added a vm_end test to prevent surprises; though I have not imagined
-anything worse than a very contrived case, in which a page mlocked in
-the next vma might be reclaimed because it is not mlocked in this vma.
+Signed-off-by: NeilBrown <neilb@suse.com>
+=2D--
+ drivers/block/loop.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-Fixes: ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
-Reported-by: Doug Smythies <dsmythies@telus.net>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 0ecb6461ed81..a7e1dd215fc2 100644
+=2D-- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -1694,8 +1694,11 @@ static void loop_queue_work(struct kthread_work *wor=
+k)
+ {
+ 	struct loop_cmd *cmd =3D
+ 		container_of(work, struct loop_cmd, work);
++	int oldflags =3D current->flags & PF_LESS_THROTTLE;
+=20
++	current->flags |=3D PF_LESS_THROTTLE;
+ 	loop_handle_cmd(cmd);
++	current->flags =3D (current->flags & ~PF_LESS_THROTTLE) | oldflags;
+ }
+=20
+ static int loop_init_request(void *data, struct request *rq,
+=2D-=20
+2.12.0
 
- mm/page_vma_mapped.c |    8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
 
---- 4.11-rc4/mm/page_vma_mapped.c	2017-03-13 09:04:37.792808451 -0700
-+++ linux/mm/page_vma_mapped.c	2017-04-02 09:31:55.718482184 -0700
-@@ -165,9 +165,13 @@ restart:
- 	while (1) {
- 		if (check_pte(pvmw))
- 			return true;
--next_pte:	do {
-+next_pte:
-+		if (!PageTransHuge(pvmw->page) || PageHuge(pvmw->page))
-+			return not_found(pvmw);
-+		do {
- 			pvmw->address += PAGE_SIZE;
--			if (pvmw->address >=
-+			if (pvmw->address >= pvmw->vma->vm_end ||
-+			    pvmw->address >=
- 					__vma_address(pvmw->page, pvmw->vma) +
- 					hpage_nr_pages(pvmw->page) * PAGE_SIZE)
- 				return not_found(pvmw);
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAljhovsACgkQOeye3VZi
+gbkhDQ//SY6wAXMkTSNsEhRwQs7P7yxfPVdWT1VdE1Xw1cRXCXOXMYuOlaIlnLPe
+BQXT9xW9U4qr00TSfB12XxsLUCkEvrGwNuOhEstBJt7zPOGfmSOaAAV3tchfSnot
+FGdBgm4jTAOVbZ22Qh85mjO08s4vE+5MttzZk48kGHaYTUUQ6irgg4OWwLEmLs0S
+7ntrF0rBZTpPsqmPXfK6ha21PnxmjbMr7rZ9yyN/Te7u/6EIjfokpFmajGTQ3f37
+u+LnrpU4JspgPLk5VtklDo+W/QG5/K86BEV8LHXc24N6QJtjiXoNSdh46U2jJub3
+ONhBaVy6UIfELOsKgMGzVXZoNVNV5j8q1RQ44R0eQ05nNI2JWoODXNjD+ky2/OfX
+NrEciVbHdpCz5GSiJETxUg3goRf18w9xM1Pq4Bi1fFeXLU5dtLz1Nqp9+ByBgNnW
+aUxrn2IbvqS66C3tQt9MVIvACHRG/MOIVOpHt83ax3kkP4vq58Zc+0K3s4QWvRWL
+QiGpcCIa4Bp2AF6ZPBGuW0+FB7PVRPeOrroZLfombs41Ht8RvbUzDVq/p9ENlhY4
+KEFTJTzjvZMO1Val5Kwz9HceUb/hEqGdG5CkgWRiIUj5pnE7/Tav2Jwxh3DI8J6k
+4aaKeqAlB1TZMrm6HssXjiwPHxXMzI1THZA0X4pgK4VpjK3FcWk=
+=6nwe
+-----END PGP SIGNATURE-----
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
