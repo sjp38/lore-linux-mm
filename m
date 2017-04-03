@@ -1,134 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DAF226B0397
-	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 22:21:00 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id r129so127118423pgr.18
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 19:21:00 -0700 (PDT)
-Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
-        by mx.google.com with ESMTPS id w9si12638916plk.296.2017.04.02.19.21.00
+	by kanga.kvack.org (Postfix) with ESMTP id CEFAB6B0038
+	for <linux-mm@kvack.org>; Sun,  2 Apr 2017 23:40:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u195so66798336pgb.1
+        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 20:40:52 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id v21si12811021pgi.239.2017.04.02.20.40.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Apr 2017 19:21:00 -0700 (PDT)
-Received: by mail-pg0-x22e.google.com with SMTP id g2so104374372pge.3
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 19:21:00 -0700 (PDT)
-From: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Subject: [PATCH v35 02/14] memblock: add memblock_cap_memory_range()
-Date: Mon,  3 Apr 2017 11:23:55 +0900
-Message-Id: <20170403022355.12463-2-takahiro.akashi@linaro.org>
-In-Reply-To: <20170403022139.12383-1-takahiro.akashi@linaro.org>
-References: <20170403022139.12383-1-takahiro.akashi@linaro.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 02 Apr 2017 20:40:51 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH] mm: Add additional consistency check
+In-Reply-To: <CAGXu5jK8RrHwa1Uv464=5+T5iBnhhx796CdLcJMAA88wi8bzaA@mail.gmail.com>
+References: <20170331164028.GA118828@beast> <20170331143317.3865149a6b6112f0d1a63499@linux-foundation.org> <CAGXu5jK8RrHwa1Uv464=5+T5iBnhhx796CdLcJMAA88wi8bzaA@mail.gmail.com>
+Date: Mon, 03 Apr 2017 13:40:47 +1000
+Message-ID: <874ly6gnuo.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
-Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, ard.biesheuvel@linaro.org, panand@redhat.com, sgoel@codeaurora.org, dwmw2@infradead.org, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
+To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Add memblock_cap_memory_range() which will remove all the memblock regions
-except the memory range specified in the arguments. In addition, rework is
-done on memblock_mem_limit_remove_map() to re-implement it using
-memblock_cap_memory_range().
+Kees Cook <keescook@chromium.org> writes:
 
-This function, like memblock_mem_limit_remove_map(), will not remove
-memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
-later as "device memory."
-See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
-address the mem limit issue").
+> On Fri, Mar 31, 2017 at 2:33 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Fri, 31 Mar 2017 09:40:28 -0700 Kees Cook <keescook@chromium.org> wrote:
+>>
+>>> As found in PaX, this adds a cheap check on heap consistency, just to
+>>> notice if things have gotten corrupted in the page lookup.
+>>
+>> "As found in PaX" isn't a very illuminating justification for such a
+>> change.  Was there a real kernel bug which this would have exposed, or
+>> what?
+>
+> I don't know off the top of my head, but given the kinds of heap
+> attacks I've been seeing, I think this added consistency check is
+> worth it given how inexpensive it is. When heap metadata gets
+> corrupted, we can get into nasty side-effects that can be
+> attacker-controlled, so better to catch obviously bad states as early
+> as possible.
 
-This function is used, in a succeeding patch in the series of arm64 kdump
-suuport, to limit the range of usable memory, or System RAM, on crash dump
-kernel.
-(Please note that "mem=" parameter is of little use for this purpose.)
+There's your changelog :)
 
-Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Reviewed-by: Will Deacon <will.deacon@arm.com>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Acked-by: Dennis Chen <dennis.chen@arm.com>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
----
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
- 2 files changed, 30 insertions(+), 15 deletions(-)
+>>> --- a/mm/slab.h
+>>> +++ b/mm/slab.h
+>>> @@ -384,6 +384,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
+>>>               return s;
+>>>
+>>>       page = virt_to_head_page(x);
+>>> +     BUG_ON(!PageSlab(page));
+>>>       cachep = page->slab_cache;
+>>>       if (slab_equal_or_root(cachep, s))
+>>>               return cachep;
+>>
+>> BUG_ON might be too severe.  I expect the kindest VM_WARN_ON_ONCE()
+>> would suffice here, but without more details it is hard to say.
+>
+> So, WARN isn't enough to protect the kernel (execution continues and
+> the memory is still dereferenced for malicious purposes, etc).
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index e82daffcfc44..4ce24a376262 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -336,6 +336,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
- phys_addr_t memblock_start_of_DRAM(void);
- phys_addr_t memblock_end_of_DRAM(void);
- void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-+void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
- void memblock_mem_limit_remove_map(phys_addr_t limit);
- bool memblock_is_memory(phys_addr_t addr);
- int memblock_is_map_memory(phys_addr_t addr);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 2f4ca8104ea4..b049c9b2dba8 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1543,11 +1543,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
- 			      (phys_addr_t)ULLONG_MAX);
- }
- 
-+void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-+{
-+	int start_rgn, end_rgn;
-+	int i, ret;
-+
-+	if (!size)
-+		return;
-+
-+	ret = memblock_isolate_range(&memblock.memory, base, size,
-+						&start_rgn, &end_rgn);
-+	if (ret)
-+		return;
-+
-+	/* remove all the MAP regions */
-+	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	for (i = start_rgn - 1; i >= 0; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	/* truncate the reserved regions */
-+	memblock_remove_range(&memblock.reserved, 0, base);
-+	memblock_remove_range(&memblock.reserved,
-+			base + size, (phys_addr_t)ULLONG_MAX);
-+}
-+
- void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- {
--	struct memblock_type *type = &memblock.memory;
- 	phys_addr_t max_addr;
--	int i, ret, start_rgn, end_rgn;
- 
- 	if (!limit)
- 		return;
-@@ -1558,19 +1584,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- 	if (max_addr == (phys_addr_t)ULLONG_MAX)
- 		return;
- 
--	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
--				&start_rgn, &end_rgn);
--	if (ret)
--		return;
--
--	/* remove all the MAP regions above the limit */
--	for (i = end_rgn - 1; i >= start_rgn; i--) {
--		if (!memblock_is_nomap(&type->regions[i]))
--			memblock_remove_region(type, i);
--	}
--	/* truncate the reserved regions */
--	memblock_remove_range(&memblock.reserved, max_addr,
--			      (phys_addr_t)ULLONG_MAX);
-+	memblock_cap_memory_range(0, max_addr);
- }
- 
- static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
--- 
-2.11.1
+You could do:
+
+	if (WARN_ON(!PageSlab(page)))
+        	return NULL.
+
+Though I see at least two callers that don't check for a NULL return.
+
+Looking at the context, the tail of the function already contains:
+
+	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
+	       __func__, s->name, cachep->name);
+	WARN_ON_ONCE(1);
+	return s;
+}
+
+At least in slab.c it seems that would allow you to "free" an object
+from one kmem_cache onto the array_cache of another kmem_cache, which
+seems fishy. But maybe there's a check somewhere I'm missing?
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
