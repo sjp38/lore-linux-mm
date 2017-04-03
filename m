@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 843EF6B0038
-	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 12:18:06 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u195so83331044pgb.1
-        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 09:18:06 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id o5si14720380pgc.29.2017.04.03.09.18.05
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 620506B0038
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 12:25:01 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 8so37771408itg.6
+        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 09:25:01 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d91si15317397ioj.52.2017.04.03.09.25.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Apr 2017 09:18:05 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id g2so30856199pge.2
-        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 09:18:05 -0700 (PDT)
-From: Hao Lee <haolee.swjtu@gmail.com>
-Subject: [PATCH] mm: fix spelling error
-Date: Tue,  4 Apr 2017 00:16:55 +0800
-Message-Id: <20170403161655.5081-1-haolee.swjtu@gmail.com>
+        Mon, 03 Apr 2017 09:25:00 -0700 (PDT)
+Subject: Re: [LSF/MM TOPIC][LSF/MM,ATTEND] shared TLB, hugetlb reservations
+References: <cad15568-221e-82b7-a387-f23567a0bc76@oracle.com>
+ <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
+ <20170403115137.GB24668@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c03e2254-4829-d872-d6f0-ed5d1a22ce89@oracle.com>
+Date: Mon, 3 Apr 2017 09:24:52 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170403115137.GB24668@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: alexander.h.duyck@intel.com, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, l.stach@pengutronix.de, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haolee.swjtu@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-Fix variable name error in comments. No code changes.
+On 04/03/2017 04:51 AM, Michal Hocko wrote:
+> On Wed 08-03-17 17:30:55, Mike Kravetz wrote:
+>> On 01/10/2017 03:02 PM, Mike Kravetz wrote:
+>>> Another more concrete topic is hugetlb reservations.  Michal Hocko
+>>> proposed the topic "mm patches review bandwidth", and brought up the
+>>> related subject of areas in need of attention from an architectural
+>>> POV.  I suggested that hugetlb reservations was one such area.  I'm
+>>> guessing it was introduced to solve a rather concrete problem.  However,
+>>> over time additional hugetlb functionality was added and the
+>>> capabilities of the reservation code was stretched to accommodate.
+>>> It would be good to step back and take a look at the design of this
+>>> code to determine if a rewrite/redesign is necessary.  Michal suggested
+>>> documenting the current design/code as a first step.  If people think
+>>> this is worth discussion at the summit, I could put together such a
+>>> design before the gathering.
+>>
+>> I attempted to put together a design/overview of how hugetlb reservations
+>> currently work.  Hopefully, this will be useful.
+> 
+> I am still too busy to read through this carefuly and provide a useful
+> feedback but I believe this should go int Documentation/vm/hugetlb$foo
+> file. Care to send it as a patch please?
 
-Signed-off-by: Hao Lee <haolee.swjtu@gmail.com>
----
- include/linux/gfp.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Sure
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index db373b9..ff3d651 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -297,8 +297,8 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
- 
- /*
-  * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
-- * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
-- * and there are 16 of them to cover all possible combinations of
-+ * zone to use given the lowest 4 bits of gfp_t. Entries are GFP_ZONES_SHIFT
-+ * bits long and there are 16 of them to cover all possible combinations of
-  * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
-  *
-  * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
+There is some incomplete information in the document, so I will make
+some revisions and then send out as patch later this week.
+
 -- 
-2.9.3
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
