@@ -1,90 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C96DB6B0038
-	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 09:23:58 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id i18so24154814wrb.21
-        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 06:23:58 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BA23C6B0038
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 09:28:53 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id e11so24158629wra.0
+        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 06:28:53 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si14738140wrk.214.2017.04.03.06.23.56
+        by mx.google.com with ESMTPS id t66si15285055wma.54.2017.04.03.06.28.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Apr 2017 06:23:57 -0700 (PDT)
-Date: Mon, 3 Apr 2017 15:23:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        Mon, 03 Apr 2017 06:28:52 -0700 (PDT)
 Subject: Re: [PATCH] mm/zswap: fix potential deadlock in
  zswap_frontswap_store()
-Message-ID: <20170403132353.GO24661@dhcp22.suse.cz>
 References: <20170331153009.11397-1-aryabinin@virtuozzo.com>
  <CALvZod5rnV5ZjKYxFwPDX8NcRQKJfwN-iWyVD-Mm4+fKten1+A@mail.gmail.com>
  <20170403084729.GG24661@dhcp22.suse.cz>
  <c4e8b895-260c-9b47-4531-5fac5cefa77c@virtuozzo.com>
- <20170403124544.GN24661@dhcp22.suse.cz>
- <0908e647-d60b-4340-e6d2-4f6023663401@virtuozzo.com>
+ <eea593fd-c59d-cad0-936b-c012df1abadd@virtuozzo.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <28e47653-96d7-288a-0c9b-e065b29d7c45@suse.cz>
+Date: Mon, 3 Apr 2017 15:28:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0908e647-d60b-4340-e6d2-4f6023663401@virtuozzo.com>
+In-Reply-To: <eea593fd-c59d-cad0-936b-c012df1abadd@virtuozzo.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon 03-04-17 16:14:51, Andrey Ryabinin wrote:
+On 04/03/2017 02:38 PM, Andrey Ryabinin wrote:
 > 
 > 
-> On 04/03/2017 03:45 PM, Michal Hocko wrote:
-> > On Mon 03-04-17 15:37:07, Andrey Ryabinin wrote:
-> >>
-> >>
-> >> On 04/03/2017 11:47 AM, Michal Hocko wrote:
-> >>> On Fri 31-03-17 10:00:30, Shakeel Butt wrote:
-> >>>> On Fri, Mar 31, 2017 at 8:30 AM, Andrey Ryabinin
-> >>>> <aryabinin@virtuozzo.com> wrote:
-> >>>>> zswap_frontswap_store() is called during memory reclaim from
-> >>>>> __frontswap_store() from swap_writepage() from shrink_page_list().
-> >>>>> This may happen in NOFS context, thus zswap shouldn't use __GFP_FS,
-> >>>>> otherwise we may renter into fs code and deadlock.
-> >>>>> zswap_frontswap_store() also shouldn't use __GFP_IO to avoid recursion
-> >>>>> into itself.
-> >>>>>
-> >>>>
-> >>>> Is it possible to enter fs code (or IO) from zswap_frontswap_store()
-> >>>> other than recursive memory reclaim? However recursive memory reclaim
-> >>>> is protected through PF_MEMALLOC task flag. The change seems fine but
-> >>>> IMHO reasoning needs an update. Adding Michal for expert opinion.
-> >>>
-> >>> Yes this is true. 
-> >>
-> >> Actually, no. I think we have a bug in allocator which may lead to
-> >> recursive direct reclaim.
-> >>
-> >> E.g. for costly order allocations (or order > 0 &&
-> >> ac->migratetype != MIGRATE_MOVABLE) with __GFP_NOMEMALLOC
-> >> (gfp_pfmemalloc_allowed() returns false) __alloc_pages_slowpath()
-> >> may call __alloc_pages_direct_compact() and unconditionally clear
-> >> PF_MEMALLOC:
-> > 
-> > Not sure what is the bug here. __GFP_NOMEMALLOC is supposed to inhibit
-> > PF_MEMALLOC. And we do not recurse to the reclaim path. We only do the
-> > compaction. Or what am I missing?
-> > 
+> On 04/03/2017 03:37 PM, Andrey Ryabinin wrote:
+>>
+>>
+>> On 04/03/2017 11:47 AM, Michal Hocko wrote:
+>>> On Fri 31-03-17 10:00:30, Shakeel Butt wrote:
+>>>> On Fri, Mar 31, 2017 at 8:30 AM, Andrey Ryabinin
+>>>> <aryabinin@virtuozzo.com> wrote:
+>>>>> zswap_frontswap_store() is called during memory reclaim from
+>>>>> __frontswap_store() from swap_writepage() from shrink_page_list().
+>>>>> This may happen in NOFS context, thus zswap shouldn't use __GFP_FS,
+>>>>> otherwise we may renter into fs code and deadlock.
+>>>>> zswap_frontswap_store() also shouldn't use __GFP_IO to avoid recursion
+>>>>> into itself.
+>>>>>
+>>>>
+>>>> Is it possible to enter fs code (or IO) from zswap_frontswap_store()
+>>>> other than recursive memory reclaim? However recursive memory reclaim
+>>>> is protected through PF_MEMALLOC task flag. The change seems fine but
+>>>> IMHO reasoning needs an update. Adding Michal for expert opinion.
+>>>
+>>> Yes this is true. 
+>>
+>> Actually, no. I think we have a bug in allocator which may lead to recursive direct reclaim.
+>>
+>> E.g. for costly order allocations (or order > 0 && ac->migratetype != MIGRATE_MOVABLE)
+>> with __GFP_NOMEMALLOC (gfp_pfmemalloc_allowed() returns false)
+>> __alloc_pages_slowpath() may call __alloc_pages_direct_compact() and unconditionally clear PF_MEMALLOC:
+>>
+>> __alloc_pages_direct_compact():
+>> ...
+>> 	current->flags |= PF_MEMALLOC;
+>> 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+>> 									prio);
+>> 	current->flags &= ~PF_MEMALLOC;
+>>
+>>
+>>
+>> And later in __alloc_pages_slowpath():
+>>
+>> 	/* Avoid recursion of direct reclaim */
+>> 	if (current->flags & PF_MEMALLOC)        <=== false
+>> 		goto nopage;
+>>
+>> 	/* Try direct reclaim and then allocating */
+>> 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+>> 							&did_some_progress);
+>>
 > 
-> The bug here is that __alloc_pages_direct_compact() will
-> *unconditionally* clear PF_MEMALLOC.  So if we already
-> under direct reclaim (so PF_MEMALLOC was already set)
-> __alloc_pages_direct_compact() will clear that PF_MEMALLOC. If
-> compaction failed we may go into direct reclaim again because the
-> following following if in __alloc_pages_slowpath() is false:
+> 
+> Seems it was broken by
+> 
+> a8161d1ed6098506303c65b3701dedba876df42a
+> Author: Vlastimil Babka <vbabka@suse.cz>
+> Date:   Thu Jul 28 15:49:19 2016 -0700
+> 
+>     mm, page_alloc: restructure direct compaction handling in slowpath
 
-Ohh, I see what you mean. Yes this is true but I guess we do not
-have any real costly order __GFP_NOMEMALLOC users (not sure about
-MIGRATE_MOVABLE branch) so nobody has noticed this.  Still worth fixing
-I guess. I already have a plan to change direct PF_MEMALLOC to use
-memalloc_noreclaim_{save,restore} API on my todo list. Just didn't get
-to it yet. Care to send a patch?
--- 
-Michal Hocko
-SUSE Labs
+Yeah, looks like previously the code subtly relied on compaction being
+called only after the PF_MEMALLOC -> goto nopage check and I didn't
+notice it. Tell me if I should add a check or you plan to send a patch.
+Thanks!
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
