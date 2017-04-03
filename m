@@ -1,88 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A382A6B0038
-	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 01:35:33 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 81so132017382pgh.3
-        for <linux-mm@kvack.org>; Sun, 02 Apr 2017 22:35:33 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id v67si1207859pgv.147.2017.04.02.22.35.32
-        for <linux-mm@kvack.org>;
-        Sun, 02 Apr 2017 22:35:32 -0700 (PDT)
-Date: Mon, 3 Apr 2017 14:35:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm/crypto: add tunable compression algorithm for zswap
-Message-ID: <20170403053530.GA7463@bbox>
-References: <20170401211813.15146-1-vbabka@suse.cz>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 484E76B0038
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 03:24:09 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k6so22845290wre.3
+        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 00:24:09 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 134si14051253wmn.151.2017.04.03.00.24.07
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 03 Apr 2017 00:24:07 -0700 (PDT)
+Date: Mon, 3 Apr 2017 09:24:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] module: check if memory leak by module.
+Message-ID: <20170403072402.GA24661@dhcp22.suse.cz>
+References: <alpine.LSU.2.20.1703290958390.4250@pobox.suse.cz>
+ <1490767322-9914-1-git-send-email-maninder1.s@samsung.com>
+ <20170329074522.GB27994@dhcp22.suse.cz>
+ <CGME20170329060315epcas5p1c6f7ce3aca1b2770c5e1d9aaeb1a27e1@epcms5p1>
+ <20170329092332epcms5p10ae8263c6e3ef14eac40e08a09eff9e6@epcms5p1>
+ <20170329104355.GG27994@dhcp22.suse.cz>
+ <CAJWu+opsnoyJZ7ZL2OVVzhn04ds-Z5VPYau7iB-OZDpjyqciTA@mail.gmail.com>
+ <20170331080046.GI27098@dhcp22.suse.cz>
+ <CAJWu+ooKE0yC5t-nk4SyPphn3vjRVeZxMzdEwCrQSjhP=mryKQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170401211813.15146-1-vbabka@suse.cz>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CAJWu+ooKE0yC5t-nk4SyPphn3vjRVeZxMzdEwCrQSjhP=mryKQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joel Fernandes <joelaf@google.com>
+Cc: Vaneet Narang <v.narang@samsung.com>, Miroslav Benes <mbenes@suse.cz>, Maninder Singh <maninder1.s@samsung.com>, "jeyu@redhat.com" <jeyu@redhat.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris@chris-wilson.co.uk" <chris@chris-wilson.co.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "joonas.lahtinen@linux.intel.com" <joonas.lahtinen@linux.intel.com>, "keescook@chromium.org" <keescook@chromium.org>, "pavel@ucw.cz" <pavel@ucw.cz>, "jinb.park7@gmail.com" <jinb.park7@gmail.com>, "anisse@astier.eu" <anisse@astier.eu>, "rafael.j.wysocki@intel.com" <rafael.j.wysocki@intel.com>, "zijun_hu@htc.com" <zijun_hu@htc.com>, "mingo@kernel.org" <mingo@kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "thgarnie@google.com" <thgarnie@google.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, PANKAJ MISHRA <pankaj.m@samsung.com>, Ajeet Kumar Yadav <ajeet.y@samsung.com>, =?utf-8?B?7J207ZWZ67SJ?= <hakbong5.lee@samsung.com>, AMIT SAHRAWAT <a.sahrawat@samsung.com>, =?utf-8?B?656E66a/?= <lalit.mohan@samsung.com>, CPGS <cpgs@samsung.com>
 
-On Sat, Apr 01, 2017 at 11:18:13PM +0200, Vlastimil Babka wrote:
-> Zswap (and zram) save memory by compressing pages instead of swapping them
-> out. This is nice, but with traditional compression algorithms such as LZO,
-> one cannot know, how well the data will compress, so the overal savings are
-> unpredictable. This is further complicated by the choice of zpool
-> implementation for managing the compressed pages. Zbud and z3fold are
-> relatively simple, but cannot store more then 2 (zbud) or 3 (z3fold)
-> compressed pages in a page. The rest of the page is wasted. Zsmalloc is more
-> flexible, but also more complex.
+On Fri 31-03-17 10:05:29, Joel Fernandes wrote:
+> On Fri, Mar 31, 2017 at 1:00 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Thu 30-03-17 23:49:52, Joel Fernandes wrote:
+> >> Hi Michal,
+> >>
+> >> On Wed, Mar 29, 2017 at 3:43 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> > On Wed 29-03-17 09:23:32, Vaneet Narang wrote:
+> >> >> Hi,
+> >> >>
+> >> >> >> Hmm, how can you track _all_ vmalloc allocations done on behalf of the
+> >> >> >> module? It is quite some time since I've checked kernel/module.c but
+> >> >> >> from my vague understading your check is basically only about statically
+> >> >> >> vmalloced areas by module loader. Is that correct? If yes then is this
+> >> >> >> actually useful? Were there any bugs in the loader code recently? What
+> >> >> >> led you to prepare this patch? All this should be part of the changelog!
+> >> >>
+> >> >> First of all there is no issue in kernel/module.c. This patch add functionality
+> >> >> to detect scenario where some kernel module does some memory allocation but gets
+> >> >> unloaded without doing vfree. For example
+> >> >> static int kernel_init(void)
+> >> >> {
+> >> >>         char * ptr = vmalloc(400 * 1024);
+> >> >>         return 0;
+> >> >> }
+> >> >
+> >> > How can you track that allocation back to the module? Does this patch
+> >> > actually works at all? Also why would be vmalloc more important than
+> >> > kmalloc allocations?
+> >>
+> >> Doesn't the patch use caller's (in this case, the module is the
+> >> caller) text address for tracking this? vma->vm->caller should track
+> >> the caller doing the allocation?
+> >
+> > Not really. First of all it will be vmalloc() to be tracked in the above
+> > the example because vmalloc is not inlined. And secondly even if the
 > 
-> Clearly things would be much easier if the compression ratio was predictable.
-> But why stop at that - what if we could actually *choose* the compression
-> ratio? This patch introduces a new compression algorithm that can do just
-> that! It's called Tunable COmpression, or TCO for short.
+> vmalloc is not inlined, but __built_in_address(0) will return the
+> *return address* of vmalloc:
+> 
+> >From https://gcc.gnu.org/onlinedocs/gcc-4.6.0/gcc/Return-Address.html :
+> "The level argument is number of frames to scan up the call stack. A
+> value of 0 yields the return address of the current function"
 
-That was totally same I had an idea since long time ago but I don't
-have enough to dive into that.
-Thanks for raising an issue!
+yes, sorry, I meant to say s@vmalloc is not @__vmalloc_node_flags is not@
+I can see some arguments to make __vmalloc_node_flags inline to make
+/proc/vmallocinfo output more useful but...
 
+> > caller of the vmalloc was tracked then it would be hopelessly
+> > insufficient because you would get coverage of the _direct_ module usage
+> > of vmalloc rather than anything that the module triggered and that is
+> > outside of the module. Which means any library function etc...
 > 
-> In this prototype patch, it offers three predefined ratios, but nothing
-> prevents more fine-grained settings, except the current crypto API (or my
-> limited knowledge of it, but I'm guessing nobody really expected the
-> compression ratio to be tunable). So by doing
-> 
-> echo tco50 > /sys/module/zswap/parameters/compressor
-> 
-> you get 50% compression ratio, guaranteed! This setting and zbud are just the
-> perfect buddies, if you prefer the nice and simple allocator. Zero internal
-> fragmentation!
-> 
-> Or,
-> 
-> echo tco30 > /sys/module/zswap/parameters/compressor
-> 
-> is a great match for z3fold, if you want to be smarter and save 50% memory
-> over zbud, again with no memory wasted! But why stop at that? If you do
-> 
-> echo tco10 > /sys/module/zswap/parameters/compressor
+> Yes true, but I think the check is for direct allocations, done by the
+> module, not indirect ones... it may not be a catch-all issues type of
+> deal but is still IMO a good check since we already have
+> va->vm->caller available.
 
-It's a great idea but a problem is we have very limited allocators.
-In short future, people might want z4fold, z8fold, z10fold and so on.
-So, I suggest to make zbud generic so it can cover every zXfold allocators.
+I disagree. We have a full featured kmemleak to catch all potential
+leaks. This code is IMHO not worth it.
 
-> 
-> within the next hour, and choose zsmalloc, you will be able to neatly store
-> 10 compressed pages within a single page! Yes, 90% savings!
-> In the full version of this patch, you'll be able to set any ratio, so you
-> can decide exactly how much money to waste on extra RAM instead of compressing
-> the data. Let TCO cut down your system's TCO!
-> 
-> This RFC was not yet tested, but it compiles fine and mostly passes checkpatch
-> so it must obviously work.
-
-I did test and found sometime crash happens but it's hard to reproduce.
-It seems it's easier to reprocue the problem with tco50.
-
-Even though I stare at the code in detail, I can't find any bugs.
-Hmm, If there is an update in your side, let me know it.
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
