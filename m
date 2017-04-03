@@ -1,65 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1706B0038
-	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 08:29:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u18so23885334wrc.10
-        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 05:29:56 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s80si15034731wma.18.2017.04.03.05.29.54
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 395826B0038
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 08:35:47 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id o67so101836480oib.10
+        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 05:35:47 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0111.outbound.protection.outlook.com. [104.47.1.111])
+        by mx.google.com with ESMTPS id 22si1404726otc.71.2017.04.03.05.35.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Apr 2017 05:29:54 -0700 (PDT)
-Date: Mon, 3 Apr 2017 14:29:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 03 Apr 2017 05:35:46 -0700 (PDT)
 Subject: Re: [PATCH] mm/zswap: fix potential deadlock in
  zswap_frontswap_store()
-Message-ID: <20170403122951.GL24661@dhcp22.suse.cz>
 References: <20170331153009.11397-1-aryabinin@virtuozzo.com>
  <CALvZod5rnV5ZjKYxFwPDX8NcRQKJfwN-iWyVD-Mm4+fKten1+A@mail.gmail.com>
  <20170403084729.GG24661@dhcp22.suse.cz>
- <c0dc0633-06f8-e683-3caa-062993540d09@virtuozzo.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <c4e8b895-260c-9b47-4531-5fac5cefa77c@virtuozzo.com>
+Date: Mon, 3 Apr 2017 15:37:07 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c0dc0633-06f8-e683-3caa-062993540d09@virtuozzo.com>
+In-Reply-To: <20170403084729.GG24661@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon 03-04-17 14:57:11, Andrey Ryabinin wrote:
-> On 04/03/2017 11:47 AM, Michal Hocko wrote:
-> > On Fri 31-03-17 10:00:30, Shakeel Butt wrote:
-[...]
-> >>> @@ -1017,9 +1018,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-> >>>
-> >>>         /* store */
-> >>>         len = dlen + sizeof(struct zswap_header);
-> >>> -       ret = zpool_malloc(entry->pool->zpool, len,
-> >>> -                          __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
-> >>> -                          &handle);
-> >>> +       ret = zpool_malloc(entry->pool->zpool, len, gfp, &handle);
-> > 
-> > and here we used to do GFP_NOWAIT alternative already. What is going on
-> > here?
+
+
+On 04/03/2017 11:47 AM, Michal Hocko wrote:
+> On Fri 31-03-17 10:00:30, Shakeel Butt wrote:
+>> On Fri, Mar 31, 2017 at 8:30 AM, Andrey Ryabinin
+>> <aryabinin@virtuozzo.com> wrote:
+>>> zswap_frontswap_store() is called during memory reclaim from
+>>> __frontswap_store() from swap_writepage() from shrink_page_list().
+>>> This may happen in NOFS context, thus zswap shouldn't use __GFP_FS,
+>>> otherwise we may renter into fs code and deadlock.
+>>> zswap_frontswap_store() also shouldn't use __GFP_IO to avoid recursion
+>>> into itself.
+>>>
+>>
+>> Is it possible to enter fs code (or IO) from zswap_frontswap_store()
+>> other than recursive memory reclaim? However recursive memory reclaim
+>> is protected through PF_MEMALLOC task flag. The change seems fine but
+>> IMHO reasoning needs an update. Adding Michal for expert opinion.
 > 
-> 
-> I suspect that there was no particular reason to assemble this
-> custom set of gfp flags.  This code probably should have been using
-> GFP_NOWAIT|__GFP_NOWARN from the very beginning.
+> Yes this is true. 
 
-Or just use GFP_KERNEL with a comment that this is called from the
-reclaim context and as such is properly addressed at the page allocator
-layer. One reason why this makes more sense than GFP_NOWAIT is that
-this is easier to follow. When you see GFP_NOWAIT then you usually
-expect a best efford opportunistic allocation attempt (especially with
-__GFP_NOWARN) which is not the case here because this paths gets a full
-memory reserves access. If this is not intentional then use GFP_NOWAIT |
-__GFP_NOMEMALLOC | __GFP_NOWARN.
+Actually, no. I think we have a bug in allocator which may lead to recursive direct reclaim.
 
--- 
-Michal Hocko
-SUSE Labs
+E.g. for costly order allocations (or order > 0 && ac->migratetype != MIGRATE_MOVABLE)
+with __GFP_NOMEMALLOC (gfp_pfmemalloc_allowed() returns false)
+__alloc_pages_slowpath() may call __alloc_pages_direct_compact() and unconditionally clear PF_MEMALLOC:
+
+__alloc_pages_direct_compact():
+...
+	current->flags |= PF_MEMALLOC;
+	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+									prio);
+	current->flags &= ~PF_MEMALLOC;
+
+
+
+And later in __alloc_pages_slowpath():
+
+	/* Avoid recursion of direct reclaim */
+	if (current->flags & PF_MEMALLOC)        <=== false
+		goto nopage;
+
+	/* Try direct reclaim and then allocating */
+	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+							&did_some_progress);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
