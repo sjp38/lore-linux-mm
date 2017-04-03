@@ -1,53 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A14DC6B039F
-	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 07:51:42 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id t30so23530342wrc.15
-        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 04:51:42 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 66si19654373wrb.134.2017.04.03.04.51.41
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C04016B03A1
+	for <linux-mm@kvack.org>; Mon,  3 Apr 2017 07:55:51 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id l203so102064488oig.3
+        for <linux-mm@kvack.org>; Mon, 03 Apr 2017 04:55:51 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0131.outbound.protection.outlook.com. [104.47.1.131])
+        by mx.google.com with ESMTPS id h6si6467139oth.220.2017.04.03.04.55.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Apr 2017 04:51:41 -0700 (PDT)
-Date: Mon, 3 Apr 2017 13:51:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC][LSF/MM,ATTEND] shared TLB, hugetlb reservations
-Message-ID: <20170403115137.GB24668@dhcp22.suse.cz>
-References: <cad15568-221e-82b7-a387-f23567a0bc76@oracle.com>
- <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 03 Apr 2017 04:55:50 -0700 (PDT)
+Subject: Re: [PATCH] mm/zswap: fix potential deadlock in
+ zswap_frontswap_store()
+References: <20170331153009.11397-1-aryabinin@virtuozzo.com>
+ <CALvZod5rnV5ZjKYxFwPDX8NcRQKJfwN-iWyVD-Mm4+fKten1+A@mail.gmail.com>
+ <20170403084729.GG24661@dhcp22.suse.cz>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <c0dc0633-06f8-e683-3caa-062993540d09@virtuozzo.com>
+Date: Mon, 3 Apr 2017 14:57:11 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e09c529d-50e7-e6f2-8054-a34f22b5835a@oracle.com>
+In-Reply-To: <20170403084729.GG24661@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 08-03-17 17:30:55, Mike Kravetz wrote:
-> On 01/10/2017 03:02 PM, Mike Kravetz wrote:
-> > Another more concrete topic is hugetlb reservations.  Michal Hocko
-> > proposed the topic "mm patches review bandwidth", and brought up the
-> > related subject of areas in need of attention from an architectural
-> > POV.  I suggested that hugetlb reservations was one such area.  I'm
-> > guessing it was introduced to solve a rather concrete problem.  However,
-> > over time additional hugetlb functionality was added and the
-> > capabilities of the reservation code was stretched to accommodate.
-> > It would be good to step back and take a look at the design of this
-> > code to determine if a rewrite/redesign is necessary.  Michal suggested
-> > documenting the current design/code as a first step.  If people think
-> > this is worth discussion at the summit, I could put together such a
-> > design before the gathering.
+On 04/03/2017 11:47 AM, Michal Hocko wrote:
+> On Fri 31-03-17 10:00:30, Shakeel Butt wrote:
+>> On Fri, Mar 31, 2017 at 8:30 AM, Andrey Ryabinin
+>> <aryabinin@virtuozzo.com> wrote:
+>>> zswap_frontswap_store() is called during memory reclaim from
+>>> __frontswap_store() from swap_writepage() from shrink_page_list().
+>>> This may happen in NOFS context, thus zswap shouldn't use __GFP_FS,
+>>> otherwise we may renter into fs code and deadlock.
+>>> zswap_frontswap_store() also shouldn't use __GFP_IO to avoid recursion
+>>> into itself.
+>>>
+>>
+>> Is it possible to enter fs code (or IO) from zswap_frontswap_store()
+>> other than recursive memory reclaim? However recursive memory reclaim
+>> is protected through PF_MEMALLOC task flag. The change seems fine but
+>> IMHO reasoning needs an update. Adding Michal for expert opinion.
 > 
-> I attempted to put together a design/overview of how hugetlb reservations
-> currently work.  Hopefully, this will be useful.
+> Yes this is true.
 
-I am still too busy to read through this carefuly and provide a useful
-feedback but I believe this should go int Documentation/vm/hugetlb$foo
-file. Care to send it as a patch please?
--- 
-Michal Hocko
-SUSE Labs
+Indeed, I missed that detail.
+
+> I haven't checked all the callers of
+> zswap_frontswap_store but is it fixing any real problem or just trying
+> to be overly cautious.
+>
+
+zswap_frontswap_store() is called only from swap_writepage().
+Given that swap_writepage() is called only during reclaim or swapoff
+shouldn't be a real problem.
+
+  
+> Btw...
+> 
+>>> zswap_frontswap_store() call zpool_malloc() with __GFP_NORETRY |
+>>> __GFP_NOWARN | __GFP_KSWAPD_RECLAIM, so let's use the same flags for
+>>> zswap_entry_cache_alloc() as well, instead of GFP_KERNEL.
+>>>
+>>> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>>> ---
+>>>  mm/zswap.c | 7 +++----
+>>>  1 file changed, 3 insertions(+), 4 deletions(-)
+>>>
+>>> diff --git a/mm/zswap.c b/mm/zswap.c
+>>> index eedc278..12ad7e9 100644
+>>> --- a/mm/zswap.c
+>>> +++ b/mm/zswap.c
+>>> @@ -966,6 +966,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>>>         struct zswap_tree *tree = zswap_trees[type];
+>>>         struct zswap_entry *entry, *dupentry;
+>>>         struct crypto_comp *tfm;
+>>> +       gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
+> 
+> This doesn't trigger direct reclaim so __GFP_NORETRY is bogus. I suspect
+> you didn't want GFP_NOWAIT alternative.
+> 
+> [...]
+>>> @@ -1017,9 +1018,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>>>
+>>>         /* store */
+>>>         len = dlen + sizeof(struct zswap_header);
+>>> -       ret = zpool_malloc(entry->pool->zpool, len,
+>>> -                          __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
+>>> -                          &handle);
+>>> +       ret = zpool_malloc(entry->pool->zpool, len, gfp, &handle);
+> 
+> and here we used to do GFP_NOWAIT alternative already. What is going on
+> here?
+
+
+I suspect that there was no particular reason to assemble this custom set of gfp flags.
+This code probably should have been using GFP_NOWAIT|__GFP_NOWARN from the very beginning.
+
+
+>>>         if (ret == -ENOSPC) {
+>>>                 zswap_reject_compress_poor++;
+>>>                 goto put_dstmem;
+>>> --
+>>> 2.10.2
+>>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
