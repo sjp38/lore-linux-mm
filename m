@@ -1,48 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C41D6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 15:04:24 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id p68so34255902qkf.20
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 12:04:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r51si15826482qta.118.2017.04.04.12.04.22
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5786B0038
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 15:13:09 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id y18so50341701itc.5
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 12:13:09 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id n185si9182263itb.50.2017.04.04.12.13.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 12:04:23 -0700 (PDT)
-Date: Tue, 4 Apr 2017 21:04:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v3] userfaultfd: provide pid in userfault msg
-Message-ID: <20170404190419.GA5081@redhat.com>
-References: <1491211956-6095-1-git-send-email-a.perevalov@samsung.com>
- <CGME20170403093318eucas1p2ebd57e5e4c33707063687ccd571f67bb@eucas1p2.samsung.com>
- <1491211956-6095-2-git-send-email-a.perevalov@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1491211956-6095-2-git-send-email-a.perevalov@samsung.com>
+        Tue, 04 Apr 2017 12:13:09 -0700 (PDT)
+Date: Tue, 4 Apr 2017 14:13:06 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: Add additional consistency check
+In-Reply-To: <20170404151600.GN15132@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1704041412050.27424@east.gentwo.org>
+References: <20170331164028.GA118828@beast> <20170404113022.GC15490@dhcp22.suse.cz> <alpine.DEB.2.20.1704041005570.23420@east.gentwo.org> <20170404151600.GN15132@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Perevalov <a.perevalov@samsung.com>
-Cc: linux-mm@kvack.org, rppt@linux.vnet.ibm.com, mike.kravetz@oracle.com, dgilbert@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Alexey,
+On Tue, 4 Apr 2017, Michal Hocko wrote:
 
-v3 looks great to me.
+> Yes, but we do not have to blow the kernel, right? Why cannot we simply
+> leak that memory?
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Because it is a serious bug to attempt to free a non slab object using
+slab operations. This is often the result of memory corruption, coding
+errs etc. The system needs to stop right there.
 
-On top of v3 I think we could add this to make it more obvious to the
-developer tpid isn't necessarily there by just looking at the data
-structure.
-
-This is purely cosmetical, so feel free to comment if you
-disagree.
-
-I'm also fine to add an anonymous union later if a new usage for those
-bytes emerges (ABI side doesn't change anything which is why this
-could be done later as well, only the API changes here but then I
-doubt we'd break the API later for this, so if we want pagefault.feat.*
-it probably should be done right now).
-
-Thanks,
-Andrea
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
