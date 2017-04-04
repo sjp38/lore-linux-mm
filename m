@@ -1,97 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C603F6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 09:47:13 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id y22so2332191wmh.11
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 06:47:13 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w11si19822559wmw.152.2017.04.04.06.47.11
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE9D6B0038
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 10:19:10 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m72so2389868wmb.22
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 07:19:10 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id c63si19950237wmf.25.2017.04.04.07.19.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 06:47:12 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id x75so6062875wma.1
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 06:47:11 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] oom: improve oom disable handling
-Date: Tue,  4 Apr 2017 15:47:05 +0200
-Message-Id: <20170404134705.6361-1-mhocko@kernel.org>
+        Tue, 04 Apr 2017 07:19:08 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 504581C1DBA
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 15:19:08 +0100 (IST)
+Date: Tue, 4 Apr 2017 15:19:07 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] Fix print order in show_free_areas()
+Message-ID: <20170404141907.eomyynht4vlhu2ni@techsingularity.net>
+References: <1490377730.30219.2.camel@beget.ru>
+ <20170403151111.4c9967329d6d6140e2a652ff@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170403151111.4c9967329d6d6140e2a652ff@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+Cc: Alexander Polakov <apolyakov@beget.ru>, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon, Apr 03, 2017 at 03:11:11PM -0700, Andrew Morton wrote:
+> On Fri, 24 Mar 2017 20:48:50 +0300 Alexander Polakov <apolyakov@beget.ru> wrote:
+> 
+> > Better seen in context: https://github.com/torvalds/linux/blob/master/m
+> > m/page_alloc.c#L4500
+> > 
+> > Signed-off-by: Alexander Polyakov <apolyakov@beget.com>
+> 
+> --- a/mm/page_alloc.c~fix-print-order-in-show_free_areas
+> +++ a/mm/page_alloc.c
+> @@ -4519,13 +4519,13 @@ void show_free_areas(unsigned int filter
+>  			K(node_page_state(pgdat, NR_FILE_MAPPED)),
+>  			K(node_page_state(pgdat, NR_FILE_DIRTY)),
+>  			K(node_page_state(pgdat, NR_WRITEBACK)),
+> +			K(node_page_state(pgdat, NR_SHMEM)),
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  			K(node_page_state(pgdat, NR_SHMEM_THPS) * HPAGE_PMD_NR),
+>  			K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)
+>  					* HPAGE_PMD_NR),
+>  			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
+>  #endif
+> -			K(node_page_state(pgdat, NR_SHMEM)),
+>  			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+>  			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
+>  			node_page_state(pgdat, NR_PAGES_SCANNED),
+> _
+> 
+> huh.  It looks like this has been broken for nearly a year, by
+> 
+> : commit 11fb998986a72aa7e997d96d63d52582a01228c5
+> : Author:     Mel Gorman <mgorman@techsingularity.net>
+> : AuthorDate: Thu Jul 28 15:46:20 2016 -0700
+> : Commit:     Linus Torvalds <torvalds@linux-foundation.org>
+> : CommitDate: Thu Jul 28 16:07:41 2016 -0700
+> : 
+> :     mm: move most file-based accounting to the node
+> 
 
-Tetsuo has reported that sysrq triggered OOM killer will print a
-misleading information when no tasks are selected:
+Yes, this was careless. Thanks for catching it Alexander.
 
-[  713.805315] sysrq: SysRq : Manual OOM execution
-[  713.808920] Out of memory: Kill process 4468 ((agetty)) score 0 or sacrifice child
-[  713.814913] Killed process 4468 ((agetty)) total-vm:43704kB, anon-rss:1760kB, file-rss:0kB, shmem-rss:0kB
-[  714.004805] sysrq: SysRq : Manual OOM execution
-[  714.005936] Out of memory: Kill process 4469 (systemd-cgroups) score 0 or sacrifice child
-[  714.008117] Killed process 4469 (systemd-cgroups) total-vm:10704kB, anon-rss:120kB, file-rss:0kB, shmem-rss:0kB
-[  714.189310] sysrq: SysRq : Manual OOM execution
-[  714.193425] sysrq: OOM request ignored because killer is disabled
-[  714.381313] sysrq: SysRq : Manual OOM execution
-[  714.385158] sysrq: OOM request ignored because killer is disabled
-[  714.573320] sysrq: SysRq : Manual OOM execution
-[  714.576988] sysrq: OOM request ignored because killer is disabled
+> I'm surprised nobody noticed until now.
+> 
 
-The real reason is that there are no eligible tasks for the OOM killer
-to select but since 7c5f64f84483bd13 ("mm: oom: deduplicate victim
-selection code for memcg and global oom") the semantic of out_of_memory
-has changed without updating moom_callback.
+Probably because vmstat was not affected which is consumed more often
+than the output from sysrq or an oom kill message.
 
-This patch updates moom_callback to tell that no task was eligible
-which is the case for both oom killer disabled and no eligible tasks.
-In order to help distinguish first case from the second add printk to
-both oom_killer_{enable,disable}. This information is useful on its own
-because it might help debugging potential memory allocation failures.
-
-Fixes: 7c5f64f84483bd13 ("mm: oom: deduplicate victim selection code for memcg and global oom")
-Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/tty/sysrq.c | 2 +-
- mm/oom_kill.c       | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/tty/sysrq.c b/drivers/tty/sysrq.c
-index 71136742e606..a91f58dc2cb6 100644
---- a/drivers/tty/sysrq.c
-+++ b/drivers/tty/sysrq.c
-@@ -370,7 +370,7 @@ static void moom_callback(struct work_struct *ignored)
- 
- 	mutex_lock(&oom_lock);
- 	if (!out_of_memory(&oc))
--		pr_info("OOM request ignored because killer is disabled\n");
-+		pr_info("OOM request ignored. No task eligible\n");
- 	mutex_unlock(&oom_lock);
- }
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 51c091849dcb..ad2b112cdf3e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -682,6 +682,7 @@ void exit_oom_victim(void)
- void oom_killer_enable(void)
- {
- 	oom_killer_disabled = false;
-+	pr_info("OOM killer enabled.\n");
- }
- 
- /**
-@@ -718,6 +719,7 @@ bool oom_killer_disable(signed long timeout)
- 		oom_killer_enable();
- 		return false;
- 	}
-+	pr_info("OOM killer disabled.\n");
- 
- 	return true;
- }
 -- 
-2.11.0
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
