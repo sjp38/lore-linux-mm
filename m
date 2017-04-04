@@ -1,71 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A0486B039F
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 07:30:28 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id r71so28064052wrb.17
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 04:30:28 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f5si24118258wrf.78.2017.04.04.04.30.26
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CA23E6B0038
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 08:02:46 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id n129so9534617pga.22
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 05:02:46 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id p6si1522645pfj.42.2017.04.04.05.02.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Apr 2017 04:30:26 -0700 (PDT)
-Date: Tue, 4 Apr 2017 13:30:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Add additional consistency check
-Message-ID: <20170404113022.GC15490@dhcp22.suse.cz>
-References: <20170331164028.GA118828@beast>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Apr 2017 05:02:45 -0700 (PDT)
+Date: Tue, 4 Apr 2017 05:02:44 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm/mmap: Replace SHM_HUGE_MASK with MAP_HUGE_MASK inside
+ mmap_pgoff
+Message-ID: <20170404120244.GI30811@bombadil.infradead.org>
+References: <20170404045635.616-1-khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170331164028.GA118828@beast>
+In-Reply-To: <20170404045635.616-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, bsingharora@gmail.com, akpm@linux-foundation.org
 
-On Fri 31-03-17 09:40:28, Kees Cook wrote:
-> As found in PaX, this adds a cheap check on heap consistency, just to
-> notice if things have gotten corrupted in the page lookup.
->
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+On Tue, Apr 04, 2017 at 10:26:35AM +0530, Anshuman Khandual wrote:
+> The commit 091d0d55b286 ("shm: fix null pointer deref when userspace
+> specifies invalid hugepage size") had replaced MAP_HUGE_MASK with
+> SHM_HUGE_MASK. Though both of them contain the same numeric value of
+> 0x3f, MAP_HUGE_MASK flag sounds more appropriate than the other one
+> in the context. Hence change it back.
+> 
+> Acked-by: Balbir Singh <bsingharora@gmail.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-NAK without a proper changelog. Seriously, we do not blindly apply
-changes from other projects without a deep understanding of all
-consequences.
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-> ---
->  mm/slab.h | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 65e7c3fcac72..64447640b70c 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -384,6 +384,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
->  		return s;
->  
->  	page = virt_to_head_page(x);
-> +	BUG_ON(!PageSlab(page));
->  	cachep = page->slab_cache;
->  	if (slab_equal_or_root(cachep, s))
->  		return cachep;
-> -- 
-> 2.7.4
-> 
-> 
-> -- 
-> Kees Cook
-> Pixel Security
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+We had a more extensive version of this last week ...
 
--- 
-Michal Hocko
-SUSE Labs
+https://lkml.org/lkml/2017/3/28/1005
+
+I'm fine with this minor fix going in by itself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
