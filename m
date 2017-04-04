@@ -1,84 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0498B6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 14:30:27 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w96so29472220wrb.13
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 11:30:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s40si17625506wrc.179.2017.04.04.11.30.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 11:30:25 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v34ISZhI138900
-	for <linux-mm@kvack.org>; Tue, 4 Apr 2017 14:30:23 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29ktf7q4sg-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Apr 2017 14:30:23 -0400
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Tue, 4 Apr 2017 14:30:22 -0400
-Date: Tue, 4 Apr 2017 13:30:13 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-References: <20170330115454.32154-1-mhocko@kernel.org>
- <20170403115545.GK24661@dhcp22.suse.cz>
- <20170403195830.64libncet5l6vuvb@arbab-laptop>
- <20170403202337.GA12482@dhcp22.suse.cz>
- <20170403204213.rs7k2cvsnconel2z@arbab-laptop>
- <20170404072329.GA15132@dhcp22.suse.cz>
- <20170404073412.GC15132@dhcp22.suse.cz>
- <20170404082302.GE15132@dhcp22.suse.cz>
- <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
- <20170404164452.GQ15132@dhcp22.suse.cz>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C37966B039F
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 14:47:20 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p20so183469150pgd.21
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 11:47:20 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 1si18233633pgr.272.2017.04.04.11.47.19
+        for <linux-mm@kvack.org>;
+        Tue, 04 Apr 2017 11:47:19 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 2/4] arm64: hugetlbpages: Correctly handle swap entries in huge_pte_offset()
+References: <20170330163849.18402-1-punit.agrawal@arm.com>
+	<20170330163849.18402-3-punit.agrawal@arm.com>
+	<20170331095155.GA31398@leverpostej>
+Date: Tue, 04 Apr 2017 19:47:15 +0100
+In-Reply-To: <20170331095155.GA31398@leverpostej> (Mark Rutland's message of
+	"Fri, 31 Mar 2017 10:52:06 +0100")
+Message-ID: <8760ikypqk.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20170404164452.GQ15132@dhcp22.suse.cz>
-Message-Id: <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org, David Woods <dwoods@mellanox.com>, tbaicar@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com
 
-On Tue, Apr 04, 2017 at 06:44:53PM +0200, Michal Hocko wrote:
->Thanks for your testing! This is highly appreciated.
->Can I assume your Tested-by?
+Hi Mark,
 
-Of course! Not quite done, though. I think I found another edge case.  
-You get an oops when removing all of a node's memory:
+Mark Rutland <mark.rutland@arm.com> writes:
 
-__nr_to_section
-__pfn_to_section
-find_biggest_section_pfn
-shrink_pgdat_span
-__remove_zone
-__remove_section
-__remove_pages
-arch_remove_memory
-remove_memory
+> Hi Punit,
+>
+> On Thu, Mar 30, 2017 at 05:38:47PM +0100, Punit Agrawal wrote:
+>> huge_pte_offset() does not correctly handle poisoned or migration page
+>> table entries. 
+>
+> What exactly does it do wrong?
+>
+> Judging by the patch, we return NULL in some cases we shouldn't, right?
 
-I stuck some debugging prints in, for context:
+huge_pte_offset() returns NULL when it comes across swap entries for any
+of the supported hugepage sizes.
 
-shrink_pgdat_span: start_pfn=0x10000, end_pfn=0x10100, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
-shrink_pgdat_span: start_pfn=0x10100, end_pfn=0x10200, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
-...%<...
-shrink_pgdat_span: start_pfn=0x1fe00, end_pfn=0x1ff00, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
-shrink_pgdat_span: start_pfn=0x1ff00, end_pfn=0x20000, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
-find_biggest_section_pfn: start_pfn=0x0, end_pfn=0x1ff00
-find_biggest_section_pfn loop: pfn=0x1feff, sec_nr = 0x1fe
-find_biggest_section_pfn loop: pfn=0x1fdff, sec_nr = 0x1fd
-...%<...
-find_biggest_section_pfn loop: pfn=0x1ff, sec_nr = 0x1
-find_biggest_section_pfn loop: pfn=0xff, sec_nr = 0x0
-find_biggest_section_pfn loop: pfn=0xffffffffffffffff, sec_nr = 0xffffffffffffff
-Unable to handle kernel paging request for data at address 0xc000800000f19e78
+>
+> What can result from this? e.g. can we see data corruption?
 
+In the tests I am running, it results in an error in the log -
 
--- 
-Reza Arbab
+[  344.165544] mm/pgtable-generic.c:33: bad pmd 000000083af00074.
+
+when unmapping the page tables for the process that owns the poisoned
+page.
+
+In some instances, returning NULL instead of swap entries could lead to
+data corruption - especially when the page tables contain migration swap
+entries. But since hugepage migration is not enabled on arm64 I haven't
+seen any corruption.
+
+I've updated the commit log with more details locally.
+
+>
+>> Not knowing the size of the hugepage entry being
+>> requested only compounded the problem.
+>> 
+>> The recently added hstate parameter can be used to determine the size of
+>> hugepage being accessed. Use the size to find the correct page table
+>> entry to return when coming across a swap page table entry.
+>> 
+>> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+>> Cc: David Woods <dwoods@mellanox.com>
+>
+> Given this is a fix for a bug, it sounds like it should have a fixes
+> tag, or a Cc stable...
+
+The problem doesn't occur until we enable memory failure handling. So
+there shouldn't be a problem on earlier kernels.
+
+Thanks,
+Punit
+
+>
+> Thanks,
+> Mark.
+>
+>> ---
+>>  arch/arm64/mm/hugetlbpage.c | 31 ++++++++++++++++---------------
+>>  1 file changed, 16 insertions(+), 15 deletions(-)
+>> 
+>> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+>> index 9ca742c4c1ab..44014403081f 100644
+>> --- a/arch/arm64/mm/hugetlbpage.c
+>> +++ b/arch/arm64/mm/hugetlbpage.c
+>> @@ -192,38 +192,39 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+>>  pte_t *huge_pte_offset(struct mm_struct *mm,
+>>  		       unsigned long addr, struct hstate *h)
+>>  {
+>> +	unsigned long sz = huge_page_size(h);
+>>  	pgd_t *pgd;
+>>  	pud_t *pud;
+>> -	pmd_t *pmd = NULL;
+>> -	pte_t *pte = NULL;
+>> +	pmd_t *pmd;
+>> +	pte_t *pte;
+>>  
+>>  	pgd = pgd_offset(mm, addr);
+>>  	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
+>>  	if (!pgd_present(*pgd))
+>>  		return NULL;
+>> +
+>>  	pud = pud_offset(pgd, addr);
+>> -	if (!pud_present(*pud))
+>> +	if (pud_none(*pud) && sz != PUD_SIZE)
+>>  		return NULL;
+>> -
+>> -	if (pud_huge(*pud))
+>> +	else if (!pud_table(*pud))
+>>  		return (pte_t *)pud;
+>> +
+>> +	if (sz == CONT_PMD_SIZE)
+>> +		addr &= CONT_PMD_MASK;
+>> +
+>>  	pmd = pmd_offset(pud, addr);
+>> -	if (!pmd_present(*pmd))
+>> +	if (pmd_none(*pmd) &&
+>> +	    !(sz == PMD_SIZE || sz == CONT_PMD_SIZE))
+>>  		return NULL;
+>> -
+>> -	if (pte_cont(pmd_pte(*pmd))) {
+>> -		pmd = pmd_offset(
+>> -			pud, (addr & CONT_PMD_MASK));
+>> -		return (pte_t *)pmd;
+>> -	}
+>> -	if (pmd_huge(*pmd))
+>> +	else if (!pmd_table(*pmd))
+>>  		return (pte_t *)pmd;
+>> -	pte = pte_offset_kernel(pmd, addr);
+>> -	if (pte_present(*pte) && pte_cont(*pte)) {
+>> +
+>> +	if (sz == CONT_PTE_SIZE) {
+>>  		pte = pte_offset_kernel(
+>>  			pmd, (addr & CONT_PTE_MASK));
+>>  		return pte;
+>>  	}
+>> +
+>>  	return NULL;
+>>  }
+>>  
+>> -- 
+>> 2.11.0
+>> 
+>> 
+>> _______________________________________________
+>> linux-arm-kernel mailing list
+>> linux-arm-kernel@lists.infradead.org
+>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
