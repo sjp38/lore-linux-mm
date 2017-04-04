@@ -1,67 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF636B0390
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 18:30:04 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id i18so29887845wrb.21
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 15:30:03 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id k6si21615704wma.165.2017.04.04.15.30.02
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C79EA6B0390
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 18:37:09 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id c67so51896933itg.23
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 15:37:09 -0700 (PDT)
+Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
+        by mx.google.com with ESMTPS id 78si19557057ior.244.2017.04.04.15.37.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 15:30:02 -0700 (PDT)
-Date: Tue, 4 Apr 2017 18:29:52 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: vmscan: fix IO/refault regression in cache
- workingset transition
-Message-ID: <20170404222952.GA28930@cmpxchg.org>
-References: <20170404220052.27593-1-hannes@cmpxchg.org>
- <20170404150703.742c49d73921df6369ed3dbd@linux-foundation.org>
+        Tue, 04 Apr 2017 15:37:08 -0700 (PDT)
+Received: by mail-io0-x231.google.com with SMTP id b140so105419329iof.1
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 15:37:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170404150703.742c49d73921df6369ed3dbd@linux-foundation.org>
+In-Reply-To: <a6543d13-6247-08de-903e-f4d1bbb52881@nokia.com>
+References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
+ <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
+ <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
+ <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk> <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
+ <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com> <a6543d13-6247-08de-903e-f4d1bbb52881@nokia.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 4 Apr 2017 15:37:07 -0700
+Message-ID: <CAGXu5jJAd9Qg4gkXE=1+8q6Ej=8boiH4ovkzX5n+PbhkBrnt5g@mail.gmail.com>
+Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Tommi Rantala <tommi.t.rantala@nokia.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
 
-On Tue, Apr 04, 2017 at 03:07:03PM -0700, Andrew Morton wrote:
-> On Tue,  4 Apr 2017 18:00:52 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > Since 59dc76b0d4df ("mm: vmscan: reduce size of inactive file list")
-> > we noticed bigger IO spikes during changes in cache access patterns.
-> > 
-> > The patch in question shrunk the inactive list size to leave more room
-> > for the current workingset in the presence of streaming IO. However,
-> > workingset transitions that previously happened on the inactive list
-> > are now pushed out of memory and incur more refaults to complete.
-> > 
-> > This patch disables active list protection when refaults are being
-> > observed. This accelerates workingset transitions, and allows more of
-> > the new set to establish itself from memory, without eating into the
-> > ability to protect the established workingset during stable periods.
-> > 
-> > Fixes: 59dc76b0d4df ("mm: vmscan: reduce size of inactive file list")
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: <stable@vger.kernel.org> # 4.7+
-> 
-> That's a pretty large patch and the problem has been there for a year. 
-> I'm not sure that it's 4.11 material, let alone -stable.  Care to
-> explain further?
+On Fri, Mar 31, 2017 at 12:32 PM, Tommi Rantala
+<tommi.t.rantala@nokia.com> wrote:
+> On 31.03.2017 21:26, Linus Torvalds wrote:
+>>
+>> Hmm. Thinking more about this, we do allow access to the first 1MB of
+>> physical memory unconditionally (see devmem_is_allowed() in
+>> arch/x86/mm/init.c). And I think we only _reserve_ the first 64kB or
+>> something. So I guess even STRICT_DEVMEM isn't actually all that
+>> strict.
+>>
+>> So this should be visible even *with* STRICT_DEVMEM.
+>>
+>> Does a simple
+>>
+>>      sudo dd if=/dev/mem of=/dev/null bs=4096 count=256
+>>
+>> also show the same issue? Maybe regardless of STRICT_DEVMEM?
+>
+>
+> Yep, it is enough to trigger the bug.
+>
+> Also crashes with the fedora kernel that has STRICT_DEVMEM:
+>
+> $ sudo dd if=/dev/mem of=/dev/null bs=4096 count=256
+> Segmentation fault
+>
+> [   73.224025] usercopy: kernel memory exposure attempt detected from
+> ffff893a80059000 (dma-kmalloc-16) (4096 bytes)
+> [   73.224049] ------------[ cut here ]------------
+> [   73.224056] kernel BUG at mm/usercopy.c:75!
+> [   73.224060] invalid opcode: 0000 [#1] SMP
+> [   73.224237] CPU: 5 PID: 2860 Comm: dd Not tainted 4.9.14-200.fc25.x86_64
+> #1
 
-The problem statement is a little terse, my apologies.
+As root, what does dumping /proc/iomem show you?
 
-The workloads that were measurably affected for us were hit pretty bad
-by it, with refault/majfault rates doubling and tripling during cache
-transitions, and the machines sustaining half-hour periods of 100% IO
-utilization, where they'd previously have sub-minute peaks at 60-90%.
+For one of my systems, I see something like this:
 
-Stateful services that handle user data tend to be more conservative
-with kernel upgrades. As a result we hit most page cache issues with
-some delay, as was the case here.
+00000000-00000fff : reserved
+00001000-0008efff : System RAM
+0008f000-0008ffff : reserved
+00090000-0009f7ff : System RAM
+0009f800-0009ffff : reserved
+000a0000-000bffff : PCI Bus 0000:00
+000c0000-000c7fff : Video ROM
+000e0000-000fffff : reserved
+  000e0000-000effff : PCI Bus 0000:00
+  000f0000-000fffff : System ROM
+00100000-cdee6fff : System RAM
+  cbc00000-cc49a653 : Kernel code
+  cc49a654-ccb661bf : Kernel data
+  cccf3000-cce30fff : Kernel bss
+...
 
-The severity seemed to warrant a stable tag, but I agree that holding
-out until 4.11.1 is probably better, given the invasiveness of this.
+I note that there are two "System RAM" areas below 0x100000. In
+arch/x86/mm/init.c, devmem_is_allowed() says:
+
+/*
+ * devmem_is_allowed() checks to see if /dev/mem access to a certain address
+ * is valid. The argument is a physical page number.
+ *
+ *
+ * On x86, access has to be given to the first megabyte of ram because that area
+ * contains BIOS code and data regions used by X and dosemu and similar apps.
+ * Access has to be given to non-kernel-ram areas as well, these contain the PCI
+ * mmio resources as well as potential bios/acpi data regions.
+ */
+int devmem_is_allowed(unsigned long pagenr)
+{
+        if (pagenr < 256)
+                return 1;
+        if (iomem_is_exclusive(pagenr << PAGE_SHIFT))
+                return 0;
+        if (!page_is_ram(pagenr))
+                return 1;
+        return 0;
+}
+
+This means that it allows reads into even System RAM below 0x100000,
+but I think that's a mistake. Shouldn't BIOS code and data regions
+already be marked as "reserved", as seen in my /proc/iomem output? I
+feel like the "pagenr < 256" exception should be dropped, but I don't
+know all the minor details on the history here.
+
+When I remove this exception, x86info blows up for me ("error reading
+EBDA pointer").
+
+So, my question is: are there actually BIOS code/data in memory areas
+marked as System RAM? If so, what normally keeps them from being used
+for kernel memory? If not, then I assume x86info is wrong?
+
+Dave, you implied the latter, but I wanted to make sure this is
+actually true? (And if so, we need to do something like what Linus
+suggested to return zeros to keep old x86info "happy" -- would that
+keep it happy?)
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
