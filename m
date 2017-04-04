@@ -1,68 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 98D1D6B0390
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 03:46:22 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id q19so27369612wra.6
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 00:46:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a16si2903210wme.143.2017.04.04.00.46.20
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A49386B0390
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 04:23:09 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y77so27364327wrb.22
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 01:23:09 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o191si18746639wme.129.2017.04.04.01.23.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 00:46:21 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v347i0Z7091085
-	for <linux-mm@kvack.org>; Tue, 4 Apr 2017 03:46:19 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29m1yp6wj3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Apr 2017 03:46:19 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 4 Apr 2017 08:46:17 +0100
-Date: Tue, 4 Apr 2017 10:46:13 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH for 4.11] userfaultfd: report actual registered features
- in fdinfo
-References: <1491140181-22121-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170403143523.GC5107@redhat.com>
- <20170403151024.GA14802@rapoport-lnx>
- <20170403163034.GD5107@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 04 Apr 2017 01:23:07 -0700 (PDT)
+Date: Tue, 4 Apr 2017 10:23:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
+Message-ID: <20170404082302.GE15132@dhcp22.suse.cz>
+References: <20170330115454.32154-1-mhocko@kernel.org>
+ <20170403115545.GK24661@dhcp22.suse.cz>
+ <20170403195830.64libncet5l6vuvb@arbab-laptop>
+ <20170403202337.GA12482@dhcp22.suse.cz>
+ <20170403204213.rs7k2cvsnconel2z@arbab-laptop>
+ <20170404072329.GA15132@dhcp22.suse.cz>
+ <20170404073412.GC15132@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170403163034.GD5107@redhat.com>
-Message-Id: <20170404074612.GA6082@rapoport-lnx>
+In-Reply-To: <20170404073412.GC15132@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm@kvack.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Hello Andrea,
-
-On Mon, Apr 03, 2017 at 06:30:34PM +0200, Andrea Arcangeli wrote:
-> Hello Mike,
+On Tue 04-04-17 09:34:12, Michal Hocko wrote:
+> On Tue 04-04-17 09:23:29, Michal Hocko wrote:
+> > [Let's add Gary who as introduced this code c04fc586c1a48]
 > 
-> On Mon, Apr 03, 2017 at 06:10:24PM +0300, Mike Rapoport wrote:
-> > Actually, I've found these details in /proc useful when I was experimenting
-> > with checkpoint-restore of an application that uses userfaultfd. With
-> > interface in /proc/<pid>/ we know exactly which process use userfaultfd and
-> > can act appropriately.
-> 
-> You've to be somewhat serialized by other means though, because
-> "exactly" has a limit with fdinfo. For example by the time read()
-> returns, the uffd may have been closed already by the app (just the
-> uffd isn't ->release()d yet as the last fput has yet to run, the
-> fdinfo runs the last fput in such case). As long as you can cope with
-> this and you've a stable fdinfo it's ok.
-> 
+> OK, so Gary's email doesn't exist anymore. Does anybody can comment on
+> this? I suspect this code is just-in-case... Mel?
+>  
+> > On Mon 03-04-17 15:42:13, Reza Arbab wrote:
+> [...]
+> > > Almost there. I'm seeing the memory in the correct node now, but the
+> > > /sys/devices/system/node/nodeX/memoryY links are not being created.
+> > > 
+> > > I think it's tripping up here, in register_mem_sect_under_node():
+> > > 
+> > > 		page_nid = get_nid_for_pfn(pfn);
+> > > 		if (page_nid < 0)
+> > > 			continue;
+> > 
+> > Huh, this code is confusing. How can we have a memblock spanning more
+> > nodes? If not then the loop over all sections in the memblock seem
+> > pointless as well.  Also why do we require page_initialized() in
+> > get_nid_for_pfn? The changelog doesn't explain that and there are no
+> > comments that would help either.
 
-Well, by the time CRIU checkpoints open file descriptors, the process is
-already stopped, hence we are not racing with anything here.
+OK, so I've been thinkin about that and I believe that page_initialized
+check in get_nid_for_pfn is just bogus. There is nothing to rely on the
+page::lru to be already initialized. So I will go with the following as
+a separate preparatory patch.
 
+I believe the whole code should be revisited and I have put that on my
+ever growing todo list because I suspect that it is more complex than
+necessary. I suspect that memblock do not span more nodes and all this
+is just-in-case code (e.g. the onlining code assumes a single zone aka
+node. But let's do that later.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
