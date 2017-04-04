@@ -1,66 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD436B03A2
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DDAE6B03A2
 	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 12:02:50 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id s205so56190685oif.20
+Received: by mail-pg0-f70.google.com with SMTP id 79so178592595pgf.2
         for <linux-mm@kvack.org>; Tue, 04 Apr 2017 09:02:50 -0700 (PDT)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id q23si878212otc.314.2017.04.04.09.02.49
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 80si17868741pga.172.2017.04.04.09.02.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 04 Apr 2017 09:02:49 -0700 (PDT)
-Received: by mail-io0-x233.google.com with SMTP id l7so98356401ioe.3
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 09:02:49 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v34Frovs133092
+	for <linux-mm@kvack.org>; Tue, 4 Apr 2017 12:02:49 -0400
+Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29mcjffv7q-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Apr 2017 12:02:48 -0400
+Received: from localhost
+	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Tue, 4 Apr 2017 12:02:47 -0400
+Date: Tue, 4 Apr 2017 11:02:39 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
+References: <20170330115454.32154-1-mhocko@kernel.org>
+ <20170403115545.GK24661@dhcp22.suse.cz>
+ <20170403195830.64libncet5l6vuvb@arbab-laptop>
+ <20170403202337.GA12482@dhcp22.suse.cz>
+ <20170403204213.rs7k2cvsnconel2z@arbab-laptop>
+ <20170404072329.GA15132@dhcp22.suse.cz>
+ <20170404073412.GC15132@dhcp22.suse.cz>
+ <20170404082302.GE15132@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170404155856.GP15132@dhcp22.suse.cz>
-References: <20170331164028.GA118828@beast> <20170404113022.GC15490@dhcp22.suse.cz>
- <alpine.DEB.2.20.1704041005570.23420@east.gentwo.org> <20170404151600.GN15132@dhcp22.suse.cz>
- <CAGXu5jJ0CzoELUacbsQc9Uf4fDnQDoeTFmhULtG+8Ddt4XMarA@mail.gmail.com> <20170404155856.GP15132@dhcp22.suse.cz>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 4 Apr 2017 09:02:48 -0700
-Message-ID: <CAGXu5jKrs1xxfpNv9ta8XL=ii1N3uEfJMCXWkLTcoR4JMPw=kA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Add additional consistency check
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170404082302.GE15132@dhcp22.suse.cz>
+Message-Id: <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Tue, Apr 4, 2017 at 8:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 04-04-17 08:46:02, Kees Cook wrote:
->> On Tue, Apr 4, 2017 at 8:16 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> > On Tue 04-04-17 10:07:23, Cristopher Lameter wrote:
->> >> On Tue, 4 Apr 2017, Michal Hocko wrote:
->> >>
->> >> > NAK without a proper changelog. Seriously, we do not blindly apply
->> >> > changes from other projects without a deep understanding of all
->> >> > consequences.
->> >>
->> >> Functionalitywise this is trivial. A page must be a slab page in order to
->> >> be able to determine the slab cache of an object. Its definitely not ok if
->> >> the page is not a slab page.
->> >
->> > Yes, but we do not have to blow the kernel, right? Why cannot we simply
->> > leak that memory?
->>
->> I can put this behind CHECK_DATA_CORRUPTION() instead of BUG(), which
->> allows the system builder to choose between WARN and BUG. Some people
->> absolutely want the kernel to BUG on data corruption as it could be an
->> attack.
+On Tue, Apr 04, 2017 at 10:23:02AM +0200, Michal Hocko wrote:
+>diff --git a/drivers/base/node.c b/drivers/base/node.c
+>index 5548f9686016..ee080a35e869 100644
+>--- a/drivers/base/node.c
+>+++ b/drivers/base/node.c
+>@@ -368,8 +368,6 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+> }
 >
-> CHECK_DATA_CORRUPTION sounds as better fit to me. This would, however
-> require to handle the potenial corruption by returning and leaking the
-> memory.
+> #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>-#define page_initialized(page)  (page->lru.next)
+>-
+> static int __ref get_nid_for_pfn(unsigned long pfn)
+> {
+> 	struct page *page;
+>@@ -380,9 +378,6 @@ static int __ref get_nid_for_pfn(unsigned long pfn)
+> 	if (system_state == SYSTEM_BOOTING)
+> 		return early_pfn_to_nid(pfn);
+> #endif
+>-	page = pfn_to_page(pfn);
+>-	if (!page_initialized(page))
+>-		return -1;
+> 	return pfn_to_nid(pfn);
+> }
+>
 
-IIUC, that would be the "return s" path? I should likely change the
-WARN_ON_ONCE there to be CHECK_DATA_CORRUPTION too. I'll add this to
-my series.
+You can get rid of 'page' altogether.
 
--Kees
+drivers/base/node.c: In function a??get_nid_for_pfna??:
+drivers/base/node.c:373:15: warning: unused variable a??pagea?? [-Wunused-variable]
 
 -- 
-Kees Cook
-Pixel Security
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
