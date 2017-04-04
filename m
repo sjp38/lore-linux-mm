@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5246B0038
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 08:34:39 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p20so173243655pgd.21
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 05:34:39 -0700 (PDT)
-Received: from osg.samsung.com (ec2-52-27-115-49.us-west-2.compute.amazonaws.com. [52.27.115.49])
-        by mx.google.com with ESMTP id f2si17394088pfg.268.2017.04.04.05.34.38
-        for <linux-mm@kvack.org>;
-        Tue, 04 Apr 2017 05:34:38 -0700 (PDT)
-Date: Tue, 4 Apr 2017 09:34:25 -0300
-From: Mauro Carvalho Chehab <mchehab@s-opensource.com>
-Subject: Re: [PATCH 0/9] convert genericirq.tmpl and kernel-api.tmpl to
- DocBook
-Message-ID: <20170404093425.54da2050@vento.lan>
-In-Reply-To: <20170402143418.3de75239@lwn.net>
-References: <cover.1490904090.git.mchehab@s-opensource.com>
-	<20170402143418.3de75239@lwn.net>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 692906B0038
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 08:45:17 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id x61so1783806wrb.8
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 05:45:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y27si24392725wrd.81.2017.04.04.05.45.15
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 04 Apr 2017 05:45:15 -0700 (PDT)
+Date: Tue, 4 Apr 2017 14:45:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 5/6] mm, memory_hotplug: do not associate hotadded memory
+ to zones until online
+Message-ID: <20170404124508.GK15132@dhcp22.suse.cz>
+References: <20170330115454.32154-1-mhocko@kernel.org>
+ <20170330115454.32154-6-mhocko@kernel.org>
+ <20170404122119.qsj3bhqse2qp46fi@builder>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170404122119.qsj3bhqse2qp46fi@builder>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Linux Media Mailing List <linux-media@vger.kernel.org>, Linux Doc Mailing List <linux-doc@vger.kernel.org>, Mauro Carvalho Chehab <mchehab@infradead.org>, Noam Camus <noamca@mellanox.com>, James Morris <james.l.morris@oracle.com>, zijun_hu <zijun_hu@htc.com>, Markus Heiser <markus.heiser@darmarit.de>, linux-clk@vger.kernel.org, Jani Nikula <jani.nikula@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nicholas Piggin <npiggin@gmail.com>, Russell King <linux@armlinux.org.uk>, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, "Serge E. Hallyn" <serge@hallyn.com>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, linux-security-module@vger.kernel.org, Silvio Fricke <silvio.fricke@gmail.com>, Takashi Iwai <tiwai@suse.de>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-pci@vger.kernel.org, Matt Fleming <matt@codeblueprint.co.uk>, Johannes Weiner <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Alexey Dobriyan <adobriyan@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Tobias Regnery <tobias.regnery@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Em Sun, 2 Apr 2017 14:34:18 -0600
-Jonathan Corbet <corbet@lwn.net> escreveu:
+On Tue 04-04-17 14:21:19, Tobias Regnery wrote:
+[...]
+> Hi Michal,
 
-> On Thu, 30 Mar 2017 17:11:27 -0300
-> Mauro Carvalho Chehab <mchehab@s-opensource.com> wrote:
+Hi
+
+> building an x86 allmodconfig with next-20170404 results in the following 
+> section mismatch warnings probably caused by this patch:
 > 
-> > This series converts just two documents, adding them to the
-> > core-api.rst book. It addresses the errors/warnings that popup
-> > after the conversion.
-> > 
-> > I had to add two fixes to scripts/kernel-doc, in order to solve
-> > some of the issues.  
-> 
-> I've applied the set, including the add-on to move some stuff to
-> driver-api - thanks.
+> WARNING: mm/built-in.o(.text+0x5a1c2): Section mismatch in reference from the function move_pfn_range_to_zone() to the function .meminit.text:memmap_init_zone()
+> The function move_pfn_range_to_zone() references
+> the function __meminit memmap_init_zone().
+> This is often because move_pfn_range_to_zone lacks a __meminit 
+> annotation or the annotation of memmap_init_zone is wrong.
 
-Thanks!
+Right. __add_pages which used to call memmap_init_zone before
+is __ref (to hide it the checker) which is not the case for
+move_pfn_range_to_zone. I cannot say I would see the point of separating
+all meminit functions because they are not going away but using __ref
+for move_pfn_range_to_zone should be as safe as __add_pages is.
 
-> For whatever reason, I had a hard time applying a few of these; "git am"
-> would tell me this:
-> 
-> > Applying: docs-rst: core_api: move driver-specific stuff to drivers_api
-> > fatal: sha1 information is lacking or useless (Documentation/driver-api/index.rst).
-> > Patch failed at 0001 docs-rst: core_api: move driver-specific stuff to drivers_api
-> > The copy of the patch that failed is found in: .git/rebase-apply/patch  
-> 
-> I was able to get around this, but it took some hand work.  How are you
-> generating these?
+> WARNING: mm/built-in.o(.text+0x5a25b): Section mismatch in reference from the function move_pfn_range_to_zone() to the function .meminit.text:init_currently_empty_zone()
+> The function move_pfn_range_to_zone() references
+> the function __meminit init_currently_empty_zone().
+> This is often because move_pfn_range_to_zone lacks a __meminit 
+> annotation or the annotation of init_currently_empty_zone is wrong.
 
-That's weird. I'm using this to generate the patches:
-
-	git format-patch -o $tmp_dir --stat --summary --patience --signoff --thread=shallow
-
-plus some scripting that runs scripts/get_maintainers.
-
-After that, I run:
-
-	git send-email $tmp_dir
-
-Then, exim sends the patches to a smart SMTP server (currently,
-infradead.org, but I'm switching to s-opensource.org, as I'm getting
-some troubles because the IP doesn't match the From: line).
-
-Thanks,
-Mauro
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+and this is the same thing. Thanks a lot. The following patch should fix
+it. I will keep it separate to have a reference why this has been
+done...
+---
