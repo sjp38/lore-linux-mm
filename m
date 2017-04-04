@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B846B0390
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 16:13:39 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id o70so29539450wrb.11
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 13:13:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a16si5530764wme.143.2017.04.04.13.13.37
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CE4976B0390
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 17:09:12 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id v78so23230214qkl.10
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 14:09:12 -0700 (PDT)
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com. [209.85.220.173])
+        by mx.google.com with ESMTPS id v10si16112212qtf.111.2017.04.04.14.09.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Apr 2017 13:13:38 -0700 (PDT)
-Date: Tue, 4 Apr 2017 22:13:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Add additional consistency check
-Message-ID: <20170404201334.GV15132@dhcp22.suse.cz>
-References: <20170331164028.GA118828@beast>
- <20170404113022.GC15490@dhcp22.suse.cz>
- <alpine.DEB.2.20.1704041005570.23420@east.gentwo.org>
- <20170404151600.GN15132@dhcp22.suse.cz>
- <alpine.DEB.2.20.1704041412050.27424@east.gentwo.org>
- <20170404194220.GT15132@dhcp22.suse.cz>
- <alpine.DEB.2.20.1704041457030.28085@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1704041457030.28085@east.gentwo.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Apr 2017 14:09:11 -0700 (PDT)
+Received: by mail-qk0-f173.google.com with SMTP id g195so81314088qke.2
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 14:09:11 -0700 (PDT)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCH] mm/usercopy: Drop extra is_vmalloc_or_module check
+Date: Tue,  4 Apr 2017 14:09:00 -0700
+Message-Id: <1491340140-18238-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Mark Rutland <mark.rutland@arm.com>
 
-On Tue 04-04-17 14:58:06, Cristopher Lameter wrote:
-> On Tue, 4 Apr 2017, Michal Hocko wrote:
-> 
-> > On Tue 04-04-17 14:13:06, Cristopher Lameter wrote:
-> > > On Tue, 4 Apr 2017, Michal Hocko wrote:
-> > >
-> > > > Yes, but we do not have to blow the kernel, right? Why cannot we simply
-> > > > leak that memory?
-> > >
-> > > Because it is a serious bug to attempt to free a non slab object using
-> > > slab operations. This is often the result of memory corruption, coding
-> > > errs etc. The system needs to stop right there.
-> >
-> > Why when an alternative is a memory leak?
-> 
-> Because the slab allocators fail also in case you free an object multiple
-> times etc etc. Continuation is supported by enabling a special resiliency
-> feature via the kernel command line. The alternative is selectable but not
-> the default.
+virt_addr_valid was previously insufficient to validate if virt_to_page
+could be called on an address on arm64. This has since been fixed up
+so there is no need for the extra check. Drop it.
+
+Signed-off-by: Laura Abbott <labbott@redhat.com>
+---
+I've given this some testing on my machine and haven't seen any problems
+(e.g. random crashes without the check) and the fix has been in for long
+enough now. I'm in no rush to have this merged so I'm okay if this sits in
+a tree somewhere to get more testing.
+---
+ mm/usercopy.c | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index d155e12563b1..4d23a0e0e232 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -206,17 +206,6 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+ {
+ 	struct page *page;
  
-I disagree! We should try to continue as long as we _know_ that the
-internal state of the allocator is still consistent and a further
-operation will not spread the corruption even more. This is clearly not
-the case for an invalid pointer to kfree.
-
-I can see why checking for an early allocator corruption is not always
-feasible and you can only detect after-the-fact but this is not the case
-here and putting your system down just because some buggy code is trying
-to free something it hasn't allocated is not really useful. I completely
-agree with Linus that we overuse BUG way too much and this is just
-another example of it.
-
+-	/*
+-	 * Some architectures (arm64) return true for virt_addr_valid() on
+-	 * vmalloced addresses. Work around this by checking for vmalloc
+-	 * first.
+-	 *
+-	 * We also need to check for module addresses explicitly since we
+-	 * may copy static data from modules to userspace
+-	 */
+-	if (is_vmalloc_or_module_addr(ptr))
+-		return NULL;
+-
+ 	if (!virt_addr_valid(ptr))
+ 		return NULL;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.12.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
