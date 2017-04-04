@@ -1,85 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 153906B0390
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 04:57:31 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id o70so27504181wrb.11
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 01:57:31 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 13E3A6B0390
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 05:36:59 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v44so27784826wrc.9
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 02:36:59 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y13si23557752wrb.286.2017.04.04.01.57.29
+        by mx.google.com with ESMTPS id c26si16595950wrb.192.2017.04.04.02.36.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Apr 2017 01:57:29 -0700 (PDT)
-Date: Tue, 4 Apr 2017 10:57:26 +0200
+        Tue, 04 Apr 2017 02:36:57 -0700 (PDT)
+Date: Tue, 4 Apr 2017 11:36:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + fix-print-order-in-show_free_areas.patch added to -mm tree
-Message-ID: <20170404085725.GF15132@dhcp22.suse.cz>
-References: <58e2c885.fYYyNuCxKh7sHx78%akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
+Message-ID: <20170404093653.GG15132@dhcp22.suse.cz>
+References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
+ <20170330152229.f2108e718114ed77acae7405@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <58e2c885.fYYyNuCxKh7sHx78%akpm@linux-foundation.org>
+In-Reply-To: <20170330152229.f2108e718114ed77acae7405@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: apolyakov@beget.ru, apolyakov@beget.com, mgorman@techsingularity.net, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, thellstrom@vmware.com, stable@vger.kernel.org
 
-JFTR. Joe, has already noticed this
-http://lkml.kernel.org/r/2aaf6f1701ee78582743d91359018689d5826e82.1489628459.git.joe@perches.com
-and I have requested to split out the fix from the rest of the
-whitespace noise
-http://lkml.kernel.org/r/20170316105733.GC30508@dhcp22.suse.cz
-but Joe hasn't really followed up and I didn't get to do it myself.
-
-On Mon 03-04-17 15:11:17, Andrew Morton wrote:
-> From: Alexander Polakov <apolyakov@beget.ru>
-> Subject: mmpage_alloc.c: fix print order in show_free_areas()
+On Thu 30-03-17 15:22:29, Andrew Morton wrote:
+> On Thu, 30 Mar 2017 13:27:16 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+[...]
+> > This can be fixed in vmgfx, but it would be better to make vfree()
+> > non-sleeping again because we may have other bugs like this one.
 > 
-> Fixes: 11fb998986a72a ("mm: move most file-based accounting to the node")
-> Link: http://lkml.kernel.org/r/1490377730.30219.2.camel@beget.ru
-> Signed-off-by: Alexander Polyakov <apolyakov@beget.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> I tend to disagree: adding yet another schedule_work() introduces
+> additional overhead and adds some risk of ENOMEM errors which wouldn't
+> occur with a synchronous free.
 
-Even though this cannot cause any crash or misbehaving it is still
-confusing enough to be worth backporting to stable
+I do not think ENOMEM would be a problem. We are talking about lazy
+handling already. Besides that the allocation path also does this lazy
+free AFAICS.
 
-Cc: stable # 4.8+
-Acked-by: Michal Hocko <mhocko@suse.com>
+> > __purge_vmap_area_lazy() is the only function in the vfree() path that
+> > wants to be able to sleep. So it make sense to schedule
+> > __purge_vmap_area_lazy() via schedule_work() so it runs only in sleepable
+> > context.
+> 
+> vfree() already does
+> 
+> 	if (unlikely(in_interrupt()))
+> 		__vfree_deferred(addr);
+> 
+> so it seems silly to introduce another defer-to-kernel-thread thing
+> when we already have one.
 
-Thanks!
-
-> ---
-> 
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff -puN mm/page_alloc.c~fix-print-order-in-show_free_areas mm/page_alloc.c
-> --- a/mm/page_alloc.c~fix-print-order-in-show_free_areas
-> +++ a/mm/page_alloc.c
-> @@ -4519,13 +4519,13 @@ void show_free_areas(unsigned int filter
->  			K(node_page_state(pgdat, NR_FILE_MAPPED)),
->  			K(node_page_state(pgdat, NR_FILE_DIRTY)),
->  			K(node_page_state(pgdat, NR_WRITEBACK)),
-> +			K(node_page_state(pgdat, NR_SHMEM)),
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  			K(node_page_state(pgdat, NR_SHMEM_THPS) * HPAGE_PMD_NR),
->  			K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)
->  					* HPAGE_PMD_NR),
->  			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
->  #endif
-> -			K(node_page_state(pgdat, NR_SHMEM)),
->  			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
->  			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
->  			node_page_state(pgdat, NR_PAGES_SCANNED),
-> _
-> 
-> Patches currently in -mm which might be from apolyakov@beget.ru are
-> 
-> fix-print-order-in-show_free_areas.patch
-> 
-
+But this only cares about the IRQ context and this patch aims at atomic
+context in general. I agree it would have been better to reduce this
+deferred behavior to only _atomic_ context but we not have a reliable
+way to detect that on non-preemptive kernels AFAIR.
 -- 
 Michal Hocko
 SUSE Labs
