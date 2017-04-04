@@ -1,456 +1,330 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DB71B6B03A1
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 18:02:01 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u77so488269wrb.6
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 15:02:01 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 7si1102877wmz.168.2017.04.04.15.01.59
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 534EA6B0390
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 18:02:52 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 34so187546277pgx.6
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 15:02:52 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g17si18661214pgh.66.2017.04.04.15.02.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 15:02:00 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 4/4] mm: memcontrol: use node page state naming scheme for memcg
-Date: Tue,  4 Apr 2017 18:01:48 -0400
-Message-Id: <20170404220148.28338-4-hannes@cmpxchg.org>
-In-Reply-To: <20170404220148.28338-1-hannes@cmpxchg.org>
-References: <20170404220148.28338-1-hannes@cmpxchg.org>
+        Tue, 04 Apr 2017 15:02:51 -0700 (PDT)
+Date: Tue, 04 Apr 2017 15:02:48 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2017-04-04-15-00 uploaded
+Message-ID: <58e41808.QnuE2mG/zPuBMTP8%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-The memory controllers stat function names are awkwardly long and
-arbitrarily different from the zone and node stat functions.
+The mm-of-the-moment snapshot 2017-04-04-15-00 has been uploaded to
 
-The current interface is named:
+   http://www.ozlabs.org/~akpm/mmotm/
 
-  mem_cgroup_read_stat()
-  mem_cgroup_update_stat()
-  mem_cgroup_inc_stat()
-  mem_cgroup_dec_stat()
-  mem_cgroup_update_page_stat()
-  mem_cgroup_inc_page_stat()
-  mem_cgroup_dec_page_stat()
+mmotm-readme.txt says
 
-This patch renames it to match the corresponding node stat functions:
+README for mm-of-the-moment:
 
-  memcg_page_state()		[node_page_state()]
-  mod_memcg_state()		[mod_node_state()]
-  inc_memcg_state()		[inc_node_state()]
-  dec_memcg_state()		[dec_node_state()]
-  mod_memcg_page_state()	[mod_node_page_state()]
-  inc_memcg_page_state()	[inc_node_page_state()]
-  dec_memcg_page_state()	[dec_node_page_state()]
+http://www.ozlabs.org/~akpm/mmotm/
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h | 73 +++++++++++++++++++++++-----------------------
- mm/memcontrol.c            | 38 ++++++++++++------------
- mm/page-writeback.c        | 10 +++----
- mm/rmap.c                  |  4 +--
- mm/vmscan.c                |  5 ++--
- mm/workingset.c            |  6 ++--
- 6 files changed, 68 insertions(+), 68 deletions(-)
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 0fa1f5de6841..899949bbb2f9 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -472,8 +472,8 @@ extern int do_swap_account;
- void lock_page_memcg(struct page *page);
- void unlock_page_memcg(struct page *page);
- 
--static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
--						 enum memcg_stat_item idx)
-+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
-+					     enum memcg_stat_item idx)
- {
- 	long val = 0;
- 	int cpu;
-@@ -487,27 +487,27 @@ static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
- 	return val;
- }
- 
--static inline void mem_cgroup_update_stat(struct mem_cgroup *memcg,
--					  enum memcg_stat_item idx, int val)
-+static inline void mod_memcg_state(struct mem_cgroup *memcg,
-+				   enum memcg_stat_item idx, int val)
- {
- 	if (!mem_cgroup_disabled())
- 		this_cpu_add(memcg->stat->count[idx], val);
- }
- 
--static inline void mem_cgroup_inc_stat(struct mem_cgroup *memcg,
--				       enum memcg_stat_item idx)
-+static inline void inc_memcg_state(struct mem_cgroup *memcg,
-+				   enum memcg_stat_item idx)
- {
--	mem_cgroup_update_stat(memcg, idx, 1);
-+	mod_memcg_state(memcg, idx, 1);
- }
- 
--static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
--				       enum memcg_stat_item idx)
-+static inline void dec_memcg_state(struct mem_cgroup *memcg,
-+				   enum memcg_stat_item idx)
- {
--	mem_cgroup_update_stat(memcg, idx, -1);
-+	mod_memcg_state(memcg, idx, -1);
- }
- 
- /**
-- * mem_cgroup_update_page_stat - update page state statistics
-+ * mod_memcg_page_state - update page state statistics
-  * @page: the page
-  * @idx: page state item to account
-  * @val: number of pages (positive or negative)
-@@ -518,28 +518,28 @@ static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
-  *
-  *   lock_page(page) or lock_page_memcg(page)
-  *   if (TestClearPageState(page))
-- *     mem_cgroup_update_page_stat(page, state, -1);
-+ *     mod_memcg_page_state(page, state, -1);
-  *   unlock_page(page) or unlock_page_memcg(page)
-  *
-  * Kernel pages are an exception to this, since they'll never move.
-  */
--static inline void mem_cgroup_update_page_stat(struct page *page,
--				 enum memcg_stat_item idx, int val)
-+static inline void mod_memcg_page_state(struct page *page,
-+					enum memcg_stat_item idx, int val)
- {
- 	if (page->mem_cgroup)
--		mem_cgroup_update_stat(page->mem_cgroup, idx, val);
-+		mod_memcg_state(page->mem_cgroup, idx, val);
- }
- 
--static inline void mem_cgroup_inc_page_stat(struct page *page,
--					    enum memcg_stat_item idx)
-+static inline void inc_memcg_page_state(struct page *page,
-+					enum memcg_stat_item idx)
- {
--	mem_cgroup_update_page_stat(page, idx, 1);
-+	mod_memcg_page_state(page, idx, 1);
- }
- 
--static inline void mem_cgroup_dec_page_stat(struct page *page,
--					    enum memcg_stat_item idx)
-+static inline void dec_memcg_page_state(struct page *page,
-+					enum memcg_stat_item idx)
- {
--	mem_cgroup_update_page_stat(page, idx, -1);
-+	mod_memcg_page_state(page, idx, -1);
- }
- 
- unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
-@@ -739,40 +739,41 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
- 	return false;
- }
- 
--static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
--						 enum mem_cgroup_stat_index idx)
-+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
-+					     enum memcg_stat_item idx)
- {
- 	return 0;
- }
- 
--static inline void mem_cgroup_update_stat(struct mem_cgroup *memcg,
--					  enum memcg_stat_item idx, int val)
-+static inline void mod_memcg_state(struct mem_cgroup *memcg,
-+				   enum memcg_stat_item idx,
-+				   int nr)
- {
- }
- 
--static inline void mem_cgroup_inc_stat(struct mem_cgroup *memcg,
--				       enum memcg_stat_item idx)
-+static inline void inc_memcg_state(struct mem_cgroup *memcg,
-+				   enum memcg_stat_item idx)
- {
- }
- 
--static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
--				       enum memcg_stat_item idx)
-+static inline void dec_memcg_state(struct mem_cgroup *memcg,
-+				   enum memcg_stat_item idx)
- {
- }
- 
--static inline void mem_cgroup_update_page_stat(struct page *page,
--					       enum memcg_stat_item idx,
--					       int nr)
-+static inline void mod_memcg_page_state(struct page *page,
-+					enum memcg_stat_item idx,
-+					int nr)
- {
- }
- 
--static inline void mem_cgroup_inc_page_stat(struct page *page,
--					    enum memcg_stat_item idx)
-+static inline void inc_memcg_page_state(struct page *page,
-+					enum memcg_stat_item idx)
- {
- }
- 
--static inline void mem_cgroup_dec_page_stat(struct page *page,
--					    enum memcg_stat_item idx)
-+static inline void dec_memcg_page_state(struct page *page,
-+					enum memcg_stat_item idx)
- {
- }
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6fe4c7fafbfc..ff73899af61a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -552,8 +552,8 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
-  * implemented.
-  */
- 
--static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
--					    enum memcg_event_item event)
-+static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
-+				      enum memcg_event_item event)
- {
- 	unsigned long val = 0;
- 	int cpu;
-@@ -1180,7 +1180,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
- 				continue;
- 			pr_cont(" %s:%luKB", memcg1_stat_names[i],
--				K(mem_cgroup_read_stat(iter, memcg1_stats[i])));
-+				K(memcg_page_state(iter, memcg1_stats[i])));
- 		}
- 
- 		for (i = 0; i < NR_LRU_LISTS; i++)
-@@ -2713,7 +2713,7 @@ static void tree_stat(struct mem_cgroup *memcg, unsigned long *stat)
- 
- 	for_each_mem_cgroup_tree(iter, memcg) {
- 		for (i = 0; i < MEMCG_NR_STAT; i++)
--			stat[i] += mem_cgroup_read_stat(iter, i);
-+			stat[i] += memcg_page_state(iter, i);
- 	}
- }
- 
-@@ -2726,7 +2726,7 @@ static void tree_events(struct mem_cgroup *memcg, unsigned long *events)
- 
- 	for_each_mem_cgroup_tree(iter, memcg) {
- 		for (i = 0; i < MEMCG_NR_EVENTS; i++)
--			events[i] += mem_cgroup_read_events(iter, i);
-+			events[i] += memcg_sum_events(iter, i);
- 	}
- }
- 
-@@ -2738,10 +2738,10 @@ static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
- 		struct mem_cgroup *iter;
- 
- 		for_each_mem_cgroup_tree(iter, memcg) {
--			val += mem_cgroup_read_stat(iter, MEMCG_CACHE);
--			val += mem_cgroup_read_stat(iter, MEMCG_RSS);
-+			val += memcg_page_state(iter, MEMCG_CACHE);
-+			val += memcg_page_state(iter, MEMCG_RSS);
- 			if (swap)
--				val += mem_cgroup_read_stat(iter, MEMCG_SWAP);
-+				val += memcg_page_state(iter, MEMCG_SWAP);
- 		}
- 	} else {
- 		if (!swap)
-@@ -3145,13 +3145,13 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
- 			continue;
- 		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
--			   mem_cgroup_read_stat(memcg, memcg1_stats[i]) *
-+			   memcg_page_state(memcg, memcg1_stats[i]) *
- 			   PAGE_SIZE);
- 	}
- 
- 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
- 		seq_printf(m, "%s %lu\n", memcg1_event_names[i],
--			   mem_cgroup_read_events(memcg, memcg1_events[i]));
-+			   memcg_sum_events(memcg, memcg1_events[i]));
- 
- 	for (i = 0; i < NR_LRU_LISTS; i++)
- 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
-@@ -3175,7 +3175,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
- 			continue;
- 		for_each_mem_cgroup_tree(mi, memcg)
--			val += mem_cgroup_read_stat(mi, memcg1_stats[i]) *
-+			val += memcg_page_state(mi, memcg1_stats[i]) *
- 			PAGE_SIZE;
- 		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
- 	}
-@@ -3184,7 +3184,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		unsigned long long val = 0;
- 
- 		for_each_mem_cgroup_tree(mi, memcg)
--			val += mem_cgroup_read_events(mi, memcg1_events[i]);
-+			val += memcg_sum_events(mi, memcg1_events[i]);
- 		seq_printf(m, "total_%s %llu\n", memcg1_event_names[i], val);
- 	}
- 
-@@ -3650,10 +3650,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
- 	struct mem_cgroup *parent;
- 
--	*pdirty = mem_cgroup_read_stat(memcg, NR_FILE_DIRTY);
-+	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
- 
- 	/* this should eventually include NR_UNSTABLE_NFS */
--	*pwriteback = mem_cgroup_read_stat(memcg, NR_WRITEBACK);
-+	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
- 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
- 						     (1 << LRU_ACTIVE_FILE));
- 	*pheadroom = PAGE_COUNTER_MAX;
-@@ -4515,7 +4515,7 @@ static int mem_cgroup_move_account(struct page *page,
- 
- 	/*
- 	 * move_lock grabbed above and caller set from->moving_account, so
--	 * mem_cgroup_update_page_stat() will serialize updates to PageDirty.
-+	 * mod_memcg_page_state will serialize updates to PageDirty.
- 	 * So mapping should be stable for dirty pages.
- 	 */
- 	if (!anon && PageDirty(page)) {
-@@ -5161,10 +5161,10 @@ static int memory_events_show(struct seq_file *m, void *v)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
- 
--	seq_printf(m, "low %lu\n", mem_cgroup_read_events(memcg, MEMCG_LOW));
--	seq_printf(m, "high %lu\n", mem_cgroup_read_events(memcg, MEMCG_HIGH));
--	seq_printf(m, "max %lu\n", mem_cgroup_read_events(memcg, MEMCG_MAX));
--	seq_printf(m, "oom %lu\n", mem_cgroup_read_events(memcg, MEMCG_OOM));
-+	seq_printf(m, "low %lu\n", memcg_sum_events(memcg, MEMCG_LOW));
-+	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
-+	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
-+	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
- 
- 	return 0;
- }
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 777711203809..2359608d2568 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2427,7 +2427,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 		inode_attach_wb(inode, page);
- 		wb = inode_to_wb(inode);
- 
--		mem_cgroup_inc_page_stat(page, NR_FILE_DIRTY);
-+		inc_memcg_page_state(page, NR_FILE_DIRTY);
- 		__inc_node_page_state(page, NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		__inc_node_page_state(page, NR_DIRTIED);
-@@ -2449,7 +2449,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
- 			  struct bdi_writeback *wb)
- {
- 	if (mapping_cap_account_dirty(mapping)) {
--		mem_cgroup_dec_page_stat(page, NR_FILE_DIRTY);
-+		dec_memcg_page_state(page, NR_FILE_DIRTY);
- 		dec_node_page_state(page, NR_FILE_DIRTY);
- 		dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		dec_wb_stat(wb, WB_RECLAIMABLE);
-@@ -2706,7 +2706,7 @@ int clear_page_dirty_for_io(struct page *page)
- 		 */
- 		wb = unlocked_inode_to_wb_begin(inode, &locked);
- 		if (TestClearPageDirty(page)) {
--			mem_cgroup_dec_page_stat(page, NR_FILE_DIRTY);
-+			dec_memcg_page_state(page, NR_FILE_DIRTY);
- 			dec_node_page_state(page, NR_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 			dec_wb_stat(wb, WB_RECLAIMABLE);
-@@ -2753,7 +2753,7 @@ int test_clear_page_writeback(struct page *page)
- 		ret = TestClearPageWriteback(page);
- 	}
- 	if (ret) {
--		mem_cgroup_dec_page_stat(page, NR_WRITEBACK);
-+		dec_memcg_page_state(page, NR_WRITEBACK);
- 		dec_node_page_state(page, NR_WRITEBACK);
- 		dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		inc_node_page_state(page, NR_WRITTEN);
-@@ -2808,7 +2808,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 		ret = TestSetPageWriteback(page);
- 	}
- 	if (!ret) {
--		mem_cgroup_inc_page_stat(page, NR_WRITEBACK);
-+		inc_memcg_page_state(page, NR_WRITEBACK);
- 		inc_node_page_state(page, NR_WRITEBACK);
- 		inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 	}
-diff --git a/mm/rmap.c b/mm/rmap.c
-index f6bbfcf01422..e116a8e80468 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1158,7 +1158,7 @@ void page_add_file_rmap(struct page *page, bool compound)
- 			goto out;
- 	}
- 	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, nr);
--	mem_cgroup_update_page_stat(page, NR_FILE_MAPPED, nr);
-+	mod_memcg_page_state(page, NR_FILE_MAPPED, nr);
- out:
- 	unlock_page_memcg(page);
- }
-@@ -1198,7 +1198,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
- 	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, -nr);
--	mem_cgroup_update_page_stat(page, NR_FILE_MAPPED, -nr);
-+	mod_memcg_page_state(page, NR_FILE_MAPPED, -nr);
- 
- 	if (unlikely(PageMlocked(page)))
- 		clear_page_mlock(page);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d77c97552ed3..eac4a9a73ba9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2046,7 +2046,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
- 
- 	if (memcg)
--		refaults = mem_cgroup_read_stat(memcg, WORKINGSET_ACTIVATE);
-+		refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
- 	else
- 		refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
- 
-@@ -2740,8 +2740,7 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
- 		struct lruvec *lruvec;
- 
- 		if (memcg)
--			refaults = mem_cgroup_read_stat(memcg,
--							WORKINGSET_ACTIVATE);
-+			refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
- 		else
- 			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
- 
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 37fc1057cd86..b8c9ab678479 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -289,11 +289,11 @@ bool workingset_refault(void *shadow)
- 	refault_distance = (refault - eviction) & EVICTION_MASK;
- 
- 	inc_node_state(pgdat, WORKINGSET_REFAULT);
--	mem_cgroup_inc_stat(memcg, WORKINGSET_REFAULT);
-+	inc_memcg_state(memcg, WORKINGSET_REFAULT);
- 
- 	if (refault_distance <= active_file) {
- 		inc_node_state(pgdat, WORKINGSET_ACTIVATE);
--		mem_cgroup_inc_stat(memcg, WORKINGSET_ACTIVATE);
-+		inc_memcg_state(memcg, WORKINGSET_ACTIVATE);
- 		rcu_read_unlock();
- 		return true;
- 	}
-@@ -475,7 +475,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 	if (WARN_ON_ONCE(node->exceptional))
- 		goto out_invalid;
- 	inc_node_state(page_pgdat(virt_to_page(node)), WORKINGSET_NODERECLAIM);
--	mem_cgroup_inc_page_stat(virt_to_page(node), WORKINGSET_NODERECLAIM);
-+	inc_memcg_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
- 	__radix_tree_delete_node(&mapping->page_tree, node,
- 				 workingset_update_node, mapping);
- 
--- 
-2.12.1
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.11-rc5:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  i-need-old-gcc.patch
+* mm-fix-page_vma_mapped_walk-for-ksm-pages.patch
+* userfaultfd-report-actual-registered-features-in-fdinfo.patch
+* fix-print-order-in-show_free_areas.patch
+* vmlinuxlds-add-missing-vmlinux_symbol-macros.patch
+* ptrace-fix-ptrace_listen-race-corrupting-task-state.patch
+* ptrace-fix-ptrace_listen-race-corrupting-task-state-checkpatch-fixes.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* dax-add-tracepoints-to-dax_iomap_pte_fault.patch
+* dax-add-tracepoints-to-dax_pfn_mkwrite.patch
+* dax-add-tracepoints-to-dax_load_hole.patch
+* dax-add-tracepoints-to-dax_writeback_mapping_range.patch
+* dax-add-tracepoints-to-dax_writeback_mapping_range-fix.patch
+* dax-add-tracepoint-to-dax_writeback_one.patch
+* dax-add-tracepoint-to-dax_insert_mapping.patch
+* kbuild-consolidate-header-generation-from-asm-offset-information.patch
+* fs-ocfs2-cluster-use-setup_timer.patch
+* ocfs2-o2hb-revert-hb-threshold-to-keep-compatible.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
+* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks.patch
+* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks-checkpatch-fixes.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+  mm.patch
+* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes.patch
+* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes-fix.patch
+* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes-fix-2.patch
+* mm-fix-check-for-reclaimable-pages-in-pf_memalloc-reclaim-throttling.patch
+* mm-remove-seemingly-spurious-reclaimability-check-from-laptop_mode-gating.patch
+* mm-remove-unnecessary-reclaimability-check-from-numa-balancing-target.patch
+* mm-dont-avoid-high-priority-reclaim-on-unreclaimable-nodes.patch
+* mm-dont-avoid-high-priority-reclaim-on-memcg-limit-reclaim.patch
+* mm-delete-nr_pages_scanned-and-pgdat_reclaimable.patch
+* revert-mm-vmscan-account-for-skipped-pages-as-a-partial-scan.patch
+* mm-remove-unnecessary-back-off-function-when-retrying-page-reclaim.patch
+* writeback-use-setup_deferrable_timer.patch
+* mm-delete-unnecessary-ttu_-flags.patch
+* mm-dont-assume-anonymous-pages-have-swapbacked-flag.patch
+* mm-move-madv_free-pages-into-lru_inactive_file-list.patch
+* mm-move-madv_free-pages-into-lru_inactive_file-list-checkpatch-fixes.patch
+* mm-reclaim-madv_free-pages.patch
+* mm-reclaim-madv_free-pages-fix.patch
+* mm-fix-lazyfree-bug-on-check-in-try_to_unmap_one.patch
+* mm-fix-lazyfree-bug-on-check-in-try_to_unmap_one-fix.patch
+* mm-enable-madv_free-for-swapless-system.patch
+* proc-show-madv_free-pages-info-in-smaps.patch
+* proc-show-madv_free-pages-info-in-smaps-fix.patch
+* mm-memcontrol-provide-shmem-statistics.patch
+* thp-reduce-indentation-level-in-change_huge_pmd.patch
+* thp-fix-madv_dontneed-vs-numa-balancing-race.patch
+* mm-drop-unused-pmdp_huge_get_and_clear_notify.patch
+* thp-fix-madv_dontneed-vs-madv_free-race.patch
+* thp-fix-madv_dontneed-vs-madv_free-race-fix.patch
+* thp-fix-madv_dontneed-vs-clear-soft-dirty-race.patch
+* mm-swap-fix-a-race-in-free_swap_and_cache.patch
+* mm-use-is_migrate_highatomic-to-simplify-the-code.patch
+* mm-use-is_migrate_highatomic-to-simplify-the-code-fix.patch
+* mm-use-is_migrate_isolate_page-to-simplify-the-code.patch
+* mm-vmstat-print-non-populated-zones-in-zoneinfo.patch
+* mm-vmstat-suppress-pcp-stats-for-unpopulated-zones-in-zoneinfo.patch
+* zram-reduce-load-operation-in-page_same_filled.patch
+* lockdep-teach-lockdep-about-memalloc_noio_save.patch
+* lockdep-allow-to-disable-reclaim-lockup-detection.patch
+* xfs-abstract-pf_fstrans-to-pf_memalloc_nofs.patch
+* mm-introduce-memalloc_nofs_saverestore-api.patch
+* mm-introduce-memalloc_nofs_saverestore-api-fix.patch
+* xfs-use-memalloc_nofs_saverestore-instead-of-memalloc_noio.patch
+* jbd2-mark-the-transaction-context-with-the-scope-gfp_nofs-context.patch
+* jbd2-mark-the-transaction-context-with-the-scope-gfp_nofs-context-fix.patch
+* jbd2-make-the-whole-kjournald2-kthread-nofs-safe.patch
+* jbd2-make-the-whole-kjournald2-kthread-nofs-safe-checkpatch-fixes.patch
+* mm-tighten-up-the-fault-path-a-little.patch
+* mm-remove-rodata_test_data-export-add-pr_fmt.patch
+* mm-move-pcp-and-lru-pcp-drainging-into-single-wq.patch
+* mm-move-pcp-and-lru-pcp-drainging-into-single-wq-fix.patch
+* mm-compaction-reorder-fields-in-struct-compact_control.patch
+* mm-compaction-remove-redundant-watermark-check-in-compact_finished.patch
+* mm-page_alloc-split-smallest-stolen-page-in-fallback.patch
+* mm-page_alloc-split-smallest-stolen-page-in-fallback-fix.patch
+* mm-page_alloc-count-movable-pages-when-stealing-from-pageblock.patch
+* mm-page_alloc-count-movable-pages-when-stealing-from-pageblock-fix.patch
+* mm-compaction-change-migrate_async_suitable-to-suitable_migration_source.patch
+* mm-compaction-add-migratetype-to-compact_control.patch
+* mm-compaction-restrict-async-compaction-to-pageblocks-of-same-migratetype.patch
+* mm-compaction-finish-whole-pageblock-to-reduce-fragmentation.patch
+* mm-do-not-use-double-negation-for-testing-page-flags.patch
+* mm-vmscan-fix-zone-balance-check-in-prepare_kswapd_sleep.patch
+* mm-vmscan-only-clear-pgdat-congested-dirty-writeback-state-when-balanced.patch
+* mm-vmscan-prevent-kswapd-sleeping-prematurely-due-to-mismatched-classzone_idx.patch
+* mm-page_alloc-__gfp_nowarn-shouldnt-suppress-stall-warnings.patch
+* mm-sparse-refine-usemap_size-a-little.patch
+* mm-compaction-ignore-block-suitable-after-check-large-free-page.patch
+* mm-vmscan-more-restrictive-condition-for-retry-in-do_try_to_free_pages.patch
+* mm-vmscan-more-restrictive-condition-for-retry-in-do_try_to_free_pages-v5.patch
+* mm-remove-unncessary-ret-in-page_referenced.patch
+* mm-remove-swap_dirty-in-ttu.patch
+* mm-remove-swap_mlock-check-for-swap_success-in-ttu.patch
+* mm-make-the-try_to_munlock-void-function.patch
+* mm-remove-swap_mlock-in-ttu.patch
+* mm-remove-swap_again-in-ttu.patch
+* mm-make-ttus-return-boolean.patch
+* mm-make-rmap_walk-void-function.patch
+* mm-make-rmap_one-boolean-function.patch
+* mm-remove-swap_.patch
+* mm-remove-swap_-fix.patch
+* mm-swap-fix-comment-in-__read_swap_cache_async.patch
+* mm-swap-improve-readability-via-make-spin_lock-unlock-balanced.patch
+* mm-swap-avoid-lock-swap_avail_lock-when-held-cluster-lock.patch
+* mm-enable-page-poisoning-early-at-boot.patch
+* mm-enable-page-poisoning-early-at-boot-v2.patch
+* mm-include-linux-migrateh-fixing-checkpatch-warning-regarding-function-definition.patch
+* swap-add-warning-if-swap-slots-cache-failed-to-initialize.patch
+* swap-add-warning-if-swap-slots-cache-failed-to-initialize-fix.patch
+* mm-fix-spelling-error.patch
+* userfaultfd-selftest-combine-all-cases-into-the-single-executable.patch
+* zram-handle-multiple-pages-attached-bios-bvec.patch
+* zram-partial-io-refactoring.patch
+* zram-use-zram_slot_lock-instead-of-raw-bit_spin_lock-op.patch
+* zram-remove-zram_meta-structure.patch
+* zram-introduce-zram-data-accessor.patch
+* mm-add-additional-consistency-check.patch
+* oom-improve-oom-disable-handling.patch
+* mm-mmap-replace-shm_huge_mask-with-map_huge_mask-inside-mmap_pgoff.patch
+* mm-page_alloc-return-0-in-case-this-node-has-no-page-within-the-zone.patch
+* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* kasan-introduce-helper-functions-for-determining-bug-type.patch
+* kasan-unify-report-headers.patch
+* kasan-change-allocation-and-freeing-stack-traces-headers.patch
+* kasan-simplify-address-description-logic.patch
+* kasan-change-report-header.patch
+* kasan-improve-slab-object-description.patch
+* kasan-print-page-description-after-stacks.patch
+* kasan-improve-double-free-report-format.patch
+* kasan-separate-report-parts-by-empty-lines.patch
+* proc-remove-cast-from-memory-allocation.patch
+* proc-sysctl-fix-the-int-overflow-for-jiffies-conversion.patch
+* drivers-virt-use-get_user_pages_unlocked.patch
+* jiffiesh-declare-jiffies-and-jiffies_64-with-____cacheline_aligned_in_smp.patch
+* locking-hung_task-defer-showing-held-locks.patch
+* vmci-fix-a-couple-integer-overflow-tests.patch
+* revert-lib-test_sortc-make-it-explicitly-non-modular.patch
+* lib-add-module-support-to-array-based-sort-tests.patch
+* lib-add-module-support-to-linked-list-sorting-tests.patch
+* firmware-makefile-force-recompilation-if-makefile-changes.patch
+* checkpatch-remove-obsolete-config_experimental-checks.patch
+* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions.patch
+* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions-fix.patch
+* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions-fix-fix.patch
+* checkpatch-improve-embedded_function_name-test.patch
+* checkpatch-allow-space-leading-blank-lines-in-email-headers.patch
+* reiserfs-use-designated-initializers.patch
+* cpumask-make-nr_cpumask_bits-unsigned.patch
+* crash-move-crashkernel-parsing-and-vmcore-related-code-under-config_crash_core.patch
+* ia64-reuse-append_elf_note-and-final_note-functions.patch
+* powerpc-fadump-remove-dependency-with-config_kexec.patch
+* powerpc-fadump-reuse-crashkernel-parameter-for-fadump-memory-reservation.patch
+* powerpc-fadump-update-documentation-about-crashkernel-parameter-reuse.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
+* ns-allow-ns_entries-to-have-custom-symlink-content.patch
+* pidns-expose-task-pid_ns_for_children-to-userspace.patch
+* taskstats-add-e-u-stime-for-tgid-command.patch
+* taskstats-add-e-u-stime-for-tgid-command-fix.patch
+* taskstats-add-e-u-stime-for-tgid-command-fix-fix.patch
+* kcov-simplify-interrupt-check.patch
+* scripts-gdb-add-lx-fdtdump-command.patch
+* kernel-reboot-add-devm_register_reboot_notifier.patch
+* kernel-reboot-add-devm_register_reboot_notifier-fix.patch
+* fault-inject-use-correct-check-for-interrupts.patch
+* fault-inject-support-systematic-fault-injection.patch
+* fault-inject-support-systematic-fault-injection-fix.patch
+* zlib-inflate-fix-potential-buffer-overflow.patch
+* initramfs-provide-a-way-to-ignore-image-provided-by-bootloader.patch
+* initramfs-use-vfs_stat-lstat-directly.patch
+* ipc-shm-some-shmat-cleanups.patch
+* sysvipc-cacheline-align-kern_ipc_perm.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* sparc64-ng4-memset-32-bits-overflow.patch
+* mm-zeroing-hash-tables-in-allocator.patch
+* mm-updated-callers-to-use-hash_zero-flag.patch
+* mm-adaptive-hash-table-scaling.patch
+* mm-introduce-kvalloc-helpers.patch
+* mm-introduce-kvalloc-helpers-fix.patch
+* mm-support-__gfp_repeat-in-kvmalloc_node-for-32kb.patch
+* rhashtable-simplify-a-strange-allocation-pattern.patch
+* ila-simplify-a-strange-allocation-pattern.patch
+* xattr-zero-out-memory-copied-to-userspace-in-getxattr.patch
+* treewide-use-kvalloc-rather-than-opencoded-variants.patch
+* net-use-kvmalloc-with-__gfp_repeat-rather-than-open-coded-variant.patch
+* md-use-kvmalloc-rather-than-opencoded-variant.patch
+* bcache-use-kvmalloc.patch
+* mm-vmalloc-use-__gfp_highmem-implicitly.patch
+* scripts-spellingtxt-add-memory-pattern-and-fix-typos.patch
+* scripts-spellingtxt-add-regsiter-register-spelling-mistake.patch
+* scripts-spellingtxt-add-intialised-pattern-and-fix-typo-instances.patch
+* treewide-correct-diffrent-and-banlance-typos.patch
+* treewide-move-set_memory_-functions-away-from-cacheflushh.patch
+* arm-use-set_memoryh-header.patch
+* arm64-use-set_memoryh-header.patch
+* s390-use-set_memoryh-header.patch
+* x86-use-set_memoryh-header.patch
+* agp-use-set_memoryh-header.patch
+* drm-use-set_memoryh-header.patch
+* drm-use-set_memoryh-header-fix.patch
+* intel_th-use-set_memoryh-header.patch
+* watchdog-hpwdt-use-set_memoryh-header.patch
+* bpf-use-set_memoryh-header.patch
+* module-use-set_memoryh-header.patch
+* pm-hibernate-use-set_memoryh-header.patch
+* alsa-use-set_memoryh-header.patch
+* misc-sram-use-set_memoryh-header.patch
+* video-vermilion-use-set_memoryh-header.patch
+* drivers-staging-media-atomisp-pci-atomisp2-use-set_memoryh.patch
+* treewide-decouple-cacheflushh-and-set_memoryh.patch
+* kref-remove-warn_on-for-null-release-functions.patch
+* megasas-remove-expensive-inline-from-megasas_return_cmd.patch
+* remove-expensive-warn_on-in-pagefault_disabled_dec.patch
+* tracing-move-trace_handle_return-out-of-line.patch
+* fs-remove-set-but-not-checked-aop_flag_uninterruptible-flag.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
