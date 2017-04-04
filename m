@@ -1,102 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1956B0038
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 10:57:53 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u3so174536007pgn.12
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 07:57:53 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id o3si17762134pld.201.2017.04.04.07.57.51
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE446B0038
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 11:07:30 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id n130so47895944ita.15
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 08:07:30 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id z201si13112819itc.72.2017.04.04.08.07.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 07:57:51 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id g2so37693676pge.2
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 07:57:51 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170328130128.101773-1-dvyukov@google.com>
-References: <20170328130128.101773-1-dvyukov@google.com>
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Date: Tue, 4 Apr 2017 23:57:31 +0900
-Message-ID: <CAC5umyggX4OLBSG5z0gLZ3Tc0=ev_DrcgbRbKnw9i=uzXTSsUg@mail.gmail.com>
-Subject: Re: [PATCH v2] fault-inject: support systematic fault injection
-Content-Type: text/plain; charset=UTF-8
+        Tue, 04 Apr 2017 08:07:29 -0700 (PDT)
+Date: Tue, 4 Apr 2017 10:07:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: Add additional consistency check
+In-Reply-To: <20170404113022.GC15490@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1704041005570.23420@east.gentwo.org>
+References: <20170331164028.GA118828@beast> <20170404113022.GC15490@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2017-03-28 22:01 GMT+09:00 Dmitry Vyukov <dvyukov@google.com>:
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 6e8655845830..66001172249b 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -1353,6 +1353,53 @@ static const struct file_operations proc_fault_inject_operations = {
->         .write          = proc_fault_inject_write,
->         .llseek         = generic_file_llseek,
->  };
-> +
-> +static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
-> +                                  size_t count, loff_t *ppos)
-> +{
-> +       struct task_struct *task;
-> +       int err, n;
-> +
-> +       task = get_proc_task(file_inode(file));
-> +       if (!task)
-> +               return -ESRCH;
-> +       put_task_struct(task);
-> +       if (task != current)
-> +               return -EPERM;
-> +       err = kstrtoint_from_user(buf, count, 10, &n);
-> +       if (err)
-> +               return err;
-> +       if (n < 0 || n == INT_MAX)
-> +               return -EINVAL;
-> +       current->fail_nth = n + 1;
-> +       return len;
-> +}
-> +
-> +static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
-> +                                 size_t count, loff_t *ppos)
-> +{
-> +       struct task_struct *task;
-> +       int err;
-> +
-> +       task = get_proc_task(file_inode(file));
-> +       if (!task)
-> +               return -ESRCH;
-> +       put_task_struct(task);
-> +       if (task != current)
-> +               return -EPERM;
-> +       if (count < 1)
-> +               return -EINVAL;
-> +       err = put_user((char)(current->fail_nth ? 'N' : 'Y'), buf);
-> +       if (err)
-> +               return err;
-> +       current->fail_nth = 0;
-> +       return 1;
-> +}
-> +
-> +static const struct file_operations proc_fail_nth_operations = {
-> +       .read           = proc_fail_nth_read,
-> +       .write          = proc_fail_nth_write,
-> +};
->  #endif
->
->
-> @@ -3296,6 +3343,11 @@ static const struct pid_entry tid_base_stuff[] = {
->  #endif
->  #ifdef CONFIG_FAULT_INJECTION
->         REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
-> +       /*
-> +        * Operations on the file check that the task is current,
-> +        * so we create it with 0666 to support testing under unprivileged user.
-> +        */
-> +       REG("fail-nth", 0666, proc_fail_nth_operations),
->  #endif
+On Tue, 4 Apr 2017, Michal Hocko wrote:
 
-This file is owned by the currnet user.  So we can create it with 0644
-and just allow unprivileged user to write it.  And it enables to remove
-the check that the task is current or not in read/write operations.
+> NAK without a proper changelog. Seriously, we do not blindly apply
+> changes from other projects without a deep understanding of all
+> consequences.
+
+Functionalitywise this is trivial. A page must be a slab page in order to
+be able to determine the slab cache of an object. Its definitely not ok if
+the page is not a slab page.
+
+The main issue that may exist here is the adding of overhead to a critical
+code path like kfree().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
