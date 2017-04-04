@@ -1,81 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BE9D6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 10:19:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m72so2389868wmb.22
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 07:19:10 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id c63si19950237wmf.25.2017.04.04.07.19.08
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F5856B0038
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 10:24:14 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id 75so69936997ybl.7
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 07:24:14 -0700 (PDT)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id p5si5001084ywf.224.2017.04.04.07.24.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 07:19:08 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 504581C1DBA
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 15:19:08 +0100 (IST)
-Date: Tue, 4 Apr 2017 15:19:07 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] Fix print order in show_free_areas()
-Message-ID: <20170404141907.eomyynht4vlhu2ni@techsingularity.net>
-References: <1490377730.30219.2.camel@beget.ru>
- <20170403151111.4c9967329d6d6140e2a652ff@linux-foundation.org>
+        Tue, 04 Apr 2017 07:24:13 -0700 (PDT)
+Received: by mail-yw0-x241.google.com with SMTP id k13so9296513ywk.2
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 07:24:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170403151111.4c9967329d6d6140e2a652ff@linux-foundation.org>
+In-Reply-To: <871staffus.fsf@notabene.neil.brown.name>
+References: <871staffus.fsf@notabene.neil.brown.name>
+From: Ming Lei <tom.leiming@gmail.com>
+Date: Tue, 4 Apr 2017 22:24:12 +0800
+Message-ID: <CACVXFVO54OseKKpZXEju9a+GWYkTFRt9qHT22zzcTjOqGnanmw@mail.gmail.com>
+Subject: Re: [PATCH] loop: Add PF_LESS_THROTTLE to block/loop device thread.
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Polakov <apolyakov@beget.ru>, linux-mm@kvack.org
+To: NeilBrown <neilb@suse.com>
+Cc: Jens Axboe <axboe@fb.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 03, 2017 at 03:11:11PM -0700, Andrew Morton wrote:
-> On Fri, 24 Mar 2017 20:48:50 +0300 Alexander Polakov <apolyakov@beget.ru> wrote:
-> 
-> > Better seen in context: https://github.com/torvalds/linux/blob/master/m
-> > m/page_alloc.c#L4500
-> > 
-> > Signed-off-by: Alexander Polyakov <apolyakov@beget.com>
-> 
-> --- a/mm/page_alloc.c~fix-print-order-in-show_free_areas
-> +++ a/mm/page_alloc.c
-> @@ -4519,13 +4519,13 @@ void show_free_areas(unsigned int filter
->  			K(node_page_state(pgdat, NR_FILE_MAPPED)),
->  			K(node_page_state(pgdat, NR_FILE_DIRTY)),
->  			K(node_page_state(pgdat, NR_WRITEBACK)),
-> +			K(node_page_state(pgdat, NR_SHMEM)),
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  			K(node_page_state(pgdat, NR_SHMEM_THPS) * HPAGE_PMD_NR),
->  			K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)
->  					* HPAGE_PMD_NR),
->  			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
->  #endif
-> -			K(node_page_state(pgdat, NR_SHMEM)),
->  			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
->  			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
->  			node_page_state(pgdat, NR_PAGES_SCANNED),
-> _
-> 
-> huh.  It looks like this has been broken for nearly a year, by
-> 
-> : commit 11fb998986a72aa7e997d96d63d52582a01228c5
-> : Author:     Mel Gorman <mgorman@techsingularity.net>
-> : AuthorDate: Thu Jul 28 15:46:20 2016 -0700
-> : Commit:     Linus Torvalds <torvalds@linux-foundation.org>
-> : CommitDate: Thu Jul 28 16:07:41 2016 -0700
-> : 
-> :     mm: move most file-based accounting to the node
-> 
+On Mon, Apr 3, 2017 at 9:18 AM, NeilBrown <neilb@suse.com> wrote:
+>
+> When a filesystem is mounted from a loop device, writes are
+> throttled by balance_dirty_pages() twice: once when writing
+> to the filesystem and once when the loop_handle_cmd() writes
+> to the backing file.  This double-throttling can trigger
+> positive feedback loops that create significant delays.  The
+> throttling at the lower level is seen by the upper level as
+> a slow device, so it throttles extra hard.
+>
+> The PF_LESS_THROTTLE flag was created to handle exactly this
+> circumstance, though with an NFS filesystem mounted from a
+> local NFS server.  It reduces the throttling on the lower
+> layer so that it can proceed largely unthrottled.
+>
+> To demonstrate this, create a filesystem on a loop device
+> and write (e.g. with dd) several large files which combine
+> to consume significantly more than the limit set by
+> /proc/sys/vm/dirty_ratio or dirty_bytes.  Measure the total
+> time taken.
+>
+> When I do this directly on a device (no loop device) the
+> total time for several runs (mkfs, mount, write 200 files,
+> umount) is fairly stable: 28-35 seconds.
+> When I do this over a loop device the times are much worse
+> and less stable.  52-460 seconds.  Half below 100seconds,
+> half above.
+> When I apply this patch, the times become stable again,
+> though not as fast as the no-loop-back case: 53-72 seconds.
+>
+> There may be room for further improvement as the total overhead still
+> seems too high, but this is a big improvement.
+>
+> Signed-off-by: NeilBrown <neilb@suse.com>
+> ---
+>  drivers/block/loop.c | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+> index 0ecb6461ed81..a7e1dd215fc2 100644
+> --- a/drivers/block/loop.c
+> +++ b/drivers/block/loop.c
+> @@ -1694,8 +1694,11 @@ static void loop_queue_work(struct kthread_work *work)
+>  {
+>         struct loop_cmd *cmd =
+>                 container_of(work, struct loop_cmd, work);
+> +       int oldflags = current->flags & PF_LESS_THROTTLE;
+>
+> +       current->flags |= PF_LESS_THROTTLE;
+>         loop_handle_cmd(cmd);
+> +       current->flags = (current->flags & ~PF_LESS_THROTTLE) | oldflags;
+>  }
 
-Yes, this was careless. Thanks for catching it Alexander.
+You can do it against 'lo->worker_task' instead of doing it in each
+loop_queue_work(),
+and this flag needn't to be restored because the kernel thread is loop
+specialized.
 
-> I'm surprised nobody noticed until now.
-> 
 
-Probably because vmstat was not affected which is consumed more often
-than the output from sysrq or an oom kill message.
-
--- 
-Mel Gorman
-SUSE Labs
+thanks,
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
