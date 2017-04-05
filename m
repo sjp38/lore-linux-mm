@@ -1,55 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F126B0390
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 20:22:29 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id n130so202999ita.15
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 17:22:29 -0700 (PDT)
-Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
-        by mx.google.com with ESMTPS id m2si12081306itg.45.2017.04.04.17.22.28
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6587A6B039F
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 20:49:18 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y62so2351204pfd.17
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 17:49:18 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 70si18987511pla.146.2017.04.04.17.49.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 17:22:29 -0700 (PDT)
-Received: by mail-io0-x241.google.com with SMTP id f103so50558ioi.2
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 17:22:28 -0700 (PDT)
+        Tue, 04 Apr 2017 17:49:17 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap data structure
+References: <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
+	<8737e3z992.fsf@yhuang-dev.intel.com>
+	<f17cb7e4-4d47-4aed-6fdb-cda5c5d47fa4@nvidia.com>
+	<87poh7xoms.fsf@yhuang-dev.intel.com>
+	<2d55e06d-a0b6-771a-bba0-f9517d422789@nvidia.com>
+	<87d1d7uoti.fsf@yhuang-dev.intel.com>
+	<624b8e59-34e5-3538-0a93-d33d9e4ac555@nvidia.com>
+	<e79064f1-8594-bef2-fbd8-1579afb4aac3@linux.intel.com>
+	<20170330163128.GF4326@dhcp22.suse.cz>
+	<87lgrkpwcj.fsf@yhuang-dev.intel.com>
+	<20170403081522.GE24661@dhcp22.suse.cz>
+Date: Wed, 05 Apr 2017 08:49:13 +0800
+In-Reply-To: <20170403081522.GE24661@dhcp22.suse.cz> (Michal Hocko's message
+	of "Mon, 3 Apr 2017 10:15:23 +0200")
+Message-ID: <87o9wbhe5y.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzSzemLt+GeynyavM7HzsOjGBrG=_S6XMFV=Xc1mn-UGA@mail.gmail.com>
-References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
- <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
- <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
- <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk> <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
- <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
- <a6543d13-6247-08de-903e-f4d1bbb52881@nokia.com> <CAGXu5jJAd9Qg4gkXE=1+8q6Ej=8boiH4ovkzX5n+PbhkBrnt5g@mail.gmail.com>
- <CA+55aFzSzemLt+GeynyavM7HzsOjGBrG=_S6XMFV=Xc1mn-UGA@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 4 Apr 2017 17:22:27 -0700
-Message-ID: <CA+55aFwv8QPBD4SMLw2Y7qkV4JceMc9NdOujbVM7PfcBpkhm3Q@mail.gmail.com>
-Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Tommi Rantala <tommi.t.rantala@nokia.com>, Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 4, 2017 at 3:55 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+Michal Hocko <mhocko@kernel.org> writes:
+
+> On Sat 01-04-17 12:47:56, Huang, Ying wrote:
+>> Hi, Michal,
+>> 
+>> Michal Hocko <mhocko@kernel.org> writes:
+>> 
+>> > On Fri 24-03-17 06:56:10, Dave Hansen wrote:
+>> >> On 03/24/2017 12:33 AM, John Hubbard wrote:
+>> >> > There might be some additional information you are using to come up with
+>> >> > that conclusion, that is not obvious to me. Any thoughts there? These
+>> >> > calls use the same underlying page allocator (and I thought that both
+>> >> > were subject to the same constraints on defragmentation, as a result of
+>> >> > that). So I am not seeing any way that kmalloc could possibly be a
+>> >> > less-fragmenting call than vmalloc.
+>> >> 
+>> >> You guys are having quite a discussion over a very small point.
+>> >> 
+>> >> But, Ying is right.
+>> >> 
+>> >> Let's say we have a two-page data structure.  vmalloc() takes two
+>> >> effectively random order-0 pages, probably from two different 2M pages
+>> >> and pins them.  That "kills" two 2M pages.
+>> >> 
+>> >> kmalloc(), allocating two *contiguous* pages, is very unlikely to cross
+>> >> a 2M boundary (it theoretically could).  That means it will only "kill"
+>> >> the possibility of a single 2M page.  More 2M pages == less fragmentation.
+>> >
+>> > Yes I agree with this. And the patch is no brainer. kvmalloc makes sure
+>> > to not try too hard on the kmalloc side so I really didn't get the
+>> > objection about direct compaction and reclaim which initially started
+>> > this discussion. Besides that the swapon path usually happens early
+>> > during the boot where we should have those larger blocks available.
+>> 
+>> Could I add your Acked-by for this patch?
 >
-> I already explained what the likely fix is: make devmem_is_allowed()
-> return a ternary value, so that those things that *do* read the BIOS
-> area can just continue to do so, but they see zeroes for the parts
-> that the kernel has taken over.
+> Yes but please add the reasoning pointed out by Dave. As the patch
+> doesn't give any numbers and it would be fairly hard to add some without
+> artificial workloads we should at least document our current thinking
+> so that we can revisit it later.
+>
+> Thanks!
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Actually, a simpler solution might be to
+Thanks, will add the reasoning.
 
- (a) keep the binary value
-
- (b) remove the test for the low 1M
-
- (c) to avoid breakage, don't return _error_, but just always read zero
-
-that also removes (or at least makes it much more expensive) a signal
-of which pages are kernel allocated vs BIOS allocated.
-
-               Linus
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
