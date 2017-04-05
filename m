@@ -1,77 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9061B6B03CE
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 17:00:08 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m28so15300763pgn.14
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 14:00:08 -0700 (PDT)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id n1si21600163pge.422.2017.04.05.14.00.07
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D272F6B03D0
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 17:02:20 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id p64so3369019wrb.18
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 14:02:20 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w36si30640570wrc.140.2017.04.05.14.02.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 14:00:07 -0700 (PDT)
-Received: by mail-pg0-x22c.google.com with SMTP id 21so15505290pgg.1
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 14:00:07 -0700 (PDT)
-Date: Wed, 5 Apr 2017 13:59:49 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Is it safe for kthreadd to drain_all_pages?
-Message-ID: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 14:02:19 -0700 (PDT)
+Date: Wed, 5 Apr 2017 23:02:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
+Message-ID: <20170405210214.GX6035@dhcp22.suse.cz>
+References: <20170404164452.GQ15132@dhcp22.suse.cz>
+ <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
+ <20170404194122.GS15132@dhcp22.suse.cz>
+ <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
+ <20170405064239.GB6035@dhcp22.suse.cz>
+ <20170405092427.GG6035@dhcp22.suse.cz>
+ <20170405145304.wxzfavqxnyqtrlru@arbab-laptop>
+ <20170405154258.GR6035@dhcp22.suse.cz>
+ <20170405173248.4vtdgk2kolbzztya@arbab-laptop>
+ <20170405181502.GU6035@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170405181502.GU6035@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Hi Mel,
+On Wed 05-04-17 20:15:02, Michal Hocko wrote:
+> On Wed 05-04-17 12:32:49, Reza Arbab wrote:
+> > On Wed, Apr 05, 2017 at 05:42:59PM +0200, Michal Hocko wrote:
+> > >But one thing that is really bugging me is how could you see low pfns in
+> > >the previous oops. Please drop the last patch and sprinkle printks down
+> > >the remove_memory path to see where this all go south. I believe that
+> > >there is something in the initialization code lurking in my code. Please
+> > >also scratch the pfn_valid check in online_pages diff. It will not help
+> > >here.
+> > 
+> > Got it.
+> > 
+> > shrink_pgdat_span: start_pfn=0x10000, end_pfn=0x10100, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
+> > 
+> > The problem is that pgdat_start_pfn here should be 0x10000. As you
+> > suspected, it never got set. This fixes things for me.
+> > 
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index 623507f..37c1b63 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -884,7 +884,7 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
+> > {
+> > 	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
+> > 
+> > -	if (start_pfn < pgdat->node_start_pfn)
+> > +	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
+> > 		pgdat->node_start_pfn = start_pfn;
+> 
+> Dang! You are absolutely right. This explains the issue during the
+> remove_memory. I still fail to see how this makes any difference for the
+> sysfs file registration though. If anything the pgdat will be larger and
+> so try_offline_node would check also unrelated node0 but the code will
+> handle that and eventually offline the node1 anyway. /me still confused.
 
-I suspect that it's not safe for kthreadd to drain_all_pages();
-but I haven't studied flush_work() etc, so don't really know what
-I'm talking about: hoping that you will jump to a realization.
+OK, I was staring into the code and I guess I finally understand what is
+going on here. Looking at arch_add_memory->...->register_mem_sect_under_node
+was just misleading. I am still not 100% sure why but we try to do the
+same thing later from register_one_node->link_mem_sections for nodes
+which were offline. I should have noticed this path before. And here
+is the difference from the previous code. We are past arch_add_memory
+and that path used to do __add_zone which among other things will also
+resize node boundaries. I am not doing that anymore because I postpone
+that to the onlining phase. Jeez this code is so convoluted my head
+spins.
 
-4.11-rc has been giving me hangs after hours of swapping load.  At
-first they looked like memory leaks ("fork: Cannot allocate memory");
-but for no good reason I happened to do "cat /proc/sys/vm/stat_refresh"
-before looking at /proc/meminfo one time, and the stat_refresh stuck
-in D state, waiting for completion of flush_work like many kworkers.
-kthreadd waiting for completion of flush_work in drain_all_pages().
-
-But I only noticed that pattern later: originally tried to bisect
-rc1 before rc2 came out, but underestimated how long to wait before
-deciding a stage good - I thought 12 hours, but would now say 2 days.
-Too late for bisection, I suspect your drain_all_pages() changes.
-
-(I've also found order:0 page allocation stalls in /var/log/messages,
-148804ms a nice example: which suggest that these hangs are perhaps a
-condition it can sometimes get out of itself.  None with the patch.)
-
-Patch below has been running well for 36 hours now:
-a bit too early to be sure, but I think it's time to turn to you.
-
-
-[PATCH] mm: don't let kthreadd drain_all_pages
-
-4.11-rc has been giving me hangs after many hours of swapping load: most
-kworkers waiting for completion of a flush_work, kthreadd waiting for
-completion of flush_work in drain_all_pages (while doing copy_process).
-I suspect that kthreadd should not be allowed to drain_all_pages().
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- mm/page_alloc.c |    2 ++
- 1 file changed, 2 insertions(+)
-
---- 4.11-rc5/mm/page_alloc.c	2017-03-13 09:08:37.743209168 -0700
-+++ linux/mm/page_alloc.c	2017-04-04 00:33:44.086867413 -0700
-@@ -2376,6 +2376,8 @@ void drain_all_pages(struct zone *zone)
- 	/* Workqueues cannot recurse */
- 	if (current->flags & PF_WQ_WORKER)
- 		return;
-+	if (current == kthreadd_task)
-+		return;
- 
- 	/*
- 	 * Do not drain if one is already in progress unless it's specific to
+I am not really sure how to fix this. I suspect register_mem_sect_under_node
+should just ignore the online state of the node. But I wouldn't
+be all that surprised if this had some subtle reason as well. An
+alternative would be to actually move register_mem_sect_under_node out
+of register_new_memory and move it up the call stack, most probably to
+add_memory_resource. We have the range and can map it to the memblock
+and so will not rely on the node range. I will sleep over it and
+hopefully come up with something tomorrow.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
