@@ -1,80 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 36CFC6B0390
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 21:01:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id y22so47813wmh.11
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 18:01:53 -0700 (PDT)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id j64si22114719wma.46.2017.04.04.18.01.51
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 57BDD6B0390
+	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 23:31:41 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y62so639107pfd.17
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 20:31:41 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id g3si19320950pld.88.2017.04.04.20.31.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 18:01:51 -0700 (PDT)
-Received: by mail-wm0-x235.google.com with SMTP id t189so776022wmt.1
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 18:01:51 -0700 (PDT)
+        Tue, 04 Apr 2017 20:31:40 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH kernel v8 2/4] virtio-balloon:
+ VIRTIO_BALLOON_F_CHUNK_TRANSFER
+Date: Wed, 5 Apr 2017 03:31:36 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F7391E1962@shsmsx102.ccr.corp.intel.com>
+References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com>
+ <1489648127-37282-3-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1489648127-37282-3-git-send-email-wei.w.wang@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-From: Luigi Semenzato <semenzato@google.com>
-Date: Tue, 4 Apr 2017 18:01:50 -0700
-Message-ID: <CAA25o9TyPusF1Frn2a4OAco-DKFcskZVzy6S2JvhTANpm8cL7A@mail.gmail.com>
-Subject: thrashing on file pages
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
+To: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
 
-Greetings MM community, and apologies for being out of touch.
+On Thursday, March 16, 2017 3:09 PM Wei Wang wrote:
+> The implementation of the current virtio-balloon is not very efficient, b=
+ecause
+> the ballooned pages are transferred to the host one by one. Here is the
+> breakdown of the time in percentage spent on each step of the balloon inf=
+lating
+> process (inflating 7GB of an 8GB idle guest).
+>=20
+> 1) allocating pages (6.5%)
+> 2) sending PFNs to host (68.3%)
+> 3) address translation (6.1%)
+> 4) madvise (19%)
+>=20
+> It takes about 4126ms for the inflating process to complete.
+> The above profiling shows that the bottlenecks are stage 2) and stage 4).
+>=20
+> This patch optimizes step 2) by transferring pages to the host in chunks.=
+ A chunk
+> consists of guest physically continuous pages, and it is offered to the h=
+ost via a
+> base PFN (i.e. the start PFN of those physically continuous pages) and th=
+e size
+> (i.e. the total number of the pages). A chunk is formated as below:
+>=20
+> --------------------------------------------------------
+> |                 Base (52 bit)        | Rsvd (12 bit) |
+> --------------------------------------------------------
+> --------------------------------------------------------
+> |                 Size (52 bit)        | Rsvd (12 bit) |
+> --------------------------------------------------------
+>=20
+> By doing so, step 4) can also be optimized by doing address translation a=
+nd
+> madvise() in chunks rather than page by page.
+>=20
+> This optimization requires the negotiation of a new feature bit,
+> VIRTIO_BALLOON_F_CHUNK_TRANSFER.
+>=20
+> With this new feature, the above ballooning process takes ~590ms resultin=
+g in
+> an improvement of ~85%.
+>=20
+> TODO: optimize stage 1) by allocating/freeing a chunk of pages instead of=
+ a
+> single page each time.
+>=20
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
+> ---
+>  drivers/virtio/virtio_balloon.c     | 371 ++++++++++++++++++++++++++++++=
++++-
+> --
+>  include/uapi/linux/virtio_balloon.h |   9 +
+>  2 files changed, 353 insertions(+), 27 deletions(-)
+>=20
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_ball=
+oon.c index
+> f59cb4f..3f4a161 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -42,6 +42,10 @@
+>  #define OOM_VBALLOON_DEFAULT_PAGES 256
+>  #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+>=20
+> +#define PAGE_BMAP_SIZE	(8 * PAGE_SIZE)
+> +#define PFNS_PER_PAGE_BMAP	(PAGE_BMAP_SIZE * BITS_PER_BYTE)
+> +#define PAGE_BMAP_COUNT_MAX	32
+> +
+>  static int oom_pages =3D OOM_VBALLOON_DEFAULT_PAGES;
+> module_param(oom_pages, int, S_IRUSR | S_IWUSR);
+> MODULE_PARM_DESC(oom_pages, "pages to free on OOM"); @@ -50,6 +54,14
+> @@ MODULE_PARM_DESC(oom_pages, "pages to free on OOM");  static struct
+> vfsmount *balloon_mnt;  #endif
+>=20
+> +#define BALLOON_CHUNK_BASE_SHIFT 12
+> +#define BALLOON_CHUNK_SIZE_SHIFT 12
+> +struct balloon_page_chunk {
+> +	__le64 base;
+> +	__le64 size;
+> +};
+> +
+> +typedef __le64 resp_data_t;
+>  struct virtio_balloon {
+>  	struct virtio_device *vdev;
+>  	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq; @@ -67,6 +79,31
+> @@ struct virtio_balloon {
+>=20
+>  	/* Number of balloon pages we've told the Host we're not using. */
+>  	unsigned int num_pages;
+> +	/* Pointer to the response header. */
+> +	struct virtio_balloon_resp_hdr *resp_hdr;
+> +	/* Pointer to the start address of response data. */
+> +	resp_data_t *resp_data;
 
-We're running into a MM problem which we encountered in the early
-versions of Chrome OS, about 7 years ago, which is that under certain
-interactive loads we thrash on executable pages.
+I think the implementation has an issue here - both the balloon pages and t=
+he unused pages use the same buffer ("resp_data" above) to store chunks. It=
+ would cause a race in this case: live migration starts while ballooning is=
+ also in progress. I plan to use separate buffers for CHUNKS_OF_BALLOON_PAG=
+ES and CHUNKS_OF_UNUSED_PAGES. Please let me know if you have a different s=
+uggestion. Thanks.
 
-At the time, Mandeep Baines solved this problem by introducing a
-min_filelist_kbytes parameter, which simply stops the scanning of the
-file list whenever the number of pages in it is below that threshold.
-This works surprisingly well for Chrome OS because the Chrome browser
-has a known text size and is the only large user program.
-Additionally we use Feedback-Directed Optimization to keep the hot
-code together in the same pages.
-
-But given that Chromebooks can run Android apps, the picture is
-changing.  We can bump min_filelist_kbytes, but we no longer have an
-upper bound for the working set of a workflow which cycles through
-multiple Android apps.  Tab/app switching is more natural and
-therefore more frequent on laptops than it is on phones, and it puts a
-bigger strain on the MM.
-
-I should mention that we manage memory also by OOM-killing Android
-apps and discarding Chrome tabs before the system runs our of memory.
-We also reassign kernel-OOM-kill priorities for the cases in which our
-user-level killing code isn't quick enough.
-
-In our attempts to avoid the thrashing, we played around with
-swappiness.  Dmitry Torokhov (three desks down from mine) suggested
-shifting the upper bound of 100 to 200, which makes sense because we
-use zram to reclaim anonymous pages, and paging back from zram is a
-lot faster than reading from SSD.  So I have played around with
-swappiness up to 190 but I can still reproduce the thrashing.  I have
-noticed this code in vmscan.c:
-
-        if (!sc->priority && swappiness) {
-                scan_balance = SCAN_EQUAL;
-                goto out;
-        }
-
-which suggests that under heavy pressure, swappiness is ignored.  I
-removed this code, but that didn't help either.  I am not fully
-convinced that my experiments are fully repeatable (quite the
-opposite), and there may be variations in the point at which thrashing
-starts, but the bottom line is that it still starts.
-
-Are we the only ones with this problem?  It's possible, since Android
-by design can be aggressive in killing processes, and conversely
-Chrome OS is popular in the low-end of the market, where devices with
-2GB of RAM are still common, and memory exhaustion can be reached
-pretty easily.  I noticed that vmscan.c has code which tries to
-protect pages with the VM_EXEC flag from premature eviction, so the
-problem might have been seen before in some form.
-
-I'll be grateful for any suggestion, advice, or other information.  Thanks!
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
