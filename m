@@ -1,95 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 57E1A6B03A1
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 02:42:45 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u77so388604wrb.6
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 23:42:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l13si21972098wrl.51.2017.04.04.23.42.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0904F6B039F
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 03:10:31 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r129so2660322pgr.18
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 00:10:31 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id f19si15635928pgk.27.2017.04.05.00.10.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Apr 2017 23:42:44 -0700 (PDT)
-Date: Wed, 5 Apr 2017 08:42:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-Message-ID: <20170405064239.GB6035@dhcp22.suse.cz>
-References: <20170403202337.GA12482@dhcp22.suse.cz>
- <20170403204213.rs7k2cvsnconel2z@arbab-laptop>
- <20170404072329.GA15132@dhcp22.suse.cz>
- <20170404073412.GC15132@dhcp22.suse.cz>
- <20170404082302.GE15132@dhcp22.suse.cz>
- <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
- <20170404164452.GQ15132@dhcp22.suse.cz>
- <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
- <20170404194122.GS15132@dhcp22.suse.cz>
- <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Apr 2017 00:10:30 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm] mm, swap: Remove unused function prototype
+Date: Wed,  5 Apr 2017 15:10:17 +0800
+Message-Id: <20170405071017.23677-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>
 
-On Tue 04-04-17 16:43:39, Reza Arbab wrote:
-> On Tue, Apr 04, 2017 at 09:41:22PM +0200, Michal Hocko wrote:
-> >On Tue 04-04-17 13:30:13, Reza Arbab wrote:
-> >>I think I found another edge case.  You
-> >>get an oops when removing all of a node's memory:
-> >>
-> >>__nr_to_section
-> >>__pfn_to_section
-> >>find_biggest_section_pfn
-> >>shrink_pgdat_span
-> >>__remove_zone
-> >>__remove_section
-> >>__remove_pages
-> >>arch_remove_memory
-> >>remove_memory
-> >
-> >Is this something new or an old issue? I believe the state after the
-> >online should be the same as before. So if you onlined the full node
-> >then there shouldn't be any difference. Let me have a look...
-> 
-> It's new. Without this patchset, I can repeatedly
-> add_memory()->online_movable->offline->remove_memory() all of a node's
-> memory.
+From: Huang Ying <ying.huang@intel.com>
 
-This is quite unexpected because the code obviously cannot handle the
-first memory section. Could you paste /proc/zoneinfo and
-grep . -r /sys/devices/system/memory/auto_online_blocks/memory*, after
-onlining for both patched and unpatched kernels?
+This is a code cleanup patch, no functionality changes.  There are 2
+unused function prototype in swap.h, they are removed.
 
-> >From 1b08ecef3e8ebcef585fe8f2b23155be54cce335 Mon Sep 17 00:00:00 2001
-> >From: Michal Hocko <mhocko@suse.com>
-> >Date: Tue, 4 Apr 2017 21:09:00 +0200
-> >Subject: [PATCH] mm, hotplug: get rid of zone/node shrinking
-> >
-> ...%<...
-> >---
-> >mm/memory_hotplug.c | 207 ----------------------------------------------------
-> >1 file changed, 207 deletions(-)
-> 
-> Okay, getting further. With this I can again repeatedly add and remove, but
-> now I'm seeing a weird variation of that earlier issue:
-> 
-> 1. add_memory(), online_movable
->   /sys/devices/system/node/nodeX/memoryY symlinks are created.
-> 
-> 2. offline, remove_memory()
->   The node is offlined, since all memory has been removed, so all of
->   /sys/devices/system/node/nodeX is gone. This is normal.
-> 
-> 3. add_memory(), online_movable
->   The node is onlined, so /sys/devices/system/node/nodeX is recreated,
->   and the memory is added, but just like earlier in this email thread,
->   the memoryY links are not there.
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+---
+ include/linux/swap.h | 3 ---
+ 1 file changed, 3 deletions(-)
 
-Could you add some printks to see why the sysfs creation failed please?
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 486494e6b2fc..ba5882419a7d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -411,9 +411,6 @@ struct backing_dev_info;
+ extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
+ extern void exit_swap_address_space(unsigned int type);
+ 
+-extern int get_swap_slots(int n, swp_entry_t *slots);
+-extern void swapcache_free_batch(swp_entry_t *entries, int n);
+-
+ #else /* CONFIG_SWAP */
+ 
+ #define swap_address_space(entry)		(NULL)
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
