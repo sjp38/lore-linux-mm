@@ -1,127 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 206496B039F
-	for <linux-mm@kvack.org>; Tue,  4 Apr 2017 23:54:07 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 7so442849qtp.8
-        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 20:54:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i29si16819764qtf.101.2017.04.04.20.54.05
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA3D6B0397
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 00:27:47 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x124so213953wmf.1
+        for <linux-mm@kvack.org>; Tue, 04 Apr 2017 21:27:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 18si27384252wry.54.2017.04.04.21.27.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Apr 2017 20:54:05 -0700 (PDT)
-Date: Wed, 5 Apr 2017 06:53:58 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH kernel v8 2/4] virtio-balloon:
- VIRTIO_BALLOON_F_CHUNK_TRANSFER
-Message-ID: <20170405065313-mutt-send-email-mst@kernel.org>
-References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com>
- <1489648127-37282-3-git-send-email-wei.w.wang@intel.com>
- <286AC319A985734F985F78AFA26841F7391E1962@shsmsx102.ccr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 04 Apr 2017 21:27:45 -0700 (PDT)
+From: NeilBrown <neilb@suse.com>
+Date: Wed, 05 Apr 2017 14:27:02 +1000
+Subject: Re: [PATCH] loop: Add PF_LESS_THROTTLE to block/loop device thread.
+In-Reply-To: <20170404071033.GA25855@infradead.org>
+References: <871staffus.fsf@notabene.neil.brown.name> <20170404071033.GA25855@infradead.org>
+Message-ID: <8760ijiind.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F7391E1962@shsmsx102.ccr.corp.intel.com>
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jens Axboe <axboe@fb.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Apr 05, 2017 at 03:31:36AM +0000, Wang, Wei W wrote:
-> On Thursday, March 16, 2017 3:09 PM Wei Wang wrote:
-> > The implementation of the current virtio-balloon is not very efficient, because
-> > the ballooned pages are transferred to the host one by one. Here is the
-> > breakdown of the time in percentage spent on each step of the balloon inflating
-> > process (inflating 7GB of an 8GB idle guest).
-> > 
-> > 1) allocating pages (6.5%)
-> > 2) sending PFNs to host (68.3%)
-> > 3) address translation (6.1%)
-> > 4) madvise (19%)
-> > 
-> > It takes about 4126ms for the inflating process to complete.
-> > The above profiling shows that the bottlenecks are stage 2) and stage 4).
-> > 
-> > This patch optimizes step 2) by transferring pages to the host in chunks. A chunk
-> > consists of guest physically continuous pages, and it is offered to the host via a
-> > base PFN (i.e. the start PFN of those physically continuous pages) and the size
-> > (i.e. the total number of the pages). A chunk is formated as below:
-> > 
-> > --------------------------------------------------------
-> > |                 Base (52 bit)        | Rsvd (12 bit) |
-> > --------------------------------------------------------
-> > --------------------------------------------------------
-> > |                 Size (52 bit)        | Rsvd (12 bit) |
-> > --------------------------------------------------------
-> > 
-> > By doing so, step 4) can also be optimized by doing address translation and
-> > madvise() in chunks rather than page by page.
-> > 
-> > This optimization requires the negotiation of a new feature bit,
-> > VIRTIO_BALLOON_F_CHUNK_TRANSFER.
-> > 
-> > With this new feature, the above ballooning process takes ~590ms resulting in
-> > an improvement of ~85%.
-> > 
-> > TODO: optimize stage 1) by allocating/freeing a chunk of pages instead of a
-> > single page each time.
-> > 
-> > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-> > ---
-> >  drivers/virtio/virtio_balloon.c     | 371 +++++++++++++++++++++++++++++++++-
-> > --
-> >  include/uapi/linux/virtio_balloon.h |   9 +
-> >  2 files changed, 353 insertions(+), 27 deletions(-)
-> > 
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c index
-> > f59cb4f..3f4a161 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -42,6 +42,10 @@
-> >  #define OOM_VBALLOON_DEFAULT_PAGES 256
-> >  #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
-> > 
-> > +#define PAGE_BMAP_SIZE	(8 * PAGE_SIZE)
-> > +#define PFNS_PER_PAGE_BMAP	(PAGE_BMAP_SIZE * BITS_PER_BYTE)
-> > +#define PAGE_BMAP_COUNT_MAX	32
-> > +
-> >  static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
-> > module_param(oom_pages, int, S_IRUSR | S_IWUSR);
-> > MODULE_PARM_DESC(oom_pages, "pages to free on OOM"); @@ -50,6 +54,14
-> > @@ MODULE_PARM_DESC(oom_pages, "pages to free on OOM");  static struct
-> > vfsmount *balloon_mnt;  #endif
-> > 
-> > +#define BALLOON_CHUNK_BASE_SHIFT 12
-> > +#define BALLOON_CHUNK_SIZE_SHIFT 12
-> > +struct balloon_page_chunk {
-> > +	__le64 base;
-> > +	__le64 size;
-> > +};
-> > +
-> > +typedef __le64 resp_data_t;
-> >  struct virtio_balloon {
-> >  	struct virtio_device *vdev;
-> >  	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq; @@ -67,6 +79,31
-> > @@ struct virtio_balloon {
-> > 
-> >  	/* Number of balloon pages we've told the Host we're not using. */
-> >  	unsigned int num_pages;
-> > +	/* Pointer to the response header. */
-> > +	struct virtio_balloon_resp_hdr *resp_hdr;
-> > +	/* Pointer to the start address of response data. */
-> > +	resp_data_t *resp_data;
-> 
-> I think the implementation has an issue here - both the balloon pages and the unused pages use the same buffer ("resp_data" above) to store chunks. It would cause a race in this case: live migration starts while ballooning is also in progress. I plan to use separate buffers for CHUNKS_OF_BALLOON_PAGES and CHUNKS_OF_UNUSED_PAGES. Please let me know if you have a different suggestion. Thanks.
-> 
-> Best,
-> Wei
+--=-=-=
+Content-Type: text/plain
 
-Is only one resp data ever in flight for each kind?
-If not you want as many buffers as vq allows.
+On Tue, Apr 04 2017, Christoph Hellwig wrote:
 
--- 
-MST
+> Looks fine,
+>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+>
+> But if you actually care about performance in any way I'd suggest
+> to use the loop device in direct I/O mode..
+
+The losetup on my test VM is too old to support that :-(
+I guess it might be time to upgraded.
+
+It seems that there is not "mount -o direct_loop" or similar, so you
+have to do the losetup and the mount separately.  Any thoughts on
+whether that should be changed ?
+
+Thanks,
+NeilBrown
+
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAljkchYACgkQOeye3VZi
+gbnNyA/8CYbI2TclJYsIDY6t3ChgU5qXSUw9k7WCj+Y1Je5xqxKiHDFkmTZIET+G
+bmyzVT+J3I+sWSqX42ptGSYHSaxNJHazLsnBg2Gm/pChuNy5QlQm5EVclUEjWDJs
+nU3eGbOQbFb4/uQpSdnonr91ODRGD9jFNS23NvTR5jkAORI6LS45Ex5Eg4zKiMH/
+B/LcP4RKwHGKYHNoy/F5RyrObYM7kXsl0JNgNXPh/EZpkyXk0jSaqVpZ0a6P+z7e
+nW8O9GbmxpmdEkS04nQ69BQ2Dq9Quf6GIuQRXUmeNWVUG2wnYTE1Ly7G50bWM+16
+UKLpsCGHgKTAl1fdood4J+V+P8VFMMnsu5nbpMwkVq0nQw5B8g5M0pzl9ojF8bDe
+w/3+yQoVfpu1waE+rqKsDEA+hszeq1T9qHAA2FZn/jAdDIUE4dnOT/e2rHmMN9P9
+Tsfh92n5nFI0PvE61tEi7n/eHlw5e+nCGrBfxG/bHS/+eIDnP3zGborT31fa6C65
+fV3VcwD244e9TVtM400qgHt6aUs2H3GzzedFDTt0TGE+4V5zON4DGdJ4gDwoyk4a
+9NDpJoYWEkxyosxU8U9huKkeE1LIlEOJpGFi2f+KM0zNwVoU+m1R1dizQGLkb+/P
+ANtntKix8d6qEYvgtfWB3pt61wFkd3wLWXPXpjFbwI2USfs68Oc=
+=o4IH
+-----END PGP SIGNATURE-----
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
