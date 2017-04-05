@@ -1,83 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EBE46B03BB
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 07:39:25 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id l132so7165168oia.10
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 04:39:25 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0109.outbound.protection.outlook.com. [104.47.2.109])
-        by mx.google.com with ESMTPS id e7si91770oth.132.2017.04.05.04.39.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8718E6B03BD
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 07:42:22 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z109so1232293wrb.1
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 04:42:22 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n187si12886416wma.29.2017.04.05.04.42.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 04:39:24 -0700 (PDT)
-Subject: Re: [PATCH 1/4] mm: prevent potential recursive reclaim due to
- clearing PF_MEMALLOC
-References: <20170405074700.29871-1-vbabka@suse.cz>
- <20170405074700.29871-2-vbabka@suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <1f26f654-abaf-3878-6abb-5e27ff3a289e@virtuozzo.com>
-Date: Wed, 5 Apr 2017 14:40:43 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 04:42:21 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
+References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
+ <2cfc601e-3093-143e-b93d-402f330a748a@vmware.com>
+ <a28cc48d-3d6f-b4dd-10c2-a75d2e83ef14@virtuozzo.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8d313f6c-9ea8-7be0-38cd-15370e5a1d6c@suse.cz>
+Date: Wed, 5 Apr 2017 13:42:19 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170405074700.29871-2-vbabka@suse.cz>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <a28cc48d-3d6f-b4dd-10c2-a75d2e83ef14@virtuozzo.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, stable@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Hellstrom <thellstrom@vmware.com>, akpm@linux-foundation.org
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, stable@vger.kernel.org
 
-On 04/05/2017 10:46 AM, Vlastimil Babka wrote:
-> The function __alloc_pages_direct_compact() sets PF_MEMALLOC to prevent
-> deadlock during page migration by lock_page() (see the comment in
-> __unmap_and_move()). Then it unconditionally clears the flag, which can clear a
-> pre-existing PF_MEMALLOC flag and result in recursive reclaim. This was not a
-> problem until commit a8161d1ed609 ("mm, page_alloc: restructure direct
-> compaction handling in slowpath"), because direct compation was called only
-> after direct reclaim, which was skipped when PF_MEMALLOC flag was set.
+On 03/30/2017 04:48 PM, Andrey Ryabinin wrote:
+> On 03/30/2017 03:00 PM, Thomas Hellstrom wrote:
 > 
-> Even now it's only a theoretical issue, as the new callsite of
-> __alloc_pages_direct_compact() is reached only for costly orders and when
-> gfp_pfmemalloc_allowed() is true, which means either __GFP_NOMEMALLOC is in
-                           is false			
-
-> gfp_flags or in_interrupt() is true. There is no such known context, but let's
-> play it safe and make __alloc_pages_direct_compact() robust for cases where
-> PF_MEMALLOC is already set.
+>>>  
+>>>  	if (unlikely(nr_lazy > lazy_max_pages()))
+>>> -		try_purge_vmap_area_lazy();
+>>
+>> Perhaps a slight optimization would be to schedule work iff
+>> !mutex_locked(&vmap_purge_lock) below?
+>>
 > 
-> Fixes: a8161d1ed609 ("mm, page_alloc: restructure direct compaction handling in slowpath")
-> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: <stable@vger.kernel.org>
+> Makes sense, we don't need to spawn workers if we already purging.
+> 
+> 
+> 
+> From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Subject: mm/vmalloc: allow to call vfree() in atomic context fix
+> 
+> Don't spawn worker if we already purging.
+> 
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 > ---
->  mm/page_alloc.c | 3 ++-
+>  mm/vmalloc.c | 3 ++-
 >  1 file changed, 2 insertions(+), 1 deletion(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3589f8be53be..b84e6ffbe756 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3288,6 +3288,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->  		enum compact_priority prio, enum compact_result *compact_result)
->  {
->  	struct page *page;
-> +	unsigned int noreclaim_flag = current->flags & PF_MEMALLOC;
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index ea1b4ab..88168b8 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -737,7 +737,8 @@ static void free_vmap_area_noflush(struct vmap_area *va)
+>  	/* After this point, we may free va at any time */
+>  	llist_add(&va->purge_list, &vmap_purge_list);
 >  
->  	if (!order)
->  		return NULL;
-> @@ -3295,7 +3296,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->  	current->flags |= PF_MEMALLOC;
->  	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
->  									prio);
-> -	current->flags &= ~PF_MEMALLOC;
-> +	current->flags = (current->flags & ~PF_MEMALLOC) | noreclaim_flag;
+> -	if (unlikely(nr_lazy > lazy_max_pages()))
+> +	if (unlikely(nr_lazy > lazy_max_pages()) &&
+> +	    !mutex_is_locked(&vmap_purge_lock))
 
-Perhaps this would look better:
+So, isn't this racy? (and do we care?)
 
-	tsk_restore_flags(current, noreclaim_flag, PF_MEMALLOC);
+Vlastimil
 
-?
-
->  	if (*compact_result <= COMPACT_INACTIVE)
->  		return NULL;
+>  		schedule_work(&purge_vmap_work);
+>  }
+>  
 > 
 
 --
