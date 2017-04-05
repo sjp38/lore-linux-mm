@@ -1,95 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 37F2B6B03CC
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 16:55:42 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z36so3331778wrc.14
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 13:55:42 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e140si25857961wmd.56.2017.04.05.13.55.40
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9061B6B03CE
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 17:00:08 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m28so15300763pgn.14
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 14:00:08 -0700 (PDT)
+Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
+        by mx.google.com with ESMTPS id n1si21600163pge.422.2017.04.05.14.00.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 13:55:41 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v35KhoNg029719
-	for <linux-mm@kvack.org>; Wed, 5 Apr 2017 16:55:39 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29n3d4dj0w-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 05 Apr 2017 16:55:39 -0400
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 5 Apr 2017 16:55:38 -0400
-Date: Wed, 5 Apr 2017 15:55:29 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-References: <20170404073412.GC15132@dhcp22.suse.cz>
- <20170404082302.GE15132@dhcp22.suse.cz>
- <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
- <20170404164452.GQ15132@dhcp22.suse.cz>
- <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
- <20170404194122.GS15132@dhcp22.suse.cz>
- <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
- <20170405064239.GB6035@dhcp22.suse.cz>
- <20170405154852.kdkwuudjv2jwvj5g@arbab-laptop>
- <20170405163439.GS6035@dhcp22.suse.cz>
+        Wed, 05 Apr 2017 14:00:07 -0700 (PDT)
+Received: by mail-pg0-x22c.google.com with SMTP id 21so15505290pgg.1
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 14:00:07 -0700 (PDT)
+Date: Wed, 5 Apr 2017 13:59:49 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Is it safe for kthreadd to drain_all_pages?
+Message-ID: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20170405163439.GS6035@dhcp22.suse.cz>
-Message-Id: <20170405205529.2bs4yhrfffmkwi5g@arbab-laptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 05, 2017 at 06:34:39PM +0200, Michal Hocko wrote:
->This is really interesting. Because add_memory_resource does the
->following
->	/* call arch's memory hotadd */
->	ret = arch_add_memory(nid, start, size);
->
->	if (ret < 0)
->		goto error;
->
->	/* we online node here. we can't roll back from here. */
->	node_set_online(nid);
->
->so we are setting the node online _after_ arch_add_memory but the code
->which adds those sysfs file is called from
->
->arch_add_memory
->  __add_pages
->    __add_section
->      register_new_memory
->        register_mem_sect_under_node
->          node_online check
+Hi Mel,
 
-Okay, so it turns out the original code ends up creating the sysfs links 
-not here, but just a little bit afterwards.
+I suspect that it's not safe for kthreadd to drain_all_pages();
+but I haven't studied flush_work() etc, so don't really know what
+I'm talking about: hoping that you will jump to a realization.
 
-add_memory
-  add_memory_resource
-    arch_add_memory
-      [your quoted stack trace above]
-    ...
-    set_node_online
-    ...
-    register_one_node
-      link_mem_sections
-	register_mem_sect_under_node
+4.11-rc has been giving me hangs after hours of swapping load.  At
+first they looked like memory leaks ("fork: Cannot allocate memory");
+but for no good reason I happened to do "cat /proc/sys/vm/stat_refresh"
+before looking at /proc/meminfo one time, and the stat_refresh stuck
+in D state, waiting for completion of flush_work like many kworkers.
+kthreadd waiting for completion of flush_work in drain_all_pages().
 
-The reason they're not getting created now is because 
-NODE_DATA(nid)->node_spanned_pages = 0 at this point.
+But I only noticed that pattern later: originally tried to bisect
+rc1 before rc2 came out, but underestimated how long to wait before
+deciding a stage good - I thought 12 hours, but would now say 2 days.
+Too late for bisection, I suspect your drain_all_pages() changes.
 
-link_mem_sections: nid=1, start_pfn=0x10000, end_pfn=0x10000
+(I've also found order:0 page allocation stalls in /var/log/messages,
+148804ms a nice example: which suggest that these hangs are perhaps a
+condition it can sometimes get out of itself.  None with the patch.)
 
-This is another uninitialized situation, like the one with 
-node_start_pfn which caused my removal crash. Except here I'm not sure 
-the correct place to splice in and set it.
+Patch below has been running well for 36 hours now:
+a bit too early to be sure, but I think it's time to turn to you.
 
--- 
-Reza Arbab
+
+[PATCH] mm: don't let kthreadd drain_all_pages
+
+4.11-rc has been giving me hangs after many hours of swapping load: most
+kworkers waiting for completion of a flush_work, kthreadd waiting for
+completion of flush_work in drain_all_pages (while doing copy_process).
+I suspect that kthreadd should not be allowed to drain_all_pages().
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/page_alloc.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+--- 4.11-rc5/mm/page_alloc.c	2017-03-13 09:08:37.743209168 -0700
++++ linux/mm/page_alloc.c	2017-04-04 00:33:44.086867413 -0700
+@@ -2376,6 +2376,8 @@ void drain_all_pages(struct zone *zone)
+ 	/* Workqueues cannot recurse */
+ 	if (current->flags & PF_WQ_WORKER)
+ 		return;
++	if (current == kthreadd_task)
++		return;
+ 
+ 	/*
+ 	 * Do not drain if one is already in progress unless it's specific to
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
