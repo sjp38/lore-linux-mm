@@ -1,63 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 564866B0397
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 14:43:31 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w11so2938077wrc.2
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 11:43:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e69si25461181wmc.151.2017.04.05.11.43.29
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BF076B03A7
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 15:39:19 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id o15so9093034ito.14
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 12:39:19 -0700 (PDT)
+Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
+        by mx.google.com with ESMTPS id r20si22325884ioe.110.2017.04.05.12.39.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 11:43:29 -0700 (PDT)
-Date: Wed, 5 Apr 2017 20:43:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Heavy I/O causing slow interactivity
-Message-ID: <20170405184325.GV6035@dhcp22.suse.cz>
-References: <CAGDaZ_qvb7QcWr3MaqnYOFeuqBQzTwzzOKwHXOUxa+S256uc=g@mail.gmail.com>
- <20170405125322.GB9146@rapoport-lnx>
- <CAGDaZ_o745MVD8PDeGhp0-oehUVb8+Zrm4g7uUBBZNTAPODbmQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Apr 2017 12:39:18 -0700 (PDT)
+Received: by mail-io0-x230.google.com with SMTP id b140so16769934iof.1
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 12:39:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGDaZ_o745MVD8PDeGhp0-oehUVb8+Zrm4g7uUBBZNTAPODbmQ@mail.gmail.com>
+In-Reply-To: <CA+55aFwv8QPBD4SMLw2Y7qkV4JceMc9NdOujbVM7PfcBpkhm3Q@mail.gmail.com>
+References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
+ <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
+ <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
+ <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk> <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
+ <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
+ <a6543d13-6247-08de-903e-f4d1bbb52881@nokia.com> <CAGXu5jJAd9Qg4gkXE=1+8q6Ej=8boiH4ovkzX5n+PbhkBrnt5g@mail.gmail.com>
+ <CA+55aFzSzemLt+GeynyavM7HzsOjGBrG=_S6XMFV=Xc1mn-UGA@mail.gmail.com> <CA+55aFwv8QPBD4SMLw2Y7qkV4JceMc9NdOujbVM7PfcBpkhm3Q@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 5 Apr 2017 12:39:17 -0700
+Message-ID: <CAGXu5jJHo4ogRfSaQvBEY0L-8NLCRvow8aHWcpW67XOBN97GDw@mail.gmail.com>
+Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raymond Jennings <shentino@gmail.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tommi Rantala <tommi.t.rantala@nokia.com>, Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
 
-On Wed 05-04-17 11:15:44, Raymond Jennings wrote:
-> I have 32GiB of memory
-> 
-> Storage is an LVM volume group sitting on a pair of 2T western digital
-> drives, one WD Green, and the other WD Blue
-> 
-> My CPU is an i7, model 4790K.
-> 
-> What I'd like is some way for my system to fairly share the available
-> I/O bandwidth.  My youtube is sensitive to latency but doesn't chew up
-> a lot of throughput.  My I/O heavy stuff isn't really urgent and I
-> don't mind it yielding to the interactive stuff.
-> 
-> I remember a similiar concept being tried awhile ago with a scheduler
-> that "punished" processes that sucked up too much CPU and made sure
-> the short sporadic event driven interactive stuff got the scraps of
-> CPU when it needed them.
-> 
-> /proc/sys/vm/dirty is set up as follows
-> 
-> dirty_ratio 90
+On Tue, Apr 4, 2017 at 5:22 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> On Tue, Apr 4, 2017 at 3:55 PM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>>
+>> I already explained what the likely fix is: make devmem_is_allowed()
+>> return a ternary value, so that those things that *do* read the BIOS
+>> area can just continue to do so, but they see zeroes for the parts
+>> that the kernel has taken over.
+>
+> Actually, a simpler solution might be to
+>
+>  (a) keep the binary value
+>
+>  (b) remove the test for the low 1M
+>
+>  (c) to avoid breakage, don't return _error_, but just always read zero
+>
+> that also removes (or at least makes it much more expensive) a signal
+> of which pages are kernel allocated vs BIOS allocated.
 
-So you allow 90% of your 32GB to be dirty and then get throttled which
-will take quite some time until it gets synced to the disk. Even with a
-fast storage. I would really recommend reducing dirty_ratio (and
-background ratio as well) to something much more reasonable. E.g. start
-the background IO at around 400MB and hard limit at 800MB. I am pretty
-sure that the stalls you are seeing are related to the IO dirty
-throttling.
+This last part (reading zero) is what I'm poking at now. It's not
+obvious to me yet how to make the mmap interface hand back zero-mapped
+pages. I'll keep digging...
+
+-Kees
 
 -- 
-Michal Hocko
-SUSE Labs
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
