@@ -1,78 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3B2E6B0038
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 11:23:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q70so8084303pfi.20
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 08:23:41 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p5si20873648pgi.297.2017.04.05.08.23.40
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2836B0038
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 11:32:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w11so2238345wrc.2
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 08:32:04 -0700 (PDT)
+Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
+        by mx.google.com with ESMTPS id a13si24859280wma.104.2017.04.05.08.32.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 08:23:40 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v35FJDZj090830
-	for <linux-mm@kvack.org>; Wed, 5 Apr 2017 11:23:40 -0400
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29n2vt15nb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 05 Apr 2017 11:23:40 -0400
-Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 5 Apr 2017 09:23:39 -0600
-Date: Wed, 5 Apr 2017 10:23:28 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-References: <20170403204213.rs7k2cvsnconel2z@arbab-laptop>
- <20170404072329.GA15132@dhcp22.suse.cz>
- <20170404073412.GC15132@dhcp22.suse.cz>
- <20170404082302.GE15132@dhcp22.suse.cz>
- <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
- <20170404164452.GQ15132@dhcp22.suse.cz>
- <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
- <20170404194122.GS15132@dhcp22.suse.cz>
- <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
- <20170405135248.GQ6035@dhcp22.suse.cz>
+        Wed, 05 Apr 2017 08:32:02 -0700 (PDT)
+Received: by mail-wr0-x242.google.com with SMTP id t20so3714854wra.2
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 08:32:02 -0700 (PDT)
+Date: Wed, 5 Apr 2017 18:32:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 21/26] x86/mm: add support of additional page table level
+ during early boot
+Message-ID: <20170405153200.t7r7c7lyycxm2wzg@node.shutemov.name>
+References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
+ <20170313055020.69655-22-kirill.shutemov@linux.intel.com>
+ <20170313071810.GA28726@gmail.com>
+ <20170405113624.y5iqjvpwbvayo2cd@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170405135248.GQ6035@dhcp22.suse.cz>
-Message-Id: <20170405152328.3gq3te2z3hpvxfzx@arbab-laptop>
+In-Reply-To: <20170405113624.y5iqjvpwbvayo2cd@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 05, 2017 at 03:52:49PM +0200, Michal Hocko wrote:
->My code doesn't do that though. So I guess I have to sanitize. Does 
->this help? Please drop the "mm, memory_hotplug: get rid of zone/node
->shrinking" patch.
->---
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index acf2b5eb5ecb..2c5613d19eb6 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -750,6 +750,15 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
-> 	int ret;
-> 	struct memory_notify arg;
->
->+	do {
->+		if (pfn_valid(pfn))
->+			break;
->+		pfn++;
->+	} while (--nr_pages > 0);
->+
->+	if (!nr_pages)
->+		return -EINVAL;
->+
-> 	nid = pfn_to_nid(pfn);
-> 	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
-> 		return -EINVAL;
+On Wed, Apr 05, 2017 at 02:36:24PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Mar 13, 2017 at 08:18:10AM +0100, Ingo Molnar wrote:
+> > 
+> > * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+> > 
+> > > This patch adds support for 5-level paging during early boot.
+> > > It generalizes boot for 4- and 5-level paging on 64-bit systems with
+> > > compile-time switch between them.
+> > > 
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > ---
+> > >  arch/x86/boot/compressed/head_64.S          | 23 +++++++++--
+> > >  arch/x86/include/asm/pgtable.h              |  2 +-
+> > >  arch/x86/include/asm/pgtable_64.h           |  6 ++-
+> > >  arch/x86/include/uapi/asm/processor-flags.h |  2 +
+> > >  arch/x86/kernel/espfix_64.c                 |  2 +-
+> > >  arch/x86/kernel/head64.c                    | 40 +++++++++++++-----
+> > >  arch/x86/kernel/head_64.S                   | 63 +++++++++++++++++++++--------
+> > 
+> > Ok, here I'd like to have a C version instead of further complicating an already 
+> > complex assembly version...
+> 
+> Just head up: I work on this.
+> 
+> It's great deal of frustration (I can't really read assembly), but I'm
+> slowly moving forward.
+> 
+> Most of logic in startup_64 in arch/x86/kernel/head_64.S is converted
+> to C. Dealing with secondary_startup_64 now.
 
-Sorry, no change. Back to the oops in find_biggest_section_pfn().
+I'm stuck with secondary_startup_64 too. Stack breaks as soon as we switch
+to new page tables when onlining secondary CPUs. I don't know how to get
+around this.
+
+Would it be sufficient if I only convert startup_64 in
+arch/x86/kernel/head_64.S to C?
 
 -- 
-Reza Arbab
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
