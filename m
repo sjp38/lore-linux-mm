@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 59E706B03C0
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 08:09:42 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p111so1334045wrc.10
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:09:42 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7266B03C2
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 08:14:55 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k22so1353490wrk.5
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:14:55 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r22si24087014wme.123.2017.04.05.05.09.40
+        by mx.google.com with ESMTPS id v63si24179769wma.79.2017.04.05.05.14.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 05:09:40 -0700 (PDT)
-Date: Wed, 5 Apr 2017 14:09:36 +0200
+        Wed, 05 Apr 2017 05:14:54 -0700 (PDT)
+Date: Wed, 5 Apr 2017 14:14:49 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] mtd: nand: nandsim: convert to memalloc_noreclaim_*()
-Message-ID: <20170405120936.GN6035@dhcp22.suse.cz>
-References: <20170405074700.29871-1-vbabka@suse.cz>
- <20170405074700.29871-5-vbabka@suse.cz>
- <20170405113157.GM6035@dhcp22.suse.cz>
- <ee6649ed-b0e8-1c59-c193-d1688fdfe7f5@nod.at>
- <9b9d5bca-e125-e07b-b700-196cc800bbd7@suse.cz>
+Subject: Re: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
+Message-ID: <20170405121449.GO6035@dhcp22.suse.cz>
+References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
+ <2cfc601e-3093-143e-b93d-402f330a748a@vmware.com>
+ <a28cc48d-3d6f-b4dd-10c2-a75d2e83ef14@virtuozzo.com>
+ <8d313f6c-9ea8-7be0-38cd-15370e5a1d6c@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9b9d5bca-e125-e07b-b700-196cc800bbd7@suse.cz>
+In-Reply-To: <8d313f6c-9ea8-7be0-38cd-15370e5a1d6c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Richard Weinberger <richard@nod.at>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, Boris Brezillon <boris.brezillon@free-electrons.com>, Adrian Hunter <adrian.hunter@intel.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Hellstrom <thellstrom@vmware.com>, akpm@linux-foundation.org, penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, stable@vger.kernel.org
 
-On Wed 05-04-17 13:39:16, Vlastimil Babka wrote:
-> On 04/05/2017 01:36 PM, Richard Weinberger wrote:
-> > Michal,
-> > 
-> > Am 05.04.2017 um 13:31 schrieb Michal Hocko:
-> >> On Wed 05-04-17 09:47:00, Vlastimil Babka wrote:
-> >>> Nandsim has own functions set_memalloc() and clear_memalloc() for robust
-> >>> setting and clearing of PF_MEMALLOC. Replace them by the new generic helpers.
-> >>> No functional change.
-> >>
-> >> This one smells like an abuser. Why the hell should read/write path
-> >> touch memory reserves at all!
-> > 
-> > Could be. Let's ask Adrian, AFAIK he wrote that code.
-> > Adrian, can you please clarify why nandsim needs to play with PF_MEMALLOC?
+On Wed 05-04-17 13:42:19, Vlastimil Babka wrote:
+> On 03/30/2017 04:48 PM, Andrey Ryabinin wrote:
+[...]
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -737,7 +737,8 @@ static void free_vmap_area_noflush(struct vmap_area *va)
+> >  	/* After this point, we may free va at any time */
+> >  	llist_add(&va->purge_list, &vmap_purge_list);
+> >  
+> > -	if (unlikely(nr_lazy > lazy_max_pages()))
+> > +	if (unlikely(nr_lazy > lazy_max_pages()) &&
+> > +	    !mutex_is_locked(&vmap_purge_lock))
 > 
-> I was thinking about it and concluded that since the simulator can be
-> used as a block device where reclaimed pages go to, writing the data out
-> is a memalloc operation. Then reading can be called as part of r-m-w
-> cycle, so reading as well. But it would be great if somebody more
-> knowledgeable confirmed this.
+> So, isn't this racy? (and do we care?)
 
-then this deserves a big fat comment explaining all the details,
-including how the complete depletion of reserves is prevented.
+yes, it is racy and no we do not care AFAICS. If the lock is held then
+somebody is already doing the work on our behalf. If we are unlucky
+and that work has been already consumed (read another lazy_max_pages
+have been freed) then we would still try to lazy free it during the
+allocation. This would be something for the changelog of course.
 -- 
 Michal Hocko
 SUSE Labs
