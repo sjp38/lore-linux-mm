@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BF076B03A7
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 15:39:19 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o15so9093034ito.14
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 12:39:19 -0700 (PDT)
-Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
-        by mx.google.com with ESMTPS id r20si22325884ioe.110.2017.04.05.12.39.18
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB866B03A8
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 15:39:39 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w11so3136779wrc.2
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 12:39:39 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 51si2189290wrc.11.2017.04.05.12.39.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 12:39:18 -0700 (PDT)
-Received: by mail-io0-x230.google.com with SMTP id b140so16769934iof.1
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 12:39:18 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 12:39:38 -0700 (PDT)
+Date: Wed, 5 Apr 2017 21:39:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
+Message-ID: <20170405193933.GW6035@dhcp22.suse.cz>
+References: <20170404164452.GQ15132@dhcp22.suse.cz>
+ <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
+ <20170404194122.GS15132@dhcp22.suse.cz>
+ <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
+ <20170405064239.GB6035@dhcp22.suse.cz>
+ <20170405092427.GG6035@dhcp22.suse.cz>
+ <20170405145304.wxzfavqxnyqtrlru@arbab-laptop>
+ <20170405154258.GR6035@dhcp22.suse.cz>
+ <20170405173248.4vtdgk2kolbzztya@arbab-laptop>
+ <20170405181502.GU6035@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwv8QPBD4SMLw2Y7qkV4JceMc9NdOujbVM7PfcBpkhm3Q@mail.gmail.com>
-References: <d928849c-e7c3-6b81-e551-a39fa976f341@nokia.com>
- <CAGXu5jKo4gw=RHCmcY3v+GTiUUgteLbmvHDghd-Lrm7RprL8=Q@mail.gmail.com>
- <20170330194143.cbracica3w3ijrcx@codemonkey.org.uk> <CAGXu5jK8=g8rBx1J4+gC8-3nwRLe2Va89hHX=S-P6SvvgiVb9A@mail.gmail.com>
- <20170331171724.nm22iqiellfsvj5z@codemonkey.org.uk> <CAGXu5jL7MGNut_izksDKJHNJjPZqvu_84GBwHjqVeRbjDJyMWw@mail.gmail.com>
- <CA+55aFwOCnhSF4Tyk8x0+EpcWmaDd9X5bi1w=O1aReEK53OY8A@mail.gmail.com>
- <a6543d13-6247-08de-903e-f4d1bbb52881@nokia.com> <CAGXu5jJAd9Qg4gkXE=1+8q6Ej=8boiH4ovkzX5n+PbhkBrnt5g@mail.gmail.com>
- <CA+55aFzSzemLt+GeynyavM7HzsOjGBrG=_S6XMFV=Xc1mn-UGA@mail.gmail.com> <CA+55aFwv8QPBD4SMLw2Y7qkV4JceMc9NdOujbVM7PfcBpkhm3Q@mail.gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 5 Apr 2017 12:39:17 -0700
-Message-ID: <CAGXu5jJHo4ogRfSaQvBEY0L-8NLCRvow8aHWcpW67XOBN97GDw@mail.gmail.com>
-Subject: Re: sudo x86info -a => kernel BUG at mm/usercopy.c:78!
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170405181502.GU6035@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tommi Rantala <tommi.t.rantala@nokia.com>, Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Tue, Apr 4, 2017 at 5:22 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Tue, Apr 4, 2017 at 3:55 PM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
->>
->> I already explained what the likely fix is: make devmem_is_allowed()
->> return a ternary value, so that those things that *do* read the BIOS
->> area can just continue to do so, but they see zeroes for the parts
->> that the kernel has taken over.
->
-> Actually, a simpler solution might be to
->
->  (a) keep the binary value
->
->  (b) remove the test for the low 1M
->
->  (c) to avoid breakage, don't return _error_, but just always read zero
->
-> that also removes (or at least makes it much more expensive) a signal
-> of which pages are kernel allocated vs BIOS allocated.
+On Wed 05-04-17 20:15:02, Michal Hocko wrote:
+> On Wed 05-04-17 12:32:49, Reza Arbab wrote:
+> > On Wed, Apr 05, 2017 at 05:42:59PM +0200, Michal Hocko wrote:
+> > >But one thing that is really bugging me is how could you see low pfns in
+> > >the previous oops. Please drop the last patch and sprinkle printks down
+> > >the remove_memory path to see where this all go south. I believe that
+> > >there is something in the initialization code lurking in my code. Please
+> > >also scratch the pfn_valid check in online_pages diff. It will not help
+> > >here.
+> > 
+> > Got it.
+> > 
+> > shrink_pgdat_span: start_pfn=0x10000, end_pfn=0x10100, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
+> > 
+> > The problem is that pgdat_start_pfn here should be 0x10000. As you
+> > suspected, it never got set. This fixes things for me.
+> > 
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index 623507f..37c1b63 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -884,7 +884,7 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
+> > {
+> > 	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
+> > 
+> > -	if (start_pfn < pgdat->node_start_pfn)
+> > +	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
+> > 		pgdat->node_start_pfn = start_pfn;
+> 
+> Dang! You are absolutely right. This explains the issue during the
+> remove_memory. I still fail to see how this makes any difference for the
+> sysfs file registration though. If anything the pgdat will be larger and
+> so try_offline_node would check also unrelated node0 but the code will
+> handle that and eventually offline the node1 anyway. /me still confused.
 
-This last part (reading zero) is what I'm poking at now. It's not
-obvious to me yet how to make the mmap interface hand back zero-mapped
-pages. I'll keep digging...
-
--Kees
-
+OK, so I've managed to convince my kvm setup to create a node without
+any memory initially but I cannot seem to be able to reach
+node_set_offline in try_offline_node because check_and_unmap_cpu_on_node
+fails for me even when I offline cpus bound to the node because we are
+using for_each_present_cpu in check_cpu_on_node so I would have to start
+with a cpuless node or find a way how to hotremove those cpus.
 -- 
-Kees Cook
-Pixel Security
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
