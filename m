@@ -1,101 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 945F36B03A4
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 06:30:04 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id v16so6038187oia.19
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 03:30:04 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0099.outbound.protection.outlook.com. [104.47.2.99])
-        by mx.google.com with ESMTPS id 6si3239801oic.240.2017.04.05.03.30.02
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A8DDA6B03A7
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 06:35:32 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u18so1003906wrc.17
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 03:35:32 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y206si23849638wmb.31.2017.04.05.03.35.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 03:30:03 -0700 (PDT)
-Subject: Re: [PATCH 1/4] mm/vmalloc: allow to call vfree() in atomic context
-References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
- <2cfc601e-3093-143e-b93d-402f330a748a@vmware.com>
- <a28cc48d-3d6f-b4dd-10c2-a75d2e83ef14@virtuozzo.com>
- <20170404094148.GJ15132@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <d28bc808-0aab-d36a-f401-9925680fd131@virtuozzo.com>
-Date: Wed, 5 Apr 2017 13:31:23 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Apr 2017 03:35:31 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v35ATWQD000573
+	for <linux-mm@kvack.org>; Wed, 5 Apr 2017 06:35:30 -0400
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com [125.16.236.4])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 29mvr468ge-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Apr 2017 06:35:29 -0400
+Received: from localhost
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 5 Apr 2017 16:05:26 +0530
+Received: from d28av07.in.ibm.com (d28av07.in.ibm.com [9.184.220.146])
+	by d28relay08.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v35AY53I13434926
+	for <linux-mm@kvack.org>; Wed, 5 Apr 2017 16:04:05 +0530
+Received: from d28av07.in.ibm.com (localhost [127.0.0.1])
+	by d28av07.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v35AZOpb019502
+	for <linux-mm@kvack.org>; Wed, 5 Apr 2017 16:05:24 +0530
+Subject: Re: [PATCH] mm, memory_hotplug: fix devm_memremap_pages() after
+ memory_hotplug rework
+References: <20170404165144.29791-1-jglisse@redhat.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 5 Apr 2017 16:05:23 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170404094148.GJ15132@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170404165144.29791-1-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Message-Id: <a9d6e8d2-7bd9-abf1-9323-d175f10f7559@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Hellstrom <thellstrom@vmware.com>, akpm@linux-foundation.org, penguin-kernel@I-love.SAKURA.ne.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, stable@vger.kernel.org
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>
 
-On 04/04/2017 12:41 PM, Michal Hocko wrote:
-> On Thu 30-03-17 17:48:39, Andrey Ryabinin wrote:
->> From: Andrey Ryabinin <aryabinin@virtuozzo.com>
->> Subject: mm/vmalloc: allow to call vfree() in atomic context fix
->>
->> Don't spawn worker if we already purging.
->>
->> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+On 04/04/2017 10:21 PM, JA(C)rA'me Glisse wrote:
+> Just a trivial fix.
 > 
-> I would rather put this into a separate patch. Ideally with some numners
-> as this is an optimization...
+> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  kernel/memremap.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
 > 
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index faa9276..bbbe646 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -366,7 +366,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>  	error = arch_add_memory(nid, align_start, align_size);
+>  	if (!error)
+>  		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+> -				align_start, align_size);
+> +					align_start >> PAGE_SHIFT,
+> +					align_size >> PAGE_SHIFT);
 
-It's quite simple optimization and don't think that this deserves to be a separate patch.
-
-But I did some measurements though. With enabled VMAP_STACK=y and NR_CACHED_STACK changed to 0
-running fork() 100000 times gives this:
-
-With optimization:
-
-~ # grep try_purge /proc/kallsyms 
-ffffffff811d0dd0 t try_purge_vmap_area_lazy
-~ # perf stat --repeat 10 -ae workqueue:workqueue_queue_work --filter 'function == 0xffffffff811d0dd0' ./fork
-
- Performance counter stats for 'system wide' (10 runs):
-
-                15      workqueue:workqueue_queue_work                                     ( +-  0.88% )
-
-       1.615368474 seconds time elapsed                                          ( +-  0.41% )
-
-
-Without optimization:
-~ # grep try_purge /proc/kallsyms 
-ffffffff811d0dd0 t try_purge_vmap_area_lazy
-~ # perf stat --repeat 10 -ae workqueue:workqueue_queue_work --filter 'function == 0xffffffff811d0dd0' ./fork
-
- Performance counter stats for 'system wide' (10 runs):
-
-                30      workqueue:workqueue_queue_work                                     ( +-  1.31% )
-
-       1.613231060 seconds time elapsed                                          ( +-  0.38% )
-
-
-So there is no measurable difference on the test itself, but we queue twice more jobs without this optimization.
-It should decrease load of kworkers.
-
-
-
->> ---
->>  mm/vmalloc.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index ea1b4ab..88168b8 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -737,7 +737,8 @@ static void free_vmap_area_noflush(struct vmap_area *va)
->>  	/* After this point, we may free va at any time */
->>  	llist_add(&va->purge_list, &vmap_purge_list);
->>  
->> -	if (unlikely(nr_lazy > lazy_max_pages()))
->> +	if (unlikely(nr_lazy > lazy_max_pages()) &&
->> +	    !mutex_is_locked(&vmap_purge_lock))
->>  		schedule_work(&purge_vmap_work);
->>  }
->>  
->> -- 
->> 2.10.2
->>
-> 
+All this while it was taking up addresses instead of PFNs ? Then
+how it was working correctly before ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
