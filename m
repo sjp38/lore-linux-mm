@@ -1,101 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D89916B03C4
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 08:42:26 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s22so6030840pfs.0
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:42:26 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id h7si20540146pgn.97.2017.04.05.05.42.25
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 02AEA6B03C6
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 08:53:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 34so1524706wrb.20
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:53:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f71si8645366wmh.127.2017.04.05.05.53.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 05:42:26 -0700 (PDT)
-Received: from eucas1p1.samsung.com (unknown [182.198.249.206])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0ONX00E5ESMMDG00@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 05 Apr 2017 13:42:22 +0100 (BST)
-Subject: Re: [PATCH v3] userfaultfd: provide pid in userfault msg
-From: Alexey Perevalov <a.perevalov@samsung.com>
-Message-id: <a442cd0f-87a6-2a88-8139-3dc2f4e92620@samsung.com>
-Date: Wed, 05 Apr 2017 15:42:18 +0300
-MIME-version: 1.0
-In-reply-to: <20170404190419.GA5081@redhat.com>
-Content-type: text/plain; charset=windows-1252; format=flowed
-Content-transfer-encoding: 7bit
-References: <1491211956-6095-1-git-send-email-a.perevalov@samsung.com>
- <CGME20170403093318eucas1p2ebd57e5e4c33707063687ccd571f67bb@eucas1p2.samsung.com>
- <1491211956-6095-2-git-send-email-a.perevalov@samsung.com>
- <20170404190419.GA5081@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Apr 2017 05:53:29 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v35CmksC070492
+	for <linux-mm@kvack.org>; Wed, 5 Apr 2017 08:53:28 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29mytgkwf4-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Apr 2017 08:53:27 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 5 Apr 2017 13:53:26 +0100
+Date: Wed, 5 Apr 2017 15:53:22 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: Heavy I/O causing slow interactivity
+References: <CAGDaZ_qvb7QcWr3MaqnYOFeuqBQzTwzzOKwHXOUxa+S256uc=g@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGDaZ_qvb7QcWr3MaqnYOFeuqBQzTwzzOKwHXOUxa+S256uc=g@mail.gmail.com>
+Message-Id: <20170405125322.GB9146@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, rppt@linux.vnet.ibm.com, mike.kravetz@oracle.com, dgilbert@redhat.com
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-On 04/04/2017 10:04 PM, Andrea Arcangeli wrote:
-> Hello Alexey,
->
-> v3 looks great to me.
->
-> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
->
-> On top of v3 I think we could add this to make it more obvious to the
-> developer tpid isn't necessarily there by just looking at the data
-> structure.
->
-> This is purely cosmetical, so feel free to comment if you
-> disagree.
-Why not, I agree with this change.
+On Mon, Apr 03, 2017 at 10:39:39AM -0700, Raymond Jennings wrote:
+> I'm running gentoo and it's emerging llvm.  This I/O heavy process is
+> causing slowdowns when I attempt interactive stuff, including watching
+> a youtube video and accessing a chatroom.
 
->
-> I'm also fine to add an anonymous union later if a new usage for those
-> bytes emerges (ABI side doesn't change anything which is why this
-> could be done later as well, only the API changes here but then I
-> doubt we'd break the API later for this, so if we want pagefault.feat.*
-> it probably should be done right now).
->
-> Thanks,
-> Andrea
->
-> >From 901951f5a0456aa07d4fb1231cf2b1d352beb36f Mon Sep 17 00:00:00 2001
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Date: Tue, 4 Apr 2017 20:50:54 +0200
-> Subject: [PATCH 1/1] userfaultfd: provide pid in userfault msg - add feat
->   union
->
-> No ABI change, but this will make it more explicit to software that
-> ptid is only available if requested by passing UFFD_FEATURE_THREAD_ID
-> to UFFDIO_API. The fact it's a union will also self document it
-> shouldn't be taken for granted there's a tpid there.
->
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->   include/uapi/linux/userfaultfd.h | 4 +++-
->   1 file changed, 3 insertions(+), 1 deletion(-)
->
-> diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-> index ff8d0d2..524b860 100644
-> --- a/include/uapi/linux/userfaultfd.h
-> +++ b/include/uapi/linux/userfaultfd.h
-> @@ -84,7 +84,9 @@ struct uffd_msg {
->   		struct {
->   			__u64	flags;
->   			__u64	address;
-> -			__u32   ptid;
-> +			union {
-> +				__u32 ptid;
-> +			} feat;
->   		} pagefault;
->   
->   		struct {
->
->
->
->
-
-
--- 
-Best regards,
-Alexey Perevalov
+"emerge llvm" means "build LLVM compiler suite and install it", right?
+This could be quite CPU and memory intensive as well.
+Depending on your hardware and options you use it just may end up eating all
+the system resources...
+ 
+> Similar latency is induced during a heavy database application.
+> 
+> As an end user is there anything I can do to better support
+> interactive performance?
+> 
+> And as a potential kernel developer, is there anything I could tweak
+> in the kernel source to mitigate this behavior?
+> 
+> I've tried SCHED_IDLE and idle class with ionice, both to no avail.
+ 
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
