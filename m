@@ -1,102 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F2B6B039F
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 09:52:57 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p64so1777090wrb.18
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 06:52:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9si29258784wrd.131.2017.04.05.06.52.55
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C9B7F6B0038
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 10:40:35 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id p68so3829808qke.12
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 07:40:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t11si17935049qtt.272.2017.04.05.07.40.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 06:52:56 -0700 (PDT)
-Date: Wed, 5 Apr 2017 15:52:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-Message-ID: <20170405135248.GQ6035@dhcp22.suse.cz>
-References: <20170403202337.GA12482@dhcp22.suse.cz>
- <20170403204213.rs7k2cvsnconel2z@arbab-laptop>
- <20170404072329.GA15132@dhcp22.suse.cz>
- <20170404073412.GC15132@dhcp22.suse.cz>
- <20170404082302.GE15132@dhcp22.suse.cz>
- <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
- <20170404164452.GQ15132@dhcp22.suse.cz>
- <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
- <20170404194122.GS15132@dhcp22.suse.cz>
- <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Apr 2017 07:40:35 -0700 (PDT)
+Message-ID: <1491403231.16856.11.camel@redhat.com>
+Subject: Re: [PATCH -mm -v2] mm, swap: Sort swap entries before free
+From: Rik van Riel <riel@redhat.com>
+Date: Wed, 05 Apr 2017 10:40:31 -0400
+In-Reply-To: <20170405071041.24469-1-ying.huang@intel.com>
+References: <20170405071041.24469-1-ying.huang@intel.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-i7pJR9HCuynNWIg7Aev5"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
 
-On Tue 04-04-17 16:43:39, Reza Arbab wrote:
-> On Tue, Apr 04, 2017 at 09:41:22PM +0200, Michal Hocko wrote:
-> >On Tue 04-04-17 13:30:13, Reza Arbab wrote:
-> >>I think I found another edge case.  You
-> >>get an oops when removing all of a node's memory:
-> >>
-> >>__nr_to_section
-> >>__pfn_to_section
-> >>find_biggest_section_pfn
-> >>shrink_pgdat_span
-> >>__remove_zone
-> >>__remove_section
-> >>__remove_pages
-> >>arch_remove_memory
-> >>remove_memory
-> >
-> >Is this something new or an old issue? I believe the state after the
-> >online should be the same as before. So if you onlined the full node
-> >then there shouldn't be any difference. Let me have a look...
-> 
-> It's new. Without this patchset, I can repeatedly
-> add_memory()->online_movable->offline->remove_memory() all of a node's
-> memory.
 
-OK, I know what is going on here.
-shrink_pgdat_span: start_pfn=0x1ff00, end_pfn=0x20000, pgdat_start_pfn=0x0, pgdat_end_pfn=0x20000
-[...]
-find_biggest_section_pfn loop: pfn=0xff, sec_nr = 0x0
+--=-i7pJR9HCuynNWIg7Aev5
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-so the node starts at pfn 0 while we are trying to remove range starting
-from pfn=255 (1MB). Rather than going with find_smallest_section_pfn we
-go with the other branch and that underflows as already mentioned. I
-seriously doubt that the node really starts at pfn 0. I am not sure
-which arch you are testing on but I believe we reserve the lowest
-address pfn range on all aches. The previous code presumably handled
-that properly because the original node/zone has started at the lowest
-possible address and the zone shifting then preserves that.
+On Wed, 2017-04-05 at 15:10 +0800, Huang, Ying wrote:
+> To solve the issue, the per-CPU buffer is sorted according to the
+> swap
+> device before freeing the swap entries.=C2=A0=C2=A0Test shows that the ti=
+me
+> spent by swapcache_free_entries() could be reduced after the patch.
 
-My code doesn't do that though. So I guess I have to sanitize. Does this
-help? Please drop the "mm, memory_hotplug: get rid of zone/node
-shrinking" patch.
----
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index acf2b5eb5ecb..2c5613d19eb6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -750,6 +750,15 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	int ret;
- 	struct memory_notify arg;
- 
-+	do {
-+		if (pfn_valid(pfn))
-+			break;
-+		pfn++;
-+	} while (--nr_pages > 0);
-+
-+	if (!nr_pages)
-+		return -EINVAL;
-+
- 	nid = pfn_to_nid(pfn);
- 	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
- 		return -EINVAL;
--- 
-Michal Hocko
-SUSE Labs
+That makes a lot of sense.
+
+> @@ -1075,6 +1083,8 @@ void swapcache_free_entries(swp_entry_t
+> *entries, int n)
+> =C2=A0
+> =C2=A0	prev =3D NULL;
+> =C2=A0	p =3D NULL;
+> +	if (nr_swapfiles > 1)
+> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp,
+> NULL);
+
+But it really wants a comment in the code, so people
+reading the code a few years from now can see why
+we are sorting things we are about to free.
+
+Maybe something like:
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Sort swap entries by swap device, so each lo=
+ck is only taken
+once. */
+
+> =C2=A0	for (i =3D 0; i < n; ++i) {
+> =C2=A0		p =3D swap_info_get_cont(entries[i], prev);
+> =C2=A0		if (p)
+--=20
+All rights reversed
+
+--=-i7pJR9HCuynNWIg7Aev5
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJY5QHfAAoJEM553pKExN6D5QsH/jKVMv3xd9Ur7Hmk0Rwbm9ES
+zTZFkmef2Zw6Hnd1JDr/GDVyblEK+mN0xGwB1bw2QrdpeVFGZnxEvf28HMrg6lY0
+uR00DuFfCi86JmtZ2jzbTwvopfORb2OO4EwZGbPJL7zWHKhJMd4J1iMcW5afiUIH
+9l/d9aQnYw0ZsJfrxKtxCKssleKXvzbAZ8Mun/jH51/W7LFO5GEl7hdBWXlrevZy
+exxGOuxwU2KONkvQ2jDSjpASERyDQV3cBvXas4r+eD6h4pJm8xrhaOeilqnxP2NT
+Ugpo/qvMhandb2ih+ZNTkKKNrUcb4MrlXPWKrb+q0cl+53Fz8jD0PCwEj74RNHQ=
+=82yH
+-----END PGP SIGNATURE-----
+
+--=-i7pJR9HCuynNWIg7Aev5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
