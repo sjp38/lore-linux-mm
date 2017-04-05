@@ -1,70 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E78F6B03BE
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 09:38:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 197so6685706pfv.13
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 06:38:38 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m3si20690293pld.162.2017.04.05.06.38.37
-        for <linux-mm@kvack.org>;
-        Wed, 05 Apr 2017 06:38:37 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v2 9/9] arm64: kconfig: allow support for memory failure handling
-Date: Wed,  5 Apr 2017 14:37:22 +0100
-Message-Id: <20170405133722.6406-10-punit.agrawal@arm.com>
-In-Reply-To: <20170405133722.6406-1-punit.agrawal@arm.com>
-References: <20170405133722.6406-1-punit.agrawal@arm.com>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C6B86B039F
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 09:43:52 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id i18so1750210wrb.21
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 06:43:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m3si29247139wrb.16.2017.04.05.06.43.50
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 06:43:51 -0700 (PDT)
+Subject: Re: [PATCH -v2 1/2] mm, swap: Use kvzalloc to allocate some swap data
+ structure
+References: <20170320084732.3375-1-ying.huang@intel.com>
+ <alpine.DEB.2.10.1703201430550.24991@chino.kir.corp.google.com>
+ <8737e3z992.fsf@yhuang-dev.intel.com>
+ <f17cb7e4-4d47-4aed-6fdb-cda5c5d47fa4@nvidia.com>
+ <87poh7xoms.fsf@yhuang-dev.intel.com>
+ <2d55e06d-a0b6-771a-bba0-f9517d422789@nvidia.com>
+ <87d1d7uoti.fsf@yhuang-dev.intel.com>
+ <624b8e59-34e5-3538-0a93-d33d9e4ac555@nvidia.com>
+ <e79064f1-8594-bef2-fbd8-1579afb4aac3@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d7fd1c69-2e0e-39ec-dfd8-16269f0cb898@suse.cz>
+Date: Wed, 5 Apr 2017 15:43:49 +0200
+MIME-Version: 1.0
+In-Reply-To: <e79064f1-8594-bef2-fbd8-1579afb4aac3@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org, mark.rutland@arm.com
-Cc: "Jonathan (Zhixiong) Zhang" <zjzhang@codeaurora.org>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, tbaicar@codeaurora.org, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, steve.capper@arm.com, Punit Agrawal <punit.agrawal@arm.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, "Huang, Ying" <ying.huang@intel.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: "Jonathan (Zhixiong) Zhang" <zjzhang@codeaurora.org>
+On 03/24/2017 02:56 PM, Dave Hansen wrote:
+> On 03/24/2017 12:33 AM, John Hubbard wrote:
+>> There might be some additional information you are using to come up with
+>> that conclusion, that is not obvious to me. Any thoughts there? These
+>> calls use the same underlying page allocator (and I thought that both
+>> were subject to the same constraints on defragmentation, as a result of
+>> that). So I am not seeing any way that kmalloc could possibly be a
+>> less-fragmenting call than vmalloc.
+> 
+> You guys are having quite a discussion over a very small point.
 
-If ACPI_APEI and MEMORY_FAILURE is configured, select
-ACPI_APEI_MEMORY_FAILURE. This enables memory failure recovery
-when such memory failure is reported through ACPI APEI. APEI
-(ACPI Platform Error Interfaces) provides a means for the
-platform to convey error information to the kernel.
-APEI bits
+Sorry, I know I'm too late for this discussion, just wanted to clarify a
+bit.
 
-Declare ARCH_SUPPORTS_MEMORY_FAILURE, as arm64 does support
-memory failure recovery attempt.
+> But, Ying is right.
+> 
+> Let's say we have a two-page data structure.  vmalloc() takes two
+> effectively random order-0 pages, probably from two different 2M pages
+> and pins them.  That "kills" two 2M pages.
+> 
+> kmalloc(), allocating two *contiguous* pages, is very unlikely to cross
+> a 2M boundary (it theoretically could).
 
-Signed-off-by: Jonathan (Zhixiong) Zhang <zjzhang@codeaurora.org>
-Signed-off-by: Tyler Baicar <tbaicar@codeaurora.org>
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
----
- arch/arm64/Kconfig        | 1 +
- drivers/acpi/apei/Kconfig | 1 +
- 2 files changed, 2 insertions(+)
+If by "theoretically" you mean we switch kmalloc() from a buddy
+allocator to something else, then yes. Otherwise, in the buddy
+allocator, it cannot cross the 2M boundary by design.
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 3741859765cf..993a5fd85452 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -19,6 +19,7 @@ config ARM64
- 	select ARCH_HAS_STRICT_MODULE_RWX
- 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
- 	select ARCH_USE_CMPXCHG_LOCKREF
-+	select ARCH_SUPPORTS_MEMORY_FAILURE
- 	select ARCH_SUPPORTS_ATOMIC_RMW
- 	select ARCH_SUPPORTS_NUMA_BALANCING
- 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
-diff --git a/drivers/acpi/apei/Kconfig b/drivers/acpi/apei/Kconfig
-index b0140c8fc733..6d9a812fd3f9 100644
---- a/drivers/acpi/apei/Kconfig
-+++ b/drivers/acpi/apei/Kconfig
-@@ -9,6 +9,7 @@ config ACPI_APEI
- 	select MISC_FILESYSTEMS
- 	select PSTORE
- 	select UEFI_CPER
-+	select ACPI_APEI_MEMORY_FAILURE if MEMORY_FAILURE
- 	depends on HAVE_ACPI_APEI
- 	help
- 	  APEI allows to report errors (for example from the chipset)
--- 
-2.11.0
+> That means it will only "kill"
+> the possibility of a single 2M page.  More 2M pages == less fragmentation.
+
+IMHO John is right that kmalloc() will reduce the number of high-order
+pages *in the short term*. But in the long term, vmalloc() will hurt us
+more due to the scattering of unmovable pages as you describe. As this
+is AFAIU a long-term allocation, kmalloc() should be preferred.
+
+Vlastimil
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
