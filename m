@@ -1,182 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0D06B0390
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C46676B039F
 	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 03:47:09 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v44so524722wrc.9
+Received: by mail-wr0-f199.google.com with SMTP id w11so532210wrc.2
         for <linux-mm@kvack.org>; Wed, 05 Apr 2017 00:47:09 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o102si27972706wrb.208.2017.04.05.00.47.07
+        by mx.google.com with ESMTPS id j1si7533693wrc.285.2017.04.05.00.47.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 05 Apr 2017 00:47:08 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 2/4] mm: introduce memalloc_noreclaim_{save,restore}
-Date: Wed,  5 Apr 2017 09:46:58 +0200
-Message-Id: <20170405074700.29871-3-vbabka@suse.cz>
+Subject: [PATCH 3/4] treewide: convert PF_MEMALLOC manipulations to new helpers
+Date: Wed,  5 Apr 2017 09:46:59 +0200
+Message-Id: <20170405074700.29871-4-vbabka@suse.cz>
 In-Reply-To: <20170405074700.29871-1-vbabka@suse.cz>
 References: <20170405074700.29871-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Josef Bacik <jbacik@fb.com>, Lee Duncan <lduncan@suse.com>, Chris Leech <cleech@redhat.com>, "David S. Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>
 
-The previous patch has shown that simply setting and clearing PF_MEMALLOC in
-current->flags can result in wrongly clearing a pre-existing PF_MEMALLOC flag
-and potentially lead to recursive reclaim. Let's introduce helpers that support
-proper nesting by saving the previous stat of the flag, similar to the existing
-memalloc_noio_* and memalloc_nofs_* helpers. Convert existing setting/clearing
-of PF_MEMALLOC within mm to the new helpers.
+We now have memalloc_noreclaim_{save,restore} helpers for robust setting and
+clearing of PF_MEMALLOC. Let's convert the code which was using the generic
+tsk_restore_flags(). No functional change.
 
-There are no known issues with the converted code, but the change makes it more
-robust.
-
-Suggested-by: Michal Hocko <mhocko@suse.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Josef Bacik <jbacik@fb.com>
+Cc: Lee Duncan <lduncan@suse.com>
+Cc: Chris Leech <cleech@redhat.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Eric Dumazet <edumazet@google.com>
 ---
- include/linux/sched/mm.h | 12 ++++++++++++
- mm/page_alloc.c          | 11 ++++++-----
- mm/vmscan.c              | 17 +++++++++++------
- 3 files changed, 29 insertions(+), 11 deletions(-)
+ drivers/block/nbd.c      | 7 ++++---
+ drivers/scsi/iscsi_tcp.c | 7 ++++---
+ net/core/dev.c           | 7 ++++---
+ net/core/sock.c          | 7 ++++---
+ 4 files changed, 16 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/sched/mm.h b/include/linux/sched/mm.h
-index 9daabe138c99..2b24a6974847 100644
---- a/include/linux/sched/mm.h
-+++ b/include/linux/sched/mm.h
-@@ -191,4 +191,16 @@ static inline void memalloc_nofs_restore(unsigned int flags)
- 	current->flags = (current->flags & ~PF_MEMALLOC_NOFS) | flags;
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 03ae72985c79..929fc548c7fb 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -18,6 +18,7 @@
+ #include <linux/module.h>
+ #include <linux/init.h>
+ #include <linux/sched.h>
++#include <linux/sched/mm.h>
+ #include <linux/fs.h>
+ #include <linux/bio.h>
+ #include <linux/stat.h>
+@@ -210,7 +211,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send,
+ 	struct socket *sock = nbd->socks[index]->sock;
+ 	int result;
+ 	struct msghdr msg;
+-	unsigned long pflags = current->flags;
++	unsigned int noreclaim_flag;
+ 
+ 	if (unlikely(!sock)) {
+ 		dev_err_ratelimited(disk_to_dev(nbd->disk),
+@@ -221,7 +222,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send,
+ 
+ 	msg.msg_iter = *iter;
+ 
+-	current->flags |= PF_MEMALLOC;
++	noreclaim_flag = memalloc_noreclaim_save();
+ 	do {
+ 		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
+ 		msg.msg_name = NULL;
+@@ -244,7 +245,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send,
+ 			*sent += result;
+ 	} while (msg_data_left(&msg));
+ 
+-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
++	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+ 	return result;
  }
- 
-+static inline unsigned int memalloc_noreclaim_save(void)
-+{
-+	unsigned int flags = current->flags & PF_MEMALLOC;
-+	current->flags |= PF_MEMALLOC;
-+	return flags;
-+}
-+
-+static inline void memalloc_noreclaim_restore(unsigned int flags)
-+{
-+	current->flags = (current->flags & ~PF_MEMALLOC) | flags;
-+}
-+
- #endif /* _LINUX_SCHED_MM_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b84e6ffbe756..037e32dccd7a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3288,15 +3288,15 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 		enum compact_priority prio, enum compact_result *compact_result)
+diff --git a/drivers/scsi/iscsi_tcp.c b/drivers/scsi/iscsi_tcp.c
+index 4228aba1f654..4842fc0e809d 100644
+--- a/drivers/scsi/iscsi_tcp.c
++++ b/drivers/scsi/iscsi_tcp.c
+@@ -30,6 +30,7 @@
+ #include <linux/types.h>
+ #include <linux/inet.h>
+ #include <linux/slab.h>
++#include <linux/sched/mm.h>
+ #include <linux/file.h>
+ #include <linux/blkdev.h>
+ #include <linux/delay.h>
+@@ -371,10 +372,10 @@ static inline int iscsi_sw_tcp_xmit_qlen(struct iscsi_conn *conn)
+ static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
  {
- 	struct page *page;
--	unsigned int noreclaim_flag = current->flags & PF_MEMALLOC;
+ 	struct iscsi_conn *conn = task->conn;
+-	unsigned long pflags = current->flags;
 +	unsigned int noreclaim_flag;
- 
- 	if (!order)
- 		return NULL;
+ 	int rc = 0;
  
 -	current->flags |= PF_MEMALLOC;
 +	noreclaim_flag = memalloc_noreclaim_save();
- 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
- 									prio);
--	current->flags = (current->flags & ~PF_MEMALLOC) | noreclaim_flag;
-+	memalloc_noreclaim_restore(noreclaim_flag);
  
- 	if (*compact_result <= COMPACT_INACTIVE)
- 		return NULL;
-@@ -3443,12 +3443,13 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
- {
- 	struct reclaim_state reclaim_state;
- 	int progress;
-+	unsigned int noreclaim_flag;
- 
- 	cond_resched();
- 
- 	/* We now go into synchronous reclaim */
- 	cpuset_memory_pressure_bump();
--	current->flags |= PF_MEMALLOC;
-+	noreclaim_flag = memalloc_noreclaim_save();
- 	lockdep_set_current_reclaim_state(gfp_mask);
- 	reclaim_state.reclaimed_slab = 0;
- 	current->reclaim_state = &reclaim_state;
-@@ -3458,7 +3459,7 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
- 
- 	current->reclaim_state = NULL;
- 	lockdep_clear_current_reclaim_state();
--	current->flags &= ~PF_MEMALLOC;
-+	memalloc_noreclaim_restore(noreclaim_flag);
- 
- 	cond_resched();
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 58615bb27f2f..ff63b91a0f48 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2992,6 +2992,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 	struct zonelist *zonelist;
- 	unsigned long nr_reclaimed;
- 	int nid;
-+	unsigned int noreclaim_flag;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
- 		.gfp_mask = (current_gfp_context(gfp_mask) & GFP_RECLAIM_MASK) |
-@@ -3018,9 +3019,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 					    sc.gfp_mask,
- 					    sc.reclaim_idx);
- 
--	current->flags |= PF_MEMALLOC;
-+	noreclaim_flag = memalloc_noreclaim_save();
- 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
--	current->flags &= ~PF_MEMALLOC;
-+	memalloc_noreclaim_restore(noreclaim_flag);
- 
- 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
- 
-@@ -3544,8 +3545,9 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
- 	struct task_struct *p = current;
- 	unsigned long nr_reclaimed;
-+	unsigned int noreclaim_flag;
- 
--	p->flags |= PF_MEMALLOC;
-+	noreclaim_flag = memalloc_noreclaim_save();
- 	lockdep_set_current_reclaim_state(sc.gfp_mask);
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
-@@ -3554,7 +3556,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 
- 	p->reclaim_state = NULL;
- 	lockdep_clear_current_reclaim_state();
--	p->flags &= ~PF_MEMALLOC;
-+	memalloc_noreclaim_restore(noreclaim_flag);
- 
- 	return nr_reclaimed;
- }
-@@ -3719,6 +3721,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 	struct task_struct *p = current;
- 	struct reclaim_state reclaim_state;
- 	int classzone_idx = gfp_zone(gfp_mask);
-+	unsigned int noreclaim_flag;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
- 		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
-@@ -3736,7 +3739,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 	 * and we also need to be able to write out pages for RECLAIM_WRITE
- 	 * and RECLAIM_UNMAP.
- 	 */
--	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
-+	noreclaim_flag = memalloc_noreclaim_save();
-+	p->flags |= PF_SWAPWRITE;
- 	lockdep_set_current_reclaim_state(gfp_mask);
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
-@@ -3752,7 +3756,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	while (iscsi_sw_tcp_xmit_qlen(conn)) {
+ 		rc = iscsi_sw_tcp_xmit(conn);
+@@ -387,7 +388,7 @@ static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
+ 		rc = 0;
  	}
  
- 	p->reclaim_state = NULL;
--	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-+	current->flags &= ~PF_SWAPWRITE;
+-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
 +	memalloc_noreclaim_restore(noreclaim_flag);
- 	lockdep_clear_current_reclaim_state();
- 	return sc.nr_reclaimed >= nr_pages;
+ 	return rc;
+ }
+ 
+diff --git a/net/core/dev.c b/net/core/dev.c
+index fde8b3f7136b..e0705a126b24 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -81,6 +81,7 @@
+ #include <linux/hash.h>
+ #include <linux/slab.h>
+ #include <linux/sched.h>
++#include <linux/sched/mm.h>
+ #include <linux/mutex.h>
+ #include <linux/string.h>
+ #include <linux/mm.h>
+@@ -4227,7 +4228,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
+ 	int ret;
+ 
+ 	if (sk_memalloc_socks() && skb_pfmemalloc(skb)) {
+-		unsigned long pflags = current->flags;
++		unsigned int noreclaim_flag;
+ 
+ 		/*
+ 		 * PFMEMALLOC skbs are special, they should
+@@ -4238,9 +4239,9 @@ static int __netif_receive_skb(struct sk_buff *skb)
+ 		 * Use PF_MEMALLOC as this saves us from propagating the allocation
+ 		 * context down to all allocation sites.
+ 		 */
+-		current->flags |= PF_MEMALLOC;
++		noreclaim_flag = memalloc_noreclaim_save();
+ 		ret = __netif_receive_skb_core(skb, true);
+-		tsk_restore_flags(current, pflags, PF_MEMALLOC);
++		memalloc_noreclaim_restore(noreclaim_flag);
+ 	} else
+ 		ret = __netif_receive_skb_core(skb, false);
+ 
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 392f9b6f96e2..0b2d06b4c308 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -102,6 +102,7 @@
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/sched.h>
++#include <linux/sched/mm.h>
+ #include <linux/timer.h>
+ #include <linux/string.h>
+ #include <linux/sockios.h>
+@@ -372,14 +373,14 @@ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
+ int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+ {
+ 	int ret;
+-	unsigned long pflags = current->flags;
++	unsigned int noreclaim_flag;
+ 
+ 	/* these should have been dropped before queueing */
+ 	BUG_ON(!sock_flag(sk, SOCK_MEMALLOC));
+ 
+-	current->flags |= PF_MEMALLOC;
++	noreclaim_flag = memalloc_noreclaim_save();
+ 	ret = sk->sk_backlog_rcv(sk, skb);
+-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
++	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+ 	return ret;
  }
 -- 
 2.12.2
