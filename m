@@ -1,103 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 696A46B039F
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 12:34:45 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u18so2470108wrc.17
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 09:34:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j67si25044089wmd.101.2017.04.05.09.34.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Apr 2017 09:34:43 -0700 (PDT)
-Date: Wed, 5 Apr 2017 18:34:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-Message-ID: <20170405163439.GS6035@dhcp22.suse.cz>
-References: <20170404072329.GA15132@dhcp22.suse.cz>
- <20170404073412.GC15132@dhcp22.suse.cz>
- <20170404082302.GE15132@dhcp22.suse.cz>
- <20170404160239.ftvuxklioo6zvuxl@arbab-laptop>
- <20170404164452.GQ15132@dhcp22.suse.cz>
- <20170404183012.a6biape5y7vu6cjm@arbab-laptop>
- <20170404194122.GS15132@dhcp22.suse.cz>
- <20170404214339.6o4c4uhwudyhzbbo@arbab-laptop>
- <20170405064239.GB6035@dhcp22.suse.cz>
- <20170405154852.kdkwuudjv2jwvj5g@arbab-laptop>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 322B86B0038
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 13:20:52 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d79so9676593pfe.18
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 10:20:52 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l62si21135840pgd.48.2017.04.05.10.20.50
+        for <linux-mm@kvack.org>;
+        Wed, 05 Apr 2017 10:20:51 -0700 (PDT)
+Date: Wed, 5 Apr 2017 18:20:43 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v35 02/14] memblock: add memblock_cap_memory_range()
+Message-ID: <20170405172043.GA2752@e104818-lin.cambridge.arm.com>
+References: <20170403022139.12383-1-takahiro.akashi@linaro.org>
+ <20170403022355.12463-2-takahiro.akashi@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170405154852.kdkwuudjv2jwvj5g@arbab-laptop>
+In-Reply-To: <20170403022355.12463-2-takahiro.akashi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: akpm@linux-foundation.org
+Cc: AKASHI Takahiro <takahiro.akashi@linaro.org>, will.deacon@arm.com, mark.rutland@arm.com, panand@redhat.com, ard.biesheuvel@linaro.org, geoff@infradead.org, dwmw2@infradead.org, kexec@lists.infradead.org, linux-mm@kvack.org, james.morse@arm.com, bauerman@linux.vnet.ibm.com, sgoel@codeaurora.org, dyoung@redhat.com, linux-arm-kernel@lists.infradead.org
 
-On Wed 05-04-17 10:48:52, Reza Arbab wrote:
-> On Wed, Apr 05, 2017 at 08:42:39AM +0200, Michal Hocko wrote:
-> >On Tue 04-04-17 16:43:39, Reza Arbab wrote:
-> >>Okay, getting further. With this I can again repeatedly add and remove,
-> >>but now I'm seeing a weird variation of that earlier issue:
-> >>
-> >>1. add_memory(), online_movable
-> >>  /sys/devices/system/node/nodeX/memoryY symlinks are created.
-> >>
-> >>2. offline, remove_memory()
-> >>  The node is offlined, since all memory has been removed, so all of
-> >>  /sys/devices/system/node/nodeX is gone. This is normal.
-> >>
-> >>3. add_memory(), online_movable
-> >>  The node is onlined, so /sys/devices/system/node/nodeX is recreated,
-> >>  and the memory is added, but just like earlier in this email thread,
-> >>  the memoryY links are not there.
-> >
-> >Could you add some printks to see why the sysfs creation failed please?
+On Mon, Apr 03, 2017 at 11:23:55AM +0900, AKASHI Takahiro wrote:
+> Add memblock_cap_memory_range() which will remove all the memblock regions
+> except the memory range specified in the arguments. In addition, rework is
+> done on memblock_mem_limit_remove_map() to re-implement it using
+> memblock_cap_memory_range().
 > 
-> Ah, simple enough. It's this, right at the top of
-> register_mem_sect_under_node():
+> This function, like memblock_mem_limit_remove_map(), will not remove
+> memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
+> later as "device memory."
+> See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
+> address the mem limit issue").
 > 
-> 	if (!node_online(nid))
-> 		return 0;
+> This function is used, in a succeeding patch in the series of arm64 kdump
+> suuport, to limit the range of usable memory, or System RAM, on crash dump
+> kernel.
+> (Please note that "mem=" parameter is of little use for this purpose.)
 > 
-> That being the case, I really don't understand why your patches make any
-> difference. Is node_set_online() being called later than before somehow?
+> Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+> Reviewed-by: Will Deacon <will.deacon@arm.com>
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> Acked-by: Dennis Chen <dennis.chen@arm.com>
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> ---
+>  include/linux/memblock.h |  1 +
+>  mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
+>  2 files changed, 30 insertions(+), 15 deletions(-)
 
-This is really interesting. Because add_memory_resource does the
-following
-	/* call arch's memory hotadd */
-	ret = arch_add_memory(nid, start, size);
+Andrew, are you ok with patches 1 and 2 in this series (touching
+mm/memblock.c and include/linux/memblock.h) to go in via the arm64 tree?
 
-	if (ret < 0)
-		goto error;
+Thanks.
 
-	/* we online node here. we can't roll back from here. */
-	node_set_online(nid);
-
-so we are setting the node online _after_ arch_add_memory but the code
-which adds those sysfs file is called from
-
-arch_add_memory
-  __add_pages
-    __add_section
-      register_new_memory
-        register_mem_sect_under_node
-          node_online check
-
-I haven't touched this part. What is the point of this check anyway? We
-have already associated all the pages with a node (and with a zone prior
-to my patches) so we _know_ how to create those links. The check goes
-back to the initial submissions. Gary is not available anymore so we
-cannot ask. But I completely fail to see how my changes could have made
-any difference.
-
-I assume that things start working after you remove that check? Btw. if
-you put printk to the original kernel does it see the node online? I
-would be also interested whether you see try_offline_node setting the
-node offline in the original code.
-
-Thanks!
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
