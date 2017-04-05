@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA24A6B03A1
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 14:16:26 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d66so5450302qkb.0
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 11:16:26 -0700 (PDT)
-Received: from mail-qt0-x235.google.com (mail-qt0-x235.google.com. [2607:f8b0:400d:c0d::235])
-        by mx.google.com with ESMTPS id q48si18435353qta.270.2017.04.05.11.16.25
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 564866B0397
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 14:43:31 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w11so2938077wrc.2
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 11:43:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e69si25461181wmc.151.2017.04.05.11.43.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 11:16:25 -0700 (PDT)
-Received: by mail-qt0-x235.google.com with SMTP id x35so17796944qtc.2
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 11:16:25 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170405125322.GB9146@rapoport-lnx>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 11:43:29 -0700 (PDT)
+Date: Wed, 5 Apr 2017 20:43:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Heavy I/O causing slow interactivity
+Message-ID: <20170405184325.GV6035@dhcp22.suse.cz>
 References: <CAGDaZ_qvb7QcWr3MaqnYOFeuqBQzTwzzOKwHXOUxa+S256uc=g@mail.gmail.com>
  <20170405125322.GB9146@rapoport-lnx>
-From: Raymond Jennings <shentino@gmail.com>
-Date: Wed, 5 Apr 2017 11:15:44 -0700
-Message-ID: <CAGDaZ_o745MVD8PDeGhp0-oehUVb8+Zrm4g7uUBBZNTAPODbmQ@mail.gmail.com>
-Subject: Re: Heavy I/O causing slow interactivity
-Content-Type: text/plain; charset=UTF-8
+ <CAGDaZ_o745MVD8PDeGhp0-oehUVb8+Zrm4g7uUBBZNTAPODbmQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGDaZ_o745MVD8PDeGhp0-oehUVb8+Zrm4g7uUBBZNTAPODbmQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
 
-I have 32GiB of memory
+On Wed 05-04-17 11:15:44, Raymond Jennings wrote:
+> I have 32GiB of memory
+> 
+> Storage is an LVM volume group sitting on a pair of 2T western digital
+> drives, one WD Green, and the other WD Blue
+> 
+> My CPU is an i7, model 4790K.
+> 
+> What I'd like is some way for my system to fairly share the available
+> I/O bandwidth.  My youtube is sensitive to latency but doesn't chew up
+> a lot of throughput.  My I/O heavy stuff isn't really urgent and I
+> don't mind it yielding to the interactive stuff.
+> 
+> I remember a similiar concept being tried awhile ago with a scheduler
+> that "punished" processes that sucked up too much CPU and made sure
+> the short sporadic event driven interactive stuff got the scraps of
+> CPU when it needed them.
+> 
+> /proc/sys/vm/dirty is set up as follows
+> 
+> dirty_ratio 90
 
-Storage is an LVM volume group sitting on a pair of 2T western digital
-drives, one WD Green, and the other WD Blue
+So you allow 90% of your 32GB to be dirty and then get throttled which
+will take quite some time until it gets synced to the disk. Even with a
+fast storage. I would really recommend reducing dirty_ratio (and
+background ratio as well) to something much more reasonable. E.g. start
+the background IO at around 400MB and hard limit at 800MB. I am pretty
+sure that the stalls you are seeing are related to the IO dirty
+throttling.
 
-My CPU is an i7, model 4790K.
-
-What I'd like is some way for my system to fairly share the available
-I/O bandwidth.  My youtube is sensitive to latency but doesn't chew up
-a lot of throughput.  My I/O heavy stuff isn't really urgent and I
-don't mind it yielding to the interactive stuff.
-
-I remember a similiar concept being tried awhile ago with a scheduler
-that "punished" processes that sucked up too much CPU and made sure
-the short sporadic event driven interactive stuff got the scraps of
-CPU when it needed them.
-
-/proc/sys/vm/dirty is set up as follows
-
-dirty_ratio 90
-dirty_background_ratio 80
-dirty_expire_centisecs 30000
-dirty_writeback_centisecs 6000
-
-It's gotten bad enough that my IRC client froze long enough to get
-pinged off the server it was connected to, which means over 180
-seconds of lag.
-
-Since it was triggered by intense disk I/O I figured mm/vm was a good
-place to ask for help
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
