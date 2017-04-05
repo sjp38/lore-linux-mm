@@ -1,184 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5506B03A5
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 03:11:08 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id x125so2764194pgb.5
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 00:11:08 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id k129si19712016pga.293.2017.04.05.00.11.07
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 94AEE6B0390
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 03:19:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id u2so350576wmu.18
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 00:19:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a37si23956564wra.282.2017.04.05.00.19.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 00:11:07 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v2] mm, swap: Use kvzalloc to allocate some swap data structure
-Date: Wed,  5 Apr 2017 15:10:58 +0800
-Message-Id: <20170405071058.25223-1-ying.huang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 00:19:30 -0700 (PDT)
+Date: Wed, 5 Apr 2017 09:19:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] loop: Add PF_LESS_THROTTLE to block/loop device
+ thread.
+Message-ID: <20170405071927.GA7258@dhcp22.suse.cz>
+References: <871staffus.fsf@notabene.neil.brown.name>
+ <87wpazh3rl.fsf@notabene.neil.brown.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87wpazh3rl.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: NeilBrown <neilb@suse.com>
+Cc: Jens Axboe <axboe@fb.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ming Lei <tom.leiming@gmail.com>
 
-From: Huang Ying <ying.huang@intel.com>
+On Wed 05-04-17 14:33:50, NeilBrown wrote:
+> 
+> When a filesystem is mounted from a loop device, writes are
+> throttled by balance_dirty_pages() twice: once when writing
+> to the filesystem and once when the loop_handle_cmd() writes
+> to the backing file.  This double-throttling can trigger
+> positive feedback loops that create significant delays.  The
+> throttling at the lower level is seen by the upper level as
+> a slow device, so it throttles extra hard.
+> 
+> The PF_LESS_THROTTLE flag was created to handle exactly this
+> circumstance, though with an NFS filesystem mounted from a
+> local NFS server.  It reduces the throttling on the lower
+> layer so that it can proceed largely unthrottled.
+> 
+> To demonstrate this, create a filesystem on a loop device
+> and write (e.g. with dd) several large files which combine
+> to consume significantly more than the limit set by
+> /proc/sys/vm/dirty_ratio or dirty_bytes.  Measure the total
+> time taken.
+> 
+> When I do this directly on a device (no loop device) the
+> total time for several runs (mkfs, mount, write 200 files,
+> umount) is fairly stable: 28-35 seconds.
+> When I do this over a loop device the times are much worse
+> and less stable.  52-460 seconds.  Half below 100seconds,
+> half above.
+> When I apply this patch, the times become stable again,
+> though not as fast as the no-loop-back case: 53-72 seconds.
+> 
+> There may be room for further improvement as the total overhead still
+> seems too high, but this is a big improvement.
+> 
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: NeilBrown <neilb@suse.com>
+> ---
+> 
+> I moved where the flag is set, thanks to suggestion from
+> Ming Lei.
+> I've preserved the *-by: tags I was offered despite the code
+> being different, as the concept is identical.
+> 
+> Thanks,
+> NeilBrown
+> 
+> 
+>  drivers/block/loop.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+> index 0ecb6461ed81..44b3506fd086 100644
+> --- a/drivers/block/loop.c
+> +++ b/drivers/block/loop.c
+> @@ -852,6 +852,7 @@ static int loop_prepare_queue(struct loop_device *lo)
+>  	if (IS_ERR(lo->worker_task))
+>  		return -ENOMEM;
+>  	set_user_nice(lo->worker_task, MIN_NICE);
+> +	lo->worker_task->flags |= PF_LESS_THROTTLE;
+>  	return 0;
 
-Now vzalloc() is used in swap code to allocate various data
-structures, such as swap cache, swap slots cache, cluster info, etc.
-Because the size may be too large on some system, so that normal
-kzalloc() may fail.  But using kzalloc() has some advantages, for
-example, less memory fragmentation, less TLB pressure, etc.  So change
-the data structure allocation in swap code to use kvzalloc() which
-will try kzalloc() firstly, and fallback to vzalloc() if kzalloc()
-failed.
+As mentioned elsewhere, PF flags should be updated only on the current
+task otherwise there is potential rmw race. Is this safe? The code runs
+concurrently with the worker thread.
 
-In general, kmalloc() will have less memory fragmentation than
-vmalloc().  From Dave Hansen: For example, we have a two-page data
-structure.  vmalloc() takes two effectively random order-0 pages,
-probably from two different 2M pages and pins them.  That "kills" two
-2M pages.  kmalloc(), allocating two *contiguous* pages, is very
-unlikely to cross a 2M boundary (it theoretically could).  That means
-it will only "kill" the possibility of a single 2M page.  More 2M
-pages == less fragmentation.
 
-The allocation in this patch occurs during swap on time, which is
-usually done during system boot, so usually we have high opportunity
-to allocate the contiguous pages successfully.
-
-The allocation for swap_map[] in struct swap_info_struct is not
-changed, because that is usually quite large and vmalloc_to_page() is
-used for it.  That makes it a little harder to change.
-
-Signed-off-by: Huang Ying <ying.huang@intel.com>
-Acked-by: Tim Chen <tim.c.chen@intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-
-v2:
-
-- Use common kvzalloc() instead of self-made swap_kvzalloc().
----
- mm/swap_slots.c | 19 +++++++++++--------
- mm/swap_state.c |  2 +-
- mm/swapfile.c   | 10 ++++++----
- 3 files changed, 18 insertions(+), 13 deletions(-)
-
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index aa1c415f4abd..58f6c78f1dad 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -31,6 +31,7 @@
- #include <linux/cpumask.h>
- #include <linux/vmalloc.h>
- #include <linux/mutex.h>
-+#include <linux/mm.h>
- 
- #ifdef CONFIG_SWAP
- 
-@@ -119,16 +120,18 @@ static int alloc_swap_slot_cache(unsigned int cpu)
- 
- 	/*
- 	 * Do allocation outside swap_slots_cache_mutex
--	 * as vzalloc could trigger reclaim and get_swap_page,
-+	 * as kvzalloc could trigger reclaim and get_swap_page,
- 	 * which can lock swap_slots_cache_mutex.
- 	 */
--	slots = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
-+	slots = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
-+			 GFP_KERNEL);
- 	if (!slots)
- 		return -ENOMEM;
- 
--	slots_ret = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
-+	slots_ret = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
-+			     GFP_KERNEL);
- 	if (!slots_ret) {
--		vfree(slots);
-+		kvfree(slots);
- 		return -ENOMEM;
- 	}
- 
-@@ -152,9 +155,9 @@ static int alloc_swap_slot_cache(unsigned int cpu)
- out:
- 	mutex_unlock(&swap_slots_cache_mutex);
- 	if (slots)
--		vfree(slots);
-+		kvfree(slots);
- 	if (slots_ret)
--		vfree(slots_ret);
-+		kvfree(slots_ret);
- 	return 0;
- }
- 
-@@ -171,7 +174,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
- 		cache->cur = 0;
- 		cache->nr = 0;
- 		if (free_slots && cache->slots) {
--			vfree(cache->slots);
-+			kvfree(cache->slots);
- 			cache->slots = NULL;
- 		}
- 		mutex_unlock(&cache->alloc_lock);
-@@ -186,7 +189,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
- 		}
- 		spin_unlock_irq(&cache->free_lock);
- 		if (slots)
--			vfree(slots);
-+			kvfree(slots);
- 	}
- }
- 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 7bfb9bd1ca21..539b8885e3d1 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -523,7 +523,7 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
- 	unsigned int i, nr;
- 
- 	nr = DIV_ROUND_UP(nr_pages, SWAP_ADDRESS_SPACE_PAGES);
--	spaces = vzalloc(sizeof(struct address_space) * nr);
-+	spaces = kvzalloc(sizeof(struct address_space) * nr, GFP_KERNEL);
- 	if (!spaces)
- 		return -ENOMEM;
- 	for (i = 0; i < nr; i++) {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 53b5881ee0d6..90054f3c2cdc 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2272,8 +2272,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	free_percpu(p->percpu_cluster);
- 	p->percpu_cluster = NULL;
- 	vfree(swap_map);
--	vfree(cluster_info);
--	vfree(frontswap_map);
-+	kvfree(cluster_info);
-+	kvfree(frontswap_map);
- 	/* Destroy swap account information */
- 	swap_cgroup_swapoff(p->type);
- 	exit_swap_address_space(p->type);
-@@ -2796,7 +2796,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
- 		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
- 
--		cluster_info = vzalloc(nr_cluster * sizeof(*cluster_info));
-+		cluster_info = kvzalloc(nr_cluster * sizeof(*cluster_info),
-+					GFP_KERNEL);
- 		if (!cluster_info) {
- 			error = -ENOMEM;
- 			goto bad_swap;
-@@ -2829,7 +2830,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	}
- 	/* frontswap enabled? set up bit-per-page map for frontswap */
- 	if (IS_ENABLED(CONFIG_FRONTSWAP))
--		frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
-+		frontswap_map = kvzalloc(BITS_TO_LONGS(maxpages) * sizeof(long),
-+					 GFP_KERNEL);
- 
- 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
- 		/*
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
