@@ -1,74 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 633B06B03BF
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 08:00:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id i18so1287533wrb.21
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:00:48 -0700 (PDT)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id 92si2036812wro.300.2017.04.05.05.00.46
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E706B03C0
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 08:09:42 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p111so1334045wrc.10
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:09:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r22si24087014wme.123.2017.04.05.05.09.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 05:00:46 -0700 (PDT)
-Received: by mail-wr0-x244.google.com with SMTP id g19so2062504wrb.0
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 05:00:46 -0700 (PDT)
-Date: Wed, 5 Apr 2017 14:36:24 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 21/26] x86/mm: add support of additional page table level
- during early boot
-Message-ID: <20170405113624.y5iqjvpwbvayo2cd@node.shutemov.name>
-References: <20170313055020.69655-1-kirill.shutemov@linux.intel.com>
- <20170313055020.69655-22-kirill.shutemov@linux.intel.com>
- <20170313071810.GA28726@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Apr 2017 05:09:40 -0700 (PDT)
+Date: Wed, 5 Apr 2017 14:09:36 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/4] mtd: nand: nandsim: convert to memalloc_noreclaim_*()
+Message-ID: <20170405120936.GN6035@dhcp22.suse.cz>
+References: <20170405074700.29871-1-vbabka@suse.cz>
+ <20170405074700.29871-5-vbabka@suse.cz>
+ <20170405113157.GM6035@dhcp22.suse.cz>
+ <ee6649ed-b0e8-1c59-c193-d1688fdfe7f5@nod.at>
+ <9b9d5bca-e125-e07b-b700-196cc800bbd7@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170313071810.GA28726@gmail.com>
+In-Reply-To: <9b9d5bca-e125-e07b-b700-196cc800bbd7@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Richard Weinberger <richard@nod.at>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, Boris Brezillon <boris.brezillon@free-electrons.com>, Adrian Hunter <adrian.hunter@intel.com>
 
-On Mon, Mar 13, 2017 at 08:18:10AM +0100, Ingo Molnar wrote:
-> 
-> * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > This patch adds support for 5-level paging during early boot.
-> > It generalizes boot for 4- and 5-level paging on 64-bit systems with
-> > compile-time switch between them.
+On Wed 05-04-17 13:39:16, Vlastimil Babka wrote:
+> On 04/05/2017 01:36 PM, Richard Weinberger wrote:
+> > Michal,
 > > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  arch/x86/boot/compressed/head_64.S          | 23 +++++++++--
-> >  arch/x86/include/asm/pgtable.h              |  2 +-
-> >  arch/x86/include/asm/pgtable_64.h           |  6 ++-
-> >  arch/x86/include/uapi/asm/processor-flags.h |  2 +
-> >  arch/x86/kernel/espfix_64.c                 |  2 +-
-> >  arch/x86/kernel/head64.c                    | 40 +++++++++++++-----
-> >  arch/x86/kernel/head_64.S                   | 63 +++++++++++++++++++++--------
+> > Am 05.04.2017 um 13:31 schrieb Michal Hocko:
+> >> On Wed 05-04-17 09:47:00, Vlastimil Babka wrote:
+> >>> Nandsim has own functions set_memalloc() and clear_memalloc() for robust
+> >>> setting and clearing of PF_MEMALLOC. Replace them by the new generic helpers.
+> >>> No functional change.
+> >>
+> >> This one smells like an abuser. Why the hell should read/write path
+> >> touch memory reserves at all!
+> > 
+> > Could be. Let's ask Adrian, AFAIK he wrote that code.
+> > Adrian, can you please clarify why nandsim needs to play with PF_MEMALLOC?
 > 
-> Ok, here I'd like to have a C version instead of further complicating an already 
-> complex assembly version...
+> I was thinking about it and concluded that since the simulator can be
+> used as a block device where reclaimed pages go to, writing the data out
+> is a memalloc operation. Then reading can be called as part of r-m-w
+> cycle, so reading as well. But it would be great if somebody more
+> knowledgeable confirmed this.
 
-Just head up: I work on this.
-
-It's great deal of frustration (I can't really read assembly), but I'm
-slowly moving forward.
-
-Most of logic in startup_64 in arch/x86/kernel/head_64.S is converted
-to C. Dealing with secondary_startup_64 now.
-
-Not sure if it's possible to convert code in
-arch/x86/boot/compressed/head_64.S to C.
-
-Assembly code there is in 32-bit mode, but if we move it to C it will
-compiled as 64-bit. I've tried to put it in separate translation unit and
-compile with -m32, but then link phase breaks as object files have
-different types.
-
-Any suggestion how I can get out of the situation?
-
+then this deserves a big fat comment explaining all the details,
+including how the complete depletion of reserves is prevented.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
