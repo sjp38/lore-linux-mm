@@ -1,234 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 167FB6B03AA
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 20:01:03 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g2so18965449pge.7
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 17:01:03 -0700 (PDT)
-Received: from mail-pg0-x235.google.com (mail-pg0-x235.google.com. [2607:f8b0:400e:c05::235])
-        by mx.google.com with ESMTPS id g19si21983042pfd.391.2017.04.05.17.01.01
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC8E36B03D7
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 20:47:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 81so20613779pgh.3
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 17:47:33 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id b13si6358469pge.309.2017.04.05.17.47.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 17:01:02 -0700 (PDT)
-Received: by mail-pg0-x235.google.com with SMTP id x125so18881528pgb.0
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 17:01:01 -0700 (PDT)
-Date: Wed, 5 Apr 2017 17:00:59 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [RFC][PATCH] mm: Tighten x86 /dev/mem with zeroing
-Message-ID: <20170406000059.GA136863@beast>
+        Wed, 05 Apr 2017 17:47:33 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v2] mm, swap: Sort swap entries before free
+References: <20170405071041.24469-1-ying.huang@intel.com>
+	<1491403231.16856.11.camel@redhat.com>
+Date: Thu, 06 Apr 2017 08:47:30 +0800
+In-Reply-To: <1491403231.16856.11.camel@redhat.com> (Rik van Riel's message of
+	"Wed, 5 Apr 2017 10:40:31 -0400")
+Message-ID: <87k26ye50d.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tommi Rantala <tommi.t.rantala@nokia.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
 
-This changes the x86 exception for the low 1MB by reading back zeros for
-RAM areas instead of blindly allowing them. (It may be possible for heap
-to end up getting allocated in low 1MB RAM, and then read out, possibly
-tripping hardened usercopy.)
+Rik van Riel <riel@redhat.com> writes:
 
-Unfinished: this still needs mmap support.
+> On Wed, 2017-04-05 at 15:10 +0800, Huang, Ying wrote:
+>> To solve the issue, the per-CPU buffer is sorted according to the
+>> swap
+>> device before freeing the swap entries.A A Test shows that the time
+>> spent by swapcache_free_entries() could be reduced after the patch.
+>
+> That makes a lot of sense.
+>
+>> @@ -1075,6 +1083,8 @@ void swapcache_free_entries(swp_entry_t
+>> *entries, int n)
+>> A 
+>> A 	prev = NULL;
+>> A 	p = NULL;
+>> +	if (nr_swapfiles > 1)
+>> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp,
+>> NULL);
+>
+> But it really wants a comment in the code, so people
+> reading the code a few years from now can see why
+> we are sorting things we are about to free.
+>
+> Maybe something like:
+> A  A  A  A  /* Sort swap entries by swap device, so each lock is only taken
+> once. */
 
-Reported-by: Tommi Rantala <tommi.t.rantala@nokia.com>
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-Tommi, can you check and see if this fixes what you're seeing? I want to
-make sure this actually works first. (x86info uses seek/read not mmap.)
----
+Good suggestion!  I will add it in the next version.
 
- arch/x86/mm/init.c | 41 +++++++++++++++++++--------
- drivers/char/mem.c | 82 ++++++++++++++++++++++++++++++++++--------------------
- 2 files changed, 82 insertions(+), 41 deletions(-)
+Best Regards,
+Huang, Ying
 
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 22af912d66d2..889e7619a091 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -643,21 +643,40 @@ void __init init_mem_mapping(void)
-  * devmem_is_allowed() checks to see if /dev/mem access to a certain address
-  * is valid. The argument is a physical page number.
-  *
-- *
-- * On x86, access has to be given to the first megabyte of ram because that area
-- * contains BIOS code and data regions used by X and dosemu and similar apps.
-- * Access has to be given to non-kernel-ram areas as well, these contain the PCI
-- * mmio resources as well as potential bios/acpi data regions.
-+ * On x86, access has to be given to the first megabyte of RAM because that
-+ * area traditionally contains BIOS code and data regions used by X, dosemu,
-+ * and similar apps. Since they map the entire memory range, the whole range
-+ * must be allowed (for mapping), but any areas that would otherwise be
-+ * disallowed are flagged as being "zero filled" instead of rejected.
-+ * Access has to be given to non-kernel-ram areas as well, these contain the
-+ * PCI mmio resources as well as potential bios/acpi data regions.
-  */
- int devmem_is_allowed(unsigned long pagenr)
- {
--	if (pagenr < 256)
--		return 1;
--	if (iomem_is_exclusive(pagenr << PAGE_SHIFT))
-+	if (page_is_ram(pagenr)) {
-+		/*
-+		 * For disallowed memory regions in the low 1MB range,
-+		 * request that the page be shown as all zeros.
-+		 */
-+		if (pagenr < 256)
-+			return 2;
-+
-+		return 0;
-+	}
-+
-+	/*
-+	 * This must follow RAM test, since System RAM is considered a
-+	 * restricted resource under CONFIG_STRICT_IOMEM.
-+	 */
-+	if (iomem_is_exclusive(pagenr << PAGE_SHIFT)) {
-+		/* Low 1MB bypasses iomem restrictions. */
-+		if (pagenr < 256)
-+			return 1;
-+
- 		return 0;
--	if (!page_is_ram(pagenr))
--		return 1;
--	return 0;
-+	}
-+
-+	return 1;
- }
- 
- void free_init_pages(char *what, unsigned long begin, unsigned long end)
-diff --git a/drivers/char/mem.c b/drivers/char/mem.c
-index 6d9cc2d39d22..7e4a9d1296bb 100644
---- a/drivers/char/mem.c
-+++ b/drivers/char/mem.c
-@@ -60,6 +60,10 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
- #endif
- 
- #ifdef CONFIG_STRICT_DEVMEM
-+static inline int page_is_allowed(unsigned long pfn)
-+{
-+	return devmem_is_allowed(pfn);
-+}
- static inline int range_is_allowed(unsigned long pfn, unsigned long size)
- {
- 	u64 from = ((u64)pfn) << PAGE_SHIFT;
-@@ -75,6 +79,10 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
- 	return 1;
- }
- #else
-+static inline int page_is_allowed(unsigned long pfn)
-+{
-+	return 1;
-+}
- static inline int range_is_allowed(unsigned long pfn, unsigned long size)
- {
- 	return 1;
-@@ -122,23 +130,31 @@ static ssize_t read_mem(struct file *file, char __user *buf,
- 
- 	while (count > 0) {
- 		unsigned long remaining;
-+		int allowed;
- 
- 		sz = size_inside_page(p, count);
- 
--		if (!range_is_allowed(p >> PAGE_SHIFT, count))
-+		allowed = page_is_allowed(p >> PAGE_SHIFT);
-+		if (!allowed)
- 			return -EPERM;
-+		if (allowed == 2) {
-+			/* Show zeros for restricted memory. */
-+			remaining = clear_user(buf, sz);
-+		} else {
-+			/*
-+			 * On ia64 if a page has been mapped somewhere as
-+			 * uncached, then it must also be accessed uncached
-+			 * by the kernel or data corruption may occur.
-+			 */
-+			ptr = xlate_dev_mem_ptr(p);
-+			if (!ptr)
-+				return -EFAULT;
- 
--		/*
--		 * On ia64 if a page has been mapped somewhere as uncached, then
--		 * it must also be accessed uncached by the kernel or data
--		 * corruption may occur.
--		 */
--		ptr = xlate_dev_mem_ptr(p);
--		if (!ptr)
--			return -EFAULT;
-+			remaining = copy_to_user(buf, ptr, sz);
-+
-+			unxlate_dev_mem_ptr(p, ptr);
-+		}
- 
--		remaining = copy_to_user(buf, ptr, sz);
--		unxlate_dev_mem_ptr(p, ptr);
- 		if (remaining)
- 			return -EFAULT;
- 
-@@ -181,30 +197,36 @@ static ssize_t write_mem(struct file *file, const char __user *buf,
- #endif
- 
- 	while (count > 0) {
-+		int allowed;
-+
- 		sz = size_inside_page(p, count);
- 
--		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
-+		allowed = page_is_allowed(p >> PAGE_SHIFT);
-+		if (!allowed)
- 			return -EPERM;
- 
--		/*
--		 * On ia64 if a page has been mapped somewhere as uncached, then
--		 * it must also be accessed uncached by the kernel or data
--		 * corruption may occur.
--		 */
--		ptr = xlate_dev_mem_ptr(p);
--		if (!ptr) {
--			if (written)
--				break;
--			return -EFAULT;
--		}
-+		/* Skip actual writing when a page is marked as restricted. */
-+		if (allowed == 1) {
-+			/*
-+			 * On ia64 if a page has been mapped somewhere as
-+			 * uncached, then it must also be accessed uncached
-+			 * by the kernel or data corruption may occur.
-+			 */
-+			ptr = xlate_dev_mem_ptr(p);
-+			if (!ptr) {
-+				if (written)
-+					break;
-+				return -EFAULT;
-+			}
- 
--		copied = copy_from_user(ptr, buf, sz);
--		unxlate_dev_mem_ptr(p, ptr);
--		if (copied) {
--			written += sz - copied;
--			if (written)
--				break;
--			return -EFAULT;
-+			copied = copy_from_user(ptr, buf, sz);
-+			unxlate_dev_mem_ptr(p, ptr);
-+			if (copied) {
-+				written += sz - copied;
-+				if (written)
-+					break;
-+				return -EFAULT;
-+			}
- 		}
- 
- 		buf += sz;
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+>> A 	for (i = 0; i < n; ++i) {
+>> A 		p = swap_info_get_cont(entries[i], prev);
+>> A 		if (p)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
