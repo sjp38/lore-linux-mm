@@ -1,117 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2743D6B03E1
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 00:59:57 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n80so8995364qke.6
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 21:59:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w124si443207qka.67.2017.04.05.21.59.55
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E2DC66B03E3
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 01:34:33 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y77so4580016wrb.22
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 22:34:33 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id o51si880755wrb.203.2017.04.05.22.34.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 21:59:55 -0700 (PDT)
-Date: Thu, 6 Apr 2017 00:59:50 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 00/16] HMM (Heterogeneous Memory Management) v19
-Message-ID: <20170406045950.GA12362@redhat.com>
-References: <20170405204026.3940-1-jglisse@redhat.com>
- <CAF7GXvptCfV89rAi=j1cy1df12039GDpq_DHOyx+_xk0FjBDPg@mail.gmail.com>
+        Wed, 05 Apr 2017 22:34:32 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v365TJvf097936
+	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 01:34:31 -0400
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 29nc4dyfx1-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Apr 2017 01:34:30 -0400
+Received: from localhost
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 6 Apr 2017 11:04:27 +0530
+Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
+	by d28relay07.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v365X6Ub9699580
+	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 11:03:06 +0530
+Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
+	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v365YPRN021142
+	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 11:04:25 +0530
+Subject: Re: [PATCH] mm, memory_hotplug: fix devm_memremap_pages() after
+ memory_hotplug rework
+References: <20170404165144.29791-1-jglisse@redhat.com>
+ <a9d6e8d2-7bd9-abf1-9323-d175f10f7559@linux.vnet.ibm.com>
+ <20170405104958.GI6035@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 6 Apr 2017 11:04:20 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <20170405104958.GI6035@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAF7GXvptCfV89rAi=j1cy1df12039GDpq_DHOyx+_xk0FjBDPg@mail.gmail.com>
+Message-Id: <12d241cc-b992-4576-c420-860bd5fd59d4@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Figo.zhang" <figo1802@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>
+To: Michal Hocko <mhocko@suse.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Apr 06, 2017 at 11:22:12AM +0800, Figo.zhang wrote:
-
-[...]
-
-> > Heterogeneous Memory Management (HMM) (description and justification)
-> >
-> > Today device driver expose dedicated memory allocation API through their
-> > device file, often relying on a combination of IOCTL and mmap calls. The
-> > device can only access and use memory allocated through this API. This
-> > effectively split the program address space into object allocated for the
-> > device and useable by the device and other regular memory (malloc, mmap
-> > of a file, share memory, a?|) only accessible by CPU (or in a very limited
-> > way by a device by pinning memory).
-> >
-> > Allowing different isolated component of a program to use a device thus
-> > require duplication of the input data structure using device memory
-> > allocator. This is reasonable for simple data structure (array, grid,
-> > image, a?|) but this get extremely complex with advance data structure
-> > (list, tree, graph, a?|) that rely on a web of memory pointers. This is
-> > becoming a serious limitation on the kind of work load that can be
-> > offloaded to device like GPU.
-> >
+On 04/05/2017 04:19 PM, Michal Hocko wrote:
+> On Wed 05-04-17 16:05:23, Anshuman Khandual wrote:
+>> On 04/04/2017 10:21 PM, Jerome Glisse wrote:
+>>> Just a trivial fix.
+>>>
+>>> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+>>> Cc: Michal Hocko <mhocko@suse.com>
+>>> Cc: Dan Williams <dan.j.williams@intel.com>
+>>> ---
+>>>  kernel/memremap.c | 3 ++-
+>>>  1 file changed, 2 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/kernel/memremap.c b/kernel/memremap.c
+>>> index faa9276..bbbe646 100644
+>>> --- a/kernel/memremap.c
+>>> +++ b/kernel/memremap.c
+>>> @@ -366,7 +366,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>>>  	error = arch_add_memory(nid, align_start, align_size);
+>>>  	if (!error)
+>>>  		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+>>> -				align_start, align_size);
+>>> +					align_start >> PAGE_SHIFT,
+>>> +					align_size >> PAGE_SHIFT);
+>>
+>> All this while it was taking up addresses instead of PFNs ? Then
+>> how it was working correctly before ?
 > 
-> how handle it by current  GPU software stack? maintain a complex middle
-> firmwork/HAL?
+> Because this code was embeded inside the arch_add_memory which did the
+> translation properly. See arch_add_memory implementations.
 
-Yes you still need a framework like OpenCL or CUDA. They are work under
-way to leverage GPU directly from language like C++, so i expect that
-the HAL will be hidden more and more for a larger group of programmer.
-Note i still expect some programmer will want to program closer to the
-hardware to extract every bit of performances they can.
+Got your point. Checked both mainline kernel and mmotm branch
+v4.11-rc5-mmotm-2017-04-04-15-00, in both the places the code
+snippet seems to be different than here. For example arch_add
+_memory has the following signature instead.
 
-For OpenCL you need HMM to implement what is described as fine-grained
-system SVM memory model (see OpenCL 2.0 or latter specification).
+arch_add_memory(nid, align_start, align_size, true);
 
-> > New industry standard like C++, OpenCL or CUDA are pushing to remove this
-> > barrier. This require a shared address space between GPU device and CPU so
-> > that GPU can access any memory of a process (while still obeying memory
-> > protection like read only).
-> 
-> GPU can access the whole process VMAs or any VMAs which backing system
-> memory has migrate to GPU page table?
-
-Whole process VMAs, it does not need to be migrated to device memory. The
-migration is an optional features that is necessary for performances but
-GPU can access system memory just fine.
-
-[...]
-
-> > When page backing an address of a process is migrated to device memory
-> > the CPU page table entry is set to a new specific swap entry. CPU access
-> > to such address triggers a migration back to system memory, just like if
-> > the page was swap on disk. HMM also blocks any one from pinning a
-> > ZONE_DEVICE page so that it can always be migrated back to system memory
-> > if CPU access it. Conversely HMM does not migrate to device memory any
-> > page that is pin in system memory.
-> >
-> 
-> the purpose of  migrate the system pages to device is that device can read
-> the system memory?
-> if the CPU/programs want read the device data, it need pin/mapping the
-> device memory to the process address space?
-> if multiple applications want to read the same device memory region
-> concurrently, how to do it?
-
-Purpose of migrating to device memory is to leverage device memory bandwidth.
-PCIE bandwidth 32GB/s, device memory bandwidth between 256GB/s to 1TB/s also
-device bandwidth has smaller latency.
-
-CPU can not access device memory. It can but in limited way on PCIE and it
-would violate memory model programmer get for regular system memory hence
-for all intents and purposes it is better to say that CPU can not access
-any of the device memory.
-
-Share VMA will just work, so if a VMA is share between 2 process than both
-process can access the same memory. All the semantics that are valid on the
-CPU are also valid on the GPU. Nothing change there.
+and I dont see move_pfn_range_to_zone() at all. Which tree/
+branch this patch is against ?
 
 
-> it is better a graph to show how CPU and GPU share the address space.
-
-I am not good at making ASCII graph, nor would i know how to graph this.
-Any valid address on the CPU is valid on the GPU, that's it really. The
-migration to device memory is orthogonal to the share address space.
-
-Cheers,
-JA(C)rA'me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
