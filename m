@@ -1,73 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DE136B0038
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 11:47:05 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 68so39951782pgj.23
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 08:47:05 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e9si2209822plk.150.2017.04.06.08.47.04
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57DC36B0038
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 11:56:52 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id y77so6748521wrb.22
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 08:56:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s18si3112190wrs.313.2017.04.06.08.56.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Apr 2017 08:47:04 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v36FdBE1116572
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 11:47:04 -0400
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29nq7wvd10-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Apr 2017 11:47:03 -0400
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 6 Apr 2017 11:47:02 -0400
-Date: Thu, 6 Apr 2017 10:46:53 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm: make movable onlining suck less
-References: <20170330115454.32154-1-mhocko@kernel.org>
- <20170406130846.GL5497@dhcp22.suse.cz>
- <20170406152449.zmghwdb4y6hxn4pm@arbab-laptop>
- <20170406154127.GQ5497@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Apr 2017 08:56:51 -0700 (PDT)
+Subject: Re: [PATCH 7/8] x86: Enable 5-level paging support
+References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
+ <20170406140106.78087-8-kirill.shutemov@linux.intel.com>
+ <469e1232-617c-daaa-90a6-a90d6f80059f@suse.com>
+ <20170406152438.ekpu34qe2wzevf4h@node.shutemov.name>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <a2cc767b-40c2-ff1e-3385-f16985a69b19@suse.com>
+Date: Thu, 6 Apr 2017 17:56:47 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20170406154127.GQ5497@dhcp22.suse.cz>
-Message-Id: <20170406154653.yv4i2k2r7hjq6mke@arbab-laptop>
+In-Reply-To: <20170406152438.ekpu34qe2wzevf4h@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Chris Metcalf <cmetcalf@mellanox.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 06, 2017 at 05:41:28PM +0200, Michal Hocko wrote:
->On Thu 06-04-17 10:24:49, Reza Arbab wrote:
->> On Thu, Apr 06, 2017 at 03:08:46PM +0200, Michal Hocko wrote:
->> >OK, so after recent change mostly driven by testing from Reza Arbab
->> >(thanks again) I believe I am getting to a working state finally. All I
->> >currently have is
->> >in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git tree
->> >attempts/rewrite-mem_hotplug-WIP branch. I will highly appreciate more
->> >testing of course and if there are no new issues found I will repost the
->> >series for the review.
+On 06/04/17 17:24, Kirill A. Shutemov wrote:
+> On Thu, Apr 06, 2017 at 04:52:11PM +0200, Juergen Gross wrote:
+>> On 06/04/17 16:01, Kirill A. Shutemov wrote:
+>>> Most of things are in place and we can enable support of 5-level paging.
+>>>
+>>> Enabling XEN with 5-level paging requires more work. The patch makes XEN
+>>> dependent on !X86_5LEVEL.
+>>>
+>>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>>> ---
+>>>  arch/x86/Kconfig     | 5 +++++
+>>>  arch/x86/xen/Kconfig | 1 +
+>>>  2 files changed, 6 insertions(+)
+>>>
+>>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>>> index 4e153e93273f..7a76dcac357e 100644
+>>> --- a/arch/x86/Kconfig
+>>> +++ b/arch/x86/Kconfig
+>>> @@ -318,6 +318,7 @@ config FIX_EARLYCON_MEM
+>>>  
+>>>  config PGTABLE_LEVELS
+>>>  	int
+>>> +	default 5 if X86_5LEVEL
+>>>  	default 4 if X86_64
+>>>  	default 3 if X86_PAE
+>>>  	default 2
+>>> @@ -1390,6 +1391,10 @@ config X86_PAE
+>>>  	  has the cost of more pagetable lookup overhead, and also
+>>>  	  consumes more pagetable space per process.
+>>>  
+>>> +config X86_5LEVEL
+>>> +	bool "Enable 5-level page tables support"
+>>> +	depends on X86_64
+>>> +
+>>>  config ARCH_PHYS_ADDR_T_64BIT
+>>>  	def_bool y
+>>>  	depends on X86_64 || X86_PAE
+>>> diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
+>>> index 76b6dbd627df..b90d481ce5a1 100644
+>>> --- a/arch/x86/xen/Kconfig
+>>> +++ b/arch/x86/xen/Kconfig
+>>> @@ -5,6 +5,7 @@
+>>>  config XEN
+>>>  	bool "Xen guest support"
+>>>  	depends on PARAVIRT
+>>> +	depends on !X86_5LEVEL
+>>>  	select PARAVIRT_CLOCK
+>>>  	select XEN_HAVE_PVMMU
+>>>  	select XEN_HAVE_VPMU
+>>>
 >>
->> Looking good! I can do my add/remove/repeat test and things seem fine.
->>
->> One thing--starting on the second iteration, I am seeing the WARN in
->> free_area_init_node();
->>
->> add_memory
->>  add_memory_resource
->>    hotadd_new_pgdat
->>      free_area_init_node
->> 	WARN_ON(pgdat->nr_zones || pgdat->kswapd_classzone_idx);
->
->Have you tested with my attempts/rewrite-mem_hotplug-WIP mentioned
->elsewhere? Because I suspect that "mm: get rid of zone_is_initialized"
->might cause this.
+>> Just a heads up: this last change will conflict with the Xen tree.
+> 
+> It should be trivial to fix, right? It's one-liner after all.
 
-This was my first time using your git branch instead of applying the 
-patches from this thread to v4.11-rc5 myself.
+Right. Just wanted to mention it.
 
--- 
-Reza Arbab
+
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
