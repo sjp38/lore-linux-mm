@@ -1,89 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E2DC66B03E3
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 01:34:33 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y77so4580016wrb.22
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 22:34:33 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o51si880755wrb.203.2017.04.05.22.34.32
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D017D6B03E5
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 01:35:48 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id j70so25717814pge.11
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 22:35:48 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d76si681437pfe.306.2017.04.05.22.35.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 22:34:32 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v365TJvf097936
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 01:34:31 -0400
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29nc4dyfx1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Apr 2017 01:34:30 -0400
-Received: from localhost
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 6 Apr 2017 11:04:27 +0530
-Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
-	by d28relay07.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v365X6Ub9699580
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 11:03:06 +0530
-Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
-	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v365YPRN021142
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 11:04:25 +0530
-Subject: Re: [PATCH] mm, memory_hotplug: fix devm_memremap_pages() after
- memory_hotplug rework
-References: <20170404165144.29791-1-jglisse@redhat.com>
- <a9d6e8d2-7bd9-abf1-9323-d175f10f7559@linux.vnet.ibm.com>
- <20170405104958.GI6035@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 6 Apr 2017 11:04:20 +0530
+        Wed, 05 Apr 2017 22:35:47 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -v8 0/3] THP swap: Delay splitting THP during swapping out
+Date: Thu,  6 Apr 2017 13:35:12 +0800
+Message-Id: <20170406053515.4842-1-ying.huang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170405104958.GI6035@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Message-Id: <12d241cc-b992-4576-c420-860bd5fd59d4@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On 04/05/2017 04:19 PM, Michal Hocko wrote:
-> On Wed 05-04-17 16:05:23, Anshuman Khandual wrote:
->> On 04/04/2017 10:21 PM, Jerome Glisse wrote:
->>> Just a trivial fix.
->>>
->>> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
->>> Cc: Michal Hocko <mhocko@suse.com>
->>> Cc: Dan Williams <dan.j.williams@intel.com>
->>> ---
->>>  kernel/memremap.c | 3 ++-
->>>  1 file changed, 2 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/kernel/memremap.c b/kernel/memremap.c
->>> index faa9276..bbbe646 100644
->>> --- a/kernel/memremap.c
->>> +++ b/kernel/memremap.c
->>> @@ -366,7 +366,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
->>>  	error = arch_add_memory(nid, align_start, align_size);
->>>  	if (!error)
->>>  		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
->>> -				align_start, align_size);
->>> +					align_start >> PAGE_SHIFT,
->>> +					align_size >> PAGE_SHIFT);
->>
->> All this while it was taking up addresses instead of PFNs ? Then
->> how it was working correctly before ?
-> 
-> Because this code was embeded inside the arch_add_memory which did the
-> translation properly. See arch_add_memory implementations.
+From: Huang Ying <ying.huang@intel.com>
 
-Got your point. Checked both mainline kernel and mmotm branch
-v4.11-rc5-mmotm-2017-04-04-15-00, in both the places the code
-snippet seems to be different than here. For example arch_add
-_memory has the following signature instead.
+This patchset is to optimize the performance of Transparent Huge Page
+(THP) swap.
 
-arch_add_memory(nid, align_start, align_size, true);
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-and I dont see move_pfn_range_to_zone() at all. Which tree/
-branch this patch is against ?
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?
+
+Hi, Andrea could you help me to review the THP part of the patchset?
+
+Hi, Johannes, Michal, I am not very confident about the memory cgroup
+part.  Could you help me to review it?
+
+And for all, Any comment is welcome!
 
 
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swap out even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
+
+The advantages of the THP swap support include:
+
+- Batch the swap operations for the THP to reduce lock
+  acquiring/releasing, including allocating/freeing the swap space,
+  adding/deleting to/from the swap cache, and writing/reading the swap
+  space, etc.  This will help improve the performance of the THP swap.
+
+- The THP swap space read/write will be 2M sequential IO.  It is
+  particularly helpful for the swap read, which are usually 4k random
+  IO.  This will improve the performance of the THP swap too.
+
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The 2M continuous pages will be
+  free up after THP swapping out.
+
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapping out, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapped in.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
+
+There are some concerns regarding THP swap in, mainly because possible
+enlarged read/write IO size (for swap in/out) may put more overhead on
+the storage device.  To deal with that, the THP swap in should be
+turned on only when necessary.  For example, it can be selected via
+"always/never/madvise" logic, to be turned on globally, turned off
+globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
+
+This patchset is based on 04/04 head of mmotm/master.
+
+This patchset is the first step for the THP swap support.  The plan is
+to delay splitting THP step by step, finally avoid splitting THP
+during the THP swapping out and swap out/in the THP as a whole.
+
+As the first step, in this patchset, the splitting huge page is
+delayed from almost the first step of swapping out to after allocating
+the swap space for the THP and adding the THP into the swap cache.
+This will reduce lock acquiring/releasing for the locks used for the
+swap cache management.
+
+With the patchset, the swap out throughput improves 14.9% (from about
+3.77GB/s to about 4.34GB/s) in the vm-scalability swap-w-seq test case
+with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+device used is a RAM simulated PMEM (persistent memory) device.  To
+test the sequential swapping out, the test case creates 8 processes,
+which sequentially allocate and write to the anonymous pages until the
+RAM and part of the swap device is used up.
+
+The detailed comparison result is as follow,
+
+base             base+patchset
+---------------- -------------------------- 
+         %stddev     %change         %stddev
+             \          |                \  
+   7043990 A+-  0%     +21.2%    8536807 A+-  0%  vm-scalability.throughput
+    109.94 A+-  1%     -16.2%      92.09 A+-  0%  vm-scalability.time.elapsed_time
+   3957091 A+-  0%     +14.9%    4547173 A+-  0%  vmstat.swap.so
+     31.46 A+-  1%     -38.3%      19.42 A+-  0%  perf-stat.cache-miss-rate%
+      1.04 A+-  1%     +22.2%       1.27 A+-  0%  perf-stat.ipc
+      9.33 A+-  2%     -60.7%       3.67 A+-  1%  perf-profile.calltrace.cycles-pp.add_to_swap.shrink_page_list.shrink_inactive_list.shrink_node_memcg.shrink_node
+
+Changelog:
+
+v8:
+
+- Rebased on latest -mm tree
+- Reorganize the patchset per Johannes' comments
+- Merge add_to_swap_trans_huge() and add_to_swap() per Johannes' comments
+
+v7:
+
+- Rebased on latest -mm tree
+- Revise get_swap_pages() THP support per Tim's comments
+
+v6:
+
+- Rebased on latest -mm tree (cluster lock, etc).
+- Fix a potential uninitialized variable bug in __swap_entry_free()
+- Revise the swap read-ahead changes to avoid a potential race
+  condition between swap off and swap out in theory.
+
+v5:
+
+- Per Hillf's comments, fix a locking bug in error path of
+  __add_to_swap_cache().  And merge the code to calculate extra_pins
+  into can_split_huge_page().
+
+v4:
+
+- Per Johannes' comments, simplified swap cgroup array accessing code.
+- Per Kirill and Dave Hansen's comments, used HPAGE_PMD_NR instead of
+  HPAGE_SIZE/PAGE_SIZE.
+- Per Anshuman's comments, used HPAGE_PMD_NR instead of 512 in patch
+  description.
+
+v3:
+
+- Per Andrew's suggestion, used a more systematical way to determine
+  whether to enable THP swap optimization
+- Per Andrew's comments, moved as much as possible code into
+  #ifdef CONFIG_TRANSPARENT_HUGE_PAGE/#endif or "if (PageTransHuge())"
+- Fixed some coding style warning.
+
+v2:
+
+- Original [1/11] sent separately and merged
+- Use switch in 10/10 per Hiff's suggestion
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
