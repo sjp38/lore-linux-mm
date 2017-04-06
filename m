@@ -1,63 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CCF0C6B03FD
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 04:49:28 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id n78so6660742lfi.4
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 01:49:28 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id r191si615264lff.286.2017.04.06.01.49.26
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7387A6B03FE
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 04:55:36 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id a80so2622457wrc.19
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 01:55:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 136si28185583wmw.28.2017.04.06.01.55.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Apr 2017 01:49:27 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id r36so3072722lfi.0
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 01:49:26 -0700 (PDT)
-Date: Thu, 6 Apr 2017 11:49:24 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 2/4] mm: memcontrol: re-use global VM event enum
-Message-ID: <20170406084923.GB2268@esperanza>
-References: <20170404220148.28338-1-hannes@cmpxchg.org>
- <20170404220148.28338-2-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Apr 2017 01:55:35 -0700 (PDT)
+Date: Thu, 6 Apr 2017 10:55:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Is it safe for kthreadd to drain_all_pages?
+Message-ID: <20170406085529.GF5497@dhcp22.suse.cz>
+References: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170404220148.28338-2-hannes@cmpxchg.org>
+In-Reply-To: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 04, 2017 at 06:01:46PM -0400, Johannes Weiner wrote:
-> The current duplication is a high-maintenance mess, and it's painful
-> to add new items.
+On Wed 05-04-17 13:59:49, Hugh Dickins wrote:
+> Hi Mel,
 > 
-> This increases the size of the event array, but we'll eventually want
-> most of the VM events tracked on a per-cgroup basis anyway.
+> I suspect that it's not safe for kthreadd to drain_all_pages();
+> but I haven't studied flush_work() etc, so don't really know what
+> I'm talking about: hoping that you will jump to a realization.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 4.11-rc has been giving me hangs after hours of swapping load.  At
+> first they looked like memory leaks ("fork: Cannot allocate memory");
+> but for no good reason I happened to do "cat /proc/sys/vm/stat_refresh"
+> before looking at /proc/meminfo one time, and the stat_refresh stuck
+> in D state, waiting for completion of flush_work like many kworkers.
+> kthreadd waiting for completion of flush_work in drain_all_pages().
+> 
+> But I only noticed that pattern later: originally tried to bisect
+> rc1 before rc2 came out, but underestimated how long to wait before
+> deciding a stage good - I thought 12 hours, but would now say 2 days.
+> Too late for bisection, I suspect your drain_all_pages() changes.
 
-Although the increase in the mem_cgroup struct introduced by this patch
-looks scary, I agree this is a reasonable step toward unification of
-vmstat, as most vm_even_item entries do make sense to be accounted per
-cgroup as well.
-
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-
-> @@ -608,9 +601,9 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
->  
->  	/* pagein of a big page is an event. So, ignore page size */
->  	if (nr_pages > 0)
-> -		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
-> +		__this_cpu_inc(memcg->stat->events[PGPGIN]);
->  	else {
-> -		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
-> +		__this_cpu_inc(memcg->stat->events[PGPGOUT]);
->  		nr_pages = -nr_pages; /* for event */
->  	}
-
-AFAIR this doesn't exactly match system-wide PGPGIN/PGPGOUT: they are
-supposed to account only paging events involving IO while currently they
-include faulting in zero pages and zapping a process address space.
-Probably, this should be revised before rolling out to cgroup v2.
+Yes, this is a fallout from Mel's changes. I was about to say that
+my follow up fixes which made this flushing to the single WQ with rescuer
+fixed that but it seems that
+http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-move-pcp-and-lru-pcp-drainging-into-single-wq.patch
+didn't make it to the Linus tree. Could you re-test with this one?
+While your change is obviously correct I think the above should address
+it as well and it is more generic. If it works then I will ask Andrew to
+send the above to Linus (along with its follow up
+mm-move-pcp-and-lru-pcp-drainging-into-single-wq-fix.patch)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
