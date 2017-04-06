@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7387A6B03FE
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 04:55:36 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id a80so2622457wrc.19
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 01:55:36 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 136si28185583wmw.28.2017.04.06.01.55.34
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3A2A6B0401
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 05:00:03 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id t132so6508749lfe.12
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 02:00:03 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id 81si641368lfq.41.2017.04.06.02.00.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Apr 2017 01:55:35 -0700 (PDT)
-Date: Thu, 6 Apr 2017 10:55:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Is it safe for kthreadd to drain_all_pages?
-Message-ID: <20170406085529.GF5497@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Apr 2017 02:00:02 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id n78so3089315lfi.3
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 02:00:02 -0700 (PDT)
+Date: Thu, 6 Apr 2017 11:59:58 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 3/4] mm: memcontrol: re-use node VM page state enum
+Message-ID: <20170406085958.GC2268@esperanza>
+References: <20170404220148.28338-1-hannes@cmpxchg.org>
+ <20170404220148.28338-3-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
+In-Reply-To: <20170404220148.28338-3-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Wed 05-04-17 13:59:49, Hugh Dickins wrote:
-> Hi Mel,
+On Tue, Apr 04, 2017 at 06:01:47PM -0400, Johannes Weiner wrote:
+> The current duplication is a high-maintenance mess, and it's painful
+> to add new items or query memcg state from the rest of the VM.
 > 
-> I suspect that it's not safe for kthreadd to drain_all_pages();
-> but I haven't studied flush_work() etc, so don't really know what
-> I'm talking about: hoping that you will jump to a realization.
+> This increases the size of the stat array marginally, but we should
+> aim to track all these stats on a per-cgroup level anyway.
 > 
-> 4.11-rc has been giving me hangs after hours of swapping load.  At
-> first they looked like memory leaks ("fork: Cannot allocate memory");
-> but for no good reason I happened to do "cat /proc/sys/vm/stat_refresh"
-> before looking at /proc/meminfo one time, and the stat_refresh stuck
-> in D state, waiting for completion of flush_work like many kworkers.
-> kthreadd waiting for completion of flush_work in drain_all_pages().
-> 
-> But I only noticed that pattern later: originally tried to bisect
-> rc1 before rc2 came out, but underestimated how long to wait before
-> deciding a stage good - I thought 12 hours, but would now say 2 days.
-> Too late for bisection, I suspect your drain_all_pages() changes.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Yes, this is a fallout from Mel's changes. I was about to say that
-my follow up fixes which made this flushing to the single WQ with rescuer
-fixed that but it seems that
-http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-move-pcp-and-lru-pcp-drainging-into-single-wq.patch
-didn't make it to the Linus tree. Could you re-test with this one?
-While your change is obviously correct I think the above should address
-it as well and it is more generic. If it works then I will ask Andrew to
-send the above to Linus (along with its follow up
-mm-move-pcp-and-lru-pcp-drainging-into-single-wq-fix.patch)
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
