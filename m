@@ -1,73 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D1826B040E
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 07:25:29 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k22so5729161wrk.5
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 04:25:29 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id k72si2581183wmi.139.2017.04.06.04.25.27
+	by kanga.kvack.org (Postfix) with ESMTP id 02B786B0411
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 08:46:06 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id t30so5991493wrc.15
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 05:46:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d3si2902720wmf.12.2017.04.06.05.46.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Apr 2017 04:25:28 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 918B0F4025
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 11:25:27 +0000 (UTC)
-Date: Thu, 6 Apr 2017 12:25:26 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [Nbd] [PATCH 3/4] treewide: convert PF_MEMALLOC manipulations to
- new helpers
-Message-ID: <20170406112526.jj7zwzxqvushy5g2@techsingularity.net>
-References: <20170405074700.29871-1-vbabka@suse.cz>
- <20170405074700.29871-4-vbabka@suse.cz>
- <20170405113030.GL6035@dhcp22.suse.cz>
- <20170406063810.dmv4fg2irsqgdvyq@grep.be>
+        Thu, 06 Apr 2017 05:46:04 -0700 (PDT)
+Date: Thu, 6 Apr 2017 14:46:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 5/6] mm, memory_hotplug: do not associate hotadded memory
+ to zones until online
+Message-ID: <20170406124600.GK5497@dhcp22.suse.cz>
+References: <20170330115454.32154-1-mhocko@kernel.org>
+ <20170330115454.32154-6-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170406063810.dmv4fg2irsqgdvyq@grep.be>
+In-Reply-To: <20170330115454.32154-6-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wouter Verhelst <w@uter.be>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, nbd-general@lists.sourceforge.net, Chris Leech <cleech@redhat.com>, linux-scsi@vger.kernel.org, Josef Bacik <jbacik@fb.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, Eric Dumazet <edumazet@google.com>, Lee Duncan <lduncan@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, open-iscsi@googlegroups.com, "David S. Miller" <davem@davemloft.net>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Thu, Apr 06, 2017 at 08:38:10AM +0200, Wouter Verhelst wrote:
-> On Wed, Apr 05, 2017 at 01:30:31PM +0200, Michal Hocko wrote:
-> > On Wed 05-04-17 09:46:59, Vlastimil Babka wrote:
-> > > We now have memalloc_noreclaim_{save,restore} helpers for robust setting and
-> > > clearing of PF_MEMALLOC. Let's convert the code which was using the generic
-> > > tsk_restore_flags(). No functional change.
-> > 
-> > It would be really great to revisit why those places outside of the mm
-> > proper really need this flag. I know this is a painful exercise but I
-> > wouldn't be surprised if there were abusers there.
-> [...]
-> > > ---
-> > >  drivers/block/nbd.c      | 7 ++++---
-> > >  drivers/scsi/iscsi_tcp.c | 7 ++++---
-> > >  net/core/dev.c           | 7 ++++---
-> > >  net/core/sock.c          | 7 ++++---
-> > >  4 files changed, 16 insertions(+), 12 deletions(-)
-> 
-> These were all done to make swapping over network safe. The idea is that
-> if a socket has SOCK_MEMALLOC set, incoming packets for that socket can
-> access PFMEMALLOC reserves (whereas other sockets cannot); this all in
-> the hope that one packe destined to that socket will contain the TCP ACK
-> that confirms the swapout was successful and we can now release RAM
-> pages for other processes.
-> 
-> I don't know whether they need the PF_MEMALLOC flag specifically (not a
-> kernel hacker), but they do need to interact with it at any rate.
-> 
+On Thu 30-03-17 13:54:53, Michal Hocko wrote:
+[...]
+> +static struct zone * __meminit move_pfn_range(int online_type, int nid,
+> +		unsigned long start_pfn, unsigned long nr_pages)
+> +{
+> +	struct pglist_data *pgdat = NODE_DATA(nid);
+> +	struct zone *zone = &pgdat->node_zones[ZONE_NORMAL];
+> +
+> +	if (online_type == MMOP_ONLINE_KEEP) {
+> +		/*
+> +		 * MMOP_ONLINE_KEEP inherits the current zone which is
+> +		 * ZONE_NORMAL by default but we might be within ZONE_MOVABLE
+> +		 * already.
+> +		 */
+> +		if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE))
+> +			zone = &pgdat->node_zones[ZONE_MOVABLE];
+> +	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+> +		zone = &pgdat->node_zones[ZONE_MOVABLE];
+>  	}
+>  
+> -	*zone_shift = target - idx;
+> -	return true;
+> +	move_pfn_range_to_zone(zone, start_pfn, nr_pages);
+> +	return zone;
+>  }
 
-At the time it was required to get access to emergency reserves so swapping
-can continue. The flip side is that the memory is then protected so pages
-allocated from emergency reserves are not used for network traffic that
-is not involved with swap. This means that under heavy swap load, it was
-perfectly possible for unrelated traffic to get dropped for quite some
-time.
-
+I got the MMOP_ONLINE_KEEP wrong here. Relying on allow_online_pfn_range
+is wrong because that would lead to MMOP_ONLINE_MOVABLE by when there is
+no ZONE_NORMAL while I believe we should online_kernel in that case.
+Well the semantic of MMOP_ONLINE_KEEP is rathe fuzzy to me but I guess
+it make some sense to online movable only when explicitly state or
+_within_ and existing ZONE_MOVABLE. The following will fix this. I will
+fold it into this patch.
+---
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 7c4fef1aba84..0f8816fd0b52 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -531,6 +531,20 @@ static inline bool zone_is_empty(struct zone *zone)
+ }
+ 
+ /*
++ * Return true if [start_pfn, start_pfn + nr_pages) range has a non-mpty
++ * intersection with the given zone
++ */
++static inline bool zone_intersects(struct zone *zone,
++		unsigned long start_pfn, unsigned long nr_pages)
++{
++	if (zone->zone_start_pfn <= start_pfn && start_pfn < zone_end_pfn(zone))
++		return true;
++	if (start_pfn + nr_pages > start_pfn && !zone_is_empty(zone))
++		return true;
++	return false;
++}
++
++/*
+  * The "priority" of VM scanning is how much of the queues we will scan in one
+  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
+  * queues ("queue_length >> 12") during an aging round.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 4f80abdc2047..2ff988f42377 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -934,13 +934,14 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
+ 	struct zone *zone = &pgdat->node_zones[ZONE_NORMAL];
+ 
+ 	if (online_type == MMOP_ONLINE_KEEP) {
++		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
+ 		/*
+ 		 * MMOP_ONLINE_KEEP inherits the current zone which is
+ 		 * ZONE_NORMAL by default but we might be within ZONE_MOVABLE
+ 		 * already.
+ 		 */
+-		if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE))
+-			zone = &pgdat->node_zones[ZONE_MOVABLE];
++		if (zone_intersects(movable_zone, start_pfn, nr_pages))
++			zone = movable_zone;
+ 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+ 		zone = &pgdat->node_zones[ZONE_MOVABLE];
+ 	}
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
