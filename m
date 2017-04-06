@@ -1,73 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DA226B0407
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 05:46:09 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m28so30870215pgn.14
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 02:46:09 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b5si1330483pgg.25.2017.04.06.02.46.07
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 67C9D6B0409
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 06:26:20 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g19so5514321wrb.4
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 03:26:20 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 67si1939463wrm.255.2017.04.06.03.26.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Apr 2017 02:46:08 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v369hwtr075410
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 05:46:07 -0400
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29ngxq8esa-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Apr 2017 05:46:07 -0400
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 6 Apr 2017 19:46:05 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v369jtFQ35717126
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 19:46:03 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v369jQRK007367
-	for <linux-mm@kvack.org>; Thu, 6 Apr 2017 19:45:27 +1000
-Subject: Re: [HMM 01/16] mm/memory/hotplug: add memory type parameter to
- arch_add/remove_memory
-References: <20170405204026.3940-1-jglisse@redhat.com>
- <20170405204026.3940-2-jglisse@redhat.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 6 Apr 2017 15:15:09 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Apr 2017 03:26:18 -0700 (PDT)
+Subject: Re: [patch for-4.11] mm, thp: fix setting of defer+madvise thp defrag
+ mode
+References: <alpine.DEB.2.10.1704051814420.137626@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5a543cb5-c356-71e9-4424-bfbbf66b4d11@suse.cz>
+Date: Thu, 6 Apr 2017 12:26:16 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170405204026.3940-2-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <alpine.DEB.2.10.1704051814420.137626@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Message-Id: <8b5cbc13-7abe-f090-5485-8990d9a837ac@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-> index 5f84433..0933261 100644
-> --- a/arch/powerpc/mm/mem.c
-> +++ b/arch/powerpc/mm/mem.c
-> @@ -126,14 +126,31 @@ int __weak remove_section_mapping(unsigned long start, unsigned long end)
->  	return -ENODEV;
->  }
->  
-> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
->  {
->  	struct pglist_data *pgdata;
-> -	struct zone *zone;
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> +	bool for_device = false;
-> +	struct zone *zone;
->  	int rc;
->  
-> +	/*
-> +	 * Each memory_type needs special handling, so error out on an
-> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
-> +	 * is not supported on this architecture.
+On 04/06/2017 03:17 AM, David Rientjes wrote:
+> Setting thp defrag mode of "defer+madvise" actually sets "defer" in the 
+> kernel due to the name similarity and the out-of-order way the string is 
+> checked in defrag_store().
+> 
+> Check the string in the correct order so that 
+> TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG is set appropriately for 
+> "defer+madvise".
+> 
+> Fixes: 21440d7eb904 ("mm, thp: add new defer+madvise defrag option") 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-The concept of MEMORY_DEVICE_UNADDRESSABLE has not been
-introduced yet in this patch if I read correctly.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/huge_memory.c | 12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -240,18 +240,18 @@ static ssize_t defrag_store(struct kobject *kobj,
+>  		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
+>  		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+>  		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+> -	} else if (!memcmp("defer", buf,
+> -		    min(sizeof("defer")-1, count))) {
+> -		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+> -		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
+> -		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+> -		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
+>  	} else if (!memcmp("defer+madvise", buf,
+>  		    min(sizeof("defer+madvise")-1, count))) {
+>  		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+>  		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
+>  		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+>  		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
+> +	} else if (!memcmp("defer", buf,
+> +		    min(sizeof("defer")-1, count))) {
+> +		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+> +		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
+> +		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+> +		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
+>  	} else if (!memcmp("madvise", buf,
+>  			   min(sizeof("madvise")-1, count))) {
+>  		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
