@@ -1,65 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC8E36B03D7
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 20:47:33 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 81so20613779pgh.3
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 17:47:33 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id b13si6358469pge.309.2017.04.05.17.47.32
+	by kanga.kvack.org (Postfix) with ESMTP id 157B26B03D8
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 21:17:45 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id o123so21152908pga.16
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 18:17:45 -0700 (PDT)
+Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
+        by mx.google.com with ESMTPS id i71si63162pgc.269.2017.04.05.18.17.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 17:47:33 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v2] mm, swap: Sort swap entries before free
-References: <20170405071041.24469-1-ying.huang@intel.com>
-	<1491403231.16856.11.camel@redhat.com>
-Date: Thu, 06 Apr 2017 08:47:30 +0800
-In-Reply-To: <1491403231.16856.11.camel@redhat.com> (Rik van Riel's message of
-	"Wed, 5 Apr 2017 10:40:31 -0400")
-Message-ID: <87k26ye50d.fsf@yhuang-dev.intel.com>
+        Wed, 05 Apr 2017 18:17:44 -0700 (PDT)
+Received: by mail-pg0-x229.google.com with SMTP id 81so20346563pgh.2
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 18:17:43 -0700 (PDT)
+Date: Wed, 5 Apr 2017 18:17:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch for-4.11] mm, thp: fix setting of defer+madvise thp defrag
+ mode
+Message-ID: <alpine.DEB.2.10.1704051814420.137626@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Rik van Riel <riel@redhat.com> writes:
+Setting thp defrag mode of "defer+madvise" actually sets "defer" in the 
+kernel due to the name similarity and the out-of-order way the string is 
+checked in defrag_store().
 
-> On Wed, 2017-04-05 at 15:10 +0800, Huang, Ying wrote:
->> To solve the issue, the per-CPU buffer is sorted according to the
->> swap
->> device before freeing the swap entries.A A Test shows that the time
->> spent by swapcache_free_entries() could be reduced after the patch.
->
-> That makes a lot of sense.
->
->> @@ -1075,6 +1083,8 @@ void swapcache_free_entries(swp_entry_t
->> *entries, int n)
->> A 
->> A 	prev = NULL;
->> A 	p = NULL;
->> +	if (nr_swapfiles > 1)
->> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp,
->> NULL);
->
-> But it really wants a comment in the code, so people
-> reading the code a few years from now can see why
-> we are sorting things we are about to free.
->
-> Maybe something like:
-> A  A  A  A  /* Sort swap entries by swap device, so each lock is only taken
-> once. */
+Check the string in the correct order so that 
+TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG is set appropriately for 
+"defer+madvise".
 
-Good suggestion!  I will add it in the next version.
+Fixes: 21440d7eb904 ("mm, thp: add new defer+madvise defrag option") 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/huge_memory.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-Best Regards,
-Huang, Ying
-
->> A 	for (i = 0; i < n; ++i) {
->> A 		p = swap_info_get_cont(entries[i], prev);
->> A 		if (p)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -240,18 +240,18 @@ static ssize_t defrag_store(struct kobject *kobj,
+ 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
+ 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+ 		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+-	} else if (!memcmp("defer", buf,
+-		    min(sizeof("defer")-1, count))) {
+-		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+-		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
+-		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+-		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
+ 	} else if (!memcmp("defer+madvise", buf,
+ 		    min(sizeof("defer+madvise")-1, count))) {
+ 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
+ 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
+ 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
+ 		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("defer", buf,
++		    min(sizeof("defer")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
+ 	} else if (!memcmp("madvise", buf,
+ 			   min(sizeof("madvise")-1, count))) {
+ 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
