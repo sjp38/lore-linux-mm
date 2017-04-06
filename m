@@ -1,235 +1,349 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EBFDC6B0428
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 10:01:48 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 68so36776469pgj.23
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 07:01:48 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id s3si1947892plj.263.2017.04.06.07.01.46
+	by kanga.kvack.org (Postfix) with ESMTP id 248876B042A
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 10:01:50 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id n5so37157584pgd.19
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 07:01:50 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id o3si1975982pfb.0.2017.04.06.07.01.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Apr 2017 07:01:47 -0700 (PDT)
+        Thu, 06 Apr 2017 07:01:48 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/8] x86/boot/64: Rewrite startup_64 in C
-Date: Thu,  6 Apr 2017 17:00:59 +0300
-Message-Id: <20170406140106.78087-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 8/8] x86/mm: Allow to have userspace mappings above 47-bits
+Date: Thu,  6 Apr 2017 17:01:06 +0300
+Message-Id: <20170406140106.78087-9-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
 References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-The patch write most of startup_64 logic in C.
+On x86, 5-level paging enables 56-bit userspace virtual address space.
+Not all user space is ready to handle wide addresses. It's known that
+at least some JIT compilers use higher bits in pointers to encode their
+information. It collides with valid pointers with 5-level paging and
+leads to crashes.
 
-This is preparation for 5-level paging enabling.
+To mitigate this, we are not going to allocate virtual address space
+above 47-bit by default.
+
+But userspace can ask for allocation from full address space by
+specifying hint address (with or without MAP_FIXED) above 47-bits.
+
+If hint address set above 47-bit, but MAP_FIXED is not specified, we try
+to look for unmapped area by specified address. If it's already
+occupied, we look for unmapped area in *full* address space, rather than
+from 47-bit window.
+
+This approach helps to easily make application's memory allocator aware
+about large address space without manually tracking allocated virtual
+address space.
+
+One important case we need to handle here is interaction with MPX.
+MPX (without MAWA( extension cannot handle addresses above 47-bit, so we
+need to make sure that MPX cannot be enabled we already have VMA above
+the boundary and forbid creating such VMAs once MPX is enabled.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
- arch/x86/kernel/head64.c  | 81 ++++++++++++++++++++++++++++++++++++++++-
- arch/x86/kernel/head_64.S | 93 +----------------------------------------------
- 2 files changed, 81 insertions(+), 93 deletions(-)
+ arch/x86/include/asm/elf.h       |  2 +-
+ arch/x86/include/asm/mpx.h       |  9 +++++++++
+ arch/x86/include/asm/processor.h |  9 ++++++---
+ arch/x86/kernel/sys_x86_64.c     | 28 +++++++++++++++++++++++++++-
+ arch/x86/mm/hugetlbpage.c        | 27 ++++++++++++++++++++++++---
+ arch/x86/mm/mmap.c               |  2 +-
+ arch/x86/mm/mpx.c                | 33 ++++++++++++++++++++++++++++++++-
+ 7 files changed, 100 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 43b7002f44fb..dbb5b29bf019 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -35,9 +35,88 @@
-  */
- extern pgd_t early_level4_pgt[PTRS_PER_PGD];
- extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
--static unsigned int __initdata next_early_pgt = 2;
-+static unsigned int __initdata next_early_pgt;
- pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+index d4d3ed456cb7..67260dbe1688 100644
+--- a/arch/x86/include/asm/elf.h
++++ b/arch/x86/include/asm/elf.h
+@@ -250,7 +250,7 @@ extern int force_personality32;
+    the loader.  We need to make sure that it is out of the way of the program
+    that it will "exec", and that there is sufficient room for the brk.  */
  
-+static void __init *fixup_pointer(void *ptr, unsigned long physaddr)
-+{
-+	return ptr - (void *)_text + (void *)physaddr;
-+}
+-#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
++#define ELF_ET_DYN_BASE		(DEFAULT_MAP_WINDOW / 3 * 2)
+ 
+ /* This yields a mask that user programs can use to figure out what
+    instruction set this CPU supports.  This could be done in user space,
+diff --git a/arch/x86/include/asm/mpx.h b/arch/x86/include/asm/mpx.h
+index a0d662be4c5b..7d7404756bb4 100644
+--- a/arch/x86/include/asm/mpx.h
++++ b/arch/x86/include/asm/mpx.h
+@@ -73,6 +73,9 @@ static inline void mpx_mm_init(struct mm_struct *mm)
+ }
+ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		      unsigned long start, unsigned long end);
 +
-+void __init __startup_64(unsigned long physaddr)
-+{
-+	unsigned long load_delta, *p;
-+	pgdval_t *pgd;
-+	pudval_t *pud;
-+	pmdval_t *pmd, pmd_entry;
-+	int i;
-+
-+	/* Is the address too large? */
-+	if (physaddr >> MAX_PHYSMEM_BITS)
-+		for (;;);
-+
-+	/*
-+	 * Compute the delta between the address I am compiled to run at
-+	 * and the address I am actually running at.
-+	 */
-+	load_delta = physaddr - (unsigned long)(_text - __START_KERNEL_map);
-+
-+	/* Is the address not 2M aligned? */
-+	if (load_delta & ~PMD_PAGE_MASK)
-+		for (;;);
-+
-+	/* Fixup the physical addresses in the page table */
-+
-+	pgd = fixup_pointer(&early_level4_pgt, physaddr);
-+	pgd[pgd_index(__START_KERNEL_map)] += load_delta;
-+
-+	pud = fixup_pointer(&level3_kernel_pgt, physaddr);
-+	pud[510] += load_delta;
-+	pud[511] += load_delta;
-+
-+	pmd = fixup_pointer(level2_fixmap_pgt, physaddr);
-+	pmd[506] += load_delta;
-+
-+	/*
-+	 * Set up the identity mapping for the switchover.  These
-+	 * entries should *NOT* have the global bit set!  This also
-+	 * creates a bunch of nonsense entries but that is fine --
-+	 * it avoids problems around wraparound.
-+	 */
-+
-+	pud = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
-+	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
-+
-+	pgd[0] = (pgdval_t)pud + _KERNPG_TABLE;
-+	pgd[1] = (pgdval_t)pud + _KERNPG_TABLE;
-+
-+	pud[0] = (pudval_t)pmd + _KERNPG_TABLE;
-+	pud[1] = (pudval_t)pmd + _KERNPG_TABLE;
-+
-+	pmd_entry = __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
-+	pmd_entry +=  physaddr;
-+
-+	for (i = 0; i < DIV_ROUND_UP(_end - _text, PMD_SIZE); i++)
-+		pmd[i + (physaddr >> PMD_SHIFT)] = pmd_entry + i * PMD_SIZE;
-+
-+	/*
-+	 * Fixup the kernel text+data virtual addresses. Note that
-+	 * we might write invalid pmds, when the kernel is relocated
-+	 * cleanup_highmap() fixes this up along with the mappings
-+	 * beyond _end.
-+	 */
-+
-+	pmd = fixup_pointer(level2_kernel_pgt, physaddr);
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (pmd[i] & _PAGE_PRESENT)
-+			pmd[i] += load_delta;
-+	}
-+
-+	/* Fixup phys_base */
-+	p = fixup_pointer(&phys_base, physaddr);
-+	*p += load_delta;
-+}
-+
- /* Wipe all early page tables except for the kernel symbol map */
- static void __init reset_early_page_tables(void)
++unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
++		unsigned long flags);
+ #else
+ static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
  {
-diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index ac9d327d2e42..9656c5951b98 100644
---- a/arch/x86/kernel/head_64.S
-+++ b/arch/x86/kernel/head_64.S
-@@ -72,100 +72,9 @@ startup_64:
- 	/* Sanitize CPU configuration */
- 	call verify_cpu
+@@ -94,6 +97,12 @@ static inline void mpx_notify_unmap(struct mm_struct *mm,
+ 				    unsigned long start, unsigned long end)
+ {
+ }
++
++static inline unsigned long mpx_unmapped_area_check(unsigned long addr,
++		unsigned long len, unsigned long flags)
++{
++	return addr;
++}
+ #endif /* CONFIG_X86_INTEL_MPX */
  
--	/*
--	 * Compute the delta between the address I am compiled to run at and the
--	 * address I am actually running at.
--	 */
--	leaq	_text(%rip), %rbp
--	subq	$_text - __START_KERNEL_map, %rbp
--
--	/* Is the address not 2M aligned? */
--	testl	$~PMD_PAGE_MASK, %ebp
--	jnz	bad_address
--
--	/*
--	 * Is the address too large?
--	 */
--	leaq	_text(%rip), %rax
--	shrq	$MAX_PHYSMEM_BITS, %rax
--	jnz	bad_address
--
--	/*
--	 * Fixup the physical addresses in the page table
--	 */
--	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
--
--	addq	%rbp, level3_kernel_pgt + (510*8)(%rip)
--	addq	%rbp, level3_kernel_pgt + (511*8)(%rip)
--
--	addq	%rbp, level2_fixmap_pgt + (506*8)(%rip)
--
--	/*
--	 * Set up the identity mapping for the switchover.  These
--	 * entries should *NOT* have the global bit set!  This also
--	 * creates a bunch of nonsense entries but that is fine --
--	 * it avoids problems around wraparound.
--	 */
- 	leaq	_text(%rip), %rdi
--	leaq	early_level4_pgt(%rip), %rbx
--
--	movq	%rdi, %rax
--	shrq	$PGDIR_SHIFT, %rax
--
--	leaq	(PAGE_SIZE + _KERNPG_TABLE)(%rbx), %rdx
--	movq	%rdx, 0(%rbx,%rax,8)
--	movq	%rdx, 8(%rbx,%rax,8)
--
--	addq	$PAGE_SIZE, %rdx
--	movq	%rdi, %rax
--	shrq	$PUD_SHIFT, %rax
--	andl	$(PTRS_PER_PUD-1), %eax
--	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
--	incl	%eax
--	andl	$(PTRS_PER_PUD-1), %eax
--	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
--
--	addq	$PAGE_SIZE * 2, %rbx
--	movq	%rdi, %rax
--	shrq	$PMD_SHIFT, %rdi
--	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
--	leaq	(_end - 1)(%rip), %rcx
--	shrq	$PMD_SHIFT, %rcx
--	subq	%rdi, %rcx
--	incl	%ecx
-+	call	__startup_64
+ #endif /* _ASM_X86_MPX_H */
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 3cada998a402..9f437aea7f57 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -795,6 +795,7 @@ static inline void spin_lock_prefetch(const void *x)
+ #define IA32_PAGE_OFFSET	PAGE_OFFSET
+ #define TASK_SIZE		PAGE_OFFSET
+ #define TASK_SIZE_MAX		TASK_SIZE
++#define DEFAULT_MAP_WINDOW	TASK_SIZE
+ #define STACK_TOP		TASK_SIZE
+ #define STACK_TOP_MAX		STACK_TOP
  
--1:
--	andq	$(PTRS_PER_PMD - 1), %rdi
--	movq	%rax, (%rbx,%rdi,8)
--	incq	%rdi
--	addq	$PMD_SIZE, %rax
--	decl	%ecx
--	jnz	1b
+@@ -834,7 +835,9 @@ static inline void spin_lock_prefetch(const void *x)
+  * particular problem by preventing anything from being mapped
+  * at the maximum canonical address.
+  */
+-#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
++#define TASK_SIZE_MAX	((1UL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
++
++#define DEFAULT_MAP_WINDOW	((1UL << 47) - PAGE_SIZE)
+ 
+ /* This decides where the kernel will search for a free chunk of vm
+  * space during mmap's.
+@@ -847,7 +850,7 @@ static inline void spin_lock_prefetch(const void *x)
+ #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
+ 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
+ 
+-#define STACK_TOP		TASK_SIZE
++#define STACK_TOP		DEFAULT_MAP_WINDOW
+ #define STACK_TOP_MAX		TASK_SIZE_MAX
+ 
+ #define INIT_THREAD  {						\
+@@ -870,7 +873,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
+  * space during mmap's.
+  */
+ #define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
+-#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
++#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(DEFAULT_MAP_WINDOW)
+ 
+ #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
+ 
+diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+index 207b8f2582c7..593a31e93812 100644
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -21,6 +21,7 @@
+ #include <asm/compat.h>
+ #include <asm/ia32.h>
+ #include <asm/syscalls.h>
++#include <asm/mpx.h>
+ 
+ /*
+  * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
+@@ -132,6 +133,10 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	struct vm_unmapped_area_info info;
+ 	unsigned long begin, end;
+ 
++	addr = mpx_unmapped_area_check(addr, len, flags);
++	if (IS_ERR_VALUE(addr))
++		return addr;
++
+ 	if (flags & MAP_FIXED)
+ 		return addr;
+ 
+@@ -151,7 +156,16 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	info.flags = 0;
+ 	info.length = len;
+ 	info.low_limit = begin;
+-	info.high_limit = end;
++
++	/*
++	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
++	 * in the full address space.
++	 */
++	if (addr > DEFAULT_MAP_WINDOW)
++		info.high_limit = min(end, TASK_SIZE);
++	else
++		info.high_limit = min(end, DEFAULT_MAP_WINDOW);
++
+ 	info.align_mask = 0;
+ 	info.align_offset = pgoff << PAGE_SHIFT;
+ 	if (filp) {
+@@ -171,6 +185,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	unsigned long addr = addr0;
+ 	struct vm_unmapped_area_info info;
+ 
++	addr = mpx_unmapped_area_check(addr, len, flags);
++	if (IS_ERR_VALUE(addr))
++		return addr;
++
+ 	/* requested length too big for entire address space */
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
+@@ -195,6 +213,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	info.length = len;
+ 	info.low_limit = PAGE_SIZE;
+ 	info.high_limit = get_mmap_base(0);
++
++	/*
++	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
++	 * in the full address space.
++	 */
++	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
++		info.high_limit += TASK_SIZE - DEFAULT_MAP_WINDOW;
++
+ 	info.align_mask = 0;
+ 	info.align_offset = pgoff << PAGE_SHIFT;
+ 	if (filp) {
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index 302f43fd9c28..9a0b89252c52 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -18,6 +18,7 @@
+ #include <asm/tlbflush.h>
+ #include <asm/pgalloc.h>
+ #include <asm/elf.h>
++#include <asm/mpx.h>
+ 
+ #if 0	/* This is just for testing */
+ struct page *
+@@ -87,23 +88,38 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
+ 	info.low_limit = get_mmap_base(1);
+ 	info.high_limit = in_compat_syscall() ?
+ 		tasksize_32bit() : tasksize_64bit();
++
++	/*
++	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
++	 * in the full address space.
++	 */
++	if (addr > DEFAULT_MAP_WINDOW)
++		info.high_limit = TASK_SIZE;
++
+ 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+ 	info.align_offset = 0;
+ 	return vm_unmapped_area(&info);
+ }
+ 
+ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+-		unsigned long addr0, unsigned long len,
++		unsigned long addr, unsigned long len,
+ 		unsigned long pgoff, unsigned long flags)
+ {
+ 	struct hstate *h = hstate_file(file);
+ 	struct vm_unmapped_area_info info;
+-	unsigned long addr;
+ 
+ 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+ 	info.length = len;
+ 	info.low_limit = PAGE_SIZE;
+ 	info.high_limit = get_mmap_base(0);
++
++	/*
++	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
++	 * in the full address space.
++	 */
++	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
++		info.high_limit += TASK_SIZE - DEFAULT_MAP_WINDOW;
++
+ 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+ 	info.align_offset = 0;
+ 	addr = vm_unmapped_area(&info);
+@@ -118,7 +134,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+ 		VM_BUG_ON(addr != -ENOMEM);
+ 		info.flags = 0;
+ 		info.low_limit = TASK_UNMAPPED_BASE;
+-		info.high_limit = TASK_SIZE;
++		info.high_limit = DEFAULT_MAP_WINDOW;
+ 		addr = vm_unmapped_area(&info);
+ 	}
+ 
+@@ -135,6 +151,11 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 
+ 	if (len & ~huge_page_mask(h))
+ 		return -EINVAL;
++
++	addr = mpx_unmapped_area_check(addr, len, flags);
++	if (IS_ERR_VALUE(addr))
++		return addr;
++
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index 19ad095b41df..d63232a31945 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -44,7 +44,7 @@ unsigned long tasksize_32bit(void)
+ 
+ unsigned long tasksize_64bit(void)
+ {
+-	return TASK_SIZE_MAX;
++	return DEFAULT_MAP_WINDOW;
+ }
+ 
+ static unsigned long stack_maxrandom_size(unsigned long task_size)
+diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
+index cd44ae727df7..a26a1b373fd0 100644
+--- a/arch/x86/mm/mpx.c
++++ b/arch/x86/mm/mpx.c
+@@ -355,10 +355,19 @@ int mpx_enable_management(void)
+ 	 */
+ 	bd_base = mpx_get_bounds_dir();
+ 	down_write(&mm->mmap_sem);
++
++	/* MPX doesn't support addresses above 47-bits yet. */
++	if (find_vma(mm, DEFAULT_MAP_WINDOW)) {
++		pr_warn_once("%s (%d): MPX cannot handle addresses "
++				"above 47-bits. Disabling.",
++				current->comm, current->pid);
++		ret = -ENXIO;
++		goto out;
++	}
+ 	mm->context.bd_addr = bd_base;
+ 	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
+ 		ret = -ENXIO;
 -
--	test %rbp, %rbp
--	jz .Lskip_fixup
--
--	/*
--	 * Fixup the kernel text+data virtual addresses. Note that
--	 * we might write invalid pmds, when the kernel is relocated
--	 * cleanup_highmap() fixes this up along with the mappings
--	 * beyond _end.
--	 */
--	leaq	level2_kernel_pgt(%rip), %rdi
--	leaq	PAGE_SIZE(%rdi), %r8
--	/* See if it is a valid page table entry */
--1:	testb	$_PAGE_PRESENT, 0(%rdi)
--	jz	2f
--	addq	%rbp, 0(%rdi)
--	/* Go to the next page */
--2:	addq	$8, %rdi
--	cmp	%r8, %rdi
--	jne	1b
--
--	/* Fixup phys_base */
--	addq	%rbp, phys_base(%rip)
--
--.Lskip_fixup:
- 	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
- 	jmp 1f
- ENTRY(secondary_startup_64)
++out:
+ 	up_write(&mm->mmap_sem);
+ 	return ret;
+ }
+@@ -1038,3 +1047,25 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (ret)
+ 		force_sig(SIGSEGV, current);
+ }
++
++/* MPX cannot handle addresses above 47-bits yet. */
++unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
++		unsigned long flags)
++{
++	if (!kernel_managing_mpx_tables(current->mm))
++		return addr;
++	if (addr + len <= DEFAULT_MAP_WINDOW)
++		return addr;
++	if (flags & MAP_FIXED)
++		return -ENOMEM;
++
++	/*
++	 * Requested len is larger than whole area we're allowed to map in.
++	 * Resetting hinting address wouldn't do much good -- fail early.
++	 */
++	if (len > DEFAULT_MAP_WINDOW)
++		return -ENOMEM;
++
++	/* Look for unmap area within DEFAULT_MAP_WINDOW */
++	return 0;
++}
 -- 
 2.11.0
 
