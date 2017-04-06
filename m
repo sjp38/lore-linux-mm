@@ -1,87 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E436B03D3
-	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 18:11:10 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id j30so7046517qta.2
-        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 15:11:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u127si18925024qkd.249.2017.04.05.15.11.08
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 167FB6B03AA
+	for <linux-mm@kvack.org>; Wed,  5 Apr 2017 20:01:03 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g2so18965449pge.7
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 17:01:03 -0700 (PDT)
+Received: from mail-pg0-x235.google.com (mail-pg0-x235.google.com. [2607:f8b0:400e:c05::235])
+        by mx.google.com with ESMTPS id g19si21983042pfd.391.2017.04.05.17.01.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Apr 2017 15:11:08 -0700 (PDT)
-Message-ID: <1491430264.16856.43.camel@redhat.com>
-Subject: Re: [PATCH] mm: vmscan: fix IO/refault regression in cache
- workingset transition
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 05 Apr 2017 18:11:04 -0400
-In-Reply-To: <20170404220052.27593-1-hannes@cmpxchg.org>
-References: <20170404220052.27593-1-hannes@cmpxchg.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-ZVQRuuSzGMtMeuKPGMPj"
-Mime-Version: 1.0
+        Wed, 05 Apr 2017 17:01:02 -0700 (PDT)
+Received: by mail-pg0-x235.google.com with SMTP id x125so18881528pgb.0
+        for <linux-mm@kvack.org>; Wed, 05 Apr 2017 17:01:01 -0700 (PDT)
+Date: Wed, 5 Apr 2017 17:00:59 -0700
+From: Kees Cook <keescook@chromium.org>
+Subject: [RFC][PATCH] mm: Tighten x86 /dev/mem with zeroing
+Message-ID: <20170406000059.GA136863@beast>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Tommi Rantala <tommi.t.rantala@nokia.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+
+This changes the x86 exception for the low 1MB by reading back zeros for
+RAM areas instead of blindly allowing them. (It may be possible for heap
+to end up getting allocated in low 1MB RAM, and then read out, possibly
+tripping hardened usercopy.)
+
+Unfinished: this still needs mmap support.
+
+Reported-by: Tommi Rantala <tommi.t.rantala@nokia.com>
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+Tommi, can you check and see if this fixes what you're seeing? I want to
+make sure this actually works first. (x86info uses seek/read not mmap.)
+---
+
+ arch/x86/mm/init.c | 41 +++++++++++++++++++--------
+ drivers/char/mem.c | 82 ++++++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 82 insertions(+), 41 deletions(-)
+
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 22af912d66d2..889e7619a091 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -643,21 +643,40 @@ void __init init_mem_mapping(void)
+  * devmem_is_allowed() checks to see if /dev/mem access to a certain address
+  * is valid. The argument is a physical page number.
+  *
+- *
+- * On x86, access has to be given to the first megabyte of ram because that area
+- * contains BIOS code and data regions used by X and dosemu and similar apps.
+- * Access has to be given to non-kernel-ram areas as well, these contain the PCI
+- * mmio resources as well as potential bios/acpi data regions.
++ * On x86, access has to be given to the first megabyte of RAM because that
++ * area traditionally contains BIOS code and data regions used by X, dosemu,
++ * and similar apps. Since they map the entire memory range, the whole range
++ * must be allowed (for mapping), but any areas that would otherwise be
++ * disallowed are flagged as being "zero filled" instead of rejected.
++ * Access has to be given to non-kernel-ram areas as well, these contain the
++ * PCI mmio resources as well as potential bios/acpi data regions.
+  */
+ int devmem_is_allowed(unsigned long pagenr)
+ {
+-	if (pagenr < 256)
+-		return 1;
+-	if (iomem_is_exclusive(pagenr << PAGE_SHIFT))
++	if (page_is_ram(pagenr)) {
++		/*
++		 * For disallowed memory regions in the low 1MB range,
++		 * request that the page be shown as all zeros.
++		 */
++		if (pagenr < 256)
++			return 2;
++
++		return 0;
++	}
++
++	/*
++	 * This must follow RAM test, since System RAM is considered a
++	 * restricted resource under CONFIG_STRICT_IOMEM.
++	 */
++	if (iomem_is_exclusive(pagenr << PAGE_SHIFT)) {
++		/* Low 1MB bypasses iomem restrictions. */
++		if (pagenr < 256)
++			return 1;
++
+ 		return 0;
+-	if (!page_is_ram(pagenr))
+-		return 1;
+-	return 0;
++	}
++
++	return 1;
+ }
+ 
+ void free_init_pages(char *what, unsigned long begin, unsigned long end)
+diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+index 6d9cc2d39d22..7e4a9d1296bb 100644
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -60,6 +60,10 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
+ #endif
+ 
+ #ifdef CONFIG_STRICT_DEVMEM
++static inline int page_is_allowed(unsigned long pfn)
++{
++	return devmem_is_allowed(pfn);
++}
+ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+ {
+ 	u64 from = ((u64)pfn) << PAGE_SHIFT;
+@@ -75,6 +79,10 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+ 	return 1;
+ }
+ #else
++static inline int page_is_allowed(unsigned long pfn)
++{
++	return 1;
++}
+ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+ {
+ 	return 1;
+@@ -122,23 +130,31 @@ static ssize_t read_mem(struct file *file, char __user *buf,
+ 
+ 	while (count > 0) {
+ 		unsigned long remaining;
++		int allowed;
+ 
+ 		sz = size_inside_page(p, count);
+ 
+-		if (!range_is_allowed(p >> PAGE_SHIFT, count))
++		allowed = page_is_allowed(p >> PAGE_SHIFT);
++		if (!allowed)
+ 			return -EPERM;
++		if (allowed == 2) {
++			/* Show zeros for restricted memory. */
++			remaining = clear_user(buf, sz);
++		} else {
++			/*
++			 * On ia64 if a page has been mapped somewhere as
++			 * uncached, then it must also be accessed uncached
++			 * by the kernel or data corruption may occur.
++			 */
++			ptr = xlate_dev_mem_ptr(p);
++			if (!ptr)
++				return -EFAULT;
+ 
+-		/*
+-		 * On ia64 if a page has been mapped somewhere as uncached, then
+-		 * it must also be accessed uncached by the kernel or data
+-		 * corruption may occur.
+-		 */
+-		ptr = xlate_dev_mem_ptr(p);
+-		if (!ptr)
+-			return -EFAULT;
++			remaining = copy_to_user(buf, ptr, sz);
++
++			unxlate_dev_mem_ptr(p, ptr);
++		}
+ 
+-		remaining = copy_to_user(buf, ptr, sz);
+-		unxlate_dev_mem_ptr(p, ptr);
+ 		if (remaining)
+ 			return -EFAULT;
+ 
+@@ -181,30 +197,36 @@ static ssize_t write_mem(struct file *file, const char __user *buf,
+ #endif
+ 
+ 	while (count > 0) {
++		int allowed;
++
+ 		sz = size_inside_page(p, count);
+ 
+-		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
++		allowed = page_is_allowed(p >> PAGE_SHIFT);
++		if (!allowed)
+ 			return -EPERM;
+ 
+-		/*
+-		 * On ia64 if a page has been mapped somewhere as uncached, then
+-		 * it must also be accessed uncached by the kernel or data
+-		 * corruption may occur.
+-		 */
+-		ptr = xlate_dev_mem_ptr(p);
+-		if (!ptr) {
+-			if (written)
+-				break;
+-			return -EFAULT;
+-		}
++		/* Skip actual writing when a page is marked as restricted. */
++		if (allowed == 1) {
++			/*
++			 * On ia64 if a page has been mapped somewhere as
++			 * uncached, then it must also be accessed uncached
++			 * by the kernel or data corruption may occur.
++			 */
++			ptr = xlate_dev_mem_ptr(p);
++			if (!ptr) {
++				if (written)
++					break;
++				return -EFAULT;
++			}
+ 
+-		copied = copy_from_user(ptr, buf, sz);
+-		unxlate_dev_mem_ptr(p, ptr);
+-		if (copied) {
+-			written += sz - copied;
+-			if (written)
+-				break;
+-			return -EFAULT;
++			copied = copy_from_user(ptr, buf, sz);
++			unxlate_dev_mem_ptr(p, ptr);
++			if (copied) {
++				written += sz - copied;
++				if (written)
++					break;
++				return -EFAULT;
++			}
+ 		}
+ 
+ 		buf += sz;
+-- 
+2.7.4
 
 
---=-ZVQRuuSzGMtMeuKPGMPj
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Tue, 2017-04-04 at 18:00 -0400, Johannes Weiner wrote:
-
-> +
-> +	/*
-> +	=C2=A0* When refaults are being observed, it means a new
-> workingset
-> +	=C2=A0* is being established. Disable active list protection to
-> get
-> +	=C2=A0* rid of the stale workingset quickly.
-> +	=C2=A0*/
-
-This looks a little aggressive. What is this
-expected to do when you have multiple workloads
-sharing the same LRU, and one of the workloads
-is doing refaults, while the other workload is
-continuing to use the same working set as before?
-
-I have been trying to wrap my mind around that for
-the past day or so, and figure I should just ask
-the question :)
-
-> +	if (file && actual_reclaim && lruvec->refaults !=3D refaults)
-> {
-> +		inactive_ratio =3D 0;
-> +	} else {
-> +		gb =3D (inactive + active) >> (30 - PAGE_SHIFT);
-> +		if (gb)
-> +			inactive_ratio =3D int_sqrt(10 * gb);
-> +		else
-> +			inactive_ratio =3D 1;
-> +	}
-
---=20
-All rights reversed
-
---=-ZVQRuuSzGMtMeuKPGMPj
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJY5Wt4AAoJEM553pKExN6DwZEH/3vYvvFtryLqCOy63GZcK9lS
-ytfChfTSDqflsX9lIj06z1LVyQZbeDHO/NcKV8iQa7g2XKYq21piJEm4yfGfR9fT
-bn0kyKZUhxYB7z8U4qV4mBG5gle2u1O5jxX83c2LGFf4FhueLpJdRZJtXBPb/aBR
-ojSd+qAF/iVaFrjDlt21eEa0PB5K6QAKHZ2NrA+jGNHeWUVxh1mJUhrIVep+8kfj
-/4WendQKIZNy5tMzvQWA4mxiV04+gpRMH/4DkKgBzpepCRC3jzKmc8QZi4DYmK1m
-3vBJ+Gy3W6M9gKlnFJvFcBlnrynX3ChhKtLpsb1hszKgw43Y/5lHbWCJLB0arfw=
-=qtdw
------END PGP SIGNATURE-----
-
---=-ZVQRuuSzGMtMeuKPGMPj--
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
