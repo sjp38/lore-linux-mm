@@ -1,63 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 288866B0038
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 10:45:10 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z109so10756800wrb.1
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 07:45:10 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s126si5087445wmd.156.2017.04.07.07.45.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 48CFB6B0390
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 10:51:02 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u202so74330013pgb.9
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 07:51:02 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0051.outbound.protection.outlook.com. [104.47.40.51])
+        by mx.google.com with ESMTPS id z66si5312243pfb.389.2017.04.07.07.51.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Apr 2017 07:45:08 -0700 (PDT)
-Date: Fri, 7 Apr 2017 16:45:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [HMM 01/16] mm/memory/hotplug: add memory type parameter to
- arch_add/remove_memory
-Message-ID: <20170407144504.GG16413@dhcp22.suse.cz>
-References: <20170405204026.3940-1-jglisse@redhat.com>
- <20170405204026.3940-2-jglisse@redhat.com>
- <20170407121349.GB16392@dhcp22.suse.cz>
- <20170407143246.GA15098@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 07 Apr 2017 07:51:01 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 14/32] x86: mm: Provide support to use memblock
+ when spliting large pages
+References: <f46ff1e1-1cc7-1907-74a0-e2709fa1e5fb@amd.com>
+ <20170406172520.iyjjtz56u3jlnjhq@pd.tnic>
+ <ba739600-d468-1f1b-aff6-89c79fd6030b@amd.com>
+ <20170407113325.vykr4g3qdufgt2rd@pd.tnic>
+From: Brijesh Singh <brijesh.singh@amd.com>
+Message-ID: <cdb9c846-f4cd-81c1-eff3-6ca2de7c3e20@amd.com>
+Date: Fri, 7 Apr 2017 09:50:48 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170407143246.GA15098@redhat.com>
+In-Reply-To: <20170407113325.vykr4g3qdufgt2rd@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Borislav Petkov <bp@suse.de>
+Cc: brijesh.singh@amd.com, Paolo Bonzini <pbonzini@redhat.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linux-pci@vger.kernel.org, linus.walleij@linaro.org, gary.hook@amd.com, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, cl@linux.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, peterz@infradead.org, piotr.luc@intel.com, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, arnd@arndb.de, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, luto@kernel.org, devel@linuxdriverproject.org, bhelgaas@google.com, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedo.suse.de
 
-On Fri 07-04-17 10:32:49, Jerome Glisse wrote:
-> On Fri, Apr 07, 2017 at 02:13:49PM +0200, Michal Hocko wrote:
-> > On Wed 05-04-17 16:40:11, Jerome Glisse wrote:
-> > > When hotpluging memory we want more information on the type of memory.
-> > > This is to extend ZONE_DEVICE to support new type of memory other than
-> > > the persistent memory. Existing user of ZONE_DEVICE (persistent memory)
-> > > will be left un-modified.
-> > 
-> > My current hotplug rework [1] is touching this path as well. It is not
-> > really clear from the chage why you are changing this and what are the
-> > further expectations of MEMORY_DEVICE_PERSISTENT. Infact I have replaced
-> > for_device with want__memblock [2]. I plan to repost shortly but I would
-> > like to understand your modifications more to reduce potential conflicts
-> > in the code. Why do you need to distinguish different types of memory
-> > anyway.
-> > 
-> > [1] http://lkml.kernel.org/r/20170330115454.32154-1-mhocko@kernel.org
-> > [2] the current patchset is in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> >     branch attempts/rewrite-mem_hotplug-WIP
-> 
-> This is needed for UNADDRESSABLE memory type introduced in patch 3 and
-> the arch specific bits are in patch 4. Basicly for UNADDRESSABLE memory
-> i do not want the arch code to create a linear mapping for the range
-> being hotpluged. Adding memory_type in this patch allow to distinguish
-> between different type of ZONE_DEVICE.
 
-Why don't you use __add_pages directly then?
--- 
-Michal Hocko
-SUSE Labs
+
+On 04/07/2017 06:33 AM, Borislav Petkov wrote:
+> On Thu, Apr 06, 2017 at 01:37:41PM -0500, Brijesh Singh wrote:
+>> I did thought about prot idea but ran into another corner case which may require
+>> us changing the signature of phys_pud_init and phys_pmd_init. The paddr_start
+>> and paddr_end args into kernel_physical_mapping_init() should be aligned on PMD
+>> level down (see comment [1]). So, if we encounter a case where our address range
+>> is part of large page but we need to clear only one entry (i.e asked to clear just
+>> one page into 2M region). In that case, now we need to pass additional arguments
+>> into kernel_physical_mapping, phys_pud_init and phys_pmd_init to hint the splitting
+>> code that it should use our prot for specific entries and all other entries will use
+>> the old_prot.
+>
+> Ok, but your !4K case:
+>
+> +               /*
+> +                * virtual address is part of large page, create the page
+> +                * table mapping to use smaller pages (4K). The virtual and
+> +                * physical address must be aligned to PMD level.
+> +                */
+> +               kernel_physical_mapping_init(__pa(vaddr & PMD_MASK),
+> +                                            __pa((vaddr_end & PMD_MASK) + PMD_SIZE),
+> +                                            0);
+>
+>
+> would map a 2M page as encrypted by default. What if we want to map a 2M page
+> frame as ~_PAGE_ENC?
+>
+
+Thanks for feedbacks, I will make sure that we cover all other cases in final patch.
+Untested but something like this can be used to check whether we can change the large page
+in one go or request the splitting.
+
++               psize = page_level_size(level);
++               pmask = page_level_mask(level);
++
++               /*
++                * Check, whether we can change the large page in one go.
++                * We request a split, when the address is not aligned and
++                * the number of pages to set or clear encryption bit is smaller
++                * than the number of pages in the large page.
++                */
++               if (vaddr == (vaddr & pmask) && ((vaddr_end - vaddr) >= psize)) {
++                       /* UPDATE PMD HERE */
++                       vaddr_next = (vaddr & pmask) + psize;
++                       continue;
++               }
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
