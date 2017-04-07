@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 971396B0390
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 20:36:06 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id r129so53495073pgr.18
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 17:36:06 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 31si3151535pgx.220.2017.04.06.17.36.04
-        for <linux-mm@kvack.org>;
-        Thu, 06 Apr 2017 17:36:05 -0700 (PDT)
-Date: Fri, 7 Apr 2017 09:38:51 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 7/8] mm, compaction: restrict async compaction to
- pageblocks of same migratetype
-Message-ID: <20170407003851.GA17231@js1304-P5Q-DELUXE>
-References: <20170307131545.28577-1-vbabka@suse.cz>
- <20170307131545.28577-8-vbabka@suse.cz>
- <20170316021403.GC14063@js1304-P5Q-DELUXE>
- <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 84DBE6B0390
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 20:45:25 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v4so54350820pgc.20
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 17:45:25 -0700 (PDT)
+Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
+        by mx.google.com with ESMTPS id u124si3173359pgb.168.2017.04.06.17.45.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Apr 2017 17:45:24 -0700 (PDT)
+Received: by mail-pg0-x229.google.com with SMTP id g2so49539407pge.3
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 17:45:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <20170306103032.2540-3-mhocko@kernel.org>
+References: <20170306103032.2540-1-mhocko@kernel.org> <20170306103032.2540-3-mhocko@kernel.org>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 6 Apr 2017 17:45:23 -0700
+Message-ID: <CALvZod5hBHjKfumAFmRoS9Wbg06+KTg33wSD=8Ksdrq=Vm1OgA@mail.gmail.com>
+Subject: Re: [PATCH 2/9] mm: support __GFP_REPEAT in kvmalloc_node for >32kB
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Mar 29, 2017 at 06:06:41PM +0200, Vlastimil Babka wrote:
-> On 03/16/2017 03:14 AM, Joonsoo Kim wrote:
-> > On Tue, Mar 07, 2017 at 02:15:44PM +0100, Vlastimil Babka wrote:
-> >> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
-> >> pageblocks. This is a heuristic intended to reduce latency, based on the
-> >> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
-> >> 
-> >> However, with the exception of THP's, most high-order allocations are not
-> >> movable. Should the async compaction succeed, this increases the chance that
-> >> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
-> >> long-term fragmentation worse.
-> > 
-> > I agree with this idea but have some concerns on this change.
-> > 
-> > *ASYNC* compaction is designed for reducing latency and this change
-> > doesn't fit it. If everything works fine, there is a few movable pages
-> > in non-MOVABLE pageblocks as you noted above. Moreover, there is quite
-> > less the number of non-MOVABLE pageblock than MOVABLE one so finding
-> > non-MOVABLE pageblock takes long time. These two factors will increase
-> > the latency of *ASYNC* compaction.
-> 
-> Right. I lately started to doubt the whole idea of async compaction (for
-> non-movable allocations). Seems it's one of the compaction heuristics tuned
-> towards the THP usecase. But for non-movable allocations, we just can't have
-> both the low latency and long-term fragmentation avoidance. I see now even my
-> own skip_on_failure mode in isolate_migratepages_block() as a mistake for
-> non-movable allocations.
+On Mon, Mar 6, 2017 at 2:30 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
+> vhost_vsock because it would really like to prefer kmalloc to the
+> vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
+> allocation to vmalloc") for more context. Michael Tsirkin has also
+> noted:
+> "
+> __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
+> accesses are slowed down.  Allocation is not on data path, accesses are.
+> "
+>
+> The similar applies to other vhost_kvzalloc users.
+>
+> Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
+> things to be careful about. First we should prevent from the OOM killer
+> and so have to involve __GFP_NORETRY by default and secondly override
+> __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
+> for !costly orders.
+>
+> Supporting __GFP_REPEAT like semantic for !costly request is possible
+> it would require changes in the page allocator. This is out of scope of
+> this patch.
+>
+> This patch shouldn't introduce any functional change.
+>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Michael S. Tsirkin <mst@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  drivers/vhost/net.c   |  9 +++------
+>  drivers/vhost/vhost.c | 15 +++------------
+>  drivers/vhost/vsock.c |  9 +++------
+>  mm/util.c             | 20 ++++++++++++++++----
+>  4 files changed, 25 insertions(+), 28 deletions(-)
+>
 
-Why do you think that skip_on_failure mode is a mistake? I think that
-it would lead to reduce the latency and it fits the goal of async
-compaction.
-
-> 
-> Ideally I'd like to make async compaction redundant by kcompactd, and direct
-> compaction would mean a serious situation which should warrant sync compaction.
-> Meanwhile I see several options to modify this patch
-> - async compaction for non-movable allocations will stop doing the
-> skip_on_failure mode, and won't restrict the pageblock at all. patch 8/8 will
-> make sure that also this kind of compaction finishes the whole pageblock
-> - non-movable allocations will skip async compaction completely and go for sync
-> compaction immediately
-
-IMO, concept of async compaction is also important for non-movable allocation.
-Non-movable allocation is essential for some workload and they hope
-the low latency.
-
-Thanks.
+There is a kzalloc/vzalloc call in
+drivers/vhost/scsi.c:vhost_scsi_open() which is not converted to
+kvzalloc(). Was that intentional?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
