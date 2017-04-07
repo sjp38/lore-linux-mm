@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C126B039F
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 16:29:12 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id n80so24041144qke.6
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 13:29:12 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ABE656B03A0
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 16:29:13 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l16so24598921qtc.14
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 13:29:13 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q10si5879889qtq.77.2017.04.07.13.29.10
+        by mx.google.com with ESMTPS id 65si4531621qkb.289.2017.04.07.13.29.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Apr 2017 13:29:11 -0700 (PDT)
+        Fri, 07 Apr 2017 13:29:12 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [RFC HMM CDM 1/3] mm/cache-coherent-device-memory: new type of ZONE_DEVICE
-Date: Fri,  7 Apr 2017 16:28:51 -0400
-Message-Id: <1491596933-21669-2-git-send-email-jglisse@redhat.com>
+Subject: [RFC HMM CDM 2/3] mm/hmm: add new helper to hotplug CDM memory region
+Date: Fri,  7 Apr 2017 16:28:52 -0400
+Message-Id: <1491596933-21669-3-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1491596933-21669-1-git-send-email-jglisse@redhat.com>
 References: <1491596933-21669-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,290 +23,122 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: John Hubbard <jhubbard@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Balbir Singh <balbir@au1.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Haren Myneni <haren@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Platform with advance system bus (like CAPI or CCIX) allow device
-memory to be accessible from CPU in a cache coherent fashion. Add
-a new type of ZONE_DEVICE to represent such memory. The use case
-are the same as for the un-addressable device memory but without
-all the corners cases.
+Unlike unaddressable memory, coherent device memory has a real
+resource associated with it on the system (as CPU can address
+it). Add a new helper to hotplug such memory within the HMM
+framework.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/ioport.h         |  1 +
- include/linux/memory_hotplug.h |  8 ++++++++
- include/linux/memremap.h       | 26 ++++++++++++++++++++++++++
- mm/Kconfig                     |  9 +++++++++
- mm/gup.c                       |  1 +
- mm/memcontrol.c                | 25 +++++++++++++++++++++++--
- mm/memory.c                    | 18 ++++++++++++++++++
- mm/migrate.c                   | 12 +++++++++++-
- 8 files changed, 97 insertions(+), 3 deletions(-)
+ include/linux/hmm.h |  3 +++
+ mm/hmm.c            | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 64 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index ec619dc..55cba87 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -131,6 +131,7 @@ enum {
- 	IORES_DESC_PERSISTENT_MEMORY		= 4,
- 	IORES_DESC_PERSISTENT_MEMORY_LEGACY	= 5,
- 	IORES_DESC_DEVICE_MEMORY_UNADDRESSABLE	= 6,
-+	IORES_DESC_DEVICE_MEMORY_CACHE_COHERENT	= 7,
- };
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 374e5fd..e4fda18 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -392,6 +392,9 @@ struct hmm_devmem {
+ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 				  struct device *device,
+ 				  unsigned long size);
++struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
++					   struct device *device,
++					   struct resource *res);
+ void hmm_devmem_remove(struct hmm_devmem *devmem);
  
- /* helpers to define resources */
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index e60f203..7c587ce 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -36,11 +36,19 @@ struct resource;
-  * page must be treated as an opaque object, rather than a "normal" struct page.
-  * A more complete discussion of unaddressable memory may be found in
-  * include/linux/hmm.h and Documentation/vm/hmm.txt.
-+ *
-+ * MEMORY_DEVICE_CACHE_COHERENT:
-+ * Device memory that is cache coherent from device and CPU point of view. This
-+ * is use on platform that have an advance system bus (like CAPI or CCIX). A
-+ * driver can hotplug the device memory using ZONE_DEVICE and with that memory
-+ * type. Any page of a process can be migrated to such memory. However no one
-+ * should be allow to pin such memory so that it can always be evicted.
-  */
- enum memory_type {
- 	MEMORY_NORMAL = 0,
- 	MEMORY_DEVICE_PERSISTENT,
- 	MEMORY_DEVICE_UNADDRESSABLE,
-+	MEMORY_DEVICE_CACHE_COHERENT,
- };
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 3a9494e..6029ddf 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -41,6 +41,8 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-  *   page_fault()
-  *   page_free()
-  *
-+ * For MEMORY_DEVICE_CACHE_COHERENT only the page_free() callback matter.
-+ *
-  * Additional notes about MEMORY_DEVICE_UNADDRESSABLE may be found in
-  * include/linux/hmm.h and Documentation/vm/hmm.txt. There is also a brief
-  * explanation in include/linux/memory_hotplug.h.
-@@ -99,12 +101,26 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap);
- struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
- 
-+static inline bool is_device_persistent_page(const struct page *page)
-+{
-+	/* See MEMORY_DEVICE_UNADDRESSABLE in include/linux/memory_hotplug.h */
-+	return ((page_zonenum(page) == ZONE_DEVICE) &&
-+		(page->pgmap->type == MEMORY_DEVICE_PERSISTENT));
-+}
-+
- static inline bool is_device_unaddressable_page(const struct page *page)
- {
- 	/* See MEMORY_DEVICE_UNADDRESSABLE in include/linux/memory_hotplug.h */
- 	return ((page_zonenum(page) == ZONE_DEVICE) &&
- 		(page->pgmap->type == MEMORY_DEVICE_UNADDRESSABLE));
+ int hmm_devmem_fault_range(struct hmm_devmem *devmem,
+diff --git a/mm/hmm.c b/mm/hmm.c
+index ff8ec59..28c7fcb 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -1038,6 +1038,63 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
  }
-+
-+static inline bool is_device_cache_coherent_page(const struct page *page)
+ EXPORT_SYMBOL(hmm_devmem_add);
+ 
++struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
++					   struct device *device,
++					   struct resource *res)
 +{
-+	/* See MEMORY_DEVICE_UNADDRESSABLE in include/linux/memory_hotplug.h */
-+	return ((page_zonenum(page) == ZONE_DEVICE) &&
-+		(page->pgmap->type == MEMORY_DEVICE_CACHE_COHERENT));
-+}
- #else
- static inline void *devm_memremap_pages(struct device *dev,
- 		struct resource *res, struct percpu_ref *ref,
-@@ -124,10 +140,20 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- 	return NULL;
- }
- 
-+static inline bool is_device_persistent_page(const struct page *page)
-+{
-+	return false;
-+}
++	struct hmm_devmem *devmem;
++	int ret;
 +
- static inline bool is_device_unaddressable_page(const struct page *page)
- {
- 	return false;
- }
++	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
++				   GFP_KERNEL, dev_to_node(device));
++	if (!devmem)
++		return ERR_PTR(-ENOMEM);
 +
-+static inline bool is_device_cache_coherent_page(const struct page *page)
-+{
-+	return false;
-+}
- #endif
- 
- /**
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 96dcf61..5c7b0ec 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -744,6 +744,15 @@ config DEVICE_UNADDRESSABLE
- 	  i.e., memory that is only accessible from the device (or group of
- 	  devices).
- 
-+config DEVICE_CACHE_COHERENT
-+	bool "Cache coherent device memory (GPU memory, ...)"
-+	depends on ZONE_DEVICE
++	init_completion(&devmem->completion);
++	devmem->pfn_first = -1UL;
++	devmem->pfn_last = -1UL;
++	devmem->resource = res;
++	devmem->device = device;
++	devmem->ops = ops;
 +
-+	help
-+	  Allow to create struct page for cache-coherent device memory
-+	  which is only do-able with advance system bus like CAPI or
-+	  CCIX.
++	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
++			      0, GFP_KERNEL);
++	if (ret)
++		goto error_percpu_ref;
 +
- config FRAME_VECTOR
- 	bool
- 
-diff --git a/mm/gup.c b/mm/gup.c
-index 4039ec2..4d54220 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -121,6 +121,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 			page = pte_page(pte);
- 		else
- 			goto no_page;
-+		pgmap = get_dev_pagemap(pte_pfn(pte), NULL);
- 	} else if (unlikely(!page)) {
- 		if (flags & FOLL_DUMP) {
- 			/* Avoid special (like zero) pages in core dumps */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 712a687..fd188cf 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4388,6 +4388,7 @@ enum mc_target_type {
- 	MC_TARGET_NONE = 0,
- 	MC_TARGET_PAGE,
- 	MC_TARGET_SWAP,
-+	MC_TARGET_DEVICE,
- };
- 
- static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
-@@ -4395,8 +4396,22 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- {
- 	struct page *page = vm_normal_page(vma, addr, ptent);
- 
--	if (!page || !page_mapped(page))
-+	if (!page || !page_mapped(page)) {
-+		if (pte_devmap(pte)) {
-+			struct dev_pagemap *pgmap = NULL;
++	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
++	if (ret)
++		goto error_devm_add_action;
 +
-+			page = pte_page(ptent);
-+			if (!is_device_cache_coherent_page(page))
-+				return NULL;
 +
-+			pgmap = get_dev_pagemap(pte_pfn(pte), NULL);
-+			if (pgmap) {
-+				get_page(page);
-+				return page;
-+			}
-+		}
- 		return NULL;
++	devmem->resource->desc = MEMORY_DEVICE_CACHE_COHERENT;
++	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
++	devmem->pfn_last = devmem->pfn_first +
++			   (resource_size(devmem->resource) >> PAGE_SHIFT);
++
++	ret = hmm_devmem_pages_create(devmem);
++	if (ret)
++		goto error_devm_add_action;
++
++	devres_add(device, devmem);
++
++	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
++	if (ret) {
++		hmm_devmem_remove(devmem);
++		return ERR_PTR(ret);
 +	}
- 	if (PageAnon(page)) {
- 		if (!(mc.flags & MOVE_ANON))
- 			return NULL;
-@@ -4611,6 +4626,8 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
- 		 */
- 		if (page->mem_cgroup == mc.from) {
- 			ret = MC_TARGET_PAGE;
-+			if (is_device_cache_coherent_page(page))
-+				ret = MC_TARGET_DEVICE;
- 			if (target)
- 				target->page = page;
- 		}
-@@ -4896,12 +4913,16 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		pte_t ptent = *(pte++);
-+		bool device = false;
- 		swp_entry_t ent;
- 
- 		if (!mc.precharge)
- 			break;
- 
- 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
-+		case MC_TARGET_DEVICE:
-+			device = true;
-+			/* fall through */
- 		case MC_TARGET_PAGE:
- 			page = target.page;
- 			/*
-@@ -4912,7 +4933,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 			 */
- 			if (PageTransCompound(page))
- 				goto put;
--			if (isolate_lru_page(page))
-+			if (!device && isolate_lru_page(page))
- 				goto put;
- 			if (!mem_cgroup_move_account(page, false,
- 						mc.from, mc.to)) {
-diff --git a/mm/memory.c b/mm/memory.c
-index d68c653..bf41258 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -979,6 +979,24 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		get_page(page);
- 		page_dup_rmap(page, false);
- 		rss[mm_counter(page)]++;
-+	} else if (pte_devmap(pte)) {
-+		struct dev_pagemap *pgmap = NULL;
 +
-+		page = pte_page(pte);
++	return devmem;
 +
-+		/*
-+		 * Cache coherent device memory behave like regular page and
-+		 * not like persistent memory page. For more informations see
-+		 * MEMORY_DEVICE_CACHE_COHERENT in memory_hotplug.h
-+		 */
-+		if (is_device_cache_coherent_page(page)) {
-+			pgmap = get_dev_pagemap(pte_pfn(pte), NULL);
-+			if (pgmap) {
-+				get_page(page);
-+				page_dup_rmap(page, false);
-+				rss[mm_counter(page)]++;
-+			}
-+		}
- 	}
++error_devm_add_action:
++	hmm_devmem_ref_kill(&devmem->ref);
++	hmm_devmem_ref_exit(&devmem->ref);
++error_percpu_ref:
++	devres_free(devmem);
++	return ERR_PTR(ret);
++}
++EXPORT_SYMBOL(hmm_devmem_add_resource);
++
+ /*
+  * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
+  *
+@@ -1051,6 +1108,7 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
+ {
+ 	resource_size_t start, size;
+ 	struct device *device;
++	bool cdm = false;
  
- out_set_pte:
-diff --git a/mm/migrate.c b/mm/migrate.c
-index cbaa4f2..2497357 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -241,6 +241,9 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
- 			pte = swp_entry_to_pte(entry);
- 			if (pte_swp_soft_dirty(*pvmw.pte))
- 				pte = pte_mksoft_dirty(pte);
-+		} else if (is_device_cache_coherent_page(new)) {
-+			pte = pte_mkdevmap(pte);
-+			flush_dcache_page(new);
- 		} else
- 			flush_dcache_page(new);
- 		set_pte_at(vma->vm_mm, pvmw.address, pvmw.pte, pte);
-@@ -2300,7 +2303,8 @@ static bool migrate_vma_check_page(struct page *page)
+ 	if (!devmem)
+ 		return;
+@@ -1059,11 +1117,13 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
+ 	start = devmem->resource->start;
+ 	size = resource_size(devmem->resource);
  
- 	/* Page from ZONE_DEVICE have one extra reference */
- 	if (is_zone_device_page(page)) {
--		if (is_device_unaddressable_page(page)) {
-+		if (is_device_unaddressable_page(page) ||
-+		    is_device_cache_coherent_page(page)) {
- 			extra++;
- 		} else
- 			/* Other ZONE_DEVICE memory type are not supported */
-@@ -2617,6 +2621,12 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
- 					migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
- 					continue;
- 				}
-+			} else if (is_device_cache_coherent_page(newpage)) {
-+				/*
-+				 * Anything can be migrated to a device cache
-+				 * coherent page.
-+				 */
-+				continue;
- 			} else {
- 				/*
- 				 * Other types of ZONE_DEVICE page are not
++	cdm = devmem->resource->desc == MEMORY_DEVICE_CACHE_COHERENT;
+ 	hmm_devmem_ref_kill(&devmem->ref);
+ 	hmm_devmem_ref_exit(&devmem->ref);
+ 	hmm_devmem_pages_remove(devmem);
+ 
+-	devm_release_mem_region(device, start, size);
++	if (!cdm)
++		devm_release_mem_region(device, start, size);
+ }
+ EXPORT_SYMBOL(hmm_devmem_remove);
+ 
 -- 
 2.7.4
 
