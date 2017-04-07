@@ -1,190 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 05EA46B03A0
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 02:49:18 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 68so61446613pgj.23
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 23:49:17 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id b28si4164822pgn.18.2017.04.06.23.49.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Apr 2017 23:49:17 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v3] mm, swap: Use kvzalloc to allocate some swap data structure
-Date: Fri,  7 Apr 2017 14:49:11 +0800
-Message-Id: <20170407064911.25447-1-ying.huang@intel.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DA0D06B03A3
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 03:33:22 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 79so63236403pgf.2
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 00:33:22 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id t2si4283653pfl.148.2017.04.07.00.33.20
+        for <linux-mm@kvack.org>;
+        Fri, 07 Apr 2017 00:33:21 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170405074700.29871-1-vbabka@suse.cz> <20170405074700.29871-2-vbabka@suse.cz>
+In-Reply-To: <20170405074700.29871-2-vbabka@suse.cz>
+Subject: Re: [PATCH 1/4] mm: prevent potential recursive reclaim due to clearing PF_MEMALLOC
+Date: Fri, 07 Apr 2017 15:33:03 +0800
+Message-ID: <092301d2af71$31c97fe0$955c7fa0$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: 'Vlastimil Babka' <vbabka@suse.cz>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Michal Hocko' <mhocko@kernel.org>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Johannes Weiner' <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, stable@vger.kernel.org, 'Andrey Ryabinin' <aryabinin@virtuozzo.com>
 
-From: Huang Ying <ying.huang@intel.com>
+On April 05, 2017 3:47 PM Vlastimil Babka wrote: 
+> 
+> The function __alloc_pages_direct_compact() sets PF_MEMALLOC to prevent
+> deadlock during page migration by lock_page() (see the comment in
+> __unmap_and_move()). Then it unconditionally clears the flag, which can clear a
+> pre-existing PF_MEMALLOC flag and result in recursive reclaim. This was not a
+> problem until commit a8161d1ed609 ("mm, page_alloc: restructure direct
+> compaction handling in slowpath"), because direct compation was called only
+> after direct reclaim, which was skipped when PF_MEMALLOC flag was set.
+> 
+> Even now it's only a theoretical issue, as the new callsite of
+> __alloc_pages_direct_compact() is reached only for costly orders and when
+> gfp_pfmemalloc_allowed() is true, which means either __GFP_NOMEMALLOC is in
+> gfp_flags or in_interrupt() is true. There is no such known context, but let's
+> play it safe and make __alloc_pages_direct_compact() robust for cases where
+> PF_MEMALLOC is already set.
+> 
+> Fixes: a8161d1ed609 ("mm, page_alloc: restructure direct compaction handling in slowpath")
+> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: <stable@vger.kernel.org>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Now vzalloc() is used in swap code to allocate various data
-structures, such as swap cache, swap slots cache, cluster info, etc.
-Because the size may be too large on some system, so that normal
-kzalloc() may fail.  But using kzalloc() has some advantages, for
-example, less memory fragmentation, less TLB pressure, etc.  So change
-the data structure allocation in swap code to use kvzalloc() which
-will try kzalloc() firstly, and fallback to vzalloc() if kzalloc()
-failed.
-
-In general, although kmalloc() will reduce the number of high-order
-pages in short term, vmalloc() will cause more pain for memory
-fragmentation in the long term.  And the swap data structure
-allocation that is changed in this patch is expected to be long term
-allocation.  From Dave Hansen: for example, we have a two-page data
-structure.  vmalloc() takes two effectively random order-0 pages,
-probably from two different 2M pages and pins them.  That "kills" two
-2M pages.  kmalloc(), allocating two *contiguous* pages, will not
-cross a 2M boundary.  That means it will only "kill" the possibility
-of a single 2M page.  More 2M pages == less fragmentation.
-
-The allocation in this patch occurs during swap on time, which is
-usually done during system boot, so usually we have high opportunity
-to allocate the contiguous pages successfully.
-
-The allocation for swap_map[] in struct swap_info_struct is not
-changed, because that is usually quite large and vmalloc_to_page() is
-used for it.  That makes it a little harder to change.
-
-Signed-off-by: Huang Ying <ying.huang@intel.com>
-Acked-by: Tim Chen <tim.c.chen@intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-
-v3:
-
-- Revise patch description
-
-v2:
-
-- Use common kvzalloc() instead of self-made swap_kvzalloc().
----
- mm/swap_slots.c | 19 +++++++++++--------
- mm/swap_state.c |  2 +-
- mm/swapfile.c   | 10 ++++++----
- 3 files changed, 18 insertions(+), 13 deletions(-)
-
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index aa1c415f4abd..58f6c78f1dad 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -31,6 +31,7 @@
- #include <linux/cpumask.h>
- #include <linux/vmalloc.h>
- #include <linux/mutex.h>
-+#include <linux/mm.h>
- 
- #ifdef CONFIG_SWAP
- 
-@@ -119,16 +120,18 @@ static int alloc_swap_slot_cache(unsigned int cpu)
- 
- 	/*
- 	 * Do allocation outside swap_slots_cache_mutex
--	 * as vzalloc could trigger reclaim and get_swap_page,
-+	 * as kvzalloc could trigger reclaim and get_swap_page,
- 	 * which can lock swap_slots_cache_mutex.
- 	 */
--	slots = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
-+	slots = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
-+			 GFP_KERNEL);
- 	if (!slots)
- 		return -ENOMEM;
- 
--	slots_ret = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
-+	slots_ret = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
-+			     GFP_KERNEL);
- 	if (!slots_ret) {
--		vfree(slots);
-+		kvfree(slots);
- 		return -ENOMEM;
- 	}
- 
-@@ -152,9 +155,9 @@ static int alloc_swap_slot_cache(unsigned int cpu)
- out:
- 	mutex_unlock(&swap_slots_cache_mutex);
- 	if (slots)
--		vfree(slots);
-+		kvfree(slots);
- 	if (slots_ret)
--		vfree(slots_ret);
-+		kvfree(slots_ret);
- 	return 0;
- }
- 
-@@ -171,7 +174,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
- 		cache->cur = 0;
- 		cache->nr = 0;
- 		if (free_slots && cache->slots) {
--			vfree(cache->slots);
-+			kvfree(cache->slots);
- 			cache->slots = NULL;
- 		}
- 		mutex_unlock(&cache->alloc_lock);
-@@ -186,7 +189,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
- 		}
- 		spin_unlock_irq(&cache->free_lock);
- 		if (slots)
--			vfree(slots);
-+			kvfree(slots);
- 	}
- }
- 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 7bfb9bd1ca21..539b8885e3d1 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -523,7 +523,7 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
- 	unsigned int i, nr;
- 
- 	nr = DIV_ROUND_UP(nr_pages, SWAP_ADDRESS_SPACE_PAGES);
--	spaces = vzalloc(sizeof(struct address_space) * nr);
-+	spaces = kvzalloc(sizeof(struct address_space) * nr, GFP_KERNEL);
- 	if (!spaces)
- 		return -ENOMEM;
- 	for (i = 0; i < nr; i++) {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 53b5881ee0d6..90054f3c2cdc 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2272,8 +2272,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	free_percpu(p->percpu_cluster);
- 	p->percpu_cluster = NULL;
- 	vfree(swap_map);
--	vfree(cluster_info);
--	vfree(frontswap_map);
-+	kvfree(cluster_info);
-+	kvfree(frontswap_map);
- 	/* Destroy swap account information */
- 	swap_cgroup_swapoff(p->type);
- 	exit_swap_address_space(p->type);
-@@ -2796,7 +2796,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
- 		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
- 
--		cluster_info = vzalloc(nr_cluster * sizeof(*cluster_info));
-+		cluster_info = kvzalloc(nr_cluster * sizeof(*cluster_info),
-+					GFP_KERNEL);
- 		if (!cluster_info) {
- 			error = -ENOMEM;
- 			goto bad_swap;
-@@ -2829,7 +2830,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	}
- 	/* frontswap enabled? set up bit-per-page map for frontswap */
- 	if (IS_ENABLED(CONFIG_FRONTSWAP))
--		frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
-+		frontswap_map = kvzalloc(BITS_TO_LONGS(maxpages) * sizeof(long),
-+					 GFP_KERNEL);
- 
- 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
- 		/*
--- 
-2.11.0
+>  mm/page_alloc.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3589f8be53be..b84e6ffbe756 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3288,6 +3288,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>  		enum compact_priority prio, enum compact_result *compact_result)
+>  {
+>  	struct page *page;
+> +	unsigned int noreclaim_flag = current->flags & PF_MEMALLOC;
+> 
+>  	if (!order)
+>  		return NULL;
+> @@ -3295,7 +3296,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>  	current->flags |= PF_MEMALLOC;
+>  	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+>  									prio);
+> -	current->flags &= ~PF_MEMALLOC;
+> +	current->flags = (current->flags & ~PF_MEMALLOC) | noreclaim_flag;
+> 
+>  	if (*compact_result <= COMPACT_INACTIVE)
+>  		return NULL;
+> --
+> 2.12.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
