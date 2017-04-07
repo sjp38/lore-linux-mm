@@ -1,90 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DDBF6B03AB
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 05:21:49 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id e11so9653365wra.0
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 02:21:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z8si33534744wmz.53.2017.04.07.02.21.47
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5219B6B03A4
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 06:10:14 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p64so49083550oif.0
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 03:10:14 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0090.outbound.protection.outlook.com. [104.47.2.90])
+        by mx.google.com with ESMTPS id a15si2207024otd.125.2017.04.07.03.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Apr 2017 02:21:48 -0700 (PDT)
-Subject: Re: [PATCH 1/4] mm: prevent potential recursive reclaim due to
- clearing PF_MEMALLOC
-References: <20170405074700.29871-1-vbabka@suse.cz>
- <20170405074700.29871-2-vbabka@suse.cz>
- <1f26f654-abaf-3878-6abb-5e27ff3a289e@virtuozzo.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9c6ff585-f22f-3f90-fce7-793c56485019@suse.cz>
-Date: Fri, 7 Apr 2017 11:21:45 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 07 Apr 2017 03:10:13 -0700 (PDT)
+Subject: Re: [PATCH 8/8] x86/mm: Allow to have userspace mappings above
+ 47-bits
+References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
+ <20170406140106.78087-9-kirill.shutemov@linux.intel.com>
+ <3cb79f4b-76f5-6e31-6973-e9281b2e4553@virtuozzo.com>
+ <eaf4c954-e6c0-a9b4-50f1-49889dbd0f4b@virtuozzo.com>
+ <20170406232137.uk7y2knbkcsru4pi@black.fi.intel.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <27affbe2-0150-526e-d47b-d5c1292e9187@virtuozzo.com>
+Date: Fri, 7 Apr 2017 13:06:35 +0300
 MIME-Version: 1.0
-In-Reply-To: <1f26f654-abaf-3878-6abb-5e27ff3a289e@virtuozzo.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20170406232137.uk7y2knbkcsru4pi@black.fi.intel.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, stable@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/05/2017 01:40 PM, Andrey Ryabinin wrote:
-> On 04/05/2017 10:46 AM, Vlastimil Babka wrote:
->> The function __alloc_pages_direct_compact() sets PF_MEMALLOC to prevent
->> deadlock during page migration by lock_page() (see the comment in
->> __unmap_and_move()). Then it unconditionally clears the flag, which can clear a
->> pre-existing PF_MEMALLOC flag and result in recursive reclaim. This was not a
->> problem until commit a8161d1ed609 ("mm, page_alloc: restructure direct
->> compaction handling in slowpath"), because direct compation was called only
->> after direct reclaim, which was skipped when PF_MEMALLOC flag was set.
->> 
->> Even now it's only a theoretical issue, as the new callsite of
->> __alloc_pages_direct_compact() is reached only for costly orders and when
->> gfp_pfmemalloc_allowed() is true, which means either __GFP_NOMEMALLOC is in
->                            is false			
-> 
->> gfp_flags or in_interrupt() is true. There is no such known context, but let's
->> play it safe and make __alloc_pages_direct_compact() robust for cases where
->> PF_MEMALLOC is already set.
->> 
->> Fixes: a8161d1ed609 ("mm, page_alloc: restructure direct compaction handling in slowpath")
->> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> Cc: <stable@vger.kernel.org>
->> ---
->>  mm/page_alloc.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
->> 
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 3589f8be53be..b84e6ffbe756 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3288,6 +3288,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->>  		enum compact_priority prio, enum compact_result *compact_result)
->>  {
->>  	struct page *page;
->> +	unsigned int noreclaim_flag = current->flags & PF_MEMALLOC;
->>  
->>  	if (!order)
->>  		return NULL;
->> @@ -3295,7 +3296,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->>  	current->flags |= PF_MEMALLOC;
->>  	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
->>  									prio);
->> -	current->flags &= ~PF_MEMALLOC;
->> +	current->flags = (current->flags & ~PF_MEMALLOC) | noreclaim_flag;
-> 
-> Perhaps this would look better:
-> 
-> 	tsk_restore_flags(current, noreclaim_flag, PF_MEMALLOC);
-> 
-> ?
+On 04/07/2017 02:21 AM, Kirill A. Shutemov wrote:
+> On Thu, Apr 06, 2017 at 10:15:47PM +0300, Dmitry Safonov wrote:
+>> On 04/06/2017 09:43 PM, Dmitry Safonov wrote:
+>>> Hi Kirill,
+>>>
+>>> On 04/06/2017 05:01 PM, Kirill A. Shutemov wrote:
+>>>> On x86, 5-level paging enables 56-bit userspace virtual address space.
+>>>> Not all user space is ready to handle wide addresses. It's known that
+>>>> at least some JIT compilers use higher bits in pointers to encode their
+>>>> information. It collides with valid pointers with 5-level paging and
+>>>> leads to crashes.
+>>>>
+>>>> To mitigate this, we are not going to allocate virtual address space
+>>>> above 47-bit by default.
+>>>>
+>>>> But userspace can ask for allocation from full address space by
+>>>> specifying hint address (with or without MAP_FIXED) above 47-bits.
+>>>>
+>>>> If hint address set above 47-bit, but MAP_FIXED is not specified, we try
+>>>> to look for unmapped area by specified address. If it's already
+>>>> occupied, we look for unmapped area in *full* address space, rather than
+>>>> from 47-bit window.
+>>>
+>>> Do you wish after the first over-47-bit mapping the following mmap()
+>>> calls return also over-47-bits if there is free space?
+>>> It so, you could simplify all this code by changing only mm->mmap_base
+>>> on the first over-47-bit mmap() call.
+>>> This will do simple trick.
+>
+> No.
+>
+> I want every allocation to explicitely opt-in large address space. It's
+> additional fail-safe: if a library can't handle large addresses it has
+> better chance to survive if its own allocation will stay within 47-bits.
 
-Well, I didn't care much considering this is for stable only, and patch 2/4
-rewrites this to the new api.
+Ok
 
->>  	if (*compact_result <= COMPACT_INACTIVE)
->>  		return NULL;
->> 
-> 
+>
+>> I just tried to define it like this:
+>> -#define DEFAULT_MAP_WINDOW     ((1UL << 47) - PAGE_SIZE)
+>> +#define DEFAULT_MAP_WINDOW     (test_thread_flag(TIF_ADDR32) ?         \
+>> +                               IA32_PAGE_OFFSET : ((1UL << 47) -
+>> PAGE_SIZE))
+>>
+>> And it looks working better.
+>
+> Okay, thanks. I'll send v2.
+>
+>>>> +    if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+>>>> +        info.high_limit += TASK_SIZE - DEFAULT_MAP_WINDOW;
+>>>
+>>> Hmm, TASK_SIZE depends now on TIF_ADDR32, which is set during exec().
+>>> That means for ia32/x32 ELF which has TASK_SIZE < 4Gb as TIF_ADDR32
+>>> is set, which can do 64-bit syscalls - the subtraction will be
+>>> a negative..
+>
+> With your proposed change to DEFAULT_MAP_WINDOW difinition it should be
+> okay, right?
+
+I'll comment to v2 to keep all in one place.
+
+
+-- 
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
