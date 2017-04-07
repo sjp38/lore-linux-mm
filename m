@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BF5586B03A7
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 03:40:04 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 34so9327839wrb.20
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 00:40:04 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D08F6B03A9
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 04:00:18 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x61so9403722wrb.8
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 01:00:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q9si5191310wrc.328.2017.04.07.00.40.03
+        by mx.google.com with ESMTPS id z3si6645172wrb.20.2017.04.07.01.00.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Apr 2017 00:40:03 -0700 (PDT)
-Date: Fri, 7 Apr 2017 09:40:01 +0200
+        Fri, 07 Apr 2017 01:00:16 -0700 (PDT)
+Date: Fri, 7 Apr 2017 10:00:13 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/9] mm: support __GFP_REPEAT in kvmalloc_node for >32kB
-Message-ID: <20170407074001.GB16413@dhcp22.suse.cz>
-References: <20170306103032.2540-1-mhocko@kernel.org>
- <20170306103032.2540-3-mhocko@kernel.org>
- <CALvZod5hBHjKfumAFmRoS9Wbg06+KTg33wSD=8Ksdrq=Vm1OgA@mail.gmail.com>
+Subject: Re: [patch] mm, swap_cgroup: reschedule when neeed in
+ swap_cgroup_swapoff()
+Message-ID: <20170407080012.GA16392@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1704061315270.80559@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod5hBHjKfumAFmRoS9Wbg06+KTg33wSD=8Ksdrq=Vm1OgA@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1704061315270.80559@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 06-04-17 17:45:23, Shakeel Butt wrote:
-> On Mon, Mar 6, 2017 at 2:30 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> >
-> > vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
-> > vhost_vsock because it would really like to prefer kmalloc to the
-> > vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
-> > allocation to vmalloc") for more context. Michael Tsirkin has also
-> > noted:
-> > "
-> > __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
-> > accesses are slowed down.  Allocation is not on data path, accesses are.
-> > "
-> >
-> > The similar applies to other vhost_kvzalloc users.
-> >
-> > Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
-> > things to be careful about. First we should prevent from the OOM killer
-> > and so have to involve __GFP_NORETRY by default and secondly override
-> > __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
-> > for !costly orders.
-> >
-> > Supporting __GFP_REPEAT like semantic for !costly request is possible
-> > it would require changes in the page allocator. This is out of scope of
-> > this patch.
-> >
-> > This patch shouldn't introduce any functional change.
-> >
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > Acked-by: Michael S. Tsirkin <mst@redhat.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  drivers/vhost/net.c   |  9 +++------
-> >  drivers/vhost/vhost.c | 15 +++------------
-> >  drivers/vhost/vsock.c |  9 +++------
-> >  mm/util.c             | 20 ++++++++++++++++----
-> >  4 files changed, 25 insertions(+), 28 deletions(-)
-> >
+On Thu 06-04-17 13:16:24, David Rientjes wrote:
+> We got need_resched() warnings in swap_cgroup_swapoff() because
+> swap_cgroup_ctrl[type].length is particularly large.
 > 
-> There is a kzalloc/vzalloc call in
-> drivers/vhost/scsi.c:vhost_scsi_open() which is not converted to
-> kvzalloc(). Was that intentional?
+> Reschedule when needed.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-No, an omission, I suspect. Feel free to send a follow up patch. I
-suspect there will be more of those...
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/swap_cgroup.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/swap_cgroup.c b/mm/swap_cgroup.c
+> --- a/mm/swap_cgroup.c
+> +++ b/mm/swap_cgroup.c
+> @@ -201,6 +201,8 @@ void swap_cgroup_swapoff(int type)
+>  			struct page *page = map[i];
+>  			if (page)
+>  				__free_page(page);
+> +			if (!(i % SWAP_CLUSTER_MAX))
+> +				cond_resched();
+>  		}
+>  		vfree(map);
+>  	}
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
