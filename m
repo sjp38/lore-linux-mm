@@ -1,70 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 84DBE6B0390
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 20:45:25 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v4so54350820pgc.20
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 17:45:25 -0700 (PDT)
-Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
-        by mx.google.com with ESMTPS id u124si3173359pgb.168.2017.04.06.17.45.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D026B0390
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 21:24:53 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v4so55213611pgc.20
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 18:24:53 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id r81si3290814pfk.112.2017.04.06.18.24.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Apr 2017 17:45:24 -0700 (PDT)
-Received: by mail-pg0-x229.google.com with SMTP id g2so49539407pge.3
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 17:45:24 -0700 (PDT)
+        Thu, 06 Apr 2017 18:24:52 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v2] mm, swap: Use kvzalloc to allocate some swap data structure
+References: <20170405071058.25223-1-ying.huang@intel.com>
+	<20170406134024.GD31725@bombadil.infradead.org>
+Date: Fri, 07 Apr 2017 09:24:49 +0800
+In-Reply-To: <20170406134024.GD31725@bombadil.infradead.org> (Matthew Wilcox's
+	message of "Thu, 6 Apr 2017 06:40:24 -0700")
+Message-ID: <87a87tau1q.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170306103032.2540-3-mhocko@kernel.org>
-References: <20170306103032.2540-1-mhocko@kernel.org> <20170306103032.2540-3-mhocko@kernel.org>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 6 Apr 2017 17:45:23 -0700
-Message-ID: <CALvZod5hBHjKfumAFmRoS9Wbg06+KTg33wSD=8Ksdrq=Vm1OgA@mail.gmail.com>
-Subject: Re: [PATCH 2/9] mm: support __GFP_REPEAT in kvmalloc_node for >32kB
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Mon, Mar 6, 2017 at 2:30 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
-> vhost_vsock because it would really like to prefer kmalloc to the
-> vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
-> allocation to vmalloc") for more context. Michael Tsirkin has also
-> noted:
-> "
-> __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
-> accesses are slowed down.  Allocation is not on data path, accesses are.
-> "
->
-> The similar applies to other vhost_kvzalloc users.
->
-> Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
-> things to be careful about. First we should prevent from the OOM killer
-> and so have to involve __GFP_NORETRY by default and secondly override
-> __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
-> for !costly orders.
->
-> Supporting __GFP_REPEAT like semantic for !costly request is possible
-> it would require changes in the page allocator. This is out of scope of
-> this patch.
->
-> This patch shouldn't introduce any functional change.
->
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: Michael S. Tsirkin <mst@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  drivers/vhost/net.c   |  9 +++------
->  drivers/vhost/vhost.c | 15 +++------------
->  drivers/vhost/vsock.c |  9 +++------
->  mm/util.c             | 20 ++++++++++++++++----
->  4 files changed, 25 insertions(+), 28 deletions(-)
->
+Hi, Matthew,
 
-There is a kzalloc/vzalloc call in
-drivers/vhost/scsi.c:vhost_scsi_open() which is not converted to
-kvzalloc(). Was that intentional?
+Matthew Wilcox <willy@infradead.org> writes:
+
+> On Wed, Apr 05, 2017 at 03:10:58PM +0800, Huang, Ying wrote:
+>> In general, kmalloc() will have less memory fragmentation than
+>> vmalloc().  From Dave Hansen: For example, we have a two-page data
+>> structure.  vmalloc() takes two effectively random order-0 pages,
+>> probably from two different 2M pages and pins them.  That "kills" two
+>> 2M pages.  kmalloc(), allocating two *contiguous* pages, is very
+>> unlikely to cross a 2M boundary (it theoretically could).  That means
+>> it will only "kill" the possibility of a single 2M page.  More 2M
+>> pages == less fragmentation.
+>
+> Wait, what?  How does kmalloc() manage to allocate two pages that cross
+> a 2MB boundary?  AFAIK if you ask kmalloc to allocate N pages, it asks
+> the page allocator for an order-log(N) page allocation.  Being a buddy
+> allocator, that comes back with an aligned set of pages.  There's no
+> way it can get the last page from a 2MB region and the first page from
+> the next 2MB region.
+
+OK.  I will change the comments in the next version.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
