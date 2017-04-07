@@ -1,128 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B2AAC6B039F
-	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 19:48:15 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id m33so8217075wrm.23
-        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 16:48:15 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k79si5094322wmd.51.2017.04.06.16.48.13
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Apr 2017 16:48:13 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Fri, 07 Apr 2017 09:47:32 +1000
-Subject: [PATCH v3] loop: Add PF_LESS_THROTTLE to block/loop device thread.
-In-Reply-To: <20170406065326.GB5497@dhcp22.suse.cz>
-References: <871staffus.fsf@notabene.neil.brown.name> <87wpazh3rl.fsf@notabene.neil.brown.name> <20170405071927.GA7258@dhcp22.suse.cz> <20170405073233.GD6035@dhcp22.suse.cz> <878tnegtoo.fsf@notabene.neil.brown.name> <20170406065326.GB5497@dhcp22.suse.cz>
-Message-ID: <87o9w9yu7f.fsf@notabene.neil.brown.name>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 971396B0390
+	for <linux-mm@kvack.org>; Thu,  6 Apr 2017 20:36:06 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r129so53495073pgr.18
+        for <linux-mm@kvack.org>; Thu, 06 Apr 2017 17:36:06 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 31si3151535pgx.220.2017.04.06.17.36.04
+        for <linux-mm@kvack.org>;
+        Thu, 06 Apr 2017 17:36:05 -0700 (PDT)
+Date: Fri, 7 Apr 2017 09:38:51 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 7/8] mm, compaction: restrict async compaction to
+ pageblocks of same migratetype
+Message-ID: <20170407003851.GA17231@js1304-P5Q-DELUXE>
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-8-vbabka@suse.cz>
+ <20170316021403.GC14063@js1304-P5Q-DELUXE>
+ <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+In-Reply-To: <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-block@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ming Lei <tom.leiming@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Wed, Mar 29, 2017 at 06:06:41PM +0200, Vlastimil Babka wrote:
+> On 03/16/2017 03:14 AM, Joonsoo Kim wrote:
+> > On Tue, Mar 07, 2017 at 02:15:44PM +0100, Vlastimil Babka wrote:
+> >> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
+> >> pageblocks. This is a heuristic intended to reduce latency, based on the
+> >> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+> >> 
+> >> However, with the exception of THP's, most high-order allocations are not
+> >> movable. Should the async compaction succeed, this increases the chance that
+> >> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
+> >> long-term fragmentation worse.
+> > 
+> > I agree with this idea but have some concerns on this change.
+> > 
+> > *ASYNC* compaction is designed for reducing latency and this change
+> > doesn't fit it. If everything works fine, there is a few movable pages
+> > in non-MOVABLE pageblocks as you noted above. Moreover, there is quite
+> > less the number of non-MOVABLE pageblock than MOVABLE one so finding
+> > non-MOVABLE pageblock takes long time. These two factors will increase
+> > the latency of *ASYNC* compaction.
+> 
+> Right. I lately started to doubt the whole idea of async compaction (for
+> non-movable allocations). Seems it's one of the compaction heuristics tuned
+> towards the THP usecase. But for non-movable allocations, we just can't have
+> both the low latency and long-term fragmentation avoidance. I see now even my
+> own skip_on_failure mode in isolate_migratepages_block() as a mistake for
+> non-movable allocations.
 
+Why do you think that skip_on_failure mode is a mistake? I think that
+it would lead to reduce the latency and it fits the goal of async
+compaction.
 
-When a filesystem is mounted from a loop device, writes are
-throttled by balance_dirty_pages() twice: once when writing
-to the filesystem and once when the loop_handle_cmd() writes
-to the backing file.  This double-throttling can trigger
-positive feedback loops that create significant delays.  The
-throttling at the lower level is seen by the upper level as
-a slow device, so it throttles extra hard.
+> 
+> Ideally I'd like to make async compaction redundant by kcompactd, and direct
+> compaction would mean a serious situation which should warrant sync compaction.
+> Meanwhile I see several options to modify this patch
+> - async compaction for non-movable allocations will stop doing the
+> skip_on_failure mode, and won't restrict the pageblock at all. patch 8/8 will
+> make sure that also this kind of compaction finishes the whole pageblock
+> - non-movable allocations will skip async compaction completely and go for sync
+> compaction immediately
 
-The PF_LESS_THROTTLE flag was created to handle exactly this
-circumstance, though with an NFS filesystem mounted from a
-local NFS server.  It reduces the throttling on the lower
-layer so that it can proceed largely unthrottled.
+IMO, concept of async compaction is also important for non-movable allocation.
+Non-movable allocation is essential for some workload and they hope
+the low latency.
 
-To demonstrate this, create a filesystem on a loop device
-and write (e.g. with dd) several large files which combine
-to consume significantly more than the limit set by
-/proc/sys/vm/dirty_ratio or dirty_bytes.  Measure the total
-time taken.
-
-When I do this directly on a device (no loop device) the
-total time for several runs (mkfs, mount, write 200 files,
-umount) is fairly stable: 28-35 seconds.
-When I do this over a loop device the times are much worse
-and less stable.  52-460 seconds.  Half below 100seconds,
-half above.
-When I apply this patch, the times become stable again,
-though not as fast as the no-loop-back case: 53-72 seconds.
-
-There may be room for further improvement as the total overhead still
-seems too high, but this is a big improvement.
-
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Ming Lei <tom.leiming@gmail.com>
-Suggested-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: NeilBrown <neilb@suse.com>
-=2D--
-
-Hi Jens,
- I think this version meets with everyone's approval.
-
-Thanks,
-NeilBrown
-
-
- drivers/block/loop.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 0ecb6461ed81..035b8651b8bf 100644
-=2D-- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -844,10 +844,16 @@ static void loop_unprepare_queue(struct loop_device *=
-lo)
- 	kthread_stop(lo->worker_task);
- }
-=20
-+static int loop_kthread_worker_fn(void *worker_ptr)
-+{
-+	current->flags |=3D PF_LESS_THROTTLE;
-+	return kthread_worker_fn(worker_ptr);
-+}
-+
- static int loop_prepare_queue(struct loop_device *lo)
- {
- 	kthread_init_worker(&lo->worker);
-=2D	lo->worker_task =3D kthread_run(kthread_worker_fn,
-+	lo->worker_task =3D kthread_run(loop_kthread_worker_fn,
- 			&lo->worker, "loop%d", lo->lo_number);
- 	if (IS_ERR(lo->worker_task))
- 		return -ENOMEM;
-=2D-=20
-2.12.2
-
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAljm05QACgkQOeye3VZi
-gbn4cw/+NsFUKuHxkgtl1GFr33VMY74tjDH1pU44pMj0k75+ocjbgfH/86cNrJxs
-otqw0AXjILPI4oJo3LanwBCKbx6J7DRCml654AgckyztaksSftmzfvsY9Vg5gvqS
-M5kX7Wi++HXluhZGqfN8tAZ7unQDqgaI2Io9FjZIsphgH+4qKB8MbWi+QoqziUnk
-koZylFmXTxZcVa0NVe1P6fmMO9UJZsY2WFuaRosWFBn6fr8p2EYf1Q9FydFOng3n
-ovM/nASMNlfS4mUrqkGQu0wpzU3ckYG0EgFBFUG4PC0zaLjl6hkf0N3RKg6e9LW5
-fo3auYMkqcQ8Yv8BHDNrRxlaPVajfVmXt2ssluNu0LgwqRoS7hLZUwBA1px+OwTC
-kLp3IrXLiHk945uUNaAZMUuqeV4sFIWghRF2IlBmMPBUgvjHAYg+X06OXfepCYSF
-o9XSEufaB3EUejrurxAbukx1V6rEZtBZv16PMQGkjJAF9s3OuTLizL+kdspKsnZu
-yN64nwNhBZC3hEtijyiFrcHvKFZAmV3O3PKa64SEwMHmZzIigrBcfzjlyjUZCbrW
-CXzDvkUMccgIQhlHewuJ+tdI8MFIrayLihNJyC0aBCjy4NXT3D0UP2wN5BIltl0C
-d14giCYX+29xhryYSVBvx0BuQuMKVf99svnwhZ/ocqM+CBGAxS8=
-=kdw3
------END PGP SIGNATURE-----
---=-=-=--
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
