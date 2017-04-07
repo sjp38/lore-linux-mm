@@ -1,48 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 909126B03A5
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 03:38:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u3so62552617pgn.12
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 00:38:51 -0700 (PDT)
-Received: from out0-194.mail.aliyun.com (out0-194.mail.aliyun.com. [140.205.0.194])
-        by mx.google.com with ESMTP id t188si4304902pfd.87.2017.04.07.00.38.50
-        for <linux-mm@kvack.org>;
-        Fri, 07 Apr 2017 00:38:50 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170405074700.29871-1-vbabka@suse.cz> <20170405074700.29871-3-vbabka@suse.cz>
-In-Reply-To: <20170405074700.29871-3-vbabka@suse.cz>
-Subject: Re: [PATCH 2/4] mm: introduce memalloc_noreclaim_{save,restore}
-Date: Fri, 07 Apr 2017 15:38:43 +0800
-Message-ID: <092401d2af71$fc320ef0$f4962cd0$@alibaba-inc.com>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BF5586B03A7
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 03:40:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 34so9327839wrb.20
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 00:40:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q9si5191310wrc.328.2017.04.07.00.40.03
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 07 Apr 2017 00:40:03 -0700 (PDT)
+Date: Fri, 7 Apr 2017 09:40:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/9] mm: support __GFP_REPEAT in kvmalloc_node for >32kB
+Message-ID: <20170407074001.GB16413@dhcp22.suse.cz>
+References: <20170306103032.2540-1-mhocko@kernel.org>
+ <20170306103032.2540-3-mhocko@kernel.org>
+ <CALvZod5hBHjKfumAFmRoS9Wbg06+KTg33wSD=8Ksdrq=Vm1OgA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod5hBHjKfumAFmRoS9Wbg06+KTg33wSD=8Ksdrq=Vm1OgA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Vlastimil Babka' <vbabka@suse.cz>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Michal Hocko' <mhocko@kernel.org>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Johannes Weiner' <hannes@cmpxchg.org>, linux-block@vger.kernel.org, nbd-general@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, netdev@vger.kernel.org, 'Michal Hocko' <mhocko@suse.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
+On Thu 06-04-17 17:45:23, Shakeel Butt wrote:
+> On Mon, Mar 6, 2017 at 2:30 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> >
+> > vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
+> > vhost_vsock because it would really like to prefer kmalloc to the
+> > vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
+> > allocation to vmalloc") for more context. Michael Tsirkin has also
+> > noted:
+> > "
+> > __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
+> > accesses are slowed down.  Allocation is not on data path, accesses are.
+> > "
+> >
+> > The similar applies to other vhost_kvzalloc users.
+> >
+> > Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
+> > things to be careful about. First we should prevent from the OOM killer
+> > and so have to involve __GFP_NORETRY by default and secondly override
+> > __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
+> > for !costly orders.
+> >
+> > Supporting __GFP_REPEAT like semantic for !costly request is possible
+> > it would require changes in the page allocator. This is out of scope of
+> > this patch.
+> >
+> > This patch shouldn't introduce any functional change.
+> >
+> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > Acked-by: Michael S. Tsirkin <mst@redhat.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  drivers/vhost/net.c   |  9 +++------
+> >  drivers/vhost/vhost.c | 15 +++------------
+> >  drivers/vhost/vsock.c |  9 +++------
+> >  mm/util.c             | 20 ++++++++++++++++----
+> >  4 files changed, 25 insertions(+), 28 deletions(-)
+> >
+> 
+> There is a kzalloc/vzalloc call in
+> drivers/vhost/scsi.c:vhost_scsi_open() which is not converted to
+> kvzalloc(). Was that intentional?
 
-On April 05, 2017 3:47 PM Vlastimil Babka wrote: 
-> 
-> The previous patch has shown that simply setting and clearing PF_MEMALLOC in
-> current->flags can result in wrongly clearing a pre-existing PF_MEMALLOC flag
-> and potentially lead to recursive reclaim. Let's introduce helpers that support
-> proper nesting by saving the previous stat of the flag, similar to the existing
-> memalloc_noio_* and memalloc_nofs_* helpers. Convert existing setting/clearing
-> of PF_MEMALLOC within mm to the new helpers.
-> 
-> There are no known issues with the converted code, but the change makes it more
-> robust.
-> 
-> Suggested-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
+No, an omission, I suspect. Feel free to send a follow up patch. I
+suspect there will be more of those...
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
