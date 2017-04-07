@@ -1,423 +1,335 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E0F626B03AF
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 12:41:33 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id p64so55888295oif.0
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 09:41:33 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0110.outbound.protection.outlook.com. [104.47.0.110])
-        by mx.google.com with ESMTPS id x11si2680216otx.157.2017.04.07.09.41.31
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E1C6B03B1
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 12:47:23 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 21so78168838pgg.4
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 09:47:23 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id g11si5605061plm.327.2017.04.07.09.47.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 07 Apr 2017 09:41:32 -0700 (PDT)
-Subject: Re: [PATCHv3 8/8] x86/mm: Allow to have userspace mappings above
- 47-bits
-References: <4c8cd9a9-2013-2a74-6bea-d7dc7207abb1@virtuozzo.com>
- <20170407154428.14070-1-kirill.shutemov@linux.intel.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <be5da73b-d6c7-389f-1b30-cb10aaa35413@virtuozzo.com>
-Date: Fri, 7 Apr 2017 19:37:21 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Apr 2017 09:47:22 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id 81so16684987pgh.3
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 09:47:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170407154428.14070-1-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170406183314.GB5504@dhcp22.suse.cz>
+References: <20170328130128.101773-1-dvyukov@google.com> <20170406183314.GB5504@dhcp22.suse.cz>
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Date: Sat, 8 Apr 2017 01:47:01 +0900
+Message-ID: <CAC5umygCJQTfpZc7M6JabMV+994dtOksp_-+Z=b=2_LzavB=LA@mail.gmail.com>
+Subject: Re: [PATCH v2] fault-inject: support systematic fault injection
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "open list:ABI/API" <linux-api@vger.kernel.org>
 
-On 04/07/2017 06:44 PM, Kirill A. Shutemov wrote:
-> On x86, 5-level paging enables 56-bit userspace virtual address space.
-> Not all user space is ready to handle wide addresses. It's known that
-> at least some JIT compilers use higher bits in pointers to encode their
-> information. It collides with valid pointers with 5-level paging and
-> leads to crashes.
+2017-04-07 3:33 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> [Let's add linux-api - please always cc this list when adding/modifying
+> user visible interfaces]
 >
-> To mitigate this, we are not going to allocate virtual address space
-> above 47-bit by default.
+> On Tue 28-03-17 15:01:28, Dmitry Vyukov wrote:
+>> Add /proc/self/task/<current-tid>/fail-nth file that allows failing
+>> 0-th, 1-st, 2-nd and so on calls systematically.
+>> Excerpt from the added documentation:
 >
-> But userspace can ask for allocation from full address space by
-> specifying hint address (with or without MAP_FIXED) above 47-bits.
->
-> If hint address set above 47-bit, but MAP_FIXED is not specified, we try
-> to look for unmapped area by specified address. If it's already
-> occupied, we look for unmapped area in *full* address space, rather than
-> from 47-bit window.
->
-> This approach helps to easily make application's memory allocator aware
-> about large address space without manually tracking allocated virtual
-> address space.
->
-> One important case we need to handle here is interaction with MPX.
-> MPX (without MAWA( extension cannot handle addresses above 47-bit, so we
-> need to make sure that MPX cannot be enabled we already have VMA above
-> the boundary and forbid creating such VMAs once MPX is enabled.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Dmitry Safonov <dsafonov@virtuozzo.com>
+> I didn't really get to read through details here but it just feels wrong
+> to add this debugging only feature into proc. It also smells like one
+> off thing as well.
 
-LGTM,
-Reviewed-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+We have 'sched' (CONFIG_SCHED_DEBUG), 'latency' (CONFIG_LATENCYTOP)
+and 'make-it-fail' as debugging per-process proc files.  So it doesn't
+look very wrong to me.  But I would like to avoid per-process proc
+directory becoming messy. Do you think introducing /proc/<pid>/debug/
+directory for debugging stuff makes sense?
 
-Thou, I'm not very excited about TASK_SIZE_LOW naming, but I'm not good
-at naming either, so maybe tglx will help.
-Anyway, I don't see any problems with code's logic now.
-I've run it through CRIU ia32 tests, where there is
-32/64-bit mmap(), 64-bit mmap() from 32-bit binary, the same with
-MAP_32BIT and some other not very pleasant corner-cases.
-That doesn't prove that mmap() works in *all* possible cases, thou.
+Side note: 'fail-nth' was originally a single debugfs file
+/sys/kernel/debug/fail_once.  But it actually read/write current task's
+fail_nth field, so I suggested changing per process procfs file.i
+This change enables to inject N-th fail to kernel threads, too.
 
-P.S.:
-JFYI: there is a rule to send new patch versions in a new thread -
-otherwise the patch can lose maintainers attention. So, they may ask
-you to resend it.
-
-> ---
->  v3:
->    - Address Dmitry feedback;
->    - Make DEFAULT_MAP_WINDOW constant again, introduce TASK_SIZE_LOW
->      instead, which would task TIF_ADDR32 into account.
-> ---
->  arch/x86/include/asm/elf.h       |  4 ++--
->  arch/x86/include/asm/mpx.h       |  9 +++++++++
->  arch/x86/include/asm/processor.h | 11 ++++++++---
->  arch/x86/kernel/sys_x86_64.c     | 30 ++++++++++++++++++++++++++----
->  arch/x86/mm/hugetlbpage.c        | 27 +++++++++++++++++++++++----
->  arch/x86/mm/mmap.c               |  6 +++---
->  arch/x86/mm/mpx.c                | 33 ++++++++++++++++++++++++++++++++-
->  7 files changed, 103 insertions(+), 17 deletions(-)
+>> ===
+>> Write to this file of integer N makes N-th call in the current task fail
+>> (N is 0-based). Read from this file returns a single char 'Y' or 'N'
+>> that says if the fault setup with a previous write to this file was
+>> injected or not, and disables the fault if it wasn't yet injected.
+>> Note that this file enables all types of faults (slab, futex, etc).
+>> This setting takes precedence over all other generic settings like
+>> probability, interval, times, etc. But per-capability settings
+>> (e.g. fail_futex/ignore-private) take precedence over it.
+>> This feature is intended for systematic testing of faults in a single
+>> system call. See an example below.
+>> ===
+>>
+>> Why adding new setting:
+>> 1. Existing settings are global rather than per-task.
+>>    So parallel testing is not possible.
+>> 2. attr->interval is close but it depends on attr->count
+>>    which is non reset to 0, so interval does not work as expected.
+>> 3. Trying to model this with existing settings requires manipulations
+>>    of all of probability, interval, times, space, task-filter and
+>>    unexposed count and per-task make-it-fail files.
+>> 4. Existing settings are per-failure-type, and the set of failure
+>>    types is potentially expanding.
+>> 5. make-it-fail can't be changed by unprivileged user and aggressive
+>>    stress testing better be done from an unprivileged user.
+>>    Similarly, this would require opening the debugfs files to the
+>>    unprivileged user, as he would need to reopen at least times file
+>>    (not possible to pre-open before dropping privs).
+>>
+>> The proposed interface solves all of the above (see the example).
+>>
+>> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+>> Cc: Akinobu Mita <akinobu.mita@gmail.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: linux-kernel@vger.kernel.org
+>> Cc: linux-mm@kvack.org
+>>
+>> ---
+>> We want to integrate this into syzkaller fuzzer.
+>> A prototype has found 10 bugs in kernel in first day of usage:
+>> https://groups.google.com/forum/#!searchin/syzkaller/%22FAULT_INJECTION%22%7Csort:relevance
+>>
+>> Changes since v1:
+>>  - change file name from /sys/kernel/debug/fail_once
+>>    to /proc/self/task/<current-tid>/fail-nth as per
+>>    Akinobu suggestion
+>>
+>> ---
+>>  Documentation/fault-injection/fault-injection.txt | 78 +++++++++++++++++++++++
+>>  fs/proc/base.c                                    | 52 +++++++++++++++
+>>  include/linux/sched.h                             |  1 +
+>>  kernel/fork.c                                     |  4 ++
+>>  lib/fault-inject.c                                |  7 ++
+>>  5 files changed, 142 insertions(+)
+>>
+>> diff --git a/Documentation/fault-injection/fault-injection.txt b/Documentation/fault-injection/fault-injection.txt
+>> index 415484f3d59a..192d8cbcc5f9 100644
+>> --- a/Documentation/fault-injection/fault-injection.txt
+>> +++ b/Documentation/fault-injection/fault-injection.txt
+>> @@ -134,6 +134,22 @@ use the boot option:
+>>       fail_futex=
+>>       mmc_core.fail_request=<interval>,<probability>,<space>,<times>
+>>
+>> +o proc entries
+>> +
+>> +- /proc/self/task/<current-tid>/fail-nth:
+>> +
+>> +     Write to this file of integer N makes N-th call in the current task fail
+>> +     (N is 0-based). Read from this file returns a single char 'Y' or 'N'
+>> +     that says if the fault setup with a previous write to this file was
+>> +     injected or not, and disables the fault if it wasn't yet injected.
+>> +     Note that this file enables all types of faults (slab, futex, etc).
+>> +     This setting takes precedence over all other generic debugfs settings
+>> +     like probability, interval, times, etc. But per-capability settings
+>> +     (e.g. fail_futex/ignore-private) take precedence over it.
+>> +
+>> +     This feature is intended for systematic testing of faults in a single
+>> +     system call. See an example below.
+>> +
+>>  How to add new fault injection capability
+>>  -----------------------------------------
+>>
+>> @@ -278,3 +294,65 @@ allocation failure.
+>>       # env FAILCMD_TYPE=fail_page_alloc \
+>>               ./tools/testing/fault-injection/failcmd.sh --times=100 \
+>>                  -- make -C tools/testing/selftests/ run_tests
+>> +
+>> +Systematic faults using fail-nth
+>> +---------------------------------
+>> +
+>> +The following code systematically faults 0-th, 1-st, 2-nd and so on
+>> +capabilities in the socketpair() system call.
+>> +
+>> +#include <sys/types.h>
+>> +#include <sys/stat.h>
+>> +#include <sys/socket.h>
+>> +#include <sys/syscall.h>
+>> +#include <fcntl.h>
+>> +#include <unistd.h>
+>> +#include <string.h>
+>> +#include <stdlib.h>
+>> +#include <stdio.h>
+>> +#include <errno.h>
+>> +
+>> +int main()
+>> +{
+>> +     int i, err, res, fail_nth, fds[2];
+>> +     char buf[128];
+>> +
+>> +     system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
+>> +     sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
+>> +     fail_nth = open(buf, O_RDWR);
+>> +     for (i = 0;; i++) {
+>> +             sprintf(buf, "%d", i);
+>> +             write(fail_nth, buf, strlen(buf));
+>> +             res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
+>> +             err = errno;
+>> +             read(fail_nth, buf, 1);
+>> +             if (res == 0) {
+>> +                     close(fds[0]);
+>> +                     close(fds[1]);
+>> +             }
+>> +             printf("%d-th fault %c: res=%d/%d\n", i, buf[0], res, err);
+>> +             if (buf[0] != 'Y')
+>> +                     break;
+>> +     }
+>> +     return 0;
+>> +}
+>> +
+>> +An example output:
+>> +
+>> +0-th fault Y: res=-1/23
+>> +1-th fault Y: res=-1/23
+>> +2-th fault Y: res=-1/23
+>> +3-th fault Y: res=-1/12
+>> +4-th fault Y: res=-1/12
+>> +5-th fault Y: res=-1/23
+>> +6-th fault Y: res=-1/23
+>> +7-th fault Y: res=-1/23
+>> +8-th fault Y: res=-1/12
+>> +9-th fault Y: res=-1/12
+>> +10-th fault Y: res=-1/12
+>> +11-th fault Y: res=-1/12
+>> +12-th fault Y: res=-1/12
+>> +13-th fault Y: res=-1/12
+>> +14-th fault Y: res=-1/12
+>> +15-th fault Y: res=-1/12
+>> +16-th fault N: res=0/12
+>> diff --git a/fs/proc/base.c b/fs/proc/base.c
+>> index 6e8655845830..66001172249b 100644
+>> --- a/fs/proc/base.c
+>> +++ b/fs/proc/base.c
+>> @@ -1353,6 +1353,53 @@ static const struct file_operations proc_fault_inject_operations = {
+>>       .write          = proc_fault_inject_write,
+>>       .llseek         = generic_file_llseek,
+>>  };
+>> +
+>> +static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
+>> +                                size_t count, loff_t *ppos)
+>> +{
+>> +     struct task_struct *task;
+>> +     int err, n;
+>> +
+>> +     task = get_proc_task(file_inode(file));
+>> +     if (!task)
+>> +             return -ESRCH;
+>> +     put_task_struct(task);
+>> +     if (task != current)
+>> +             return -EPERM;
+>> +     err = kstrtoint_from_user(buf, count, 10, &n);
+>> +     if (err)
+>> +             return err;
+>> +     if (n < 0 || n == INT_MAX)
+>> +             return -EINVAL;
+>> +     current->fail_nth = n + 1;
+>> +     return len;
+>> +}
+>> +
+>> +static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
+>> +                               size_t count, loff_t *ppos)
+>> +{
+>> +     struct task_struct *task;
+>> +     int err;
+>> +
+>> +     task = get_proc_task(file_inode(file));
+>> +     if (!task)
+>> +             return -ESRCH;
+>> +     put_task_struct(task);
+>> +     if (task != current)
+>> +             return -EPERM;
+>> +     if (count < 1)
+>> +             return -EINVAL;
+>> +     err = put_user((char)(current->fail_nth ? 'N' : 'Y'), buf);
+>> +     if (err)
+>> +             return err;
+>> +     current->fail_nth = 0;
+>> +     return 1;
+>> +}
+>> +
+>> +static const struct file_operations proc_fail_nth_operations = {
+>> +     .read           = proc_fail_nth_read,
+>> +     .write          = proc_fail_nth_write,
+>> +};
+>>  #endif
+>>
+>>
+>> @@ -3296,6 +3343,11 @@ static const struct pid_entry tid_base_stuff[] = {
+>>  #endif
+>>  #ifdef CONFIG_FAULT_INJECTION
+>>       REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
+>> +     /*
+>> +      * Operations on the file check that the task is current,
+>> +      * so we create it with 0666 to support testing under unprivileged user.
+>> +      */
+>> +     REG("fail-nth", 0666, proc_fail_nth_operations),
+>>  #endif
+>>  #ifdef CONFIG_TASK_IO_ACCOUNTING
+>>       ONE("io",       S_IRUSR, proc_tid_io_accounting),
+>> diff --git a/include/linux/sched.h b/include/linux/sched.h
+>> index 543e0ea82684..7b50221fea51 100644
+>> --- a/include/linux/sched.h
+>> +++ b/include/linux/sched.h
+>> @@ -1897,6 +1897,7 @@ struct task_struct {
+>>  #endif
+>>  #ifdef CONFIG_FAULT_INJECTION
+>>       int make_it_fail;
+>> +     int fail_nth;
+>>  #endif
+>>       /*
+>>        * when (nr_dirtied >= nr_dirtied_pause), it's time to call
+>> diff --git a/kernel/fork.c b/kernel/fork.c
+>> index 61284d8122fa..869c97a0a930 100644
+>> --- a/kernel/fork.c
+>> +++ b/kernel/fork.c
+>> @@ -545,6 +545,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+>>
+>>       kcov_task_init(tsk);
+>>
+>> +#ifdef CONFIG_FAULT_INJECTION
+>> +     tsk->fail_nth = 0;
+>> +#endif
+>> +
+>>       return tsk;
+>>
+>>  free_stack:
+>> diff --git a/lib/fault-inject.c b/lib/fault-inject.c
+>> index 6a823a53e357..d6516ba64d33 100644
+>> --- a/lib/fault-inject.c
+>> +++ b/lib/fault-inject.c
+>> @@ -107,6 +107,12 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
+>>
+>>  bool should_fail(struct fault_attr *attr, ssize_t size)
+>>  {
+>> +     if (in_task() && current->fail_nth) {
+>> +             if (--current->fail_nth == 0)
+>> +                     goto fail;
+>> +             return false;
+>> +     }
+>> +
+>>       /* No need to check any other properties if the probability is 0 */
+>>       if (attr->probability == 0)
+>>               return false;
+>> @@ -134,6 +140,7 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
+>>       if (!fail_stacktrace(attr))
+>>               return false;
+>>
+>> +fail:
+>>       fail_dump(attr);
+>>
+>>       if (atomic_read(&attr->times) != -1)
+>> --
+>> 2.12.2.564.g063fe858b8-goog
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
-> diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
-> index d4d3ed456cb7..2501ef7970f9 100644
-> --- a/arch/x86/include/asm/elf.h
-> +++ b/arch/x86/include/asm/elf.h
-> @@ -250,7 +250,7 @@ extern int force_personality32;
->     the loader.  We need to make sure that it is out of the way of the program
->     that it will "exec", and that there is sufficient room for the brk.  */
->
-> -#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
-> +#define ELF_ET_DYN_BASE		(TASK_SIZE_LOW / 3 * 2)
->
->  /* This yields a mask that user programs can use to figure out what
->     instruction set this CPU supports.  This could be done in user space,
-> @@ -304,7 +304,7 @@ static inline int mmap_is_ia32(void)
->  }
->
->  extern unsigned long tasksize_32bit(void);
-> -extern unsigned long tasksize_64bit(void);
-> +extern unsigned long tasksize_64bit(int full_addr_space);
->  extern unsigned long get_mmap_base(int is_legacy);
->
->  #ifdef CONFIG_X86_32
-> diff --git a/arch/x86/include/asm/mpx.h b/arch/x86/include/asm/mpx.h
-> index a0d662be4c5b..7d7404756bb4 100644
-> --- a/arch/x86/include/asm/mpx.h
-> +++ b/arch/x86/include/asm/mpx.h
-> @@ -73,6 +73,9 @@ static inline void mpx_mm_init(struct mm_struct *mm)
->  }
->  void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
->  		      unsigned long start, unsigned long end);
-> +
-> +unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
-> +		unsigned long flags);
->  #else
->  static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
->  {
-> @@ -94,6 +97,12 @@ static inline void mpx_notify_unmap(struct mm_struct *mm,
->  				    unsigned long start, unsigned long end)
->  {
->  }
-> +
-> +static inline unsigned long mpx_unmapped_area_check(unsigned long addr,
-> +		unsigned long len, unsigned long flags)
-> +{
-> +	return addr;
-> +}
->  #endif /* CONFIG_X86_INTEL_MPX */
->
->  #endif /* _ASM_X86_MPX_H */
-> diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-> index 3cada998a402..aaed58b03ddb 100644
-> --- a/arch/x86/include/asm/processor.h
-> +++ b/arch/x86/include/asm/processor.h
-> @@ -795,6 +795,7 @@ static inline void spin_lock_prefetch(const void *x)
->  #define IA32_PAGE_OFFSET	PAGE_OFFSET
->  #define TASK_SIZE		PAGE_OFFSET
->  #define TASK_SIZE_MAX		TASK_SIZE
-> +#define DEFAULT_MAP_WINDOW	TASK_SIZE
->  #define STACK_TOP		TASK_SIZE
->  #define STACK_TOP_MAX		STACK_TOP
->
-> @@ -834,7 +835,9 @@ static inline void spin_lock_prefetch(const void *x)
->   * particular problem by preventing anything from being mapped
->   * at the maximum canonical address.
->   */
-> -#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
-> +#define TASK_SIZE_MAX	((1UL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
-> +
-> +#define DEFAULT_MAP_WINDOW	((1UL << 47) - PAGE_SIZE)
->
->  /* This decides where the kernel will search for a free chunk of vm
->   * space during mmap's.
-> @@ -842,12 +845,14 @@ static inline void spin_lock_prefetch(const void *x)
->  #define IA32_PAGE_OFFSET	((current->personality & ADDR_LIMIT_3GB) ? \
->  					0xc0000000 : 0xFFFFe000)
->
-> +#define TASK_SIZE_LOW		(test_thread_flag(TIF_ADDR32) ? \
-> +					IA32_PAGE_OFFSET : DEFAULT_MAP_WINDOW)
->  #define TASK_SIZE		(test_thread_flag(TIF_ADDR32) ? \
->  					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
->  #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
->  					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
->
-> -#define STACK_TOP		TASK_SIZE
-> +#define STACK_TOP		TASK_SIZE_LOW
->  #define STACK_TOP_MAX		TASK_SIZE_MAX
->
->  #define INIT_THREAD  {						\
-> @@ -870,7 +875,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
->   * space during mmap's.
->   */
->  #define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
-> -#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
-> +#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE_LOW)
->
->  #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
->
-> diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-> index 207b8f2582c7..74d1587b181d 100644
-> --- a/arch/x86/kernel/sys_x86_64.c
-> +++ b/arch/x86/kernel/sys_x86_64.c
-> @@ -21,6 +21,7 @@
->  #include <asm/compat.h>
->  #include <asm/ia32.h>
->  #include <asm/syscalls.h>
-> +#include <asm/mpx.h>
->
->  /*
->   * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
-> @@ -100,8 +101,8 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
->  	return error;
->  }
->
-> -static void find_start_end(unsigned long flags, unsigned long *begin,
-> -			   unsigned long *end)
-> +static void find_start_end(unsigned long addr, unsigned long flags,
-> +		unsigned long *begin, unsigned long *end)
->  {
->  	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
->  		/* This is usually used needed to map code in small
-> @@ -120,7 +121,10 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
->  	}
->
->  	*begin	= get_mmap_base(1);
-> -	*end	= in_compat_syscall() ? tasksize_32bit() : tasksize_64bit();
-> +	if (in_compat_syscall())
-> +		*end = tasksize_32bit();
-> +	else
-> +		*end = tasksize_64bit(addr > DEFAULT_MAP_WINDOW);
->  }
->
->  unsigned long
-> @@ -132,10 +136,14 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  	struct vm_unmapped_area_info info;
->  	unsigned long begin, end;
->
-> +	addr = mpx_unmapped_area_check(addr, len, flags);
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +
->  	if (flags & MAP_FIXED)
->  		return addr;
->
-> -	find_start_end(flags, &begin, &end);
-> +	find_start_end(addr, flags, &begin, &end);
->
->  	if (len > end)
->  		return -ENOMEM;
-> @@ -171,6 +179,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  	unsigned long addr = addr0;
->  	struct vm_unmapped_area_info info;
->
-> +	addr = mpx_unmapped_area_check(addr, len, flags);
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +
->  	/* requested length too big for entire address space */
->  	if (len > TASK_SIZE)
->  		return -ENOMEM;
-> @@ -195,6 +207,16 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  	info.length = len;
->  	info.low_limit = PAGE_SIZE;
->  	info.high_limit = get_mmap_base(0);
-> +
-> +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
-> +	 *
-> +	 * !in_compat_syscall() check to avoid high addresses for x32.
-> +	 */
-> +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-> +		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
-> +
->  	info.align_mask = 0;
->  	info.align_offset = pgoff << PAGE_SHIFT;
->  	if (filp) {
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index 302f43fd9c28..730f00250acb 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -18,6 +18,7 @@
->  #include <asm/tlbflush.h>
->  #include <asm/pgalloc.h>
->  #include <asm/elf.h>
-> +#include <asm/mpx.h>
->
->  #if 0	/* This is just for testing */
->  struct page *
-> @@ -85,25 +86,38 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
->  	info.flags = 0;
->  	info.length = len;
->  	info.low_limit = get_mmap_base(1);
-> +
-> +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
-> +	 */
->  	info.high_limit = in_compat_syscall() ?
-> -		tasksize_32bit() : tasksize_64bit();
-> +		tasksize_32bit() : tasksize_64bit(addr > DEFAULT_MAP_WINDOW);
-> +
->  	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->  	info.align_offset = 0;
->  	return vm_unmapped_area(&info);
->  }
->
->  static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
-> -		unsigned long addr0, unsigned long len,
-> +		unsigned long addr, unsigned long len,
->  		unsigned long pgoff, unsigned long flags)
->  {
->  	struct hstate *h = hstate_file(file);
->  	struct vm_unmapped_area_info info;
-> -	unsigned long addr;
->
->  	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
->  	info.length = len;
->  	info.low_limit = PAGE_SIZE;
->  	info.high_limit = get_mmap_base(0);
-> +
-> +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
-> +	 */
-> +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-> +		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
-> +
->  	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->  	info.align_offset = 0;
->  	addr = vm_unmapped_area(&info);
-> @@ -118,7 +132,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
->  		VM_BUG_ON(addr != -ENOMEM);
->  		info.flags = 0;
->  		info.low_limit = TASK_UNMAPPED_BASE;
-> -		info.high_limit = TASK_SIZE;
-> +		info.high_limit = TASK_SIZE_LOW;
->  		addr = vm_unmapped_area(&info);
->  	}
->
-> @@ -135,6 +149,11 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
->
->  	if (len & ~huge_page_mask(h))
->  		return -EINVAL;
-> +
-> +	addr = mpx_unmapped_area_check(addr, len, flags);
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +
->  	if (len > TASK_SIZE)
->  		return -ENOMEM;
->
-> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-> index 19ad095b41df..199050249d60 100644
-> --- a/arch/x86/mm/mmap.c
-> +++ b/arch/x86/mm/mmap.c
-> @@ -42,9 +42,9 @@ unsigned long tasksize_32bit(void)
->  	return IA32_PAGE_OFFSET;
->  }
->
-> -unsigned long tasksize_64bit(void)
-> +unsigned long tasksize_64bit(int full_addr_space)
->  {
-> -	return TASK_SIZE_MAX;
-> +	return full_addr_space ? TASK_SIZE_MAX : DEFAULT_MAP_WINDOW;
->  }
->
->  static unsigned long stack_maxrandom_size(unsigned long task_size)
-> @@ -140,7 +140,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
->  		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
->
->  	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
-> -			arch_rnd(mmap64_rnd_bits), tasksize_64bit());
-> +			arch_rnd(mmap64_rnd_bits), tasksize_64bit(0));
->
->  #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
->  	/*
-> diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
-> index cd44ae727df7..a26a1b373fd0 100644
-> --- a/arch/x86/mm/mpx.c
-> +++ b/arch/x86/mm/mpx.c
-> @@ -355,10 +355,19 @@ int mpx_enable_management(void)
->  	 */
->  	bd_base = mpx_get_bounds_dir();
->  	down_write(&mm->mmap_sem);
-> +
-> +	/* MPX doesn't support addresses above 47-bits yet. */
-> +	if (find_vma(mm, DEFAULT_MAP_WINDOW)) {
-> +		pr_warn_once("%s (%d): MPX cannot handle addresses "
-> +				"above 47-bits. Disabling.",
-> +				current->comm, current->pid);
-> +		ret = -ENXIO;
-> +		goto out;
-> +	}
->  	mm->context.bd_addr = bd_base;
->  	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
->  		ret = -ENXIO;
-> -
-> +out:
->  	up_write(&mm->mmap_sem);
->  	return ret;
->  }
-> @@ -1038,3 +1047,25 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (ret)
->  		force_sig(SIGSEGV, current);
->  }
-> +
-> +/* MPX cannot handle addresses above 47-bits yet. */
-> +unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
-> +		unsigned long flags)
-> +{
-> +	if (!kernel_managing_mpx_tables(current->mm))
-> +		return addr;
-> +	if (addr + len <= DEFAULT_MAP_WINDOW)
-> +		return addr;
-> +	if (flags & MAP_FIXED)
-> +		return -ENOMEM;
-> +
-> +	/*
-> +	 * Requested len is larger than whole area we're allowed to map in.
-> +	 * Resetting hinting address wouldn't do much good -- fail early.
-> +	 */
-> +	if (len > DEFAULT_MAP_WINDOW)
-> +		return -ENOMEM;
-> +
-> +	/* Look for unmap area within DEFAULT_MAP_WINDOW */
-> +	return 0;
-> +}
->
-
-
--- 
-              Dmitry
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
