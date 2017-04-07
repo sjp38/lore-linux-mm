@@ -1,418 +1,588 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A8326B0038
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 08:10:49 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id x203so51161599oig.2
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 05:10:49 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0135.outbound.protection.outlook.com. [104.47.2.135])
-        by mx.google.com with ESMTPS id b132si967662oia.148.2017.04.07.05.10.46
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7F76B0038
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 08:13:57 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k22so10221239wrk.5
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 05:13:57 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z3si7560222wrb.20.2017.04.07.05.13.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 07 Apr 2017 05:10:47 -0700 (PDT)
-Subject: Re: [PATCHv2 8/8] x86/mm: Allow to have userspace mappings above
- 47-bits
-References: <20170406232137.uk7y2knbkcsru4pi@black.fi.intel.com>
- <20170406232442.9822-1-kirill.shutemov@linux.intel.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <4c8cd9a9-2013-2a74-6bea-d7dc7207abb1@virtuozzo.com>
-Date: Fri, 7 Apr 2017 14:32:31 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 07 Apr 2017 05:13:55 -0700 (PDT)
+Date: Fri, 7 Apr 2017 14:13:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [HMM 01/16] mm/memory/hotplug: add memory type parameter to
+ arch_add/remove_memory
+Message-ID: <20170407121349.GB16392@dhcp22.suse.cz>
+References: <20170405204026.3940-1-jglisse@redhat.com>
+ <20170405204026.3940-2-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170406232442.9822-1-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170405204026.3940-2-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 04/07/2017 02:24 AM, Kirill A. Shutemov wrote:
-> On x86, 5-level paging enables 56-bit userspace virtual address space.
-> Not all user space is ready to handle wide addresses. It's known that
-> at least some JIT compilers use higher bits in pointers to encode their
-> information. It collides with valid pointers with 5-level paging and
-> leads to crashes.
->
-> To mitigate this, we are not going to allocate virtual address space
-> above 47-bit by default.
->
-> But userspace can ask for allocation from full address space by
-> specifying hint address (with or without MAP_FIXED) above 47-bits.
->
-> If hint address set above 47-bit, but MAP_FIXED is not specified, we try
-> to look for unmapped area by specified address. If it's already
-> occupied, we look for unmapped area in *full* address space, rather than
-> from 47-bit window.
->
-> This approach helps to easily make application's memory allocator aware
-> about large address space without manually tracking allocated virtual
-> address space.
->
-> One important case we need to handle here is interaction with MPX.
-> MPX (without MAWA( extension cannot handle addresses above 47-bit, so we
-> need to make sure that MPX cannot be enabled we already have VMA above
-> the boundary and forbid creating such VMAs once MPX is enabled.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Dmitry Safonov <dsafonov@virtuozzo.com>
+On Wed 05-04-17 16:40:11, Jerome Glisse wrote:
+> When hotpluging memory we want more information on the type of memory.
+> This is to extend ZONE_DEVICE to support new type of memory other than
+> the persistent memory. Existing user of ZONE_DEVICE (persistent memory)
+> will be left un-modified.
+
+My current hotplug rework [1] is touching this path as well. It is not
+really clear from the chage why you are changing this and what are the
+further expectations of MEMORY_DEVICE_PERSISTENT. Infact I have replaced
+for_device with want__memblock [2]. I plan to repost shortly but I would
+like to understand your modifications more to reduce potential conflicts
+in the code. Why do you need to distinguish different types of memory
+anyway.
+
+[1] http://lkml.kernel.org/r/20170330115454.32154-1-mhocko@kernel.org
+[2] the current patchset is in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+    branch attempts/rewrite-mem_hotplug-WIP
+> 
+> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> Cc: Russell King <linux@armlinux.org.uk>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+> Cc: Rich Felker <dalias@libc.org>
+> Cc: Chris Metcalf <cmetcalf@mellanox.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
 > ---
->  arch/x86/include/asm/elf.h       |  2 +-
->  arch/x86/include/asm/mpx.h       |  9 +++++++++
->  arch/x86/include/asm/processor.h | 10 +++++++---
->  arch/x86/kernel/sys_x86_64.c     | 28 +++++++++++++++++++++++++++-
->  arch/x86/mm/hugetlbpage.c        | 27 ++++++++++++++++++++++++---
->  arch/x86/mm/mmap.c               |  2 +-
->  arch/x86/mm/mpx.c                | 33 ++++++++++++++++++++++++++++++++-
->  7 files changed, 101 insertions(+), 10 deletions(-)
->
-> diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
-> index d4d3ed456cb7..67260dbe1688 100644
-> --- a/arch/x86/include/asm/elf.h
-> +++ b/arch/x86/include/asm/elf.h
-> @@ -250,7 +250,7 @@ extern int force_personality32;
->     the loader.  We need to make sure that it is out of the way of the program
->     that it will "exec", and that there is sufficient room for the brk.  */
->
-> -#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
-> +#define ELF_ET_DYN_BASE		(DEFAULT_MAP_WINDOW / 3 * 2)
->
->  /* This yields a mask that user programs can use to figure out what
->     instruction set this CPU supports.  This could be done in user space,
-> diff --git a/arch/x86/include/asm/mpx.h b/arch/x86/include/asm/mpx.h
-> index a0d662be4c5b..7d7404756bb4 100644
-> --- a/arch/x86/include/asm/mpx.h
-> +++ b/arch/x86/include/asm/mpx.h
-> @@ -73,6 +73,9 @@ static inline void mpx_mm_init(struct mm_struct *mm)
+>  arch/ia64/mm/init.c            | 36 +++++++++++++++++++++++++++++++++---
+>  arch/powerpc/mm/mem.c          | 37 ++++++++++++++++++++++++++++++++++---
+>  arch/s390/mm/init.c            | 16 ++++++++++++++--
+>  arch/sh/mm/init.c              | 35 +++++++++++++++++++++++++++++++++--
+>  arch/x86/mm/init_32.c          | 41 +++++++++++++++++++++++++++++++++++++----
+>  arch/x86/mm/init_64.c          | 39 +++++++++++++++++++++++++++++++++++----
+>  include/linux/memory_hotplug.h | 24 ++++++++++++++++++++++--
+>  include/linux/memremap.h       |  2 ++
+>  kernel/memremap.c              |  5 +++--
+>  mm/memory_hotplug.c            |  4 ++--
+>  10 files changed, 215 insertions(+), 24 deletions(-)
+> 
+> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+> index 06cdaef..c910b3f 100644
+> --- a/arch/ia64/mm/init.c
+> +++ b/arch/ia64/mm/init.c
+> @@ -645,20 +645,36 @@ mem_init (void)
 >  }
->  void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
->  		      unsigned long start, unsigned long end);
-> +
-> +unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
-> +		unsigned long flags);
->  #else
->  static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
 >  {
-> @@ -94,6 +97,12 @@ static inline void mpx_notify_unmap(struct mm_struct *mm,
->  				    unsigned long start, unsigned long end)
->  {
->  }
-> +
-> +static inline unsigned long mpx_unmapped_area_check(unsigned long addr,
-> +		unsigned long len, unsigned long flags)
-> +{
-> +	return addr;
-> +}
->  #endif /* CONFIG_X86_INTEL_MPX */
->
->  #endif /* _ASM_X86_MPX_H */
-> diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-> index 3cada998a402..a98395e89ac6 100644
-> --- a/arch/x86/include/asm/processor.h
-> +++ b/arch/x86/include/asm/processor.h
-> @@ -795,6 +795,7 @@ static inline void spin_lock_prefetch(const void *x)
->  #define IA32_PAGE_OFFSET	PAGE_OFFSET
->  #define TASK_SIZE		PAGE_OFFSET
->  #define TASK_SIZE_MAX		TASK_SIZE
-> +#define DEFAULT_MAP_WINDOW	TASK_SIZE
->  #define STACK_TOP		TASK_SIZE
->  #define STACK_TOP_MAX		STACK_TOP
->
-> @@ -834,7 +835,10 @@ static inline void spin_lock_prefetch(const void *x)
->   * particular problem by preventing anything from being mapped
->   * at the maximum canonical address.
->   */
-> -#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
-> +#define TASK_SIZE_MAX	((1UL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
-> +
-> +#define DEFAULT_MAP_WINDOW	(test_thread_flag(TIF_ADDR32) ? \
-> +				IA32_PAGE_OFFSET : ((1UL << 47) - PAGE_SIZE))
-
-That fixes 32-bit, but we need to adjust some places, AFAICS, I'll
-point them below.
-
->
->  /* This decides where the kernel will search for a free chunk of vm
->   * space during mmap's.
-> @@ -847,7 +851,7 @@ static inline void spin_lock_prefetch(const void *x)
->  #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
->  					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
->
-> -#define STACK_TOP		TASK_SIZE
-> +#define STACK_TOP		DEFAULT_MAP_WINDOW
->  #define STACK_TOP_MAX		TASK_SIZE_MAX
->
->  #define INIT_THREAD  {						\
-> @@ -870,7 +874,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
->   * space during mmap's.
->   */
->  #define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
-> -#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
-> +#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(DEFAULT_MAP_WINDOW)
->
->  #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
->
-> diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-> index 207b8f2582c7..593a31e93812 100644
-> --- a/arch/x86/kernel/sys_x86_64.c
-> +++ b/arch/x86/kernel/sys_x86_64.c
-> @@ -21,6 +21,7 @@
->  #include <asm/compat.h>
->  #include <asm/ia32.h>
->  #include <asm/syscalls.h>
-> +#include <asm/mpx.h>
->
->  /*
->   * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
-> @@ -132,6 +133,10 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  	struct vm_unmapped_area_info info;
->  	unsigned long begin, end;
->
-> +	addr = mpx_unmapped_area_check(addr, len, flags);
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +
->  	if (flags & MAP_FIXED)
->  		return addr;
->
-> @@ -151,7 +156,16 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  	info.flags = 0;
->  	info.length = len;
->  	info.low_limit = begin;
-> -	info.high_limit = end;
-> +
+>  	pg_data_t *pgdat;
+>  	struct zone *zone;
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> +	bool for_device = false;
+>  	int ret;
+>  
 > +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
 > +	 */
-> +	if (addr > DEFAULT_MAP_WINDOW)
-> +		info.high_limit = min(end, TASK_SIZE);
-> +	else
-> +		info.high_limit = min(end, DEFAULT_MAP_WINDOW);
-
-That looks not working.
-`end' is choosed between tasksize_32bit() and tasksize_64bit().
-Which is ~4Gb or 47-bit. So, info.high_limit will never go
-above DEFAULT_MAP_WINDOW with this min().
-
-Can we move this logic into find_start_end()?
-
-May it be something like:
-if (in_compat_syscall())
-   *end = tasksize_32bit();
-else if (addr > task_size_64bit())
-   *end = TASK_SIZE_MAX;
-else
-   *end = tasksize_64bit();
-
-In my point of view, it could be even simpler if we add a parameter
-to task_size_64bit():
-
-#define TASK_SIZE_47BIT ((1UL << 47) - PAGE_SIZE))
-
-unsigned long task_size_64bit(int full_addr_space)
-{
-    return (full_addr_space) ? TASK_SIZE_MAX : TASK_SIZE_47BIT;
-}
-
-> +
->  	info.align_mask = 0;
->  	info.align_offset = pgoff << PAGE_SHIFT;
->  	if (filp) {
-> @@ -171,6 +185,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  	unsigned long addr = addr0;
->  	struct vm_unmapped_area_info info;
->
-> +	addr = mpx_unmapped_area_check(addr, len, flags);
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +
->  	/* requested length too big for entire address space */
->  	if (len > TASK_SIZE)
->  		return -ENOMEM;
-> @@ -195,6 +213,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  	info.length = len;
->  	info.low_limit = PAGE_SIZE;
->  	info.high_limit = get_mmap_base(0);
-> +
-> +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
-> +	 */
-> +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-> +		info.high_limit += TASK_SIZE - DEFAULT_MAP_WINDOW;
-
-Hmm, looks like we do need in_compat_syscall() as you did
-because x32 mmap() syscall has 8 byte parameter.
-Maybe worth a comment.
-
-Anyway, maybe something like that:
-if (addr > tasksize_64bit() && !in_compat_syscall())
-    info.high_limit += TASK_SIZE_MAX - tasksize_64bit();
-
-This way it's more readable and clear because we don't
-need to keep in mind that TIF_ADDR32 flag, while reading.
-
-
-> +
->  	info.align_mask = 0;
->  	info.align_offset = pgoff << PAGE_SHIFT;
->  	if (filp) {
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index 302f43fd9c28..9a0b89252c52 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -18,6 +18,7 @@
->  #include <asm/tlbflush.h>
->  #include <asm/pgalloc.h>
->  #include <asm/elf.h>
-> +#include <asm/mpx.h>
->
->  #if 0	/* This is just for testing */
->  struct page *
-> @@ -87,23 +88,38 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
->  	info.low_limit = get_mmap_base(1);
->  	info.high_limit = in_compat_syscall() ?
->  		tasksize_32bit() : tasksize_64bit();
-> +
-> +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
-> +	 */
-> +	if (addr > DEFAULT_MAP_WINDOW)
-> +		info.high_limit = TASK_SIZE;
-> +
->  	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->  	info.align_offset = 0;
->  	return vm_unmapped_area(&info);
->  }
->
->  static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
-> -		unsigned long addr0, unsigned long len,
-> +		unsigned long addr, unsigned long len,
->  		unsigned long pgoff, unsigned long flags)
->  {
->  	struct hstate *h = hstate_file(file);
->  	struct vm_unmapped_area_info info;
-> -	unsigned long addr;
->
->  	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
->  	info.length = len;
->  	info.low_limit = PAGE_SIZE;
->  	info.high_limit = get_mmap_base(0);
-> +
-> +	/*
-> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> +	 * in the full address space.
-> +	 */
-> +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-> +		info.high_limit += TASK_SIZE - DEFAULT_MAP_WINDOW;
-> +
->  	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->  	info.align_offset = 0;
->  	addr = vm_unmapped_area(&info);
-> @@ -118,7 +134,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
->  		VM_BUG_ON(addr != -ENOMEM);
->  		info.flags = 0;
->  		info.low_limit = TASK_UNMAPPED_BASE;
-> -		info.high_limit = TASK_SIZE;
-> +		info.high_limit = DEFAULT_MAP_WINDOW;
->  		addr = vm_unmapped_area(&info);
->  	}
->
-> @@ -135,6 +151,11 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
->
->  	if (len & ~huge_page_mask(h))
->  		return -EINVAL;
-> +
-> +	addr = mpx_unmapped_area_check(addr, len, flags);
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +
->  	if (len > TASK_SIZE)
->  		return -ENOMEM;
->
-> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-> index 19ad095b41df..d63232a31945 100644
-> --- a/arch/x86/mm/mmap.c
-> +++ b/arch/x86/mm/mmap.c
-> @@ -44,7 +44,7 @@ unsigned long tasksize_32bit(void)
->
->  unsigned long tasksize_64bit(void)
->  {
-> -	return TASK_SIZE_MAX;
-> +	return DEFAULT_MAP_WINDOW;
-
-My suggestion about new parameter is above, but at least
-we need to omit depending on TIF_ADDR32 here and return
-64-bit size independent of flag value:
-
-#define TASK_SIZE_47BIT ((1UL << 47) - PAGE_SIZE))
-unsigned long task_size_64bit(void)
-{
-    return TASK_SIZE_47BIT;
-}
-
-Because for 32-bit ELFs it would be always 4Gb in your
-case, while 32-bit ELFs can do 64-bit syscalls.
-
->  }
->
->  static unsigned long stack_maxrandom_size(unsigned long task_size)
-> diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
-> index cd44ae727df7..a26a1b373fd0 100644
-> --- a/arch/x86/mm/mpx.c
-> +++ b/arch/x86/mm/mpx.c
-> @@ -355,10 +355,19 @@ int mpx_enable_management(void)
->  	 */
->  	bd_base = mpx_get_bounds_dir();
->  	down_write(&mm->mmap_sem);
-> +
-> +	/* MPX doesn't support addresses above 47-bits yet. */
-> +	if (find_vma(mm, DEFAULT_MAP_WINDOW)) {
-> +		pr_warn_once("%s (%d): MPX cannot handle addresses "
-> +				"above 47-bits. Disabling.",
-> +				current->comm, current->pid);
-> +		ret = -ENXIO;
-> +		goto out;
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +		break;
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		for_device = true;
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
 > +	}
->  	mm->context.bd_addr = bd_base;
->  	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
->  		ret = -ENXIO;
-> -
-> +out:
->  	up_write(&mm->mmap_sem);
->  	return ret;
->  }
-> @@ -1038,3 +1047,25 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (ret)
->  		force_sig(SIGSEGV, current);
->  }
 > +
-> +/* MPX cannot handle addresses above 47-bits yet. */
-> +unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
-> +		unsigned long flags)
-> +{
-> +	if (!kernel_managing_mpx_tables(current->mm))
-> +		return addr;
-> +	if (addr + len <= DEFAULT_MAP_WINDOW)
-> +		return addr;
-> +	if (flags & MAP_FIXED)
-> +		return -ENOMEM;
+>  	pgdat = NODE_DATA(nid);
+>  
+>  	zone = pgdat->node_zones +
+>  		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
+>  	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+> -
+>  	if (ret)
+>  		printk("%s: Problem encountered in __add_pages() as ret=%d\n",
+>  		       __func__,  ret);
+> @@ -667,13 +683,27 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -int arch_remove_memory(u64 start, u64 size)
+> +int arch_remove_memory(u64 start, u64 size, enum memory_type type)
+>  {
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+>  	struct zone *zone;
+>  	int ret;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	ret = __remove_pages(zone, start_pfn, nr_pages);
+>  	if (ret)
+> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+> index 5f84433..0933261 100644
+> --- a/arch/powerpc/mm/mem.c
+> +++ b/arch/powerpc/mm/mem.c
+> @@ -126,14 +126,31 @@ int __weak remove_section_mapping(unsigned long start, unsigned long end)
+>  	return -ENODEV;
+>  }
+>  
+> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
+>  {
+>  	struct pglist_data *pgdata;
+> -	struct zone *zone;
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> +	bool for_device = false;
+> +	struct zone *zone;
+>  	int rc;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +		break;
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		for_device = true;
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	pgdata = NODE_DATA(nid);
+>  
+>  	start = (unsigned long)__va(start);
+> @@ -153,13 +170,27 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -int arch_remove_memory(u64 start, u64 size)
+> +int arch_remove_memory(u64 start, u64 size, enum memory_type type)
+>  {
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+>  	struct zone *zone;
+>  	int ret;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	ret = __remove_pages(zone, start_pfn, nr_pages);
+>  	if (ret)
+> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+> index bf5b8a0..20d7714 100644
+> --- a/arch/s390/mm/init.c
+> +++ b/arch/s390/mm/init.c
+> @@ -153,7 +153,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
+>  #endif
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
+>  {
+>  	unsigned long zone_start_pfn, zone_end_pfn, nr_pages;
+>  	unsigned long start_pfn = PFN_DOWN(start);
+> @@ -162,6 +162,18 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+>  	struct zone *zone;
+>  	int rc, i;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	rc = vmem_add_mapping(start, size);
+>  	if (rc)
+>  		return rc;
+> @@ -205,7 +217,7 @@ unsigned long memory_block_size_bytes(void)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -int arch_remove_memory(u64 start, u64 size)
+> +int arch_remove_memory(u64 start, u64 size, enum memory_type type)
+>  {
+>  	/*
+>  	 * There is no hardware or firmware interface which could trigger a
+> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+> index 7549186..f37e7a6 100644
+> --- a/arch/sh/mm/init.c
+> +++ b/arch/sh/mm/init.c
+> @@ -485,13 +485,30 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+>  #endif
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
+>  {
+>  	pg_data_t *pgdat;
+>  	unsigned long start_pfn = PFN_DOWN(start);
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> +	bool for_device = false;
+>  	int ret;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +		break;
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		for_device = true;
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	pgdat = NODE_DATA(nid);
+>  
+>  	/* We only have ZONE_NORMAL, so this is easy.. */
+> @@ -516,13 +533,27 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+>  #endif
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -int arch_remove_memory(u64 start, u64 size)
+> +int arch_remove_memory(u64 start, u64 size, enum memory_type type)
+>  {
+>  	unsigned long start_pfn = PFN_DOWN(start);
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+>  	struct zone *zone;
+>  	int ret;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	ret = __remove_pages(zone, start_pfn, nr_pages);
+>  	if (unlikely(ret))
+> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+> index c68078f..811d631 100644
+> --- a/arch/x86/mm/init_32.c
+> +++ b/arch/x86/mm/init_32.c
+> @@ -826,24 +826,57 @@ void __init mem_init(void)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
+>  {
+>  	struct pglist_data *pgdata = NODE_DATA(nid);
+> -	struct zone *zone = pgdata->node_zones +
+> -		zone_for_memory(nid, start, size, ZONE_HIGHMEM, for_device);
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> +	bool for_device = false;
+> +	struct zone *zone;
 > +
 > +	/*
-> +	 * Requested len is larger than whole area we're allowed to map in.
-> +	 * Resetting hinting address wouldn't do much good -- fail early.
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
 > +	 */
-> +	if (len > DEFAULT_MAP_WINDOW)
-> +		return -ENOMEM;
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +		break;
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		for_device = true;
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
 > +
-> +	/* Look for unmap area within DEFAULT_MAP_WINDOW */
-> +	return 0;
-> +}
->
-
+> +	zone = pgdata->node_zones +
+> +		zone_for_memory(nid, start, size, ZONE_HIGHMEM, for_device);
+>  
+>  	return __add_pages(nid, zone, start_pfn, nr_pages);
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -int arch_remove_memory(u64 start, u64 size)
+> +int arch_remove_memory(u64 start, u64 size, enum memory_type type)
+>  {
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+>  	struct zone *zone;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type. In particular, MEMORY_DEVICE_UNADDRESSABLE
+> +	 * is not supported on this architecture.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	return __remove_pages(zone, start_pfn, nr_pages);
+>  }
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index 7eef172..6c0b24e 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -641,15 +641,33 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
+>   * Memory is added always to NORMAL zone. This means you will never get
+>   * additional DMA/DMA32 memory.
+>   */
+> -int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> +int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type)
+>  {
+>  	struct pglist_data *pgdat = NODE_DATA(nid);
+> -	struct zone *zone = pgdat->node_zones +
+> -		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> +	bool for_device = false;
+> +	struct zone *zone;
+>  	int ret;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +		break;
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		for_device = true;
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+> +	zone = pgdat->node_zones +
+> +		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
+> +
+>  	init_memory_mapping(start, start + size);
+>  
+>  	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+> @@ -946,7 +964,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+>  	remove_pagetable(start, end, true);
+>  }
+>  
+> -int __ref arch_remove_memory(u64 start, u64 size)
+> +int __ref arch_remove_memory(u64 start, u64 size, enum memory_type type)
+>  {
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> @@ -955,6 +973,19 @@ int __ref arch_remove_memory(u64 start, u64 size)
+>  	struct zone *zone;
+>  	int ret;
+>  
+> +	/*
+> +	 * Each memory_type needs special handling, so error out on an
+> +	 * unsupported type.
+> +	 */
+> +	switch (type) {
+> +	case MEMORY_NORMAL:
+> +	case MEMORY_DEVICE_PERSISTENT:
+> +		break;
+> +	default:
+> +		pr_err("hotplug unsupported memory type %d\n", type);
+> +		return -EINVAL;
+> +	}
+> +
+>  	/* With altmap the first mapped page is offset from @start */
+>  	altmap = to_vmem_altmap((unsigned long) page);
+>  	if (altmap)
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 134a2f6..c3999f2 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -13,6 +13,26 @@ struct mem_section;
+>  struct memory_block;
+>  struct resource;
+>  
+> +/*
+> + * When hotplugging memory with arch_add_memory(), we want more information on
+> + * the type of memory we are hotplugging, because depending on the type of
+> + * architecture, the code might want to take different paths.
+> + *
+> + * MEMORY_NORMAL:
+> + * Your regular system memory. Default common case.
+> + *
+> + * MEMORY_DEVICE_PERSISTENT:
+> + * Persistent device memory (pmem): struct page might be allocated in different
+> + * memory and architecture might want to perform special actions. It is similar
+> + * to regular memory, in that the CPU can access it transparently. However,
+> + * it is likely to have different bandwidth and latency than regular memory.
+> + * See Documentation/nvdimm/nvdimm.txt for more information.
+> + */
+> +enum memory_type {
+> +	MEMORY_NORMAL = 0,
+> +	MEMORY_DEVICE_PERSISTENT,
+> +};
+> +
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+>  
+>  /*
+> @@ -104,7 +124,7 @@ extern bool memhp_auto_online;
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  extern bool is_pageblock_removable_nolock(struct page *page);
+> -extern int arch_remove_memory(u64 start, u64 size);
+> +extern int arch_remove_memory(u64 start, u64 size, enum memory_type type);
+>  extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+>  	unsigned long nr_pages);
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> @@ -276,7 +296,7 @@ extern int add_memory(int nid, u64 start, u64 size);
+>  extern int add_memory_resource(int nid, struct resource *resource, bool online);
+>  extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+>  		bool for_device);
+> -extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
+> +extern int arch_add_memory(int nid, u64 start, u64 size, enum memory_type type);
+>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+>  extern void remove_memory(int nid, u64 start, u64 size);
+> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+> index 9341619..1f720f7 100644
+> --- a/include/linux/memremap.h
+> +++ b/include/linux/memremap.h
+> @@ -41,12 +41,14 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+>   * @res: physical address range covered by @ref
+>   * @ref: reference count that pins the devm_memremap_pages() mapping
+>   * @dev: host device of the mapping for debug
+> + * @type: memory type see MEMORY_* in memory_hotplug.h
+>   */
+>  struct dev_pagemap {
+>  	struct vmem_altmap *altmap;
+>  	const struct resource *res;
+>  	struct percpu_ref *ref;
+>  	struct device *dev;
+> +	enum memory_type type;
+>  };
+>  
+>  #ifdef CONFIG_ZONE_DEVICE
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 07e85e5..6b4505d 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -248,7 +248,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+>  	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+>  
+>  	mem_hotplug_begin();
+> -	arch_remove_memory(align_start, align_size);
+> +	arch_remove_memory(align_start, align_size, pgmap->type);
+>  	mem_hotplug_done();
+>  
+>  	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+> @@ -326,6 +326,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>  	}
+>  	pgmap->ref = ref;
+>  	pgmap->res = &page_map->res;
+> +	pgmap->type = MEMORY_DEVICE_PERSISTENT;
+>  
+>  	mutex_lock(&pgmap_lock);
+>  	error = 0;
+> @@ -363,7 +364,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>  		goto err_pfn_remap;
+>  
+>  	mem_hotplug_begin();
+> -	error = arch_add_memory(nid, align_start, align_size, true);
+> +	error = arch_add_memory(nid, align_start, align_size, pgmap->type);
+>  	mem_hotplug_done();
+>  	if (error)
+>  		goto err_add_memory;
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index a07a07c..d1a4326 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1384,7 +1384,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+>  	}
+>  
+>  	/* call arch's memory hotadd */
+> -	ret = arch_add_memory(nid, start, size, false);
+> +	ret = arch_add_memory(nid, start, size, MEMORY_NORMAL);
+>  
+>  	if (ret < 0)
+>  		goto error;
+> @@ -2188,7 +2188,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+>  	memblock_free(start, size);
+>  	memblock_remove(start, size);
+>  
+> -	arch_remove_memory(start, size);
+> +	arch_remove_memory(start, size, MEMORY_NORMAL);
+>  
+>  	try_offline_node(nid);
+>  
+> -- 
+> 2.9.3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-              Dmitry
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
