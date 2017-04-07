@@ -1,109 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B52F76B03A1
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 12:10:08 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id n80so14405305qke.8
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 09:10:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e126si5215841qkb.62.2017.04.07.09.10.07
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A76946B03A3
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 12:14:01 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n129so76760229pga.22
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 09:14:01 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [65.50.211.136])
+        by mx.google.com with ESMTPS id 5si5549279plc.165.2017.04.07.09.14.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Apr 2017 09:10:07 -0700 (PDT)
-Date: Fri, 7 Apr 2017 12:10:00 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 01/16] mm/memory/hotplug: add memory type parameter to
- arch_add/remove_memory
-Message-ID: <20170407160959.GA15945@redhat.com>
-References: <20170405204026.3940-1-jglisse@redhat.com>
- <20170405204026.3940-2-jglisse@redhat.com>
- <20170407121349.GB16392@dhcp22.suse.cz>
- <20170407143246.GA15098@redhat.com>
- <20170407144504.GG16413@dhcp22.suse.cz>
- <20170407145740.GA15335@redhat.com>
- <20170407151105.GH16413@dhcp22.suse.cz>
+        Fri, 07 Apr 2017 09:14:00 -0700 (PDT)
+Date: Fri, 07 Apr 2017 09:09:27 -0700
+In-Reply-To: <20170407155945.7lyapjbwacg3ikw6@node.shutemov.name>
+References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com> <20170406140106.78087-9-kirill.shutemov@linux.intel.com> <8d68093b-670a-7d7e-2216-bf64b19c7a48@linux.vnet.ibm.com> <20170407155945.7lyapjbwacg3ikw6@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170407151105.GH16413@dhcp22.suse.cz>
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 8/8] x86/mm: Allow to have userspace mappings above 47-bits
+From: hpa@zytor.com
+Message-ID: <2A1F4E56-9374-4C41-876C-6E6CBD16DB22@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-On Fri, Apr 07, 2017 at 05:11:05PM +0200, Michal Hocko wrote:
-> On Fri 07-04-17 10:57:43, Jerome Glisse wrote:
-> > On Fri, Apr 07, 2017 at 04:45:04PM +0200, Michal Hocko wrote:
-> > > On Fri 07-04-17 10:32:49, Jerome Glisse wrote:
-> > > > On Fri, Apr 07, 2017 at 02:13:49PM +0200, Michal Hocko wrote:
-> > > > > On Wed 05-04-17 16:40:11, Jerome Glisse wrote:
-> > > > > > When hotpluging memory we want more information on the type of memory.
-> > > > > > This is to extend ZONE_DEVICE to support new type of memory other than
-> > > > > > the persistent memory. Existing user of ZONE_DEVICE (persistent memory)
-> > > > > > will be left un-modified.
-> > > > > 
-> > > > > My current hotplug rework [1] is touching this path as well. It is not
-> > > > > really clear from the chage why you are changing this and what are the
-> > > > > further expectations of MEMORY_DEVICE_PERSISTENT. Infact I have replaced
-> > > > > for_device with want__memblock [2]. I plan to repost shortly but I would
-> > > > > like to understand your modifications more to reduce potential conflicts
-> > > > > in the code. Why do you need to distinguish different types of memory
-> > > > > anyway.
-> > > > > 
-> > > > > [1] http://lkml.kernel.org/r/20170330115454.32154-1-mhocko@kernel.org
-> > > > > [2] the current patchset is in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> > > > >     branch attempts/rewrite-mem_hotplug-WIP
-> > > > 
-> > > > This is needed for UNADDRESSABLE memory type introduced in patch 3 and
-> > > > the arch specific bits are in patch 4. Basicly for UNADDRESSABLE memory
-> > > > i do not want the arch code to create a linear mapping for the range
-> > > > being hotpluged. Adding memory_type in this patch allow to distinguish
-> > > > between different type of ZONE_DEVICE.
-> > > 
-> > > Why don't you use __add_pages directly then?
-> > 
-> > That's a possibility, i wanted to keep the arch code in the loop in case
-> > some arch wanted to do something specific. But it is unlikely to ever be
-> > use outside x86 and i don't think we will want to do anything more than
-> > skipping linear mapping.
-> 
-> Hmm, I am looking closer and x86 stil updates max_pfn. Is this needed
-> or you are guaranteed to not cross the max_pfn?
+On April 7, 2017 8:59:45 AM PDT, "Kirill A=2E Shutemov" <kirill@shutemov=2E=
+name> wrote:
+>On Fri, Apr 07, 2017 at 07:05:26PM +0530, Anshuman Khandual wrote:
+>> On 04/06/2017 07:31 PM, Kirill A=2E Shutemov wrote:
+>> > On x86, 5-level paging enables 56-bit userspace virtual address
+>space=2E
+>> > Not all user space is ready to handle wide addresses=2E It's known
+>that
+>> > at least some JIT compilers use higher bits in pointers to encode
+>their
+>> > information=2E It collides with valid pointers with 5-level paging
+>and
+>> > leads to crashes=2E
+>> >=20
+>> > To mitigate this, we are not going to allocate virtual address
+>space
+>> > above 47-bit by default=2E
+>>=20
+>> I am wondering if the commitment of virtual space range to the
+>> user space is kind of an API which needs to be maintained there
+>> after=2E If that is the case then we need to have some plans when
+>> increasing it from the current level=2E
+>
+>I don't think we should ever enable full address space for all
+>applications=2E There's no point=2E
+>
+>/bin/true doesn't need more than 64TB of virtual memory=2E
+>And I hope never will=2E
+>
+>By increasing virtual address space for everybody we will pay (assuming
+>current page table format) at least one extra page per process for
+>moving
+>stack at very end of address space=2E
+>
+>Yes, you can gain something in security by having more bits for ASLR,
+>but
+>I don't think it worth the cost=2E
+>
+>> Will those JIT compilers keep using the higher bit positions of
+>> the pointer for ever ? Then it will limit the ability of the
+>> kernel to expand the virtual address range later as well=2E I am
+>> not saying we should not increase till the extent it does not
+>> affect any *known* user but then we should not increase twice
+>> for now, create the hint mechanism to be passed from the user
+>> to avail beyond that (which will settle in as a expectation
+>> from the kernel later on)=2E Do the same thing again while
+>> expanding the address range next time around=2E I think we need
+>> to have a plan for this and particularly around 'hint' mechanism
+>> and whether it should be decided per mmap() request or at the
+>> task level=2E
+>
+>I think the reasonable way for an application to claim it's 63-bit
+>clean
+>is to make allocations with (void *)-1 as hint address=2E
 
-No guaranteed so yes i somewhat care about max_pfn, i do not care about
-any of its existing user last time i check but it might matter for some
-new user.
-
->  
-> > Note that however for CDM when doing it with ZONE_DEVICE (i am gonna
-> > post an RFC for that) maybe the powerpc folks will want to know the
-> > memory type ie what kind of ZONE_DEVICE this is. I don't think they need
-> > it but i am not sure if there is anything specific needed for their
-> > next gen power 9 in respect of device memory.
-> 
-> Well, I really want to get rid of anything zone specific down the
-> arch_add_memory. So whatever they want to do with zone they will have to
-> do it after arch_add_memory.
-
-I am ok with that except that the linear mapping thing is in arch_add_memory
-and this is the thing i want to skip.
-
-> 
-> > Andrew if Michal think it is better to not use arch_add_memory directly
-> > for my case than i can respin HMM patchset. Let me know.
-> 
-> Well, I can drop
-> https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git/commit/?h=attempts/rewrite-mem_hotplug-WIP&id=bb1657d823a85bca045712467f517980650652ca
-> and arch_add_memory can have memory type argument as you suggest. I am
-> just trying to understand what are the expectations here. If you only care
-> about x86 then it sounds a bit too much to tweak all arches.
-
-Well i care about powerpc and i know some arm folks are interested in HMM
-but it is hard to know when this will materialize. So long run i expect
-more arch but it might not happen soon.
-
-Cheers,
-Jerome
+You realize that people have said that about just about every memory thres=
+hold from 64K onward?
+--=20
+Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
