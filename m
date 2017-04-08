@@ -1,373 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7520A6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 18:54:55 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 34so87627673pgx.6
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 15:54:55 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b3si2983044plb.206.2017.04.07.15.54.53
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 686FC6B0038
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 20:26:08 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m1so89878789pgd.13
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 17:26:08 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id l63si6603607plb.136.2017.04.07.17.26.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Apr 2017 15:54:53 -0700 (PDT)
-Date: Fri, 07 Apr 2017 15:54:51 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2017-04-07-15-53 uploaded
-Message-ID: <58e818bb.vgoFkCJajQ7tC0F1%akpm@linux-foundation.org>
+        Fri, 07 Apr 2017 17:26:07 -0700 (PDT)
+Date: Sat, 8 Apr 2017 08:25:28 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 132/276] include/linux/memcontrol.h:594:31: error:
+ parameter 2 ('event') has incomplete type
+Message-ID: <201704080824.tPKCLKGO%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="6c2NcOVqGQ03X4Wi"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
-
-The mm-of-the-moment snapshot 2017-04-07-15-53 has been uploaded to
-
-   http://www.ozlabs.org/~akpm/mmotm/
-
-mmotm-readme.txt says
-
-README for mm-of-the-moment:
-
-http://www.ozlabs.org/~akpm/mmotm/
-
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
-
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+--6c2NcOVqGQ03X4Wi
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   5b220005fda0593464fc4549eea586e597bf783c
+commit: f62fce7f6f7a699b0f98cadca266ccbd393c025b [132/276] mm: memcontrol: re-use global VM event enum
+config: i386-tinyconfig (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        git checkout f62fce7f6f7a699b0f98cadca266ccbd393c025b
+        # save the attached .config to linux build tree
+        make ARCH=i386 
 
-To develop on top of mmotm git:
+Note: the mmotm/master HEAD 5b220005fda0593464fc4549eea586e597bf783c builds fine.
+      It only hurts bisectibility.
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
+All error/warnings (new ones prefixed by >>):
 
-To rebase a branch with older patches to a new mmotm release:
+   In file included from include/linux/swap.h:8:0,
+                    from include/linux/suspend.h:4,
+                    from arch/x86/kernel/asm-offsets.c:12:
+>> include/linux/memcontrol.h:594:14: warning: 'enum memcg_event_item' declared inside parameter list will not be visible outside of this definition or declaration
+            enum memcg_event_item event)
+                 ^~~~~~~~~~~~~~~~
+>> include/linux/memcontrol.h:594:31: error: parameter 2 ('event') has incomplete type
+            enum memcg_event_item event)
+                                  ^~~~~
+>> include/linux/memcontrol.h:593:20: error: function declaration isn't a prototype [-Werror=strict-prototypes]
+    static inline void mem_cgroup_event(struct mem_cgroup *memcg,
+                       ^~~~~~~~~~~~~~~~
+   cc1: some warnings being treated as errors
+   make[2]: *** [arch/x86/kernel/asm-offsets.s] Error 1
+   make[2]: Target '__build' not remade because of errors.
+   make[1]: *** [prepare0] Error 2
+   make[1]: Target 'prepare' not remade because of errors.
+   make: *** [sub-make] Error 2
 
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+vim +594 include/linux/memcontrol.h
 
+   587	
+   588	static inline bool mem_cgroup_disabled(void)
+   589	{
+   590		return true;
+   591	}
+   592	
+ > 593	static inline void mem_cgroup_event(struct mem_cgroup *memcg,
+ > 594					    enum memcg_event_item event)
+   595	{
+   596	}
+   597	
 
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
+--6c2NcOVqGQ03X4Wi
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
+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
 
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.11-rc5:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  i-need-old-gcc.patch
-* mm-fix-page_vma_mapped_walk-for-ksm-pages.patch
-* userfaultfd-report-actual-registered-features-in-fdinfo.patch
-* fix-print-order-in-show_free_areas.patch
-* vmlinuxlds-add-missing-vmlinux_symbol-macros.patch
-* ptrace-fix-ptrace_listen-race-corrupting-task-state.patch
-* ptrace-fix-ptrace_listen-race-corrupting-task-state-checkpatch-fixes.patch
-* mm-thp-fix-setting-of-defermadvise-thp-defrag-mode.patch
-* dax-fix-radix-tree-insertion-race.patch
-* mm-swap_cgroup-reschedule-when-neeed-in-swap_cgroup_swapoff.patch
-* mailmap-update-yakir-yang-email-address.patch
-* mm-move-pcp-and-lru-pcp-drainging-into-single-wq.patch
-* mm-move-pcp-and-lru-pcp-drainging-into-single-wq-fix.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* dax-add-tracepoints-to-dax_iomap_pte_fault.patch
-* dax-add-tracepoints-to-dax_pfn_mkwrite.patch
-* dax-add-tracepoints-to-dax_load_hole.patch
-* dax-add-tracepoints-to-dax_writeback_mapping_range.patch
-* dax-add-tracepoints-to-dax_writeback_mapping_range-fix.patch
-* dax-add-tracepoint-to-dax_writeback_one.patch
-* dax-add-tracepoint-to-dax_insert_mapping.patch
-* kbuild-consolidate-header-generation-from-asm-offset-information.patch
-* fs-ocfs2-cluster-use-setup_timer.patch
-* ocfs2-o2hb-revert-hb-threshold-to-keep-compatible.patch
-* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
-* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
-* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks.patch
-* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks-checkpatch-fixes.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-  mm.patch
-* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes.patch
-* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes-fix.patch
-* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes-fix-2.patch
-* mm-fix-check-for-reclaimable-pages-in-pf_memalloc-reclaim-throttling.patch
-* mm-remove-seemingly-spurious-reclaimability-check-from-laptop_mode-gating.patch
-* mm-remove-unnecessary-reclaimability-check-from-numa-balancing-target.patch
-* mm-dont-avoid-high-priority-reclaim-on-unreclaimable-nodes.patch
-* mm-dont-avoid-high-priority-reclaim-on-memcg-limit-reclaim.patch
-* mm-delete-nr_pages_scanned-and-pgdat_reclaimable.patch
-* revert-mm-vmscan-account-for-skipped-pages-as-a-partial-scan.patch
-* mm-remove-unnecessary-back-off-function-when-retrying-page-reclaim.patch
-* writeback-use-setup_deferrable_timer.patch
-* mm-delete-unnecessary-ttu_-flags.patch
-* mm-dont-assume-anonymous-pages-have-swapbacked-flag.patch
-* mm-move-madv_free-pages-into-lru_inactive_file-list.patch
-* mm-move-madv_free-pages-into-lru_inactive_file-list-checkpatch-fixes.patch
-* mm-reclaim-madv_free-pages.patch
-* mm-reclaim-madv_free-pages-fix.patch
-* mm-fix-lazyfree-bug-on-check-in-try_to_unmap_one.patch
-* mm-fix-lazyfree-bug-on-check-in-try_to_unmap_one-fix.patch
-* mm-enable-madv_free-for-swapless-system.patch
-* proc-show-madv_free-pages-info-in-smaps.patch
-* proc-show-madv_free-pages-info-in-smaps-fix.patch
-* mm-memcontrol-provide-shmem-statistics.patch
-* thp-reduce-indentation-level-in-change_huge_pmd.patch
-* thp-fix-madv_dontneed-vs-numa-balancing-race.patch
-* mm-drop-unused-pmdp_huge_get_and_clear_notify.patch
-* thp-fix-madv_dontneed-vs-madv_free-race.patch
-* thp-fix-madv_dontneed-vs-madv_free-race-fix.patch
-* thp-fix-madv_dontneed-vs-clear-soft-dirty-race.patch
-* mm-swap-fix-a-race-in-free_swap_and_cache.patch
-* mm-use-is_migrate_highatomic-to-simplify-the-code.patch
-* mm-use-is_migrate_highatomic-to-simplify-the-code-fix.patch
-* mm-use-is_migrate_isolate_page-to-simplify-the-code.patch
-* mm-vmstat-print-non-populated-zones-in-zoneinfo.patch
-* mm-vmstat-suppress-pcp-stats-for-unpopulated-zones-in-zoneinfo.patch
-* zram-reduce-load-operation-in-page_same_filled.patch
-* lockdep-teach-lockdep-about-memalloc_noio_save.patch
-* lockdep-allow-to-disable-reclaim-lockup-detection.patch
-* xfs-abstract-pf_fstrans-to-pf_memalloc_nofs.patch
-* mm-introduce-memalloc_nofs_saverestore-api.patch
-* mm-introduce-memalloc_nofs_saverestore-api-fix.patch
-* xfs-use-memalloc_nofs_saverestore-instead-of-memalloc_noio.patch
-* jbd2-mark-the-transaction-context-with-the-scope-gfp_nofs-context.patch
-* jbd2-mark-the-transaction-context-with-the-scope-gfp_nofs-context-fix.patch
-* jbd2-make-the-whole-kjournald2-kthread-nofs-safe.patch
-* jbd2-make-the-whole-kjournald2-kthread-nofs-safe-checkpatch-fixes.patch
-* mm-tighten-up-the-fault-path-a-little.patch
-* mm-remove-rodata_test_data-export-add-pr_fmt.patch
-* mm-compaction-reorder-fields-in-struct-compact_control.patch
-* mm-compaction-remove-redundant-watermark-check-in-compact_finished.patch
-* mm-page_alloc-split-smallest-stolen-page-in-fallback.patch
-* mm-page_alloc-split-smallest-stolen-page-in-fallback-fix.patch
-* mm-page_alloc-count-movable-pages-when-stealing-from-pageblock.patch
-* mm-page_alloc-count-movable-pages-when-stealing-from-pageblock-fix.patch
-* mm-compaction-change-migrate_async_suitable-to-suitable_migration_source.patch
-* mm-compaction-add-migratetype-to-compact_control.patch
-* mm-compaction-restrict-async-compaction-to-pageblocks-of-same-migratetype.patch
-* mm-compaction-finish-whole-pageblock-to-reduce-fragmentation.patch
-* mm-do-not-use-double-negation-for-testing-page-flags.patch
-* mm-vmscan-fix-zone-balance-check-in-prepare_kswapd_sleep.patch
-* mm-vmscan-only-clear-pgdat-congested-dirty-writeback-state-when-balanced.patch
-* mm-vmscan-prevent-kswapd-sleeping-prematurely-due-to-mismatched-classzone_idx.patch
-* mm-vmscan-prevent-kswapd-sleeping-prematurely-due-to-mismatched-classzone_idx-fix.patch
-* mm-page_alloc-__gfp_nowarn-shouldnt-suppress-stall-warnings.patch
-* mm-sparse-refine-usemap_size-a-little.patch
-* mm-compaction-ignore-block-suitable-after-check-large-free-page.patch
-* mm-vmscan-more-restrictive-condition-for-retry-in-do_try_to_free_pages.patch
-* mm-vmscan-more-restrictive-condition-for-retry-in-do_try_to_free_pages-v5.patch
-* mm-remove-unncessary-ret-in-page_referenced.patch
-* mm-remove-swap_dirty-in-ttu.patch
-* mm-remove-swap_mlock-check-for-swap_success-in-ttu.patch
-* mm-make-the-try_to_munlock-void-function.patch
-* mm-remove-swap_mlock-in-ttu.patch
-* mm-remove-swap_again-in-ttu.patch
-* mm-make-ttus-return-boolean.patch
-* mm-make-rmap_walk-void-function.patch
-* mm-make-rmap_one-boolean-function.patch
-* mm-remove-swap_.patch
-* mm-remove-swap_-fix.patch
-* mm-swap-fix-comment-in-__read_swap_cache_async.patch
-* mm-swap-improve-readability-via-make-spin_lock-unlock-balanced.patch
-* mm-swap-avoid-lock-swap_avail_lock-when-held-cluster-lock.patch
-* mm-enable-page-poisoning-early-at-boot.patch
-* mm-enable-page-poisoning-early-at-boot-v2.patch
-* mm-include-linux-migrateh-fixing-checkpatch-warning-regarding-function-definition.patch
-* swap-add-warning-if-swap-slots-cache-failed-to-initialize.patch
-* swap-add-warning-if-swap-slots-cache-failed-to-initialize-fix.patch
-* mm-fix-spelling-error.patch
-* userfaultfd-selftest-combine-all-cases-into-the-single-executable.patch
-* zram-handle-multiple-pages-attached-bios-bvec.patch
-* zram-partial-io-refactoring.patch
-* zram-use-zram_slot_lock-instead-of-raw-bit_spin_lock-op.patch
-* zram-remove-zram_meta-structure.patch
-* zram-introduce-zram-data-accessor.patch
-* mm-add-additional-consistency-check.patch
-* oom-improve-oom-disable-handling.patch
-* mm-mmap-replace-shm_huge_mask-with-map_huge_mask-inside-mmap_pgoff.patch
-* mm-vmscan-fix-io-refault-regression-in-cache-workingset-transition.patch
-* mm-memcontrol-clean-up-memoryevents-counting-function.patch
-* mm-memcontrol-re-use-global-vm-event-enum.patch
-* mm-memcontrol-re-use-node-vm-page-state-enum.patch
-* mm-memcontrol-use-node-page-state-naming-scheme-for-memcg.patch
-* mm-swap-remove-unused-function-prototype.patch
-* mm-prevent-potential-recursive-reclaim-due-to-clearing-pf_memalloc.patch
-* mm-introduce-memalloc_noreclaim_saverestore.patch
-* treewide-convert-pf_memalloc-manipulations-to-new-helpers.patch
-* mtd-nand-nandsim-convert-to-memalloc_noreclaim_.patch
-* documentation-vm-add-hugetlbfs-reservation-overview.patch
-* mm-swap-use-kvzalloc-to-allocate-some-swap-data-structure.patch
-* mm-swap-sort-swap-entries-before-free.patch
-* mm-page_alloc-return-0-in-case-this-node-has-no-page-within-the-zone.patch
-* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* kasan-introduce-helper-functions-for-determining-bug-type.patch
-* kasan-unify-report-headers.patch
-* kasan-change-allocation-and-freeing-stack-traces-headers.patch
-* kasan-simplify-address-description-logic.patch
-* kasan-change-report-header.patch
-* kasan-improve-slab-object-description.patch
-* kasan-print-page-description-after-stacks.patch
-* kasan-improve-double-free-report-format.patch
-* kasan-separate-report-parts-by-empty-lines.patch
-* proc-remove-cast-from-memory-allocation.patch
-* proc-sysctl-fix-the-int-overflow-for-jiffies-conversion.patch
-* drivers-virt-use-get_user_pages_unlocked.patch
-* jiffiesh-declare-jiffies-and-jiffies_64-with-____cacheline_aligned_in_smp.patch
-* module-verify-address-is-read-only.patch
-* extable-verify-address-is-read-only.patch
-* locking-hung_task-defer-showing-held-locks.patch
-* vmci-fix-a-couple-integer-overflow-tests.patch
-* revert-lib-test_sortc-make-it-explicitly-non-modular.patch
-* lib-add-module-support-to-array-based-sort-tests.patch
-* lib-add-module-support-to-linked-list-sorting-tests.patch
-* firmware-makefile-force-recompilation-if-makefile-changes.patch
-* checkpatch-remove-obsolete-config_experimental-checks.patch
-* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions.patch
-* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions-fix.patch
-* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions-fix-fix.patch
-* checkpatch-improve-embedded_function_name-test.patch
-* checkpatch-allow-space-leading-blank-lines-in-email-headers.patch
-* reiserfs-use-designated-initializers.patch
-* cpumask-make-nr_cpumask_bits-unsigned.patch
-* crash-move-crashkernel-parsing-and-vmcore-related-code-under-config_crash_core.patch
-* ia64-reuse-append_elf_note-and-final_note-functions.patch
-* powerpc-fadump-remove-dependency-with-config_kexec.patch
-* powerpc-fadump-reuse-crashkernel-parameter-for-fadump-memory-reservation.patch
-* powerpc-fadump-update-documentation-about-crashkernel-parameter-reuse.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
-* ns-allow-ns_entries-to-have-custom-symlink-content.patch
-* pidns-expose-task-pid_ns_for_children-to-userspace.patch
-* taskstats-add-e-u-stime-for-tgid-command.patch
-* taskstats-add-e-u-stime-for-tgid-command-fix.patch
-* taskstats-add-e-u-stime-for-tgid-command-fix-fix.patch
-* kcov-simplify-interrupt-check.patch
-* scripts-gdb-add-lx-fdtdump-command.patch
-* kernel-reboot-add-devm_register_reboot_notifier.patch
-* kernel-reboot-add-devm_register_reboot_notifier-fix.patch
-* fault-inject-use-correct-check-for-interrupts.patch
-* fault-inject-support-systematic-fault-injection.patch
-* fault-inject-support-systematic-fault-injection-fix.patch
-* fault-inject-automatically-detect-the-number-base-for-fail-nth-write-interface.patch
-* fault-inject-parse-as-natural-1-based-value-for-fail-nth-write-interface.patch
-* fault-inject-make-fail-nth-read-write-interface-symmetric.patch
-* fault-inject-simplify-access-check-for-fail-nth.patch
-* fault-inject-add-proc-pid-fail-nth.patch
-* zlib-inflate-fix-potential-buffer-overflow.patch
-* initramfs-provide-a-way-to-ignore-image-provided-by-bootloader.patch
-* initramfs-use-vfs_stat-lstat-directly.patch
-* ipc-shm-some-shmat-cleanups.patch
-* sysvipc-cacheline-align-kern_ipc_perm.patch
-  linux-next.patch
-  linux-next-rejects.patch
-  linux-next-git-rejects.patch
-* sparc64-ng4-memset-32-bits-overflow.patch
-* mm-zeroing-hash-tables-in-allocator.patch
-* mm-updated-callers-to-use-hash_zero-flag.patch
-* mm-adaptive-hash-table-scaling.patch
-* mm-introduce-kvalloc-helpers.patch
-* mm-introduce-kvalloc-helpers-fix.patch
-* mm-support-__gfp_repeat-in-kvmalloc_node-for-32kb.patch
-* rhashtable-simplify-a-strange-allocation-pattern.patch
-* ila-simplify-a-strange-allocation-pattern.patch
-* xattr-zero-out-memory-copied-to-userspace-in-getxattr.patch
-* treewide-use-kvalloc-rather-than-opencoded-variants.patch
-* net-use-kvmalloc-with-__gfp_repeat-rather-than-open-coded-variant.patch
-* md-use-kvmalloc-rather-than-opencoded-variant.patch
-* bcache-use-kvmalloc.patch
-* mm-vmalloc-use-__gfp_highmem-implicitly.patch
-* scripts-spellingtxt-add-memory-pattern-and-fix-typos.patch
-* scripts-spellingtxt-add-regsiter-register-spelling-mistake.patch
-* scripts-spellingtxt-add-intialised-pattern-and-fix-typo-instances.patch
-* treewide-correct-diffrent-and-banlance-typos.patch
-* treewide-move-set_memory_-functions-away-from-cacheflushh.patch
-* arm-use-set_memoryh-header.patch
-* arm64-use-set_memoryh-header.patch
-* s390-use-set_memoryh-header.patch
-* x86-use-set_memoryh-header.patch
-* agp-use-set_memoryh-header.patch
-* drm-use-set_memoryh-header.patch
-* drm-use-set_memoryh-header-fix.patch
-* intel_th-use-set_memoryh-header.patch
-* watchdog-hpwdt-use-set_memoryh-header.patch
-* bpf-use-set_memoryh-header.patch
-* module-use-set_memoryh-header.patch
-* pm-hibernate-use-set_memoryh-header.patch
-* alsa-use-set_memoryh-header.patch
-* misc-sram-use-set_memoryh-header.patch
-* video-vermilion-use-set_memoryh-header.patch
-* drivers-staging-media-atomisp-pci-atomisp2-use-set_memoryh.patch
-* treewide-decouple-cacheflushh-and-set_memoryh.patch
-* kref-remove-warn_on-for-null-release-functions.patch
-* megasas-remove-expensive-inline-from-megasas_return_cmd.patch
-* remove-expensive-warn_on-in-pagefault_disabled_dec.patch
-* fs-remove-set-but-not-checked-aop_flag_uninterruptible-flag.patch
-* docs-vm-transhuge-fix-few-trivial-typos.patch
-* docs-vm-transhuge-fix-few-trivial-typos-fix.patch
-* format-security-move-static-strings-to-const.patch
-* mm-memory-hotplug-add-memory-type-parameter-to-arch_add-remove_memory.patch
-* mm-put_page-move-zone_device-page-reference-decrement-v2.patch
-* mm-unaddressable-memory-new-type-of-zone_device-for-unaddressable-memory.patch
-* mm-zone_device-x86-add-support-for-un-addressable-device-memory.patch
-* mm-migrate-new-migrate-mode-migrate_sync_no_copy.patch
-* mm-migrate-new-memory-migration-helper-for-use-with-device-memory-v4.patch
-* mm-migrate-migrate_vma-unmap-page-from-vma-while-collecting-pages.patch
-* mm-hmm-heterogeneous-memory-management-hmm-for-short.patch
-* mm-hmm-mirror-mirror-process-address-space-on-device-with-hmm-helpers.patch
-* mm-hmm-mirror-helper-to-snapshot-cpu-page-table-v2.patch
-* mm-hmm-mirror-device-page-fault-handler.patch
-* mm-migrate-support-un-addressable-zone_device-page-in-migration.patch
-* mm-migrate-allow-migrate_vma-to-alloc-new-page-on-empty-entry.patch
-* mm-hmm-devmem-device-memory-hotplug-using-zone_device.patch
-* mm-hmm-devmem-device-memory-hotplug-using-zone_device-fix.patch
-* mm-hmm-devmem-dummy-hmm-device-for-zone_device-memory-v2.patch
-* hmm-heterogeneous-memory-management-documentation.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  workaround-for-a-pci-restoring-bug.patch
+--6c2NcOVqGQ03X4Wi--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
