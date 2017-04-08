@@ -1,37 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 34E296B0038
-	for <linux-mm@kvack.org>; Sat,  8 Apr 2017 13:59:21 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id c18so21376120ioa.8
-        for <linux-mm@kvack.org>; Sat, 08 Apr 2017 10:59:21 -0700 (PDT)
-Received: from mail-it0-x22b.google.com (mail-it0-x22b.google.com. [2607:f8b0:4001:c0b::22b])
-        by mx.google.com with ESMTPS id 204si2983068itz.38.2017.04.08.10.59.20
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 119F96B0038
+	for <linux-mm@kvack.org>; Sat,  8 Apr 2017 14:09:13 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 63so945959wmr.15
+        for <linux-mm@kvack.org>; Sat, 08 Apr 2017 11:09:13 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id t82si3985001wmf.81.2017.04.08.11.09.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 08 Apr 2017 10:59:20 -0700 (PDT)
-Received: by mail-it0-x22b.google.com with SMTP id a140so8275636ita.0
-        for <linux-mm@kvack.org>; Sat, 08 Apr 2017 10:59:20 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 08 Apr 2017 11:09:11 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 5044B98C98
+	for <linux-mm@kvack.org>; Sat,  8 Apr 2017 18:09:11 +0000 (UTC)
+Date: Sat, 8 Apr 2017 19:09:10 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: Is it safe for kthreadd to drain_all_pages?
+Message-ID: <20170408180910.mtkcvi4vlwg2li6b@techsingularity.net>
+References: <alpine.LSU.2.11.1704051331420.4288@eggly.anvils>
+ <20170406130614.a6ygueggpwseqysd@techsingularity.net>
+ <alpine.LSU.2.11.1704061134240.17094@eggly.anvils>
+ <alpine.LSU.2.11.1704070914520.1566@eggly.anvils>
+ <20170407163932.GJ16413@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1704070952530.2261@eggly.anvils>
+ <20170407172918.GK16413@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1704071141110.3348@eggly.anvils>
+ <alpine.LSU.2.11.1704081000110.27995@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1491634091-18817-1-git-send-email-salls@cs.ucsb.edu>
-References: <1491634091-18817-1-git-send-email-salls@cs.ucsb.edu>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 8 Apr 2017 10:59:19 -0700
-Message-ID: <CA+55aFxY=3AhkOAbDYgWHNrOaBP1q0efi2rWQBQ_Z3ZzUYH1+Q@mail.gmail.com>
-Subject: Re: [PATCH] mm/mempolicy.c: fix error handling in set_mempolicy and mbind.
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1704081000110.27995@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Salls <salls@cs.ucsb.edu>
-Cc: linux-mm <linux-mm@kvack.org>, "security@kernel.org" <security@kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Apr 7, 2017 at 11:48 PM, Chris Salls <salls@cs.ucsb.edu> wrote:
-> In the case that compat_get_bitmap fails we do not want to copy the
-> bitmap to the user as it will contain uninitialized stack data and
-> leak sensitive data.
+On Sat, Apr 08, 2017 at 10:04:20AM -0700, Hugh Dickins wrote:
+> On Fri, 7 Apr 2017, Hugh Dickins wrote:
+> > On Fri, 7 Apr 2017, Michal Hocko wrote:
+> > > On Fri 07-04-17 09:58:17, Hugh Dickins wrote:
+> > > > On Fri, 7 Apr 2017, Michal Hocko wrote:
+> > > > > On Fri 07-04-17 09:25:33, Hugh Dickins wrote:
+> > > > > [...]
+> > > > > > 24 hours so far, and with a clean /var/log/messages.  Not conclusive
+> > > > > > yet, and of course I'll leave it running another couple of days, but
+> > > > > > I'm increasingly sure that it works as you intended: I agree that
+> > > > > > 
+> > > > > > mm-move-pcp-and-lru-pcp-drainging-into-single-wq.patch
+> > > > > > mm-move-pcp-and-lru-pcp-drainging-into-single-wq-fix.patch
+> > > > > > 
+> > > > > > should go to Linus as soon as convenient.  Though I think the commit
+> > > > > > message needs something a bit stronger than "Quite annoying though".
+> > > > > > Maybe add a line:
+> > > > > > 
+> > > > > > Fixes serious hang under load, observed repeatedly on 4.11-rc.
+> > > > > 
+> > > > > Yeah, it is much less theoretical now. I will rephrase and ask Andrew to
+> > > > > update the chagelog and send it to Linus once I've got your final go.
+> > > > 
+> > > > I don't know akpm's timetable, but your fix being more than a two-liner,
+> > > > I think it would be better if it could get into rc6, than wait another
+> > > > week for rc7, just in case others then find problems with it.  So I
+> > > > think it's safer *not* to wait for my final go, but proceed on the
+> > > > assumption that it will follow a day later.
+> > > 
+> > > Fair enough. Andrew, could you update the changelog of
+> > > mm-move-pcp-and-lru-pcp-drainging-into-single-wq.patch
+> > > and send it to Linus along with
+> > > mm-move-pcp-and-lru-pcp-drainging-into-single-wq-fix.patch before rc6?
+> > > 
+> > > I would add your Teste-by Hugh but I guess you want to give your testing
+> > > more time before feeling comfortable to give it.
+> > 
+> > Yes, fair enough: at the moment it's just
+> > Half-Tested-by: Hugh Dickins <hughd@google.com>
+> > and I hope to take the Half- off in about 21 hours.
+> > But I certainly wouldn't mind if it found its way to Linus without my
+> > final seal of approval.
+> 
+> 48 hours and still going well: I declare it good, and thanks to Andrew,
+> Linus has ce612879ddc7 "mm: move pcp and lru-pcp draining into single wq"
+> already in for rc6.
+> 
 
-Ack, looks sane, applied.
+Excellent, thanks for that testing.
 
-              Linus
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
