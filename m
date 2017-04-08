@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 686FC6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 20:26:08 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m1so89878789pgd.13
-        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 17:26:08 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 58ED76B039F
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2017 20:30:08 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id v4so89867798pgc.20
+        for <linux-mm@kvack.org>; Fri, 07 Apr 2017 17:30:08 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id l63si6603607plb.136.2017.04.07.17.26.07
+        by mx.google.com with ESMTPS id b4si6599067plk.305.2017.04.07.17.30.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Apr 2017 17:26:07 -0700 (PDT)
-Date: Sat, 8 Apr 2017 08:25:28 +0800
+        Fri, 07 Apr 2017 17:30:07 -0700 (PDT)
+Date: Sat, 8 Apr 2017 08:29:49 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 132/276] include/linux/memcontrol.h:594:31: error:
- parameter 2 ('event') has incomplete type
-Message-ID: <201704080824.tPKCLKGO%fengguang.wu@intel.com>
+Subject: [mmotm:master 133/276] include/linux/memcontrol.h:743:35: error:
+ parameter 2 ('idx') has incomplete type
+Message-ID: <201704080847.afTFloTD%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="6c2NcOVqGQ03X4Wi"
+Content-Type: multipart/mixed; boundary="Kj7319i9nmIyA2yE"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,17 +23,17 @@ To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---6c2NcOVqGQ03X4Wi
+--Kj7319i9nmIyA2yE
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   5b220005fda0593464fc4549eea586e597bf783c
-commit: f62fce7f6f7a699b0f98cadca266ccbd393c025b [132/276] mm: memcontrol: re-use global VM event enum
+commit: 305552ab63f28e26d836c82e30b81899d5a919d3 [133/276] mm: memcontrol: re-use node VM page state enum
 config: i386-tinyconfig (attached as .config)
 compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
 reproduce:
-        git checkout f62fce7f6f7a699b0f98cadca266ccbd393c025b
+        git checkout 305552ab63f28e26d836c82e30b81899d5a919d3
         # save the attached .config to linux build tree
         make ARCH=i386 
 
@@ -45,15 +45,15 @@ All error/warnings (new ones prefixed by >>):
    In file included from include/linux/swap.h:8:0,
                     from include/linux/suspend.h:4,
                     from arch/x86/kernel/asm-offsets.c:12:
->> include/linux/memcontrol.h:594:14: warning: 'enum memcg_event_item' declared inside parameter list will not be visible outside of this definition or declaration
-            enum memcg_event_item event)
-                 ^~~~~~~~~~~~~~~~
->> include/linux/memcontrol.h:594:31: error: parameter 2 ('event') has incomplete type
-            enum memcg_event_item event)
-                                  ^~~~~
->> include/linux/memcontrol.h:593:20: error: function declaration isn't a prototype [-Werror=strict-prototypes]
-    static inline void mem_cgroup_event(struct mem_cgroup *memcg,
-                       ^~~~~~~~~~~~~~~~
+>> include/linux/memcontrol.h:743:13: warning: 'enum mem_cgroup_stat_index' declared inside parameter list will not be visible outside of this definition or declaration
+           enum mem_cgroup_stat_index idx)
+                ^~~~~~~~~~~~~~~~~~~~~
+>> include/linux/memcontrol.h:743:35: error: parameter 2 ('idx') has incomplete type
+           enum mem_cgroup_stat_index idx)
+                                      ^~~
+   include/linux/memcontrol.h:742:29: error: function declaration isn't a prototype [-Werror=strict-prototypes]
+    static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+                                ^~~~~~~~~~~~~~~~~~~~
    cc1: some warnings being treated as errors
    make[2]: *** [arch/x86/kernel/asm-offsets.s] Error 1
    make[2]: Target '__build' not remade because of errors.
@@ -61,30 +61,35 @@ All error/warnings (new ones prefixed by >>):
    make[1]: Target 'prepare' not remade because of errors.
    make: *** [sub-make] Error 2
 
-vim +594 include/linux/memcontrol.h
+vim +743 include/linux/memcontrol.h
 
-   587	
-   588	static inline bool mem_cgroup_disabled(void)
-   589	{
-   590		return true;
-   591	}
-   592	
- > 593	static inline void mem_cgroup_event(struct mem_cgroup *memcg,
- > 594					    enum memcg_event_item event)
-   595	{
-   596	}
-   597	
+49426420 Johannes Weiner 2013-10-16  737  static inline bool mem_cgroup_oom_synchronize(bool wait)
+3812c8c8 Johannes Weiner 2013-09-12  738  {
+3812c8c8 Johannes Weiner 2013-09-12  739  	return false;
+3812c8c8 Johannes Weiner 2013-09-12  740  }
+3812c8c8 Johannes Weiner 2013-09-12  741  
+fbb9f7c4 Johannes Weiner 2017-04-07  742  static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+fbb9f7c4 Johannes Weiner 2017-04-07 @743  						 enum mem_cgroup_stat_index idx)
+fbb9f7c4 Johannes Weiner 2017-04-07  744  {
+fbb9f7c4 Johannes Weiner 2017-04-07  745  	return 0;
+fbb9f7c4 Johannes Weiner 2017-04-07  746  }
+
+:::::: The code at line 743 was first introduced by commit
+:::::: fbb9f7c42acf2f168ca1eb86cd98dd9100155fe2 mm: vmscan: fix IO/refault regression in cache workingset transition
+
+:::::: TO: Johannes Weiner <hannes@cmpxchg.org>
+:::::: CC: Johannes Weiner <hannes@cmpxchg.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---6c2NcOVqGQ03X4Wi
+--Kj7319i9nmIyA2yE
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICDIt6FgAAy5jb25maWcAjFxbc9u4kn4/v4I1sw+Zqk3iWzye2vIDBIISRgTJEKQk+4Wl
+H4sICNws6FgAAy5jb25maWcAjFxbc9u4kn4/v4I1sw+Zqk3iWzye2vIDBIISRgTJEKQk+4Wl
 yHSiii15dZlJ/v12A6R4ayh7qs45Mbpx78vXjaZ+/8/vHjsetq/Lw3q1fHn56X0tN+VueSif
 vOf1S/k/nh97UZx5wpfZB2AO15vjj4/r67tb7+bD5eWHi/e71af3r6+X3rTcbcoXj283z+uv
 Rxhivd3853fowuMokOPi9mYkM2+99zbbg7cvD/+p2hd3t8X11f3P1t/NHzLSWZrzTMZR4Qse
@@ -206,7 +211,7 @@ WSkz8n4B6B3PoMTrxrtdY/h4i7AZIXeV0D1fNAKEb905mpqukpQ+FU84J23OoHjpW+gZlnTM
 eqivZf+5nNWcXlAHuwDNtXpgnXTAWVvT+fxPuDWn1DuKdKQCm2QQtut6sWiBBtQhIBlgdio8
 eNPwnzmkUyqK1gVinwTmVLbcKwdsB6iMZRwWI9dMwQ/Av9qqLu4hXQAA
 
---6c2NcOVqGQ03X4Wi--
+--Kj7319i9nmIyA2yE--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
