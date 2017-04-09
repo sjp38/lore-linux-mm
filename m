@@ -1,108 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E03006B0038
-	for <linux-mm@kvack.org>; Sat,  8 Apr 2017 21:45:00 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a72so103609508pge.10
-        for <linux-mm@kvack.org>; Sat, 08 Apr 2017 18:45:00 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id o5si2667894pgk.339.2017.04.08.18.45.00
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E8F3A6B0038
+	for <linux-mm@kvack.org>; Sat,  8 Apr 2017 22:38:46 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t189so1277393wmt.9
+        for <linux-mm@kvack.org>; Sat, 08 Apr 2017 19:38:46 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t66si6044424wmg.38.2017.04.08.19.38.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 08 Apr 2017 18:45:00 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id n11so5026099pfg.2
-        for <linux-mm@kvack.org>; Sat, 08 Apr 2017 18:44:59 -0700 (PDT)
-Date: Sun, 9 Apr 2017 09:44:57 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [RFC] calc_memmap_size() isn't accurate and one suggestion to
- improve
-Message-ID: <20170409014457.GA24681@WeideMBP.lan>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170328011137.GA8655@WeideMacBook-Pro.local>
- <20170403091818.GI24661@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="x+6KMIRAuhnl3hBn"
-Content-Disposition: inline
-In-Reply-To: <20170403091818.GI24661@dhcp22.suse.cz>
+        Sat, 08 Apr 2017 19:38:45 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v392cg1h021018
+	for <linux-mm@kvack.org>; Sat, 8 Apr 2017 22:38:44 -0400
+Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com [125.16.236.7])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 29qa363b1w-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 08 Apr 2017 22:38:43 -0400
+Received: from localhost
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Sun, 9 Apr 2017 08:08:37 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay10.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v392bFXM17825898
+	for <linux-mm@kvack.org>; Sun, 9 Apr 2017 08:07:15 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v392cZtK003546
+	for <linux-mm@kvack.org>; Sun, 9 Apr 2017 08:08:35 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] mm/softoffline: Add page flag description in error paths
+Date: Sun,  9 Apr 2017 08:08:29 +0530
+Message-Id: <20170409023829.10788-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, mgorman@techsingularity.net, jiang.liu@linux.intel.com, akpm@linux-foundation.org, tj@kernel.org, mingo@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org
 
+It helps to provide page flag description along with the raw value in
+error paths during soft offline process. From sample experiments
 
---x+6KMIRAuhnl3hBn
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Before the patch:
 
-On Mon, Apr 03, 2017 at 11:18:19AM +0200, Michal Hocko wrote:
->On Tue 28-03-17 09:11:37, Wei Yang wrote:
->> Hi, masters,
->>=20
->> # What I found
->>=20
->> I found the function calc_memmap_size() may not be that accurate to get =
-the
->> pages for memmap.
->>=20
->> The reason is:
->>=20
->> > memmap is allocated on a node base,
->> > while the calculation is on a zone base
->>=20
->> This applies both to SPARSEMEM and FLATMEM.
->>=20
->> For example, on my laptop with 6G memory, all the memmap space is alloca=
-ted
->> from ZONE_NORMAL.
->
->Please try to be more specific. Why is this a problem? Are you trying to
->fix some bad behavior or you want to make it more optimal?
->
->I am sorry I didn't look closer into your proposal but I am quite busy
->and other people are probably in a similar situation. If you want to get
->a proper feedback please try to state the problem and be explicit if it
->is user observable.
+[  132.317977] soft offline: 0x6100: migration failed 1, type 3ffff800008018
+[  132.359057] soft offline: 0x7400: migration failed 1, type 3ffff800008018
 
-Michal
+After the patch:
 
-Glad to hear from you.
+[   87.694325] soft offline: 0x5900: migration failed 1, type 3ffff800008018 (uptodate|dirty|head)
+[   87.736273] soft offline: 0x6c00: migration failed 1, type 3ffff800008018 (uptodate|dirty|head)
 
-Sure, let me do more investigation on this and try some experiment to see
-whether this change is observable.
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+ mm/memory-failure.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-Have a nice day~
-
->--=20
->Michal Hocko
->SUSE Labs
-
---=20
-Wei Yang
-Help you, Help me
-
---x+6KMIRAuhnl3hBn
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJY6ZIZAAoJEKcLNpZP5cTd+IQP+wWiO+ewscdHWxBJkLaoaL7w
-NWym36GE1vARSpDgTUU9k6WcTWVFz0XnNDB5h3jSPmbD25R8vQao1MEt3eWxbiUB
-jRQevU6S/l5ng+aJvjjSyuRNSFzJr/iDWZpjJaLemVNDhFlNNFcVgS5ilVNOxtfr
-OgT4qB0olfoHwQMjq+4xSxDgpzWTeA8TAQPlKjvQLrYEBUu9yAJ3ZwqYks70a0Th
-27/gWGso+O5MJ2xSPjl0sbpGWy3UDPf/zr1xHqmiMxU8WJtAXP1IYr98KCKZ+PQA
-SDudRvRa5CHZmIKM2dY4TAeg30lgO+aqKtXWpD9S8L+UiL6wSbgDuB0UcqVPg49e
-uQy4fqDoZasHjOhZ41QtOwOgNlMDGyL9Fo2kMX5Jn42hawdxsL8/LWt3ZQ7yLsSN
-Yz5luQ7zyT6gM8vItdgWH7qc9j4cazZjLnujiegD2c42GI3gkl/RQd+2kJl9CXwU
-uTJHPIBwKV89ow38PtfiGgmPnb7x+RNw79saQRfMGBxs6Jyz4CMAWFfb8X5tBl+V
-hlZBM4Su4G6SQ9/emEfgHA5hp0rSOMf6nCfVtHH9/38za6ev6g4jPmMyxLeQIZ2R
-kyiziwvXF9DuhcJmlugkrQdY+2xauzuMTGYhg+VOqwvu/oLWE8RYONbhREB63vzY
-wEfttHQB1hazhK1TpeNw
-=b96m
------END PGP SIGNATURE-----
-
---x+6KMIRAuhnl3hBn--
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 27f7210..fe64d77 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1543,8 +1543,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
+ 		if (ret == 1 && !PageLRU(page)) {
+ 			/* Drop page reference which is from __get_any_page() */
+ 			put_hwpoison_page(page);
+-			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+-				pfn, page->flags);
++			pr_info("soft_offline: %#lx: unknown non LRU page type %lx (%pGp)\n",
++				pfn, page->flags, &page->flags);
+ 			return -EIO;
+ 		}
+ 	}
+@@ -1585,8 +1585,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+ 				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+ 	if (ret) {
+-		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+-			pfn, ret, page->flags);
++		pr_info("soft offline: %#lx: migration failed %d, type %lx (%pGp)\n",
++			pfn, ret, page->flags, &page->flags);
+ 		/*
+ 		 * We know that soft_offline_huge_page() tries to migrate
+ 		 * only one hugepage pointed to by hpage, so we need not
+@@ -1677,14 +1677,14 @@ static int __soft_offline_page(struct page *page, int flags)
+ 			if (!list_empty(&pagelist))
+ 				putback_movable_pages(&pagelist);
+ 
+-			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+-				pfn, ret, page->flags);
++			pr_info("soft offline: %#lx: migration failed %d, type %lx (%pGp)\n",
++				pfn, ret, page->flags, &page->flags);
+ 			if (ret > 0)
+ 				ret = -EIO;
+ 		}
+ 	} else {
+-		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+-			pfn, ret, page_count(page), page->flags);
++		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx (%pGp)\n",
++			pfn, ret, page_count(page), page->flags, &page->flags);
+ 	}
+ 	return ret;
+ }
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
