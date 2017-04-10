@@ -1,280 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E05C56B03BE
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 07:04:28 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id a80so13442339wrc.19
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 04:04:28 -0700 (PDT)
-Received: from mail-wr0-f194.google.com (mail-wr0-f194.google.com. [209.85.128.194])
-        by mx.google.com with ESMTPS id m131si11659062wmb.32.2017.04.10.04.04.27
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EA0C86B03A0
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 07:58:39 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id t68so64287776iof.16
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 04:58:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s206si7510793itd.97.2017.04.10.04.58.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 04:04:27 -0700 (PDT)
-Received: by mail-wr0-f194.google.com with SMTP id l28so3841990wre.0
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 04:04:27 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 9/9] mm, memory_hotplug: remove unused cruft after memory hotplug rework
-Date: Mon, 10 Apr 2017 13:03:51 +0200
-Message-Id: <20170410110351.12215-10-mhocko@kernel.org>
-In-Reply-To: <20170410110351.12215-1-mhocko@kernel.org>
-References: <20170410110351.12215-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Apr 2017 04:58:38 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm,page_alloc: Split stall warning and failure warning.
+Date: Mon, 10 Apr 2017 20:58:13 +0900
+Message-Id: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+Patch "mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"
+changed to drop __GFP_NOWARN when calling warn_alloc() for stall warning.
+Although I suggested for two times to drop __GFP_NOWARN when warn_alloc()
+for stall warning was proposed, Michal Hocko does not want to print stall
+warnings when __GFP_NOWARN is given [1][2].
 
-zone_for_memory doesn't have any user anymore as well as the whole zone
-shifting infrastructure so drop them all.
+ "I am not going to allow defining a weird __GFP_NOWARN semantic which
+  allows warnings but only sometimes. At least not without having a proper
+  way to silence both failures _and_ stalls or just stalls. I do not
+  really thing this is worth the additional gfp flag."
 
-This shouldn't introduce any functional changes.
+I don't know whether he is aware of "mm: page_alloc: __GFP_NOWARN
+shouldn't suppress stall warnings" patch, but I assume that
+no response means he finally accepted this change. Therefore,
+this patch splits into a function for reporting allocation stalls
+and a function for reporting allocation failures, due to below reasons.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+  (1) Dropping __GFP_NOWARN when calling warn_alloc() causes
+      "mode:%#x(%pGg)" to report incorrect flags. It can confuse
+      developers when scanning the source code for corresponding
+      location.
+
+  (2) Not reporting when debug_guardpage_minorder() > 0 causes failing
+      to report stall warnings. Stall warnings should not be be disabled
+      by debug_guardpage_minorder() > 0 as well as __GFP_NOWARN.
+
+  (3) Sharing warn_alloc() for reporting stalls (which is guaranteed
+      to be schedulable context) and for reporting failures (which is
+      not guaranteed to be schedulable context) is inconvenient when
+      adding a mutex for serializing printk() messages and/or filtering
+      events which should be handled for further analysis based on
+      function name.
+
+      # stap -F -g -e 'probe kernel.function("warn_alloc").return {
+                       if (determine_whether_reason_is_allocation_stall)
+                           panic("MemAlloc stall detected."); }'
+
+      # stap -F -g -e 'probe kernel.function("warn_alloc_stall").return {
+                       panic("MemAlloc stall detected."); }'
+
+      Although adding allocation watchdog [3] will do it more powerfully,
+      allocation watchdog discussion is still stalling. Thus, for now
+      I propose triggering from warn_alloc_stall().
+
+[1] http://lkml.kernel.org/r/20160929091040.GE408@dhcp22.suse.cz
+[2] http://lkml.kernel.org/r/20170114090613.GD9962@dhcp22.suse.cz
+[3] http://lkml.kernel.org/r/1489578541-81526-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
 ---
- include/linux/memory_hotplug.h |   2 -
- mm/memory_hotplug.c            | 207 -----------------------------------------
- 2 files changed, 209 deletions(-)
+ mm/page_alloc.c | 41 ++++++++++++++++++++++++++---------------
+ 1 file changed, 26 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index c28d0aba7525..a9985f6c460a 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -274,8 +274,6 @@ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int add_memory(int nid, u64 start, u64 size);
- extern int add_memory_resource(int nid, struct resource *resource, bool online);
--extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
--		bool for_device);
- extern int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock);
- extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
- 		unsigned long nr_pages);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index be8be844d340..94e96ca790f6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -299,180 +299,6 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
- }
- #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
- 
--static void __meminit grow_zone_span(struct zone *zone, unsigned long start_pfn,
--				     unsigned long end_pfn)
--{
--	unsigned long old_zone_end_pfn;
--
--	zone_span_writelock(zone);
--
--	old_zone_end_pfn = zone_end_pfn(zone);
--	if (zone_is_empty(zone) || start_pfn < zone->zone_start_pfn)
--		zone->zone_start_pfn = start_pfn;
--
--	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
--				zone->zone_start_pfn;
--
--	zone_span_writeunlock(zone);
--}
--
--static void resize_zone(struct zone *zone, unsigned long start_pfn,
--		unsigned long end_pfn)
--{
--	zone_span_writelock(zone);
--
--	if (end_pfn - start_pfn) {
--		zone->zone_start_pfn = start_pfn;
--		zone->spanned_pages = end_pfn - start_pfn;
--	} else {
--		/*
--		 * make it consist as free_area_init_core(),
--		 * if spanned_pages = 0, then keep start_pfn = 0
--		 */
--		zone->zone_start_pfn = 0;
--		zone->spanned_pages = 0;
--	}
--
--	zone_span_writeunlock(zone);
--}
--
--static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
--		unsigned long end_pfn)
--{
--	enum zone_type zid = zone_idx(zone);
--	int nid = zone->zone_pgdat->node_id;
--	unsigned long pfn;
--
--	for (pfn = start_pfn; pfn < end_pfn; pfn++)
--		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
--}
--
--static void __ref ensure_zone_is_initialized(struct zone *zone,
--			unsigned long start_pfn, unsigned long num_pages)
--{
--	if (!zone_is_initialized(zone))
--		init_currently_empty_zone(zone, start_pfn, num_pages);
--}
--
--static int __meminit move_pfn_range_left(struct zone *z1, struct zone *z2,
--		unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long flags;
--	unsigned long z1_start_pfn;
--
--	ensure_zone_is_initialized(z1, start_pfn, end_pfn - start_pfn);
--
--	pgdat_resize_lock(z1->zone_pgdat, &flags);
--
--	/* can't move pfns which are higher than @z2 */
--	if (end_pfn > zone_end_pfn(z2))
--		goto out_fail;
--	/* the move out part must be at the left most of @z2 */
--	if (start_pfn > z2->zone_start_pfn)
--		goto out_fail;
--	/* must included/overlap */
--	if (end_pfn <= z2->zone_start_pfn)
--		goto out_fail;
--
--	/* use start_pfn for z1's start_pfn if z1 is empty */
--	if (!zone_is_empty(z1))
--		z1_start_pfn = z1->zone_start_pfn;
--	else
--		z1_start_pfn = start_pfn;
--
--	resize_zone(z1, z1_start_pfn, end_pfn);
--	resize_zone(z2, end_pfn, zone_end_pfn(z2));
--
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--
--	fix_zone_id(z1, start_pfn, end_pfn);
--
--	return 0;
--out_fail:
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--	return -1;
--}
--
--static int __meminit move_pfn_range_right(struct zone *z1, struct zone *z2,
--		unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long flags;
--	unsigned long z2_end_pfn;
--
--	ensure_zone_is_initialized(z2, start_pfn, end_pfn - start_pfn);
--
--	pgdat_resize_lock(z1->zone_pgdat, &flags);
--
--	/* can't move pfns which are lower than @z1 */
--	if (z1->zone_start_pfn > start_pfn)
--		goto out_fail;
--	/* the move out part mast at the right most of @z1 */
--	if (zone_end_pfn(z1) >  end_pfn)
--		goto out_fail;
--	/* must included/overlap */
--	if (start_pfn >= zone_end_pfn(z1))
--		goto out_fail;
--
--	/* use end_pfn for z2's end_pfn if z2 is empty */
--	if (!zone_is_empty(z2))
--		z2_end_pfn = zone_end_pfn(z2);
--	else
--		z2_end_pfn = end_pfn;
--
--	resize_zone(z1, z1->zone_start_pfn, start_pfn);
--	resize_zone(z2, start_pfn, z2_end_pfn);
--
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--
--	fix_zone_id(z2, start_pfn, end_pfn);
--
--	return 0;
--out_fail:
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--	return -1;
--}
--
--static void __meminit grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
--				      unsigned long end_pfn)
--{
--	unsigned long old_pgdat_end_pfn = pgdat_end_pfn(pgdat);
--
--	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
--		pgdat->node_start_pfn = start_pfn;
--
--	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
--					pgdat->node_start_pfn;
--}
--
--static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
--{
--	struct pglist_data *pgdat = zone->zone_pgdat;
--	int nr_pages = PAGES_PER_SECTION;
--	int nid = pgdat->node_id;
--	int zone_type;
--	unsigned long flags, pfn;
--
--	zone_type = zone - pgdat->node_zones;
--	ensure_zone_is_initialized(zone, phys_start_pfn, nr_pages);
--
--	pgdat_resize_lock(zone->zone_pgdat, &flags);
--	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
--	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
--			phys_start_pfn + nr_pages);
--	pgdat_resize_unlock(zone->zone_pgdat, &flags);
--	memmap_init_zone(nr_pages, nid, zone_type,
--			 phys_start_pfn, MEMMAP_HOTPLUG);
--
--	/* online_page_range is called later and expects pages reserved */
--	for (pfn = phys_start_pfn; pfn < phys_start_pfn + nr_pages; pfn++) {
--		if (!pfn_valid(pfn))
--			continue;
--
--		SetPageReserved(pfn_to_page(pfn));
--	}
--	return 0;
--}
--
- static int __meminit __add_section(int nid, unsigned long phys_start_pfn, bool want_memblock)
- {
- 	int ret;
-@@ -1349,39 +1175,6 @@ static int check_hotplug_memory_range(u64 start, u64 size)
- 	return 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 32b31d6..bde435d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3124,11 +3124,20 @@ static inline bool should_suppress_show_mem(void)
+ 	return ret;
  }
  
--/*
-- * If movable zone has already been setup, newly added memory should be check.
-- * If its address is higher than movable zone, it should be added as movable.
-- * Without this check, movable zone may overlap with other zone.
-- */
--static int should_add_memory_movable(int nid, u64 start, u64 size)
--{
--	unsigned long start_pfn = start >> PAGE_SHIFT;
--	pg_data_t *pgdat = NODE_DATA(nid);
--	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
--
--	if (zone_is_empty(movable_zone))
--		return 0;
--
--	if (movable_zone->zone_start_pfn <= start_pfn)
--		return 1;
--
--	return 0;
--}
--
--int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
--		bool for_device)
--{
--#ifdef CONFIG_ZONE_DEVICE
--	if (for_device)
--		return ZONE_DEVICE;
--#endif
--	if (should_add_memory_movable(nid, start, size))
--		return ZONE_MOVABLE;
--
--	return zone_default;
--}
--
- static int online_memory_block(struct memory_block *mem, void *arg)
+-static void warn_alloc_show_mem(gfp_t gfp_mask, nodemask_t *nodemask)
++static void warn_alloc_common(gfp_t gfp_mask, nodemask_t *nodemask)
  {
- 	return device_online(&mem->dev);
+ 	unsigned int filter = SHOW_MEM_FILTER_NODES;
+ 	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
+ 
++	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
++	if (nodemask)
++		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
++	else
++		pr_cont("(null)\n");
++
++	cpuset_print_current_mems_allowed();
++
++	dump_stack();
+ 	if (should_suppress_show_mem() || !__ratelimit(&show_mem_rs))
+ 		return;
+ 
+@@ -3147,6 +3156,20 @@ static void warn_alloc_show_mem(gfp_t gfp_mask, nodemask_t *nodemask)
+ 	show_mem(filter, nodemask);
+ }
+ 
++static void warn_alloc_stall(gfp_t gfp_mask, nodemask_t *nodemask,
++			     unsigned long alloc_start, int order)
++{
++	static DEFINE_RATELIMIT_STATE(stall_rs, DEFAULT_RATELIMIT_INTERVAL,
++				      DEFAULT_RATELIMIT_BURST);
++
++	if (!__ratelimit(&stall_rs))
++		return;
++
++	pr_warn("%s: page allocation stalls for %ums, order:%u",
++		current->comm, jiffies_to_msecs(jiffies-alloc_start), order);
++	warn_alloc_common(gfp_mask, nodemask);
++}
++
+ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ {
+ 	struct va_format vaf;
+@@ -3165,17 +3188,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 	vaf.va = &args;
+ 	pr_cont("%pV", &vaf);
+ 	va_end(args);
+-
+-	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
+-	if (nodemask)
+-		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
+-	else
+-		pr_cont("(null)\n");
+-
+-	cpuset_print_current_mems_allowed();
+-
+-	dump_stack();
+-	warn_alloc_show_mem(gfp_mask, nodemask);
++	warn_alloc_common(gfp_mask, nodemask);
+ }
+ 
+ static inline struct page *
+@@ -3814,9 +3827,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 
+ 	/* Make sure we know about allocations which stall for too long */
+ 	if (time_after(jiffies, alloc_start + stall_timeout)) {
+-		warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
+-			"page allocation stalls for %ums, order:%u",
+-			jiffies_to_msecs(jiffies-alloc_start), order);
++		warn_alloc_stall(gfp_mask, ac->nodemask, alloc_start, order);
+ 		stall_timeout += 10 * HZ;
+ 	}
+ 
 -- 
-2.11.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
