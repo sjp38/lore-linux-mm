@@ -1,88 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEF26B0390
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 11:10:23 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id d80so29777614qke.13
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:10:23 -0700 (PDT)
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com. [209.85.220.173])
-        by mx.google.com with ESMTPS id w41si13707312qtw.97.2017.04.10.08.10.22
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FE926B0397
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 11:10:48 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id a185so56890308ioe.13
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:10:48 -0700 (PDT)
+Received: from fldsmtpe03.verizon.com (fldsmtpe03.verizon.com. [140.108.26.142])
+        by mx.google.com with ESMTPS id r23si14531216ioi.218.2017.04.10.08.10.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 08:10:22 -0700 (PDT)
-Received: by mail-qk0-f173.google.com with SMTP id d131so2028792qkc.3
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:10:22 -0700 (PDT)
-Subject: Re: [PATCHv3 17/22] staging: android: ion: Collapse internal header
- files
-References: <1491245884-15852-1-git-send-email-labbott@redhat.com>
- <1491245884-15852-18-git-send-email-labbott@redhat.com>
- <CACvgo52qr=oBoiMnrww3cgoKozEMi3DwBV55c_GMi0mR_p0GcA@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <8f94fbd9-6aa4-f7a0-c9f1-8da894fe1eb8@redhat.com>
-Date: Mon, 10 Apr 2017 08:10:13 -0700
+        Mon, 10 Apr 2017 08:10:47 -0700 (PDT)
+From: alexander.levin@verizon.com
+Subject: Re: [patch 1/3] mm: protect set_page_dirty() from ongoing truncation
+Date: Mon, 10 Apr 2017 15:07:58 +0000
+Message-ID: <20170410150755.kd2gjqyfmvschtxd@sasha-lappy>
+References: <1417791166-32226-1-git-send-email-hannes@cmpxchg.org>
+ <20170410022230.xe5sukvflvoh4ula@sasha-lappy>
+ <20170410120638.GD3224@quack2.suse.cz>
+In-Reply-To: <20170410120638.GD3224@quack2.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <7C5DAAEEC8E1DC4D871FE18EF9EF3D30@vzwcorp.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <CACvgo52qr=oBoiMnrww3cgoKozEMi3DwBV55c_GMi0mR_p0GcA@mail.gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Emil Velikov <emil.l.velikov@gmail.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, devel@driverdev.osuosl.org, Rom Lemarchand <romlem@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Linux-Kernel@Vger. Kernel. Org" <linux-kernel@vger.kernel.org>, ML dri-devel <dri-devel@lists.freedesktop.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Daniel Vetter <daniel.vetter@intel.com>, LAKML <linux-arm-kernel@lists.infradead.org>, linux-media@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, "Kirill A.
+ Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 04/08/2017 11:12 AM, Emil Velikov wrote:
-> Hi Laura,
-> 
-> Couple of trivial nitpicks below.
-> 
-> On 3 April 2017 at 19:57, Laura Abbott <labbott@redhat.com> wrote:
-> 
->> --- a/drivers/staging/android/ion/ion.h
->> +++ b/drivers/staging/android/ion/ion.h
->> @@ -1,5 +1,5 @@
->>  /*
->> - * drivers/staging/android/ion/ion.h
->> + * drivers/staging/android/ion/ion_priv.h
-> Does not match the actual filename.
-> 
->>   *
->>   * Copyright (C) 2011 Google, Inc.
->>   *
->> @@ -14,24 +14,26 @@
->>   *
->>   */
->>
->> -#ifndef _LINUX_ION_H
->> -#define _LINUX_ION_H
->> +#ifndef _ION_PRIV_H
->> +#define _ION_PRIV_H
->>
-> Ditto.
-> 
->> +#include <linux/device.h>
->> +#include <linux/dma-direction.h>
->> +#include <linux/kref.h>
->> +#include <linux/mm_types.h>
->> +#include <linux/mutex.h>
->> +#include <linux/rbtree.h>
->> +#include <linux/sched.h>
->> +#include <linux/shrinker.h>
->>  #include <linux/types.h>
->> +#include <linux/miscdevice.h>
->>
->>  #include "../uapi/ion.h"
->>
-> You don't want to use "../" in includes. Perhaps address with another
-> patch, if you haven't already ?
-> 
+On Mon, Apr 10, 2017 at 02:06:38PM +0200, Jan Kara wrote:
+> On Mon 10-04-17 02:22:33, alexander.levin@verizon.com wrote:
+> > On Fri, Dec 05, 2014 at 09:52:44AM -0500, Johannes Weiner wrote:
+> > > Tejun, while reviewing the code, spotted the following race condition
+> > > between the dirtying and truncation of a page:
+> > >=20
+> > > __set_page_dirty_nobuffers()       __delete_from_page_cache()
+> > >   if (TestSetPageDirty(page))
+> > >                                      page->mapping =3D NULL
+> > > 				     if (PageDirty())
+> > > 				       dec_zone_page_state(page, NR_FILE_DIRTY);
+> > > 				       dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+> > >     if (page->mapping)
+> > >       account_page_dirtied(page)
+> > >         __inc_zone_page_state(page, NR_FILE_DIRTY);
+> > > 	__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+> > >=20
+> > > which results in an imbalance of NR_FILE_DIRTY and BDI_RECLAIMABLE.
+> > >=20
+> > > Dirtiers usually lock out truncation, either by holding the page lock
+> > > directly, or in case of zap_pte_range(), by pinning the mapcount with
+> > > the page table lock held.  The notable exception to this rule, though=
+,
+> > > is do_wp_page(), for which this race exists.  However, do_wp_page()
+> > > already waits for a locked page to unlock before setting the dirty
+> > > bit, in order to prevent a race where clear_page_dirty() misses the
+> > > page bit in the presence of dirty ptes.  Upgrade that wait to a fully
+> > > locked set_page_dirty() to also cover the situation explained above.
+> > >=20
+> > > Afterwards, the code in set_page_dirty() dealing with a truncation
+> > > race is no longer needed.  Remove it.
+> > >=20
+> > > Reported-by: Tejun Heo <tj@kernel.org>
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: <stable@vger.kernel.org>
+> > > Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >=20
+> > Hi Johannes,
+> >=20
+> > I'm seeing the following while fuzzing with trinity on linux-next (I've=
+ changed
+> > the WARN to a VM_BUG_ON_PAGE for some extra page info).
+>=20
+> But this looks more like a bug in 9p which allows v9fs_write_end() to dir=
+ty
+> a !Uptodate page?
 
-There isn't a better option until this driver moves out of staging.
-Once it moves out it can be fixed up.
+I thought that 77469c3f5 ("9p: saner ->write_end() on failing copy into
+non-uptodate page") prevented from that happening, but that's actually the
+change that's causing it (I ended up misreading it last night).
+
+Will fix it as follows:
+
+diff --git a/fs/9p/vfs_addr.c b/fs/9p/vfs_addr.c=20
+index adaf6f6..be84c0c 100644=20
+--- a/fs/9p/vfs_addr.c=20
++++ b/fs/9p/vfs_addr.c=20
+@@ -310,9 +310,13 @@ static int v9fs_write_end(struct file *filp, struct ad=
+dress_space *mapping,=20
+ =20
+        p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);=20
+ =20
+-       if (unlikely(copied < len && !PageUptodate(page))) {=20
+-               copied =3D 0;=20
+-               goto out;=20
++       if (!PageUptodate(page)) {=20
++               if (unlikely(copied < len)) {=20
++                       copied =3D 0;
++                       goto out;=20
++               } else {=20
++                       SetPageUptodate(page);=20
++               }=20
+        }=20
+        /*=20
+         * No need to use i_size_read() here, the i_size
+=20
+--=20
 
 Thanks,
-Laura
-
-> Regards,
-> Emil
-> 
+Sasha=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
