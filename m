@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E66E96B039F
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 12:31:39 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z62so4650301wrc.0
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 09:31:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t202si4996321wmd.109.2017.04.10.09.31.38
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 806C56B039F
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 12:35:59 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id y38so14031917qtb.23
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 09:35:59 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p184si13898669qkd.30.2017.04.10.09.35.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Apr 2017 09:31:38 -0700 (PDT)
-Date: Mon, 10 Apr 2017 18:31:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/9] mm, memory_hotplug: get rid of is_zone_device_section
-Message-ID: <20170410163133.GN4618@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Apr 2017 09:35:58 -0700 (PDT)
+Date: Mon, 10 Apr 2017 12:35:53 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+Message-ID: <20170410163553.GB31356@redhat.com>
 References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170410110351.12215-5-mhocko@kernel.org>
- <20170410162002.GA31356@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170410162002.GA31356@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170410110351.12215-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michal Hocko <mhocko@suse.com>, Tobias Regnery <tobias.regnery@gmail.com>
 
-On Mon 10-04-17 12:20:02, Jerome Glisse wrote:
-> On Mon, Apr 10, 2017 at 01:03:46PM +0200, Michal Hocko wrote:
-[...]
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 342332f29364..1570b3eea493 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -493,7 +493,7 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
-> >  }
-> >  
-> >  static int __meminit __add_section(int nid, struct zone *zone,
-> > -					unsigned long phys_start_pfn)
-> > +					unsigned long phys_start_pfn, bool want_memblock)
-> >  {
-> >  	int ret;
-> >  
-> > @@ -510,7 +510,10 @@ static int __meminit __add_section(int nid, struct zone *zone,
-> >  	if (ret < 0)
-> >  		return ret;
-> >  
-> > -	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
-> > +	if (want_memblock)
-> > +		ret = register_new_memory(nid, __pfn_to_section(phys_start_pfn));
-> > +
-> > +	return ret;
-> >  }
+On Mon, Apr 10, 2017 at 01:03:42PM +0200, Michal Hocko wrote:
+> Hi,
+> The last version of this series has been posted here [1]. It has seen
+> some more serious testing (thanks to Reza Arbab) and fixes for the found
+> issues. I have also decided to drop patch 1 [2] because it turned out to
+> be more complicated than I initially thought [3]. Few more patches were
+> added to deal with expectation on zone/node initialization.
 > 
-> The above is wrong for ZONE_DEVICE sparse_add_one_section() will return a
-> positive value (on success) thus ret > 0 and other function in the hotplug
-> path will interpret positive value as an error.
+> I have rebased on top of the current mmotm-2017-04-07-15-53. It
+> conflicts with HMM because it touches memory hotplug as
+> well. We have discussed [4] with Jerome and he agreed to
+> rebase on top of this rework [5] so I have reverted his series
+> before applyig mine. I will help him to resolve the resulting
+> conflicts. You can find the whole series including the HMM revers in
+> git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git branch
+> attempts/rewrite-mem_hotplug
 > 
-> I suggest something like:
-> 	if (!want_memblock)
-> 		return 0;
-> 
-> 	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
-> }
 
-You are right! I will fold the following. Thanks!
----
+So updated HMM patchset :
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v20
+
+I am not posting yet as it seems there is couple thing you need to
+fix in your patchset first. However if you could review :
+
+https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v20&id=84fc68534e781cf6125d02b3bfdba4a51e82d9c9
+
+As it was your idea, i just want to make sure i didn't denatured
+it :)
+
+Also as side note, v20 fix build issue by restricting HMM to x86-64
+which is safer than pretending this can be use on any random arch
+as build failures i am getting clearly shows that thing i assumed to
+be true on all arch aren't.
+
+Cheers,
+Jerome
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
