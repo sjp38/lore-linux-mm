@@ -1,144 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 70FD06B0390
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 11:08:24 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z62so4445957wrc.0
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:08:24 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id t10si12426291wmb.136.2017.04.10.08.08.22
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEF26B0390
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 11:10:23 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id d80so29777614qke.13
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:10:23 -0700 (PDT)
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com. [209.85.220.173])
+        by mx.google.com with ESMTPS id w41si13707312qtw.97.2017.04.10.08.10.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 08:08:23 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 919791C2259
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 16:08:22 +0100 (IST)
-Date: Mon, 10 Apr 2017 16:08:21 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm, page_alloc: re-enable softirq use of per-cpu page
- allocator
-Message-ID: <20170410150821.vcjlz7ntabtfsumm@techsingularity.net>
+        Mon, 10 Apr 2017 08:10:22 -0700 (PDT)
+Received: by mail-qk0-f173.google.com with SMTP id d131so2028792qkc.3
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:10:22 -0700 (PDT)
+Subject: Re: [PATCHv3 17/22] staging: android: ion: Collapse internal header
+ files
+References: <1491245884-15852-1-git-send-email-labbott@redhat.com>
+ <1491245884-15852-18-git-send-email-labbott@redhat.com>
+ <CACvgo52qr=oBoiMnrww3cgoKozEMi3DwBV55c_GMi0mR_p0GcA@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <8f94fbd9-6aa4-f7a0-c9f1-8da894fe1eb8@redhat.com>
+Date: Mon, 10 Apr 2017 08:10:13 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+In-Reply-To: <CACvgo52qr=oBoiMnrww3cgoKozEMi3DwBV55c_GMi0mR_p0GcA@mail.gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: brouer@redhat.com, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Emil Velikov <emil.l.velikov@gmail.com>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, devel@driverdev.osuosl.org, Rom Lemarchand <romlem@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Linux-Kernel@Vger. Kernel. Org" <linux-kernel@vger.kernel.org>, ML dri-devel <dri-devel@lists.freedesktop.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Daniel Vetter <daniel.vetter@intel.com>, LAKML <linux-arm-kernel@lists.infradead.org>, linux-media@vger.kernel.org
 
-From: Jesper Dangaard Brouer <brouer@redhat.com>
+On 04/08/2017 11:12 AM, Emil Velikov wrote:
+> Hi Laura,
+> 
+> Couple of trivial nitpicks below.
+> 
+> On 3 April 2017 at 19:57, Laura Abbott <labbott@redhat.com> wrote:
+> 
+>> --- a/drivers/staging/android/ion/ion.h
+>> +++ b/drivers/staging/android/ion/ion.h
+>> @@ -1,5 +1,5 @@
+>>  /*
+>> - * drivers/staging/android/ion/ion.h
+>> + * drivers/staging/android/ion/ion_priv.h
+> Does not match the actual filename.
+> 
+>>   *
+>>   * Copyright (C) 2011 Google, Inc.
+>>   *
+>> @@ -14,24 +14,26 @@
+>>   *
+>>   */
+>>
+>> -#ifndef _LINUX_ION_H
+>> -#define _LINUX_ION_H
+>> +#ifndef _ION_PRIV_H
+>> +#define _ION_PRIV_H
+>>
+> Ditto.
+> 
+>> +#include <linux/device.h>
+>> +#include <linux/dma-direction.h>
+>> +#include <linux/kref.h>
+>> +#include <linux/mm_types.h>
+>> +#include <linux/mutex.h>
+>> +#include <linux/rbtree.h>
+>> +#include <linux/sched.h>
+>> +#include <linux/shrinker.h>
+>>  #include <linux/types.h>
+>> +#include <linux/miscdevice.h>
+>>
+>>  #include "../uapi/ion.h"
+>>
+> You don't want to use "../" in includes. Perhaps address with another
+> patch, if you haven't already ?
+> 
 
-IRQ context were excluded from using the Per-Cpu-Pages (PCP) lists caching
-of order-0 pages in commit 374ad05ab64d ("mm, page_alloc: only use per-cpu
-allocator for irq-safe requests").
+There isn't a better option until this driver moves out of staging.
+Once it moves out it can be fixed up.
 
-This unfortunately also included excluded SoftIRQ.  This hurt the performance
-for the use-case of refilling DMA RX rings in softirq context.
+Thanks,
+Laura
 
-This patch re-allow softirq context, which should be safe by disabling
-BH/softirq, while accessing the list.  PCP-lists access from both hard-IRQ
-and NMI context must not be allowed.  Peter Zijlstra says in_nmi() code
-never access the page allocator, thus it should be sufficient to only test
-for !in_irq().
-
-One concern with this change is adding a BH (enable) scheduling point at
-both PCP alloc and free. If further concerns are highlighted by this patch,
-the result wiill be to revert 374ad05ab64d and try again at a later date
-to offset the irq enable/disable overhead.
-
-Fixes: 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
-Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 26 +++++++++++++++++---------
- 1 file changed, 17 insertions(+), 9 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6cbde310abed..d7e986967910 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2351,9 +2351,9 @@ static void drain_local_pages_wq(struct work_struct *work)
- 	 * cpu which is allright but we also have to make sure to not move to
- 	 * a different one.
- 	 */
--	preempt_disable();
-+	local_bh_disable();
- 	drain_local_pages(NULL);
--	preempt_enable();
-+	local_bh_enable();
- }
- 
- /*
-@@ -2481,7 +2481,11 @@ void free_hot_cold_page(struct page *page, bool cold)
- 	unsigned long pfn = page_to_pfn(page);
- 	int migratetype;
- 
--	if (in_interrupt()) {
-+	/*
-+	 * Exclude (hard) IRQ and NMI context from using the pcplists.
-+	 * But allow softirq context, via disabling BH.
-+	 */
-+	if (in_irq() || irqs_disabled()) {
- 		__free_pages_ok(page, 0);
- 		return;
- 	}
-@@ -2491,7 +2495,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- 
- 	migratetype = get_pfnblock_migratetype(page, pfn);
- 	set_pcppage_migratetype(page, migratetype);
--	preempt_disable();
-+	local_bh_disable();
- 
- 	/*
- 	 * We only track unmovable, reclaimable and movable on pcp lists.
-@@ -2522,7 +2526,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- 	}
- 
- out:
--	preempt_enable();
-+	local_bh_enable();
- }
- 
- /*
-@@ -2647,7 +2651,7 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
- {
- 	struct page *page;
- 
--	VM_BUG_ON(in_interrupt());
-+	VM_BUG_ON(in_irq() || irqs_disabled());
- 
- 	do {
- 		if (list_empty(list)) {
-@@ -2680,7 +2684,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
- 	bool cold = ((gfp_flags & __GFP_COLD) != 0);
- 	struct page *page;
- 
--	preempt_disable();
-+	local_bh_disable();
- 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
- 	list = &pcp->lists[migratetype];
- 	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
-@@ -2688,7 +2692,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
- 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
- 		zone_statistics(preferred_zone, zone);
- 	}
--	preempt_enable();
-+	local_bh_enable();
- 	return page;
- }
- 
-@@ -2704,7 +2708,11 @@ struct page *rmqueue(struct zone *preferred_zone,
- 	unsigned long flags;
- 	struct page *page;
- 
--	if (likely(order == 0) && !in_interrupt()) {
-+	/*
-+	 * Exclude (hard) IRQ and NMI context from using the pcplists.
-+	 * But allow softirq context, via disabling BH.
-+	 */
-+	if (likely(order == 0) && !(in_irq() || irqs_disabled()) ) {
- 		page = rmqueue_pcplist(preferred_zone, zone, order,
- 				gfp_flags, migratetype);
- 		goto out;
+> Regards,
+> Emil
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
