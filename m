@@ -1,142 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E5B66B03AD
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 06:03:23 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id m33so15817783wrm.23
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 03:03:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v64si11409344wmg.148.2017.04.10.03.03.21
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Apr 2017 03:03:21 -0700 (PDT)
-Subject: Re: [PATCH] mm, numa: Fix bad pmd by atomically check for
- pmd_trans_huge when marking page tables prot_numa
-References: <20170410094825.2yfo5zehn7pchg6a@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e3a97c78-0016-318c-27b7-e6fc3a76c5a6@suse.cz>
-Date: Mon, 10 Apr 2017 12:03:20 +0200
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 659096B03B3
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 06:08:21 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 34so121723810pgx.6
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 03:08:21 -0700 (PDT)
+Received: from out0-217.mail.aliyun.com (out0-217.mail.aliyun.com. [140.205.0.217])
+        by mx.google.com with ESMTP id j1si13174666pld.330.2017.04.10.03.08.20
+        for <linux-mm@kvack.org>;
+        Mon, 10 Apr 2017 03:08:20 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <58E8E81E.6090304@huawei.com> <0a1a01d2b1c5$9ce961e0$d6bc25a0$@alibaba-inc.com> <58EB48D6.1050308@huawei.com> <0a3c01d2b1de$104c0800$30e41800$@alibaba-inc.com> <58EB561F.6050805@huawei.com>
+In-Reply-To: <58EB561F.6050805@huawei.com>
+Subject: Re: NULL pointer dereference in the kernel 3.10
+Date: Mon, 10 Apr 2017 18:08:14 +0800
+Message-ID: <0a4f01d2b1e2$5e5af430$1b10dc90$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20170410094825.2yfo5zehn7pchg6a@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Xishi Qiu' <qiuxishi@huawei.com>
+Cc: 'zhong jiang' <zhongjiang@huawei.com>, 'Michal Hocko' <mhocko@suse.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, mgorman@techsingularity.net, 'Vlastimil Babka' <vbabka@suse.cz>, 'Linux Memory Management List' <linux-mm@kvack.org>, 'LKML' <linux-kernel@vger.kernel.org>
 
-On 04/10/2017 11:48 AM, Mel Gorman wrote:
-> A user reported a bug against a distribution kernel while running
-> a proprietary workload described as "memory intensive that is not
-> swapping" that is expected to apply to mainline kernels. The workload
-> is read/write/modifying ranges of memory and checking the contents. They
-> reported that within a few hours that a bad PMD would be reported followed
-> by a memory corruption where expected data was all zeros.  A partial report
-> of the bad PMD looked like
+On April 10, 2017 5:54 PM Xishi Qiu wrote: 
+> On 2017/4/10 17:37, Hillf Danton wrote:
 > 
-> [ 5195.338482] ../mm/pgtable-generic.c:33: bad pmd ffff8888157ba008(000002e0396009e2)
-> [ 5195.341184] ------------[ cut here ]------------
-> [ 5195.356880] kernel BUG at ../mm/pgtable-generic.c:35!
-> ....
-> [ 5195.410033] Call Trace:
-> [ 5195.410471]  [<ffffffff811bc75d>] change_protection_range+0x7dd/0x930
-> [ 5195.410716]  [<ffffffff811d4be8>] change_prot_numa+0x18/0x30
-> [ 5195.410918]  [<ffffffff810adefe>] task_numa_work+0x1fe/0x310
-> [ 5195.411200]  [<ffffffff81098322>] task_work_run+0x72/0x90
-> [ 5195.411246]  [<ffffffff81077139>] exit_to_usermode_loop+0x91/0xc2
-> [ 5195.411494]  [<ffffffff81003a51>] prepare_exit_to_usermode+0x31/0x40
-> [ 5195.411739]  [<ffffffff815e56af>] retint_user+0x8/0x10
+> > On April 10, 2017 4:57 PM Xishi Qiu wrote:
+> >> On 2017/4/10 14:42, Hillf Danton wrote:
+> >>
+> >>> On April 08, 2017 9:40 PM zhong Jiang wrote:
+> >>>>
+> >>>> when runing the stabile docker cases in the vm.   The following issue will come up.
+> >>>>
+> >>>> #40 [ffff8801b57ffb30] async_page_fault at ffffffff8165c9f8
+> >>>>     [exception RIP: down_read_trylock+5]
+> >>>>     RIP: ffffffff810aca65  RSP: ffff8801b57ffbe8  RFLAGS: 00010202
+> >>>>     RAX: 0000000000000000  RBX: ffff88018ae858c1  RCX: 0000000000000000
+> >>>>     RDX: 0000000000000000  RSI: 0000000000000000  RDI: 0000000000000008
+> >>>>     RBP: ffff8801b57ffc10   R8: ffffea0006903de0   R9: ffff8800b3c61810
+> >>>>     R10: 00000000000022cb  R11: 0000000000000000  R12: ffff88018ae858c0
+> >>>>     R13: ffffea0006903dc0  R14: 0000000000000008  R15: ffffea0006903dc0
+> >>>>     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
+> >>>> #41 [ffff8801b57ffbe8] page_lock_anon_vma_read at ffffffff811b241c
+> >>>> #42 [ffff8801b57ffc18] page_referenced at ffffffff811b26a7
+> >>>> #43 [ffff8801b57ffc90] shrink_active_list at ffffffff8118d634
+> >>>> #44 [ffff8801b57ffd48] balance_pgdat at ffffffff8118f088
+> >>>> #45 [ffff8801b57ffe20] kswapd at ffffffff8118f633
+> >>>> #46 [ffff8801b57ffec8] kthread at ffffffff810a795f
+> >>>> #47 [ffff8801b57fff50] ret_from_fork at ffffffff81665398
+> >>>> crash> struct page.mapping ffffea0006903dc0
+> >>>>   mapping = 0xffff88018ae858c1
+> >>>> crash> struct anon_vma 0xffff88018ae858c0
+> >>>> struct anon_vma {
+> >>>>   root = 0x0,
+> >>>>   rwsem = {
+> >>>>     count = 0,
+> >>>>     wait_lock = {
+> >>>>       raw_lock = {
+> >>>>         {
+> >>>>           head_tail = 1,
+> >>>>           tickets = {
+> >>>>             head = 1,
+> >>>>             tail = 0
+> >>>>           }
+> >>>>         }
+> >>>>       }
+> >>>>     },
+> >>>>     wait_list = {
+> >>>>       next = 0x0,
+> >>>>       prev = 0x0
+> >>>>     }
+> >>>>   },
+> >>>>   refcount = {
+> >>>>     counter = 0
+> >>>>   },
+> >>>>   rb_root = {
+> >>>>     rb_node = 0x0
+> >>>>   }
+> >>>> }
+> >>>>
+> >>>> This maks me wonder,  the anon_vma do not come from slab structure.
+> >>>> and the content is abnormal. IMO,  At least anon_vma->root will not NULL.
+> >>>> The issue can be reproduced every other week.
+> >>>>
+> >>> Check please if commit
+> >>> 624483f3ea8 ("mm: rmap: fix use-after-free in __put_anon_vma")
+> >>> is included in the 3.10 you are running.
+> >>>
+> >> We missed this patch in RHEL 7.2
+> >> Could you please give more details for how it triggered?
+> >
+> > Sorry, I could not.
+> > I guess it is UAF as described in the log of that commit.
+> > And if it works for you, we know how.
+> >
+> > Hillf
+> >
 > 
-> Decoding revealed that the PMD was a valid prot_numa PMD and the bad PMD
-> was a false detection. The bug does not trigger if automatic NUMA balancing
-> or transparent huge pages is disabled.
+> __put_anon_vma            |   page_lock_anon_vma_read
+>   anon_vma_free(root)     |
+>                           |     root_anon_vma = ACCESS_ONCE(anon_vma->root)
+>                           |     down_read_trylock(&root_anon_vma->rwsem)
+>   anon_vma_free(anon_vma) |
 > 
-> The bug is due a race in change_pmd_range between a pmd_trans_huge and
-> pmd_nond_or_clear_bad check without any locks held. During the pmd_trans_huge
-> check, a parallel protection update under lock can have cleared the PMD
-> and filled it with a prot_numa entry between the transhuge check and the
-> pmd_none_or_clear_bad check.
+> I find anon_vma was created by SLAB_DESTROY_BY_RCU, so it will not merge
+> by other slabs, and free_slab() will not free it during page_lock_anon_vma_read(),
+> because it holds rcu_read_lock(), right?
 > 
-> While this could be fixed with heavy locking, it's only necessary to
-> make a copy of the PMD on the stack during change_pmd_range and avoid
-> races. A new helper is created for this as the check if quite subtle and the
-> existing similar helpful is not suitable. This passed 154 hours of testing
-> (usually triggers between 20 minutes and 24 hours) without detecting bad
-> PMDs or corruption. A basic test of an autonuma-intensive workload showed
-> no significant change in behaviour.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Cc: stable@vger.kernel.org
+Dunno frankly, Sir, you know, I am not an rmap expert like you.
+And pretty much probable I made a wrong guess, and sorry again.
 
-It would be better if there was a Fixes: tag, or at least version hint. Assuming
-it's since autonuma balancing was merged?
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  include/asm-generic/pgtable.h | 25 +++++++++++++++++++++++++
->  mm/mprotect.c                 | 12 ++++++++++--
->  2 files changed, 35 insertions(+), 2 deletions(-)
+> If root_anon_vma was reuse by someone, why "crash> struct anon_vma"
+> shows almost zero?
 > 
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 1fad160f35de..597fa482cd4a 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -819,6 +819,31 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
->  }
->  
->  /*
-> + * Used when setting automatic NUMA hinting protection where it is
-> + * critical that a numa hinting PMD is not confused with a bad PMD.
-> + */
-> +static inline int pmd_none_or_clear_bad_unless_trans_huge(pmd_t *pmd)
-> +{
-> +	pmd_t pmdval = pmd_read_atomic(pmd);
-> +
-> +	/* See pmd_none_or_trans_huge_or_clear_bad for info on barrier */
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +	barrier();
-> +#endif
-> +
-> +	if (pmd_none(pmdval))
-> +		return 1;
-> +	if (pmd_trans_huge(pmdval))
-> +		return 0;
-> +	if (unlikely(pmd_bad(pmdval))) {
-> +		pmd_clear_bad(pmd);
-> +		return 1;
-> +	}
-> +	return 0;
-> +}
-> +
-> +
-> +/*
->   * This is a noop if Transparent Hugepage Support is not built into
->   * the kernel. Otherwise it is equivalent to
->   * pmd_none_or_trans_huge_or_clear_bad(), and shall only be called in
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 8edd0d576254..821ff2904cdb 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -150,8 +150,16 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  		unsigned long this_pages;
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
-> -				&& pmd_none_or_clear_bad(pmd))
-> +
-> +		/*
-> +		 * Automatic NUMA balancing walks the tables with mmap_sem
-> +		 * held for read. It's possible a parallel update
-> +		 * to occur between pmd_trans_huge and a pmd_none_or_clear_bad
-> +		 * check leading to a false positive and clearing. Hence, it's
-> +		 * necessary to atomically read the PMD value for all the
-> +		 * checks.
-> +		 */
-> +		if (!pmd_devmap(*pmd) && pmd_none_or_clear_bad_unless_trans_huge(pmd))
->  			continue;
->  
->  		/* invoke the mmu notifier if the pmd is populated */
-> 
+thank you very much
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
