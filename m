@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 892F16B039F
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 12:02:34 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id b78so3067865wrd.18
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 09:02:34 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DC61D6B0397
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 12:09:45 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id z198so3192741wmc.7
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 09:09:45 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y33si16709033wrd.301.2017.04.10.09.02.32
+        by mx.google.com with ESMTPS id b64si12649011wmh.132.2017.04.10.09.09.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Apr 2017 09:02:33 -0700 (PDT)
-Date: Mon, 10 Apr 2017 18:02:28 +0200
+        Mon, 10 Apr 2017 09:09:44 -0700 (PDT)
+Date: Mon, 10 Apr 2017 18:09:41 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
-Message-ID: <20170410160228.GI4618@dhcp22.suse.cz>
+Message-ID: <20170410160941.GJ4618@dhcp22.suse.cz>
 References: <20170410110351.12215-1-mhocko@kernel.org>
  <20170410162749.7d7f31c1@nial.brq.redhat.com>
 MIME-Version: 1.0
@@ -26,31 +26,18 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <m
 
 On Mon 10-04-17 16:27:49, Igor Mammedov wrote:
 [...]
-> #issue3:
-> removable flag flipped to non-removable state
-> 
-> // before series at commit ef0b577b6:
-> memory32:offline removable: 0  zones: Normal Movable
-> memory33:offline removable: 0  zones: Normal Movable
-> memory34:offline removable: 0  zones: Normal Movable
-> memory35:offline removable: 0  zones: Normal Movable
+> -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M \
+> -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=0
 
-did you mean _after_ the series because the bellow looks like
-the original behavior (at least valid_zones).
- 
-> // after series at commit 6a010434
-> memory32:offline removable: 1  zones: Normal
-> memory33:offline removable: 1  zones: Normal
-> memory34:offline removable: 1  zones: Normal
-> memory35:offline removable: 1  zones: Normal Movable
-> 
-> also looking at #issue1 removable flag state doesn't
-> seem to be consistent between state changes but maybe that's
-> been broken before
+are you sure both of them should be node=0?
 
-Well, the file has a very questionable semantic. It doesn't provide
-a stable information. Anyway put that aside.
-is_pageblock_removable_nolock relies on having zone association
-which we do not have yet if the memblock is offline. So we need
-the following. I will queue this as a preparatory patch.
----
+What is the full comman line you use?
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
