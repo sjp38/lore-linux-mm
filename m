@@ -1,48 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 759C66B0390
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 18:03:12 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 68so130592297pgj.23
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 15:03:12 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E8256B0390
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 18:09:07 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id n129so131588435pga.0
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 15:09:07 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j21si14729823pgg.373.2017.04.10.15.03.11
+        by mx.google.com with ESMTPS id f25si14738242pge.315.2017.04.10.15.09.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 15:03:11 -0700 (PDT)
-Date: Mon, 10 Apr 2017 15:03:08 -0700
+        Mon, 10 Apr 2017 15:09:05 -0700 (PDT)
+Date: Mon, 10 Apr 2017 15:09:03 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-Message-Id: <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
-In-Reply-To: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] mm, numa: Fix bad pmd by atomically check for
+ pmd_trans_huge when marking page tables prot_numa
+Message-Id: <20170410150903.f931ceb5475d2d3d8945bb71@linux-foundation.org>
+In-Reply-To: <20170410180714.7yfnxl7qin72jcob@techsingularity.net>
+References: <20170410094825.2yfo5zehn7pchg6a@techsingularity.net>
+	<84B5E286-4E2A-4DE0-8351-806D2102C399@cs.rutgers.edu>
+	<20170410172056.shyx6qzcjglbt5nd@techsingularity.net>
+	<8A6309F4-DB76-48FA-BE7F-BF9536A4C4E5@cs.rutgers.edu>
+	<20170410180714.7yfnxl7qin72jcob@techsingularity.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 10 Apr 2017 20:58:13 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+On Mon, 10 Apr 2017 19:07:14 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-> Patch "mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"
-> changed to drop __GFP_NOWARN when calling warn_alloc() for stall warning.
-> Although I suggested for two times to drop __GFP_NOWARN when warn_alloc()
-> for stall warning was proposed, Michal Hocko does not want to print stall
-> warnings when __GFP_NOWARN is given [1][2].
+> On Mon, Apr 10, 2017 at 12:49:40PM -0500, Zi Yan wrote:
+> > On 10 Apr 2017, at 12:20, Mel Gorman wrote:
+> > 
+> > > On Mon, Apr 10, 2017 at 11:45:08AM -0500, Zi Yan wrote:
+> > >>> While this could be fixed with heavy locking, it's only necessary to
+> > >>> make a copy of the PMD on the stack during change_pmd_range and avoid
+> > >>> races. A new helper is created for this as the check if quite subtle and the
+> > >>> existing similar helpful is not suitable. This passed 154 hours of testing
+> > >>> (usually triggers between 20 minutes and 24 hours) without detecting bad
+> > >>> PMDs or corruption. A basic test of an autonuma-intensive workload showed
+> > >>> no significant change in behaviour.
+> > >>>
+> > >>> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> > >>> Cc: stable@vger.kernel.org
+> > >>
+> > >> Does this patch fix the same problem fixed by Kirill's patch here?
+> > >> https://lkml.org/lkml/2017/3/2/347
+> > >>
+> > >
+> > > I don't think so. The race I'm concerned with is due to locks not being
+> > > held and is in a different path.
+> > 
+> > I do not agree. Kirill's patch is fixing the same race problem but in
+> > zap_pmd_range().
+> > 
+> > The original autoNUMA code first clears PMD then sets it to protnone entry.
+> > pmd_trans_huge() does not return TRUE because it saw cleared PMD, but
+> > pmd_none_or_clear_bad() later saw the protnone entry and reported it as bad.
+> > Is this the problem you are trying solve?
+> > 
+> > Kirill's patch will pmdp_invalidate() the PMD entry, which keeps _PAGE_PSE bit,
+> > so pmd_trans_huge() will return TRUE. In this case, it also fixes
+> > your race problem in change_pmd_range().
+> > 
+> > Let me know if I miss anything.
+> > 
 > 
->  "I am not going to allow defining a weird __GFP_NOWARN semantic which
->   allows warnings but only sometimes. At least not without having a proper
->   way to silence both failures _and_ stalls or just stalls. I do not
->   really thing this is worth the additional gfp flag."
+> Ok, now I see. I think you're correct and I withdraw the patch.
 
-I interpret __GFP_NOWARN to mean "don't warn about this allocation
-attempt failing", not "don't warn about anything at all".  It's a very
-minor issue but yes, methinks that stall warning should still come out.
+I have Kirrill's
 
-Unless it's known to cause a problem for the stall warning to come out
-for __GFP_NOWARN attempts?  If so then perhaps a
-__GFP_NOWARN_ABOUT_STALLS is needed?
+thp-reduce-indentation-level-in-change_huge_pmd.patch
+thp-fix-madv_dontneed-vs-numa-balancing-race.patch
+mm-drop-unused-pmdp_huge_get_and_clear_notify.patch
+thp-fix-madv_dontneed-vs-madv_free-race.patch
+thp-fix-madv_dontneed-vs-madv_free-race-fix.patch
+thp-fix-madv_dontneed-vs-clear-soft-dirty-race.patch
+
+scheduled for 4.12-rc1.  It sounds like
+thp-fix-madv_dontneed-vs-madv_free-race.patch and
+thp-fix-madv_dontneed-vs-madv_free-race.patch need to be boosted to
+4.11 and stable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
