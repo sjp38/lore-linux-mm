@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A2CA6B03A1
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 10:15:14 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id y22so67269768ioe.9
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 07:15:14 -0700 (PDT)
-Received: from dggrg01-dlp.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id g204si14384365ioe.207.2017.04.10.07.15.12
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 432746B03A3
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 10:17:41 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id t189so3041489wmt.9
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 07:17:41 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id n33si21516836wrb.159.2017.04.10.07.17.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Apr 2017 07:15:13 -0700 (PDT)
-Message-ID: <58EB92A0.2090509@huawei.com>
-Date: Mon, 10 Apr 2017 22:11:44 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Apr 2017 07:17:39 -0700 (PDT)
+Date: Mon, 10 Apr 2017 10:17:34 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/4] mm: memcontrol: re-use global VM event enum
+Message-ID: <20170410141734.GB16119@cmpxchg.org>
+References: <20170404220148.28338-1-hannes@cmpxchg.org>
+ <20170404220148.28338-2-hannes@cmpxchg.org>
+ <20170406084923.GB2268@esperanza>
 MIME-Version: 1.0
-Subject: Re: NULL pointer dereference in the kernel 3.10
-References: <58E8E81E.6090304@huawei.com> <20170410085604.zpenj6ggc3dsbgxw@techsingularity.net> <58EB761E.9040002@huawei.com> <20170410140646.hyfbzc5367442hty@techsingularity.net>
-In-Reply-To: <20170410140646.hyfbzc5367442hty@techsingularity.net>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170406084923.GB2268@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, Vlastimil Babka <vbabka@suse.cz>, Linux Memory
- Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 2017/4/10 22:06, Mel Gorman wrote:
-> On Mon, Apr 10, 2017 at 08:10:06PM +0800, zhong jiang wrote:
->> On 2017/4/10 16:56, Mel Gorman wrote:
->>> On Sat, Apr 08, 2017 at 09:39:42PM +0800, zhong jiang wrote:
->>>> when runing the stabile docker cases in the vm.   The following issue will come up.
->>>>
->>>> #40 [ffff8801b57ffb30] async_page_fault at ffffffff8165c9f8
->>>>     [exception RIP: down_read_trylock+5]
->>>>     RIP: ffffffff810aca65  RSP: ffff8801b57ffbe8  RFLAGS: 00010202
->>>>     RAX: 0000000000000000  RBX: ffff88018ae858c1  RCX: 0000000000000000
->>>>     RDX: 0000000000000000  RSI: 0000000000000000  RDI: 0000000000000008
->>>>     RBP: ffff8801b57ffc10   R8: ffffea0006903de0   R9: ffff8800b3c61810
->>>>     R10: 00000000000022cb  R11: 0000000000000000  R12: ffff88018ae858c0
->>>>     R13: ffffea0006903dc0  R14: 0000000000000008  R15: ffffea0006903dc0
->>>>     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
->>> Post the full report including the kernel version and state whether any
->>> additional patches to 3.10 are applied.
->>>
->>  Hi, Mel
->>    
->>         Our kernel from RHEL 7.2, Addtional patches all from upstream -- include Bugfix and CVE.
->>
->> Commit 624483f3ea8 ("mm: rmap: fix use-after-free in __put_anon_vma") exclude in
->> the RHEL 7.2. it looks seems to the issue. but I don't know how it triggered.
->> or it is not the correct fix.  Any suggestion? Thanks
->>
-> I'm afraid you'll need to bring it up with RHEL support as it contains
-> a number of backported patches from them that cannot be meaningfully
-> evaluated outside of RedHat and they may have additional questions on the
-> patches applied on top.
->
- Thanks
+On Thu, Apr 06, 2017 at 11:49:24AM +0300, Vladimir Davydov wrote:
+> On Tue, Apr 04, 2017 at 06:01:46PM -0400, Johannes Weiner wrote:
+> > The current duplication is a high-maintenance mess, and it's painful
+> > to add new items.
+> > 
+> > This increases the size of the event array, but we'll eventually want
+> > most of the VM events tracked on a per-cgroup basis anyway.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Although the increase in the mem_cgroup struct introduced by this patch
+> looks scary, I agree this is a reasonable step toward unification of
+> vmstat, as most vm_even_item entries do make sense to be accounted per
+> cgroup as well.
+> 
+> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+
+Thanks!
+
+> > @@ -608,9 +601,9 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+> >  
+> >  	/* pagein of a big page is an event. So, ignore page size */
+> >  	if (nr_pages > 0)
+> > -		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
+> > +		__this_cpu_inc(memcg->stat->events[PGPGIN]);
+> >  	else {
+> > -		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
+> > +		__this_cpu_inc(memcg->stat->events[PGPGOUT]);
+> >  		nr_pages = -nr_pages; /* for event */
+> >  	}
+> 
+> AFAIR this doesn't exactly match system-wide PGPGIN/PGPGOUT: they are
+> supposed to account only paging events involving IO while currently they
+> include faulting in zero pages and zapping a process address space.
+> Probably, this should be revised before rolling out to cgroup v2.
+
+Yeah, that stat item doesn't make much sense in cgroup1. Cgroup2
+doesn't export it at all right now. Should we export it in the future,
+we can add special MEMCG1_PGPGIN_SILLY events and let cgroup2 use the
+real thing. Or remove/fix the stats in cgroup1, because I cannot think
+how this would be useful at all right now, anyway.
+
+But it's ooold behavior, so no urgency to tackle this right now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
