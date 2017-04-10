@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 623446B03A1
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 08:48:19 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i15so2901649wmf.19
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 05:48:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a1si21201026wra.276.2017.04.10.05.48.18
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 889D56B0390
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 09:16:25 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id n62so22351763lfn.7
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 06:16:25 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id e16si7615746ljb.221.2017.04.10.06.16.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Apr 2017 05:48:18 -0700 (PDT)
-Date: Mon, 10 Apr 2017 14:48:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: NULL pointer dereference in the kernel 3.10
-Message-ID: <20170410124814.GC4618@dhcp22.suse.cz>
-References: <58E8E81E.6090304@huawei.com>
- <20170410085604.zpenj6ggc3dsbgxw@techsingularity.net>
- <58EB761E.9040002@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58EB761E.9040002@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Apr 2017 06:16:23 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id r36so11375834lfi.0
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 06:16:23 -0700 (PDT)
+Date: Mon, 10 Apr 2017 15:16:21 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH] z3fold: fix page locking in z3fold_alloc()
+Message-Id: <20170410151621.b75118d3d883ea4afe4e00bf@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com
 
-On Mon 10-04-17 20:10:06, zhong jiang wrote:
-> On 2017/4/10 16:56, Mel Gorman wrote:
-> > On Sat, Apr 08, 2017 at 09:39:42PM +0800, zhong jiang wrote:
-> >> when runing the stabile docker cases in the vm.   The following issue will come up.
-> >>
-> >> #40 [ffff8801b57ffb30] async_page_fault at ffffffff8165c9f8
-> >>     [exception RIP: down_read_trylock+5]
-> >>     RIP: ffffffff810aca65  RSP: ffff8801b57ffbe8  RFLAGS: 00010202
-> >>     RAX: 0000000000000000  RBX: ffff88018ae858c1  RCX: 0000000000000000
-> >>     RDX: 0000000000000000  RSI: 0000000000000000  RDI: 0000000000000008
-> >>     RBP: ffff8801b57ffc10   R8: ffffea0006903de0   R9: ffff8800b3c61810
-> >>     R10: 00000000000022cb  R11: 0000000000000000  R12: ffff88018ae858c0
-> >>     R13: ffffea0006903dc0  R14: 0000000000000008  R15: ffffea0006903dc0
-> >>     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
-> > Post the full report including the kernel version and state whether any
-> > additional patches to 3.10 are applied.
-> >
->  Hi, Mel
->    
->         Our kernel from RHEL 7.2, Addtional patches all from upstream -- include Bugfix and CVE.
+Stress testing of the current z3fold implementation on a 8-core system
+revealed it was possible that a z3fold page deleted from its unbuddied
+list in z3fold_alloc() would be put on another unbuddied list by
+z3fold_free() while z3fold_alloc() is still processing it. This has
+been introduced with commit 5a27aa822 ("z3fold: add kref refcounting")
+due to the removal of special handling of a z3fold page not on any list
+in z3fold_free().
 
-I believe you should contact Redhat for the support. This is a) old
-kernel and b) with other patches which might or might not be relevant.
+To fix this, the z3fold page lock should be taken in z3fold_alloc()
+before the pool lock is released. To avoid deadlocking, we just try to
+lock the page as soon as we get a hold of it, and if trylock fails, we
+drop this page and take the next one.
+
+---
+ mm/z3fold.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index f9492bc..54f63c4 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -185,6 +185,12 @@ static inline void z3fold_page_lock(struct z3fold_header *zhdr)
+ 	spin_lock(&zhdr->page_lock);
+ }
+ 
++/* Try to lock a z3fold page */
++static inline int z3fold_page_trylock(struct z3fold_header *zhdr)
++{
++	return spin_trylock(&zhdr->page_lock);
++}
++
+ /* Unlock a z3fold page */
+ static inline void z3fold_page_unlock(struct z3fold_header *zhdr)
+ {
+@@ -385,7 +391,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 			spin_lock(&pool->lock);
+ 			zhdr = list_first_entry_or_null(&pool->unbuddied[i],
+ 						struct z3fold_header, buddy);
+-			if (!zhdr) {
++			if (!zhdr || !z3fold_page_trylock(zhdr)) {
+ 				spin_unlock(&pool->lock);
+ 				continue;
+ 			}
+@@ -394,7 +400,6 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 			spin_unlock(&pool->lock);
+ 
+ 			page = virt_to_page(zhdr);
+-			z3fold_page_lock(zhdr);
+ 			if (zhdr->first_chunks == 0) {
+ 				if (zhdr->middle_chunks != 0 &&
+ 				    chunks >= zhdr->start_middle)
 -- 
-Michal Hocko
-SUSE Labs
+2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
