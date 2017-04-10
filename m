@@ -1,190 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 629C56B0390
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 14:12:04 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b10so127982162pgn.8
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 11:12:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r7si14280995ple.25.2017.04.10.11.12.03
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CBF8A6B0390
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 16:53:15 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id g57so48466482qta.5
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 13:53:15 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 21si13835971qkj.172.2017.04.10.13.53.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 11:12:03 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3AI4DgS139502
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 14:12:03 -0400
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29re422mcx-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 14:12:02 -0400
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 10 Apr 2017 12:12:01 -0600
-Date: Mon, 10 Apr 2017 13:11:56 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [RFC HMM CDM 3/3] mm/migrate: memory migration using a device
- DMA engine
-References: <1491596933-21669-1-git-send-email-jglisse@redhat.com>
- <1491596933-21669-4-git-send-email-jglisse@redhat.com>
+        Mon, 10 Apr 2017 13:53:14 -0700 (PDT)
+Date: Mon, 10 Apr 2017 22:53:02 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] mm, page_alloc: re-enable softirq use of per-cpu page
+ allocator
+Message-ID: <20170410225302.2ec8cf56@redhat.com>
+In-Reply-To: <20170410150821.vcjlz7ntabtfsumm@techsingularity.net>
+References: <20170410150821.vcjlz7ntabtfsumm@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1491596933-21669-4-git-send-email-jglisse@redhat.com>
-Message-Id: <20170410181156.hxwfsqhodbhachpu@arbab-laptop.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Balbir Singh <balbir@au1.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Haren Myneni <haren@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: akpm@linux-foundation.org, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com
 
-(Had sent this to you directly. Reposting for the whole cc list.)
 
-On Fri, Apr 07, 2017 at 04:28:53PM -0400, Jerome Glisse wrote:
->--- a/include/linux/migrate.h
->+++ b/include/linux/migrate.h 
->@@ -212,28 +215,25 @@ static inline unsigned long migrate_pfn(unsigned long pfn)
->  * THE finalize_and_map() CALLBACK MUST NOT CHANGE ANY OF THE SRC OR DST ARRAY
->  * ENTRIES OR BAD THINGS WILL HAPPEN !
->  */
->-struct migrate_vma_ops {
->-	void (*alloc_and_copy)(struct vm_area_struct *vma,
->-			       const unsigned long *src,
->-			       unsigned long *dst,
->-			       unsigned long start,
->-			       unsigned long end,
->-			       void *private);
->-	void (*finalize_and_map)(struct vm_area_struct *vma,
->-				 const unsigned long *src,
->-				 const unsigned long *dst,
->-				 unsigned long start,
->-				 unsigned long end,
->-				 void *private);
->+struct migrate_dma_ops {
->+	void (*alloc_and_copy)(struct migrate_dma_ctx *ctx);
->+	void (*finalize_and_map)(struct migrate_dma_ctx *ctx);
->+};
->+
->+struct migrate_dma_ctx {
->+	const struct migrate_dma_ops	*ops;
->+	unsigned long			*dst;
->+	unsigned long			*src;
->+	unsigned long			cpages;
->+	unsigned long			npages;
+I will appreciate review of this patch. My micro-benchmarking show we
+basically return to same page alloc+free cost as before 374ad05ab64d
+("mm, page_alloc: only use per-cpu allocator for irq-safe requests").
+Which sort of invalidates this attempt of optimizing the page allocator.
+But Mel's micro-benchmarks still show an improvement.
 
-Could you add this so we can still pass arguments to the callbacks?
+Notice the slowdown comes from me checking irqs_disabled() ... if
+someone can spot a way to get rid of that this, then this patch will be
+a win.
 
-	void				*private;
+I'm traveling out of Montreal today, and will rerun my benchmarks when
+I get home.  Tariq will also do some more testing with 100G NIC (he
+also participated in the Montreal conf, so he is likely in transit too).
 
-> };
->
->-int migrate_vma(const struct migrate_vma_ops *ops,
->+int migrate_vma(struct migrate_dma_ctx *ctx,
-> 		struct vm_area_struct *vma,
-> 		unsigned long start,
->-		unsigned long end,
->-		unsigned long *src,
->-		unsigned long *dst,
->-		void *private);
->+		unsigned long end);
->+int migrate_dma(struct migrate_dma_ctx *migrate_ctx);
->+
->
-> #endif /* CONFIG_MIGRATION */
->
 
-...%<...
+On Mon, 10 Apr 2017 16:08:21 +0100
+Mel Gorman <mgorman@techsingularity.net> wrote:
 
->--- a/mm/migrate.c
->+++ b/mm/migrate.c
->@@ -2803,16 +2761,76 @@ int migrate_vma(const struct migrate_vma_ops *ops,
-> 	 * Note that migration can fail in migrate_vma_struct_page() for each
-> 	 * individual page.
-> 	 */
->-	ops->alloc_and_copy(vma, src, dst, start, end, private);
->+	migrate_ctx->ops->alloc_and_copy(migrate_ctx);
->
-> 	/* This does the real migration of struct page */
->-	migrate_vma_pages(&migrate);
->+	migrate_dma_pages(migrate_ctx, vma, start, end);
->
->-	ops->finalize_and_map(vma, src, dst, start, end, private);
->+	migrate_ctx->ops->finalize_and_map(migrate_ctx);
->
-> 	/* Unlock and remap pages */
->-	migrate_vma_finalize(&migrate);
->+	migrate_dma_finalize(migrate_ctx);
->
-> 	return 0;
-> }
-> EXPORT_SYMBOL(migrate_vma);
->+
->+/*
->+ * migrate_dma() - migrate an array of pages using a device DMA engine
->+ *
->+ * @migrate_ctx: migrate context structure
->+ *
->+ * The context structure must have its src fields pointing to an array of
->+ * migrate pfn entry each corresponding to a valid page and each page being
->+ * lock. The dst entry must by an array as big as src, it will be use during
->+ * migration to store the destination pfn.
->+ *
->+ */
->+int migrate_dma(struct migrate_dma_ctx *migrate_ctx)
->+{
->+	unsigned long i;
->+
->+	/* Sanity check the arguments */
->+	if (!migrate_ctx->ops || !migrate_ctx->src || !migrate_ctx->dst)
->+		return -EINVAL;
->+
->+	/* Below code should be hidden behind some DEBUG config */
->+	for (i = 0; i < migrate_ctx->npages; ++i) {
->+		const unsigned long mask = MIGRATE_PFN_VALID |
->+					   MIGRATE_PFN_LOCKED;
+> From: Jesper Dangaard Brouer <brouer@redhat.com>
+> 
+> IRQ context were excluded from using the Per-Cpu-Pages (PCP) lists caching
+> of order-0 pages in commit 374ad05ab64d ("mm, page_alloc: only use per-cpu
+> allocator for irq-safe requests").
+> 
+> This unfortunately also included excluded SoftIRQ.  This hurt the performance
+> for the use-case of refilling DMA RX rings in softirq context.
+> 
+> This patch re-allow softirq context, which should be safe by disabling
+> BH/softirq, while accessing the list.  PCP-lists access from both hard-IRQ
+> and NMI context must not be allowed.  Peter Zijlstra says in_nmi() code
+> never access the page allocator, thus it should be sufficient to only test
+> for !in_irq().
+> 
+> One concern with this change is adding a BH (enable) scheduling point at
+> both PCP alloc and free. If further concerns are highlighted by this patch,
+> the result wiill be to revert 374ad05ab64d and try again at a later date
+> to offset the irq enable/disable overhead.
+> 
+> Fixes: 374ad05ab64d ("mm, page_alloc: only use per-cpu allocator for irq-safe requests")
+> Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-This line is before the pages are locked. I think it should be
+Missing:
 
-					   MIGRATE_PFN_MIGRATE;
+Reported-by: Tariq [...]
 
->+
->+		if (!(migrate_ctx->src[i] & mask))
->+			return -EINVAL;
->+	}
->+
->+	/* Lock and isolate page */
->+	migrate_dma_prepare(migrate_ctx);
->+	if (!migrate_ctx->cpages)
->+		return 0;
->+
->+	/* Unmap pages */
->+	migrate_dma_unmap(migrate_ctx);
->+	if (!migrate_ctx->cpages)
->+		return 0;
->+
->+	/*
->+	 * At this point pages are locked and unmapped, and thus they have
->+	 * stable content and can safely be copied to destination memory that
->+	 * is allocated by the callback.
->+	 *
->+	 * Note that migration can fail in migrate_vma_struct_page() for each
->+	 * individual page.
->+	 */
->+	migrate_ctx->ops->alloc_and_copy(migrate_ctx);
->+
->+	/* This does the real migration of struct page */
->+	migrate_dma_pages(migrate_ctx, NULL, 0, 0);
->+
->+	migrate_ctx->ops->finalize_and_map(migrate_ctx);
->+
->+	/* Unlock and remap pages */
->+	migrate_dma_finalize(migrate_ctx);
->+
->+	return 0;
->+}
->+EXPORT_SYMBOL(migrate_dma);
+> ---
+>  mm/page_alloc.c | 26 +++++++++++++++++---------
+>  1 file changed, 17 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6cbde310abed..d7e986967910 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2351,9 +2351,9 @@ static void drain_local_pages_wq(struct work_struct *work)
+>  	 * cpu which is allright but we also have to make sure to not move to
+>  	 * a different one.
+>  	 */
+> -	preempt_disable();
+> +	local_bh_disable();
+>  	drain_local_pages(NULL);
+> -	preempt_enable();
+> +	local_bh_enable();
+>  }
+>  
+>  /*
+> @@ -2481,7 +2481,11 @@ void free_hot_cold_page(struct page *page, bool cold)
+>  	unsigned long pfn = page_to_pfn(page);
+>  	int migratetype;
+>  
+> -	if (in_interrupt()) {
+> +	/*
+> +	 * Exclude (hard) IRQ and NMI context from using the pcplists.
+> +	 * But allow softirq context, via disabling BH.
+> +	 */
+> +	if (in_irq() || irqs_disabled()) {
+>  		__free_pages_ok(page, 0);
+>  		return;
+>  	}
+> @@ -2491,7 +2495,7 @@ void free_hot_cold_page(struct page *page, bool cold)
+>  
+>  	migratetype = get_pfnblock_migratetype(page, pfn);
+>  	set_pcppage_migratetype(page, migratetype);
+> -	preempt_disable();
+> +	local_bh_disable();
+>  
+>  	/*
+>  	 * We only track unmovable, reclaimable and movable on pcp lists.
+> @@ -2522,7 +2526,7 @@ void free_hot_cold_page(struct page *page, bool cold)
+>  	}
+>  
+>  out:
+> -	preempt_enable();
+> +	local_bh_enable();
+>  }
+>  
+>  /*
+> @@ -2647,7 +2651,7 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
+>  {
+>  	struct page *page;
+>  
+> -	VM_BUG_ON(in_interrupt());
+> +	VM_BUG_ON(in_irq() || irqs_disabled());
+>  
+>  	do {
+>  		if (list_empty(list)) {
+> @@ -2680,7 +2684,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+>  	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+>  	struct page *page;
+>  
+> -	preempt_disable();
+> +	local_bh_disable();
+>  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+>  	list = &pcp->lists[migratetype];
+>  	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
+> @@ -2688,7 +2692,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+>  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+>  		zone_statistics(preferred_zone, zone);
+>  	}
+> -	preempt_enable();
+> +	local_bh_enable();
+>  	return page;
+>  }
+>  
+> @@ -2704,7 +2708,11 @@ struct page *rmqueue(struct zone *preferred_zone,
+>  	unsigned long flags;
+>  	struct page *page;
+>  
+> -	if (likely(order == 0) && !in_interrupt()) {
+> +	/*
+> +	 * Exclude (hard) IRQ and NMI context from using the pcplists.
+> +	 * But allow softirq context, via disabling BH.
+> +	 */
+> +	if (likely(order == 0) && !(in_irq() || irqs_disabled()) ) {
+>  		page = rmqueue_pcplist(preferred_zone, zone, order,
+>  				gfp_flags, migratetype);
+>  		goto out;
+
+
 
 -- 
-Reza Arbab
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
