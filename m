@@ -1,62 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6A16B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 03:15:56 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u18so18305515wrc.17
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 00:15:56 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x66si1728201wme.98.2017.04.11.00.15.54
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C2E6B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 03:52:13 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u202so136857706pgb.9
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 00:52:13 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id v1si7603576plb.242.2017.04.11.00.52.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Apr 2017 00:15:55 -0700 (PDT)
-Date: Tue, 11 Apr 2017 09:15:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-Message-ID: <20170411071552.GA6729@dhcp22.suse.cz>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Apr 2017 00:52:13 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id a188so3944590pfa.2
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 00:52:12 -0700 (PDT)
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: [PATCH] mm/hmm: Fix Kconfig dependencies for HMM
+Date: Tue, 11 Apr 2017 17:51:55 +1000
+Message-Id: <20170411075155.845-1-bsingharora@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: jglisse@redhat.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>
 
-On Mon 10-04-17 15:03:08, Andrew Morton wrote:
-> On Mon, 10 Apr 2017 20:58:13 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> 
-> > Patch "mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"
-> > changed to drop __GFP_NOWARN when calling warn_alloc() for stall warning.
-> > Although I suggested for two times to drop __GFP_NOWARN when warn_alloc()
-> > for stall warning was proposed, Michal Hocko does not want to print stall
-> > warnings when __GFP_NOWARN is given [1][2].
-> > 
-> >  "I am not going to allow defining a weird __GFP_NOWARN semantic which
-> >   allows warnings but only sometimes. At least not without having a proper
-> >   way to silence both failures _and_ stalls or just stalls. I do not
-> >   really thing this is worth the additional gfp flag."
-> 
-> I interpret __GFP_NOWARN to mean "don't warn about this allocation
-> attempt failing", not "don't warn about anything at all".  It's a very
-> minor issue but yes, methinks that stall warning should still come out.
+HMM uses arch_add/remove_memory, fix the Kconfig dependencies
+to add MEMORY_HOTPLUG and MEMORY_HOTREMOVE
 
-This is what the patch from Johannes already does and you have it in the
-mmotm tree.
+Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+---
+ mm/Kconfig | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> Unless it's known to cause a problem for the stall warning to come out
-> for __GFP_NOWARN attempts?  If so then perhaps a
-> __GFP_NOWARN_ABOUT_STALLS is needed?
-
-And this is one of the reason why I didn't like it. But whatever it
-doesn't make much sense to spend too much time discussing this again.
-This patch doesn't really fix anything important IMHO and it just
-generates more churn.
-
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 43d000e..c10cd99 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -291,7 +291,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+ 
+ config HMM
+ 	bool
+-	depends on MMU && 64BIT
++	depends on MMU && 64BIT && MEMORY_HOTREMOVE && MEMORY_HOTPLUG
+ 	help
+ 	  HMM provides a set of helpers to share a virtual address
+ 	  space between CPU and a device, so that the device can access any valid
+@@ -305,7 +305,7 @@ config HMM
+ 
+ config HMM_MIRROR
+ 	bool "HMM mirror CPU page table into a device page table"
+-	depends on MMU && 64BIT
++	depends on MMU && 64BIT && MEMORY_HOTREMOVE && MEMORY_HOTPLUG
+ 	select HMM
+ 	select MMU_NOTIFIER
+ 	help
+@@ -317,7 +317,7 @@ config HMM_MIRROR
+ 
+ config HMM_DEVMEM
+ 	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
+-	depends on MMU && 64BIT
++	depends on MMU && 64BIT && MEMORY_HOTREMOVE && MEMORY_HOTPLUG
+ 	select HMM
+ 	help
+ 	  HMM devmem is a set of helper routines to leverage the ZONE_DEVICE
 -- 
-Michal Hocko
-SUSE Labs
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
