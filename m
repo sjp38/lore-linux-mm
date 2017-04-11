@@ -1,35 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 694FD6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 13:03:23 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id b78so300624wrd.18
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 10:03:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 136si3834320wms.126.2017.04.11.10.03.22
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 468C36B03AD
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 13:24:29 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id d203so5501731iof.20
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 10:24:29 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id e34si6152675iod.56.2017.04.11.10.24.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Apr 2017 10:03:22 -0700 (PDT)
-Date: Tue, 11 Apr 2017 19:03:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
-Message-ID: <20170411170317.GB21171@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170410110351.12215-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Apr 2017 10:24:28 -0700 (PDT)
+Date: Tue, 11 Apr 2017 12:24:25 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
+ with cpuset update
+In-Reply-To: <20170411140609.3787-2-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.20.1704111152170.25069@east.gentwo.org>
+References: <20170411140609.3787-1-vbabka@suse.cz> <20170411140609.3787-2-vbabka@suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-All the reported issue seem to be fixed and pushed to my git tree
-attempts/rewrite-mem_hotplug branch. I will wait a day or two for more
-feedback and then repost for the inclusion. I would really appreaciate
-more testing/review!
--- 
-Michal Hocko
-SUSE Labs
+On Tue, 11 Apr 2017, Vlastimil Babka wrote:
+
+> The root of the problem is that the cpuset's mems_allowed and mempolicy's
+> nodemask can temporarily have no intersection, thus get_page_from_freelist()
+> cannot find any usable zone. The current semantic for empty intersection is to
+> ignore mempolicy's nodemask and honour cpuset restrictions. This is checked in
+> node_zonelist(), but the racy update can happen after we already passed the
+
+The fallback was only intended for a cpuset on which boundaries are not enforced
+in critical conditions (softwall). A hardwall cpuset (CS_MEM_HARDWALL)
+should fail the allocation.
+
+> This patch fixes the issue by having __alloc_pages_slowpath() check for empty
+> intersection of cpuset and ac->nodemask before OOM or allocation failure. If
+> it's indeed empty, the nodemask is ignored and allocation retried, which mimics
+> node_zonelist(). This works fine, because almost all callers of
+
+Well that would need to be subject to the hardwall flag. Allocation needs
+to fail for a hardwall cpuset.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
