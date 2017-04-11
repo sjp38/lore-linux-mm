@@ -1,58 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 341646B039F
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 08:51:11 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p197so366wmg.6
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 05:51:11 -0700 (PDT)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id z45si25969745wrc.42.2017.04.11.05.51.09
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A9F96B039F
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 09:26:42 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a21so130414756oic.5
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 06:26:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z13si7840204otd.215.2017.04.11.06.26.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Apr 2017 05:51:10 -0700 (PDT)
-From: Colin King <colin.king@canonical.com>
-Subject: [PATCH] mm/migrate: check for null vma before dereferencing it
-Date: Tue, 11 Apr 2017 13:51:02 +0100
-Message-Id: <20170411125102.19497-1-colin.king@canonical.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+        Tue, 11 Apr 2017 06:26:41 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
+	<20170411071552.GA6729@dhcp22.suse.cz>
+	<201704112043.EBD39096.JtFLQHVOFOFMOS@I-love.SAKURA.ne.jp>
+	<20170411115428.GI6729@dhcp22.suse.cz>
+In-Reply-To: <20170411115428.GI6729@dhcp22.suse.cz>
+Message-Id: <201704112226.EGF30796.FLFMJHOQtVFSOO@I-love.SAKURA.ne.jp>
+Date: Tue, 11 Apr 2017 22:26:26 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
 
-From: Colin Ian King <colin.king@canonical.com>
+Michal Hocko wrote:
+> This repeating of "hypotetical" demand of tunable is getting boring. I
+> would really appreciate to see at least _one_ such report from the
+> field. If you do not have any please stop wasting others people time by
+> unfounded claims.
 
-check if vma is null before dereferencing it, this avoiding any
-potential null pointer dereferences on vma via the is_vm_hugetlb_page
-call or the direct vma->vm_flags reference.
-
-Detected with CoverityScan, CID#1427995 ("Dereference before null check")
-
-Signed-off-by: Colin Ian King <colin.king@canonical.com>
----
- mm/migrate.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 7958dfa01b16..039f7bc3b9ee 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -2757,10 +2757,10 @@ int migrate_vma(const struct migrate_vma_ops *ops,
- 	/* Sanity check the arguments */
- 	start &= PAGE_MASK;
- 	end &= PAGE_MASK;
--	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
--		return -EINVAL;
- 	if (!vma || !ops || !src || !dst || start >= end)
- 		return -EINVAL;
-+	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
-+		return -EINVAL;
- 	if (start < vma->vm_start || start >= vma->vm_end)
- 		return -EINVAL;
- 	if (end <= vma->vm_start || end > vma->vm_end)
--- 
-2.11.0
+I'm talking from my experiences at a support center in Japan. But I can't
+share such report with you because I left two years ago and I can no longer
+ask customers for permission. Therefore, this is a catch-22 problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
