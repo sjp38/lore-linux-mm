@@ -1,102 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B49E6B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:29:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p197so4060454wmg.6
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 01:29:10 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id c45si24995965wra.299.2017.04.11.01.29.08
+	by kanga.kvack.org (Postfix) with ESMTP id B04D46B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:41:48 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 187so4074300wmn.5
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 01:41:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 29si25043983wrt.302.2017.04.11.01.41.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 01:29:08 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 768821C23DC
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 09:29:08 +0100 (IST)
-Date: Tue, 11 Apr 2017 09:29:07 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm, numa: Fix bad pmd by atomically check for
- pmd_trans_huge when marking page tables prot_numa
-Message-ID: <20170411082907.tz2mxit7vz7lv7nv@techsingularity.net>
-References: <20170410094825.2yfo5zehn7pchg6a@techsingularity.net>
- <84B5E286-4E2A-4DE0-8351-806D2102C399@cs.rutgers.edu>
- <20170410172056.shyx6qzcjglbt5nd@techsingularity.net>
- <8A6309F4-DB76-48FA-BE7F-BF9536A4C4E5@cs.rutgers.edu>
- <20170410180714.7yfnxl7qin72jcob@techsingularity.net>
- <20170410150903.f931ceb5475d2d3d8945bb71@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Apr 2017 01:41:47 -0700 (PDT)
+Date: Tue, 11 Apr 2017 10:41:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+Message-ID: <20170411084142.GB6729@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170410162749.7d7f31c1@nial.brq.redhat.com>
+ <20170410145639.GE4618@dhcp22.suse.cz>
+ <20170411100152.6b4be896@nial.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170410150903.f931ceb5475d2d3d8945bb71@linux-foundation.org>
+In-Reply-To: <20170411100152.6b4be896@nial.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
 
-On Mon, Apr 10, 2017 at 03:09:03PM -0700, Andrew Morton wrote:
-> On Mon, 10 Apr 2017 19:07:14 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > On Mon, Apr 10, 2017 at 12:49:40PM -0500, Zi Yan wrote:
-> > > On 10 Apr 2017, at 12:20, Mel Gorman wrote:
-> > > 
-> > > > On Mon, Apr 10, 2017 at 11:45:08AM -0500, Zi Yan wrote:
-> > > >>> While this could be fixed with heavy locking, it's only necessary to
-> > > >>> make a copy of the PMD on the stack during change_pmd_range and avoid
-> > > >>> races. A new helper is created for this as the check if quite subtle and the
-> > > >>> existing similar helpful is not suitable. This passed 154 hours of testing
-> > > >>> (usually triggers between 20 minutes and 24 hours) without detecting bad
-> > > >>> PMDs or corruption. A basic test of an autonuma-intensive workload showed
-> > > >>> no significant change in behaviour.
-> > > >>>
-> > > >>> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > > >>> Cc: stable@vger.kernel.org
-> > > >>
-> > > >> Does this patch fix the same problem fixed by Kirill's patch here?
-> > > >> https://lkml.org/lkml/2017/3/2/347
-> > > >>
-> > > >
-> > > > I don't think so. The race I'm concerned with is due to locks not being
-> > > > held and is in a different path.
-> > > 
-> > > I do not agree. Kirill's patch is fixing the same race problem but in
-> > > zap_pmd_range().
-> > > 
-> > > The original autoNUMA code first clears PMD then sets it to protnone entry.
-> > > pmd_trans_huge() does not return TRUE because it saw cleared PMD, but
-> > > pmd_none_or_clear_bad() later saw the protnone entry and reported it as bad.
-> > > Is this the problem you are trying solve?
-> > > 
-> > > Kirill's patch will pmdp_invalidate() the PMD entry, which keeps _PAGE_PSE bit,
-> > > so pmd_trans_huge() will return TRUE. In this case, it also fixes
-> > > your race problem in change_pmd_range().
-> > > 
-> > > Let me know if I miss anything.
-> > > 
+On Tue 11-04-17 10:01:52, Igor Mammedov wrote:
+> On Mon, 10 Apr 2017 16:56:39 +0200
+> Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > > #echo online_kernel > memory32/state
+> > > write error: Invalid argument
+> > > // that's not what's expected  
 > > 
-> > Ok, now I see. I think you're correct and I withdraw the patch.
+> > this is proper behavior with the current implementation. Does anything
+> > depend on the zone reusing?
+> if we didn't have zone imbalance issue in design,
+> the it wouldn't matter but as it stands it's not
+> minore issue.
 > 
-> I have Kirrill's
-> 
-> thp-reduce-indentation-level-in-change_huge_pmd.patch
-> thp-fix-madv_dontneed-vs-numa-balancing-race.patch
-> mm-drop-unused-pmdp_huge_get_and_clear_notify.patch
-> thp-fix-madv_dontneed-vs-madv_free-race.patch
-> thp-fix-madv_dontneed-vs-madv_free-race-fix.patch
-> thp-fix-madv_dontneed-vs-clear-soft-dirty-race.patch
-> 
-> scheduled for 4.12-rc1.  It sounds like
-> thp-fix-madv_dontneed-vs-madv_free-race.patch and
-> thp-fix-madv_dontneed-vs-madv_free-race.patch need to be boosted to
-> 4.11 and stable?
+> Consider following,
+> one hotplugs some memory and onlines it as movable,
+> then one needs to hotplug some more but to do so 
+> one one needs more memory from zone NORMAL and to keep
+> zone balance some memory in MOVABLE should be reonlined
+> as NORMAL
 
-Arguably all of them deal with different classes of race. The first two
-should be tagged for any stable kernel after 3.15 because that's the
-only one I know for certain occurs in the field albeit not on a mainline
-kernel. There will be conflicts on older kernels due to changes in the
-PMD locking API and it'll be up to the tree maintainers and patch owners
-if they want to backport or not.
-
+Is this something that we absolutely have to have right _now_? Or are you
+OK if I address this in follow up series? Because it will make the
+current code slightly more complex and to be honest I would rather like
+to see this "core" merge and build more on top.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
