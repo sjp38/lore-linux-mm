@@ -1,89 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A94C16B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 08:30:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x75so4354261wma.0
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 05:30:36 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F8616B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 08:38:11 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l44so7949433wrc.11
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 05:38:11 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m70si2849002wmg.146.2017.04.11.05.30.34
+        by mx.google.com with ESMTPS id j18si25914836wra.238.2017.04.11.05.38.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Apr 2017 05:30:35 -0700 (PDT)
-Date: Tue, 11 Apr 2017 14:30:26 +0200
+        Tue, 11 Apr 2017 05:38:10 -0700 (PDT)
+Date: Tue, 11 Apr 2017 14:38:01 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/4] mm: memcontrol: re-use global VM event enum
-Message-ID: <20170411123025.GL6729@dhcp22.suse.cz>
-References: <20170404220148.28338-1-hannes@cmpxchg.org>
- <20170404220148.28338-2-hannes@cmpxchg.org>
- <20170407124702.GE16413@dhcp22.suse.cz>
- <20170410141334.GA16119@cmpxchg.org>
+Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+Message-ID: <20170411123801.GM6729@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170410162749.7d7f31c1@nial.brq.redhat.com>
+ <20170410160941.GJ4618@dhcp22.suse.cz>
+ <20170411083834.765c2201@nial.brq.redhat.com>
+ <20170411092306.GD6729@dhcp22.suse.cz>
+ <20170411115931.32659dd6@nial.brq.redhat.com>
+ <20170411110143.GG6729@dhcp22.suse.cz>
+ <20170411113816.GH6729@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170410141334.GA16119@cmpxchg.org>
+In-Reply-To: <20170411113816.GH6729@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
 
-On Mon 10-04-17 10:13:34, Johannes Weiner wrote:
-> On Fri, Apr 07, 2017 at 02:47:02PM +0200, Michal Hocko wrote:
-> > I do agree that we should share global and memcg specific events constants
-> > but I am not sure we want to share all of them. Would it make sense to
-> > reorganize the global enum and put those that are shared to the
-> > beginning? We wouldn't need the memcg specific translation then.
+On Tue 11-04-17 13:38:16, Michal Hocko wrote:
+> On Tue 11-04-17 13:01:43, Michal Hocko wrote:
+> > On Tue 11-04-17 11:59:31, Igor Mammedov wrote:
+> > > On Tue, 11 Apr 2017 11:23:07 +0200
+> > > Michal Hocko <mhocko@kernel.org> wrote:
+> > > 
+> > > > On Tue 11-04-17 08:38:34, Igor Mammedov wrote:
+> > > > > for issue2:
+> > > > > -enable-kvm -m 2G,slots=4,maxmem=4G -smp 4 -numa node -numa node \
+> > > > > -drive if=virtio,file=disk.img -kernel bzImage -append 'root=/dev/vda1' \
+> > > > > -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M \
+> > > > > -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=1  
+> > > > 
+> > > > I must be doing something wrong here...
+> > > > qemu-system-x86_64 -enable-kvm -monitor telnet:127.0.0.1:9999,server,nowait -net nic -net user,hostfwd=tcp:127.0.0.1:5555-:22 -serial file:test.qcow_serial.log -enable-kvm -m 2G,slots=4,maxmem=4G -smp 4 -numa node -numa node -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=1 -drive file=test.qcow,if=ide,index=0
+> > > > 
+> > > > for i in $(seq 0 3)
+> > > > do
+> > > > 	sh probe_memblock.sh $i
+> > > > done
+> > >
+> > > dimm to node mapping comes from ACPI subsystem (_PXM object in memory device),
+> > > which adds memory blocks automatically on hotplug.
+> > 
+> > Hmm, memory_probe_store relies on memory_add_physaddr_to_nid which in
+> > turn relies on numa_meminfo. I am not familiar with the intialization
+> > and got lost in in the code rather quickly but I assumed this should get
+> > the proper information from the ACPI subsystem. I will have to double
+> > check.
+> > 
+> > > you probably don't have ACPI_HOTPLUG_MEMORY config option enabled.
+> > 
+> > Yes that is the case and enabling it made all 4 memblocks available
+> > and associated with the proper node
+> > # ls -l /sys/devices/system/memory/memory3?/node*
+> > lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory32/node0 -> ../../node/node0
+> > lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory33/node0 -> ../../node/node0
+> > lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory34/node1 -> ../../node/node1
+> > lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory35/node1 -> ../../node/node1
+> > 
+> > # grep . /sys/devices/system/memory/memory3?/valid_zones
+> > /sys/devices/system/memory/memory32/valid_zones:Normal Movable
+> > /sys/devices/system/memory/memory33/valid_zones:Normal Movable
+> > /sys/devices/system/memory/memory34/valid_zones:Normal Movable
+> > /sys/devices/system/memory/memory35/valid_zones:Normal Movable
+> > 
+> > I can even reproduce your problem
+> > # echo online_movable > /sys/devices/system/memory/memory33/state
+> > # echo online > /sys/devices/system/memory/memory32/state
+> > # grep . /sys/devices/system/memory/memory3?/valid_zones
+> > /sys/devices/system/memory/memory32/valid_zones:Movable
+> > /sys/devices/system/memory/memory33/valid_zones:Movable
+> > /sys/devices/system/memory/memory34/valid_zones:Normal Movable
+> > /sys/devices/system/memory/memory35/valid_zones:Normal Movable
+> > 
+> > I will investigate this
 > 
-> I'm not sure I follow. Which translation?
+> Dang, guess what. It is a similar type bug I've fixed in
+> show_valid_zones [1] already.
+> 
+> [1] http://lkml.kernel.org/r/20170410152228.GF4618@dhcp22.suse.cz
+> ---
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index ec2f987ec549..410c7ccb74fb 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -541,7 +541,7 @@ static inline bool zone_intersects(struct zone *zone,
+>  {
+>  	if (zone->zone_start_pfn <= start_pfn && start_pfn < zone_end_pfn(zone))
+>  		return true;
+> -	if (start_pfn + nr_pages > start_pfn && !zone_is_empty(zone))
+> +	if (start_pfn + nr_pages > zone->zone_start_pfn && !zone_is_empty(zone))
+>  		return true;
+>  	return false;
+>  }
+> 
+> I have decided to make it more readable and did zone_is_empty check
+> first. Everything is in my git tree attempts/rewrite-mem_hotplug branch.
+> I have to test it but I believe this is the culprit here.
 
-Sorry, I should have said s@translation@filtering@ by memcg1_events*
-
-> > Anyway, two comments on the current implementation.
-> > 
-> > On Tue 04-04-17 18:01:46, Johannes Weiner wrote:
-> > [...]
-> > > +/* Cgroup-specific events, on top of universal VM events */
-> > > +enum memcg_event_item {
-> > > +	MEMCG_LOW = NR_VM_EVENT_ITEMS,
-> > > +	MEMCG_HIGH,
-> > > +	MEMCG_MAX,
-> > > +	MEMCG_OOM,
-> > > +	MEMCG_NR_EVENTS,
-> > > +};
-> > 
-> > The above should mention that each supported global VM event should
-> > provide the corresponding translation
-> > 
-> > [...]
-> > 
-> > here...
-> > > +/* Universal VM events cgroup1 shows, original sort order */
-> > > +unsigned int memcg1_events[] = {
-> > > +	PGPGIN,
-> > > +	PGPGOUT,
-> > > +	PGFAULT,
-> > > +	PGMAJFAULT,
-> > > +};
-> > > +
-> > > +static const char *const memcg1_event_names[] = {
-> > > +	"pgpgin",
-> > > +	"pgpgout",
-> > > +	"pgfault",
-> > > +	"pgmajfault",
-> > > +};
-> > 
-> > the naming doesn't make it easier to undestand why we need this.
-> > global2memcg_event?
-> 
-> This is just to keep the file order consistent. It could have been
-> done like memory.stat in cgroup2, where we simply do
-> 
->    seq_printf(s, "pgmajfault %lu\n", stat[PGMAJFAULT]);
-> 
-> but I didn't want to change the v1 code too much. So these two arrays
-> are just a sorted list of global VM events shown in v1's memory.stat.
-
-You would still have to know which are the relevant parts of the global
-starts that we account for memcg.
+OK, tested and it seems to be fixed. Thanks again for your testing and
+the kvm configuration which made my testing much easier (probing and
+adding areas from the qemu monitor was just PITA)!
 -- 
 Michal Hocko
 SUSE Labs
