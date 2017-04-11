@@ -1,39 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8943C6B03B9
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 14:30:36 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id s69so6884634ioi.11
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 11:30:36 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id u125si2733056itc.22.2017.04.11.11.30.35
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 251D26B03BA
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 14:30:42 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 194so558390wmq.23
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 11:30:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n124si4173912wmd.81.2017.04.11.11.30.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 11:30:35 -0700 (PDT)
-Date: Tue, 11 Apr 2017 13:30:33 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Apr 2017 11:30:41 -0700 (PDT)
+Date: Tue, 11 Apr 2017 20:30:36 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm: Add additional consistency check
-In-Reply-To: <20170331164028.GA118828@beast>
-Message-ID: <alpine.DEB.2.20.1704111326370.6378@east.gentwo.org>
-References: <20170331164028.GA118828@beast>
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <20170411183035.GD21171@dhcp22.suse.cz>
+References: <20170404194220.GT15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041457030.28085@east.gentwo.org>
+ <20170404201334.GV15132@dhcp22.suse.cz>
+ <CAGXu5jL1t2ZZkwnGH9SkFyrKDeCugSu9UUzvHf3o_MgraDFL1Q@mail.gmail.com>
+ <20170411134618.GN6729@dhcp22.suse.cz>
+ <CAGXu5j+EVCU1WrjpMmr0PYW2N_RzF0tLUgFumDR+k4035uqthA@mail.gmail.com>
+ <20170411141956.GP6729@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111110130.24725@east.gentwo.org>
+ <20170411164134.GA21171@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111254390.25069@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1704111254390.25069@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 31 Mar 2017, Kees Cook wrote:
+On Tue 11-04-17 13:03:01, Cristopher Lameter wrote:
+> On Tue, 11 Apr 2017, Michal Hocko wrote:
+> 
+> > >
+> > > There is a flag SLAB_DEBUG_OBJECTS that is available for this check.
+> >
+> > Which is way too late, at least for the kfree path. page->slab_cache
+> > on anything else than PageSlab is just a garbage. And my understanding
+> > of the patch objective is to stop those from happening.
+> 
+> We are looking here at SLAB. SLUB code can legitimately have a compound
+> page there because large allocations fallback to the page allocator.
+> 
+> Garbage would be attempting to free a page that has !PageSLAB set but also
+> is no compound page. That condition is already checked in kfree() with a
+> BUG_ON() and that BUG_ON has been there for a long time.
 
-> As found in PaX, this adds a cheap check on heap consistency, just to
-> notice if things have gotten corrupted in the page lookup.
+Are you talking about SLAB or SLUB here?  The only
+BUG_ON(PageSlab(page)) in SLAB I can see is in kmem_freepages and that
+is way too late because we already rely on cachep which is not
+trustworthy. Or am I missing some other place you have in mind?
 
-Ok this only affects kmem_cache_free() and not kfree(). For
-kmem_cache_free() we already have a lot of stuff in the hotpath due to
-cgruops. If you want this also for kfree() then we need a separate patch.
+> Certainly we can
+> make SLAB consistent if there is no check there already. Slab just
+> attempts a free on that object which will fail too.
+> 
+> So we are already handling that condition. Why change things? Add a BUG_ON
+> if you want to make SLAB consistent.
 
-Also for kmem_cache_free(): Here we always have a slab cache and thus we
-could check the flags that could modify what behavior we want.
+I hate to repeat myself but let me do it for the last time in this
+thread. BUG_ON for something that is recoverable is completely
+inappropriate. And I consider kfree with a bogus pointer something that
+we can easily recover from. There are other cases where the internal
+state of the allocator is compromised to the point where continuing is
+not possible and BUGing there is acceptable but kfree(garbage) is not
+that case. 
 
-Acked-by: Christoph Lameter <cl@linux.com>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
