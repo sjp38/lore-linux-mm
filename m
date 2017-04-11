@@ -1,207 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F95F6B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 02:00:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id s22so51844705pfs.0
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 23:00:33 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id w5si15780127pgo.164.2017.04.10.23.00.32
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 699FC6B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 02:35:05 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 184so3922734wmy.11
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 23:35:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h132si1579365wma.82.2017.04.10.23.35.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 23:00:32 -0700 (PDT)
-Subject: Re: [PATCHv3 07/22] staging: android: ion: Remove page faulting
- support
-References: <1491245884-15852-1-git-send-email-labbott@redhat.com>
- <1491245884-15852-8-git-send-email-labbott@redhat.com>
-From: Archit Taneja <architt@codeaurora.org>
-Message-ID: <d6336b76-e1a8-d05a-3f1c-9425e4b92498@codeaurora.org>
-Date: Tue, 11 Apr 2017 11:30:24 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Apr 2017 23:35:04 -0700 (PDT)
+Subject: Re: [PATCH] mm, numa: Fix bad pmd by atomically check for
+ pmd_trans_huge when marking page tables prot_numa
+References: <20170410094825.2yfo5zehn7pchg6a@techsingularity.net>
+ <84B5E286-4E2A-4DE0-8351-806D2102C399@cs.rutgers.edu>
+ <20170410172056.shyx6qzcjglbt5nd@techsingularity.net>
+ <8A6309F4-DB76-48FA-BE7F-BF9536A4C4E5@cs.rutgers.edu>
+ <20170410180714.7yfnxl7qin72jcob@techsingularity.net>
+ <20170410150903.f931ceb5475d2d3d8945bb71@linux-foundation.org>
+ <789A2322-A5B6-4AC8-8668-D7057A56A140@cs.rutgers.edu>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6336c469-c946-c300-7392-87052c990266@suse.cz>
+Date: Tue, 11 Apr 2017 08:35:02 +0200
 MIME-Version: 1.0
-In-Reply-To: <1491245884-15852-8-git-send-email-labbott@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <789A2322-A5B6-4AC8-8668-D7057A56A140@cs.rutgers.edu>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com
-Cc: romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+On 04/11/2017 12:28 AM, Zi Yan wrote:
+> On 10 Apr 2017, at 17:09, Andrew Morton wrote:
+> 
+>> On Mon, 10 Apr 2017 19:07:14 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+>>
+>>> On Mon, Apr 10, 2017 at 12:49:40PM -0500, Zi Yan wrote:
+>>>> On 10 Apr 2017, at 12:20, Mel Gorman wrote:
+>>>>
+>>>>> On Mon, Apr 10, 2017 at 11:45:08AM -0500, Zi Yan wrote:
+>>>>>>> While this could be fixed with heavy locking, it's only necessary to
+>>>>>>> make a copy of the PMD on the stack during change_pmd_range and avoid
+>>>>>>> races. A new helper is created for this as the check if quite subtle and the
+>>>>>>> existing similar helpful is not suitable. This passed 154 hours of testing
+>>>>>>> (usually triggers between 20 minutes and 24 hours) without detecting bad
+>>>>>>> PMDs or corruption. A basic test of an autonuma-intensive workload showed
+>>>>>>> no significant change in behaviour.
+>>>>>>>
+>>>>>>> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+>>>>>>> Cc: stable@vger.kernel.org
+>>>>>>
+>>>>>> Does this patch fix the same problem fixed by Kirill's patch here?
+>>>>>> https://lkml.org/lkml/2017/3/2/347
+>>>>>>
+>>>>>
+>>>>> I don't think so. The race I'm concerned with is due to locks not being
+>>>>> held and is in a different path.
+>>>>
+>>>> I do not agree. Kirill's patch is fixing the same race problem but in
+>>>> zap_pmd_range().
+>>>>
+>>>> The original autoNUMA code first clears PMD then sets it to protnone entry.
+>>>> pmd_trans_huge() does not return TRUE because it saw cleared PMD, but
+>>>> pmd_none_or_clear_bad() later saw the protnone entry and reported it as bad.
+>>>> Is this the problem you are trying solve?
+>>>>
+>>>> Kirill's patch will pmdp_invalidate() the PMD entry, which keeps _PAGE_PSE bit,
+>>>> so pmd_trans_huge() will return TRUE. In this case, it also fixes
+>>>> your race problem in change_pmd_range().
+>>>>
+>>>> Let me know if I miss anything.
+>>>>
+>>>
+>>> Ok, now I see. I think you're correct and I withdraw the patch.
+>>
+>> I have Kirrill's
+>>
+>> thp-reduce-indentation-level-in-change_huge_pmd.patch
+>> thp-fix-madv_dontneed-vs-numa-balancing-race.patch
+>> mm-drop-unused-pmdp_huge_get_and_clear_notify.patch
+>> thp-fix-madv_dontneed-vs-madv_free-race.patch
+>> thp-fix-madv_dontneed-vs-madv_free-race-fix.patch
+>> thp-fix-madv_dontneed-vs-clear-soft-dirty-race.patch
+>>
+>> scheduled for 4.12-rc1.  It sounds like
+>> thp-fix-madv_dontneed-vs-madv_free-race.patch and
+>> thp-fix-madv_dontneed-vs-madv_free-race.patch need to be boosted to
+>> 4.11 and stable?
+> 
+> thp-fix-madv_dontneed-vs-numa-balancing-race.patch is the fix for
+> numa balancing problem reported in this thread.
+> 
+> mm-drop-unused-pmdp_huge_get_and_clear_notify.patch,
+> thp-fix-madv_dontneed-vs-madv_free-race.patch,
+> thp-fix-madv_dontneed-vs-madv_free-race-fix.patch, and
+> thp-fix-madv_dontneed-vs-clear-soft-dirty-race.patch
+> 
+> are the fixes for other potential race problems similar to this one.
+> 
+> I think it is better to have all these patches applied.
 
-On 04/04/2017 12:27 AM, Laura Abbott wrote:
-> The new method of syncing with dma_map means that the page faulting sync
-> implementation is no longer applicable. Remove it.
->
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
-> ---
->  drivers/staging/android/ion/ion.c | 117 --------------------------------------
->  1 file changed, 117 deletions(-)
->
-> diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
-> index 6aac935..226ea1f 100644
-> --- a/drivers/staging/android/ion/ion.c
-> +++ b/drivers/staging/android/ion/ion.c
-> @@ -42,37 +42,11 @@
->  #include "ion_priv.h"
->  #include "compat_ion.h"
->
-> -bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
-> -{
-> -	return (buffer->flags & ION_FLAG_CACHED) &&
-> -		!(buffer->flags & ION_FLAG_CACHED_NEEDS_SYNC);
-> -}
-> -
->  bool ion_buffer_cached(struct ion_buffer *buffer)
->  {
->  	return !!(buffer->flags & ION_FLAG_CACHED);
->  }
->
-> -static inline struct page *ion_buffer_page(struct page *page)
-> -{
-> -	return (struct page *)((unsigned long)page & ~(1UL));
-> -}
-> -
-> -static inline bool ion_buffer_page_is_dirty(struct page *page)
-> -{
-> -	return !!((unsigned long)page & 1UL);
-> -}
-> -
-> -static inline void ion_buffer_page_dirty(struct page **page)
-> -{
-> -	*page = (struct page *)((unsigned long)(*page) | 1UL);
-> -}
-> -
-> -static inline void ion_buffer_page_clean(struct page **page)
-> -{
-> -	*page = (struct page *)((unsigned long)(*page) & ~(1UL));
-> -}
-> -
->  /* this function should only be called while dev->lock is held */
->  static void ion_buffer_add(struct ion_device *dev,
->  			   struct ion_buffer *buffer)
-> @@ -140,25 +114,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
->  	buffer->dev = dev;
->  	buffer->size = len;
->
-> -	if (ion_buffer_fault_user_mappings(buffer)) {
-> -		int num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-> -		struct scatterlist *sg;
-> -		int i, j, k = 0;
-> -
-> -		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
+Yeah we should get all such fixes to stable IMHO (after review :). It's
+not the first time that a fix for MADV_DONTNEED turned out to also fix a
+race that involved "normal operation" with THP, without such syscalls.
 
-We should also remove the vfree(buffer->pages) call in ion_buffer_destroy. In fact, we
-could removes 'pages' member from ion_buffer altogether.
-
-Thanks,
-Archit
-
-> -		if (!buffer->pages) {
-> -			ret = -ENOMEM;
-> -			goto err1;
-> -		}
-> -
-> -		for_each_sg(table->sgl, sg, table->nents, i) {
-> -			struct page *page = sg_page(sg);
-> -
-> -			for (j = 0; j < sg->length / PAGE_SIZE; j++)
-> -				buffer->pages[k++] = page++;
-> -		}
-> -	}
-> -
->  	buffer->dev = dev;
->  	buffer->size = len;
->  	INIT_LIST_HEAD(&buffer->vmas);
-> @@ -924,69 +879,6 @@ void ion_pages_sync_for_device(struct device *dev, struct page *page,
->  	dma_sync_sg_for_device(dev, &sg, 1, dir);
->  }
->
-> -struct ion_vma_list {
-> -	struct list_head list;
-> -	struct vm_area_struct *vma;
-> -};
-> -
-> -static int ion_vm_fault(struct vm_fault *vmf)
-> -{
-> -	struct ion_buffer *buffer = vmf->vma->vm_private_data;
-> -	unsigned long pfn;
-> -	int ret;
-> -
-> -	mutex_lock(&buffer->lock);
-> -	ion_buffer_page_dirty(buffer->pages + vmf->pgoff);
-> -	BUG_ON(!buffer->pages || !buffer->pages[vmf->pgoff]);
-> -
-> -	pfn = page_to_pfn(ion_buffer_page(buffer->pages[vmf->pgoff]));
-> -	ret = vm_insert_pfn(vmf->vma, vmf->address, pfn);
-> -	mutex_unlock(&buffer->lock);
-> -	if (ret)
-> -		return VM_FAULT_ERROR;
-> -
-> -	return VM_FAULT_NOPAGE;
-> -}
-> -
-> -static void ion_vm_open(struct vm_area_struct *vma)
-> -{
-> -	struct ion_buffer *buffer = vma->vm_private_data;
-> -	struct ion_vma_list *vma_list;
-> -
-> -	vma_list = kmalloc(sizeof(*vma_list), GFP_KERNEL);
-> -	if (!vma_list)
-> -		return;
-> -	vma_list->vma = vma;
-> -	mutex_lock(&buffer->lock);
-> -	list_add(&vma_list->list, &buffer->vmas);
-> -	mutex_unlock(&buffer->lock);
-> -	pr_debug("%s: adding %p\n", __func__, vma);
-> -}
-> -
-> -static void ion_vm_close(struct vm_area_struct *vma)
-> -{
-> -	struct ion_buffer *buffer = vma->vm_private_data;
-> -	struct ion_vma_list *vma_list, *tmp;
-> -
-> -	pr_debug("%s\n", __func__);
-> -	mutex_lock(&buffer->lock);
-> -	list_for_each_entry_safe(vma_list, tmp, &buffer->vmas, list) {
-> -		if (vma_list->vma != vma)
-> -			continue;
-> -		list_del(&vma_list->list);
-> -		kfree(vma_list);
-> -		pr_debug("%s: deleting %p\n", __func__, vma);
-> -		break;
-> -	}
-> -	mutex_unlock(&buffer->lock);
-> -}
-> -
-> -static const struct vm_operations_struct ion_vma_ops = {
-> -	.open = ion_vm_open,
-> -	.close = ion_vm_close,
-> -	.fault = ion_vm_fault,
-> -};
-> -
->  static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
->  {
->  	struct ion_buffer *buffer = dmabuf->priv;
-> @@ -998,15 +890,6 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
->  		return -EINVAL;
->  	}
->
-> -	if (ion_buffer_fault_user_mappings(buffer)) {
-> -		vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND |
-> -							VM_DONTDUMP;
-> -		vma->vm_private_data = buffer;
-> -		vma->vm_ops = &ion_vma_ops;
-> -		ion_vm_open(vma);
-> -		return 0;
-> -	}
-> -
->  	if (!(buffer->flags & ION_FLAG_CACHED))
->  		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
->
->
-
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-a Linux Foundation Collaborative Project
+> --
+> Best Regards
+> Yan Zi
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
