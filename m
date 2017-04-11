@@ -1,284 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 591336B039F
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 01:08:30 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s15so40902072pfi.1
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 22:08:30 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F95F6B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 02:00:33 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s22so51844705pfs.0
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 23:00:33 -0700 (PDT)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id p66si15716970pfi.133.2017.04.10.22.08.29
+        by mx.google.com with ESMTPS id w5si15780127pgo.164.2017.04.10.23.00.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 22:08:29 -0700 (PDT)
-Subject: Re: [PATCHv3 08/22] staging: android: ion: Remove crufty cache
+        Mon, 10 Apr 2017 23:00:32 -0700 (PDT)
+Subject: Re: [PATCHv3 07/22] staging: android: ion: Remove page faulting
  support
 References: <1491245884-15852-1-git-send-email-labbott@redhat.com>
- <1491245884-15852-9-git-send-email-labbott@redhat.com>
+ <1491245884-15852-8-git-send-email-labbott@redhat.com>
 From: Archit Taneja <architt@codeaurora.org>
-Message-ID: <988c59e8-4a85-93f4-8d35-5ccd2a004424@codeaurora.org>
-Date: Tue, 11 Apr 2017 10:38:20 +0530
+Message-ID: <d6336b76-e1a8-d05a-3f1c-9425e4b92498@codeaurora.org>
+Date: Tue, 11 Apr 2017 11:30:24 +0530
 MIME-Version: 1.0
-In-Reply-To: <1491245884-15852-9-git-send-email-labbott@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <1491245884-15852-8-git-send-email-labbott@redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, arve@android.com
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org, romlem@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Daniel Vetter <daniel.vetter@intel.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com
+Cc: romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 Hi,
 
 On 04/04/2017 12:27 AM, Laura Abbott wrote:
-> Now that we call dma_map in the dma_buf API callbacks there is no need
-> to use the existing cache APIs. Remove the sync ioctl and the existing
-> bad dma_sync calls. Explicit caching can be handled with the dma_buf
-> sync API.
+> The new method of syncing with dma_map means that the page faulting sync
+> implementation is no longer applicable. Remove it.
+>
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> ---
+>  drivers/staging/android/ion/ion.c | 117 --------------------------------------
+>  1 file changed, 117 deletions(-)
+>
+> diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+> index 6aac935..226ea1f 100644
+> --- a/drivers/staging/android/ion/ion.c
+> +++ b/drivers/staging/android/ion/ion.c
+> @@ -42,37 +42,11 @@
+>  #include "ion_priv.h"
+>  #include "compat_ion.h"
+>
+> -bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
+> -{
+> -	return (buffer->flags & ION_FLAG_CACHED) &&
+> -		!(buffer->flags & ION_FLAG_CACHED_NEEDS_SYNC);
+> -}
+> -
+>  bool ion_buffer_cached(struct ion_buffer *buffer)
+>  {
+>  	return !!(buffer->flags & ION_FLAG_CACHED);
+>  }
+>
+> -static inline struct page *ion_buffer_page(struct page *page)
+> -{
+> -	return (struct page *)((unsigned long)page & ~(1UL));
+> -}
+> -
+> -static inline bool ion_buffer_page_is_dirty(struct page *page)
+> -{
+> -	return !!((unsigned long)page & 1UL);
+> -}
+> -
+> -static inline void ion_buffer_page_dirty(struct page **page)
+> -{
+> -	*page = (struct page *)((unsigned long)(*page) | 1UL);
+> -}
+> -
+> -static inline void ion_buffer_page_clean(struct page **page)
+> -{
+> -	*page = (struct page *)((unsigned long)(*page) & ~(1UL));
+> -}
+> -
+>  /* this function should only be called while dev->lock is held */
+>  static void ion_buffer_add(struct ion_device *dev,
+>  			   struct ion_buffer *buffer)
+> @@ -140,25 +114,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
+>  	buffer->dev = dev;
+>  	buffer->size = len;
+>
+> -	if (ion_buffer_fault_user_mappings(buffer)) {
+> -		int num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+> -		struct scatterlist *sg;
+> -		int i, j, k = 0;
+> -
+> -		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
 
-We could get rid of the ION_FLAG_CACHED_NEEDS_SYNC flag in this patch
-too.
+We should also remove the vfree(buffer->pages) call in ion_buffer_destroy. In fact, we
+could removes 'pages' member from ion_buffer altogether.
 
 Thanks,
 Archit
 
->
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
-> ---
->  drivers/staging/android/ion/compat_ion.c        |  1 -
->  drivers/staging/android/ion/ion-ioctl.c         |  6 ----
->  drivers/staging/android/ion/ion.c               | 40 -------------------------
->  drivers/staging/android/ion/ion_carveout_heap.c |  6 ----
->  drivers/staging/android/ion/ion_chunk_heap.c    |  6 ----
->  drivers/staging/android/ion/ion_page_pool.c     |  3 --
->  drivers/staging/android/ion/ion_priv.h          | 13 --------
->  drivers/staging/android/ion/ion_system_heap.c   |  5 ----
->  drivers/staging/android/uapi/ion.h              | 10 -------
->  9 files changed, 90 deletions(-)
->
-> diff --git a/drivers/staging/android/ion/compat_ion.c b/drivers/staging/android/ion/compat_ion.c
-> index 9a978d2..b892d3a 100644
-> --- a/drivers/staging/android/ion/compat_ion.c
-> +++ b/drivers/staging/android/ion/compat_ion.c
-> @@ -186,7 +186,6 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
->  	case ION_IOC_SHARE:
->  	case ION_IOC_MAP:
->  	case ION_IOC_IMPORT:
-> -	case ION_IOC_SYNC:
->  		return filp->f_op->unlocked_ioctl(filp, cmd,
->  						(unsigned long)compat_ptr(arg));
->  	default:
-> diff --git a/drivers/staging/android/ion/ion-ioctl.c b/drivers/staging/android/ion/ion-ioctl.c
-> index 5b2e93f..e096bcd 100644
-> --- a/drivers/staging/android/ion/ion-ioctl.c
-> +++ b/drivers/staging/android/ion/ion-ioctl.c
-> @@ -51,7 +51,6 @@ static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
->  static unsigned int ion_ioctl_dir(unsigned int cmd)
->  {
->  	switch (cmd) {
-> -	case ION_IOC_SYNC:
->  	case ION_IOC_FREE:
->  	case ION_IOC_CUSTOM:
->  		return _IOC_WRITE;
-> @@ -146,11 +145,6 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
->  			data.handle.handle = handle->id;
->  		break;
->  	}
-> -	case ION_IOC_SYNC:
-> -	{
-> -		ret = ion_sync_for_device(client, data.fd.fd);
-> -		break;
+> -		if (!buffer->pages) {
+> -			ret = -ENOMEM;
+> -			goto err1;
+> -		}
+> -
+> -		for_each_sg(table->sgl, sg, table->nents, i) {
+> -			struct page *page = sg_page(sg);
+> -
+> -			for (j = 0; j < sg->length / PAGE_SIZE; j++)
+> -				buffer->pages[k++] = page++;
+> -		}
 > -	}
->  	case ION_IOC_CUSTOM:
->  	{
->  		if (!dev->custom_ioctl)
-> diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
-> index 226ea1f..8757164 100644
-> --- a/drivers/staging/android/ion/ion.c
-> +++ b/drivers/staging/android/ion/ion.c
-> @@ -863,22 +863,6 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
->  	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
+> -
+>  	buffer->dev = dev;
+>  	buffer->size = len;
+>  	INIT_LIST_HEAD(&buffer->vmas);
+> @@ -924,69 +879,6 @@ void ion_pages_sync_for_device(struct device *dev, struct page *page,
+>  	dma_sync_sg_for_device(dev, &sg, 1, dir);
 >  }
 >
-> -void ion_pages_sync_for_device(struct device *dev, struct page *page,
-> -			       size_t size, enum dma_data_direction dir)
-> -{
-> -	struct scatterlist sg;
+> -struct ion_vma_list {
+> -	struct list_head list;
+> -	struct vm_area_struct *vma;
+> -};
 > -
-> -	sg_init_table(&sg, 1);
-> -	sg_set_page(&sg, page, size, 0);
-> -	/*
-> -	 * This is not correct - sg_dma_address needs a dma_addr_t that is valid
-> -	 * for the targeted device, but this works on the currently targeted
-> -	 * hardware.
-> -	 */
-> -	sg_dma_address(&sg) = page_to_phys(page);
-> -	dma_sync_sg_for_device(dev, &sg, 1, dir);
+> -static int ion_vm_fault(struct vm_fault *vmf)
+> -{
+> -	struct ion_buffer *buffer = vmf->vma->vm_private_data;
+> -	unsigned long pfn;
+> -	int ret;
+> -
+> -	mutex_lock(&buffer->lock);
+> -	ion_buffer_page_dirty(buffer->pages + vmf->pgoff);
+> -	BUG_ON(!buffer->pages || !buffer->pages[vmf->pgoff]);
+> -
+> -	pfn = page_to_pfn(ion_buffer_page(buffer->pages[vmf->pgoff]));
+> -	ret = vm_insert_pfn(vmf->vma, vmf->address, pfn);
+> -	mutex_unlock(&buffer->lock);
+> -	if (ret)
+> -		return VM_FAULT_ERROR;
+> -
+> -	return VM_FAULT_NOPAGE;
 > -}
+> -
+> -static void ion_vm_open(struct vm_area_struct *vma)
+> -{
+> -	struct ion_buffer *buffer = vma->vm_private_data;
+> -	struct ion_vma_list *vma_list;
+> -
+> -	vma_list = kmalloc(sizeof(*vma_list), GFP_KERNEL);
+> -	if (!vma_list)
+> -		return;
+> -	vma_list->vma = vma;
+> -	mutex_lock(&buffer->lock);
+> -	list_add(&vma_list->list, &buffer->vmas);
+> -	mutex_unlock(&buffer->lock);
+> -	pr_debug("%s: adding %p\n", __func__, vma);
+> -}
+> -
+> -static void ion_vm_close(struct vm_area_struct *vma)
+> -{
+> -	struct ion_buffer *buffer = vma->vm_private_data;
+> -	struct ion_vma_list *vma_list, *tmp;
+> -
+> -	pr_debug("%s\n", __func__);
+> -	mutex_lock(&buffer->lock);
+> -	list_for_each_entry_safe(vma_list, tmp, &buffer->vmas, list) {
+> -		if (vma_list->vma != vma)
+> -			continue;
+> -		list_del(&vma_list->list);
+> -		kfree(vma_list);
+> -		pr_debug("%s: deleting %p\n", __func__, vma);
+> -		break;
+> -	}
+> -	mutex_unlock(&buffer->lock);
+> -}
+> -
+> -static const struct vm_operations_struct ion_vma_ops = {
+> -	.open = ion_vm_open,
+> -	.close = ion_vm_close,
+> -	.fault = ion_vm_fault,
+> -};
 > -
 >  static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 >  {
 >  	struct ion_buffer *buffer = dmabuf->priv;
-> @@ -1097,30 +1081,6 @@ struct ion_handle *ion_import_dma_buf_fd(struct ion_client *client, int fd)
->  }
->  EXPORT_SYMBOL(ion_import_dma_buf_fd);
+> @@ -998,15 +890,6 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
+>  		return -EINVAL;
+>  	}
 >
-> -int ion_sync_for_device(struct ion_client *client, int fd)
-> -{
-> -	struct dma_buf *dmabuf;
-> -	struct ion_buffer *buffer;
-> -
-> -	dmabuf = dma_buf_get(fd);
-> -	if (IS_ERR(dmabuf))
-> -		return PTR_ERR(dmabuf);
-> -
-> -	/* if this memory came from ion */
-> -	if (dmabuf->ops != &dma_buf_ops) {
-> -		pr_err("%s: can not sync dmabuf from another exporter\n",
-> -		       __func__);
-> -		dma_buf_put(dmabuf);
-> -		return -EINVAL;
+> -	if (ion_buffer_fault_user_mappings(buffer)) {
+> -		vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND |
+> -							VM_DONTDUMP;
+> -		vma->vm_private_data = buffer;
+> -		vma->vm_ops = &ion_vma_ops;
+> -		ion_vm_open(vma);
+> -		return 0;
 > -	}
-> -	buffer = dmabuf->priv;
 > -
-> -	dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
-> -			       buffer->sg_table->nents, DMA_BIDIRECTIONAL);
-> -	dma_buf_put(dmabuf);
-> -	return 0;
-> -}
-> -
->  int ion_query_heaps(struct ion_client *client, struct ion_heap_query *query)
->  {
->  	struct ion_device *dev = client->dev;
-> diff --git a/drivers/staging/android/ion/ion_carveout_heap.c b/drivers/staging/android/ion/ion_carveout_heap.c
-> index 9bf8e98..e0e360f 100644
-> --- a/drivers/staging/android/ion/ion_carveout_heap.c
-> +++ b/drivers/staging/android/ion/ion_carveout_heap.c
-> @@ -100,10 +100,6 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
+>  	if (!(buffer->flags & ION_FLAG_CACHED))
+>  		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 >
->  	ion_heap_buffer_zero(buffer);
->
-> -	if (ion_buffer_cached(buffer))
-> -		dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-> -				       DMA_BIDIRECTIONAL);
-> -
->  	ion_carveout_free(heap, paddr, buffer->size);
->  	sg_free_table(table);
->  	kfree(table);
-> @@ -128,8 +124,6 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
->  	page = pfn_to_page(PFN_DOWN(heap_data->base));
->  	size = heap_data->size;
->
-> -	ion_pages_sync_for_device(NULL, page, size, DMA_BIDIRECTIONAL);
-> -
->  	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
->  	if (ret)
->  		return ERR_PTR(ret);
-> diff --git a/drivers/staging/android/ion/ion_chunk_heap.c b/drivers/staging/android/ion/ion_chunk_heap.c
-> index 8c41889..46e13f6 100644
-> --- a/drivers/staging/android/ion/ion_chunk_heap.c
-> +++ b/drivers/staging/android/ion/ion_chunk_heap.c
-> @@ -101,10 +101,6 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
->
->  	ion_heap_buffer_zero(buffer);
->
-> -	if (ion_buffer_cached(buffer))
-> -		dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-> -				       DMA_BIDIRECTIONAL);
-> -
->  	for_each_sg(table->sgl, sg, table->nents, i) {
->  		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
->  			      sg->length);
-> @@ -132,8 +128,6 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
->  	page = pfn_to_page(PFN_DOWN(heap_data->base));
->  	size = heap_data->size;
->
-> -	ion_pages_sync_for_device(NULL, page, size, DMA_BIDIRECTIONAL);
-> -
->  	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
->  	if (ret)
->  		return ERR_PTR(ret);
-> diff --git a/drivers/staging/android/ion/ion_page_pool.c b/drivers/staging/android/ion/ion_page_pool.c
-> index aea89c1..532eda7 100644
-> --- a/drivers/staging/android/ion/ion_page_pool.c
-> +++ b/drivers/staging/android/ion/ion_page_pool.c
-> @@ -30,9 +30,6 @@ static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
->
->  	if (!page)
->  		return NULL;
-> -	if (!pool->cached)
-> -		ion_pages_sync_for_device(NULL, page, PAGE_SIZE << pool->order,
-> -					  DMA_BIDIRECTIONAL);
->  	return page;
->  }
->
-> diff --git a/drivers/staging/android/ion/ion_priv.h b/drivers/staging/android/ion/ion_priv.h
-> index 297d99d..4fc7026 100644
-> --- a/drivers/staging/android/ion/ion_priv.h
-> +++ b/drivers/staging/android/ion/ion_priv.h
-> @@ -440,21 +440,8 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
->  int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
->  			  int nr_to_scan);
->
-> -/**
-> - * ion_pages_sync_for_device - cache flush pages for use with the specified
-> - *                             device
-> - * @dev:		the device the pages will be used with
-> - * @page:		the first page to be flushed
-> - * @size:		size in bytes of region to be flushed
-> - * @dir:		direction of dma transfer
-> - */
-> -void ion_pages_sync_for_device(struct device *dev, struct page *page,
-> -		size_t size, enum dma_data_direction dir);
-> -
->  long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
->
-> -int ion_sync_for_device(struct ion_client *client, int fd);
-> -
->  struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
->  						int id);
->
-> diff --git a/drivers/staging/android/ion/ion_system_heap.c b/drivers/staging/android/ion/ion_system_heap.c
-> index 6cb2fe7..a33331b 100644
-> --- a/drivers/staging/android/ion/ion_system_heap.c
-> +++ b/drivers/staging/android/ion/ion_system_heap.c
-> @@ -75,9 +75,6 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
->
->  	page = ion_page_pool_alloc(pool);
->
-> -	if (cached)
-> -		ion_pages_sync_for_device(NULL, page, PAGE_SIZE << order,
-> -					  DMA_BIDIRECTIONAL);
->  	return page;
->  }
->
-> @@ -401,8 +398,6 @@ static int ion_system_contig_heap_allocate(struct ion_heap *heap,
->
->  	buffer->sg_table = table;
->
-> -	ion_pages_sync_for_device(NULL, page, len, DMA_BIDIRECTIONAL);
-> -
->  	return 0;
->
->  free_table:
-> diff --git a/drivers/staging/android/uapi/ion.h b/drivers/staging/android/uapi/ion.h
-> index 14cd873..c3a87a5 100644
-> --- a/drivers/staging/android/uapi/ion.h
-> +++ b/drivers/staging/android/uapi/ion.h
-> @@ -207,16 +207,6 @@ struct ion_heap_query {
->  #define ION_IOC_IMPORT		_IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
->
->  /**
-> - * DOC: ION_IOC_SYNC - syncs a shared file descriptors to memory
-> - *
-> - * Deprecated in favor of using the dma_buf api's correctly (syncing
-> - * will happen automatically when the buffer is mapped to a device).
-> - * If necessary should be used after touching a cached buffer from the cpu,
-> - * this will make the buffer in memory coherent.
-> - */
-> -#define ION_IOC_SYNC		_IOWR(ION_IOC_MAGIC, 7, struct ion_fd_data)
-> -
-> -/**
->   * DOC: ION_IOC_CUSTOM - call architecture specific ion ioctl
->   *
->   * Takes the argument of the architecture specific ioctl to call and
 >
 
 -- 
