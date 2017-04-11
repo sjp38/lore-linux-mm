@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 468C36B03AD
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 13:24:29 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id d203so5501731iof.20
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 10:24:29 -0700 (PDT)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id e34si6152675iod.56.2017.04.11.10.24.28
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F236B03AF
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 13:32:31 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id b82so5728779iod.10
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 10:32:31 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id u63si3777574iou.248.2017.04.11.10.32.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 10:24:28 -0700 (PDT)
-Date: Tue, 11 Apr 2017 12:24:25 -0500 (CDT)
+        Tue, 11 Apr 2017 10:32:31 -0700 (PDT)
+Date: Tue, 11 Apr 2017 12:32:29 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
- with cpuset update
-In-Reply-To: <20170411140609.3787-2-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.20.1704111152170.25069@east.gentwo.org>
-References: <20170411140609.3787-1-vbabka@suse.cz> <20170411140609.3787-2-vbabka@suse.cz>
+Subject: Re: [RFC 2/6] mm, mempolicy: stop adjusting current->il_next in
+ mpol_rebind_nodemask()
+In-Reply-To: <20170411140609.3787-3-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.20.1704111227080.25069@east.gentwo.org>
+References: <20170411140609.3787-1-vbabka@suse.cz> <20170411140609.3787-3-vbabka@suse.cz>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,23 +24,26 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, L
 
 On Tue, 11 Apr 2017, Vlastimil Babka wrote:
 
-> The root of the problem is that the cpuset's mems_allowed and mempolicy's
-> nodemask can temporarily have no intersection, thus get_page_from_freelist()
-> cannot find any usable zone. The current semantic for empty intersection is to
-> ignore mempolicy's nodemask and honour cpuset restrictions. This is checked in
-> node_zonelist(), but the racy update can happen after we already passed the
+> The task->il_next variable remembers the last allocation node for task's
+> MPOL_INTERLEAVE policy. mpol_rebind_nodemask() updates interleave and
+> bind mempolicies due to changing cpuset mems. Currently it also tries to
+> make sure that current->il_next is valid within the updated nodemask. This is
+> bogus, because 1) we are updating potentially any task's mempolicy, not just
+> current, and 2) we might be updating per-vma mempolicy, not task one.
+>
+> The interleave_nodes() function that uses il_next can cope fine with the value
+> not being within the currently allowed nodes, so this hasn't manifested as an
+> actual issue. Thus it also won't be an issue if we just remove this adjustment
+> completely.
 
-The fallback was only intended for a cpuset on which boundaries are not enforced
-in critical conditions (softwall). A hardwall cpuset (CS_MEM_HARDWALL)
-should fail the allocation.
+Well, interleave_nodes() will then potentially return a node outside of
+the allowed memory policy when its called for the first time after
+mpol_rebind_.. . But thenn it will find the next node within the
+nodemask and work correctly for the next invocations.
 
-> This patch fixes the issue by having __alloc_pages_slowpath() check for empty
-> intersection of cpuset and ac->nodemask before OOM or allocation failure. If
-> it's indeed empty, the nodemask is ignored and allocation retried, which mimics
-> node_zonelist(). This works fine, because almost all callers of
+But yea the race can probably be ignored. The idea was that the
+application has a stable memory footprint during rebinding.
 
-Well that would need to be subject to the hardwall flag. Allocation needs
-to fail for a hardwall cpuset.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
