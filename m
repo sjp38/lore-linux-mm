@@ -1,116 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F366B03A5
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 15:25:38 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k14so697324wrc.16
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 12:25:38 -0700 (PDT)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id j11si9263343wre.322.2017.04.11.12.25.36
+	by kanga.kvack.org (Postfix) with ESMTP id E3D756B03BB
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 15:39:53 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id a80so729892wrc.19
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 12:39:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m10si640093wmf.119.2017.04.11.12.39.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 12:25:36 -0700 (PDT)
-Received: by mail-wm0-x22e.google.com with SMTP id t189so8580265wmt.1
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 12:25:36 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Apr 2017 12:39:52 -0700 (PDT)
+Date: Tue, 11 Apr 2017 21:39:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: Add additional consistency check
+Message-ID: <20170411193948.GA29154@dhcp22.suse.cz>
+References: <20170411134618.GN6729@dhcp22.suse.cz>
+ <CAGXu5j+EVCU1WrjpMmr0PYW2N_RzF0tLUgFumDR+k4035uqthA@mail.gmail.com>
+ <20170411141956.GP6729@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111110130.24725@east.gentwo.org>
+ <20170411164134.GA21171@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111254390.25069@east.gentwo.org>
+ <20170411183035.GD21171@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111335540.6544@east.gentwo.org>
+ <20170411185555.GE21171@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111356460.6911@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9TyPusF1Frn2a4OAco-DKFcskZVzy6S2JvhTANpm8cL7A@mail.gmail.com>
-References: <CAA25o9TyPusF1Frn2a4OAco-DKFcskZVzy6S2JvhTANpm8cL7A@mail.gmail.com>
-From: Luigi Semenzato <semenzato@google.com>
-Date: Tue, 11 Apr 2017 12:25:35 -0700
-Message-ID: <CAA25o9QvXMOj1RpJZTP7UfZP8uR0e-nexuFbVSAVWBMWjV8EnQ@mail.gmail.com>
-Subject: Re: thrashing on file pages
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1704111356460.6911@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Maybe this message was too long.  Quick summary:
+On Tue 11-04-17 13:59:44, Cristopher Lameter wrote:
+> On Tue, 11 Apr 2017, Michal Hocko wrote:
+> 
+> > I didn't say anything like that. Hence the proposed patch which still
+> > needs some more thinking and evaluation.
+> 
+> This patch does not even affect kfree().
 
-Are we (chrome os) the only ones who experience thrashing from
-excessive eviction of code pages?
+Ehm? Are we even talking about the same thing? The whole discussion was
+to catch invalid pointers to _kfree_ and why BUG* is not the best way to
+handle that. 
 
-Chrome OS added a mechanism (also called "the hacky patch")
-https://codereview.chromium.org/4128001 which stops the scanning of
-file lists below a fixed threshold (configurable with sysctl).  This
-has worked very well.  Would it be worth upstreaming?  Are there
-alternatives?
+> Could you start another
+> discussion thread where you discuss your suggestions for the changes in
+> the allocators and how we could go about this?
 
-We have other ways of freeing up memory---specifically we close Chrome
-tabs (and Android apps, now).  But, depending on allocation speed, we
-may get behind with the freeing, and end up thrashing to the point
-that even OOM kills are seriously delayed.
+I presume Kees will pursue
+http://lkml.kernel.org/r/20170411141956.GP6729@dhcp22.suse.cz or
+something along those lines.
 
-And furthermore: are we the only one who would like to see the max
-value for swappiness be raised from 100 to 200?  This seems reasonable
-when the swap device is much faster than the file backing device.
-
-These may not be issues on servers, where the load is carefully
-controlled.  But they seem hard to avoid on consumer devices.
-
-Your reply will help millions of people!  (Us too, but that's just a
-side effect.)
-
-Thanks :)
-
-
-
-
-
-
-On Tue, Apr 4, 2017 at 6:01 PM, Luigi Semenzato <semenzato@google.com> wrote:
-> Greetings MM community, and apologies for being out of touch.
->
-> We're running into a MM problem which we encountered in the early
-> versions of Chrome OS, about 7 years ago, which is that under certain
-> interactive loads we thrash on executable pages.
->
-> At the time, Mandeep Baines solved this problem by introducing a
-> min_filelist_kbytes parameter, which simply stops the scanning of the
-> file list whenever the number of pages in it is below that threshold.
-> This works surprisingly well for Chrome OS because the Chrome browser
-> has a known text size and is the only large user program.
-> Additionally we use Feedback-Directed Optimization to keep the hot
-> code together in the same pages.
->
-> But given that Chromebooks can run Android apps, the picture is
-> changing.  We can bump min_filelist_kbytes, but we no longer have an
-> upper bound for the working set of a workflow which cycles through
-> multiple Android apps.  Tab/app switching is more natural and
-> therefore more frequent on laptops than it is on phones, and it puts a
-> bigger strain on the MM.
->
-> I should mention that we manage memory also by OOM-killing Android
-> apps and discarding Chrome tabs before the system runs our of memory.
-> We also reassign kernel-OOM-kill priorities for the cases in which our
-> user-level killing code isn't quick enough.
->
-> In our attempts to avoid the thrashing, we played around with
-> swappiness.  Dmitry Torokhov (three desks down from mine) suggested
-> shifting the upper bound of 100 to 200, which makes sense because we
-> use zram to reclaim anonymous pages, and paging back from zram is a
-> lot faster than reading from SSD.  So I have played around with
-> swappiness up to 190 but I can still reproduce the thrashing.  I have
-> noticed this code in vmscan.c:
->
->         if (!sc->priority && swappiness) {
->                 scan_balance = SCAN_EQUAL;
->                 goto out;
->         }
->
-> which suggests that under heavy pressure, swappiness is ignored.  I
-> removed this code, but that didn't help either.  I am not fully
-> convinced that my experiments are fully repeatable (quite the
-> opposite), and there may be variations in the point at which thrashing
-> starts, but the bottom line is that it still starts.
->
-> Are we the only ones with this problem?  It's possible, since Android
-> by design can be aggressive in killing processes, and conversely
-> Chrome OS is popular in the low-end of the market, where devices with
-> 2GB of RAM are still common, and memory exhaustion can be reached
-> pretty easily.  I noticed that vmscan.c has code which tries to
-> protect pages with the VM_EXEC flag from premature eviction, so the
-> problem might have been seen before in some form.
->
-> I'll be grateful for any suggestion, advice, or other information.  Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
