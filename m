@@ -1,115 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 51C516B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:38:23 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id w96so19045197wrb.13
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:38:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r185si2675425wma.136.2017.04.11.04.38.21
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 892726B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:43:21 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t63so59621756oih.1
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:43:21 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d133si5284641oif.22.2017.04.11.04.43.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Apr 2017 04:38:21 -0700 (PDT)
-Date: Tue, 11 Apr 2017 13:38:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
-Message-ID: <20170411113816.GH6729@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170410162749.7d7f31c1@nial.brq.redhat.com>
- <20170410160941.GJ4618@dhcp22.suse.cz>
- <20170411083834.765c2201@nial.brq.redhat.com>
- <20170411092306.GD6729@dhcp22.suse.cz>
- <20170411115931.32659dd6@nial.brq.redhat.com>
- <20170411110143.GG6729@dhcp22.suse.cz>
-MIME-Version: 1.0
+        Tue, 11 Apr 2017 04:43:20 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
+	<20170411071552.GA6729@dhcp22.suse.cz>
+In-Reply-To: <20170411071552.GA6729@dhcp22.suse.cz>
+Message-Id: <201704112043.EBD39096.JtFLQHVOFOFMOS@I-love.SAKURA.ne.jp>
+Date: Tue, 11 Apr 2017 20:43:05 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170411110143.GG6729@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Mammedov <imammedo@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org
 
-On Tue 11-04-17 13:01:43, Michal Hocko wrote:
-> On Tue 11-04-17 11:59:31, Igor Mammedov wrote:
-> > On Tue, 11 Apr 2017 11:23:07 +0200
-> > Michal Hocko <mhocko@kernel.org> wrote:
+Michal Hocko wrote:
+> On Mon 10-04-17 15:03:08, Andrew Morton wrote:
+> > On Mon, 10 Apr 2017 20:58:13 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 > > 
-> > > On Tue 11-04-17 08:38:34, Igor Mammedov wrote:
-> > > > for issue2:
-> > > > -enable-kvm -m 2G,slots=4,maxmem=4G -smp 4 -numa node -numa node \
-> > > > -drive if=virtio,file=disk.img -kernel bzImage -append 'root=/dev/vda1' \
-> > > > -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M \
-> > > > -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=1  
+> > > Patch "mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"
+> > > changed to drop __GFP_NOWARN when calling warn_alloc() for stall warning.
+> > > Although I suggested for two times to drop __GFP_NOWARN when warn_alloc()
+> > > for stall warning was proposed, Michal Hocko does not want to print stall
+> > > warnings when __GFP_NOWARN is given [1][2].
 > > > 
-> > > I must be doing something wrong here...
-> > > qemu-system-x86_64 -enable-kvm -monitor telnet:127.0.0.1:9999,server,nowait -net nic -net user,hostfwd=tcp:127.0.0.1:5555-:22 -serial file:test.qcow_serial.log -enable-kvm -m 2G,slots=4,maxmem=4G -smp 4 -numa node -numa node -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=1 -drive file=test.qcow,if=ide,index=0
-> > > 
-> > > for i in $(seq 0 3)
-> > > do
-> > > 	sh probe_memblock.sh $i
-> > > done
-> >
-> > dimm to node mapping comes from ACPI subsystem (_PXM object in memory device),
-> > which adds memory blocks automatically on hotplug.
+> > >  "I am not going to allow defining a weird __GFP_NOWARN semantic which
+> > >   allows warnings but only sometimes. At least not without having a proper
+> > >   way to silence both failures _and_ stalls or just stalls. I do not
+> > >   really thing this is worth the additional gfp flag."
+> > 
+> > I interpret __GFP_NOWARN to mean "don't warn about this allocation
+> > attempt failing", not "don't warn about anything at all".  It's a very
+> > minor issue but yes, methinks that stall warning should still come out.
 > 
-> Hmm, memory_probe_store relies on memory_add_physaddr_to_nid which in
-> turn relies on numa_meminfo. I am not familiar with the intialization
-> and got lost in in the code rather quickly but I assumed this should get
-> the proper information from the ACPI subsystem. I will have to double
-> check.
+> This is what the patch from Johannes already does and you have it in the
+> mmotm tree.
 > 
-> > you probably don't have ACPI_HOTPLUG_MEMORY config option enabled.
+> > Unless it's known to cause a problem for the stall warning to come out
+> > for __GFP_NOWARN attempts?  If so then perhaps a
+> > __GFP_NOWARN_ABOUT_STALLS is needed?
 > 
-> Yes that is the case and enabling it made all 4 memblocks available
-> and associated with the proper node
-> # ls -l /sys/devices/system/memory/memory3?/node*
-> lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory32/node0 -> ../../node/node0
-> lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory33/node0 -> ../../node/node0
-> lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory34/node1 -> ../../node/node1
-> lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory35/node1 -> ../../node/node1
-> 
-> # grep . /sys/devices/system/memory/memory3?/valid_zones
-> /sys/devices/system/memory/memory32/valid_zones:Normal Movable
-> /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> /sys/devices/system/memory/memory34/valid_zones:Normal Movable
-> /sys/devices/system/memory/memory35/valid_zones:Normal Movable
-> 
-> I can even reproduce your problem
-> # echo online_movable > /sys/devices/system/memory/memory33/state
-> # echo online > /sys/devices/system/memory/memory32/state
-> # grep . /sys/devices/system/memory/memory3?/valid_zones
-> /sys/devices/system/memory/memory32/valid_zones:Movable
-> /sys/devices/system/memory/memory33/valid_zones:Movable
-> /sys/devices/system/memory/memory34/valid_zones:Normal Movable
-> /sys/devices/system/memory/memory35/valid_zones:Normal Movable
-> 
-> I will investigate this
+> And this is one of the reason why I didn't like it. But whatever it
+> doesn't make much sense to spend too much time discussing this again.
+> This patch doesn't really fix anything important IMHO and it just
+> generates more churn.
 
-Dang, guess what. It is a similar type bug I've fixed in
-show_valid_zones [1] already.
+This patch does not fix anything important for Michal Hocko, but
+this patch does find something important (e.g. GFP_NOFS | __GFP_NOWARN
+allocations) for administrators and troubleshooting staffs at support
+centers. As a troubleshooting staff, giving administrators some clue to
+start troubleshooting is critically important.
 
-[1] http://lkml.kernel.org/r/20170410152228.GF4618@dhcp22.suse.cz
----
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ec2f987ec549..410c7ccb74fb 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -541,7 +541,7 @@ static inline bool zone_intersects(struct zone *zone,
- {
- 	if (zone->zone_start_pfn <= start_pfn && start_pfn < zone_end_pfn(zone))
- 		return true;
--	if (start_pfn + nr_pages > start_pfn && !zone_is_empty(zone))
-+	if (start_pfn + nr_pages > zone->zone_start_pfn && !zone_is_empty(zone))
- 		return true;
- 	return false;
- }
-
-I have decided to make it more readable and did zone_is_empty check
-first. Everything is in my git tree attempts/rewrite-mem_hotplug branch.
-I have to test it but I believe this is the culprit here.
--- 
-Michal Hocko
-SUSE Labs
+Speak from my experience, hardcoded 10 seconds is really useless.
+Some cluster system has only 10 seconds timeout for failover. Failing
+to report allocations stalls longer than a few seconds can make this
+warn_alloc() pointless. On the other hand, some administrators do not
+want to receive this warn_alloc(). If we had tunable interface like
+/proc/sys/kernel/memalloc_task_warning_secs , we can handle both cases
+(assuming that stalling allocations can reach this warn_alloc() within
+a few seconds; if this assumption does not hold, only allocation watchdog
+can handle it).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
