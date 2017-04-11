@@ -1,52 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BA736B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 06:51:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 63so4222309wmr.15
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 03:51:10 -0700 (PDT)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id 1si25563944wrp.137.2017.04.11.03.51.08
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D73516B0397
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:01:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id m26so722406wrm.5
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:01:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e125si2526389wmf.158.2017.04.11.04.01.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 03:51:08 -0700 (PDT)
-Received: by mail-wm0-x22e.google.com with SMTP id u2so57830224wmu.0
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 03:51:08 -0700 (PDT)
-Date: Tue, 11 Apr 2017 13:51:06 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 3/8] x86/boot/64: Add support of additional page table
- level during early boot
-Message-ID: <20170411105106.4zgbzuu4s4267zyv@node.shutemov.name>
-References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
- <20170406140106.78087-4-kirill.shutemov@linux.intel.com>
- <20170411070203.GA14621@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Apr 2017 04:01:49 -0700 (PDT)
+Date: Tue, 11 Apr 2017 13:01:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+Message-ID: <20170411110143.GG6729@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170410162749.7d7f31c1@nial.brq.redhat.com>
+ <20170410160941.GJ4618@dhcp22.suse.cz>
+ <20170411083834.765c2201@nial.brq.redhat.com>
+ <20170411092306.GD6729@dhcp22.suse.cz>
+ <20170411115931.32659dd6@nial.brq.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170411070203.GA14621@gmail.com>
+In-Reply-To: <20170411115931.32659dd6@nial.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
 
-On Tue, Apr 11, 2017 at 09:02:03AM +0200, Ingo Molnar wrote:
-> I realize that you had difficulties converting this to C, but it's not going to 
-> get any easier in the future either, with one more paging mode/level added!
+On Tue 11-04-17 11:59:31, Igor Mammedov wrote:
+> On Tue, 11 Apr 2017 11:23:07 +0200
+> Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> If you are stuck on where it breaks I'd suggest doing it gradually: first add a 
-> trivial .c, build and link it in and call it separately. Then once that works, 
-> move functionality from asm to C step by step and test it at every step.
+> > On Tue 11-04-17 08:38:34, Igor Mammedov wrote:
+> > > for issue2:
+> > > -enable-kvm -m 2G,slots=4,maxmem=4G -smp 4 -numa node -numa node \
+> > > -drive if=virtio,file=disk.img -kernel bzImage -append 'root=/dev/vda1' \
+> > > -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M \
+> > > -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=1  
+> > 
+> > I must be doing something wrong here...
+> > qemu-system-x86_64 -enable-kvm -monitor telnet:127.0.0.1:9999,server,nowait -net nic -net user,hostfwd=tcp:127.0.0.1:5555-:22 -serial file:test.qcow_serial.log -enable-kvm -m 2G,slots=4,maxmem=4G -smp 4 -numa node -numa node -object memory-backend-ram,id=mem1,size=256M -object memory-backend-ram,id=mem0,size=256M -device pc-dimm,id=dimm1,memdev=mem1,slot=1,node=0 -device pc-dimm,id=dimm0,memdev=mem0,slot=0,node=1 -drive file=test.qcow,if=ide,index=0
+> > 
+> > for i in $(seq 0 3)
+> > do
+> > 	sh probe_memblock.sh $i
+> > done
+>
+> dimm to node mapping comes from ACPI subsystem (_PXM object in memory device),
+> which adds memory blocks automatically on hotplug.
 
-I've described the specific issue with converting this code to C in cover
-letter: how to make compiler to generate 32-bit code for a specific
-function or translation unit, without breaking linking afterwards (-m32
-break it).
+Hmm, memory_probe_store relies on memory_add_physaddr_to_nid which in
+turn relies on numa_meminfo. I am not familiar with the intialization
+and got lost in in the code rather quickly but I assumed this should get
+the proper information from the ACPI subsystem. I will have to double
+check.
 
-I would be glad to convert it, but I'm stuck.
+> you probably don't have ACPI_HOTPLUG_MEMORY config option enabled.
 
-Do you have an idea how to get around the issue.
+Yes that is the case and enabling it made all 4 memblocks available
+and associated with the proper node
+# ls -l /sys/devices/system/memory/memory3?/node*
+lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory32/node0 -> ../../node/node0
+lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory33/node0 -> ../../node/node0
+lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory34/node1 -> ../../node/node1
+lrwxrwxrwx 1 root root 0 Apr 11 12:56 /sys/devices/system/memory/memory35/node1 -> ../../node/node1
 
+# grep . /sys/devices/system/memory/memory3?/valid_zones
+/sys/devices/system/memory/memory32/valid_zones:Normal Movable
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+/sys/devices/system/memory/memory34/valid_zones:Normal Movable
+/sys/devices/system/memory/memory35/valid_zones:Normal Movable
+
+I can even reproduce your problem
+# echo online_movable > /sys/devices/system/memory/memory33/state
+# echo online > /sys/devices/system/memory/memory32/state
+# grep . /sys/devices/system/memory/memory3?/valid_zones
+/sys/devices/system/memory/memory32/valid_zones:Movable
+/sys/devices/system/memory/memory33/valid_zones:Movable
+/sys/devices/system/memory/memory34/valid_zones:Normal Movable
+/sys/devices/system/memory/memory35/valid_zones:Normal Movable
+
+I will investigate this
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
