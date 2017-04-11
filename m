@@ -1,113 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7669D6B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 00:50:15 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id k3so61218920ioe.6
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 21:50:15 -0700 (PDT)
-Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
-        by mx.google.com with ESMTPS id 201si782805itw.49.2017.04.10.21.50.14
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF356B039F
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 00:58:23 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f98so48934351iod.18
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 21:58:23 -0700 (PDT)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id p5si3885189ioe.107.2017.04.10.21.58.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Apr 2017 21:50:14 -0700 (PDT)
-Received: by mail-io0-x22e.google.com with SMTP id t68so90601908iof.0
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 21:50:14 -0700 (PDT)
+        Mon, 10 Apr 2017 21:58:23 -0700 (PDT)
+Received: by mail-io0-x22a.google.com with SMTP id a103so57653745ioj.1
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 21:58:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <2c43b55e-db82-d67f-10d5-aed84cda58e0@nokia.com>
-References: <20170406000059.GA136863@beast> <2c43b55e-db82-d67f-10d5-aed84cda58e0@nokia.com>
+In-Reply-To: <20170404201334.GV15132@dhcp22.suse.cz>
+References: <20170331164028.GA118828@beast> <20170404113022.GC15490@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041005570.23420@east.gentwo.org> <20170404151600.GN15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041412050.27424@east.gentwo.org> <20170404194220.GT15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041457030.28085@east.gentwo.org> <20170404201334.GV15132@dhcp22.suse.cz>
 From: Kees Cook <keescook@chromium.org>
-Date: Mon, 10 Apr 2017 21:50:13 -0700
-Message-ID: <CAGXu5jKTXDkYHU6x4ZQtQ771DNa7u=UeOKkBQz0s8320p2Kv8w@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm: Tighten x86 /dev/mem with zeroing
+Date: Mon, 10 Apr 2017 21:58:22 -0700
+Message-ID: <CAGXu5jL1t2ZZkwnGH9SkFyrKDeCugSu9UUzvHf3o_MgraDFL1Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: Add additional consistency check
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Tommi Rantala <tommi.t.rantala@nokia.com>
-Cc: Dave Jones <davej@codemonkey.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Eric Biggers <ebiggers@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Apr 6, 2017 at 7:25 AM, Tommi Rantala <tommi.t.rantala@nokia.com> wrote:
-> On 06.04.2017 03:00, Kees Cook wrote:
+On Tue, Apr 4, 2017 at 1:13 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Tue 04-04-17 14:58:06, Cristopher Lameter wrote:
+>> On Tue, 4 Apr 2017, Michal Hocko wrote:
 >>
->> This changes the x86 exception for the low 1MB by reading back zeros for
->> RAM areas instead of blindly allowing them. (It may be possible for heap
->> to end up getting allocated in low 1MB RAM, and then read out, possibly
->> tripping hardened usercopy.)
+>> > On Tue 04-04-17 14:13:06, Cristopher Lameter wrote:
+>> > > On Tue, 4 Apr 2017, Michal Hocko wrote:
+>> > >
+>> > > > Yes, but we do not have to blow the kernel, right? Why cannot we simply
+>> > > > leak that memory?
+>> > >
+>> > > Because it is a serious bug to attempt to free a non slab object using
+>> > > slab operations. This is often the result of memory corruption, coding
+>> > > errs etc. The system needs to stop right there.
+>> >
+>> > Why when an alternative is a memory leak?
 >>
->> Unfinished: this still needs mmap support.
->>
->> Reported-by: Tommi Rantala <tommi.t.rantala@nokia.com>
->> Signed-off-by: Kees Cook <keescook@chromium.org>
->> ---
->> Tommi, can you check and see if this fixes what you're seeing? I want to
->> make sure this actually works first. (x86info uses seek/read not mmap.)
+>> Because the slab allocators fail also in case you free an object multiple
+>> times etc etc. Continuation is supported by enabling a special resiliency
+>> feature via the kernel command line. The alternative is selectable but not
+>> the default.
 >
+> I disagree! We should try to continue as long as we _know_ that the
+> internal state of the allocator is still consistent and a further
+> operation will not spread the corruption even more. This is clearly not
+> the case for an invalid pointer to kfree.
 >
-> Hi, I can confirm that it works (after adding CONFIG_STRICT_DEVMEM), no more
-> kernel bugs when running x86info.
+> I can see why checking for an early allocator corruption is not always
+> feasible and you can only detect after-the-fact but this is not the case
+> here and putting your system down just because some buggy code is trying
+> to free something it hasn't allocated is not really useful. I completely
+> agree with Linus that we overuse BUG way too much and this is just
+> another example of it.
 
-Great, thanks for testing!
-
-Linus, given that this fixes the problem, are you okay with this patch
-as at least the first step? It doesn't solve the mmap exposure case,
-but I'm struggling to figure out how to construct zero-page holes in
-the mmap vma, and strictly speaking hardened usercopy doesn't trip
-over the mmap since it's not using copy_to_user...
+Instead of the proposed BUG here, what's the correct "safe" return value?
 
 -Kees
-
->
->
-> open("/dev/mem", O_RDONLY)              = 3
-> lseek(3, 1038, SEEK_SET)                = 1038
-> read(3, "\300\235", 2)                  = 2
-> lseek(3, 646144, SEEK_SET)              = 646144
-> read(3,
-> "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 1024)
-> = 1024
-> lseek(3, 1043, SEEK_SET)                = 1043
-> read(3, "w\2", 2)                       = 2
-> lseek(3, 645120, SEEK_SET)              = 645120
-> read(3,
-> "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 1024)
-> = 1024
-> lseek(3, 654336, SEEK_SET)              = 654336
-> read(3,
-> "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 1024)
-> = 1024
-> lseek(3, 983040, SEEK_SET)              = 983040
-> read(3,
-> "IFE$\245S\0\0\1\0\0\0\0\360y\0\0\360\220\260\30\237{=\23\10\17\0000\276\17\0"...,
-> 65536) = 65536
-> lseek(3, 917504, SEEK_SET)              = 917504
-> read(3,
-> "\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377"...,
-> 65536) = 65536
-> lseek(3, 524288, SEEK_SET)              = 524288
-> read(3,
-> "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"...,
-> 65536) = 65536
-> lseek(3, 589824, SEEK_SET)              = 589824
-> read(3,
-> "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"...,
-> 65536) = 65536
->
->
-> dd works too:
->
-> # LANG=C dd if=/dev/mem of=/dev/null bs=4096 count=256
-> 256+0 records in
-> 256+0 records out
-> 1048576 bytes (1.0 MB, 1.0 MiB) copied, 0.0874073 s, 12.0 MB/s
->
->
->
->> ---
->>
->>  arch/x86/mm/init.c | 41 +++++++++++++++++++--------
->>  drivers/char/mem.c | 82
->> ++++++++++++++++++++++++++++++++++--------------------
->>  2 files changed, 82 insertions(+), 41 deletions(-)
-
-
 
 -- 
 Kees Cook
