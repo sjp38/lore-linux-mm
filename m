@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 892726B0390
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:43:21 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t63so59621756oih.1
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:43:21 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id d133si5284641oif.22.2017.04.11.04.43.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FDE76B0390
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:46:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id i5so55142331pfc.15
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 04:46:22 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id e9si16599520plk.170.2017.04.11.04.46.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Apr 2017 04:43:20 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
-	<20170411071552.GA6729@dhcp22.suse.cz>
-In-Reply-To: <20170411071552.GA6729@dhcp22.suse.cz>
-Message-Id: <201704112043.EBD39096.JtFLQHVOFOFMOS@I-love.SAKURA.ne.jp>
-Date: Tue, 11 Apr 2017 20:43:05 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Apr 2017 04:46:21 -0700 (PDT)
+Date: Tue, 11 Apr 2017 14:46:16 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 3/8] x86/boot/64: Add support of additional page table
+ level during early boot
+Message-ID: <20170411114616.otx2f6aw5lcvfc2o@black.fi.intel.com>
+References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
+ <20170406140106.78087-4-kirill.shutemov@linux.intel.com>
+ <20170411070203.GA14621@gmail.com>
+ <20170411105106.4zgbzuu4s4267zyv@node.shutemov.name>
+ <20170411112845.GA15212@gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170411112845.GA15212@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org
+To: Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@amacapital.net>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Mon 10-04-17 15:03:08, Andrew Morton wrote:
-> > On Mon, 10 Apr 2017 20:58:13 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> > 
-> > > Patch "mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"
-> > > changed to drop __GFP_NOWARN when calling warn_alloc() for stall warning.
-> > > Although I suggested for two times to drop __GFP_NOWARN when warn_alloc()
-> > > for stall warning was proposed, Michal Hocko does not want to print stall
-> > > warnings when __GFP_NOWARN is given [1][2].
+On Tue, Apr 11, 2017 at 01:28:45PM +0200, Ingo Molnar wrote:
+> 
+> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> 
+> > On Tue, Apr 11, 2017 at 09:02:03AM +0200, Ingo Molnar wrote:
+> > > I realize that you had difficulties converting this to C, but it's not going to 
+> > > get any easier in the future either, with one more paging mode/level added!
 > > > 
-> > >  "I am not going to allow defining a weird __GFP_NOWARN semantic which
-> > >   allows warnings but only sometimes. At least not without having a proper
-> > >   way to silence both failures _and_ stalls or just stalls. I do not
-> > >   really thing this is worth the additional gfp flag."
+> > > If you are stuck on where it breaks I'd suggest doing it gradually: first add a 
+> > > trivial .c, build and link it in and call it separately. Then once that works, 
+> > > move functionality from asm to C step by step and test it at every step.
 > > 
-> > I interpret __GFP_NOWARN to mean "don't warn about this allocation
-> > attempt failing", not "don't warn about anything at all".  It's a very
-> > minor issue but yes, methinks that stall warning should still come out.
+> > I've described the specific issue with converting this code to C in cover
+> > letter: how to make compiler to generate 32-bit code for a specific
+> > function or translation unit, without breaking linking afterwards (-m32
+> > break it).
 > 
-> This is what the patch from Johannes already does and you have it in the
-> mmotm tree.
-> 
-> > Unless it's known to cause a problem for the stall warning to come out
-> > for __GFP_NOWARN attempts?  If so then perhaps a
-> > __GFP_NOWARN_ABOUT_STALLS is needed?
-> 
-> And this is one of the reason why I didn't like it. But whatever it
-> doesn't make much sense to spend too much time discussing this again.
-> This patch doesn't really fix anything important IMHO and it just
-> generates more churn.
+> Have you tried putting it into a separate .c file, and building it 32-bit?
 
-This patch does not fix anything important for Michal Hocko, but
-this patch does find something important (e.g. GFP_NOFS | __GFP_NOWARN
-allocations) for administrators and troubleshooting staffs at support
-centers. As a troubleshooting staff, giving administrators some clue to
-start troubleshooting is critically important.
+Yes, I have. The patch below fails linking:
 
-Speak from my experience, hardcoded 10 seconds is really useless.
-Some cluster system has only 10 seconds timeout for failover. Failing
-to report allocations stalls longer than a few seconds can make this
-warn_alloc() pointless. On the other hand, some administrators do not
-want to receive this warn_alloc(). If we had tunable interface like
-/proc/sys/kernel/memalloc_task_warning_secs , we can handle both cases
-(assuming that stalling allocations can reach this warn_alloc() within
-a few seconds; if this assumption does not hold, only allocation watchdog
-can handle it).
+ld: i386 architecture of input file `arch/x86/boot/compressed/head64.o' is incompatible with i386:x86-64 output
+
+> 
+> I think arch/x86/entry/vdso/Makefile contains an example of how to build 32-bit 
+> code even on 64-bit kernels.
+
+I'll look closer (building proccess it's rather complicated), but my
+understanding is that VDSO is stand-alone binary and doesn't really links
+with the rest of the kernel, rather included as blob, no?
+
+Andy, may be you have an idea?
+
+diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+index 44163e8c3868..8c1acacf408e 100644
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -76,6 +76,8 @@ vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
+ vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
+ ifdef CONFIG_X86_64
+ 	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
++	vmlinux-objs-y += $(obj)/head64.o
++$(obj)/head64.o: KBUILD_CFLAGS := -m32 -D__KERNEL__ -O2
+ endif
+ 
+ $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
+diff --git a/arch/x86/boot/compressed/head64.c b/arch/x86/boot/compressed/head64.c
+new file mode 100644
+index 000000000000..42e1d64a15f4
+--- /dev/null
++++ b/arch/x86/boot/compressed/head64.c
+@@ -0,0 +1,3 @@
++void __startup32(void)
++{
++}
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
