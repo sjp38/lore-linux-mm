@@ -1,176 +1,309 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 17C6E6B0390
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 22:56:19 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id x125so134402464pgb.5
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 19:56:19 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 1si14979551plw.137.2017.04.10.19.56.17
-        for <linux-mm@kvack.org>;
-        Mon, 10 Apr 2017 19:56:18 -0700 (PDT)
-Date: Tue, 11 Apr 2017 11:56:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 04/10] mm: make the try_to_munlock void function
-Message-ID: <20170411025615.GA6545@bbox>
-References: <1489555493-14659-1-git-send-email-minchan@kernel.org>
- <1489555493-14659-5-git-send-email-minchan@kernel.org>
- <20170408031833.iwhbyliu2lp3wazi@sasha-lappy>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20170408031833.iwhbyliu2lp3wazi@sasha-lappy>
+	by kanga.kvack.org (Postfix) with ESMTP id 233D46B0390
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 23:17:36 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m66so134905517pga.15
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 20:17:36 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id e3si15431330plb.171.2017.04.10.20.17.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Apr 2017 20:17:34 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id 81so28018515pgh.3
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 20:17:34 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH v7 0/7] Introduce ZONE_CMA
+Date: Tue, 11 Apr 2017 12:17:13 +0900
+Message-Id: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alexander.levin@verizon.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-team@lge.com" <kernel-team@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi Sasha,
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, Apr 08, 2017 at 03:18:35AM +0000, alexander.levin@verizon.com wrote:
-> On Wed, Mar 15, 2017 at 02:24:47PM +0900, Minchan Kim wrote:
-> > try_to_munlock returns SWAP_MLOCK if the one of VMAs mapped
-> > the page has VM_LOCKED flag. In that time, VM set PG_mlocked to
-> > the page if the page is not pte-mapped THP which cannot be
-> > mlocked, either.
-> >=20
-> > With that, __munlock_isolated_page can use PageMlocked to check
-> > whether try_to_munlock is successful or not without relying on
-> > try_to_munlock's retval. It helps to make try_to_unmap/try_to_unmap_one
-> > simple with upcoming patches.
-> >=20
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->=20
-> Hey Minchan,
->=20
-> I seem to be hitting one of those newly added BUG_ONs with trinity:
->=20
-> [   21.017404] page:ffffea000307a300 count:10 mapcount:7 mapping:ffff8801=
-0083f3a8 index:0x131
-> [   21.019974] flags: 0x1fffc00001c001d(locked|referenced|uptodate|dirty|=
-swapbacked|unevictable|mlocked)                                            =
-          [   21.022806] raw: 01fffc00001c001d ffff88010083f3a8 00000000000=
-00131 0000000a00000006                                                     =
-                  [   21.023974] raw: dead000000000100 dead000000000200 000=
-0000000000000 ffff880109838008
-> [   21.026098] page dumped because: VM_BUG_ON_PAGE(PageMlocked(page))
-> [   21.026903] page->mem_cgroup:ffff880109838008                         =
-                                                                           =
-          [   21.027505] page allocated via order 0, migratetype Movable, g=
-fp_mask 0x14200ca(GFP_HIGHUSER_MOVABLE)
-> [   21.028783] save_stack_trace (arch/x86/kernel/stacktrace.c:60)=20
-> [   21.029362] save_stack (./arch/x86/include/asm/current.h:14 mm/kasan/k=
-asan.c:50)                                                                 =
-          [   21.029859] __set_page_owner (mm/page_owner.c:178)            =
-                                                                           =
-                  [   21.030414] get_page_from_freelist (./include/linux/pa=
-ge_owner.h:30 mm/page_alloc.c:1742 mm/page_alloc.c:1750 mm/page_alloc.c:309=
-7)                        [   21.031071] __alloc_pages_nodemask (mm/page_al=
-loc.c:4011)                                                                =
-                                  [   21.031716] alloc_pages_vma (./include=
-/linux/mempolicy.h:77 ./include/linux/mempolicy.h:82 mm/mempolicy.c:2024)  =
-                                          [   21.032307] shmem_alloc_page (=
-mm/shmem.c:1389 mm/shmem.c:1444)                                           =
-                                                  [   21.032881] shmem_getp=
-age_gfp (mm/shmem.c:1474 mm/shmem.c:1753)                                  =
-                                                          [   21.033488] sh=
-mem_fault (mm/shmem.c:1987)                                                =
-                                                                  [   21.03=
-4055] __do_fault (mm/memory.c:3012)                                        =
-                                                                          [=
-   21.034568] __handle_mm_fault (mm/memory.c:3449 mm/memory.c:3497 mm/memor=
-y.c:3723 mm/memory.c:3841)                                                 =
-       [   21.035192] handle_mm_fault (mm/memory.c:3878)                   =
-                                                                           =
-               [   21.035772] __do_page_fault (arch/x86/mm/fault.c:1446)   =
-                                                                           =
-                       [   21.037148] do_page_fault (arch/x86/mm/fault.c:15=
-08 ./include/linux/context_tracking_state.h:30 ./include/linux/context_trac=
-king.h:63 arch/x86/mm/fault.c:1509)=20
-> [   21.037657] do_async_page_fault (./arch/x86/include/asm/traps.h:82 arc=
-h/x86/kernel/kvm.c:264)=20
-> [   21.038266] async_page_fault (arch/x86/entry/entry_64.S:1011)=20
-> [   21.038901] ------------[ cut here ]------------
-> [   21.039546] kernel BUG at mm/rmap.c:1560!
-> [   21.040126] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
-> [   21.040910] Modules linked in:
-> [   21.041345] CPU: 6 PID: 1317 Comm: trinity-c62 Tainted: G        W    =
-   4.11.0-rc5-next-20170407 #7
-> [   21.042761] task: ffff8801067d3e40 task.stack: ffff8800c06d0000
-> [   21.043572] RIP: 0010:try_to_munlock (??:?)=20
-> [   21.044639] RSP: 0018:ffff8800c06d71a0 EFLAGS: 00010296
-> [   21.045330] RAX: 0000000000000000 RBX: 1ffff100180dae36 RCX: 000000000=
-0000000
-> [   21.046289] RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffffed001=
-80dae28
-> [   21.047225] RBP: ffff8800c06d7358 R08: 0000000000001639 R09: 6c7561665=
-f656761
-> [   21.048982] R10: ffffea000307a31c R11: 303378302f383278 R12: ffff8800c=
-06d7330
-> [   21.049823] R13: ffffea000307a300 R14: ffff8800c06d72d0 R15: ffffea000=
-307a300
-> [   21.050647] FS:  00007f4ab05a7700(0000) GS:ffff880109d80000(0000) knlG=
-S:0000000000000000
-> [   21.051574] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   21.052246] CR2: 00007f4aafdebfc0 CR3: 00000000c069f000 CR4: 000000000=
-00406a0
-> [   21.053072] Call Trace:
-> [   21.061057] __munlock_isolated_page (mm/mlock.c:131)=20
-> [   21.065328] __munlock_pagevec (mm/mlock.c:339)=20
-> [   21.079191] munlock_vma_pages_range (mm/mlock.c:494)=20
-> [   21.085665] mlock_fixup (mm/mlock.c:569)=20
-> [   21.086205] apply_vma_lock_flags (mm/mlock.c:608)=20
-> [   21.089035] SyS_munlock (./arch/x86/include/asm/current.h:14 mm/mlock.=
-c:739 mm/mlock.c:729)=20
-> [   21.089502] do_syscall_64 (arch/x86/entry/common.c:284)
->=20
+Changed from v6
+o Rebase on next-20170405
+o Add a fix for lowmem mapping on ARM (last patch)
+o Re-organize the cover letter
 
-Thanks for the report.
+Changes from v5
+o Rebase on next-20161013
+o Cosmetic change on patch 1
+o Optimize span of ZONE_CMA on multiple node system
 
-When I look at the code, that VM_BUG_ON check should be removed because
-__munlock_pagevec doesn't hold any PG_lock so a page can have PG_mlocked
-again before passing the page into try_to_munlock.
+Changes from v4
+o Rebase on next-20160825
+o Add general fix patch for lowmem reserve
+o Fix lowmem reserve ratio
+o Fix zone span optimizaion per Vlastimil
+o Fix pageset initialization
+o Change invocation timing on cma_init_reserved_areas()
 
-=46rom 4369227f190264291961bb4024e14d34e6656b54 Mon Sep 17 00:00:00 2001
-=46rom: Minchan Kim <minchan@kernel.org>
-Date: Tue, 11 Apr 2017 11:41:54 +0900
-Subject: [PATCH] mm: remove PG_Mlocked VM_BUG_ON check
+Changes from v3
+o Rebase on next-20160805
+o Split first patch per Vlastimil
+o Remove useless function parameter per Vlastimil
+o Add code comment per Vlastimil
+o Add following description on cover-letter
 
-Caller of try_to_munlock doesn't guarantee he pass the page
-with clearing PG_mlocked.
-Look at __munlock_pagevec which doesn't hold any PG_lock
-so anybody can set PG_mlocked under us.
-Remove bogus PageMlocked check in try_to_munlock.
+Changes from v2
+o Rebase on next-20160525
+o No other changes except following description
 
-Reported-by: Sasha Levin <alexander.levin@verizon.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-Andrew,
+Changes from v1
+o Separate some patches which deserve to submit independently
+o Modify description to reflect current kernel state
+(e.g. high-order watermark problem disappeared by Mel's work)
+o Don't increase SECTION_SIZE_BITS to make a room in page flags
+(detailed reason is on the patch that adds ZONE_CMA)
+o Adjust ZONE_CMA population code
 
-This patch can be foled into mm-make-the-try_to_munlock-void-function.patch.
+
+Hello,
+
+This is the 7th version of ZONE_CMA patchset. One patch is added
+to fix potential problem on ARM. Other changes are just due to rebase.
+
+This patchset has long history and got some reviews before. This
+cover-letter has the summary and my opinion on those reviews. Content
+order is so confusing so I make a simple index. If anyone want to
+understand the history properly, please read them by reverse order.
+
+PART 1. Strong points of the zone approach
+PART 2. Summary in LSF/MM 2016 discussion
+PART 3. Original motivation of this patchset
+
+***** PART 1 *****
+
+CMA has many problems and I mentioned them on the bottom of the
+cover letter. These problems comes from limitation of CMA memory that
+should be always migratable for device usage. I think that introducing
+a new zone is the best approach to solve them. Here are the reasons.
+
+Zone is introduced to solve some issues due to H/W addressing limitation.
+MM subsystem is implemented to work efficiently with these zones.
+Allocation/reclaim logic in MM consider this limitation very much.
+What I did in this patchset is introducing a new zone and extending zone's
+concept slightly. New concept is that zone can have not only H/W addressing
+limitation but also S/W limitation to guarantee page migration.
+This concept is originated from ZONE_MOVABLE and it works well
+for a long time. So, ZONE_CMA should not be special at this moment.
+
+There is a major concern from Mel that ZONE_MOVABLE which has
+S/W limitation causes highmem/lowmem problem. Highmem/lowmem problem is
+that some of memory cannot be usable for kernel memory due to limitation
+of the zone. It causes to break LRU ordering and makes hard to find kernel
+usable memory when memory pressure.
+
+However, important point is that this problem doesn't come from
+implementation detail (ZONE_MOVABLE/MIGRATETYPE). Even if we implement it
+by MIGRATETYPE instead of by ZONE_MOVABLE, we cannot use that type of
+memory for kernel allocation because it isn't migratable. So, it will cause
+to break LRU ordering, too. We cannot avoid the problem in any case.
+Therefore, we should focus on which solution is better for maintenance
+and not intrusive for MM subsystem.
+
+In this viewpoint, I think that zone approach is better. As mentioned
+earlier, MM subsystem already have many infrastructures to deal with
+zone's H/W addressing limitation. Adding S/W limitation on zone concept
+and adding a new zone doesn't change anything. It will work by itself.
+My patchset can remove many hooks related to CMA area management in MM
+while solving the problems. More hooks are required to solve the problems
+if we choose MIGRATETYPE approach.
+
+Although Mel withdrew the review, Vlastimil expressed an agreement on this
+new zone approach [6].
+
+ "I realize I differ here from much more experienced mm guys, and will
+ probably deservingly regret it later on, but I think that the ZONE_CMA
+ approach could work indeed better than current MIGRATE_CMA pageblocks."
+
+If anyone has a different opinion, please let me know.
+
 Thanks.
 
- mm/rmap.c | 1 -
- 1 file changed, 1 deletion(-)
+***** PART 2 *****
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index a69a2a70d057..0773118214cc 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1557,7 +1557,6 @@ void try_to_munlock(struct page *page)
- 	};
-=20
- 	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
--	VM_BUG_ON_PAGE(PageMlocked(page), page);
- 	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
-=20
- 	rmap_walk(page, &rwc);
---=20
+There was a discussion with Mel [5] after LSF/MM 2016. I could summarise
+it to help merge decision but it's better to read by yourself since
+if I summarise it, it would be biased for me. But, if anyone hope
+the summary, I will do it. :)
+
+Anyway, Mel's position on this patchset seems to be neutral. He saids:
+"I'm not going to outright NAK your series but I won't ACK it either"
+
+We can fix the problems with any approach but I hope to go a new zone
+approach because it is less error-prone. It reduces some corner case
+handling for now and remove need for potential corner case handling to fix
+problems.
+
+Note that our company is already using ZONE_CMA and there is no problem.
+
+If anyone has a different opinion, please let me know and let's discuss
+together.
+
+Andrew, if there is something to do for merge, please let me know.
+
+***** PART 3 *****
+
+This series try to solve problems of current CMA implementation.
+
+CMA is introduced to provide physically contiguous pages at runtime
+without exclusive reserved memory area. But, current implementation
+works like as previous reserved memory approach, because freepages
+on CMA region are used only if there is no movable freepage. In other
+words, freepages on CMA region are only used as fallback. In that
+situation where freepages on CMA region are used as fallback, kswapd
+would be woken up easily since there is no unmovable and reclaimable
+freepage, too. If kswapd starts to reclaim memory, fallback allocation
+to MIGRATE_CMA doesn't occur any more since movable freepages are
+already refilled by kswapd and then most of freepage on CMA are left
+to be in free. This situation looks like exclusive reserved memory case.
+
+In my experiment, I found that if system memory has 1024 MB memory and
+512 MB is reserved for CMA, kswapd is mostly woken up when roughly 512 MB
+free memory is left. Detailed reason is that for keeping enough free
+memory for unmovable and reclaimable allocation, kswapd uses below
+equation when calculating free memory and it easily go under the watermark.
+
+Free memory for unmovable and reclaimable = Free total - Free CMA pages
+
+This is derivated from the property of CMA freepage that CMA freepage
+can't be used for unmovable and reclaimable allocation.
+
+Anyway, in this case, kswapd are woken up when (FreeTotal - FreeCMA)
+is lower than low watermark and tries to make free memory until
+(FreeTotal - FreeCMA) is higher than high watermark. That results
+in that FreeTotal is moving around 512MB boundary consistently. It
+then means that we can't utilize full memory capacity.
+
+To fix this problem, I submitted some patches [1] about 10 months ago,
+but, found some more problems to be fixed before solving this problem.
+It requires many hooks in allocator hotpath so some developers doesn't
+like it. Instead, some of them suggest different approach [2] to fix
+all the problems related to CMA, that is, introducing a new zone to deal
+with free CMA pages. I agree that it is the best way to go so implement
+here. Although properties of ZONE_MOVABLE and ZONE_CMA is similar, I
+decide to add a new zone rather than piggyback on ZONE_MOVABLE since
+they have some differences. First, reserved CMA pages should not be
+offlined. If freepage for CMA is managed by ZONE_MOVABLE, we need to keep
+MIGRATE_CMA migratetype and insert many hooks on memory hotplug code
+to distiguish hotpluggable memory and reserved memory for CMA in the same
+zone. It would make memory hotplug code which is already complicated
+more complicated. Second, cma_alloc() can be called more frequently
+than memory hotplug operation and possibly we need to control
+allocation rate of ZONE_CMA to optimize latency in the future.
+In this case, separate zone approach is easy to modify. Third, I'd
+like to see statistics for CMA, separately. Sometimes, we need to debug
+why cma_alloc() is failed and separate statistics would be more helpful
+in this situtaion.
+
+Anyway, this patchset solves four problems related to CMA implementation.
+
+1) Utilization problem
+As mentioned above, we can't utilize full memory capacity due to the
+limitation of CMA freepage and fallback policy. This patchset implements
+a new zone for CMA and uses it for GFP_HIGHUSER_MOVABLE request. This
+typed allocation is used for page cache and anonymous pages which
+occupies most of memory usage in normal case so we can utilize full
+memory capacity. Below is the experiment result about this problem.
+
+8 CPUs, 1024 MB, VIRTUAL MACHINE
+make -j16
+
+<Before this series>
+CMA reserve:            0 MB            512 MB
+Elapsed-time:           92.4		186.5
+pswpin:                 82		18647
+pswpout:                160		69839
+
+<After this series>
+CMA reserve:            0 MB            512 MB
+Elapsed-time:           93.1		93.4
+pswpin:                 84		46
+pswpout:                183		92
+
+FYI, there is another attempt [3] trying to solve this problem in lkml.
+And, as far as I know, Qualcomm also has out-of-tree solution for this
+problem.
+
+2) Reclaim problem
+Currently, there is no logic to distinguish CMA pages in reclaim path.
+If reclaim is initiated for unmovable and reclaimable allocation,
+reclaiming CMA pages doesn't help to satisfy the request and reclaiming
+CMA page is just waste. By managing CMA pages in the new zone, we can
+skip to reclaim ZONE_CMA completely if it is unnecessary.
+
+3) Atomic allocation failure problem
+Kswapd isn't started to reclaim pages when allocation request is movable
+type and there is enough free page in the CMA region. After bunch of
+consecutive movable allocation requests, free pages in ordinary region
+(not CMA region) would be exhausted without waking up kswapd. At that time,
+if atomic unmovable allocation comes, it can't be successful since there
+is not enough page in ordinary region. This problem is reported
+by Aneesh [4] and can be solved by this patchset.
+
+4) Inefficiently work of compaction
+Usual high-order allocation request is unmovable type and it cannot
+be serviced from CMA area. In compaction, migration scanner doesn't
+distinguish migratable pages on the CMA area and do migration.
+In this case, even if we make high-order page on that region, it
+cannot be used due to type mismatch. This patch will solve this problem
+by separating CMA pages from ordinary zones.
+
+I passed boot test on x86_64, x86_32, arm and arm64. I did some stress
+tests on x86_64 and x86_32 and there is no problem. Feel free to enjoy
+and please give me a feedback. :)
+
+
+Thanks.
+
+[1] https://lkml.org/lkml/2014/5/28/64
+[2] https://lkml.org/lkml/2014/11/4/55
+[3] https://lkml.org/lkml/2014/10/15/623
+[4] http://www.spinics.net/lists/linux-mm/msg100562.html
+[5] https://lkml.kernel.org/r/20160425053653.GA25662@js1304-P5Q-DELUXE
+[6] https://lkml.kernel.org/r/1919a85d-6e1e-374f-b8c3-1236c36b0393@suse.cz
+
+Joonsoo Kim (7):
+  mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE request
+  mm/cma: introduce new zone, ZONE_CMA
+  mm/cma: populate ZONE_CMA
+  mm/cma: remove ALLOC_CMA
+  mm/cma: remove MIGRATE_CMA
+  mm/cma: remove per zone CMA stat
+  ARM: CMA: avoid re-mapping CMA region if CONFIG_HIGHMEM
+
+ arch/arm/mm/dma-mapping.c           |   7 +-
+ arch/powerpc/mm/mmu_context_iommu.c |   2 +-
+ arch/x86/mm/highmem_32.c            |   8 ++
+ fs/proc/meminfo.c                   |   2 +-
+ include/linux/cma.h                 |   7 ++
+ include/linux/gfp.h                 |  32 +++---
+ include/linux/memory_hotplug.h      |   3 -
+ include/linux/mempolicy.h           |   2 +-
+ include/linux/mm.h                  |   1 +
+ include/linux/mmzone.h              |  60 +++++-----
+ include/linux/page-isolation.h      |   5 +-
+ include/linux/vm_event_item.h       |  10 +-
+ include/linux/vmstat.h              |   8 --
+ include/trace/events/mmflags.h      |  10 +-
+ kernel/power/snapshot.c             |   8 ++
+ mm/cma.c                            |  78 +++++++++++--
+ mm/compaction.c                     |  12 +-
+ mm/hugetlb.c                        |   3 +-
+ mm/internal.h                       |   4 +-
+ mm/memory_hotplug.c                 |   7 +-
+ mm/page_alloc.c                     | 220 ++++++++++++++++++------------------
+ mm/page_isolation.c                 |  15 +--
+ mm/page_owner.c                     |   6 +-
+ mm/usercopy.c                       |   4 +-
+ mm/vmstat.c                         |  10 +-
+ 25 files changed, 310 insertions(+), 214 deletions(-)
+
+-- 
 2.7.4
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
