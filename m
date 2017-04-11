@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 938C96B0390
-	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 19:54:23 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v4so132845350pgc.20
-        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 16:54:23 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id k23si11406700pfg.41.2017.04.10.16.54.21
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A8686B0390
+	for <linux-mm@kvack.org>; Mon, 10 Apr 2017 21:33:56 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id q54so32329691qta.7
+        for <linux-mm@kvack.org>; Mon, 10 Apr 2017 18:33:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 6si3466995qke.125.2017.04.10.18.33.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 10 Apr 2017 16:54:22 -0700 (PDT)
-Date: Tue, 11 Apr 2017 09:54:18 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [mmotm:master 161/276] kernel/extable.c:174: undefined
- reference to `__start_ro_after_init'
-Message-ID: <20170411095418.65bca085@canb.auug.org.au>
-In-Reply-To: <20170410140955.5a82e6f0fcb784c03ddd305c@linux-foundation.org>
-References: <201704081021.kBB1nNuC%fengguang.wu@intel.com>
-	<20170410140955.5a82e6f0fcb784c03ddd305c@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Apr 2017 18:33:55 -0700 (PDT)
+Date: Mon, 10 Apr 2017 21:33:51 -0400 (EDT)
+From: Jerome Glisse <jglisse@redhat.com>
+Message-ID: <536509398.25054000.1491874431882.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20170410151031.d9488d850d740e894a55321c@linux-foundation.org>
+References: <20170405204026.3940-1-jglisse@redhat.com> <20170405204026.3940-11-jglisse@redhat.com> <20170410084326.GB4625@dhcp22.suse.cz> <20170410151031.d9488d850d740e894a55321c@linux-foundation.org>
+Subject: Re: [HMM 10/16] mm/hmm/mirror: helper to snapshot CPU page table v2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Eddie Kovsky <ewk@edkovsky.org>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-Hi Andrew,
+> On Mon, 10 Apr 2017 10:43:26 +0200 Michal Hocko <mhocko@kernel.org> wrote=
+:
+>=20
+> > There are more for alpha allmodconfig
+>=20
+> HMM is rather a compile catastrophe, as was the earlier version I
+> merged.
+>=20
+> Jerome, I'm thinking you need to install some cross-compilers!
 
-On Mon, 10 Apr 2017 14:09:55 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Sat, 8 Apr 2017 10:37:22 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
-> 
-> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> > head:   5b220005fda0593464fc4549eea586e597bf783c
-> > commit: 7c61156608a0054d57061bd154b1ac537c49e0a8 [161/276] extable: verify address is read-only
-> > config: arm-efm32_defconfig (attached as .config)
-> > compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
-> > reproduce:
-> >         wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         git checkout 7c61156608a0054d57061bd154b1ac537c49e0a8
-> >         # save the attached .config to linux build tree
-> >         make.cross ARCH=arm 
-> > 
-> > All errors (new ones prefixed by >>):
-> > 
-> >    kernel/built-in.o: In function `core_kernel_rodata':  
-> > >> kernel/extable.c:174: undefined reference to `__start_ro_after_init'
-> > >> kernel/extable.c:174: undefined reference to `__end_ro_after_init'  
-> 
-> Thanks, I dropped the patch.  And its companion
-> module-verify-address-is-read-only.patch to keep things tidy.
+Sorry about that.
 
-Both removed from linux-next today.
+I tested some but obviously not all, in the v20 i did on top of Michal
+patchset i simply made everything to be x86-64 only. So if you revert
+v19 and wait for Michal to finish his v3 then i will post v20 that is
+x86-64 only which i do build and use. At least from my discussion with
+Michal i thought you were dropping v19 until Michal could finish his
+memory hotplug rework.
 
--- 
 Cheers,
-Stephen Rothwell
+J=C3=A9r=C3=B4me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
