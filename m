@@ -1,46 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EBCBC6B03AB
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 10:09:08 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m28so142088103pgn.14
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:09:08 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id x3si16969308plb.1.2017.04.11.07.09.08
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 252196B03AC
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 10:14:04 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id f66so1676637ioe.12
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:14:04 -0700 (PDT)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id a23si2013607itb.56.2017.04.11.07.14.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 07:09:08 -0700 (PDT)
-Date: Tue, 11 Apr 2017 07:09:07 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH 3/8] x86/boot/64: Add support of additional page table
- level during early boot
-Message-ID: <20170411140907.GD4021@tassilo.jf.intel.com>
-References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
- <20170406140106.78087-4-kirill.shutemov@linux.intel.com>
- <20170411070203.GA14621@gmail.com>
- <20170411105106.4zgbzuu4s4267zyv@node.shutemov.name>
- <20170411112845.GA15212@gmail.com>
- <20170411114616.otx2f6aw5lcvfc2o@black.fi.intel.com>
+        Tue, 11 Apr 2017 07:14:03 -0700 (PDT)
+Received: by mail-io0-x22b.google.com with SMTP id t68so4103159iof.0
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 07:14:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170411114616.otx2f6aw5lcvfc2o@black.fi.intel.com>
+In-Reply-To: <20170411134618.GN6729@dhcp22.suse.cz>
+References: <20170331164028.GA118828@beast> <20170404113022.GC15490@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041005570.23420@east.gentwo.org> <20170404151600.GN15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041412050.27424@east.gentwo.org> <20170404194220.GT15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041457030.28085@east.gentwo.org> <20170404201334.GV15132@dhcp22.suse.cz>
+ <CAGXu5jL1t2ZZkwnGH9SkFyrKDeCugSu9UUzvHf3o_MgraDFL1Q@mail.gmail.com> <20170411134618.GN6729@dhcp22.suse.cz>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 11 Apr 2017 07:14:01 -0700
+Message-ID: <CAGXu5j+EVCU1WrjpMmr0PYW2N_RzF0tLUgFumDR+k4035uqthA@mail.gmail.com>
+Subject: Re: [PATCH] mm: Add additional consistency check
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@amacapital.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> I'll look closer (building proccess it's rather complicated), but my
-> understanding is that VDSO is stand-alone binary and doesn't really links
-> with the rest of the kernel, rather included as blob, no?
-> 
-> Andy, may be you have an idea?
+On Tue, Apr 11, 2017 at 6:46 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Mon 10-04-17 21:58:22, Kees Cook wrote:
+>> On Tue, Apr 4, 2017 at 1:13 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>> > On Tue 04-04-17 14:58:06, Cristopher Lameter wrote:
+>> >> On Tue, 4 Apr 2017, Michal Hocko wrote:
+>> >>
+>> >> > On Tue 04-04-17 14:13:06, Cristopher Lameter wrote:
+>> >> > > On Tue, 4 Apr 2017, Michal Hocko wrote:
+>> >> > >
+>> >> > > > Yes, but we do not have to blow the kernel, right? Why cannot we simply
+>> >> > > > leak that memory?
+>> >> > >
+>> >> > > Because it is a serious bug to attempt to free a non slab object using
+>> >> > > slab operations. This is often the result of memory corruption, coding
+>> >> > > errs etc. The system needs to stop right there.
+>> >> >
+>> >> > Why when an alternative is a memory leak?
+>> >>
+>> >> Because the slab allocators fail also in case you free an object multiple
+>> >> times etc etc. Continuation is supported by enabling a special resiliency
+>> >> feature via the kernel command line. The alternative is selectable but not
+>> >> the default.
+>> >
+>> > I disagree! We should try to continue as long as we _know_ that the
+>> > internal state of the allocator is still consistent and a further
+>> > operation will not spread the corruption even more. This is clearly not
+>> > the case for an invalid pointer to kfree.
+>> >
+>> > I can see why checking for an early allocator corruption is not always
+>> > feasible and you can only detect after-the-fact but this is not the case
+>> > here and putting your system down just because some buggy code is trying
+>> > to free something it hasn't allocated is not really useful. I completely
+>> > agree with Linus that we overuse BUG way too much and this is just
+>> > another example of it.
+>>
+>> Instead of the proposed BUG here, what's the correct "safe" return value?
+>
+> I would assume that _you_ as the one who proposes the change would take
+> some time to read and understand the code and know this answer. This is
+> how we do changes to the kernel: have an objective, understand the code
+> and generate the patch.
+>
+> I am really sad that this particular patch has shown that you didn't
+> bother to consider the later part and blindly applied something that you
+> haven't thought through properly. Please try harder next time.
 
-There isn't any way I know of to directly link them together. The ELF 
-format wasn't designed for that. You would need to merge blobs and then use
-manual jump vectors, like the 16bit startup code does. It would be likely
-complicated and ugly.
+Our objectives are different: I want the kernel to immediately stop
+when corruption is detected. Since others are interested in making it
+survivable, I was hoping to get a hint about what such an improvement
+would look like. Instead this condescending attitude, can you instead
+provide constructive help that will get our users closer to the safe
+kernel operation we're all interested in?
 
--Andi
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
