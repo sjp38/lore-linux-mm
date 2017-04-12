@@ -1,43 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 674BC6B0397
-	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 21:39:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q25so7683724pfg.6
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 18:39:21 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id q81si11285910pfd.218.2017.04.11.18.39.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 18:39:20 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id g2so2382927pge.2
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 18:39:20 -0700 (PDT)
-Date: Wed, 12 Apr 2017 10:39:13 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
-Message-ID: <20170412013911.GB8448@js1304-desktop>
-References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A98D56B0038
+	for <linux-mm@kvack.org>; Tue, 11 Apr 2017 23:13:26 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 72so5570300pge.10
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 20:13:26 -0700 (PDT)
+Received: from out0-237.mail.aliyun.com (out0-237.mail.aliyun.com. [140.205.0.237])
+        by mx.google.com with ESMTP id r1si18808119plb.293.2017.04.11.20.13.25
+        for <linux-mm@kvack.org>;
+        Tue, 11 Apr 2017 20:13:25 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1491951118-30678-1-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1491951118-30678-1-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH] hugetlbfs: fix offset overflow in huegtlbfs mmap
+Date: Wed, 12 Apr 2017 11:13:20 +0800
+Message-ID: <0c0501d2b33a$bd0bfc00$3723f400$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: 'Vegard Nossum' <vegard.nossum@gmail.com>, 'Dmitry Vyukov' <dvyukov@google.com>, 'Michal Hocko' <mhocko@suse.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Andrey Ryabinin' <aryabinin@virtuozzo.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Tue, Apr 11, 2017 at 12:17:13PM +0900, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On April 12, 2017 6:52 AM Mike Kravetz wrote: 
 > 
-> Changed from v6
-> o Rebase on next-20170405
-> o Add a fix for lowmem mapping on ARM (last patch)
+> If mmap() maps a file, it can be passed an offset into the file at
+> which the mapping is to start.  Offset could be a negative value when
+> represented as a loff_t.  The offset plus length will be used to
+> update the file size (i_size) which is also a loff_t.  Validate the
+> value of offset and offset + length to make sure they do not overflow
+> and appear as negative.
+> 
+> Found by syzcaller with commit ff8c0c53c475 ("mm/hugetlb.c: don't call
+> region_abort if region_chg fails") applied.  Prior to this commit, the
+> overflow would still occur but we would luckily return ENOMEM.
+> To reproduce:
+> mmap(0, 0x2000, 0, 0x40021, 0xffffffffffffffffULL, 0x8000000000000000ULL);
+> 
+> Resulted in,
+> kernel BUG at mm/hugetlb.c:742!
+> Call Trace:
+>  hugetlbfs_evict_inode+0x80/0xa0
+>  ? hugetlbfs_setattr+0x3c0/0x3c0
+>  evict+0x24a/0x620
+>  iput+0x48f/0x8c0
+>  dentry_unlink_inode+0x31f/0x4d0
+>  __dentry_kill+0x292/0x5e0
+>  dput+0x730/0x830
+>  __fput+0x438/0x720
+>  ____fput+0x1a/0x20
+>  task_work_run+0xfe/0x180
+>  exit_to_usermode_loop+0x133/0x150
+>  syscall_return_slowpath+0x184/0x1c0
+>  entry_SYSCALL_64_fastpath+0xab/0xad
+> 
+> Reported-by: Vegard Nossum <vegard.nossum@gmail.com>
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
 
-Hello, Russell and Will.
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-In this 7th patchset, I newly added a patch for ARM.
-Could you review it?
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
