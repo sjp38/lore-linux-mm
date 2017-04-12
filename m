@@ -1,37 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 58A276B0038
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 02:02:39 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u202so10686127pgb.9
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 23:02:39 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g17si19206691pgj.222.2017.04.11.23.02.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 23:02:36 -0700 (PDT)
-Date: Tue, 11 Apr 2017 23:02:18 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from
- removing the areas
-Message-ID: <20170412060218.GA16170@infradead.org>
-References: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 32DB66B0038
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:11:00 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 21so12425862pgg.4
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 01:11:00 -0700 (PDT)
+Received: from out0-201.mail.aliyun.com (out0-201.mail.aliyun.com. [140.205.0.201])
+        by mx.google.com with ESMTP id z63si19545942pgd.263.2017.04.12.01.10.58
+        for <linux-mm@kvack.org>;
+        Wed, 12 Apr 2017 01:10:59 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170411140609.3787-1-vbabka@suse.cz> <20170411140609.3787-6-vbabka@suse.cz>
+In-Reply-To: <20170411140609.3787-6-vbabka@suse.cz>
+Subject: Re: [RFC 5/6] mm, cpuset: always use seqlock when changing task's nodemask
+Date: Wed, 12 Apr 2017 16:10:53 +0800
+Message-ID: <0c2d01d2b364$4eaba920$ec02fb60$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hoeun Ryu <hoeun.ryu@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Vlastimil Babka' <vbabka@suse.cz>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, 'Li Zefan' <lizefan@huawei.com>, 'Michal Hocko' <mhocko@kernel.org>, 'Mel Gorman' <mgorman@techsingularity.net>, 'David Rientjes' <rientjes@google.com>, 'Christoph Lameter' <cl@linux.com>, 'Hugh Dickins' <hughd@google.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Anshuman Khandual' <khandual@linux.vnet.ibm.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>
 
-On Wed, Apr 12, 2017 at 02:01:59PM +0900, Hoeun Ryu wrote:
-> vm_area_add_early/vm_area_register_early() are used to reserve vmalloc area
-> during boot process and those virtually mapped areas are never unmapped.
-> So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
-> existing vmlist entries and prevent those areas from being removed from the
-> rbtree by accident.
+On April 11, 2017 10:06 PM Vlastimil Babka wrote: 
+> 
+>  static void cpuset_change_task_nodemask(struct task_struct *tsk,
+>  					nodemask_t *newmems)
+>  {
+> -	bool need_loop;
+> -
+>  	task_lock(tsk);
+> -	/*
+> -	 * Determine if a loop is necessary if another thread is doing
+> -	 * read_mems_allowed_begin().  If at least one node remains unchanged and
+> -	 * tsk does not have a mempolicy, then an empty nodemask will not be
+> -	 * possible when mems_allowed is larger than a word.
+> -	 */
+> -	need_loop = task_has_mempolicy(tsk) ||
+> -			!nodes_intersects(*newmems, tsk->mems_allowed);
+> 
+> -	if (need_loop) {
+> -		local_irq_disable();
+> -		write_seqcount_begin(&tsk->mems_allowed_seq);
+> -	}
+> +	local_irq_disable();
+> +	write_seqcount_begin(&tsk->mems_allowed_seq);
+> 
+> -	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+>  	mpol_rebind_task(tsk, newmems);
+>  	tsk->mems_allowed = *newmems;
+> 
+> -	if (need_loop) {
+> -		write_seqcount_end(&tsk->mems_allowed_seq);
+> -		local_irq_enable();
+> -	}
+> +	write_seqcount_end(&tsk->mems_allowed_seq);
+> 
+Doubt if we'd listen irq again.
 
-How would they be removed "by accident"?
+>  	task_unlock(tsk);
+>  }
+> --
+> 2.12.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
