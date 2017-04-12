@@ -1,99 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CD7A6B0397
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 12:56:19 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id m26so3617576wrm.5
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 09:56:19 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d7si8887800wme.99.2017.04.12.09.56.17
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A34816B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 13:22:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id f5so18405708pff.13
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 10:22:01 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id y16si10314817pli.71.2017.04.12.10.22.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 09:56:18 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3CGrlN1075003
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 12:56:17 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29spb3x6kr-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 12:56:16 -0400
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 12 Apr 2017 12:56:16 -0400
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: [PATCH tip/core/rcu 09/13] mm: Use static initialization for "srcu"
-Date: Wed, 12 Apr 2017 09:55:45 -0700
-In-Reply-To: <20170412165441.GA17149@linux.vnet.ibm.com>
-References: <20170412165441.GA17149@linux.vnet.ibm.com>
-Message-Id: <1492016149-18834-9-git-send-email-paulmck@linux.vnet.ibm.com>
+        Wed, 12 Apr 2017 10:22:00 -0700 (PDT)
+Date: Wed, 12 Apr 2017 10:21:58 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
+Message-ID: <20170412172158.GF784@bombadil.infradead.org>
+References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
+ <20170328165343.GB27446@linux-80c1.suse>
+ <20170328165513.GC27446@linux-80c1.suse>
+ <20170328175408.GD7838@bombadil.infradead.org>
+ <20170329080625.GC27994@dhcp22.suse.cz>
+ <20170329174514.GB4543@tassilo.jf.intel.com>
+ <20170330061245.GA1972@dhcp22.suse.cz>
+ <20170412161829.GA16422@linux-80c1.suse>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170412161829.GA16422@linux-80c1.suse>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, peterz@infradead.org, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, bobby.prani@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vegard Nossum <vegard.nossum@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>, Andi Kleen <ak@linux.intel.com>, akpm@linux-foundation.org, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
 
-The MM-notifier code currently dynamically initializes the srcu_struct
-named "srcu" at subsys_initcall() time, and includes a BUG_ON() to check
-this initialization in do_mmu_notifier_register().  Unfortunately, there
-is no foolproof way to verify that an srcu_struct has been initialized,
-given the possibility of an srcu_struct being allocated on the stack or
-on the heap.  This means that creating an srcu_struct_is_initialized()
-function is not a reasonable course of action.  Nor is peppering
-do_mmu_notifier_register() with SRCU-specific #ifdefs an attractive
-alternative.
+On Wed, Apr 12, 2017 at 09:18:29AM -0700, Davidlohr Bueso wrote:
+> On Thu, 30 Mar 2017, Michal Hocko wrote:
+> 
+> > On Wed 29-03-17 10:45:14, Andi Kleen wrote:
+> > > On Wed, Mar 29, 2017 at 10:06:25AM +0200, Michal Hocko wrote:
+> > > >
+> > > > Do we actually have any users?
+> > > 
+> > > Yes this feature is widely used.
+> > 
+> > Considering that none of SHM_HUGE* has been exported to the userspace
+> > headers all the users would have to use the this flag by the value and I
+> > am quite skeptical that application actually do that. Could you point me
+> > to some projects that use this?
+> 
+> Hmm Andrew, if there's not one example, could you please pick up this patch?
 
-This commit therefore uses DEFINE_STATIC_SRCU() to initialize
-this srcu_struct at compile time, thus eliminating both the
-subsys_initcall()-time initialization and the runtime BUG_ON().
-
-Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Cc: <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Peter Zijlstra (Intel)" <peterz@infradead.org>
-Cc: Vegard Nossum <vegard.nossum@oracle.com>
----
- mm/mmu_notifier.c | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
-
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index a7652acd2ab9..54ca54562928 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -21,7 +21,7 @@
- #include <linux/slab.h>
- 
- /* global SRCU for all MMs */
--static struct srcu_struct srcu;
-+DEFINE_STATIC_SRCU(srcu);
- 
- /*
-  * This function allows mmu_notifier::release callback to delay a call to
-@@ -252,12 +252,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 
- 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
- 
--	/*
--	 * Verify that mmu_notifier_init() already run and the global srcu is
--	 * initialized.
--	 */
--	BUG_ON(!srcu.per_cpu_ref);
--
- 	ret = -ENOMEM;
- 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
- 	if (unlikely(!mmu_notifier_mm))
-@@ -406,9 +400,3 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
- 	mmdrop(mm);
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
--
--static int __init mmu_notifier_init(void)
--{
--	return init_srcu_struct(&srcu);
--}
--subsys_initcall(mmu_notifier_init);
--- 
-2.5.2
+Please comment on the replacement patch I suggested.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
