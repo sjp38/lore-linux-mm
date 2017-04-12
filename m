@@ -1,83 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B13056B03A1
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 08:49:34 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id o83so19228148oik.20
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 05:49:34 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00127.outbound.protection.outlook.com. [40.107.0.127])
-        by mx.google.com with ESMTPS id l10si4999196oib.138.2017.04.12.05.49.33
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C6AAA6B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 09:33:37 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 6so2961637wra.23
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 06:33:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c185si8081625wmf.168.2017.04.12.06.33.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Apr 2017 05:49:33 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH v2 5/5] mm/vmalloc: Don't spawn workers if somebody already purging
-Date: Wed, 12 Apr 2017 15:49:05 +0300
-Message-ID: <20170412124905.25443-6-aryabinin@virtuozzo.com>
-In-Reply-To: <20170412124905.25443-1-aryabinin@virtuozzo.com>
-References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
- <20170412124905.25443-1-aryabinin@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 12 Apr 2017 06:33:36 -0700 (PDT)
+Subject: Re: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
+References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
+ <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
+Date: Wed, 12 Apr 2017 15:33:35 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, penguin-kernel@I-love.SAKURA.ne.jp, mhocko@kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, thellstrom@vmware.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Don't schedule purge_vmap_work if mutex_is_locked(&vmap_purge_lock),
-as this means that purging is already running in another thread.
-There is no point to schedule extra purge_vmap_work if somebody
-is already purging for us, because that extra work will not do anything
-useful.
+On 03/02/2017 04:10 PM, Kirill A. Shutemov wrote:
+> In case prot_numa, we are under down_read(mmap_sem). It's critical
+> to not clear pmd intermittently to avoid race with MADV_DONTNEED
+> which is also under down_read(mmap_sem):
+> 
+> 	CPU0:				CPU1:
+> 				change_huge_pmd(prot_numa=1)
+> 				 pmdp_huge_get_and_clear_notify()
+> madvise_dontneed()
+>  zap_pmd_range()
+>   pmd_trans_huge(*pmd) == 0 (without ptl)
+>   // skip the pmd
+> 				 set_pmd_at();
+> 				 // pmd is re-established
+> 
+> The race makes MADV_DONTNEED miss the huge pmd and don't clear it
+> which may break userspace.
+> 
+> Found by code analysis, never saw triggered.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/huge_memory.c | 34 +++++++++++++++++++++++++++++++++-
+>  1 file changed, 33 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index e7ce73b2b208..bb2b3646bd78 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1744,7 +1744,39 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>  	if (prot_numa && pmd_protnone(*pmd))
+>  		goto unlock;
+>  
+> -	entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+> +	/*
+> +	 * In case prot_numa, we are under down_read(mmap_sem). It's critical
+> +	 * to not clear pmd intermittently to avoid race with MADV_DONTNEED
+> +	 * which is also under down_read(mmap_sem):
+> +	 *
+> +	 *	CPU0:				CPU1:
+> +	 *				change_huge_pmd(prot_numa=1)
+> +	 *				 pmdp_huge_get_and_clear_notify()
+> +	 * madvise_dontneed()
+> +	 *  zap_pmd_range()
+> +	 *   pmd_trans_huge(*pmd) == 0 (without ptl)
+> +	 *   // skip the pmd
+> +	 *				 set_pmd_at();
+> +	 *				 // pmd is re-established
+> +	 *
+> +	 * The race makes MADV_DONTNEED miss the huge pmd and don't clear it
+> +	 * which may break userspace.
+> +	 *
+> +	 * pmdp_invalidate() is required to make sure we don't miss
+> +	 * dirty/young flags set by hardware.
+> +	 */
+> +	entry = *pmd;
+> +	pmdp_invalidate(vma, addr, pmd);
+> +
+> +	/*
+> +	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
+> +	 * corrupt them.
+> +	 */
 
-To evaluate performance impact of this change test that calls
-fork() 100 000 times on the kernel with enabled CONFIG_VMAP_STACK=y
-and NR_CACHED_STACK changed to 0 (so that each fork()/exit() executes
-vmalloc()/vfree() call) was used.
+pmdp_invalidate() does:
 
-Commands:
-~ # grep try_purge /proc/kallsyms
-ffffffff811d0dd0 t try_purge_vmap_area_lazy
+        pmd_t entry = *pmdp;
+        set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
 
-~ # perf stat --repeat 10 -ae workqueue:workqueue_queue_work \
-              --filter 'function == 0xffffffff811d0dd0' ./fork
+so it's not atomic and if CPU sets dirty or accessed in the middle of
+this, they will be lost?
 
-gave me the following results:
+But I don't see how the other invalidate caller
+__split_huge_pmd_locked() deals with this either. Andrea, any idea?
 
-before:
-   30      workqueue:workqueue_queue_work                ( +-  1.31% )
-   1.613231060 seconds time elapsed                      ( +-  0.38% )
+Vlastimil
 
-after:
-   15      workqueue:workqueue_queue_work                ( +-  0.88% )
-   1.615368474 seconds time elapsed                      ( +-  0.41% )
-
-So there is no measurable difference on the performance of the test itself,
-but without the optimization we queue twice more jobs. This should save
-kworkers from doing some useless job.
-
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Suggested-by: Thomas Hellstrom <thellstrom@vmware.com>
-Reviewed-by: Thomas Hellstrom <thellstrom@vmware.com>
----
- mm/vmalloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ee62c0a..1079555 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -737,7 +737,8 @@ static void free_vmap_area_noflush(struct vmap_area *va)
- 	/* After this point, we may free va at any time */
- 	llist_add(&va->purge_list, &vmap_purge_list);
- 
--	if (unlikely(nr_lazy > lazy_max_pages()))
-+	if (unlikely(nr_lazy > lazy_max_pages()) &&
-+	    !mutex_is_locked(&vmap_purge_lock))
- 		schedule_work(&purge_vmap_work);
- }
- 
--- 
-2.10.2
+> +	if (pmd_dirty(*pmd))
+> +		entry = pmd_mkdirty(entry);
+> +	if (pmd_young(*pmd))
+> +		entry = pmd_mkyoung(entry);
+> +
+>  	entry = pmd_modify(entry, newprot);
+>  	if (preserve_write)
+>  		entry = pmd_mk_savedwrite(entry);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
