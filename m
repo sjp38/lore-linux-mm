@@ -1,43 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B50486B0038
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 07:08:44 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id v1so6732484qtg.0
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:08:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b189si19213815qkd.90.2017.04.12.04.08.43
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA026B0038
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 07:21:12 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id l44so2628328wrc.11
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:21:12 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id 8si7658195wmg.8.2017.04.12.04.21.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 04:08:44 -0700 (PDT)
-Date: Wed, 12 Apr 2017 13:08:40 +0200
-From: Stanislaw Gruszka <sgruszka@redhat.com>
-Subject: Re: [PATCH] mm, page_alloc: Remove debug_guardpage_minorder() test
- in warn_alloc().
-Message-ID: <20170412110840.GA14892@redhat.com>
-References: <1491910035-4231-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170412102341.GA13958@redhat.com>
- <201704121941.IAC86936.MFOVOFLFHOStQJ@I-love.SAKURA.ne.jp>
+        Wed, 12 Apr 2017 04:21:11 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id q125so5731547wmd.3
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:21:10 -0700 (PDT)
+Date: Wed, 12 Apr 2017 14:11:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 8/8] x86/mm: Allow to have userspace mappings above
+ 47-bits
+Message-ID: <20170412111157.h6tjryt7jbum4tfg@node.shutemov.name>
+References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
+ <20170406140106.78087-9-kirill.shutemov@linux.intel.com>
+ <8d68093b-670a-7d7e-2216-bf64b19c7a48@linux.vnet.ibm.com>
+ <20170407155945.7lyapjbwacg3ikw6@node.shutemov.name>
+ <87wpap6h7q.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201704121941.IAC86936.MFOVOFLFHOStQJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <87wpap6h7q.fsf@concordia.ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, cl@linux-foundation.org, mgorman@suse.de, penberg@cs.helsinki.fi, mhocko@suse.com
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Safonov <dsafonov@virtuozzo.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Wed, Apr 12, 2017 at 07:41:17PM +0900, Tetsuo Handa wrote:
-> before proposing this patch, I proposed a patch at
-> http://lkml.kernel.org/r/1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-> that ignores debug_guardpage_minorder() > 0 only when reporting allocation stalls.
-> We can preserve debug_guardpage_minorder() > 0 test if we change to use
-> a different function for reporting allocation stalls.
+On Wed, Apr 12, 2017 at 08:41:29PM +1000, Michael Ellerman wrote:
+> Hi Kirill,
 > 
-> Which patch do you prefer?
+> I'm interested in this because we're doing pretty much the same thing on
+> powerpc at the moment, and I want to make sure x86 & powerpc end up with
+> compatible behaviour.
+> 
+> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
+> > On Fri, Apr 07, 2017 at 07:05:26PM +0530, Anshuman Khandual wrote:
+> >> On 04/06/2017 07:31 PM, Kirill A. Shutemov wrote:
+> >> > On x86, 5-level paging enables 56-bit userspace virtual address space.
+> >> > Not all user space is ready to handle wide addresses. It's known that
+> >> > at least some JIT compilers use higher bits in pointers to encode their
+> >> > information. It collides with valid pointers with 5-level paging and
+> >> > leads to crashes.
+> >> > 
+> >> > To mitigate this, we are not going to allocate virtual address space
+> >> > above 47-bit by default.
+> >> 
+> >> I am wondering if the commitment of virtual space range to the
+> >> user space is kind of an API which needs to be maintained there
+> >> after. If that is the case then we need to have some plans when
+> >> increasing it from the current level.
+> >
+> > I don't think we should ever enable full address space for all
+> > applications. There's no point.
+> >
+> > /bin/true doesn't need more than 64TB of virtual memory.
+> > And I hope never will.
+> >
+> > By increasing virtual address space for everybody we will pay (assuming
+> > current page table format) at least one extra page per process for moving
+> > stack at very end of address space.
+> 
+> That assumes the current layout though, it could be different.
 
-I don't have any preferences regarding this.
+True.
 
-Stanislaw
+> > Yes, you can gain something in security by having more bits for ASLR, but
+> > I don't think it worth the cost.
+> 
+> It may not be worth the cost now, for you, but that trade off will be
+> different for other people and at other times.
+> 
+> So I think it's quite likely some folks will be interested in the full
+> address range for ASLR.
+
+We always can extend interface if/when userspace demand materialize.
+
+Let's not invent interfaces unless we're sure there's demand.
+
+> >> expanding the address range next time around. I think we need
+> >> to have a plan for this and particularly around 'hint' mechanism
+> >> and whether it should be decided per mmap() request or at the
+> >> task level.
+> >
+> > I think the reasonable way for an application to claim it's 63-bit clean
+> > is to make allocations with (void *)-1 as hint address.
+> 
+> I do like the simplicity of that.
+> 
+> But I wouldn't be surprised if some (crappy) code out there already
+> passes an address of -1. Probably it won't break if it starts getting
+> high addresses, but who knows.
+
+To make an application break we need two thing:
+
+ - it sets hint address to -1 by mistake;
+ - it uses upper bit to encode its info;
+
+I would be surprise if such combination exists in real world.
+
+But let me know if you have any particular code in mind.
+
+> An alternative would be to only interpret the hint as requesting a large
+> address if it's >= 64TB && < TASK_SIZE_MAX.
+
+Nope. That doesn't work if you take into accounting further extension of the
+address space.
+
+Consider extension x86 to 6-level page tables. User-space has 63-bit
+address space. TASK_SIZE_MAX is bumped to (1UL << 63) - PAGE_SIZE.
+
+An application wants access to full address space. It gets recompiled
+using new TASK_SIZE_MAX as hint address. And everything works fine.
+
+But only on machine with 6-level paging enabled.
+
+If we run the same application binary on machine with older kernel and
+5-level paging, the application will get access to only 47-bit address
+space, not 56-bit, as hint address is more than TASK_SIZE_MAX in this
+configuration.
+
+> If we're really worried about breaking userspace then a new MMAP flag
+> seems like the safest option?
+> 
+> I don't feel particularly strongly about any option, but like I said my
+> main concern is that x86 & powerpc end up with the same behaviour.
+> 
+> And whatever we end up with someone will need to do an update to the man
+> page for mmap.
+
+Sure.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
