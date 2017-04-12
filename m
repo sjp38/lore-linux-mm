@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A34816B0390
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 13:22:01 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id f5so18405708pff.13
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 10:22:01 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F61F6B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 13:32:23 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c198so13103274pfc.19
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 10:32:23 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y16si10314817pli.71.2017.04.12.10.22.00
+        by mx.google.com with ESMTPS id v26si917511pgn.161.2017.04.12.10.32.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 10:22:00 -0700 (PDT)
-Date: Wed, 12 Apr 2017 10:21:58 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-Message-ID: <20170412172158.GF784@bombadil.infradead.org>
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
- <20170328165343.GB27446@linux-80c1.suse>
- <20170328165513.GC27446@linux-80c1.suse>
- <20170328175408.GD7838@bombadil.infradead.org>
- <20170329080625.GC27994@dhcp22.suse.cz>
- <20170329174514.GB4543@tassilo.jf.intel.com>
- <20170330061245.GA1972@dhcp22.suse.cz>
- <20170412161829.GA16422@linux-80c1.suse>
+        Wed, 12 Apr 2017 10:32:22 -0700 (PDT)
+Date: Wed, 12 Apr 2017 10:31:51 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from
+ removing the areas
+Message-ID: <20170412173151.GA23054@infradead.org>
+References: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
+ <20170412060218.GA16170@infradead.org>
+ <AC5E3048-6E2B-4DBE-80BA-AAE2D3EED969@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170412161829.GA16422@linux-80c1.suse>
+In-Reply-To: <AC5E3048-6E2B-4DBE-80BA-AAE2D3EED969@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andi Kleen <ak@linux.intel.com>, akpm@linux-foundation.org, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
+To: Hoeun Ryu <hoeun.ryu@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 12, 2017 at 09:18:29AM -0700, Davidlohr Bueso wrote:
-> On Thu, 30 Mar 2017, Michal Hocko wrote:
+On Wed, Apr 12, 2017 at 08:42:08PM +0900, Hoeun Ryu wrote:
 > 
-> > On Wed 29-03-17 10:45:14, Andi Kleen wrote:
-> > > On Wed, Mar 29, 2017 at 10:06:25AM +0200, Michal Hocko wrote:
-> > > >
-> > > > Do we actually have any users?
-> > > 
-> > > Yes this feature is widely used.
+> > On Apr 12, 2017, at 3:02 PM, Christoph Hellwig <hch@infradead.org> wrote:
 > > 
-> > Considering that none of SHM_HUGE* has been exported to the userspace
-> > headers all the users would have to use the this flag by the value and I
-> > am quite skeptical that application actually do that. Could you point me
-> > to some projects that use this?
+> >> On Wed, Apr 12, 2017 at 02:01:59PM +0900, Hoeun Ryu wrote:
+> >> vm_area_add_early/vm_area_register_early() are used to reserve vmalloc area
+> >> during boot process and those virtually mapped areas are never unmapped.
+> >> So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
+> >> existing vmlist entries and prevent those areas from being removed from the
+> >> rbtree by accident.
+> > 
+> > How would they be removed "by accident"?
 > 
-> Hmm Andrew, if there's not one example, could you please pick up this patch?
+> I don't mean actual use-cases, but I just want to make it robust against like programming errors.
 
-Please comment on the replacement patch I suggested.
+Oh, ok.  The patch makes sense then, although the changelog could use
+a little update.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
