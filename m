@@ -1,67 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD286B0038
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 08:30:45 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b124so1372778wmf.6
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 05:30:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o39si30905704wrb.225.2017.04.12.05.30.43
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 404026B0038
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 08:49:26 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id c62so20432535oia.13
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 05:49:26 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00106.outbound.protection.outlook.com. [40.107.0.106])
+        by mx.google.com with ESMTPS id f42si7991037oth.119.2017.04.12.05.49.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Apr 2017 05:30:43 -0700 (PDT)
-Date: Wed, 12 Apr 2017 14:30:42 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: Remove debug_guardpage_minorder() test
- in warn_alloc().
-Message-ID: <20170412123042.GF7157@dhcp22.suse.cz>
-References: <20170412102341.GA13958@redhat.com>
- <20170412105951.GB7157@dhcp22.suse.cz>
- <20170412112154.GB14892@redhat.com>
- <20170412113528.GC7157@dhcp22.suse.cz>
- <20170412114754.GA15135@redhat.com>
- <201704122114.JDG73963.SFFLVQOOtMJHFO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Apr 2017 05:49:24 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH v2 0/5] allow to call vfree() in atomic context
+Date: Wed, 12 Apr 2017 15:49:00 +0300
+Message-ID: <20170412124905.25443-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20170330102719.13119-1-aryabinin@virtuozzo.com>
+References: <20170330102719.13119-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201704122114.JDG73963.SFFLVQOOtMJHFO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: sgruszka@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, rjw@sisk.pl, aarcange@redhat.com, cl@linux-foundation.org, mgorman@suse.de, penberg@cs.helsinki.fi
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, penguin-kernel@I-love.SAKURA.ne.jp, mhocko@kernel.org, linux-mm@kvack.org, hpa@zytor.com, chris@chris-wilson.co.uk, hch@lst.de, mingo@elte.hu, jszhang@marvell.com, joelaf@google.com, joaodias@google.com, willy@infradead.org, tglx@linutronix.de, thellstrom@vmware.com
 
-On Wed 12-04-17 21:14:10, Tetsuo Handa wrote:
-> Stanislaw Gruszka wrote:
-> > On Wed, Apr 12, 2017 at 01:35:28PM +0200, Michal Hocko wrote:
-> > > OK, I see. That is a rather weird feature and the naming is more than
-> > > surprising. But put that aside. Then it means that the check should be
-> > > pulled out to 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 6632256ef170..1e5f3b5cdb87 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -3941,7 +3941,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> > >  		goto retry;
-> > >  	}
-> > >  fail:
-> > > -	warn_alloc(gfp_mask, ac->nodemask,
-> > > +	if (!debug_guardpage_minorder())
-> > > +		warn_alloc(gfp_mask, ac->nodemask,
-> > >  			"page allocation failure: order:%u", order);
-> > >  got_pg:
-> > >  	return page;
-> > 
-> > Looks good to me assuming it will be applied on top of Tetsuo's patch.
-> > 
-> > Reviewed-by: Stanislaw Gruszka <sgruszka@redhat.com>
-> > 
-> 
-> There are two warn_alloc() usages in mm/vmalloc.c which the check should be
-> pulled out.
+Changes since v1:
+ - Added small optmization as a separate patch 5/5
+ - Collected Acks/Review tags.
 
-Do we actually care about vmalloc for this?
+
+Andrey Ryabinin (5):
+  mm/vmalloc: allow to call vfree() in atomic context
+  x86/ldt: use vfree() instead of vfree_atomic()
+  kernel/fork: use vfree() instead of vfree_atomic() to free thread
+    stack
+  mm/vmalloc: remove vfree_atomic()
+  mm/vmalloc: Don't spawn workers if somebody already purging
+
+ arch/x86/kernel/ldt.c   |  2 +-
+ include/linux/vmalloc.h |  1 -
+ kernel/fork.c           |  2 +-
+ mm/vmalloc.c            | 52 +++++++++++--------------------------------------
+ 4 files changed, 13 insertions(+), 44 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
