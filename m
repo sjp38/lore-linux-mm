@@ -1,141 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA026B0038
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 07:21:12 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l44so2628328wrc.11
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:21:12 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id 8si7658195wmg.8.2017.04.12.04.21.10
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 33B7E6B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 07:22:02 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id p68so6613830qkf.20
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:22:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 87si19252122qkv.49.2017.04.12.04.22.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 04:21:11 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id q125so5731547wmd.3
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 04:21:10 -0700 (PDT)
-Date: Wed, 12 Apr 2017 14:11:57 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 8/8] x86/mm: Allow to have userspace mappings above
- 47-bits
-Message-ID: <20170412111157.h6tjryt7jbum4tfg@node.shutemov.name>
-References: <20170406140106.78087-1-kirill.shutemov@linux.intel.com>
- <20170406140106.78087-9-kirill.shutemov@linux.intel.com>
- <8d68093b-670a-7d7e-2216-bf64b19c7a48@linux.vnet.ibm.com>
- <20170407155945.7lyapjbwacg3ikw6@node.shutemov.name>
- <87wpap6h7q.fsf@concordia.ellerman.id.au>
+        Wed, 12 Apr 2017 04:22:01 -0700 (PDT)
+Date: Wed, 12 Apr 2017 13:21:58 +0200
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: [PATCH] mm, page_alloc: Remove debug_guardpage_minorder() test
+ in warn_alloc().
+Message-ID: <20170412112154.GB14892@redhat.com>
+References: <1491910035-4231-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170412102341.GA13958@redhat.com>
+ <20170412105951.GB7157@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87wpap6h7q.fsf@concordia.ellerman.id.au>
+In-Reply-To: <20170412105951.GB7157@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Safonov <dsafonov@virtuozzo.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Wed, Apr 12, 2017 at 08:41:29PM +1000, Michael Ellerman wrote:
-> Hi Kirill,
+On Wed, Apr 12, 2017 at 12:59:51PM +0200, Michal Hocko wrote:
+> On Wed 12-04-17 12:23:45, Stanislaw Gruszka wrote:
+> > On Tue, Apr 11, 2017 at 08:27:15PM +0900, Tetsuo Handa wrote:
+> > > We are using warn_alloc() for reporting both allocation failures and
+> > > allocation stalls. If we add debug_guardpage_minorder=1 parameter,
+> > > all allocation failure and allocation stall reports become pointless
+> > > like below. (Below output would be an OOM livelock were all __GFP_FS
+> > > allocations got stuck at too_many_isolated() in shrink_inactive_list()
+> > > waiting for kswapd, kswapd is waiting for !__GFP_FS allocations, and
+> > > all !__GFP_FS allocations did not get stuck at too_many_isolated() in
+> > > shrink_inactive_list() but are unable to invoke the OOM killer.)
+> > > 
+> > > ----------
+> > > [    0.000000] Linux version 4.11.0-rc6-next-20170410 (root@ccsecurity) (gcc version 4.8.5 20150623 (Red Hat 4.8.5-11) (GCC) ) #578 SMP Mon Apr 10 23:08:53 JST 2017
+> > > [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-4.11.0-rc6-next-20170410 (...snipped...) debug_guardpage_minorder=1
+> > > (...snipped...)
+> > > [    0.000000] Setting debug_guardpage_minorder to 1
+> > > (...snipped...)
+> > > [   99.064207] Out of memory: Kill process 3097 (a.out) score 999 or sacrifice child
+> > > [   99.066488] Killed process 3097 (a.out) total-vm:14408kB, anon-rss:84kB, file-rss:36kB, shmem-rss:0kB
+> > > [   99.180378] oom_reaper: reaped process 3097 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+> > > [  128.310487] warn_alloc: 266 callbacks suppressed
+> > > [  133.445395] warn_alloc: 74 callbacks suppressed
+> > > [  138.517471] warn_alloc: 300 callbacks suppressed
+> > > [  143.537630] warn_alloc: 34 callbacks suppressed
+> > > [  148.610773] warn_alloc: 277 callbacks suppressed
+> > > [  153.630652] warn_alloc: 70 callbacks suppressed
+> > > [  158.639891] warn_alloc: 217 callbacks suppressed
+> > > [  163.687727] warn_alloc: 120 callbacks suppressed
+> > > [  168.709610] warn_alloc: 252 callbacks suppressed
+> > > [  173.714659] warn_alloc: 103 callbacks suppressed
+> > > [  178.730858] warn_alloc: 248 callbacks suppressed
+> > > [  183.797587] warn_alloc: 82 callbacks suppressed
+> > > [  188.825250] warn_alloc: 238 callbacks suppressed
+> > > [  193.832834] warn_alloc: 102 callbacks suppressed
+> > > [  198.876409] warn_alloc: 259 callbacks suppressed
+> > > [  203.940073] warn_alloc: 102 callbacks suppressed
+> > > [  207.620979] sysrq: SysRq : Resetting
+> > > ----------
+> > > 
+> > > Commit c0a32fc5a2e470d0 ("mm: more intensive memory corruption debugging")
+> > > changed to check debug_guardpage_minorder() > 0 when reporting allocation
+> > > failures. But the patch description seems to lack why we want to check it.
+> > 
+> > When we use guard page to debug memory corruption, it shrinks available
+> > pages to 1/2, 1/4, 1/8 and so on, depending on parameter value.
+> > In such case memory allocation failures can be common and printing
+> > errors can flood dmesg. If sombody debug corruption, allocation
+> > failures are not the things he/she is interested about.
 > 
-> I'm interested in this because we're doing pretty much the same thing on
-> powerpc at the moment, and I want to make sure x86 & powerpc end up with
-> compatible behaviour.
-> 
-> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
-> > On Fri, Apr 07, 2017 at 07:05:26PM +0530, Anshuman Khandual wrote:
-> >> On 04/06/2017 07:31 PM, Kirill A. Shutemov wrote:
-> >> > On x86, 5-level paging enables 56-bit userspace virtual address space.
-> >> > Not all user space is ready to handle wide addresses. It's known that
-> >> > at least some JIT compilers use higher bits in pointers to encode their
-> >> > information. It collides with valid pointers with 5-level paging and
-> >> > leads to crashes.
-> >> > 
-> >> > To mitigate this, we are not going to allocate virtual address space
-> >> > above 47-bit by default.
-> >> 
-> >> I am wondering if the commitment of virtual space range to the
-> >> user space is kind of an API which needs to be maintained there
-> >> after. If that is the case then we need to have some plans when
-> >> increasing it from the current level.
-> >
-> > I don't think we should ever enable full address space for all
-> > applications. There's no point.
-> >
-> > /bin/true doesn't need more than 64TB of virtual memory.
-> > And I hope never will.
-> >
-> > By increasing virtual address space for everybody we will pay (assuming
-> > current page table format) at least one extra page per process for moving
-> > stack at very end of address space.
-> 
-> That assumes the current layout though, it could be different.
+> Can we distinguish those guard page allocations?
 
-True.
+Allocation failures happen on standard pages, due to limit of available pages.
+Because much of pages become unused - guard pages are reserved pages marked
+as no-read/no-write (basically this is artificial memory shrink).
 
-> > Yes, you can gain something in security by having more bits for ASLR, but
-> > I don't think it worth the cost.
-> 
-> It may not be worth the cost now, for you, but that trade off will be
-> different for other people and at other times.
-> 
-> So I think it's quite likely some folks will be interested in the full
-> address range for ASLR.
+>Why cannot they use
+> __GFP_NOWARN?
 
-We always can extend interface if/when userspace demand materialize.
+That some option, though I think setting __GFP_NOWARN if debug_guardpage_enabled()
+is set, instead of checking that directly make no big difference anyway.
 
-Let's not invent interfaces unless we're sure there's demand.
-
-> >> expanding the address range next time around. I think we need
-> >> to have a plan for this and particularly around 'hint' mechanism
-> >> and whether it should be decided per mmap() request or at the
-> >> task level.
-> >
-> > I think the reasonable way for an application to claim it's 63-bit clean
-> > is to make allocations with (void *)-1 as hint address.
-> 
-> I do like the simplicity of that.
-> 
-> But I wouldn't be surprised if some (crappy) code out there already
-> passes an address of -1. Probably it won't break if it starts getting
-> high addresses, but who knows.
-
-To make an application break we need two thing:
-
- - it sets hint address to -1 by mistake;
- - it uses upper bit to encode its info;
-
-I would be surprise if such combination exists in real world.
-
-But let me know if you have any particular code in mind.
-
-> An alternative would be to only interpret the hint as requesting a large
-> address if it's >= 64TB && < TASK_SIZE_MAX.
-
-Nope. That doesn't work if you take into accounting further extension of the
-address space.
-
-Consider extension x86 to 6-level page tables. User-space has 63-bit
-address space. TASK_SIZE_MAX is bumped to (1UL << 63) - PAGE_SIZE.
-
-An application wants access to full address space. It gets recompiled
-using new TASK_SIZE_MAX as hint address. And everything works fine.
-
-But only on machine with 6-level paging enabled.
-
-If we run the same application binary on machine with older kernel and
-5-level paging, the application will get access to only 47-bit address
-space, not 56-bit, as hint address is more than TASK_SIZE_MAX in this
-configuration.
-
-> If we're really worried about breaking userspace then a new MMAP flag
-> seems like the safest option?
-> 
-> I don't feel particularly strongly about any option, but like I said my
-> main concern is that x86 & powerpc end up with the same behaviour.
-> 
-> And whatever we end up with someone will need to do an update to the man
-> page for mmap.
-
-Sure.
-
--- 
- Kirill A. Shutemov
+Stanislaw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
