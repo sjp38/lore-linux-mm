@@ -1,174 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 367DB6B0038
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 00:55:22 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id h72so16888561iod.0
-        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 21:55:22 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id c76si19753013ioa.132.2017.04.11.21.55.20
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B665C6B0397
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 01:03:09 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v4so10043633pgc.20
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 22:03:09 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id t2si19126633pfl.123.2017.04.11.22.03.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Apr 2017 21:55:21 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH RESEND] mm/madvise: Clean up MADV_SOFT_OFFLINE and
- MADV_HWPOISON
-Date: Wed, 12 Apr 2017 04:54:18 +0000
-Message-ID: <20170412045418.GA4566@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170410082903.8828-1-khandual@linux.vnet.ibm.com>
- <20170410084701.11248-1-khandual@linux.vnet.ibm.com>
-In-Reply-To: <20170410084701.11248-1-khandual@linux.vnet.ibm.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <87C70D7D9EF6CA4DA9DF802437794BE8@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Tue, 11 Apr 2017 22:03:08 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id c198so2921971pfc.0
+        for <linux-mm@kvack.org>; Tue, 11 Apr 2017 22:03:08 -0700 (PDT)
+From: Hoeun Ryu <hoeun.ryu@gmail.com>
+Subject: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from removing the areas
+Date: Wed, 12 Apr 2017 14:01:59 +0900
+Message-Id: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-arch@vger.kernel.org, Hoeun Ryu <hoeun.ryu@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Apr 10, 2017 at 02:17:01PM +0530, Anshuman Khandual wrote:
-> This cleans up handling MADV_SOFT_OFFLINE and MADV_HWPOISON called
-> through madvise() system call.
->=20
-> * madvise_memory_failure() was misleading to accommodate handling of
->   both memory_failure() as well as soft_offline_page() functions.
->   Basically it handles memory error injection from user space which
->   can go either way as memory failure or soft offline. Renamed as
->   madvise_inject_error() instead.
->=20
-> * Renamed struct page pointer 'p' to 'page'.
->=20
-> * pr_info() was essentially printing PFN value but it said 'page'
->   which was misleading. Made the process virtual address explicit.
->=20
-> Before the patch:
->=20
-> Soft offlining page 0x15e3e at 0x3fff8c230000
-> Soft offlining page 0x1f3 at 0x3fffa0da0000
-> Soft offlining page 0x744 at 0x3fff7d200000
-> Soft offlining page 0x1634d at 0x3fff95e20000
-> Soft offlining page 0x16349 at 0x3fff95e30000
-> Soft offlining page 0x1d6 at 0x3fff9e8b0000
-> Soft offlining page 0x5f3 at 0x3fff91bd0000
->=20
-> Injecting memory failure for page 0x15c8b at 0x3fff83280000
-> Injecting memory failure for page 0x16190 at 0x3fff83290000
-> Injecting memory failure for page 0x740 at 0x3fff9a2e0000
-> Injecting memory failure for page 0x741 at 0x3fff9a2f0000
->=20
-> After the patch:
->=20
-> Soft offlining pfn 0x1484e at process virtual address 0x3fff883c0000
-> Soft offlining pfn 0x1484f at process virtual address 0x3fff883d0000
-> Soft offlining pfn 0x14850 at process virtual address 0x3fff883e0000
-> Soft offlining pfn 0x14851 at process virtual address 0x3fff883f0000
-> Soft offlining pfn 0x14852 at process virtual address 0x3fff88400000
-> Soft offlining pfn 0x14853 at process virtual address 0x3fff88410000
-> Soft offlining pfn 0x14854 at process virtual address 0x3fff88420000
-> Soft offlining pfn 0x1521c at process virtual address 0x3fff6bc70000
->=20
-> Injecting memory failure for pfn 0x10fcf at process virtual address 0x3ff=
-f86310000
-> Injecting memory failure for pfn 0x10fd0 at process virtual address 0x3ff=
-f86320000
-> Injecting memory failure for pfn 0x10fd1 at process virtual address 0x3ff=
-f86330000
-> Injecting memory failure for pfn 0x10fd2 at process virtual address 0x3ff=
-f86340000
-> Injecting memory failure for pfn 0x10fd3 at process virtual address 0x3ff=
-f86350000
-> Injecting memory failure for pfn 0x10fd4 at process virtual address 0x3ff=
-f86360000
-> Injecting memory failure for pfn 0x10fd5 at process virtual address 0x3ff=
-f86370000
->=20
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+vm_area_add_early/vm_area_register_early() are used to reserve vmalloc area
+during boot process and those virtually mapped areas are never unmapped.
+So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
+existing vmlist entries and prevent those areas from being removed from the
+rbtree by accident.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Hoeun Ryu <hoeun.ryu@gmail.com>
+---
+ include/linux/vmalloc.h | 1 +
+ mm/vmalloc.c            | 9 ++++++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
 
-> ---
-> Removed timestamp from the kernel log to reduce the width of the
-> commit message. No changes in the code.
->=20
->  mm/madvise.c | 34 ++++++++++++++++++++--------------
->  1 file changed, 20 insertions(+), 14 deletions(-)
->=20
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 7a2abf0..efd4721 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -606,34 +606,40 @@ static long madvise_remove(struct vm_area_struct *v=
-ma,
->  /*
->   * Error injection support for memory error handling.
->   */
-> -static int madvise_hwpoison(int bhv, unsigned long start, unsigned long =
-end)
-> +static int madvise_inject_error(int behavior,
-> +		unsigned long start, unsigned long end)
->  {
-> -	struct page *p;
-> +	struct page *page;
-> +
->  	if (!capable(CAP_SYS_ADMIN))
->  		return -EPERM;
-> +
->  	for (; start < end; start +=3D PAGE_SIZE <<
-> -				compound_order(compound_head(p))) {
-> +				compound_order(compound_head(page))) {
->  		int ret;
-> =20
-> -		ret =3D get_user_pages_fast(start, 1, 0, &p);
-> +		ret =3D get_user_pages_fast(start, 1, 0, &page);
->  		if (ret !=3D 1)
->  			return ret;
-> =20
-> -		if (PageHWPoison(p)) {
-> -			put_page(p);
-> +		if (PageHWPoison(page)) {
-> +			put_page(page);
->  			continue;
->  		}
-> -		if (bhv =3D=3D MADV_SOFT_OFFLINE) {
-> -			pr_info("Soft offlining page %#lx at %#lx\n",
-> -				page_to_pfn(p), start);
-> -			ret =3D soft_offline_page(p, MF_COUNT_INCREASED);
-> +
-> +		if (behavior =3D=3D MADV_SOFT_OFFLINE) {
-> +			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
-> +						page_to_pfn(page), start);
-> +
-> +			ret =3D soft_offline_page(page, MF_COUNT_INCREASED);
->  			if (ret)
->  				return ret;
->  			continue;
->  		}
-> -		pr_info("Injecting memory failure for page %#lx at %#lx\n",
-> -		       page_to_pfn(p), start);
-> -		ret =3D memory_failure(page_to_pfn(p), 0, MF_COUNT_INCREASED);
-> +		pr_info("Injecting memory failure for pfn %#lx at process virtual addr=
-ess %#lx\n",
-> +						page_to_pfn(page), start);
-> +
-> +		ret =3D memory_failure(page_to_pfn(page), 0, MF_COUNT_INCREASED);
->  		if (ret)
->  			return ret;
->  	}
-> @@ -763,7 +769,7 @@ static int madvise_hwpoison(int bhv, unsigned long st=
-art, unsigned long end)
-> =20
->  #ifdef CONFIG_MEMORY_FAILURE
->  	if (behavior =3D=3D MADV_HWPOISON || behavior =3D=3D MADV_SOFT_OFFLINE)
-> -		return madvise_hwpoison(behavior, start, start+len_in);
-> +		return madvise_inject_error(behavior, start, start + len_in);
->  #endif
->  	if (!madvise_behavior_valid(behavior))
->  		return error;
-> --=20
-> 1.8.5.2
->=20
-> =
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 46991ad..3df53fc 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -19,6 +19,7 @@ struct notifier_block;		/* in notifier.h */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
+ #define VM_NO_GUARD		0x00000040      /* don't add guard page */
+ #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
++#define VM_STATIC		0x00000200
+ /* bits [20..32] reserved for arch specific ioremap internals */
+ 
+ /*
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 8ef8ea1..fb5049a 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1262,7 +1262,7 @@ void __init vmalloc_init(void)
+ 	/* Import existing vmlist entries. */
+ 	for (tmp = vmlist; tmp; tmp = tmp->next) {
+ 		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
+-		va->flags = VM_VM_AREA;
++		va->flags = VM_VM_AREA | VM_STATIC;
+ 		va->va_start = (unsigned long)tmp->addr;
+ 		va->va_end = va->va_start + tmp->size;
+ 		va->vm = tmp;
+@@ -1480,7 +1480,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 	might_sleep();
+ 
+ 	va = find_vmap_area((unsigned long)addr);
+-	if (va && va->flags & VM_VM_AREA) {
++	if (va && va->flags & VM_VM_AREA && likely(!(va->flags & VM_STATIC))) {
+ 		struct vm_struct *vm = va->vm;
+ 
+ 		spin_lock(&vmap_area_lock);
+@@ -1510,7 +1510,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 
+ 	area = remove_vm_area(addr);
+ 	if (unlikely(!area)) {
+-		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
++		WARN(1, KERN_ERR "Trying to vfree() nonexistent or static vm area (%p)\n",
+ 				addr);
+ 		return;
+ 	}
+@@ -2708,6 +2708,9 @@ static int s_show(struct seq_file *m, void *p)
+ 	if (v->phys_addr)
+ 		seq_printf(m, " phys=%pa", &v->phys_addr);
+ 
++	if (v->flags & VM_STATIC)
++		seq_puts(m, " static");
++
+ 	if (v->flags & VM_IOREMAP)
+ 		seq_puts(m, " ioremap");
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
