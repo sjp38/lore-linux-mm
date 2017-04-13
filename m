@@ -1,64 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 748426B0390
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 21:03:22 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 89so3865285pfj.9
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 18:03:22 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id w5si22045417pgf.403.2017.04.12.18.03.21
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4533F6B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 22:20:08 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u3so25944439pgn.12
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 19:20:08 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id 1si14605401plz.177.2017.04.12.19.20.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 18:03:21 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id o123so8206752pga.1
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 18:03:21 -0700 (PDT)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from
- removing the areas
-From: Ho-Eun Ryu <hoeun.ryu@gmail.com>
-In-Reply-To: <20170412173151.GA23054@infradead.org>
-Date: Thu, 13 Apr 2017 10:03:14 +0900
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <3F99A1DC-3DEF-4EEB-AD6E-7848D7A6049D@gmail.com>
-References: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
- <20170412060218.GA16170@infradead.org>
- <AC5E3048-6E2B-4DBE-80BA-AAE2D3EED969@gmail.com>
- <20170412173151.GA23054@infradead.org>
+        Wed, 12 Apr 2017 19:20:07 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id i5so7966166pfc.3
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 19:20:07 -0700 (PDT)
+From: Oliver O'Halloran <oohall@gmail.com>
+Subject: [PATCH] mm, x86: Add ARCH_HAS_ZONE_DEVICE to Kconfig
+Date: Thu, 13 Apr 2017 12:19:40 +1000
+Message-Id: <20170413021940.17649-1-oohall@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org
 
+Currently ZONE_DEVICE depends on X86_64 and this will get unwieldly as
+new architectures (and platforms) get ZONE_DEVICE support. Move to an
+arch selected Kconfig option to save us the trouble.
 
-> On 13 Apr 2017, at 2:31 AM, Christoph Hellwig <hch@infradead.org> =
-wrote:
->=20
-> On Wed, Apr 12, 2017 at 08:42:08PM +0900, Hoeun Ryu wrote:
->>=20
->>> On Apr 12, 2017, at 3:02 PM, Christoph Hellwig <hch@infradead.org> =
-wrote:
->>>=20
->>>> On Wed, Apr 12, 2017 at 02:01:59PM +0900, Hoeun Ryu wrote:
->>>> vm_area_add_early/vm_area_register_early() are used to reserve =
-vmalloc area
->>>> during boot process and those virtually mapped areas are never =
-unmapped.
->>>> So `OR` VM_STATIC flag to the areas in vmalloc_init() when =
-importing
->>>> existing vmlist entries and prevent those areas from being removed =
-from the
->>>> rbtree by accident.
->>>=20
->>> How would they be removed "by accident"?
->>=20
->> I don't mean actual use-cases, but I just want to make it robust =
-against like programming errors.
->=20
-> Oh, ok.  The patch makes sense then, although the changelog could use
-> a little update.
+Cc: linux-mm@kvack.org
+Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
+---
+ arch/x86/Kconfig | 1 +
+ mm/Kconfig       | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
 
-OK, I will.
-Any other suggestions for code itself ?
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index c43f47622440..535b4d514792 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -59,6 +59,7 @@ config X86
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
++	select ARCH_HAS_ZONE_DEVICE		if X86_64
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+ 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+diff --git a/mm/Kconfig b/mm/Kconfig
+index c89f472b658c..57c1cbd9a050 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -689,7 +689,7 @@ config ZONE_DEVICE
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on SPARSEMEM_VMEMMAP
+-	depends on X86_64 #arch_add_memory() comprehends device memory
++	depends on ARCH_HAS_ZONE_DEVICE
+ 
+ 	help
+ 	  Device memory hotplug support allows for establishing pmem,
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
