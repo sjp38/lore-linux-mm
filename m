@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 02EFF6B0390
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 07:06:19 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m1so31730447pgd.13
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 04:06:18 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c17si23659925pgh.23.2017.04.13.04.06.17
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DBA216B039F
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 07:07:00 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v52so5944007wrb.14
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 04:07:00 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3si10874682wrs.168.2017.04.13.04.06.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 04:06:18 -0700 (PDT)
-Message-ID: <58EF5C0D.60603@intel.com>
-Date: Thu, 13 Apr 2017 19:07:57 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Apr 2017 04:06:59 -0700 (PDT)
+Subject: Re: [PATCH tip/core/rcu 01/13] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+References: <20170412165441.GA17149@linux.vnet.ibm.com>
+ <1492016149-18834-1-git-send-email-paulmck@linux.vnet.ibm.com>
+ <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
+Date: Thu, 13 Apr 2017 13:06:56 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH kernel v8 3/4] mm: add inerface to offer info about unused
- pages
-References: <1489648127-37282-1-git-send-email-wei.w.wang@intel.com>	<1489648127-37282-4-git-send-email-wei.w.wang@intel.com> <20170316142842.69770813b98df70277431b1e@linux-foundation.org>
-In-Reply-To: <20170316142842.69770813b98df70277431b1e@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, bobby.prani@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-On 03/17/2017 05:28 AM, Andrew Morton wrote:
-> On Thu, 16 Mar 2017 15:08:46 +0800 Wei Wang <wei.w.wang@intel.com> wrote:
->
->> From: Liang Li <liang.z.li@intel.com>
->>
->> This patch adds a function to provides a snapshot of the present system
->> unused pages. An important usage of this function is to provide the
->> unsused pages to the Live migration thread, which skips the transfer of
->> thoses unused pages. Newly used pages can be re-tracked by the dirty
->> page logging mechanisms.
-> I don't think this will be useful for anything other than
-> virtio-balloon.  I guess it would be better to keep this code in the
-> virtio-balloon driver if possible, even though that's rather a layering
-> violation :( What would have to be done to make that possible?  Perhaps
-> we can put some *small* helpers into page_alloc.c to prevent things
-> from becoming too ugly.
->
->
-Thanks for the suggestion. Small helpers do look more elegant. The nice 
-thing is that I also didn't see any performance loss.
-To make that possible, we need to enable for_each_polulated_zone() to be 
-callable by a kernel module. Please have a check the v9 patches that I 
-just posted out.
+On 04/13/2017 11:12 AM, Peter Zijlstra wrote:
+> On Wed, Apr 12, 2017 at 09:55:37AM -0700, Paul E. McKenney wrote:
+>> A group of Linux kernel hackers reported chasing a bug that resulted
+>> from their assumption that SLAB_DESTROY_BY_RCU provided an existence
+>> guarantee, that is, that no block from such a slab would be reallocated
+>> during an RCU read-side critical section.  Of course, that is not the
+>> case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
+>> slab of blocks.
+> 
+> And that while we wrote a huge honking comment right along with it...
+> 
+>> [ paulmck: Add "tombstone" comments as requested by Eric Dumazet. ]
+> 
+> I cannot find any occurrence of "tomb" or "TOMB" in the actual patch,
+> confused?
 
-Best,
-Wei
+It's the comments such as:
+
++ * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
+
+so that people who remember the old name can git grep its fate.
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
