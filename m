@@ -1,43 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F1CEE6B03B5
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 14:14:23 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id l25so8736188qtf.11
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 11:14:23 -0700 (PDT)
-Received: from mail-qt0-x235.google.com (mail-qt0-x235.google.com. [2607:f8b0:400d:c0d::235])
-        by mx.google.com with ESMTPS id g73si17080488qke.63.2017.04.13.11.14.22
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E29E86B03A2
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 14:38:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i5so35173621pfc.15
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 11:38:09 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a8si16574535pfa.200.2017.04.13.11.38.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 11:14:22 -0700 (PDT)
-Received: by mail-qt0-x235.google.com with SMTP id n46so51980529qta.2
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 11:14:22 -0700 (PDT)
+        Thu, 13 Apr 2017 11:38:09 -0700 (PDT)
+Date: Thu, 13 Apr 2017 20:37:56 +0200
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [RFC] Re: Costless huge virtual memory? /dev/same, /dev/null?
+Message-ID: <20170413183756.GA17630@kroah.com>
+References: <20160229162835.GA2816@var.bordeaux.inria.fr>
+ <20170413094200.b4lftvumqt4g36hz@var.youpi.perso.aquilenet.fr>
 MIME-Version: 1.0
-In-Reply-To: <20170405184325.GV6035@dhcp22.suse.cz>
-References: <CAGDaZ_qvb7QcWr3MaqnYOFeuqBQzTwzzOKwHXOUxa+S256uc=g@mail.gmail.com>
- <20170405125322.GB9146@rapoport-lnx> <CAGDaZ_o745MVD8PDeGhp0-oehUVb8+Zrm4g7uUBBZNTAPODbmQ@mail.gmail.com>
- <20170405184325.GV6035@dhcp22.suse.cz>
-From: Raymond Jennings <shentino@gmail.com>
-Date: Thu, 13 Apr 2017 11:13:41 -0700
-Message-ID: <CAGDaZ_r+HsMnrdW-i2PtZeCUwJnKs9D_DO-fosCo7TexLWDkNw@mail.gmail.com>
-Subject: Re: Heavy I/O causing slow interactivity
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170413094200.b4lftvumqt4g36hz@var.youpi.perso.aquilenet.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Samuel Thibault <samuel.thibault@ens-lyon.org>, Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Would it make a difference if I cited that
+On Thu, Apr 13, 2017 at 11:42:00AM +0200, Samuel Thibault wrote:
+> Hello,
+> 
+> More than one year passed without any activity :)
+> 
+> I have attached a proposed patch for discussion.
 
-My intent on upping the limits so high and pushing the dirty expiry so
-far into the future was to *avoid* triggering background writeback.
-
-In fact, dirty memory during one of these tests never actually rose a bunch.
-
-Are you guys suggesting that if dirty memory gets high enough the
-writeback turns into an OOM dodger that preempts foreground I/O?
-
-What I was hoping for is for dirty writeback itself to be throttled
-and stay out of the way of foreground I/O.
+As a rule, I don't apply RFC patches, as obviously the submitter doesn't
+think it is worthy of being applied :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
