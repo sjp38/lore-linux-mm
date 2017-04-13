@@ -1,365 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D18E6B03A4
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:40:19 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id m89so28558158pfi.14
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:40:19 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id q7si23444825pfq.336.2017.04.13.02.40.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 02:40:18 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v9 5/5] virtio-balloon: VIRTIO_BALLOON_F_MISC_VQ
-Date: Thu, 13 Apr 2017 17:35:08 +0800
-Message-Id: <1492076108-117229-6-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
-References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B7896B039F
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:42:17 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v6so5710850wrc.21
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:42:17 -0700 (PDT)
+Received: from hera.aquilenet.fr (hera.aquilenet.fr. [141.255.128.1])
+        by mx.google.com with ESMTP id 89si2082493wrk.321.2017.04.13.02.42.15
+        for <linux-mm@kvack.org>;
+        Thu, 13 Apr 2017 02:42:15 -0700 (PDT)
+Date: Thu, 13 Apr 2017 11:42:00 +0200
+From: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Subject: [RFC] Re: Costless huge virtual memory? /dev/same, /dev/null?
+Message-ID: <20170413094200.b4lftvumqt4g36hz@var.youpi.perso.aquilenet.fr>
+References: <20160229162835.GA2816@var.bordeaux.inria.fr>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="utrjiimipmbqkvfw"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160229162835.GA2816@var.bordeaux.inria.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arnd Bergmann <arnd@arndb.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Add a new vq, miscq, to handle miscellaneous requests between the device
-and the driver.
 
-This patch implemnts the VIRTIO_BALLOON_MISCQ_INQUIRE_UNUSED_PAGES
-request sent from the device. Upon receiving this request from the
-miscq, the driver offers to the device the guest unused pages.
+--utrjiimipmbqkvfw
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
-Tests have shown that skipping the transfer of unused pages of a 32G
-guest can get the live migration time reduced to 1/8.
+Hello,
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Signed-off-by: Liang Li <liang.z.li@intel.com>
----
- drivers/virtio/virtio_balloon.c     | 209 +++++++++++++++++++++++++++++++++---
- include/uapi/linux/virtio_balloon.h |   8 ++
- 2 files changed, 204 insertions(+), 13 deletions(-)
+More than one year passed without any activity :)
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 5e2e7cc..95c703e 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -56,11 +56,12 @@ static struct vfsmount *balloon_mnt;
- 
- /* Types of pages to chunk */
- #define PAGE_CHUNK_TYPE_BALLOON 0
-+#define PAGE_CHUNK_TYPE_UNUSED 1
- 
- #define MAX_PAGE_CHUNKS 4096
- struct virtio_balloon {
- 	struct virtio_device *vdev;
--	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
-+	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *miscq;
- 
- 	/* The balloon servicing is delegated to a freezable workqueue. */
- 	struct work_struct update_balloon_stats_work;
-@@ -94,6 +95,19 @@ struct virtio_balloon {
- 	struct virtio_balloon_page_chunk_hdr *balloon_page_chunk_hdr;
- 	struct virtio_balloon_page_chunk *balloon_page_chunk;
- 
-+	/*
-+	 * Buffer for PAGE_CHUNK_TYPE_UNUSED:
-+	 * virtio_balloon_miscq_hdr +
-+	 * virtio_balloon_page_chunk_hdr +
-+	 * virtio_balloon_page_chunk * MAX_PAGE_CHUNKS
-+	 */
-+	struct virtio_balloon_miscq_hdr *miscq_out_hdr;
-+	struct virtio_balloon_page_chunk_hdr *unused_page_chunk_hdr;
-+	struct virtio_balloon_page_chunk *unused_page_chunk;
-+
-+	/* Buffer for host to send cmd to miscq */
-+	struct virtio_balloon_miscq_hdr *miscq_in_hdr;
-+
- 	/* Bitmap used to record pages */
- 	unsigned long *page_bmap[PAGE_BMAP_COUNT_MAX];
- 	/* Number of the allocated page_bmap */
-@@ -220,6 +234,10 @@ static void send_page_chunks(struct virtio_balloon *vb, struct virtqueue *vq,
- 		hdr = vb->balloon_page_chunk_hdr;
- 		len = 0;
- 		break;
-+	case PAGE_CHUNK_TYPE_UNUSED:
-+		hdr = vb->unused_page_chunk_hdr;
-+		len = sizeof(struct virtio_balloon_miscq_hdr);
-+		break;
- 	default:
- 		dev_warn(&vb->vdev->dev, "%s: chunk %d of unknown pages\n",
- 			 __func__, type);
-@@ -254,6 +272,10 @@ static void add_one_chunk(struct virtio_balloon *vb, struct virtqueue *vq,
- 		hdr = vb->balloon_page_chunk_hdr;
- 		chunk = vb->balloon_page_chunk;
- 		break;
-+	case PAGE_CHUNK_TYPE_UNUSED:
-+		hdr = vb->unused_page_chunk_hdr;
-+		chunk = vb->unused_page_chunk;
-+		break;
- 	default:
- 		dev_warn(&vb->vdev->dev, "%s: chunk %d of unknown pages\n",
- 			 __func__, type);
-@@ -686,28 +708,139 @@ static void update_balloon_size_func(struct work_struct *work)
- 		queue_work(system_freezable_wq, work);
+I have attached a proposed patch for discussion.
+
+Samuel
+
+Samuel Thibault, on lun. 29 fA(C)vr. 2016 17:28:35 +0100, wrote:
+> I'm wondering whether we could introduce a /dev/same device to allow
+> costless huge virtual memory.
+> 
+> The use case is the simulation of the execution of a big irregular HPC
+> application, to provision memory usage, cpu time, etc. We know how much
+> time each computation loop takes, and it's easy to replace them with a
+> mere accounting. We'd however like to avoid having to revamp the rest
+> of the code, which does allocation/memcpys/etc., by just replacing
+> the allocation calls with virtual allocations, i.e. allocations which
+> return addresses of buffers that one can read/write, but the values you
+> read are not necessarily what you wrote, i.e. the data is not actually
+> properly stored (since we don't do the actual computations that's not a
+> problem).
+> 
+> The way we currently do this is by some folding: we map the same normal
+> file several times contiguously to form the virtual allocation. By using
+> a small 1MiB file, this limits memory consumption to 1MiB plus the page
+> table (and fits the dumb data in a typical cache). This however creates
+> one VMA per file mapping, we get limited by the 65535 VMA limit, and
+> VMA lookup becomes slow.
+> 
+> The way I could see is to have a /dev/same device: when you open it, it
+> allocates one page. When you mmap it, it maps the same page over the
+> whole resulting single VMA.
+> 
+> This is a quite specific use case, but it seems to be easy to implement,
+> and it seems to me that it could be integrated mainline. Actually I was
+> thinking that /dev/null itself could be providing that service?
+> (currently it returns ENODEV)
+> 
+> What do people think?  Is there perhaps another solution to achieve this
+> that I didn't think about?
+> 
+> Samuel
+
+--utrjiimipmbqkvfw
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename=dev_garbage
+
+mm: Add /dev/garbage which provides bogus data and throws data away
+
+When testing applications, one does not necessarily care about the
+content of the resulting data, only e.g. assertions, and thus to
+run big instances or a lot of instances in parallel, it is useful to
+optimize the memory allocation away. Modifying the application to not
+touch the non-allocated areas is however very tedious, so it makes
+sense to be able to allocate memory areas with as many optimizations
+as possible under the assumption that we do not care about the data
+content. Such optimizations typically lead to physical memory usage
+reduction, cache pollution reduction, etc.
+
+We here add a new mem-based character device /dev/garbage to that end:
+it does not provide any useful data and throws data away:
+
+- read() from it does not actually put data in the userland buffer
+- write() to it throws the data away
+- open() it allocates one page used for mmap
+- mmap() maps this page repeatedly on the whole memory range, thus
+not consuming more physical memory than the page allocated by open.
+Of course, accesses to the resulting area get completely mixed.
+
+Additionally, since data is not actually backed, we can let
+populate_vma_page_range emit write faults and dirty the page.
+
+That way
+
+int garbage = open("/dev/garbage", O_RDWR);
+char *c = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, garbage, 0);
+
+gets a VMA which is really immediately writable without any page fault
+(which are costly).
+
+Signed-off-by: Samuel Thibault <samuel.thibault@labri.fr>
+
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -296,6 +296,11 @@ static unsigned zero_mmap_capabilities(s
+ 	return NOMMU_MAP_COPY;
  }
  
-+static void miscq_in_hdr_add(struct virtio_balloon *vb)
++static unsigned garbage_mmap_capabilities(struct file *file)
 +{
-+	struct scatterlist sg_in;
-+
-+	sg_init_one(&sg_in, vb->miscq_in_hdr,
-+		    sizeof(struct virtio_balloon_miscq_hdr));
-+	if (virtqueue_add_inbuf(vb->miscq, &sg_in, 1, vb->miscq_in_hdr,
-+	    GFP_KERNEL) < 0) {
-+		__virtio_clear_bit(vb->vdev,
-+				   VIRTIO_BALLOON_F_MISC_VQ);
-+		dev_warn(&vb->vdev->dev, "%s: add miscq_in_hdr err\n",
-+			 __func__);
-+		return;
-+	}
-+	virtqueue_kick(vb->miscq);
++	return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT;
 +}
 +
-+static void miscq_send_unused_pages(struct virtio_balloon *vb)
-+{
-+	struct virtio_balloon_miscq_hdr *miscq_out_hdr = vb->miscq_out_hdr;
-+	struct virtqueue *vq = vb->miscq;
-+	int ret = 0;
-+	unsigned int order = 0, migratetype = 0;
-+	struct zone *zone = NULL;
-+	struct page *page = NULL;
-+	u64 pfn;
-+
-+	miscq_out_hdr->cmd =  VIRTIO_BALLOON_MISCQ_INQUIRE_UNUSED_PAGES;
-+	miscq_out_hdr->flags = 0;
-+
-+	for_each_populated_zone(zone) {
-+		for (order = MAX_ORDER - 1; order > 0; order--) {
-+			for (migratetype = 0; migratetype < MIGRATE_TYPES;
-+			     migratetype++) {
-+				do {
-+					ret = inquire_unused_page_block(zone,
-+						order, migratetype, &page);
-+					if (!ret) {
-+						pfn = (u64)page_to_pfn(page);
-+						add_one_chunk(vb, vq,
-+							PAGE_CHUNK_TYPE_UNUSED,
-+							pfn,
-+							(u64)(1 << order));
-+					}
-+				} while (!ret);
-+			}
-+		}
-+	}
-+	miscq_out_hdr->flags |= VIRTIO_BALLOON_MISCQ_F_COMPLETE;
-+	send_page_chunks(vb, vq, PAGE_CHUNK_TYPE_UNUSED, true);
-+}
-+
-+static void miscq_handle(struct virtqueue *vq)
-+{
-+	struct virtio_balloon *vb = vq->vdev->priv;
-+	struct virtio_balloon_miscq_hdr *hdr;
-+	unsigned int len;
-+
-+	hdr = virtqueue_get_buf(vb->miscq, &len);
-+	if (!hdr || len != sizeof(struct virtio_balloon_miscq_hdr)) {
-+		dev_warn(&vb->vdev->dev, "%s: invalid miscq hdr len\n",
-+			 __func__);
-+		miscq_in_hdr_add(vb);
-+		return;
-+	}
-+	switch (hdr->cmd) {
-+	case VIRTIO_BALLOON_MISCQ_INQUIRE_UNUSED_PAGES:
-+		miscq_send_unused_pages(vb);
-+		break;
-+	default:
-+		dev_warn(&vb->vdev->dev, "%s: miscq cmd %d not supported\n",
-+			 __func__, hdr->cmd);
-+	}
-+	miscq_in_hdr_add(vb);
-+}
-+
- static int init_vqs(struct virtio_balloon *vb)
+ /* can't do an in-place private mapping if there's no MMU */
+ static inline int private_mapping_ok(struct vm_area_struct *vma)
  {
--	struct virtqueue *vqs[3];
--	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
--	static const char * const names[] = { "inflate", "deflate", "stats" };
--	int err, nvqs;
-+	struct virtqueue **vqs;
-+	vq_callback_t **callbacks;
-+	const char **names;
-+	int err = -ENOMEM;
-+	int i, nvqs;
-+
-+	 /* Inflateq and deflateq are used unconditionally */
-+	nvqs = 2;
-+
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ))
-+		nvqs++;
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ))
-+		nvqs++;
-+
-+	/* Allocate space for find_vqs parameters */
-+	vqs = kcalloc(nvqs, sizeof(*vqs), GFP_KERNEL);
-+	if (!vqs)
-+		goto err_vq;
-+	callbacks = kmalloc_array(nvqs, sizeof(*callbacks), GFP_KERNEL);
-+	if (!callbacks)
-+		goto err_callback;
-+	names = kmalloc_array(nvqs, sizeof(*names), GFP_KERNEL);
-+	if (!names)
-+		goto err_names;
-+
-+	callbacks[0] = balloon_ack;
-+	names[0] = "inflate";
-+	callbacks[1] = balloon_ack;
-+	names[1] = "deflate";
-+
-+	i = 2;
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-+		callbacks[i] = stats_request;
-+		names[i] = "stats";
-+		i++;
-+	}
- 
--	/*
--	 * We expect two virtqueues: inflate and deflate, and
--	 * optionally stat.
--	 */
--	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
--	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
-+	if (virtio_has_feature(vb->vdev,
-+				      VIRTIO_BALLOON_F_MISC_VQ)) {
-+		callbacks[i] = miscq_handle;
-+		names[i] = "miscq";
-+	}
-+
-+	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks,
-+					 names);
- 	if (err)
--		return err;
-+		goto err_find;
- 
- 	vb->inflate_vq = vqs[0];
- 	vb->deflate_vq = vqs[1];
-+	i = 2;
- 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
- 		struct scatterlist sg;
--		vb->stats_vq = vqs[2];
- 
-+		vb->stats_vq = vqs[i++];
- 		/*
- 		 * Prime this virtqueue with one buffer so the hypervisor can
- 		 * use it to signal us later (it can't be broken yet!).
-@@ -718,7 +851,25 @@ static int init_vqs(struct virtio_balloon *vb)
- 			BUG();
- 		virtqueue_kick(vb->stats_vq);
- 	}
-+
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ)) {
-+		vb->miscq = vqs[i];
-+		miscq_in_hdr_add(vb);
-+	}
-+
-+	kfree(names);
-+	kfree(callbacks);
-+	kfree(vqs);
- 	return 0;
-+
-+err_find:
-+	kfree(names);
-+err_names:
-+	kfree(callbacks);
-+err_callback:
-+	kfree(vqs);
-+err_vq:
-+	return err;
+@@ -738,10 +743,74 @@ static int open_port(struct inode *inode
+ 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
  }
  
- #ifdef CONFIG_BALLOON_COMPACTION
-@@ -843,6 +994,32 @@ static void balloon_page_chunk_init(struct virtio_balloon *vb)
- 	}
- }
- 
-+static void miscq_init(struct virtio_balloon *vb)
++static ssize_t read_iter_garbage(struct kiocb *iocb, struct iov_iter *iter)
 +{
-+	void *buf;
++	size_t written = 0;
 +
-+	vb->miscq_in_hdr = kmalloc(sizeof(struct virtio_balloon_miscq_hdr),
-+				   GFP_KERNEL);
-+	buf = kmalloc(sizeof(struct virtio_balloon_miscq_hdr) +
-+		      sizeof(struct virtio_balloon_page_chunk_hdr) +
-+		      sizeof(struct virtio_balloon_page_chunk) *
-+		      MAX_PAGE_CHUNKS, GFP_KERNEL);
-+	if (!vb->miscq_in_hdr || !buf) {
-+		kfree(buf);
-+		kfree(vb->miscq_in_hdr);
-+		__virtio_clear_bit(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ);
-+		dev_warn(&vb->vdev->dev, "%s: failed\n", __func__);
-+	} else {
-+		vb->miscq_out_hdr = buf;
-+		vb->unused_page_chunk_hdr = buf +
-+				sizeof(struct virtio_balloon_miscq_hdr);
-+		vb->unused_page_chunk_hdr->chunks = 0;
-+		vb->unused_page_chunk = buf +
-+				sizeof(struct virtio_balloon_miscq_hdr) +
-+				sizeof(struct virtio_balloon_page_chunk_hdr);
++	while (iov_iter_count(iter)) {
++		written += iov_iter_count(iter);
 +	}
++	return written;
 +}
 +
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-@@ -869,6 +1046,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_BALLOON_CHUNKS))
- 		balloon_page_chunk_init(vb);
- 
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_MISC_VQ))
-+		miscq_init(vb);
++static int garbage_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	struct page *page = vma->vm_file->private_data;
++	vmf->page = page;
++	return 0;
++}
 +
- 	mutex_init(&vb->balloon_lock);
- 	init_waitqueue_head(&vb->acked);
- 	vb->vdev = vdev;
-@@ -946,6 +1126,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
- 
- 	remove_common(vb);
- 	free_page_bmap(vb);
-+	kfree(vb->miscq_out_hdr);
-+	kfree(vb->miscq_in_hdr);
- 	if (vb->vb_dev_info.inode)
- 		iput(vb->vb_dev_info.inode);
- 	kfree(vb);
-@@ -987,6 +1169,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_BALLOON_CHUNKS,
-+	VIRTIO_BALLOON_F_MISC_VQ,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index be317b7..96bdc86 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_BALLOON_CHUNKS 3 /* Inflate/Deflate pages in chunks */
-+#define VIRTIO_BALLOON_F_MISC_VQ	4 /* Virtqueue for misc. requests */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -95,4 +96,11 @@ struct virtio_balloon_page_chunk {
- 	__le64 size;
- };
- 
-+#define VIRTIO_BALLOON_MISCQ_INQUIRE_UNUSED_PAGES 0
-+#define VIRTIO_BALLOON_MISCQ_F_COMPLETE 0x1
-+struct virtio_balloon_miscq_hdr {
-+	__le16 cmd;
-+	__le16 flags;
++const struct vm_operations_struct mmap_garbage_ops = {
++	.fault	 	= garbage_fault,
++	.map_pages	= filemap_map_pages,
 +};
 +
- #endif /* _LINUX_VIRTIO_BALLOON_H */
--- 
-2.7.4
++static int mmap_garbage(struct file *file, struct vm_area_struct *vma)
++{
++#ifndef CONFIG_MMU
++	return -ENOSYS;
++#endif
++	if (vma->vm_file)
++		fput(vma->vm_file);
++	vma->vm_file = get_file(file);
++	vma->vm_ops = &mmap_garbage_ops;
++	return 0;
++}
++
++static unsigned long get_unmapped_area_garbage(struct file *file,
++				unsigned long addr, unsigned long len,
++				unsigned long pgoff, unsigned long flags)
++{
++#ifdef CONFIG_MMU
++	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
++#else
++	return -ENOSYS;
++#endif
++}
++
++static int open_garbage(struct inode *inode, struct file *file)
++{
++	struct page *page = alloc_page(__GFP_ZERO);
++	if (!page)
++		return -ENOMEM;
++	file->private_data = page;
++	return 0;
++}
++
++static int release_garbage(struct inode *inode, struct file *file)
++{
++	struct page *page = file->private_data;
++	__free_page(page);
++	return 0;
++}
++
+ #define zero_lseek	null_lseek
+ #define full_lseek      null_lseek
++#define garbage_lseek   null_lseek
+ #define write_zero	write_null
++#define write_garbage	write_null
+ #define write_iter_zero	write_iter_null
++#define write_iter_garbage	write_iter_null
+ #define open_mem	open_port
+ #define open_kmem	open_mem
+ 
+@@ -803,6 +872,20 @@ static const struct file_operations full
+ 	.write		= write_full,
+ };
+ 
++static const struct file_operations garbage_fops = {
++	.llseek		= garbage_lseek,
++	.write		= write_garbage,
++	.read_iter	= read_iter_garbage,
++	.write_iter	= write_iter_garbage,
++	.mmap		= mmap_garbage,
++	.open		= open_garbage,
++	.release	= release_garbage,
++	.get_unmapped_area = get_unmapped_area_garbage,
++#ifndef CONFIG_MMU
++	.mmap_capabilities = garbage_mmap_capabilities,
++#endif
++};
++
+ static const struct memdev {
+ 	const char *name;
+ 	umode_t mode;
+@@ -826,6 +909,8 @@ static const struct memdev {
+ #ifdef CONFIG_PRINTK
+ 	[11] = { "kmsg", 0644, &kmsg_fops, 0 },
+ #endif
++	/* [12] = { "oldmem", ... } */
++	[13] = { "garbage", 0666, &garbage_fops, 0 },
+ };
+ 
+ static int memory_open(struct inode *inode, struct file *filp)
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1028,7 +1028,11 @@ long populate_vma_page_range(struct vm_a
+ 	 * to break COW, except for shared mappings because these don't COW
+ 	 * and we would not want to dirty them for nothing.
+ 	 */
+-	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
++	vm_flags_t check_shared = VM_SHARED;
++	if (vma->vm_ops == &mmap_garbage_ops)
++		/* This will go to the bin anyway */
++		check_shared = 0;
++	if ((vma->vm_flags & (VM_WRITE | check_shared)) == VM_WRITE)
+ 		gup_flags |= FOLL_WRITE;
+ 
+ 	/*
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2440,5 +2440,7 @@ void __init setup_nr_node_ids(void);
+ static inline void setup_nr_node_ids(void) {}
+ #endif
+ 
++extern const struct vm_operations_struct mmap_garbage_ops;
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
+--- a/Documentation/admin-guide/devices.txt
++++ b/Documentation/admin-guide/devices.txt
+@@ -16,6 +16,7 @@
+ 		 11 = /dev/kmsg		Writes to this come out as printk's, reads
+ 					export the buffered printk records.
+ 		 12 = /dev/oldmem	OBSOLETE - replaced by /proc/vmcore
++		 13 = /dev/garbage	Garbage byte source
+ 
+    1 block	RAM disk
+ 		  0 = /dev/ram0		First RAM disk
+
+--utrjiimipmbqkvfw--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
