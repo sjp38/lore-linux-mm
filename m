@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 72EB96B03C1
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 10:13:20 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 18so6439199wrz.4
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 07:13:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e140si13279580wmd.56.2017.04.13.07.13.19
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 742CD6B0390
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:00:36 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id h72so52546136iod.0
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:00:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y188si9328479itg.69.2017.04.13.09.00.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Apr 2017 07:13:19 -0700 (PDT)
-Date: Thu, 13 Apr 2017 16:13:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 5/9] mm, memory_hotplug: split up register_one_node
-Message-ID: <20170413141316.GC11795@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170410110351.12215-6-mhocko@kernel.org>
- <a06d1e36-f8ae-c8c5-dd2c-e535cf740ed6@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Apr 2017 09:00:35 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3DFxDt6052658
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:00:34 -0400
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29t7g1ffk1-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:00:34 -0400
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 13 Apr 2017 12:00:32 -0400
+Date: Thu, 13 Apr 2017 09:00:27 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH tip/core/rcu 01/13] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20170412165441.GA17149@linux.vnet.ibm.com>
+ <1492016149-18834-1-git-send-email-paulmck@linux.vnet.ibm.com>
+ <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
+ <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a06d1e36-f8ae-c8c5-dd2c-e535cf740ed6@suse.cz>
+In-Reply-To: <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
+Message-Id: <20170413160027.GX3956@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, bobby.prani@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-On Thu 13-04-17 16:05:17, Vlastimil Babka wrote:
-> On 04/10/2017 01:03 PM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
+On Thu, Apr 13, 2017 at 01:06:56PM +0200, Vlastimil Babka wrote:
+> On 04/13/2017 11:12 AM, Peter Zijlstra wrote:
+> > On Wed, Apr 12, 2017 at 09:55:37AM -0700, Paul E. McKenney wrote:
+> >> A group of Linux kernel hackers reported chasing a bug that resulted
+> >> from their assumption that SLAB_DESTROY_BY_RCU provided an existence
+> >> guarantee, that is, that no block from such a slab would be reallocated
+> >> during an RCU read-side critical section.  Of course, that is not the
+> >> case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
+> >> slab of blocks.
 > > 
-> > Memory hotplug (add_memory_resource) has to reinitialize node
-> > infrastructure if the node is offline (one which went through the
-> > complete add_memory(); remove_memory() cycle). That involves node
-> > registration to the kobj infrastructure (register_node), the proper
-> > association with cpus (register_cpu_under_node) and finally creation of
-> > node<->memblock symlinks (link_mem_sections).
+> > And that while we wrote a huge honking comment right along with it...
 > > 
-> > The last part requires to know node_start_pfn and node_spanned_pages
-> > which we currently have but a leter patch will postpone this
-> > initialization to the onlining phase which happens later. In fact we do
-> > not need to rely on the early pgdat initialization even now because the
-> > currently hot added pfn range is currently known.
+> >> [ paulmck: Add "tombstone" comments as requested by Eric Dumazet. ]
 > > 
-> > Split register_one_node into core which does all the common work for
-> > the boot time NUMA initialization and the hotplug (__register_one_node).
-> > register_one_node keeps the full initialization while hotplug calls
-> > __register_one_node and manually calls link_mem_sections for the proper
-> > range.
-> > 
-> > This shouldn't introduce any functional change.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > I cannot find any occurrence of "tomb" or "TOMB" in the actual patch,
+> > confused?
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
-
-> nit:
-> > @@ -1387,7 +1387,22 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
-> >  	node_set_online(nid);
-> >  
-> >  	if (new_node) {
-> > -		ret = register_one_node(nid);
-> > +		unsigned long start_pfn = start >> PAGE_SHIFT;
-> > +		unsigned long nr_pages = size >> PAGE_SHIFT;
-> > +
-> > +		ret = __register_one_node(nid);
-> > +		if (ret)
-> > +			goto register_fail;
-> > +
-> > +		/*
-> > +		 * link memory sections under this node. This is already
-> > +		 * done when creatig memory section in register_new_memory
-> > +		 * but that depends to have the node registered so offline
-> > +		 * nodes have to go through register_node.
-> > +		 * TODO clean up this mess.
+> It's the comments such as:
 > 
-> Is this a work-in-progress or final TODO? :)
+> + * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
+> 
+> so that people who remember the old name can git grep its fate.
 
-I do not plan to address it in this series, but I will revisit it later.
-There are more like this in other patches.
+Exactly!
 
--- 
-Michal Hocko
-SUSE Labs
+But I must confess that "tombstone" was an excessively obscure word
+choice, even for native English speakers.  I have reworded as follows:
+
+[ paulmck: Add comments mentioning the old name, as requested by Eric
+  Dumazet, in order to help people familiar with the old name find
+  the new one. ]
+
+Does that help?
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
