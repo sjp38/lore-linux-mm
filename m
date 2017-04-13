@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 742CD6B0390
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:00:36 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id h72so52546136iod.0
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:00:36 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y188si9328479itg.69.2017.04.13.09.00.34
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D1D5E6B039F
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:01:56 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l44so6715223wrc.11
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:01:56 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 60si36716705wra.123.2017.04.13.09.01.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 09:00:35 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3DFxDt6052658
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:00:34 -0400
-Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29t7g1ffk1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:00:34 -0400
-Received: from localhost
-	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 13 Apr 2017 12:00:32 -0400
-Date: Thu, 13 Apr 2017 09:00:27 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH tip/core/rcu 01/13] mm: Rename SLAB_DESTROY_BY_RCU to
- SLAB_TYPESAFE_BY_RCU
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20170412165441.GA17149@linux.vnet.ibm.com>
- <1492016149-18834-1-git-send-email-paulmck@linux.vnet.ibm.com>
- <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
- <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
+        Thu, 13 Apr 2017 09:01:54 -0700 (PDT)
+Date: Thu, 13 Apr 2017 12:01:47 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
+Message-ID: <20170413160147.GB29727@cmpxchg.org>
+References: <20170317231636.142311-1-timmurray@google.com>
+ <20170330155123.GA3929@cmpxchg.org>
+ <CAEe=SxmpXD=f9N_i+xe6gFUKKUefJYvBd8dSwxSM+7rbBBTniw@mail.gmail.com>
+ <20170413043047.GA16783@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
-Message-Id: <20170413160027.GX3956@linux.vnet.ibm.com>
+In-Reply-To: <20170413043047.GA16783@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, bobby.prani@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Suren Baghdasaryan <surenb@google.com>, Patrik Torstensson <totte@google.com>, Android Kernel Team <kernel-team@android.com>
 
-On Thu, Apr 13, 2017 at 01:06:56PM +0200, Vlastimil Babka wrote:
-> On 04/13/2017 11:12 AM, Peter Zijlstra wrote:
-> > On Wed, Apr 12, 2017 at 09:55:37AM -0700, Paul E. McKenney wrote:
-> >> A group of Linux kernel hackers reported chasing a bug that resulted
-> >> from their assumption that SLAB_DESTROY_BY_RCU provided an existence
-> >> guarantee, that is, that no block from such a slab would be reallocated
-> >> during an RCU read-side critical section.  Of course, that is not the
-> >> case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
-> >> slab of blocks.
+On Thu, Apr 13, 2017 at 01:30:47PM +0900, Minchan Kim wrote:
+> On Thu, Mar 30, 2017 at 12:40:32PM -0700, Tim Murray wrote:
+> > As a result, I think there's still a need for relative priority
+> > between mem cgroups, not just an absolute limit.
 > > 
-> > And that while we wrote a huge honking comment right along with it...
-> > 
-> >> [ paulmck: Add "tombstone" comments as requested by Eric Dumazet. ]
-> > 
-> > I cannot find any occurrence of "tomb" or "TOMB" in the actual patch,
-> > confused?
+> > Does that make sense?
 > 
-> It's the comments such as:
+> I agree with it.
 > 
-> + * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
+> Recently, embedded platform's workload for smart things would be much
+> diverse(from game to alarm) so it's hard to handle the absolute limit
+> proactively and userspace has more hints about what workloads are
+> more important(ie, greedy) compared to others although it would be
+> harmful for something(e.g., it's not visible effect to user)
 > 
-> so that people who remember the old name can git grep its fate.
+> As a such point of view, I support this idea as basic approach.
+> And with thrashing detector from Johannes, we can do fine-tune of
+> LRU balancing and vmpressure shooting time better.
+> 
+> Johannes,
+> 
+> Do you have any concern about this memcg prority idea?
 
-Exactly!
+While I fully agree that relative priority levels would be easier to
+configure, this patch doesn't really do that. It allows you to set a
+scan window divider to a fixed amount and, as I already pointed out,
+the scan window is no longer representative of memory pressure.
 
-But I must confess that "tombstone" was an excessively obscure word
-choice, even for native English speakers.  I have reworded as follows:
+[ Really, sc->priority should probably just be called LRU lookahead
+  factor or something, there is not much about it being representative
+  of any kind of urgency anymore. ]
 
-[ paulmck: Add comments mentioning the old name, as requested by Eric
-  Dumazet, in order to help people familiar with the old name find
-  the new one. ]
+With this patch, if you configure the priorities of two 8G groups to 0
+and 4, reclaim will treat them exactly the same*. If you configure the
+priorities of two 100G groups to 0 and 7, reclaim will treat them
+exactly the same. The bigger the group, the more of the lower range of
+the priority range becomes meaningless, because once the divider
+produces outcomes bigger than SWAP_CLUSTER_MAX(32), it doesn't
+actually bias reclaim anymore.
 
-Does that help?
+So that's not a portable relative scale of pressure discrimination.
 
-							Thanx, Paul
+But the bigger problem with this is that, as sc->priority doesn't
+represent memory pressure anymore, it is merely a cut-off for which
+groups to scan and which groups not to scan *based on their size*.
+
+That is the same as setting memory.low!
+
+* For simplicity, I'm glossing over the fact here that LRUs are split
+  by type and into inactive/active, so in reality the numbers are a
+  little different, but you get the point.
+
+> Or
+> Do you think the patchset you are preparing solve this situation?
+
+It's certainly a requirement. In order to implement a relative scale
+of memory pressure discrimination, we first need to be able to really
+quantify memory pressure.
+
+Then we can either allow setting absolute latency/slowdown minimums
+for each group, with reclaim skipping groups above those thresholds,
+or we can map a relative priority scale against the total slowdown due
+to lack of memory in the system, and each group gets a relative share
+based on its priority compared to other groups.
+
+But there is no way around first having a working measure of memory
+pressure before we can meaningfully distribute it among the groups.
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
