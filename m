@@ -1,145 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B1B116B0390
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:03:13 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v6so5192942wrc.21
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 23:03:13 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 94si34517449wrj.209.2017.04.12.23.03.11
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 325CD6B0390
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:06:33 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u18so5200748wrc.17
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 23:06:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p9si34525717wrd.131.2017.04.12.23.06.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 23:03:12 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3D5wuRJ046108
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:03:11 -0400
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29t26c2y7n-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:03:10 -0400
-Received: from localhost
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 13 Apr 2017 16:03:08 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3D62vZr53018688
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 16:03:05 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3D62WdZ015572
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 16:02:33 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-In-Reply-To: <20170328175408.GD7838@bombadil.infradead.org>
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net> <20170328165343.GB27446@linux-80c1.suse> <20170328165513.GC27446@linux-80c1.suse> <20170328175408.GD7838@bombadil.infradead.org>
-Date: Thu, 13 Apr 2017 11:32:09 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 12 Apr 2017 23:06:31 -0700 (PDT)
+Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race with
+ cpuset update
+References: <20170411140609.3787-1-vbabka@suse.cz>
+ <20170411140609.3787-2-vbabka@suse.cz>
+ <95469f35-56e9-7dc4-b7fd-a3e8c25bdff3@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2dbcff3c-f0f1-b568-f98c-519dd98c6e63@suse.cz>
+Date: Thu, 13 Apr 2017 08:06:29 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87wpaoq1zy.fsf@skywalker.in.ibm.com>
+In-Reply-To: <95469f35-56e9-7dc4-b7fd-a3e8c25bdff3@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, akpm@linux-foundation.org, mhocko@suse.com, ak@linux.intel.com, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Matthew Wilcox <willy@infradead.org> writes:
+On 04/13/2017 07:42 AM, Anshuman Khandual wrote:
+> On 04/11/2017 07:36 PM, Vlastimil Babka wrote:
+>> Commit e47483bca2cc ("mm, page_alloc: fix premature OOM when racing with cpuset
+>> mems update") has fixed known recent regressions found by LTP's cpuset01
+>> testcase. I have however found that by modifying the testcase to use per-vma
+>> mempolicies via bind(2) instead of per-task mempolicies via set_mempolicy(2),
+>> the premature OOM still happens and the issue is much older.
+> 
+> Meanwhile while we are discussing this RFC, will it be better to WARN
+> out these situations where we dont have node in the intersection,
+> hence no usable zone during allocation. That might actually give
+> a hint to the user before a premature OOM/allocation failure comes.
 
-> On Tue, Mar 28, 2017 at 09:55:13AM -0700, Davidlohr Bueso wrote:
->> Do we have any consensus here? Keeping SHM_HUGE_* is currently
->> winning 2-1. If there are in fact users out there computing the
->> value manually, then I am ok with keeping it and properly exporting
->> it. Michal?
->
-> Well, let's see what it looks like to do that.  I went down the rabbit
-> hole trying to understand why some of the SHM_ flags had the same value
-> as each other until I realised some of them were internal flags, some
-> were flags to shmat() and others were flags to shmget().  Hopefully I
-> disambiguated them nicely in this patch.  I also added 8MB and 16GB sizes.
-> Any more architectures with a pet favourite huge/giant page size we
-> should add convenience defines for?
->
-> diff --git a/include/linux/shm.h b/include/linux/shm.h
-> index 04e881829625..cd95243efd1a 100644
-> --- a/include/linux/shm.h
-> +++ b/include/linux/shm.h
-> @@ -24,26 +24,13 @@ struct shmid_kernel /* private to the kernel */
->  	struct list_head	shm_clist;	/* list by creator */
->  };
->  
-> -/* shm_mode upper byte flags */
-> -#define	SHM_DEST	01000	/* segment will be destroyed on last detach */
-> -#define SHM_LOCKED      02000   /* segment will not be swapped */
-> -#define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
-> -#define SHM_NORESERVE   010000  /* don't check for reservations */
-> -
-> -/* Bits [26:31] are reserved */
-> -
->  /*
-> - * When SHM_HUGETLB is set bits [26:31] encode the log2 of the huge page size.
-> - * This gives us 6 bits, which is enough until someone invents 128 bit address
-> - * spaces.
-> - *
-> - * Assume these are all power of twos.
-> - * When 0 use the default page size.
-> + * These flags are used internally; they cannot be specified by the user.
-> + * They are masked off in newseg().  These values are used by IPC_CREAT
-> + * and IPC_EXCL when calling shmget().
->   */
-> -#define SHM_HUGE_SHIFT  26
-> -#define SHM_HUGE_MASK   0x3f
-> -#define SHM_HUGE_2MB    (21 << SHM_HUGE_SHIFT)
-> -#define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
-> +#define	SHM_DEST	01000	/* segment will be destroyed on last detach */
-> +#define SHM_LOCKED      02000   /* segment will not be swapped */
->  
->  #ifdef CONFIG_SYSVIPC
->  struct sysv_shm {
-> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-> index 1fbf24ea37fd..44b36cb228d7 100644
-> --- a/include/uapi/linux/shm.h
-> +++ b/include/uapi/linux/shm.h
-> @@ -40,15 +40,34 @@ struct shmid_ds {
->  /* Include the definition of shmid64_ds and shminfo64 */
->  #include <asm/shmbuf.h>
->  
-> -/* permission flag for shmget */
-> +/* shmget() shmflg values. */
-> +/* The bottom nine bits are the same as open(2) mode flags */
->  #define SHM_R		0400	/* or S_IRUGO from <linux/stat.h> */
->  #define SHM_W		0200	/* or S_IWUGO from <linux/stat.h> */
-> +/* Bits 9 & 10 are IPC_CREAT and IPC_EXCL */
-> +#define SHM_HUGETLB     (1 << 11) /* segment will use huge TLB pages */
-> +#define SHM_NORESERVE   (1 << 12) /* don't check for reservations */
->  
-> -/* mode for attach */
-> -#define	SHM_RDONLY	010000	/* read-only access */
-> -#define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
-> -#define	SHM_REMAP	040000	/* take-over region on attach */
-> -#define	SHM_EXEC	0100000	/* execution access */
-> +/*
-> + * When SHM_HUGETLB is set bits [26:31] encode the log2 of the huge page size.
-> + * This gives us 6 bits, which is enough until someone invents 128 bit address
-> + * spaces.  These match MAP_HUGE_SHIFT and MAP_HUGE_MASK.
-> + *
-> + * Assume these are all powers of two.
-> + * When 0 use the default page size.
-> + */
-> +#define SHM_HUGE_SHIFT	26
-> +#define SHM_HUGE_MASK	0x3f
-> +#define SHM_HUGE_2MB	(21 << SHM_HUGE_SHIFT)
-> +#define SHM_HUGE_8MB	(23 << SHM_HUGE_SHIFT)
-> +#define SHM_HUGE_1GB	(30 << SHM_HUGE_SHIFT)
-> +#define SHM_HUGE_16GB	(34 << SHM_HUGE_SHIFT)
+Well, the bug is very old and nobody reported it so far, AFAIK. So it's
+not that urgent.
 
+>>
+>> The root of the problem is that the cpuset's mems_allowed and mempolicy's
+>> nodemask can temporarily have no intersection, thus get_page_from_freelist()
+>> cannot find any usable zone. The current semantic for empty intersection is to
+>> ignore mempolicy's nodemask and honour cpuset restrictions. This is checked in
+>> node_zonelist(), but the racy update can happen after we already passed the
+>> check. Such races should be protected by the seqlock task->mems_allowed_seq,
+>> but it doesn't work here, because 1) mpol_rebind_mm() does not happen under
+>> seqlock for write, and doing so would lead to deadlock, as it takes mmap_sem
+>> for write, while the allocation can have mmap_sem for read when it's taking the
+>> seqlock for read. And 2) the seqlock cookie of callers of node_zonelist()
+>> (alloc_pages_vma() and alloc_pages_current()) is different than the one of
+>> __alloc_pages_slowpath(), so there's still a potential race window.
+>>
+>> This patch fixes the issue by having __alloc_pages_slowpath() check for empty
+>> intersection of cpuset and ac->nodemask before OOM or allocation failure. If
+>> it's indeed empty, the nodemask is ignored and allocation retried, which mimics
+>> node_zonelist(). This works fine, because almost all callers of
+>> __alloc_pages_nodemask are obtaining the nodemask via node_zonelist(). The only
+>> exception is new_node_page() from hotplug, where the potential violation of
+>> nodemask isn't an issue, as there's already a fallback allocation attempt
+>> without any nodemask. If there's a future caller that needs to have its specific
+>> nodemask honoured over task's cpuset restrictions, we'll have to e.g. add a gfp
+>> flag for that.
+> 
+> Did you really mean node_zonelist() in both the instances above. Because
+> that function just picks up either FALLBACK_ZONELIST or NOFALLBACK_ZONELIST
+> depending upon the passed GFP flags in the allocation request and does not
+> deal with ignoring the passed nodemask.
 
-This should be in arch/uapi like MAP_HUGE_2M ? That will let arch add
-#defines based on the hugepae size supported by them.
-
-> +
-> +/* shmat() shmflg values */
-> +#define	SHM_RDONLY	(1 << 12) /* read-only access */
-> +#define	SHM_RND		(1 << 13) /* round attach address to SHMLBA boundary */
-> +#define	SHM_REMAP	(1 << 14) /* take-over region on attach */
-> +#define	SHM_EXEC	(1 << 15) /* execution access */
->  
-
--aneesh
+Oops, I meant policy_zonelist(), thanks for noticing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
