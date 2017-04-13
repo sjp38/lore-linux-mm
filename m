@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D44E6B03AE
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 07:31:27 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u195so31883295pgb.1
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 04:31:27 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id l23si23743611pli.42.2017.04.13.04.31.26
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 434B26B03AF
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 07:31:52 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p21so29247784pgc.21
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 04:31:52 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id g20si23676887pfe.360.2017.04.13.04.31.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 04:31:26 -0700 (PDT)
+        Thu, 13 Apr 2017 04:31:51 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 6/9] x86/mm: Make kernel_physical_mapping_init() support 5-level paging
-Date: Thu, 13 Apr 2017 14:30:35 +0300
-Message-Id: <20170413113038.3167-7-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 1/9] x86/asm: Fix comment in return_from_SYSCALL_64
+Date: Thu, 13 Apr 2017 14:30:30 +0300
+Message-Id: <20170413113038.3167-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170413113038.3167-1-kirill.shutemov@linux.intel.com>
 References: <4c8cd9a9-2013-2a74-6bea-d7dc7207abb1@virtuozzo.com>
  <20170413113038.3167-1-kirill.shutemov@linux.intel.com>
@@ -21,111 +21,27 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Populate additional page table level if CONFIG_X86_5LEVEL is enabled.
+On x86-64 __VIRTUAL_MASK_SHIFT depends on paging mode now.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/init_64.c | 69 ++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 60 insertions(+), 9 deletions(-)
+ arch/x86/entry/entry_64.S | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 0b62b13e8655..53cd9fb5027b 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -620,6 +620,57 @@ phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
- 	return paddr_last;
- }
- 
-+static unsigned long __meminit
-+phys_p4d_init(p4d_t *p4d_page, unsigned long paddr, unsigned long paddr_end,
-+	      unsigned long page_size_mask)
-+{
-+	unsigned long paddr_next, paddr_last = paddr_end;
-+	unsigned long vaddr = (unsigned long)__va(paddr);
-+	int i = p4d_index(vaddr);
-+
-+	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
-+		return phys_pud_init((pud_t *) p4d_page, paddr, paddr_end, page_size_mask);
-+
-+	for (; i < PTRS_PER_P4D; i++, paddr = paddr_next) {
-+		p4d_t *p4d;
-+		pud_t *pud;
-+
-+		vaddr = (unsigned long)__va(paddr);
-+		p4d = p4d_page + p4d_index(vaddr);
-+		paddr_next = (paddr & P4D_MASK) + P4D_SIZE;
-+
-+		if (paddr >= paddr_end) {
-+			if (!after_bootmem &&
-+			    !e820__mapped_any(paddr & P4D_MASK, paddr_next,
-+					     E820_TYPE_RAM) &&
-+			    !e820__mapped_any(paddr & P4D_MASK, paddr_next,
-+					     E820_TYPE_RESERVED_KERN))
-+				set_p4d(p4d, __p4d(0));
-+			continue;
-+		}
-+
-+		if (!p4d_none(*p4d)) {
-+			pud = pud_offset(p4d, 0);
-+			paddr_last = phys_pud_init(pud, paddr,
-+					paddr_end,
-+					page_size_mask);
-+			__flush_tlb_all();
-+			continue;
-+		}
-+
-+		pud = alloc_low_page();
-+		paddr_last = phys_pud_init(pud, paddr, paddr_end,
-+					   page_size_mask);
-+
-+		spin_lock(&init_mm.page_table_lock);
-+		p4d_populate(&init_mm, p4d, pud);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+	__flush_tlb_all();
-+
-+	return paddr_last;
-+}
-+
- /*
-  * Create page table mapping for the physical memory for specific physical
-  * addresses. The virtual and physical addresses have to be aligned on PMD level
-@@ -641,26 +692,26 @@ kernel_physical_mapping_init(unsigned long paddr_start,
- 	for (; vaddr < vaddr_end; vaddr = vaddr_next) {
- 		pgd_t *pgd = pgd_offset_k(vaddr);
- 		p4d_t *p4d;
--		pud_t *pud;
- 
- 		vaddr_next = (vaddr & PGDIR_MASK) + PGDIR_SIZE;
- 
--		BUILD_BUG_ON(pgd_none(*pgd));
--		p4d = p4d_offset(pgd, vaddr);
--		if (p4d_val(*p4d)) {
--			pud = (pud_t *)p4d_page_vaddr(*p4d);
--			paddr_last = phys_pud_init(pud, __pa(vaddr),
-+		if (pgd_val(*pgd)) {
-+			p4d = (p4d_t *)pgd_page_vaddr(*pgd);
-+			paddr_last = phys_p4d_init(p4d, __pa(vaddr),
- 						   __pa(vaddr_end),
- 						   page_size_mask);
- 			continue;
- 		}
- 
--		pud = alloc_low_page();
--		paddr_last = phys_pud_init(pud, __pa(vaddr), __pa(vaddr_end),
-+		p4d = alloc_low_page();
-+		paddr_last = phys_p4d_init(p4d, __pa(vaddr), __pa(vaddr_end),
- 					   page_size_mask);
- 
- 		spin_lock(&init_mm.page_table_lock);
--		p4d_populate(&init_mm, p4d, pud);
-+		if (IS_ENABLED(CONFIG_X86_5LEVEL))
-+			pgd_populate(&init_mm, pgd, p4d);
-+		else
-+			p4d_populate(&init_mm, p4d_offset(pgd, vaddr), (pud_t *) p4d);
- 		spin_unlock(&init_mm.page_table_lock);
- 		pgd_changed = true;
- 	}
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index 607d72c4a485..edec30584eb8 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -266,7 +266,8 @@ return_from_SYSCALL_64:
+ 	 * If width of "canonical tail" ever becomes variable, this will need
+ 	 * to be updated to remain correct on both old and new CPUs.
+ 	 *
+-	 * Change top 16 bits to be the sign-extension of 47th bit
++	 * Change top bits to match most significant bit (47th or 56th bit
++	 * depending on paging mode) in the address.
+ 	 */
+ 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+ 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
 -- 
 2.11.0
 
