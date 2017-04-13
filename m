@@ -1,105 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 367696B0390
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 00:17:16 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b10so27251734pgn.8
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 21:17:16 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a67si22537999pfb.345.2017.04.12.21.17.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 21:17:15 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3D4Fum3016529
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 00:17:14 -0400
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com [125.16.236.1])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29ssdktnsp-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 00:17:14 -0400
-Received: from localhost
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 13 Apr 2017 09:47:11 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay10.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3D4FkbV14090452
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:45:46 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3D4H50G018568
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:47:07 +0530
-Subject: Re: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from
- removing the areas
-References: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 13 Apr 2017 09:47:03 +0530
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 934E16B039F
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 00:30:52 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j16so25771460pfk.4
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 21:30:52 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id q21si22578559pgi.88.2017.04.12.21.30.50
+        for <linux-mm@kvack.org>;
+        Wed, 12 Apr 2017 21:30:51 -0700 (PDT)
+Date: Thu, 13 Apr 2017 13:30:47 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
+Message-ID: <20170413043047.GA16783@bbox>
+References: <20170317231636.142311-1-timmurray@google.com>
+ <20170330155123.GA3929@cmpxchg.org>
+ <CAEe=SxmpXD=f9N_i+xe6gFUKKUefJYvBd8dSwxSM+7rbBBTniw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <c900f2f4-8b0c-cc0e-afb7-a03cd1458e4c@linux.vnet.ibm.com>
+In-Reply-To: <CAEe=SxmpXD=f9N_i+xe6gFUKKUefJYvBd8dSwxSM+7rbBBTniw@mail.gmail.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hoeun Ryu <hoeun.ryu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tim Murray <timmurray@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Suren Baghdasaryan <surenb@google.com>, Patrik Torstensson <totte@google.com>, Android Kernel Team <kernel-team@android.com>
 
-On 04/12/2017 10:31 AM, Hoeun Ryu wrote:
-> vm_area_add_early/vm_area_register_early() are used to reserve vmalloc area
-> during boot process and those virtually mapped areas are never unmapped.
-> So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
-> existing vmlist entries and prevent those areas from being removed from the
-> rbtree by accident.
+On Thu, Mar 30, 2017 at 12:40:32PM -0700, Tim Murray wrote:
+> On Thu, Mar 30, 2017 at 8:51 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > In cgroup2, we've added a memory.low knob, where groups within their
+> > memory.low setting are not reclaimed.
+> >
+> > You can set that knob on foreground groups to the amount of memory
+> > they need to function properly, and set it to 0 on background groups.
+> >
+> > Have you tried doing that?
+> 
+> I have not, but I'm trying to get that working now to evaluate it on Android.
+> 
+> However, based on other experiences, I don't think it will work well.
+> We've experimented a lot with different limits in different places
+> (Java heap limits, hard_reclaim, soft_reclaim) at different times in
+> the process lifecycle, and the problem has always been that there's no
+> way for us to know what limit is reasonable. memory.low will have the
+> same problem. If memory.low is higher than the actual working set of a
+> foreground process, the system wastes memory (eg, file pages loaded
+> during app startup that are never used again won't be reclaimed under
+> pressure). If memory.low is less than the actual working set,
+> foreground processes will still get hit by thrashing.
+> 
+> Another issue is that the working set varies tremendously from app to
+> app. An email client's working set may be 1/10 or 1/20 of a camera
+> running a computational photography pipeline with multiple captures in
+> flight. I can imagine a case where it makes sense for a foreground
+> application to take 50-75% of a device's physical memory (the camera
+> case or something similar), but I hope that's an extreme outlier
+> compared to most apps on the system. However, high-memory apps are
+> often the most performance-sensitive, so reclaim is more likely to
+> cause problems.
+> 
+> As a result, I think there's still a need for relative priority
+> between mem cgroups, not just an absolute limit.
+> 
+> Does that make sense?
 
-I am wondering whether protection against accidental deletion
-of any vmap area should be done in remove_vm_area() function
-or the callers should take care of it. But I guess either way
-it works.
+I agree with it.
+
+Recently, embedded platform's workload for smart things would be much
+diverse(from game to alarm) so it's hard to handle the absolute limit
+proactively and userspace has more hints about what workloads are
+more important(ie, greedy) compared to others although it would be
+harmful for something(e.g., it's not visible effect to user)
+
+As a such point of view, I support this idea as basic approach.
+And with thrashing detector from Johannes, we can do fine-tune of
+LRU balancing and vmpressure shooting time better.
+
+Johannes,
+
+Do you have any concern about this memcg prority idea?
+Or
+Do you think the patchset you are preparing solve this situation?
 
 > 
-> Signed-off-by: Hoeun Ryu <hoeun.ryu@gmail.com>
-> ---
->  include/linux/vmalloc.h | 1 +
->  mm/vmalloc.c            | 9 ++++++---
->  2 files changed, 7 insertions(+), 3 deletions(-)
+> > Both vmpressure and priority levels are based on reclaim efficiency,
+> > which is problematic on solid state storage because page reads have
+> > very low latency. It's rare that pages are still locked from the
+> > read-in by the time reclaim gets to them on the LRU, so efficiency
+> > tends to stay at 100%, until the system is essentially livelocked.
+> >
+> > On solid state storage, the bigger problem when you don't have enough
+> > memory is that you can reclaim just fine but wait a significant amount
+> > of time to refault the recently evicted pages, i.e. on thrashing.
+> >
+> > A more useful metric for memory pressure at this point is quantifying
+> > that time you spend thrashing: time the job spends in direct reclaim
+> > and on the flipside time the job waits for recently evicted pages to
+> > come back. Combined, that gives you a good measure of overhead from
+> > memory pressure; putting that in relation to a useful baseline of
+> > meaningful work done gives you a portable scale of how effictively
+> > your job is running.
 > 
-> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-> index 46991ad..3df53fc 100644
-> --- a/include/linux/vmalloc.h
-> +++ b/include/linux/vmalloc.h
-> @@ -19,6 +19,7 @@ struct notifier_block;		/* in notifier.h */
->  #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
->  #define VM_NO_GUARD		0x00000040      /* don't add guard page */
->  #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
-> +#define VM_STATIC		0x00000200
-
-You might want to add some description in the comment saying
-its a sticky VM area which will never go away or something.
-
->  /* bits [20..32] reserved for arch specific ioremap internals */
->  
->  /*
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 8ef8ea1..fb5049a 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1262,7 +1262,7 @@ void __init vmalloc_init(void)
->  	/* Import existing vmlist entries. */
->  	for (tmp = vmlist; tmp; tmp = tmp->next) {
->  		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
-> -		va->flags = VM_VM_AREA;
-> +		va->flags = VM_VM_AREA | VM_STATIC;
->  		va->va_start = (unsigned long)tmp->addr;
->  		va->va_end = va->va_start + tmp->size;
->  		va->vm = tmp;
-> @@ -1480,7 +1480,7 @@ struct vm_struct *remove_vm_area(const void *addr)
->  	might_sleep();
->  
->  	va = find_vmap_area((unsigned long)addr);
-> -	if (va && va->flags & VM_VM_AREA) {
-> +	if (va && va->flags & VM_VM_AREA && likely(!(va->flags & VM_STATIC))) {
-
-
-You might want to move the VM_STATIC check before the VM_VM_AREA
-check so in cases where the former is set we can save one more
-conditional check.
+> This sounds fantastic, and it matches the behavior I've seen around
+> pagecache thrashing on Android.
+> 
+> On Android, I think there are three different times where userspace
+> would do something useful for memory:
+> 
+> 1. scan priority is creeping up, scanned/reclaim ratio is getting
+> worse, system is exhibiting signs of approaching severe memory
+> pressure. userspace should probably kill something if it's got
+> something it can kill cheaply.
+> 2. direct reclaim is happening, system is thrashing, things are bad.
+> userspace should aggressively kill non-critical processes because
+> performance has already gotten worse.
+> 3. something's gone horribly wrong, oom_killer is imminent: userspace
+> should kill everything it possibly can to keep the system stable.
+> 
+> My vmpressure experiments have focused on #1 because it integrates
+> nicely with memcg priorities. However, it doesn't seem like a good
+> approach for #2 or #3. Time spent thrashing sounds ideal for #2. I'm
+> not sure what to do for #3. The current critical vmpressure event
+> hasn't been that successful in avoiding oom-killer (on 3.18, at
+> least)--I've been able to get oom-killer to trigger without a
+> vmpressure event.
+> 
+> Assuming that memcg priorities are reasonable, would you be open to
+> using scan priority info as a vmpressure signal for a low amount of
+> memory pressure?
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
