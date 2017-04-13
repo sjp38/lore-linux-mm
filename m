@@ -1,48 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CF306B03A0
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:03:50 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n5so6746383wrb.7
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:03:50 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m194si13689299wmb.55.2017.04.13.09.03.48
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E1B6B03A3
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 12:17:22 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id b187so47053700oif.11
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 09:17:22 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id e194si10704437oib.0.2017.04.13.09.17.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 09:03:49 -0700 (PDT)
-Date: Thu, 13 Apr 2017 12:03:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 0/1] add support for reclaiming priorities per mem cgroup
-Message-ID: <20170413160343.GC29727@cmpxchg.org>
-References: <20170317231636.142311-1-timmurray@google.com>
- <20170330155123.GA3929@cmpxchg.org>
- <CALvZod7Dr+YaYcSpUYCMAjotnU4hH=TnZWaL6mbBzLq=O3GJTA@mail.gmail.com>
+        Thu, 13 Apr 2017 09:17:21 -0700 (PDT)
+Date: Thu, 13 Apr 2017 18:17:09 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH tip/core/rcu 01/13] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+Message-ID: <20170413161709.ej3qxuqitykhqtyf@hirez.programming.kicks-ass.net>
+References: <20170412165441.GA17149@linux.vnet.ibm.com>
+ <1492016149-18834-1-git-send-email-paulmck@linux.vnet.ibm.com>
+ <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
+ <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod7Dr+YaYcSpUYCMAjotnU4hH=TnZWaL6mbBzLq=O3GJTA@mail.gmail.com>
+In-Reply-To: <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, surenb@google.com, totte@google.com, kernel-team@android.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, bobby.prani@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-On Thu, Mar 30, 2017 at 09:48:55AM -0700, Shakeel Butt wrote:
-> > A more useful metric for memory pressure at this point is quantifying
-> > that time you spend thrashing: time the job spends in direct reclaim
-> > and on the flipside time the job waits for recently evicted pages to
-> > come back. Combined, that gives you a good measure of overhead from
-> > memory pressure; putting that in relation to a useful baseline of
-> > meaningful work done gives you a portable scale of how effictively
-> > your job is running.
-> >
-> > I'm working on that right now, hopefully I'll have something useful
-> > soon.
+On Thu, Apr 13, 2017 at 01:06:56PM +0200, Vlastimil Babka wrote:
+> On 04/13/2017 11:12 AM, Peter Zijlstra wrote:
+> > On Wed, Apr 12, 2017 at 09:55:37AM -0700, Paul E. McKenney wrote:
+> >> A group of Linux kernel hackers reported chasing a bug that resulted
+> >> from their assumption that SLAB_DESTROY_BY_RCU provided an existence
+> >> guarantee, that is, that no block from such a slab would be reallocated
+> >> during an RCU read-side critical section.  Of course, that is not the
+> >> case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
+> >> slab of blocks.
+> > 
+> > And that while we wrote a huge honking comment right along with it...
+> > 
+> >> [ paulmck: Add "tombstone" comments as requested by Eric Dumazet. ]
+> > 
+> > I cannot find any occurrence of "tomb" or "TOMB" in the actual patch,
+> > confused?
 > 
-> Johannes, is the work you are doing only about file pages or will it
-> equally apply to anon pages as well?
+> It's the comments such as:
+> 
+> + * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
+> 
+> so that people who remember the old name can git grep its fate.
 
-It will work on both, with the caveat that *any* swapin is counted as
-memory delay, whereas only cache misses of recently evicted entries
-count toward it (we don't have timestamped shadow entries for anon).
+git log -S SLAB_DESTROY_BY_RCU
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
