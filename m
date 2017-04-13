@@ -1,84 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 59A566B039F
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:20:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j16so28450213pfk.4
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:20:21 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id m2si23421245pgn.69.2017.04.13.02.20.20
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ED2BD6B039F
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:40:01 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 63so20994640pgh.3
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 02:40:01 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q7si23444825pfq.336.2017.04.13.02.40.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 02:20:20 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3D9J3kT000588
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:20:20 -0400
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com [125.16.236.1])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29sw2am9ej-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:20:19 -0400
-Received: from localhost
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 13 Apr 2017 14:50:16 +0530
-Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
-	by d28relay08.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3D9IqhN15728698
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 14:48:52 +0530
-Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
-	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3D9KEEc010025
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 14:50:14 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] mm/madvise: Move up the behavior parameter validation
-Date: Thu, 13 Apr 2017 14:50:08 +0530
-Message-Id: <20170413092008.5437-1-khandual@linux.vnet.ibm.com>
+        Thu, 13 Apr 2017 02:40:01 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v9 0/5] Extend virtio-balloon for fast (de)inflating & fast live migration
+Date: Thu, 13 Apr 2017 17:35:03 +0800
+Message-Id: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com
 
-The madvise_behavior_valid() function should be called before
-acting upon the behavior parameter. Hence move up the function.
-This also includes MADV_SOFT_OFFLINE and MADV_HWPOISON options
-as valid behavior parameter for the system call madvise().
+This patch series implements two optimizations:
+1) transfer pages in chuncks between the guest and host;
+2) transfer the guest unused pages to the host so that they
+can be skipped to migrate in live migration.
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
-This applies on top of the other madvise clean up patch I sent
-earlier this week https://patchwork.kernel.org/patch/9672095/
+Changes:
+v8->v9:
+1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
+VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
+implementation;
+2) Simpler function to get the free page block.
 
- mm/madvise.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+v7->v8:
+1) Use only one chunk format, instead of two.
+2) re-write the virtio-balloon implementation patch.
+3) commit changes
+4) patch re-org
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index efd4721..3cb427a 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -694,6 +694,8 @@ static int madvise_inject_error(int behavior,
- #endif
- 	case MADV_DONTDUMP:
- 	case MADV_DODUMP:
-+	case MADV_SOFT_OFFLINE:
-+	case MADV_HWPOISON:
- 		return true;
- 
- 	default:
-@@ -767,12 +769,13 @@ static int madvise_inject_error(int behavior,
- 	size_t len;
- 	struct blk_plug plug;
- 
-+	if (!madvise_behavior_valid(behavior))
-+		return error;
-+
- #ifdef CONFIG_MEMORY_FAILURE
- 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
- 		return madvise_inject_error(behavior, start, start + len_in);
- #endif
--	if (!madvise_behavior_valid(behavior))
--		return error;
- 
- 	if (start & ~PAGE_MASK)
- 		return error;
+Liang Li (1):
+  virtio-balloon: deflate via a page list
+
+Wei Wang (4):
+  virtio-balloon: VIRTIO_BALLOON_F_BALLOON_CHUNKS
+  mm: function to offer a page block on the free list
+  mm: export symbol of next_zone and first_online_pgdat
+  virtio-balloon: VIRTIO_BALLOON_F_MISC_VQ
+
+ drivers/virtio/virtio_balloon.c     | 615 +++++++++++++++++++++++++++++++++---
+ include/linux/mm.h                  |   3 +
+ include/uapi/linux/virtio_balloon.h |  21 ++
+ mm/mmzone.c                         |   2 +
+ mm/page_alloc.c                     |  87 +++++
+ 5 files changed, 678 insertions(+), 50 deletions(-)
+
 -- 
-1.8.5.2
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
