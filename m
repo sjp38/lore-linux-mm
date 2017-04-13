@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B30996B03B7
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 08:46:35 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q25so30626942pfg.6
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:46:35 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id k18si12087808pgn.22.2017.04.13.05.46.34
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 27D396B03B9
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 08:59:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b124so2901276wmf.6
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 05:59:04 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r2si20724805wra.223.2017.04.13.05.59.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 05:46:34 -0700 (PDT)
-Date: Thu, 13 Apr 2017 05:46:33 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm,hugetlb: compute page_size_log properly
-Message-ID: <20170413124633.GG784@bombadil.infradead.org>
-References: <1488992761-9464-1-git-send-email-dave@stgolabs.net>
- <20170328165343.GB27446@linux-80c1.suse>
- <20170328165513.GC27446@linux-80c1.suse>
- <20170328175408.GD7838@bombadil.infradead.org>
- <87wpaoq1zy.fsf@skywalker.in.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Apr 2017 05:59:02 -0700 (PDT)
+Subject: Re: [PATCH 3/9] mm: drop page_initialized check from get_nid_for_pfn
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170410110351.12215-4-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1157048b-512d-277b-b005-3703ffec4907@suse.cz>
+Date: Thu, 13 Apr 2017 14:59:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87wpaoq1zy.fsf@skywalker.in.ibm.com>
+In-Reply-To: <20170410110351.12215-4-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, ak@linux.intel.com, mtk.manpages@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Apr 13, 2017 at 11:32:09AM +0530, Aneesh Kumar K.V wrote:
-> > +#define SHM_HUGE_SHIFT	26
-> > +#define SHM_HUGE_MASK	0x3f
-> > +#define SHM_HUGE_2MB	(21 << SHM_HUGE_SHIFT)
-> > +#define SHM_HUGE_8MB	(23 << SHM_HUGE_SHIFT)
-> > +#define SHM_HUGE_1GB	(30 << SHM_HUGE_SHIFT)
-> > +#define SHM_HUGE_16GB	(34 << SHM_HUGE_SHIFT)
+On 04/10/2017 01:03 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> This should be in arch/uapi like MAP_HUGE_2M ? That will let arch add
-> #defines based on the hugepae size supported by them.
+> c04fc586c1a4 ("mm: show node to memory section relationship with
+> symlinks in sysfs") has added means to export memblock<->node
+> association into the sysfs. It has also introduced get_nid_for_pfn
+> which is a rather confusing counterpart of pfn_to_nid which checks also
+> whether the pfn page is already initialized (page_initialized).  This
+> is done by checking page::lru != NULL which doesn't make any sense at
+> all. Nothing in this path really relies on the lru list being used or
+> initialized. Just remove it because this will become a problem with
+> later patches.
+> 
+> Thanks to Reza Arbab for testing which revealed this to be a problem
+> (http://lkml.kernel.org/r/20170403202337.GA12482@dhcp22.suse.cz)
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Well, what do we want to happen if source code contains SHM_HUGE_2MB?
-Do we want it to fail to compile on ppc, or do we want it to request 2MB
-pages and get ... hmm, looks like it fails at runtime (size_to_hstate
-ends up returning NULL).  So, yeah, looks like a compile-time failure
-would be better.
-
-But speaking of MAP_HUGE_, the only definitions so far are in arch/x86.
-Are you going to add the ppc versions?
-
-Also, which header file?  I'm reluctant to add a new header, but
-asm/shmbuf.h doesn't seem like a great place to put it.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
