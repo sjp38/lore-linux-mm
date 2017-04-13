@@ -1,63 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AB816B0390
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 20:17:15 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id f5so23464429pff.13
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 17:17:15 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 64si12091319plk.272.2017.04.12.17.17.13
-        for <linux-mm@kvack.org>;
-        Wed, 12 Apr 2017 17:17:14 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/3] zsmalloc: expand class bit
-Date: Thu, 13 Apr 2017 09:17:02 +0900
-Message-ID: <1492042622-12074-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1492042622-12074-1-git-send-email-minchan@kernel.org>
-References: <1492042622-12074-1-git-send-email-minchan@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 748426B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 21:03:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 89so3865285pfj.9
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 18:03:22 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id w5si22045417pgf.403.2017.04.12.18.03.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Apr 2017 18:03:21 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id o123so8206752pga.1
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 18:03:21 -0700 (PDT)
+Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from
+ removing the areas
+From: Ho-Eun Ryu <hoeun.ryu@gmail.com>
+In-Reply-To: <20170412173151.GA23054@infradead.org>
+Date: Thu, 13 Apr 2017 10:03:14 +0900
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <3F99A1DC-3DEF-4EEB-AD6E-7848D7A6049D@gmail.com>
+References: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com>
+ <20170412060218.GA16170@infradead.org>
+ <AC5E3048-6E2B-4DBE-80BA-AAE2D3EED969@gmail.com>
+ <20170412173151.GA23054@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, kernel-team@lge.com, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Now 64K page system, zsamlloc has 257 classes so 8 class bit
-is not enough. With that, it corrupts the system when zsmalloc
-stores 65536byte data(ie, index number 256) so that this patch
-increases class bit for simple fix for stable backport.
-We should clean up this mess soon.
 
-index	size
-0	32
-1	288
-..
-..
-204	52256
-256	65536
+> On 13 Apr 2017, at 2:31 AM, Christoph Hellwig <hch@infradead.org> =
+wrote:
+>=20
+> On Wed, Apr 12, 2017 at 08:42:08PM +0900, Hoeun Ryu wrote:
+>>=20
+>>> On Apr 12, 2017, at 3:02 PM, Christoph Hellwig <hch@infradead.org> =
+wrote:
+>>>=20
+>>>> On Wed, Apr 12, 2017 at 02:01:59PM +0900, Hoeun Ryu wrote:
+>>>> vm_area_add_early/vm_area_register_early() are used to reserve =
+vmalloc area
+>>>> during boot process and those virtually mapped areas are never =
+unmapped.
+>>>> So `OR` VM_STATIC flag to the areas in vmalloc_init() when =
+importing
+>>>> existing vmlist entries and prevent those areas from being removed =
+from the
+>>>> rbtree by accident.
+>>>=20
+>>> How would they be removed "by accident"?
+>>=20
+>> I don't mean actual use-cases, but I just want to make it robust =
+against like programming errors.
+>=20
+> Oh, ok.  The patch makes sense then, although the changelog could use
+> a little update.
 
-Cc: linux-mm@kvack.org
-Fixes: 3783689a1 ("zsmalloc: introduce zspage structure")
-Cc: stable@vger.kernel.org
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/zsmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b7b1fb6c8c21..9feadf4fc3d5 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -275,7 +275,7 @@ struct zs_pool {
- struct zspage {
- 	struct {
- 		unsigned int fullness:FULLNESS_BITS;
--		unsigned int class:CLASS_BITS;
-+		unsigned int class:CLASS_BITS + 1;
- 		unsigned int isolated:ISOLATED_BITS;
- 		unsigned int magic:MAGIC_VAL_BITS;
- 	};
--- 
-2.7.4
+OK, I will.
+Any other suggestions for code itself ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
