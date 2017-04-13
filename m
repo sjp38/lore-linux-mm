@@ -1,129 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BDC86B0390
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 01:42:51 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p81so26029338pfd.12
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 22:42:51 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id f1si22784858plk.101.2017.04.12.22.42.49
-        for <linux-mm@kvack.org>;
-        Wed, 12 Apr 2017 22:42:50 -0700 (PDT)
-Date: Thu, 13 Apr 2017 14:42:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: thrashing on file pages
-Message-ID: <20170413054248.GB16783@bbox>
-References: <CAA25o9TyPusF1Frn2a4OAco-DKFcskZVzy6S2JvhTANpm8cL7A@mail.gmail.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B00666B0397
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 01:43:27 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p81so26033452pfd.12
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 22:43:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f7si22807812pfd.13.2017.04.12.22.43.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Apr 2017 22:43:26 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3D5diWY046753
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 01:43:26 -0400
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29t0e05red-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 01:43:26 -0400
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 13 Apr 2017 15:43:23 +1000
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3D5hEDZ37814380
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 15:43:22 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3D5gn3w009921
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 15:42:50 +1000
+Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race with
+ cpuset update
+References: <20170411140609.3787-1-vbabka@suse.cz>
+ <20170411140609.3787-2-vbabka@suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 13 Apr 2017 11:12:16 +0530
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9TyPusF1Frn2a4OAco-DKFcskZVzy6S2JvhTANpm8cL7A@mail.gmail.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <20170411140609.3787-2-vbabka@suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <95469f35-56e9-7dc4-b7fd-a3e8c25bdff3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, timmurray@google.com, Johannes Weiner <hannes@cmpxchg.org>, vinmenon@codeaurora.org
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Luigi,
+On 04/11/2017 07:36 PM, Vlastimil Babka wrote:
+> Commit e47483bca2cc ("mm, page_alloc: fix premature OOM when racing with cpuset
+> mems update") has fixed known recent regressions found by LTP's cpuset01
+> testcase. I have however found that by modifying the testcase to use per-vma
+> mempolicies via bind(2) instead of per-task mempolicies via set_mempolicy(2),
+> the premature OOM still happens and the issue is much older.
 
-On Tue, Apr 04, 2017 at 06:01:50PM -0700, Luigi Semenzato wrote:
-> Greetings MM community, and apologies for being out of touch.
-> 
-> We're running into a MM problem which we encountered in the early
-> versions of Chrome OS, about 7 years ago, which is that under certain
-> interactive loads we thrash on executable pages.
-> 
-> At the time, Mandeep Baines solved this problem by introducing a
-> min_filelist_kbytes parameter, which simply stops the scanning of the
-> file list whenever the number of pages in it is below that threshold.
-> This works surprisingly well for Chrome OS because the Chrome browser
-> has a known text size and is the only large user program.
-> Additionally we use Feedback-Directed Optimization to keep the hot
-> code together in the same pages.
-> 
-> But given that Chromebooks can run Android apps, the picture is
-> changing.  We can bump min_filelist_kbytes, but we no longer have an
-> upper bound for the working set of a workflow which cycles through
-> multiple Android apps.  Tab/app switching is more natural and
-> therefore more frequent on laptops than it is on phones, and it puts a
-> bigger strain on the MM.
-> 
-> I should mention that we manage memory also by OOM-killing Android
-> apps and discarding Chrome tabs before the system runs our of memory.
-> We also reassign kernel-OOM-kill priorities for the cases in which our
-> user-level killing code isn't quick enough.
-> 
-> In our attempts to avoid the thrashing, we played around with
-> swappiness.  Dmitry Torokhov (three desks down from mine) suggested
-> shifting the upper bound of 100 to 200, which makes sense because we
-
-It does makes sense but look at below.
-
-> use zram to reclaim anonymous pages, and paging back from zram is a
-> lot faster than reading from SSD.  So I have played around with
-> swappiness up to 190 but I can still reproduce the thrashing.  I have
-> noticed this code in vmscan.c:
-> 
->         if (!sc->priority && swappiness) {
->                 scan_balance = SCAN_EQUAL;
->                 goto out;
->         }
-> 
-> which suggests that under heavy pressure, swappiness is ignored.  I
-> removed this code, but that didn't help either.  I am not fully
-> convinced that my experiments are fully repeatable (quite the
-> opposite), and there may be variations in the point at which thrashing
-> starts, but the bottom line is that it still starts.
-
-If sc->priroity is zero, maybe, it means VM would already reclaim
-lots of workingset. That might be one of reason you cannot see the
-difference.
-
-I think more culprit is as follow,
-
-get_scan_count:
-
-        if (!inactive_file_is_low(lruvec) && lruvec_lru_size() >> sc->priroity) {
-                scan_balance = SCAN_FILE;
-                goto out;
-        }
-
-And it works with
-shrink_list:
-        if (is_active_lru(lru))
-                if (inactive_list_is_low(lru)
-                                shrink_active_list(lru);
-
-It means VM prefer file-backed page to anonymous page reclaim until below condition.
-
-get_scan_count:
-
-        if (global_reclaim(sc)) {
-                if (zonefile + zonefree <= high_wmark_pages(zone))
-                        scan_balance = SCAN_ANON;
-        }
-
-It means VM will protect some amount of file-backed pages but
-the amount of pages VM protected depends high watermark which relies on
-min_free_kbytes. Recently, you can control the size via watermark_scale_factor
-without min_free_kbytes. So you can mimic min_filelist_kbytes with that
-although it has limitation for high watermark(20%).
-(795ae7a0de6b, mm: scale kswapd watermarks in proportion to memory)
+Meanwhile while we are discussing this RFC, will it be better to WARN
+out these situations where we dont have node in the intersection,
+hence no usable zone during allocation. That might actually give
+a hint to the user before a premature OOM/allocation failure comes.
 
 > 
-> Are we the only ones with this problem?  It's possible, since Android
+> The root of the problem is that the cpuset's mems_allowed and mempolicy's
+> nodemask can temporarily have no intersection, thus get_page_from_freelist()
+> cannot find any usable zone. The current semantic for empty intersection is to
+> ignore mempolicy's nodemask and honour cpuset restrictions. This is checked in
+> node_zonelist(), but the racy update can happen after we already passed the
+> check. Such races should be protected by the seqlock task->mems_allowed_seq,
+> but it doesn't work here, because 1) mpol_rebind_mm() does not happen under
+> seqlock for write, and doing so would lead to deadlock, as it takes mmap_sem
+> for write, while the allocation can have mmap_sem for read when it's taking the
+> seqlock for read. And 2) the seqlock cookie of callers of node_zonelist()
+> (alloc_pages_vma() and alloc_pages_current()) is different than the one of
+> __alloc_pages_slowpath(), so there's still a potential race window.
+> 
+> This patch fixes the issue by having __alloc_pages_slowpath() check for empty
+> intersection of cpuset and ac->nodemask before OOM or allocation failure. If
+> it's indeed empty, the nodemask is ignored and allocation retried, which mimics
+> node_zonelist(). This works fine, because almost all callers of
+> __alloc_pages_nodemask are obtaining the nodemask via node_zonelist(). The only
+> exception is new_node_page() from hotplug, where the potential violation of
+> nodemask isn't an issue, as there's already a fallback allocation attempt
+> without any nodemask. If there's a future caller that needs to have its specific
+> nodemask honoured over task's cpuset restrictions, we'll have to e.g. add a gfp
+> flag for that.
 
-No. You're not lonely.
-http://lkml.kernel.org/r/20170317231636.142311-1-timmurray@google.com
-
-Johannes are preparing some patches(aggressive anonymous page reclaim
-+ thrashing detection).
-
-https://lwn.net/Articles/690069/
-https://marc.info/?l=linux-mm&m=148351203826308
-
-I hope we makes progress the discussion to find some solution.
-Please, join the discussion if you have interested. :)
-
-Thanks.
+Did you really mean node_zonelist() in both the instances above. Because
+that function just picks up either FALLBACK_ZONELIST or NOFALLBACK_ZONELIST
+depending upon the passed GFP flags in the allocation request and does not
+deal with ignoring the passed nodemask.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
