@@ -1,64 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F0CCE6B0390
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 17:25:34 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id c18so34656133ioa.8
-        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 14:25:34 -0700 (PDT)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id s143si6627840ita.88.2017.04.12.14.25.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Apr 2017 14:25:34 -0700 (PDT)
-Date: Wed, 12 Apr 2017 16:25:32 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
- with cpuset update
-In-Reply-To: <a86ae57a-3efc-6ae5-ddf0-fd64c53c20fa@suse.cz>
-Message-ID: <alpine.DEB.2.20.1704121617040.28335@east.gentwo.org>
-References: <20170411140609.3787-1-vbabka@suse.cz> <20170411140609.3787-2-vbabka@suse.cz> <alpine.DEB.2.20.1704111152170.25069@east.gentwo.org> <a86ae57a-3efc-6ae5-ddf0-fd64c53c20fa@suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB816B0390
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2017 20:17:15 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id f5so23464429pff.13
+        for <linux-mm@kvack.org>; Wed, 12 Apr 2017 17:17:15 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 64si12091319plk.272.2017.04.12.17.17.13
+        for <linux-mm@kvack.org>;
+        Wed, 12 Apr 2017 17:17:14 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 3/3] zsmalloc: expand class bit
+Date: Thu, 13 Apr 2017 09:17:02 +0900
+Message-ID: <1492042622-12074-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1492042622-12074-1-git-send-email-minchan@kernel.org>
+References: <1492042622-12074-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, kernel-team@lge.com, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 11 Apr 2017, Vlastimil Babka wrote:
+Now 64K page system, zsamlloc has 257 classes so 8 class bit
+is not enough. With that, it corrupts the system when zsmalloc
+stores 65536byte data(ie, index number 256) so that this patch
+increases class bit for simple fix for stable backport.
+We should clean up this mess soon.
 
-> > The fallback was only intended for a cpuset on which boundaries are not enforced
-> > in critical conditions (softwall). A hardwall cpuset (CS_MEM_HARDWALL)
-> > should fail the allocation.
->
-> Hmm just to clarify - I'm talking about ignoring the *mempolicy's* nodemask on
-> the basis of cpuset having higher priority, while you seem to be talking about
-> ignoring a (softwall) cpuset nodemask, right? man set_mempolicy says "... if
-> required nodemask contains no nodes that are allowed by the process's current
-> cpuset context, the memory  policy reverts to local allocation" which does come
-> down to ignoring mempolicy's nodemask.
+index	size
+0	32
+1	288
+..
+..
+204	52256
+256	65536
 
-I am talking of allocating outside of the current allowed nodes
-(determined by mempolicy -- MPOL_BIND is the only concern as far as I can
-tell -- as well as the current cpuset). One can violate the cpuset if its not
-a hardwall but  the MPOL_MBIND node restriction cannot be violated.
+Cc: linux-mm@kvack.org
+Fixes: 3783689a1 ("zsmalloc: introduce zspage structure")
+Cc: stable@vger.kernel.org
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/zsmalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Those allocations are also not allowed if the allocation was for a user
-space page even if this is a softwall cpuset.
-
-> >> This patch fixes the issue by having __alloc_pages_slowpath() check for empty
-> >> intersection of cpuset and ac->nodemask before OOM or allocation failure. If
-> >> it's indeed empty, the nodemask is ignored and allocation retried, which mimics
-> >> node_zonelist(). This works fine, because almost all callers of
-> >
-> > Well that would need to be subject to the hardwall flag. Allocation needs
-> > to fail for a hardwall cpuset.
->
-> They still do, if no hardwall cpuset node can satisfy the allocation with
-> mempolicy ignored.
-
-If the memory policy is MPOL_MBIND then allocations outside of the given
-nodes should fail. They can violate the cpuset boundaries only if they are
-kernel allocations and we are not in a hardwall cpuset.
-
-That was at least my understand when working on this code years ago.
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index b7b1fb6c8c21..9feadf4fc3d5 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -275,7 +275,7 @@ struct zs_pool {
+ struct zspage {
+ 	struct {
+ 		unsigned int fullness:FULLNESS_BITS;
+-		unsigned int class:CLASS_BITS;
++		unsigned int class:CLASS_BITS + 1;
+ 		unsigned int isolated:ISOLATED_BITS;
+ 		unsigned int magic:MAGIC_VAL_BITS;
+ 	};
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
