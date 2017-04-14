@@ -1,51 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B02F6B0038
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 22:26:54 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id h72so64042119iod.0
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 19:26:54 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id n129si1047666itd.2.2017.04.13.19.26.53
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 74A2D6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 22:28:49 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id s85so63457040ios.1
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 19:28:49 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id z136si1049926ioe.30.2017.04.13.19.28.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 19:26:53 -0700 (PDT)
-Message-ID: <58F033D0.7080101@intel.com>
-Date: Fri, 14 Apr 2017 10:28:32 +0800
+        Thu, 13 Apr 2017 19:28:48 -0700 (PDT)
+Message-ID: <58F03443.9040202@intel.com>
+Date: Fri, 14 Apr 2017 10:30:27 +0800
 From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 0/5] Extend virtio-balloon for fast (de)inflating &
- fast live migration
-References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com> <20170413204411.GJ784@bombadil.infradead.org> <20170414044515-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170414044515-mutt-send-email-mst@kernel.org>
+Subject: Re: [PATCH v9 3/5] mm: function to offer a page block on the free
+ list
+References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>	<1492076108-117229-4-git-send-email-wei.w.wang@intel.com> <20170413130217.2316b0394192d8677f5ddbdf@linux-foundation.org>
+In-Reply-To: <20170413130217.2316b0394192d8677f5ddbdf@linux-foundation.org>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>, Matthew Wilcox <willy@infradead.org>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
 
-On 04/14/2017 09:50 AM, Michael S. Tsirkin wrote:
-> On Thu, Apr 13, 2017 at 01:44:11PM -0700, Matthew Wilcox wrote:
->> On Thu, Apr 13, 2017 at 05:35:03PM +0800, Wei Wang wrote:
->>> 2) transfer the guest unused pages to the host so that they
->>> can be skipped to migrate in live migration.
->> I don't understand this second bit.  You leave the pages on the free list,
->> and tell the host they're free.  What's preventing somebody else from
->> allocating them and using them for something?  Is the guest semi-frozen
->> at this point with just enough of it running to ask the balloon driver
->> to do things?
-> There's missing documentation here.
+On 04/14/2017 04:02 AM, Andrew Morton wrote:
+> On Thu, 13 Apr 2017 17:35:06 +0800 Wei Wang <wei.w.wang@intel.com> wrote:
 >
-> The way things actually work is host sends to guest
-> a request for unused pages and then write-protects all memory.
+>> Add a function to find a page block on the free list specified by the
+>> caller. Pages from the page block may be used immediately after the
+>> function returns. The caller is responsible for detecting or preventing
+>> the use of such pages.
+>>
+>> ...
+>>
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -4498,6 +4498,93 @@ void show_free_areas(unsigned int filter)
+>>   	show_swap_cache_info();
+>>   }
+>>   
+>> +/**
+>> + * Heuristically get a page block in the system that is unused.
+>> + * It is possible that pages from the page block are used immediately after
+>> + * inquire_unused_page_block() returns. It is the caller's responsibility
+>> + * to either detect or prevent the use of such pages.
+>> + *
+>> + * The free list to check: zone->free_area[order].free_list[migratetype].
+>> + *
+>> + * If the caller supplied page block (i.e. **page) is on the free list, offer
+>> + * the next page block on the list to the caller. Otherwise, offer the first
+>> + * page block on the list.
+>> + *
+>> + * Return 0 when a page block is found on the caller specified free list.
+>> + */
+>> +int inquire_unused_page_block(struct zone *zone, unsigned int order,
+>> +			      unsigned int migratetype, struct page **page)
+>> +{
+> Perhaps we can wrap this in the appropriate ifdef so the kernels which
+> won't be using virtio-balloon don't carry the added overhead.
 >
-> So guest isn't frozen but any changes will be detected by host.
 >
 
-Probably it's better to say " transfer the info about the guest unused pages
-to the host so that the host gets a chance to skip the transfer of the 
-unused
-pages during live migration".
+OK. What do you think if we add this:
+
+#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
+
+
 
 Best,
 Wei
