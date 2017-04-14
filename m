@@ -1,55 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38B046B0038
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 05:47:53 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g23so17075975pfj.10
-        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 02:47:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a5si1364730plt.253.2017.04.14.02.47.51
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7936B0038
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 06:10:36 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id k13so34344565ywk.2
+        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 03:10:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k81si482856ybc.25.2017.04.14.03.10.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Apr 2017 02:47:52 -0700 (PDT)
-Date: Fri, 14 Apr 2017 02:47:40 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v9 0/5] Extend virtio-balloon for fast (de)inflating &
- fast live migration
-Message-ID: <20170414094740.GN784@bombadil.infradead.org>
-References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
- <20170413204411.GJ784@bombadil.infradead.org>
- <20170414044515-mutt-send-email-mst@kernel.org>
+        Fri, 14 Apr 2017 03:10:35 -0700 (PDT)
+Date: Fri, 14 Apr 2017 12:10:27 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] mm, page_alloc: re-enable softirq use of per-cpu page
+ allocator
+Message-ID: <20170414121027.079e5a4c@redhat.com>
+In-Reply-To: <20170410142616.6d37a11904dd153298cf7f3b@linux-foundation.org>
+References: <20170410150821.vcjlz7ntabtfsumm@techsingularity.net>
+	<20170410142616.6d37a11904dd153298cf7f3b@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170414044515-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com
 
-On Fri, Apr 14, 2017 at 04:50:48AM +0300, Michael S. Tsirkin wrote:
-> On Thu, Apr 13, 2017 at 01:44:11PM -0700, Matthew Wilcox wrote:
-> > On Thu, Apr 13, 2017 at 05:35:03PM +0800, Wei Wang wrote:
-> > > 2) transfer the guest unused pages to the host so that they
-> > > can be skipped to migrate in live migration.
+On Mon, 10 Apr 2017 14:26:16 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Mon, 10 Apr 2017 16:08:21 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > IRQ context were excluded from using the Per-Cpu-Pages (PCP) lists caching
+> > of order-0 pages in commit 374ad05ab64d ("mm, page_alloc: only use per-cpu
+> > allocator for irq-safe requests").
 > > 
-> > I don't understand this second bit.  You leave the pages on the free list,
-> > and tell the host they're free.  What's preventing somebody else from
-> > allocating them and using them for something?  Is the guest semi-frozen
-> > at this point with just enough of it running to ask the balloon driver
-> > to do things?
+> > This unfortunately also included excluded SoftIRQ.  This hurt the performance
+> > for the use-case of refilling DMA RX rings in softirq context.  
 > 
-> There's missing documentation here.
+> Out of curiosity: by how much did it "hurt"?
+>
+> <ruffles through the archives>
 > 
-> The way things actually work is host sends to guest
-> a request for unused pages and then write-protects all memory.
+> Tariq found:
+> 
+> : I disabled the page-cache (recycle) mechanism to stress the page
+> : allocator, and see a drastic degradation in BW, from 47.5 G in v4.10 to
+> : 31.4 G in v4.11-rc1 (34% drop).
 
-... hopefully you mean "write protects all memory, then sends a request
-for unused pages", otherwise there's a race condition.
+I've tried to reproduce this in my home testlab, using ConnectX-4 dual
+100Gbit/s. Hardware limits cause that I cannot reach 100Gbit/s, once a
+memory copy is performed.  (Word of warning: you need PCIe Gen3 width
+16 (which I do have) to handle 100Gbit/s, and the memory bandwidth of
+the system also need something like 2x 12500MBytes/s (which is where my
+system failed)).
 
-And I see the utility of this, but does this functionality belong in
-the balloon driver?  It seems like it's something you might want even
-if you don't have the balloon driver loaded.  Or something you might
-not want if you do have the balloon driver loaded.
+The mlx5 driver have a driver local page recycler, which I can see fail
+between 29%-38% of the time, with 8 parallel netperf TCP_STREAMs.  I
+speculate adding more streams will make in fail more.  To factor out
+the driver recycler, I simply disable it (like I believe Tariq also did).
+
+With disabled-mlx5-recycler, 8 parallel netperf TCP_STREAMs:
+
+Baseline v4.10.0  : 60316 Mbit/s
+Current 4.11.0-rc6: 47491 Mbit/s
+This patch        : 60662 Mbit/s
+
+While this patch does "fix" the performance regression, it does not
+bring any noticeable improvement (as my micro-bench also indicated),
+thus I feel our previous optimization is almost nullified. (p.s. It
+does feel wrong to argue against my own patch ;-)).
+
+The reason for the current 4.11.0-rc6 regression is lock congestion on
+the (per NUMA) page allocator lock, perf report show we spend 34.92% in
+queued_spin_lock_slowpath (compared to top#2 copy cost of 13.81% in
+copy_user_enhanced_fast_string).
+
+
+> then with this patch he found
+> 
+> : It looks very good!  I get line-rate (94Gbits/sec) with 8 streams, in
+> : comparison to less than 55Gbits/sec before.
+> 
+> Can I take this to mean that the page allocator's per-cpu-pages feature
+> ended up doubling the performance of this driver?  Better than the
+> driver's private page recycling?  I'd like to believe that, but am
+> having trouble doing so ;)
+
+I would not conclude that. I'm also very suspicious about such big
+performance "jumps".  Tariq should also benchmark with v4.10 and a
+disabled mlx5-recycler, as I believe the results should be the same as
+after this patch.
+
+That said, it is possible to see a regression this large, when all the
+CPUs are congesting on the page allocator lock. AFAIK Tariq also
+mentioned seeing 60% spend on the lock, which would confirm this theory.
+
+ 
+> > This patch re-allow softirq context, which should be safe by disabling
+> > BH/softirq, while accessing the list.  PCP-lists access from both hard-IRQ
+> > and NMI context must not be allowed.  Peter Zijlstra says in_nmi() code
+> > never access the page allocator, thus it should be sufficient to only test
+> > for !in_irq().
+> > 
+> > One concern with this change is adding a BH (enable) scheduling point at
+> > both PCP alloc and free. If further concerns are highlighted by this patch,
+> > the result wiill be to revert 374ad05ab64d and try again at a later date
+> > to offset the irq enable/disable overhead.  
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
