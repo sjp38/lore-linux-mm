@@ -1,82 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 654AF2806CB
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 21:41:38 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 28so17010293iod.14
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 18:41:38 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 198si922532ioc.80.2017.04.13.18.41.36
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 82A6B2806CB
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 21:50:56 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id r49so19612803qta.22
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 18:50:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i17si469478qkh.295.2017.04.13.18.50.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 18:41:37 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@linux.intel.com>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-References: <20170407064901.25398-1-ying.huang@intel.com>
-	<20170407144346.b2e5d3c8364767eb2b4118ed@linux-foundation.org>
-	<878tn3db3h.fsf@yhuang-dev.intel.com>
-Date: Fri, 14 Apr 2017 09:41:33 +0800
-In-Reply-To: <878tn3db3h.fsf@yhuang-dev.intel.com> (Ying Huang's message of
-	"Fri, 14 Apr 2017 09:36:18 +0800")
-Message-ID: <874lxrdauq.fsf@yhuang-dev.intel.com>
+        Thu, 13 Apr 2017 18:50:55 -0700 (PDT)
+Date: Fri, 14 Apr 2017 04:50:48 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v9 0/5] Extend virtio-balloon for fast (de)inflating &
+ fast live migration
+Message-ID: <20170414044515-mutt-send-email-mst@kernel.org>
+References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
+ <20170413204411.GJ784@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170413204411.GJ784@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
 
-"Huang, Ying" <ying.huang@intel.com> writes:
+On Thu, Apr 13, 2017 at 01:44:11PM -0700, Matthew Wilcox wrote:
+> On Thu, Apr 13, 2017 at 05:35:03PM +0800, Wei Wang wrote:
+> > 2) transfer the guest unused pages to the host so that they
+> > can be skipped to migrate in live migration.
+> 
+> I don't understand this second bit.  You leave the pages on the free list,
+> and tell the host they're free.  What's preventing somebody else from
+> allocating them and using them for something?  Is the guest semi-frozen
+> at this point with just enough of it running to ask the balloon driver
+> to do things?
 
-> Andrew Morton <akpm@linux-foundation.org> writes:
->
->> On Fri,  7 Apr 2017 14:49:01 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
->>
->>> To reduce the lock contention of swap_info_struct->lock when freeing
->>> swap entry.  The freed swap entries will be collected in a per-CPU
->>> buffer firstly, and be really freed later in batch.  During the batch
->>> freeing, if the consecutive swap entries in the per-CPU buffer belongs
->>> to same swap device, the swap_info_struct->lock needs to be
->>> acquired/released only once, so that the lock contention could be
->>> reduced greatly.  But if there are multiple swap devices, it is
->>> possible that the lock may be unnecessarily released/acquired because
->>> the swap entries belong to the same swap device are non-consecutive in
->>> the per-CPU buffer.
->>> 
->>> To solve the issue, the per-CPU buffer is sorted according to the swap
->>> device before freeing the swap entries.  Test shows that the time
->>> spent by swapcache_free_entries() could be reduced after the patch.
->>> 
->>> Test the patch via measuring the run time of swap_cache_free_entries()
->>> during the exit phase of the applications use much swap space.  The
->>> results shows that the average run time of swap_cache_free_entries()
->>> reduced about 20% after applying the patch.
->>
->> "20%" is useful info, but it is much better to present the absolute
->> numbers, please.  If it's "20% of one nanosecond" then the patch isn't
->> very interesting.  If it's "20% of 35 seconds" then we know we have
->> more work to do.
->
-> I added memory freeing timing capability to vm-scalability test suite.
-> The result shows the memory freeing time reduced from 2.64s to 2.31s
-> (about -12.5%).
+There's missing documentation here.
 
-The memory space to free is 96G (including swap).  The machine has 144
-CPU, 32G RAM, and 96G swap.  The process number is 16.
+The way things actually work is host sends to guest
+a request for unused pages and then write-protects all memory.
 
-Best Regards,
-Huang, Ying
-
-> Best Regards,
-> Huang, Ying
->
->> If there is indeed still a significant problem here then perhaps it
->> would be better to move the percpu swp_entry_t buffer into the
->> per-device structure swap_info_struct, so it becomes "per cpu, per
->> device".  That way we should be able to reduce contention further.
->>
->> Or maybe we do something else - it all depends upon the significance of
->> this problem, which is why a full description of your measurements is
->> useful.
+So guest isn't frozen but any changes will be detected by host.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
