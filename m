@@ -1,411 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EED056B0397
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 17:38:42 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id i13so25843297qki.16
-        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 14:38:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g124si2882642qkd.20.2017.04.14.14.38.38
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 54A686B03A0
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 17:55:20 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id l25so17746983qtf.11
+        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 14:55:20 -0700 (PDT)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
+        by mx.google.com with ESMTPS id l90si2871918qte.273.2017.04.14.14.55.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Apr 2017 14:38:39 -0700 (PDT)
-Date: Sat, 15 Apr 2017 00:38:31 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [virtio-dev] Re: [PATCH v9 2/5] virtio-balloon:
- VIRTIO_BALLOON_F_BALLOON_CHUNKS
-Message-ID: <20170415000934-mutt-send-email-mst@kernel.org>
-References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
- <1492076108-117229-3-git-send-email-wei.w.wang@intel.com>
- <20170413184040-mutt-send-email-mst@kernel.org>
- <58F08A60.2020407@intel.com>
+        Fri, 14 Apr 2017 14:55:18 -0700 (PDT)
+From: Bart Van Assche <bart.vanassche@sandisk.com>
+Subject: [PATCH] mm: Make truncate_inode_pages_range() killable
+Date: Fri, 14 Apr 2017 14:55:07 -0700
+Message-ID: <20170414215507.27682-1-bart.vanassche@sandisk.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58F08A60.2020407@intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Bart Van Assche <bart.vanassche@sandisk.com>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Mike Snitzer <snitzer@redhat.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.com>, linux-mm@kvack.org
 
-On Fri, Apr 14, 2017 at 04:37:52PM +0800, Wei Wang wrote:
-> On 04/14/2017 12:34 AM, Michael S. Tsirkin wrote:
-> > On Thu, Apr 13, 2017 at 05:35:05PM +0800, Wei Wang wrote:
-> > 
-> > So we don't need the bitmap to talk to host, it is just
-> > a data structure we chose to maintain lists of pages, right?
-> Right. bitmap is the way to gather pages to chunk.
-> It's only needed in the balloon page case.
-> For the unused page case, we don't need it, since the free
-> page blocks are already chunks.
-> 
-> > OK as far as it goes but you need much better isolation for it.
-> > Build a data structure with APIs such as _init, _cleanup, _add, _clear,
-> > _find_first, _find_next.
-> > Completely unrelated to pages, it just maintains bits.
-> > Then use it here.
-> > 
-> > 
-> > >   static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
-> > >   module_param(oom_pages, int, S_IRUSR | S_IWUSR);
-> > >   MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
-> > > @@ -50,6 +54,10 @@ MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
-> > >   static struct vfsmount *balloon_mnt;
-> > >   #endif
-> > > +/* Types of pages to chunk */
-> > > +#define PAGE_CHUNK_TYPE_BALLOON 0
-> > > +
-> > Doesn't look like you are ever adding more types in this
-> > patchset.  Pls keep code simple, generalize it later.
-> > 
-> "#define PAGE_CHUNK_TYPE_UNUSED 1" is added in another patch.
+The default behavior of multipathd is to run kpartx against newly
+discovered paths. Avoid that these kpartx processes become unkillable
+if there are no paths left and when using queue_if_no_path. This patch
+avoids that kpartx sporadically hangs as follows:
 
-I would say add the extra code there too. Or maybe we can avoid
-adding it altogether.
+Call Trace:
+ __schedule+0x3df/0xc10
+ schedule+0x3d/0x90
+ io_schedule+0x16/0x40
+ __lock_page+0x111/0x140
+ truncate_inode_pages_range+0x462/0x790
+ truncate_inode_pages+0x15/0x20
+ kill_bdev+0x35/0x40
+ __blkdev_put+0x76/0x220
+ blkdev_put+0x4e/0x170
+ blkdev_close+0x25/0x30
+ __fput+0xed/0x1f0
+ ____fput+0xe/0x10
+ task_work_run+0x85/0xc0
+ do_exit+0x311/0xc70
+ do_group_exit+0x50/0xd0
+ get_signal+0x2c7/0x930
+ do_signal+0x28/0x6b0
+ exit_to_usermode_loop+0x62/0xa0
+ do_syscall_64+0xda/0x140
+ entry_SYSCALL64_slow_path+0x25/0x25
 
-> Types of page to chunk are treated differently. Different types of page
-> chunks are sent to the host via different protocols.
-> 
-> 1) PAGE_CHUNK_TYPE_BALLOON: Ballooned (i.e. inflated/deflated) pages
-> to chunk.  For the ballooned type, it uses the basic chunk msg format:
-> 
-> virtio_balloon_page_chunk_hdr +
-> virtio_balloon_page_chunk * MAX_PAGE_CHUNKS
-> 
-> 2) PAGE_CHUNK_TYPE_UNUSED: unused pages to chunk. It uses this miscq msg
-> format:
-> miscq_hdr +
-> virtio_balloon_page_chunk_hdr +
-> virtio_balloon_page_chunk * MAX_PAGE_CHUNKS
-> 
-> The chunk msg is actually the payload of the miscq msg.
-> 
-> 
+Signed-off-by: Bart Van Assche <bart.vanassche@sandisk.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Mike Snitzer <snitzer@redhat.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Hannes Reinecke <hare@suse.com>
+Cc: linux-mm@kvack.org
+---
+ mm/truncate.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-So just combine the two message formats and then it'll all be easier?
-
-
-> > > +#define MAX_PAGE_CHUNKS 4096
-> > This is an order-4 allocation. I'd make it 4095 and then it's
-> > an order-3 one.
-> 
-> Sounds good, thanks.
-> I think it would be better to make it 4090. Leave some space for the hdr
-> as well.
-
-And miscq hdr. In fact just let compiler do the math - something like:
-(8 * PAGE_SIZE - sizeof(hdr)) / sizeof(chunk)
-
-
-I skimmed explanation of algorithms below but please make sure
-code speaks for itself and add comments inline to document it.
-Whenever you answered me inline this is where you want to
-try to make code clearer and add comments.
-
-Also, pls find ways to abstract the data structure so we don't
-need to deal with its internals all over the code.
-
-
-....
-
-> > 
-> > >   {
-> > >   	struct scatterlist sg;
-> > > +	struct virtio_balloon_page_chunk_hdr *hdr;
-> > > +	void *buf;
-> > >   	unsigned int len;
-> > > -	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
-> > > +	switch (type) {
-> > > +	case PAGE_CHUNK_TYPE_BALLOON:
-> > > +		hdr = vb->balloon_page_chunk_hdr;
-> > > +		len = 0;
-> > > +		break;
-> > > +	default:
-> > > +		dev_warn(&vb->vdev->dev, "%s: chunk %d of unknown pages\n",
-> > > +			 __func__, type);
-> > > +		return;
-> > > +	}
-> > > -	/* We should always be able to add one buffer to an empty queue. */
-> > > -	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
-> > > -	virtqueue_kick(vq);
-> > > +	buf = (void *)hdr - len;
-> > Moving back to before the header? How can this make sense?
-> > It works fine since len is 0, so just buf = hdr.
-> > 
-> For the unused page chunk case, it follows its own protocol:
-> miscq_hdr + payload(chunk msg).
->  "buf = (void *)hdr - len" moves the buf pointer to the miscq_hdr, to send
-> the entire miscq msg.
-
-Well just pass the correct pointer in.
-
-> Please check the patch for implementing the unused page chunk,
-> it will be clear. If necessary, I can put "buf = (void *)hdr - len" from
-> that patch.
-
-Exactly. And all this pointer math is very messy. Please look for ways
-to clean it. It's generally easy to fill structures:
-
-struct foo *foo = kmalloc(..., sizeof(*foo) + n * sizeof(foo->a[0]));
-for (i = 0; i < n; ++i)
-	foo->a[i] = b;
-
-this is the kind of code that's easy to understand and it's
-obvious there are no overflows and no info leaks here.
-
-> 
-> > > +	len += sizeof(struct virtio_balloon_page_chunk_hdr);
-> > > +	len += hdr->chunks * sizeof(struct virtio_balloon_page_chunk);
-> > > +	sg_init_table(&sg, 1);
-> > > +	sg_set_buf(&sg, buf, len);
-> > > +	if (!virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL)) {
-> > > +		virtqueue_kick(vq);
-> > > +		if (busy_wait)
-> > > +			while (!virtqueue_get_buf(vq, &len) &&
-> > > +			       !virtqueue_is_broken(vq))
-> > > +				cpu_relax();
-> > > +		else
-> > > +			wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-> > > +		hdr->chunks = 0;
-> > Why zero it here after device used it? Better to zero before use.
-> 
-> hdr->chunks tells the host how many chunks are there in the payload.
-> After the device use it, it is ready to zero it.
-
-It's rather confusing. Try to pass # of chunks around
-in some other way.
-
-> > 
-> > > +	}
-> > > +}
-> > > +
-> > > +static void add_one_chunk(struct virtio_balloon *vb, struct virtqueue *vq,
-> > > +			  int type, u64 base, u64 size)
-> > what are the units here? Looks like it's in 4kbyte units?
-> 
-> what is the "unit" you referred to?
-> This is the function to add one chunk, base pfn and size of the chunk are
-> supplied to the function.
-> 
-
-Are both size and base in bytes then?
-But you do not send them to host as is, you shift them for some reason
-before sending them to host.
-
-
-> 
-> > 
-> > > +	if (hdr->chunks == MAX_PAGE_CHUNKS)
-> > > +		send_page_chunks(vb, vq, type, false);
-> > 		and zero chunks here?
-> > > +}
-> > > +
-> > > +static void chunking_pages_from_bmap(struct virtio_balloon *vb,
-> > Does this mean "convert_bmap_to_chunks"?
-> > 
-> 
-> Yes.
-> 
-
-Pls name it accordingly then.
-
-> > > +				     struct virtqueue *vq,
-> > > +				     unsigned long pfn_start,
-> > > +				     unsigned long *bmap,
-> > > +				     unsigned long len)
-> > > +{
-> > > +	unsigned long pos = 0, end = len * BITS_PER_BYTE;
-> > > +
-> > > +	while (pos < end) {
-> > > +		unsigned long one = find_next_bit(bmap, end, pos);
-> > > +
-> > > +		if (one < end) {
-> > > +			unsigned long chunk_size, zero;
-> > > +
-> > > +			zero = find_next_zero_bit(bmap, end, one + 1);
-> > 
-> > zero and one are unhelpful names unless they equal 0 and 1.
-> > current/next?
-> > 
-> 
-> I think it is clear if we think about the bitmap, for example:
-> 00001111000011110000
-> one = the position of the next "1" bit,
-> zero= the position of the next "0" bit, starting from one.
-> 
-> Then, it is clear, chunk_size= zero - one
-> 
-> would it be better to use pos_0 and pos_1?
-
-Oh, so it's next_zero_bit and next_bit.
-
-
-> > > +			if (zero >= end)
-> > > +				chunk_size = end - one;
-> > > +			else
-> > > +				chunk_size = zero - one;
-> > > +
-> > > +			if (chunk_size)
-> > > +				add_one_chunk(vb, vq, PAGE_CHUNK_TYPE_BALLOON,
-> > > +					      pfn_start + one, chunk_size);
-> > Still not so what does a bit refer to? page or 4kbytes?
-> > I think it should be a page.
-> A bit in the bitmap corresponds to a pfn of a balloon page(4KB).
-
-That's a waste on systems with large page sizes, and it does not
-look like you handle that case correctly.
-
-
-> But I think it doesn't matter here, since it is pfn.
-> Using the above example:
-> 00001111000011110000
-> 
-> If the starting bit above corresponds to pfn-0x1000 (i.e. pfn_start)
-> Then the chunk base = 0x1004
-> (one is the position of the "Set" bit, which is 4), so pfn_start +one=0x1004
-> 
-> > > +static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-> > > +{
-> > > +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_BALLOON_CHUNKS)) {
-> > > +		int pfns, page_bmaps, i;
-> > > +		unsigned long pfn_start, pfns_len;
-> > > +
-> > > +		pfn_start = vb->pfn_start;
-> > > +		pfns = vb->pfn_stop - pfn_start + 1;
-> > > +		pfns = roundup(roundup(pfns, BITS_PER_LONG),
-> > > +			       PFNS_PER_PAGE_BMAP);
-> > > +		page_bmaps = pfns / PFNS_PER_PAGE_BMAP;
-> > > +		pfns_len = pfns / BITS_PER_BYTE;
-> > > +
-> > > +		for (i = 0; i < page_bmaps; i++) {
-> > > +			unsigned int bmap_len = PAGE_BMAP_SIZE;
-> > > +
-> > > +			/* The last one takes the leftover only */
-> > I don't understand what does this mean.
-> Still use the ruler analogy here: the object is 11-meter long, and we have
-> a 2-meter long ruler. The 5th time has covered 10 meters of the object, Then
-> the last time, the leftover is 1 meter, which means we can use half of the
-> ruler
-> to cover the left 1 meter.
-> 
-> Back to the implementation here, if there are only 10 pfns left in the last
-> round,
-> I think it's not necessary to search the entire page_bmap[] till the end.
-
-
-Pls reword the comment to make it a whole sentence.
-
-
-> > > +static void set_page_bmap(struct virtio_balloon *vb,
-> > > +			  struct list_head *pages, struct virtqueue *vq)
-> > > +{
-> > > +	unsigned long pfn_start, pfn_stop;
-> > > +	struct page *page;
-> > > +	bool found;
-> > > +
-> > > +	vb->pfn_min = rounddown(vb->pfn_min, BITS_PER_LONG);
-> > > +	vb->pfn_max = roundup(vb->pfn_max, BITS_PER_LONG);
-> > > +
-> > > +	extend_page_bmap_size(vb, vb->pfn_max - vb->pfn_min + 1);
-> > This might not do anything in particular might not cover the
-> > given pfn range. Do we care? Why not?
-> 
-> We have allocated only 1 page_bmap[], which is able to cover 1GB memory.
-> To inflate 2GB, it will try to extend by getting one more page_bmap,
-> page_bmap[1].
-> 
-> > > +	pfn_start = vb->pfn_min;
-> > > +
-> > > +	while (pfn_start < vb->pfn_max) {
-> > > +		pfn_stop = pfn_start + PFNS_PER_PAGE_BMAP * vb->page_bmaps;
-> > > +		pfn_stop = pfn_stop < vb->pfn_max ? pfn_stop : vb->pfn_max;
-> > > +
-> > > +		vb->pfn_start = pfn_start;
-> > > +		clear_page_bmap(vb);
-> > > +		found = false;
-> > > +
-> > > +		list_for_each_entry(page, pages, lru) {
-> > > +			unsigned long bmap_idx, bmap_pos, balloon_pfn;
-> > > +
-> > > +			balloon_pfn = page_to_balloon_pfn(page);
-> > > +			if (balloon_pfn < pfn_start || balloon_pfn > pfn_stop)
-> > > +				continue;
-> > > +			bmap_idx = (balloon_pfn - pfn_start) /
-> > > +				   PFNS_PER_PAGE_BMAP;
-> > > +			bmap_pos = (balloon_pfn - pfn_start) %
-> > > +				   PFNS_PER_PAGE_BMAP;
-> > > +			set_bit(bmap_pos, vb->page_bmap[bmap_idx]);
-> > Looks like this will crash if bmap_idx is out of range or
-> > if page_bmap allocation failed.
-> 
-> No, it won't. Please think about the analogy Case 2.2: pfn_start is updated
-> in each round. Like in the 2nd round, pfn_start is updated to 2, balloon_pfn
-> will be a value between 2 and 4, so the result of
-> "(balloon_pfn - pfn_start) /  PFNS_PER_PAGE_BMAP" will always be 0 when
-> we only have page_bmap[0].
-
-All these cases confuse too much. Pls abstract away the underlying data
-structure (or better find an appropriate existing one). Things should
-become clearer then.
-
-
-
-> >   #ifdef CONFIG_BALLOON_COMPACTION
-> > +
-> > +static void tell_host_one_page(struct virtio_balloon *vb,
-> > +			       struct virtqueue *vq, struct page *page)
-> > +{
-> > +	add_one_chunk(vb, vq, PAGE_CHUNK_TYPE_BALLOON, page_to_pfn(page), 1);
-> > This passes 4kbytes to host which seems wrong - I think you want a full page.
-> 
-> OK. It should be
-> add_one_chunk(vb, vq, PAGE_CHUNK_TYPE_BALLOON,
->                           page_to_pfn(page), VIRTIO_BALLOON_PAGES_PER_PAGE)
-> 
-> right?
-> 
-> If Page=2*BalloonPage, it will pass 2*4K to the host.
-
-I guess, or better use whole page units.
-
-
-> +static void balloon_page_chunk_init(struct virtio_balloon *vb)
-> +{
-> +	void *buf;
-> +
-> +	/*
-> +	 * By default, we allocate page_bmap[0] only. More page_bmap will be
-> +	 * allocated on demand.
-> +	 */
-> +	vb->page_bmap[0] = kmalloc(PAGE_BMAP_SIZE, GFP_KERNEL);
-> +	buf = kmalloc(sizeof(struct virtio_balloon_page_chunk_hdr) +
-> +		      sizeof(struct virtio_balloon_page_chunk) *
-> +		      MAX_PAGE_CHUNKS, GFP_KERNEL);
-> +	if (!vb->page_bmap[0] || !buf) {
-> +		__virtio_clear_bit(vb->vdev, VIRTIO_BALLOON_F_BALLOON_CHUNKS);
-> 
-> > this doesn't work as expected as features has been OK'd by then.
-> > You want something like
-> > validate_features that I posted. See
-> > "virtio: allow drivers to validate features".
-> 
-> OK. I will change it after that patch is merged.
-
-It's upstream now.
-
-
-> > 
-> > > +		kfree(vb->page_bmap[0]);
-> > Looks like this will double free. you want to zero them I think.
-> > 
-> 
-> OK. I'll NULL the pointers after kfree().
-> 
-> 
-> 
-> Best,
-> Wei
-> 
-> 
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 6263affdef88..91abd16d74f8 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -20,6 +20,7 @@
+ #include <linux/task_io_accounting_ops.h>
+ #include <linux/buffer_head.h>	/* grr. try_to_release_page,
+ 				   do_invalidatepage */
++#include <linux/sched/signal.h>
+ #include <linux/shmem_fs.h>
+ #include <linux/cleancache.h>
+ #include <linux/rmap.h>
+@@ -366,7 +367,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 		return;
+ 
+ 	index = start;
+-	for ( ; ; ) {
++	for ( ; !signal_pending_state(TASK_WAKEKILL, current); ) {
+ 		cond_resched();
+ 		if (!pagevec_lookup_entries(&pvec, mapping, index,
+ 			min(end - index, (pgoff_t)PAGEVEC_SIZE), indices)) {
+@@ -400,7 +401,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 				continue;
+ 			}
+ 
+-			lock_page(page);
++			if (lock_page_killable(page))
++				break;
+ 			WARN_ON(page_to_index(page) != index);
+ 			wait_on_page_writeback(page);
+ 			truncate_inode_page(mapping, page);
+-- 
+2.12.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
