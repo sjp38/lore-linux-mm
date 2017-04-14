@@ -1,117 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ED7936B0038
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 06:10:36 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id k13so34344565ywk.2
-        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 03:10:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k81si482856ybc.25.2017.04.14.03.10.35
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC226B0038
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 09:40:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h87so2511676pfh.2
+        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 06:40:00 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s70si2046334pfg.202.2017.04.14.06.39.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Apr 2017 03:10:35 -0700 (PDT)
-Date: Fri, 14 Apr 2017 12:10:27 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH] mm, page_alloc: re-enable softirq use of per-cpu page
- allocator
-Message-ID: <20170414121027.079e5a4c@redhat.com>
-In-Reply-To: <20170410142616.6d37a11904dd153298cf7f3b@linux-foundation.org>
-References: <20170410150821.vcjlz7ntabtfsumm@techsingularity.net>
-	<20170410142616.6d37a11904dd153298cf7f3b@linux-foundation.org>
+        Fri, 14 Apr 2017 06:39:59 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3EDcu3A080848
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 09:39:59 -0400
+Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29tp4bamkj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 09:39:58 -0400
+Received: from localhost
+	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 14 Apr 2017 09:39:57 -0400
+Date: Fri, 14 Apr 2017 06:39:51 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH tip/core/rcu 01/13] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20170412165441.GA17149@linux.vnet.ibm.com>
+ <1492016149-18834-1-git-send-email-paulmck@linux.vnet.ibm.com>
+ <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
+ <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
+ <20170413161709.ej3qxuqitykhqtyf@hirez.programming.kicks-ass.net>
+ <CANn89iLAG9COnimUgqKFipX1VOuXdVFS-jJ8yoVDHSCNu7f+6w@mail.gmail.com>
+ <20170414084544.wgubp4ikqmohgn67@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170414084544.wgubp4ikqmohgn67@hirez.programming.kicks-ass.net>
+Message-Id: <20170414133951.GY3956@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Eric Dumazet <edumazet@google.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, jiangshanlai@gmail.com, dipankar@in.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, oleg@redhat.com, pranith kumar <bobby.prani@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>
 
-On Mon, 10 Apr 2017 14:26:16 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Mon, 10 Apr 2017 16:08:21 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > IRQ context were excluded from using the Per-Cpu-Pages (PCP) lists caching
-> > of order-0 pages in commit 374ad05ab64d ("mm, page_alloc: only use per-cpu
-> > allocator for irq-safe requests").
+On Fri, Apr 14, 2017 at 10:45:44AM +0200, Peter Zijlstra wrote:
+> On Thu, Apr 13, 2017 at 02:30:19PM -0700, Eric Dumazet wrote:
+> > On Thu, Apr 13, 2017 at 9:17 AM, Peter Zijlstra <peterz@infradead.org> wrote:
 > > 
-> > This unfortunately also included excluded SoftIRQ.  This hurt the performance
-> > for the use-case of refilling DMA RX rings in softirq context.  
-> 
-> Out of curiosity: by how much did it "hurt"?
->
-> <ruffles through the archives>
-> 
-> Tariq found:
-> 
-> : I disabled the page-cache (recycle) mechanism to stress the page
-> : allocator, and see a drastic degradation in BW, from 47.5 G in v4.10 to
-> : 31.4 G in v4.11-rc1 (34% drop).
-
-I've tried to reproduce this in my home testlab, using ConnectX-4 dual
-100Gbit/s. Hardware limits cause that I cannot reach 100Gbit/s, once a
-memory copy is performed.  (Word of warning: you need PCIe Gen3 width
-16 (which I do have) to handle 100Gbit/s, and the memory bandwidth of
-the system also need something like 2x 12500MBytes/s (which is where my
-system failed)).
-
-The mlx5 driver have a driver local page recycler, which I can see fail
-between 29%-38% of the time, with 8 parallel netperf TCP_STREAMs.  I
-speculate adding more streams will make in fail more.  To factor out
-the driver recycler, I simply disable it (like I believe Tariq also did).
-
-With disabled-mlx5-recycler, 8 parallel netperf TCP_STREAMs:
-
-Baseline v4.10.0  : 60316 Mbit/s
-Current 4.11.0-rc6: 47491 Mbit/s
-This patch        : 60662 Mbit/s
-
-While this patch does "fix" the performance regression, it does not
-bring any noticeable improvement (as my micro-bench also indicated),
-thus I feel our previous optimization is almost nullified. (p.s. It
-does feel wrong to argue against my own patch ;-)).
-
-The reason for the current 4.11.0-rc6 regression is lock congestion on
-the (per NUMA) page allocator lock, perf report show we spend 34.92% in
-queued_spin_lock_slowpath (compared to top#2 copy cost of 13.81% in
-copy_user_enhanced_fast_string).
-
-
-> then with this patch he found
-> 
-> : It looks very good!  I get line-rate (94Gbits/sec) with 8 streams, in
-> : comparison to less than 55Gbits/sec before.
-> 
-> Can I take this to mean that the page allocator's per-cpu-pages feature
-> ended up doubling the performance of this driver?  Better than the
-> driver's private page recycling?  I'd like to believe that, but am
-> having trouble doing so ;)
-
-I would not conclude that. I'm also very suspicious about such big
-performance "jumps".  Tariq should also benchmark with v4.10 and a
-disabled mlx5-recycler, as I believe the results should be the same as
-after this patch.
-
-That said, it is possible to see a regression this large, when all the
-CPUs are congesting on the page allocator lock. AFAIK Tariq also
-mentioned seeing 60% spend on the lock, which would confirm this theory.
-
- 
-> > This patch re-allow softirq context, which should be safe by disabling
-> > BH/softirq, while accessing the list.  PCP-lists access from both hard-IRQ
-> > and NMI context must not be allowed.  Peter Zijlstra says in_nmi() code
-> > never access the page allocator, thus it should be sufficient to only test
-> > for !in_irq().
+> > > git log -S SLAB_DESTROY_BY_RCU
 > > 
-> > One concern with this change is adding a BH (enable) scheduling point at
-> > both PCP alloc and free. If further concerns are highlighted by this patch,
-> > the result wiill be to revert 374ad05ab64d and try again at a later date
-> > to offset the irq enable/disable overhead.  
+> > Maybe, but "git log -S" is damn slow at least here.
+> > 
+> > While "git grep" is _very_ fast
+> 
+> All true. But in general we don't leave endless markers around like
+> this.
+> 
+> For instance:
+> 
+>   /* the function formerly known as smp_mb__before_clear_bit() */
+> 
+> is not part of the kernel tree. People that used that thing out of tree
+> get to deal with it in whatever way they see fit.
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Sometimes we don't provide markers and sometimes we do:
+
+$ git grep synchronize_kernel
+Documentation/RCU/RTFP.txt:,Title="API change: synchronize_kernel() deprecated"
+Documentation/RCU/RTFP.txt:     Jon Corbet describes deprecation of synchronize_kernel()
+kernel/rcu/tree.c: * synchronize_kernel() API.  In contrast, synchronize_rcu() only
+
+Given that it has been more than a decade, I could easily see my way to
+removing this synchronize_kernel() tombstone in kernel/rcu/tree.c if
+people are annoyed by it.  But thus far, no one has complained.
+
+So how long should we wait to remove the SLAB_DESTROY_BY_RCU tombstone?
+I can easily add an event to my calendar to remind me to remove it.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
