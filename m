@@ -1,52 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F2556B0397
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 04:45:59 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id v34so32463070iov.22
-        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 01:45:59 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id u128si1869073ioe.3.2017.04.14.01.45.58
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EE7A66B03A0
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 04:56:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s15so43626084pfi.1
+        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 01:56:27 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id t68si1252794pfe.154.2017.04.14.01.56.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Apr 2017 01:45:58 -0700 (PDT)
-Date: Fri, 14 Apr 2017 10:45:44 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH tip/core/rcu 01/13] mm: Rename SLAB_DESTROY_BY_RCU to
- SLAB_TYPESAFE_BY_RCU
-Message-ID: <20170414084544.wgubp4ikqmohgn67@hirez.programming.kicks-ass.net>
-References: <20170412165441.GA17149@linux.vnet.ibm.com>
- <1492016149-18834-1-git-send-email-paulmck@linux.vnet.ibm.com>
- <20170413091248.xnctlppstkrm6eq5@hirez.programming.kicks-ass.net>
- <50d59b9c-fa8e-1992-2613-e84774ec5428@suse.cz>
- <20170413161709.ej3qxuqitykhqtyf@hirez.programming.kicks-ass.net>
- <CANn89iLAG9COnimUgqKFipX1VOuXdVFS-jJ8yoVDHSCNu7f+6w@mail.gmail.com>
+        Fri, 14 Apr 2017 01:56:27 -0700 (PDT)
+Message-ID: <58F08F1F.8020904@intel.com>
+Date: Fri, 14 Apr 2017 16:58:07 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANn89iLAG9COnimUgqKFipX1VOuXdVFS-jJ8yoVDHSCNu7f+6w@mail.gmail.com>
+Subject: Re: [PATCH v9 3/5] mm: function to offer a page block on the free
+ list
+References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com> <1492076108-117229-4-git-send-email-wei.w.wang@intel.com> <20170413130217.2316b0394192d8677f5ddbdf@linux-foundation.org> <58F03443.9040202@intel.com> <20170414025824.GK784@bombadil.infradead.org>
+In-Reply-To: <20170414025824.GK784@bombadil.infradead.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, jiangshanlai@gmail.com, dipankar@in.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, oleg@redhat.com, pranith kumar <bobby.prani@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
 
-On Thu, Apr 13, 2017 at 02:30:19PM -0700, Eric Dumazet wrote:
-> On Thu, Apr 13, 2017 at 9:17 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> > git log -S SLAB_DESTROY_BY_RCU
-> 
-> Maybe, but "git log -S" is damn slow at least here.
-> 
-> While "git grep" is _very_ fast
+On 04/14/2017 10:58 AM, Matthew Wilcox wrote:
+> On Fri, Apr 14, 2017 at 10:30:27AM +0800, Wei Wang wrote:
+>> OK. What do you think if we add this:
+>>
+>> #if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
+> That's spelled "IS_ENABLED(CONFIG_VIRTIO_BALLOON)", FYI.
 
-All true. But in general we don't leave endless markers around like
-this.
+Right, thanks.
 
-For instance:
-
-  /* the function formerly known as smp_mb__before_clear_bit() */
-
-is not part of the kernel tree. People that used that thing out of tree
-get to deal with it in whatever way they see fit.
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
