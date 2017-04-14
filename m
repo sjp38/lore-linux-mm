@@ -1,107 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A225F2806CB
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 20:25:58 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id c18so61266887ioa.23
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 17:25:58 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id u125si10644979itd.15.2017.04.13.17.25.57
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C93842806CB
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2017 21:36:21 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 63so33223107pgh.3
+        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 18:36:21 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id i22si303144pfi.138.2017.04.13.18.36.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Apr 2017 17:25:57 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id i5so13243722pfc.3
-        for <linux-mm@kvack.org>; Thu, 13 Apr 2017 17:25:57 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH] mm: add VM_STATIC flag to vmalloc and prevent from removing the areas
-From: Hoeun Ryu <hoeun.ryu@gmail.com>
-In-Reply-To: <c900f2f4-8b0c-cc0e-afb7-a03cd1458e4c@linux.vnet.ibm.com>
-Date: Fri, 14 Apr 2017 09:25:54 +0900
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <A3946A32-F0DB-438C-B2E7-D8CB09B1C49F@gmail.com>
-References: <1491973350-26816-1-git-send-email-hoeun.ryu@gmail.com> <c900f2f4-8b0c-cc0e-afb7-a03cd1458e4c@linux.vnet.ibm.com>
+        Thu, 13 Apr 2017 18:36:20 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+References: <20170407064901.25398-1-ying.huang@intel.com>
+	<20170407144346.b2e5d3c8364767eb2b4118ed@linux-foundation.org>
+Date: Fri, 14 Apr 2017 09:36:18 +0800
+In-Reply-To: <20170407144346.b2e5d3c8364767eb2b4118ed@linux-foundation.org>
+	(Andrew Morton's message of "Fri, 7 Apr 2017 14:43:46 -0700")
+Message-ID: <878tn3db3h.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Matthew Wilcox <mawilcox@microsoft.com>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-> On Apr 13, 2017, at 1:17 PM, Anshuman Khandual <khandual@linux.vnet.ibm.co=
-m> wrote:
->=20
->> On 04/12/2017 10:31 AM, Hoeun Ryu wrote:
->> vm_area_add_early/vm_area_register_early() are used to reserve vmalloc ar=
-ea
->> during boot process and those virtually mapped areas are never unmapped.
->> So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
->> existing vmlist entries and prevent those areas from being removed from t=
-he
->> rbtree by accident.
->=20
-> I am wondering whether protection against accidental deletion
-> of any vmap area should be done in remove_vm_area() function
-> or the callers should take care of it. But I guess either way
-> it works.
->=20
->>=20
->> Signed-off-by: Hoeun Ryu <hoeun.ryu@gmail.com>
->> ---
->> include/linux/vmalloc.h | 1 +
->> mm/vmalloc.c            | 9 ++++++---
->> 2 files changed, 7 insertions(+), 3 deletions(-)
->>=20
->> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
->> index 46991ad..3df53fc 100644
->> --- a/include/linux/vmalloc.h
->> +++ b/include/linux/vmalloc.h
->> @@ -19,6 +19,7 @@ struct notifier_block;        /* in notifier.h */
->> #define VM_UNINITIALIZED    0x00000020    /* vm_struct is not fully initi=
-alized */
->> #define VM_NO_GUARD        0x00000040      /* don't add guard page */
->> #define VM_KASAN        0x00000080      /* has allocated kasan shadow mem=
-ory */
->> +#define VM_STATIC        0x00000200
->=20
-> You might want to add some description in the comment saying
-> its a sticky VM area which will never go away or something.
->=20
+> On Fri,  7 Apr 2017 14:49:01 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+>
+>> To reduce the lock contention of swap_info_struct->lock when freeing
+>> swap entry.  The freed swap entries will be collected in a per-CPU
+>> buffer firstly, and be really freed later in batch.  During the batch
+>> freeing, if the consecutive swap entries in the per-CPU buffer belongs
+>> to same swap device, the swap_info_struct->lock needs to be
+>> acquired/released only once, so that the lock contention could be
+>> reduced greatly.  But if there are multiple swap devices, it is
+>> possible that the lock may be unnecessarily released/acquired because
+>> the swap entries belong to the same swap device are non-consecutive in
+>> the per-CPU buffer.
+>> 
+>> To solve the issue, the per-CPU buffer is sorted according to the swap
+>> device before freeing the swap entries.  Test shows that the time
+>> spent by swapcache_free_entries() could be reduced after the patch.
+>> 
+>> Test the patch via measuring the run time of swap_cache_free_entries()
+>> during the exit phase of the applications use much swap space.  The
+>> results shows that the average run time of swap_cache_free_entries()
+>> reduced about 20% after applying the patch.
+>
+> "20%" is useful info, but it is much better to present the absolute
+> numbers, please.  If it's "20% of one nanosecond" then the patch isn't
+> very interesting.  If it's "20% of 35 seconds" then we know we have
+> more work to do.
 
-OK. I will add some description.
+I added memory freeing timing capability to vm-scalability test suite.
+The result shows the memory freeing time reduced from 2.64s to 2.31s
+(about -12.5%).
 
->> /* bits [20..32] reserved for arch specific ioremap internals */
->>=20
->> /*
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index 8ef8ea1..fb5049a 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1262,7 +1262,7 @@ void __init vmalloc_init(void)
->>    /* Import existing vmlist entries. */
->>    for (tmp =3D vmlist; tmp; tmp =3D tmp->next) {
->>        va =3D kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
->> -        va->flags =3D VM_VM_AREA;
->> +        va->flags =3D VM_VM_AREA | VM_STATIC;
->>        va->va_start =3D (unsigned long)tmp->addr;
->>        va->va_end =3D va->va_start + tmp->size;
->>        va->vm =3D tmp;
->> @@ -1480,7 +1480,7 @@ struct vm_struct *remove_vm_area(const void *addr)
->>    might_sleep();
->>=20
->>    va =3D find_vmap_area((unsigned long)addr);
->> -    if (va && va->flags & VM_VM_AREA) {
->> +    if (va && va->flags & VM_VM_AREA && likely(!(va->flags & VM_STATIC))=
-) {
->=20
->=20
-> You might want to move the VM_STATIC check before the VM_VM_AREA
-> check so in cases where the former is set we can save one more
-> conditional check.
->=20
+Best Regards,
+Huang, Ying
 
-OK, I'll fix this in the next version
-
-Thank you for the review.=
+> If there is indeed still a significant problem here then perhaps it
+> would be better to move the percpu swp_entry_t buffer into the
+> per-device structure swap_info_struct, so it becomes "per cpu, per
+> device".  That way we should be able to reduce contention further.
+>
+> Or maybe we do something else - it all depends upon the significance of
+> this problem, which is why a full description of your measurements is
+> useful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
