@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 27F886B0397
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 09:52:49 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s15so46772253pfi.1
-        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 06:52:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f22si2085517plk.264.2017.04.14.06.52.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D081D6B0038
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 10:07:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 72so46928050pge.10
+        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 07:07:58 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0133.outbound.protection.outlook.com. [104.47.2.133])
+        by mx.google.com with ESMTPS id p4si2143646pga.204.2017.04.14.07.07.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Apr 2017 06:52:48 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3EDi2EU051442
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 09:52:48 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29tw55nvuk-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 09:52:47 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 14 Apr 2017 23:52:45 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3EDqYkb21823648
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 23:52:42 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3EDqA9l023055
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 23:52:10 +1000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH V2] mm/madvise: Move up the behavior parameter validation
-Date: Fri, 14 Apr 2017 19:21:41 +0530
-In-Reply-To: <20170413092008.5437-1-khandual@linux.vnet.ibm.com>
-References: <20170413092008.5437-1-khandual@linux.vnet.ibm.com>
-Message-Id: <20170414135141.15340-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 14 Apr 2017 07:07:57 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH 0/4] Properly invalidate data in the cleancache.
+Date: Fri, 14 Apr 2017 17:07:49 +0300
+Message-ID: <20170414140753.16108-1-aryabinin@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org
+To: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Steve French <sfrench@samba.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, v9fs-developer@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-The madvise_behavior_valid() function should be called before
-acting upon the behavior parameter. Hence move up the function.
-This also includes MADV_SOFT_OFFLINE and MADV_HWPOISON options
-as valid behavior parameter for the system call madvise().
+We've noticed that after direct IO write, buffered read sometimes gets
+stale data which is coming from the cleancache.
+The reason for this is that some direct write hooks call call invalidate_inode_pages2[_range]()
+conditionally iff mapping->nrpages is not zero, so we may not invalidate
+data in the cleancache.
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
-Changes in V2:
+Another odd thing is that we check only for ->nrpages and don't check for ->nrexceptional,
+but invalidate_inode_pages2[_range] also invalidates exceptional entries as well.
+So we invalidate exceptional entries only if ->nrpages != 0? This doesn't feel right.
 
-Added CONFIG_MEMORY_FAILURE check before using MADV_SOFT_OFFLINE
-and MADV_HWPOISONE constants.
+ - Patch 1 fixes direct IO writes by removing ->nrpages check.
+ - Patch 2 fixes similar case in invalidate_bdev(). 
+     Note: I only fixed conditional cleancache_invalidate_inode() here.
+       Do we also need to add ->nrexceptional check in into invalidate_bdev()?
+     
+ - Patches 3-4: some optimizations.
 
- mm/madvise.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+Andrey Ryabinin (4):
+  fs: fix data invalidation in the cleancache during direct IO
+  fs/block_dev: always invalidate cleancache in invalidate_bdev()
+  mm/truncate: bail out early from invalidate_inode_pages2_range() if
+    mapping is empty
+  mm/truncate: avoid pointless cleancache_invalidate_inode() calls.
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index efd4721..ccff186 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -694,6 +694,10 @@ static int madvise_inject_error(int behavior,
- #endif
- 	case MADV_DONTDUMP:
- 	case MADV_DODUMP:
-+#ifdef CONFIG_MEMORY_FAILURE
-+	case MADV_SOFT_OFFLINE:
-+	case MADV_HWPOISON:
-+#endif
- 		return true;
- 
- 	default:
-@@ -767,12 +771,13 @@ static int madvise_inject_error(int behavior,
- 	size_t len;
- 	struct blk_plug plug;
- 
-+	if (!madvise_behavior_valid(behavior))
-+		return error;
-+
- #ifdef CONFIG_MEMORY_FAILURE
- 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
- 		return madvise_inject_error(behavior, start, start + len_in);
- #endif
--	if (!madvise_behavior_valid(behavior))
--		return error;
- 
- 	if (start & ~PAGE_MASK)
- 		return error;
+ fs/9p/vfs_file.c |  2 +-
+ fs/block_dev.c   | 11 +++++------
+ fs/cifs/inode.c  |  2 +-
+ fs/dax.c         |  2 +-
+ fs/iomap.c       | 16 +++++++---------
+ fs/nfs/direct.c  |  6 ++----
+ fs/nfs/inode.c   |  8 +++++---
+ mm/filemap.c     | 26 +++++++++++---------------
+ mm/truncate.c    | 13 +++++++++----
+ 9 files changed, 42 insertions(+), 44 deletions(-)
+
 -- 
-1.8.5.2
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
