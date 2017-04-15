@@ -1,75 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 72C246B0038
-	for <linux-mm@kvack.org>; Sat, 15 Apr 2017 15:57:37 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g31so11830599wrg.15
-        for <linux-mm@kvack.org>; Sat, 15 Apr 2017 12:57:37 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id v23si8748349wrv.127.2017.04.15.12.57.35
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 30FE96B0038
+	for <linux-mm@kvack.org>; Sat, 15 Apr 2017 19:01:40 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id p80so34804424iop.16
+        for <linux-mm@kvack.org>; Sat, 15 Apr 2017 16:01:40 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 137si3241577ith.47.2017.04.15.16.01.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 15 Apr 2017 12:57:36 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 84F7098ED1
-	for <linux-mm@kvack.org>; Sat, 15 Apr 2017 19:57:35 +0000 (UTC)
-Date: Sat, 15 Apr 2017 20:57:35 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] Revert "mm, page_alloc: only use per-cpu allocator for
- irq-safe requests"
-Message-ID: <20170415195734.avk2zk237a2oe5cd@techsingularity.net>
-References: <20170415145350.ixy7vtrzdzve57mh@techsingularity.net>
- <20170415212833.30ed3f2b@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 15 Apr 2017 16:01:39 -0700 (PDT)
+Subject: Re: [PATCH] hugetlbfs: fix offset overflow in huegtlbfs mmap
+References: <1491951118-30678-1-git-send-email-mike.kravetz@oracle.com>
+ <20170414033210.GA12973@hori1.linux.bs1.fc.nec.co.jp>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c5c80a74-b4a8-6987-188e-ab63420f5362@oracle.com>
+Date: Sat, 15 Apr 2017 15:58:59 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170415212833.30ed3f2b@redhat.com>
+In-Reply-To: <20170414033210.GA12973@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Apr 15, 2017 at 09:28:33PM +0200, Jesper Dangaard Brouer wrote:
-> On Sat, 15 Apr 2017 15:53:50 +0100
-> Mel Gorman <mgorman@techsingularity.net> wrote:
+On 04/13/2017 08:32 PM, Naoya Horiguchi wrote:
+> On Tue, Apr 11, 2017 at 03:51:58PM -0700, Mike Kravetz wrote:
+> ...
+>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+>> index 7163fe0..dde8613 100644
+>> --- a/fs/hugetlbfs/inode.c
+>> +++ b/fs/hugetlbfs/inode.c
+>> @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+>>  	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND;
+>>  	vma->vm_ops = &hugetlb_vm_ops;
+>>  
+>> +	/*
+>> +	 * Offset passed to mmap (before page shift) could have been
+>> +	 * negative when represented as a (l)off_t.
+>> +	 */
+>> +	if (((loff_t)vma->vm_pgoff << PAGE_SHIFT) < 0)
+>> +		return -EINVAL;
+>> +
+>>  	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+>>  		return -EINVAL;
+>>  
+>>  	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
+>> +	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+>> +	/* check for overflow */
+>> +	if (len < vma_len)
+>> +		return -EINVAL;
 > 
-> > This reverts commit 374ad05ab64d696303cec5cc8ec3a65d457b7b1c. While the
-> > patch worked great for userspace allocations, the fact that softirq loses
-> > the per-cpu allocator caused problems. It needs to be redone taking into
-> > account that a separate list is needed for hard/soft IRQs or alternatively
-> > find a cheap way of detecting reentry due to an interrupt. Both are possible
-> > but sufficiently tricky that it shouldn't be rushed. Jesper had one method
-> > for allowing softirqs but reported that the cost was high enough that it
-> > performed similarly to a plain revert. His figures for netperf TCP_STREAM
-> > were as follows
-> > 
-> > Baseline v4.10.0  : 60316 Mbit/s
-> > Current 4.11.0-rc6: 47491 Mbit/s
-> > This patch        : 60662 Mbit/s
-> (should instead state "Jesper's patch" or "His patch")
+> Andrew sent this patch to Linus today, so I know it's a little too late, but
+> I think that getting len directly from vma like below might be a simpler fix.
 > 
+>   len = (loff_t)(vma->vm_end - vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT)); 
+> 
+> This shouldn't overflow because vma->vm_{end|start|pgoff} are unsigned long,
+> but if worried you can add VM_BUG_ON_VMA(len < 0, vma).
 
-Yes, you are correct of course.
+Thanks Naoya,
 
-> Ran same test (8 parallel netperf TCP_STREAMs) with this patch applied:
-> 
->  This patch 60106 Mbit/s (average of 7 iteration 60 sec runs)
-> 
-> With these speeds I'm starting to hit the memory bandwidth of my machines.
-> Thus, the 60 GBit/s measurement cannot be used to validate the
-> performance impact of reverting this compared to my softirq patch, it
-> only shows we fixed the regression.  (I'm suspicious as I see a higher
-> contention on the page allocator lock (4% vs 1.3%) with this patch and
-> still same performance... but lets worry about that outside the rc-series).
-> 
+I am pretty sure the checks are necessary.  You are correct in that
+vma->vm_{end|start|pgoff} are unsigned long.  However,  pgoff can be
+a REALLY big value that becomes negative when shifted.
 
-Well, in itself that limitation highlights that evaluating this is
-challenging and needs careful treatment. Otherwise two different
-approaches can seem equivalent only because a hardware-related
-bottleneck was at play.
+Note that pgoff is simply the off_t offset value passed from the user cast
+to unsigned long and shifted right by PAGE_SHIFT.  There is nothing to
+prevent a user from passing a 'signed' negative value.  In the reproducer
+provided, the value passed from user space is 0x8000000000000000ULL.
 
 -- 
-Mel Gorman
-SUSE Labs
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
