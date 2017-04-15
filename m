@@ -1,118 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 361086B0038
-	for <linux-mm@kvack.org>; Sat, 15 Apr 2017 11:03:54 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l44so11577750wrc.11
-        for <linux-mm@kvack.org>; Sat, 15 Apr 2017 08:03:54 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id o41si7852155wrc.145.2017.04.15.08.03.52
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB116B0038
+	for <linux-mm@kvack.org>; Sat, 15 Apr 2017 15:28:43 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id c71so31233560qke.11
+        for <linux-mm@kvack.org>; Sat, 15 Apr 2017 12:28:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o14si5615630qtc.314.2017.04.15.12.28.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 15 Apr 2017 08:03:52 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 2F77898B2A
-	for <linux-mm@kvack.org>; Sat, 15 Apr 2017 15:03:52 +0000 (UTC)
-Date: Sat, 15 Apr 2017 16:03:51 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm, page_alloc: re-enable softirq use of per-cpu page
- allocator
-Message-ID: <20170415150351.ulzzaqo45ub2vrkc@techsingularity.net>
-References: <20170410150821.vcjlz7ntabtfsumm@techsingularity.net>
- <20170410142616.6d37a11904dd153298cf7f3b@linux-foundation.org>
- <20170414121027.079e5a4c@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 15 Apr 2017 12:28:42 -0700 (PDT)
+Date: Sat, 15 Apr 2017 21:28:33 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] Revert "mm, page_alloc: only use per-cpu allocator for
+ irq-safe requests"
+Message-ID: <20170415212833.30ed3f2b@redhat.com>
+In-Reply-To: <20170415145350.ixy7vtrzdzve57mh@techsingularity.net>
+References: <20170415145350.ixy7vtrzdzve57mh@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170414121027.079e5a4c@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, peterz@infradead.org, pagupta@redhat.com, ttoukan.linux@gmail.com, tariqt@mellanox.com, netdev@vger.kernel.org, saeedm@mellanox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com
 
-On Fri, Apr 14, 2017 at 12:10:27PM +0200, Jesper Dangaard Brouer wrote:
-> On Mon, 10 Apr 2017 14:26:16 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Mon, 10 Apr 2017 16:08:21 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
-> > 
-> > > IRQ context were excluded from using the Per-Cpu-Pages (PCP) lists caching
-> > > of order-0 pages in commit 374ad05ab64d ("mm, page_alloc: only use per-cpu
-> > > allocator for irq-safe requests").
-> > > 
-> > > This unfortunately also included excluded SoftIRQ.  This hurt the performance
-> > > for the use-case of refilling DMA RX rings in softirq context.  
-> > 
-> > Out of curiosity: by how much did it "hurt"?
-> >
-> > <ruffles through the archives>
-> > 
-> > Tariq found:
-> > 
-> > : I disabled the page-cache (recycle) mechanism to stress the page
-> > : allocator, and see a drastic degradation in BW, from 47.5 G in v4.10 to
-> > : 31.4 G in v4.11-rc1 (34% drop).
-> 
-> I've tried to reproduce this in my home testlab, using ConnectX-4 dual
-> 100Gbit/s. Hardware limits cause that I cannot reach 100Gbit/s, once a
-> memory copy is performed.  (Word of warning: you need PCIe Gen3 width
-> 16 (which I do have) to handle 100Gbit/s, and the memory bandwidth of
-> the system also need something like 2x 12500MBytes/s (which is where my
-> system failed)).
-> 
-> The mlx5 driver have a driver local page recycler, which I can see fail
-> between 29%-38% of the time, with 8 parallel netperf TCP_STREAMs.  I
-> speculate adding more streams will make in fail more.  To factor out
-> the driver recycler, I simply disable it (like I believe Tariq also did).
-> 
-> With disabled-mlx5-recycler, 8 parallel netperf TCP_STREAMs:
+On Sat, 15 Apr 2017 15:53:50 +0100
+Mel Gorman <mgorman@techsingularity.net> wrote:
+
+> This reverts commit 374ad05ab64d696303cec5cc8ec3a65d457b7b1c. While the
+> patch worked great for userspace allocations, the fact that softirq loses
+> the per-cpu allocator caused problems. It needs to be redone taking into
+> account that a separate list is needed for hard/soft IRQs or alternatively
+> find a cheap way of detecting reentry due to an interrupt. Both are possible
+> but sufficiently tricky that it shouldn't be rushed. Jesper had one method
+> for allowing softirqs but reported that the cost was high enough that it
+> performed similarly to a plain revert. His figures for netperf TCP_STREAM
+> were as follows
 > 
 > Baseline v4.10.0  : 60316 Mbit/s
 > Current 4.11.0-rc6: 47491 Mbit/s
 > This patch        : 60662 Mbit/s
-> 
-> While this patch does "fix" the performance regression, it does not
-> bring any noticeable improvement (as my micro-bench also indicated),
-> thus I feel our previous optimization is almost nullified. (p.s. It
-> does feel wrong to argue against my own patch ;-)).
-> 
-> The reason for the current 4.11.0-rc6 regression is lock congestion on
-> the (per NUMA) page allocator lock, perf report show we spend 34.92% in
-> queued_spin_lock_slowpath (compared to top#2 copy cost of 13.81% in
-> copy_user_enhanced_fast_string).
-> 
+(should instead state "Jesper's patch" or "His patch")
 
-The lock contention is likely due to the per-cpu allocator being bypassed.
+Ran same test (8 parallel netperf TCP_STREAMs) with this patch applied:
 
-> 
-> > then with this patch he found
-> > 
-> > : It looks very good!  I get line-rate (94Gbits/sec) with 8 streams, in
-> > : comparison to less than 55Gbits/sec before.
-> > 
-> > Can I take this to mean that the page allocator's per-cpu-pages feature
-> > ended up doubling the performance of this driver?  Better than the
-> > driver's private page recycling?  I'd like to believe that, but am
-> > having trouble doing so ;)
-> 
-> I would not conclude that. I'm also very suspicious about such big
-> performance "jumps".  Tariq should also benchmark with v4.10 and a
-> disabled mlx5-recycler, as I believe the results should be the same as
-> after this patch.
-> 
-> That said, it is possible to see a regression this large, when all the
-> CPUs are congesting on the page allocator lock. AFAIK Tariq also
-> mentioned seeing 60% spend on the lock, which would confirm this theory.
-> 
+ This patch 60106 Mbit/s (average of 7 iteration 60 sec runs)
 
-On that basis, I've posted a revert of the original patch which should
-either go into 4.11 or 4.11-stable. Andrew, the revert should also
-remove the "re-enable softirq use of per-cpu page" patch from mmotm.
+With these speeds I'm starting to hit the memory bandwidth of my machines.
+Thus, the 60 GBit/s measurement cannot be used to validate the
+performance impact of reverting this compared to my softirq patch, it
+only shows we fixed the regression.  (I'm suspicious as I see a higher
+contention on the page allocator lock (4% vs 1.3%) with this patch and
+still same performance... but lets worry about that outside the rc-series).
 
-Thanks.
+I would be interested in Tariq to re-run these benchmarks on some
+hardware with enough memory bandwidth for 100Gbit/s throughput.
+
+
+> As this is a regression, I wish to revert to noirq allocator for now and
+> go back to the drawing board.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Reported-by: Tariq Toukan <ttoukan.linux@gmail.com>
+
+Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
+
+> ---
+>  mm/page_alloc.c | 43 ++++++++++++++++++++-----------------------
+>  1 file changed, 20 insertions(+), 23 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6cbde310abed..3bba4f46214c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1090,10 +1090,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  {
+>  	int migratetype = 0;
+>  	int batch_free = 0;
+> -	unsigned long nr_scanned, flags;
+> +	unsigned long nr_scanned;
+>  	bool isolated_pageblocks;
+>  
+> -	spin_lock_irqsave(&zone->lock, flags);
+> +	spin_lock(&zone->lock);
+>  	isolated_pageblocks = has_isolate_pageblock(zone);
+>  	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
+>  	if (nr_scanned)
+> @@ -1142,7 +1142,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			trace_mm_page_pcpu_drain(page, 0, mt);
+>  		} while (--count && --batch_free && !list_empty(list));
+>  	}
+> -	spin_unlock_irqrestore(&zone->lock, flags);
+> +	spin_unlock(&zone->lock);
+>  }
+>  
+>  static void free_one_page(struct zone *zone,
+> @@ -1150,9 +1150,8 @@ static void free_one_page(struct zone *zone,
+>  				unsigned int order,
+>  				int migratetype)
+>  {
+> -	unsigned long nr_scanned, flags;
+> -	spin_lock_irqsave(&zone->lock, flags);
+> -	__count_vm_events(PGFREE, 1 << order);
+> +	unsigned long nr_scanned;
+> +	spin_lock(&zone->lock);
+>  	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
+>  	if (nr_scanned)
+>  		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
+> @@ -1162,7 +1161,7 @@ static void free_one_page(struct zone *zone,
+>  		migratetype = get_pfnblock_migratetype(page, pfn);
+>  	}
+>  	__free_one_page(page, pfn, zone, order, migratetype);
+> -	spin_unlock_irqrestore(&zone->lock, flags);
+> +	spin_unlock(&zone->lock);
+>  }
+>  
+>  static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+> @@ -1240,6 +1239,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
+>  
+>  static void __free_pages_ok(struct page *page, unsigned int order)
+>  {
+> +	unsigned long flags;
+>  	int migratetype;
+>  	unsigned long pfn = page_to_pfn(page);
+>  
+> @@ -1247,7 +1247,10 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+>  		return;
+>  
+>  	migratetype = get_pfnblock_migratetype(page, pfn);
+> +	local_irq_save(flags);
+> +	__count_vm_events(PGFREE, 1 << order);
+>  	free_one_page(page_zone(page), page, pfn, order, migratetype);
+> +	local_irq_restore(flags);
+>  }
+>  
+>  static void __init __free_pages_boot_core(struct page *page, unsigned int order)
+> @@ -2219,9 +2222,8 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  			int migratetype, bool cold)
+>  {
+>  	int i, alloced = 0;
+> -	unsigned long flags;
+>  
+> -	spin_lock_irqsave(&zone->lock, flags);
+> +	spin_lock(&zone->lock);
+>  	for (i = 0; i < count; ++i) {
+>  		struct page *page = __rmqueue(zone, order, migratetype);
+>  		if (unlikely(page == NULL))
+> @@ -2257,7 +2259,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  	 * pages added to the pcp list.
+>  	 */
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+> -	spin_unlock_irqrestore(&zone->lock, flags);
+> +	spin_unlock(&zone->lock);
+>  	return alloced;
+>  }
+>  
+> @@ -2478,20 +2480,17 @@ void free_hot_cold_page(struct page *page, bool cold)
+>  {
+>  	struct zone *zone = page_zone(page);
+>  	struct per_cpu_pages *pcp;
+> +	unsigned long flags;
+>  	unsigned long pfn = page_to_pfn(page);
+>  	int migratetype;
+>  
+> -	if (in_interrupt()) {
+> -		__free_pages_ok(page, 0);
+> -		return;
+> -	}
+> -
+>  	if (!free_pcp_prepare(page))
+>  		return;
+>  
+>  	migratetype = get_pfnblock_migratetype(page, pfn);
+>  	set_pcppage_migratetype(page, migratetype);
+> -	preempt_disable();
+> +	local_irq_save(flags);
+> +	__count_vm_event(PGFREE);
+>  
+>  	/*
+>  	 * We only track unmovable, reclaimable and movable on pcp lists.
+> @@ -2508,7 +2507,6 @@ void free_hot_cold_page(struct page *page, bool cold)
+>  		migratetype = MIGRATE_MOVABLE;
+>  	}
+>  
+> -	__count_vm_event(PGFREE);
+>  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+>  	if (!cold)
+>  		list_add(&page->lru, &pcp->lists[migratetype]);
+> @@ -2522,7 +2520,7 @@ void free_hot_cold_page(struct page *page, bool cold)
+>  	}
+>  
+>  out:
+> -	preempt_enable();
+> +	local_irq_restore(flags);
+>  }
+>  
+>  /*
+> @@ -2647,8 +2645,6 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
+>  {
+>  	struct page *page;
+>  
+> -	VM_BUG_ON(in_interrupt());
+> -
+>  	do {
+>  		if (list_empty(list)) {
+>  			pcp->count += rmqueue_bulk(zone, 0,
+> @@ -2679,8 +2675,9 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+>  	struct list_head *list;
+>  	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+>  	struct page *page;
+> +	unsigned long flags;
+>  
+> -	preempt_disable();
+> +	local_irq_save(flags);
+>  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+>  	list = &pcp->lists[migratetype];
+>  	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
+> @@ -2688,7 +2685,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+>  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+>  		zone_statistics(preferred_zone, zone);
+>  	}
+> -	preempt_enable();
+> +	local_irq_restore(flags);
+>  	return page;
+>  }
+>  
+> @@ -2704,7 +2701,7 @@ struct page *rmqueue(struct zone *preferred_zone,
+>  	unsigned long flags;
+>  	struct page *page;
+>  
+> -	if (likely(order == 0) && !in_interrupt()) {
+> +	if (likely(order == 0)) {
+>  		page = rmqueue_pcplist(preferred_zone, zone, order,
+>  				gfp_flags, migratetype);
+>  		goto out;
+
+
 
 -- 
-Mel Gorman
-SUSE Labs
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
