@@ -1,45 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 33A2B6B0038
-	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 20:59:52 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id i13so26694901qki.16
-        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 17:59:52 -0700 (PDT)
-Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
-        by mx.google.com with ESMTPS id 87si3298930qkv.49.2017.04.14.17.59.50
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BBCB6B0038
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2017 21:17:09 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t187so3853844pgt.20
+        for <linux-mm@kvack.org>; Fri, 14 Apr 2017 18:17:09 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id z61si3964613plb.68.2017.04.14.18.17.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Apr 2017 17:59:51 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@sandisk.com>
-Subject: Re: [PATCH] mm: Make truncate_inode_pages_range() killable
-Date: Sat, 15 Apr 2017 00:59:46 +0000
-Message-ID: <1492217984.2557.1.camel@sandisk.com>
-References: <20170414215507.27682-1-bart.vanassche@sandisk.com>
-	 <alpine.LSU.2.11.1704141726260.9676@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1704141726260.9676@eggly.anvils>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <D7C7E26841E9A04B8BAA9643A85BD225@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        Fri, 14 Apr 2017 18:17:08 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v8 1/3] mm, THP, swap: Delay splitting THP during swap out
+References: <20170406053515.4842-1-ying.huang@intel.com>
+	<20170406053515.4842-2-ying.huang@intel.com>
+	<20170414145856.GA9812@cmpxchg.org>
+Date: Sat, 15 Apr 2017 09:17:04 +0800
+In-Reply-To: <20170414145856.GA9812@cmpxchg.org> (Johannes Weiner's message of
+	"Fri, 14 Apr 2017 10:58:56 -0400")
+Message-ID: <87k26mzcz3.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hughd@google.com" <hughd@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "snitzer@redhat.com" <snitzer@redhat.com>, "oleg@redhat.com" <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hare@suse.com" <hare@suse.com>, "mhocko@suse.com" <mhocko@suse.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "jack@suse.cz" <jack@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
 
-T24gRnJpLCAyMDE3LTA0LTE0IGF0IDE3OjQwIC0wNzAwLCBIdWdoIERpY2tpbnMgd3JvdGU6DQo+
-IENoYW5naW5nIGEgZnVuZGFtZW50YWwgZnVuY3Rpb24sIHNpbGVudGx5IG5vdCB0byBkbyBpdHMg
-ZXNzZW50aWFsIGpvYiwNCj4gd2hlbiBzb21ldGhpbmcgaW4gdGhlIGtlcm5lbCBoYXMgZm9yZ290
-dGVuIChvciBpcyBzbG93IHRvKSB1bmxvY2tfcGFnZSgpOg0KPiB0aGF0IHNlZW1zIHZlcnkgd3Jv
-bmcgdG8gbWUgaW4gbWFueSB3YXlzLiAgQnV0IGxpbnV4LWZzZGV2ZWwsIENjJ2VkLCB3aWxsDQo+
-IGJlIGEgYmV0dGVyIGZvcnVtIHRvIGFkdmlzZSBvbiBob3cgdG8gc29sdmUgdGhlIHByb2JsZW0g
-eW91J3JlIHNlZWluZy4NCg0KSGVsbG8gSHVnaCwNCg0KSXQgc2VlbXMgbGlrZSB5b3UgaGF2ZSBt
-aXN1bmRlcnN0b29kIHRoZSBwdXJwb3NlIG9mIHRoZSBwYXRjaCBJIHBvc3RlZC4gSXQncw0KbmVp
-dGhlciBhIG1pc3NpbmcgdW5sb2NrX3BhZ2UoKSBub3Igc2xvdyBJL08gdGhhdCBJIHdhbnQgdG8g
-YWRkcmVzcyBidXQgYQ0KZ2VudWluZSBkZWFkbG9jay4gSW4gY2FzZSB5b3Ugd291bGQgbm90IGJl
-IGZhbWlsaWFyIHdpdGggdGhlIHF1ZXVlX2lmX25vX3BhdGgNCm11bHRpcGF0aCBjb25maWd1cmF0
-aW9uIG9wdGlvbiwgdGhlIG11bHRpcGF0aC5jb25mIG1hbiBwYWdlIGlzIGF2YWlsYWJsZSBhdA0K
-ZS5nLiBodHRwczovL2xpbnV4LmRpZS5uZXQvbWFuLzUvbXVsdGlwYXRoLmNvbmYuDQoNCkJhcnQu
-DQo=
+Hi, Johannes,
+
+Johannes Weiner <hannes@cmpxchg.org> writes:
+
+> Hi Huang,
+>
+> I reviewed this patch based on the feedback I already provided, but
+> eventually gave up and rewrote it. Please take review feedback more
+> seriously in the future.
+
+Thanks a lot for your help!  I do respect all your review and effort.
+The -v8 patch doesn't take all your comments, just because I thought we
+have not reach consensus for some points and I want to use -v8 patch to
+discuss them.
+
+One concern I have before is whether to split THP firstly when swap
+space or memcg swap is used up.  Now I think your solution is
+acceptable. And if we receive any regression report for that in the
+future, it's not very hard to deal with.
+
+> Attached below is the reworked patch. Most changes are to the layering
+> (page functions, cluster functions, range functions) so that we don't
+> make the lowest swap range code require a notion of huge pages, or
+> make the memcg page functions take size information that can be
+> gathered from the page itself. I turned the config symbol into a
+> generic THP_SWAP that can later be extended when we add 2MB IO. The
+> rest is function naming, #ifdef removal etc.
+
+For some #ifdef in swapfile.c, it is to avoid unnecessary code size
+increase for !CONFIG_TRANSPARENT_HUGEPAGE or platform with THP swap
+optimization disabled.  Is it an issue?
+
+> Please review whether this is an acceptable version for you.
+
+Yes.  It is good for me.  I will give it more test on next Monday.
+
+[...]
+
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index c89f472b658c..660fb765bf7d 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -447,6 +447,18 @@ choice
+>  	  benefit.
+>  endchoice
+>  
+> +config ARCH_WANTS_THP_SWAP
+> +       def_bool n
+> +
+> +config THP_SWAP
+> +	def_bool y
+> +	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
+> +	help
+> +	  Swap transparent huge pages in one piece, without splitting.
+> +	  XXX: For now this only does clustered swap space allocation.
+
+Is 'XXX' here intended.
+
+> +
+> +	  For selection by architectures with reasonable THP sizes.
+> +
+>  config	TRANSPARENT_HUGE_PAGECACHE
+>  	def_bool y
+>  	depends on TRANSPARENT_HUGEPAGE
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index d14dd961f626..4a5c1ca21894 100644
+
+[...]
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
