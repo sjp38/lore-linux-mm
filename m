@@ -1,88 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE7C6B0390
-	for <linux-mm@kvack.org>; Sun, 16 Apr 2017 19:57:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 194so78248518pfv.11
-        for <linux-mm@kvack.org>; Sun, 16 Apr 2017 16:57:38 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id b24si9269009pfk.341.2017.04.16.16.57.37
+	by kanga.kvack.org (Postfix) with ESMTP id E72B26B0390
+	for <linux-mm@kvack.org>; Sun, 16 Apr 2017 21:48:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o68so78976404pfj.20
+        for <linux-mm@kvack.org>; Sun, 16 Apr 2017 18:48:00 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id g26si9487288plj.197.2017.04.16.18.47.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Apr 2017 16:57:37 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] hugetlbfs: fix offset overflow in huegtlbfs mmap
-Date: Sun, 16 Apr 2017 23:43:50 +0000
-Message-ID: <20170416234349.GA3395@hori1.linux.bs1.fc.nec.co.jp>
-References: <1491951118-30678-1-git-send-email-mike.kravetz@oracle.com>
- <20170414033210.GA12973@hori1.linux.bs1.fc.nec.co.jp>
- <c5c80a74-b4a8-6987-188e-ab63420f5362@oracle.com>
-In-Reply-To: <c5c80a74-b4a8-6987-188e-ab63420f5362@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <7997CABDB2A4C944A9B13908A926003D@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Sun, 16 Apr 2017 18:47:59 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id o123so24325453pga.1
+        for <linux-mm@kvack.org>; Sun, 16 Apr 2017 18:47:59 -0700 (PDT)
+Date: Mon, 17 Apr 2017 10:48:03 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was "zram:
+ do not use copy_page with non-page alinged address")
+Message-ID: <20170417014803.GC518@jagdpanzerIV.localdomain>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Sat, Apr 15, 2017 at 03:58:59PM -0700, Mike Kravetz wrote:
-> On 04/13/2017 08:32 PM, Naoya Horiguchi wrote:
-> > On Tue, Apr 11, 2017 at 03:51:58PM -0700, Mike Kravetz wrote:
-> > ...
-> >> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> >> index 7163fe0..dde8613 100644
-> >> --- a/fs/hugetlbfs/inode.c
-> >> +++ b/fs/hugetlbfs/inode.c
-> >> @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file=
-, struct vm_area_struct *vma)
-> >>  	vma->vm_flags |=3D VM_HUGETLB | VM_DONTEXPAND;
-> >>  	vma->vm_ops =3D &hugetlb_vm_ops;
-> >> =20
-> >> +	/*
-> >> +	 * Offset passed to mmap (before page shift) could have been
-> >> +	 * negative when represented as a (l)off_t.
-> >> +	 */
-> >> +	if (((loff_t)vma->vm_pgoff << PAGE_SHIFT) < 0)
-> >> +		return -EINVAL;
-> >> +
-> >>  	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
-> >>  		return -EINVAL;
-> >> =20
-> >>  	vma_len =3D (loff_t)(vma->vm_end - vma->vm_start);
-> >> +	len =3D vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
-> >> +	/* check for overflow */
-> >> +	if (len < vma_len)
-> >> +		return -EINVAL;
-> >=20
-> > Andrew sent this patch to Linus today, so I know it's a little too late=
-, but
-> > I think that getting len directly from vma like below might be a simple=
-r fix.
-> >=20
-> >   len =3D (loff_t)(vma->vm_end - vma->vm_start + (vma->vm_pgoff << PAGE=
-_SHIFT));=20
-> >=20
-> > This shouldn't overflow because vma->vm_{end|start|pgoff} are unsigned =
-long,
-> > but if worried you can add VM_BUG_ON_VMA(len < 0, vma).
->=20
-> Thanks Naoya,
->=20
-> I am pretty sure the checks are necessary.  You are correct in that
-> vma->vm_{end|start|pgoff} are unsigned long.  However,  pgoff can be
-> a REALLY big value that becomes negative when shifted.
->=20
-> Note that pgoff is simply the off_t offset value passed from the user cas=
-t
-> to unsigned long and shifted right by PAGE_SHIFT.  There is nothing to
-> prevent a user from passing a 'signed' negative value.  In the reproducer
-> provided, the value passed from user space is 0x8000000000000000ULL.
+Hello,
 
-OK, thank you for explanation. You're right.
+I'll fork it into a separate thread and Cc more MM people.
+sorry for top-posting.
 
-- Naoya=
+Minchan reported that doing copy_page() on a kmalloc(PAGE_SIZE) page
+with DEBUG_SLAB enabled can cause a memory corruption (See below or
+lkml.kernel.org/r/1492042622-12074-2-git-send-email-minchan@kernel.org )
+
+that's an interesting problem. arm64 copy_page(), for instance, wants src
+and dst to be page aligned, which is reasonable, while generic copy_page(),
+on the contrary, simply does memcpy(). there are, probably, other callpaths
+that do copy_page() on kmalloc-ed pages and I'm wondering if there is some
+sort of a generic fix to the problem.
+
+> > On (04/13/17 09:17), Minchan Kim wrote:
+> > > The copy_page is optimized memcpy for page-alinged address.
+> > > If it is used with non-page aligned address, it can corrupt memory which
+> > > means system corruption. With zram, it can happen with
+> > > 
+> > > 1. 64K architecture
+> > > 2. partial IO
+> > > 3. slub debug
+> > > 
+> > > Partial IO need to allocate a page and zram allocates it via kmalloc.
+> > > With slub debug, kmalloc(PAGE_SIZE) doesn't return page-size aligned
+> > > address. And finally, copy_page(mem, cmem) corrupts memory.
+> > 
+> > which would be the case for many other copy_page() calls in the kernel.
+> > right? if so - should the fix be in copy_page() then?
+> 
+> I thought about it but was not sure it's good idea by several reasons
+> (but don't want to discuss it in this thread).
+> 
+> Anyway, it's stable stuff so I don't want to make the patch bloat.
+> If you believe it is right direction and valuable, you could be
+> a volunteer. :)
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
