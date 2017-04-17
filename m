@@ -1,87 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C40666B03A4
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 18:25:53 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id z127so61189126pgb.12
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 15:25:53 -0700 (PDT)
-Received: from mail-pg0-x233.google.com (mail-pg0-x233.google.com. [2607:f8b0:400e:c05::233])
-        by mx.google.com with ESMTPS id m8si12492337pln.260.2017.04.17.15.25.52
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AAEA26B03A5
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 18:48:35 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j16so93169089pfk.4
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 15:48:35 -0700 (PDT)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id v21si12523012pfl.286.2017.04.17.15.48.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Apr 2017 15:25:52 -0700 (PDT)
-Received: by mail-pg0-x233.google.com with SMTP id 63so17957888pgh.0
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 15:25:52 -0700 (PDT)
-Date: Mon, 17 Apr 2017 15:25:50 -0700 (PDT)
+        Mon, 17 Apr 2017 15:48:35 -0700 (PDT)
+Received: by mail-pf0-x22c.google.com with SMTP id 194so32430805pfv.3
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 15:48:35 -0700 (PDT)
+Date: Mon, 17 Apr 2017 15:48:33 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: avoid IPIs when creating kmem caches
-In-Reply-To: <20170416214544.109476-1-gthelen@google.com>
-Message-ID: <alpine.DEB.2.10.1704171525350.46404@chino.kir.corp.google.com>
-References: <20170416214544.109476-1-gthelen@google.com>
+Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure
+ warning.
+In-Reply-To: <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1704171539190.46404@chino.kir.corp.google.com>
+References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Sun, 16 Apr 2017, Greg Thelen wrote:
+On Mon, 10 Apr 2017, Andrew Morton wrote:
 
-> Each slab kmem cache has per cpu array caches.  The array caches are
-> created when the kmem_cache is created, either via kmem_cache_create()
-> or lazily when the first object is allocated in context of a kmem
-> enabled memcg.  Array caches are replaced by writing to /proc/slabinfo.
+> I interpret __GFP_NOWARN to mean "don't warn about this allocation
+> attempt failing", not "don't warn about anything at all".  It's a very
+> minor issue but yes, methinks that stall warning should still come out.
 > 
-> Array caches are protected by holding slab_mutex or disabling
-> interrupts.  Array cache allocation and replacement is done by
-> __do_tune_cpucache() which holds slab_mutex and calls
-> kick_all_cpus_sync() to interrupt all remote processors which confirms
-> there are no references to the old array caches.
-> 
-> IPIs are needed when replacing array caches.  But when creating a new
-> array cache, there's no need to send IPIs because there cannot be any
-> references to the new cache.  Outside of memcg kmem accounting these
-> IPIs occur at boot time, so they're not a problem.  But with memcg kmem
-> accounting each container can create kmem caches, so the IPIs are
-> wasteful.
-> 
-> Avoid unnecessary IPIs when creating array caches.
-> 
-> Test which reports the IPI count of allocating slab in 10000 memcg:
-> 	import os
-> 
-> 	def ipi_count():
-> 		with open("/proc/interrupts") as f:
-> 			for l in f:
-> 				if 'Function call interrupts' in l:
-> 					return int(l.split()[1])
-> 
-> 	def echo(val, path):
-> 		with open(path, "w") as f:
-> 			f.write(val)
-> 
-> 	n = 10000
-> 	os.chdir("/mnt/cgroup/memory")
-> 	pid = str(os.getpid())
-> 	a = ipi_count()
-> 	for i in range(n):
-> 		os.mkdir(str(i))
-> 		echo("1G\n", "%d/memory.limit_in_bytes" % i)
-> 		echo("1G\n", "%d/memory.kmem.limit_in_bytes" % i)
-> 		echo(pid, "%d/cgroup.procs" % i)
-> 		open("/tmp/x", "w").close()
-> 		os.unlink("/tmp/x")
-> 	b = ipi_count()
-> 	print "%d loops: %d => %d (+%d ipis)" % (n, a, b, b-a)
-> 	echo(pid, "cgroup.procs")
-> 	for i in range(n):
-> 		os.rmdir(str(i))
-> 
-> patched:   10000 loops: 1069 => 1170 (+101 ipis)
-> unpatched: 10000 loops: 1192 => 48933 (+47741 ipis)
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+Agreed, and we have found this to be helpful in automated memory stress 
+tests.
+
+I agree that masking off __GFP_NOWARN and then reporting the gfp_mask to 
+the user is only harmful.  If the allocation stalls vs allocation failure 
+warnings are separated such as you have done, it is easily preventable.
+
+I have a couple of suggestions for Tetsuo about this patch, though:
+
+ - We now have show_mem_rs, stall_rs, and nopage_rs.  Ugh.  I think it's
+   better to get rid of show_mem_rs and let warn_alloc_common() not 
+   enforce any ratelimiting at all and leave it to the callers.
+
+ - warn_alloc() is probably better off renamed to warn_alloc_failed()
+   since it enforces __GFP_NOWARN and uses an allocation failure ratelimit 
+   regardless of what the passed text is.
+
+It may also be slightly off-topic, but I think it would be useful to print 
+current's pid.  I find printing its parent's pid and comm helpful when 
+using shared libraries, but you may not agree.
+
+Otherwise, I think this is a good direction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
