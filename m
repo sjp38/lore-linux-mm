@@ -1,71 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6218B6B0390
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 01:47:29 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q25so81291625pfg.6
-        for <linux-mm@kvack.org>; Sun, 16 Apr 2017 22:47:29 -0700 (PDT)
-Received: from mail-pg0-x230.google.com (mail-pg0-x230.google.com. [2607:f8b0:400e:c05::230])
-        by mx.google.com with ESMTPS id 6si9986603pfb.167.2017.04.16.22.47.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Apr 2017 22:47:28 -0700 (PDT)
-Received: by mail-pg0-x230.google.com with SMTP id z127so3678372pgb.1
-        for <linux-mm@kvack.org>; Sun, 16 Apr 2017 22:47:28 -0700 (PDT)
-Date: Mon, 17 Apr 2017 14:47:20 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: your mail
-Message-ID: <20170417054718.GD1351@js1304-desktop>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170415121734.6692-1-mhocko@kernel.org>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AEAA6B0390
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 03:38:43 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id c2so19782055pga.1
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 00:38:43 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 1si10242836plw.137.2017.04.17.00.38.41
+        for <linux-mm@kvack.org>;
+        Mon, 17 Apr 2017 00:38:41 -0700 (PDT)
+Date: Mon, 17 Apr 2017 16:38:08 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v7 1/7] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170417073808.GA21354@bbox>
+References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1491880640-9944-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <1491880640-9944-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170415121734.6692-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, Apr 15, 2017 at 02:17:31PM +0200, Michal Hocko wrote:
-> Hi,
-> here I 3 more preparatory patches which I meant to send on Thursday but
-> forgot... After more thinking about pfn walkers I have realized that
-> the current code doesn't check offline holes in zones. From a quick
-> review that doesn't seem to be a problem currently. Pfn walkers can race
-> with memory offlining and with the original hotplug impementation those
-> offline pages can change the zone but I wasn't able to find any serious
-> problem other than small confusion. The new hotplug code, will not have
-> any valid zone, though so those code paths should check PageReserved
-> to rule offline holes. I hope I have addressed all of them in these 3
-> patches. I would appreciate if Vlastimil and Jonsoo double check after
-> me.
+Hi Joonsoo,
 
-Hello, Michal.
+On Tue, Apr 11, 2017 at 12:17:14PM +0900, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> important to reserve. When ZONE_MOVABLE is used, this problem would
+> theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> allocation request which is mainly used for page cache and anon page
+> allocation. So, fix it.
+> 
+> And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> makes code complex. For example, if there is highmem system, following
+> reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> misleading people.
+> 
+>  #ifdef CONFIG_HIGHMEM
+>  32
+>  #endif
+> 
+> This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> array by MAX_NR_ZONES and place "#ifdef" to right place.
+> 
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/mmzone.h |  2 +-
+>  mm/page_alloc.c        | 11 ++++++-----
+>  2 files changed, 7 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index ebaccd4..96194bf 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -869,7 +869,7 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+> -extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+> +extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
+>  int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 32b31d6..60ffa4e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -203,17 +203,18 @@ static void __free_pages_ok(struct page *page, unsigned int order);
+>   * TBD: should special case ZONE_DMA32 machines here - in those we normally
+>   * don't need any ZONE_NORMAL reservation
+>   */
+> -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+> +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
+>  #ifdef CONFIG_ZONE_DMA
+> -	 256,
+> +	[ZONE_DMA] = 256,
+>  #endif
+>  #ifdef CONFIG_ZONE_DMA32
+> -	 256,
+> +	[ZONE_DMA32] = 256,
+>  #endif
+> +	[ZONE_NORMAL] = 32,
+>  #ifdef CONFIG_HIGHMEM
+> -	 32,
+> +	[ZONE_HIGHMEM] = INT_MAX,
+>  #endif
+> -	 32,
+> +	[ZONE_MOVABLE] = INT_MAX,
+>  };
 
-s/Jonsoo/Joonsoo. :)
+We need to update lowmem_reserve_ratio in Documentation/sysctl/vm.txt.
+And to me, INT_MAX is rather awkward.
 
-I'm not sure that it's a good idea to add PageResereved() check in pfn
-walkers. First, this makes struct page validity check as two steps,
-pfn_valid() and then PageResereved(). If we should not use struct page
-in this case, it's better to pfn_valid() returns false rather than
-adding a separate check. Anyway, we need to fix more places (all pfn
-walker?) if we want to check validity by two steps.
+# cat /proc/sys/vm/lowmem_reserve_ratio
+        256     256     32      2147483647      2147483647
 
-The other problem I found is that your change will makes some
-contiguous zones to be considered as non-contiguous. Memory allocated
-by memblock API is also marked as PageResereved. If we consider this as
-a hole, we will set such a zone as non-contiguous.
+What do you think about to use 0 or -1 as special meaning
+instead 2147483647?
 
-And, I guess that it's not enough to check PageResereved() in
-pageblock_pfn_to_page() in order to skip these pages in compaction. If
-holes are in the middle of the pageblock, pageblock_pfn_to_page()
-cannot catch it and compaction will use struct page for this hole.
-
-Therefore, I think that making pfn_valid() return false for not
-onlined memory is a better solution for this problem. I don't know the
-implementation detail for hotplug and I don't see your recent change
-but we may defer memmap initialization until the zone is determined.
-It will make pfn_valid() return false for un-initialized range.
+Anyway, it could be separate patch regardless of zone_cma
+so I hope Andrew to merge this patch regardless of other patches
+in this patchset.
 
 Thanks.
 
