@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C3E76B0390
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 09:28:21 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id f98so135409017iod.18
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 06:28:21 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id n67si11394736ith.121.2017.04.18.06.28.20
+	by kanga.kvack.org (Postfix) with ESMTP id 723736B03A0
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 09:31:26 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id x86so136294075ioe.5
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 06:31:26 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id e42si15308889ioj.166.2017.04.18.06.31.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 06:28:20 -0700 (PDT)
-Date: Tue, 18 Apr 2017 08:28:17 -0500 (CDT)
+        Tue, 18 Apr 2017 06:31:25 -0700 (PDT)
+Date: Tue, 18 Apr 2017 08:31:24 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-In-Reply-To: <20170418104222.GB558@jagdpanzerIV.localdomain>
-Message-ID: <alpine.DEB.2.20.1704180825460.13506@east.gentwo.org>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain> <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org> <20170418104222.GB558@jagdpanzerIV.localdomain>
+Subject: Re: [PATCH] mm: Add additional consistency check
+In-Reply-To: <20170418064124.GA22360@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1704180829360.13656@east.gentwo.org>
+References: <20170411141956.GP6729@dhcp22.suse.cz> <alpine.DEB.2.20.1704111110130.24725@east.gentwo.org> <20170411164134.GA21171@dhcp22.suse.cz> <alpine.DEB.2.20.1704111254390.25069@east.gentwo.org> <20170411183035.GD21171@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704111335540.6544@east.gentwo.org> <20170411185555.GE21171@dhcp22.suse.cz> <alpine.DEB.2.20.1704111356460.6911@east.gentwo.org> <20170411193948.GA29154@dhcp22.suse.cz> <alpine.DEB.2.20.1704171021450.28407@east.gentwo.org>
+ <20170418064124.GA22360@dhcp22.suse.cz>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 18 Apr 2017, Sergey Senozhatsky wrote:
+On Tue, 18 Apr 2017, Michal Hocko wrote:
 
-> > Simple solution is to not allocate pages via the slab allocator but use
-> > the page allocator for this. The page allocator provides proper alignment.
+> > The patch does not do that. See my review. Invalid points to kfree are
+> > already caught with a bug on. See kfree in mm/slub.c
 >
-> sure, but at the same time it's not completely uncommon and unseen thing
->
-> ~/_next$ git grep kmalloc | grep PAGE_SIZE | wc -l
-> 75
+> Are you even reading those emails? First of all we are talking about
+> slab here. Secondly I've already pointed out that the BUG_ON(!PageSlab)
+> in kmem_freepages is already too late because we do operate on a
+> potential garbage from invalid page...
 
-Of course if you want a PAGE_SIZE object that is not really page aligned
-etc then its definitely ok to use.
+Again this is confusing because you are discussing something that was not
+covered by the patch submitted. Please start another discussion thread
+on kfree() separately from the discussion of the patch here.
 
-> not all, if any, of those pages get into copy_page(), of course. may be... hopefully.
-> so may be a warning would make sense and save time some day. but up to MM
-> people to decide.
-
-Slab objects are copied using memcpy. copy_page is for pages aligned to
-page boundaries and the arch code there may have additional expectations
-that cannot be met by the slab allocators.
-
-> p.s. Christoph, FYI, gmail automatically marked your message
->      as a spam message, for some reason.
-
-Weird. Any more details as to why?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
