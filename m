@@ -1,99 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 41EE36B03A7
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:45:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q25so93532674pfg.6
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 16:45:43 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z27si12623623pfj.235.2017.04.17.16.45.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Apr 2017 16:45:42 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3HNjS4W068396
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:45:42 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29w26abst1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:45:41 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 17 Apr 2017 19:45:40 -0400
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: [PATCH v2 tip/core/rcu 34/39] mm: Use static initialization for "srcu"
-Date: Mon, 17 Apr 2017 16:45:21 -0700
-In-Reply-To: <20170417234452.GB19013@linux.vnet.ibm.com>
-References: <20170417234452.GB19013@linux.vnet.ibm.com>
-Message-Id: <1492472726-3841-34-git-send-email-paulmck@linux.vnet.ibm.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A4D6B03A8
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 20:03:22 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t7so9583119pgt.0
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 17:03:22 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id e5si12657985pga.100.2017.04.17.17.03.21
+        for <linux-mm@kvack.org>;
+        Mon, 17 Apr 2017 17:03:21 -0700 (PDT)
+Date: Tue, 18 Apr 2017 09:03:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
+ "zram: do not use copy_page with non-page alinged address")
+Message-ID: <20170418000319.GC21354@bbox>
+References: <20170417014803.GC518@jagdpanzerIV.localdomain>
+ <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, peterz@infradead.org, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, bobby.prani@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vegard Nossum <vegard.nossum@oracle.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-The MM-notifier code currently dynamically initializes the srcu_struct
-named "srcu" at subsys_initcall() time, and includes a BUG_ON() to check
-this initialization in do_mmu_notifier_register().  Unfortunately, there
-is no foolproof way to verify that an srcu_struct has been initialized,
-given the possibility of an srcu_struct being allocated on the stack or
-on the heap.  This means that creating an srcu_struct_is_initialized()
-function is not a reasonable course of action.  Nor is peppering
-do_mmu_notifier_register() with SRCU-specific #ifdefs an attractive
-alternative.
+On Mon, Apr 17, 2017 at 10:20:42AM -0500, Christoph Lameter wrote:
+> On Mon, 17 Apr 2017, Sergey Senozhatsky wrote:
+> 
+> > Minchan reported that doing copy_page() on a kmalloc(PAGE_SIZE) page
+> > with DEBUG_SLAB enabled can cause a memory corruption (See below or
+> > lkml.kernel.org/r/1492042622-12074-2-git-send-email-minchan@kernel.org )
+> 
+> Yes the alignment guarantees do not require alignment on a page boundary.
+> 
+> The alignment for kmalloc allocations is controlled by KMALLOC_MIN_ALIGN.
+> Usually this is either double word aligned or cache line aligned.
+> 
+> > that's an interesting problem. arm64 copy_page(), for instance, wants src
+> > and dst to be page aligned, which is reasonable, while generic copy_page(),
+> > on the contrary, simply does memcpy(). there are, probably, other callpaths
+> > that do copy_page() on kmalloc-ed pages and I'm wondering if there is some
+> > sort of a generic fix to the problem.
+> 
+> Simple solution is to not allocate pages via the slab allocator but use
+> the page allocator for this. The page allocator provides proper alignment.
+> 
+> There is a reason it is called the page allocator because if you want a
+> page you use the proper allocator for it.
 
-This commit therefore uses DEFINE_STATIC_SRCU() to initialize
-this srcu_struct at compile time, thus eliminating both the
-subsys_initcall()-time initialization and the runtime BUG_ON().
+It would be better if the APIs works with struct page, not address but
+I can imagine there are many cases where don't have struct page itself
+and redundant for kmap/kunmap.
 
-Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Cc: <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Peter Zijlstra (Intel)" <peterz@infradead.org>
-Cc: Vegard Nossum <vegard.nossum@oracle.com>
----
- mm/mmu_notifier.c | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
-
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index a7652acd2ab9..54ca54562928 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -21,7 +21,7 @@
- #include <linux/slab.h>
- 
- /* global SRCU for all MMs */
--static struct srcu_struct srcu;
-+DEFINE_STATIC_SRCU(srcu);
- 
- /*
-  * This function allows mmu_notifier::release callback to delay a call to
-@@ -252,12 +252,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 
- 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
- 
--	/*
--	 * Verify that mmu_notifier_init() already run and the global srcu is
--	 * initialized.
--	 */
--	BUG_ON(!srcu.per_cpu_ref);
--
- 	ret = -ENOMEM;
- 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
- 	if (unlikely(!mmu_notifier_mm))
-@@ -406,9 +400,3 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
- 	mmdrop(mm);
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
--
--static int __init mmu_notifier_init(void)
--{
--	return init_srcu_struct(&srcu);
--}
--subsys_initcall(mmu_notifier_init);
--- 
-2.5.2
+Another approach is the API does normal thing for non-aligned prefix and
+tail space and fast thing for aligned space.
+Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
+address.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
