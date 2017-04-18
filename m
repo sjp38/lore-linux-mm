@@ -1,145 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A616B0038
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 21:37:04 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id l30so39175370pgc.15
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 18:37:04 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id s184si12879151pfb.65.2017.04.17.18.37.02
-        for <linux-mm@kvack.org>;
-        Mon, 17 Apr 2017 18:37:03 -0700 (PDT)
-Date: Tue, 18 Apr 2017 10:36:59 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch] mm, vmscan: avoid thrashing anon lru when free + file is
- low
-Message-ID: <20170418013659.GD21354@bbox>
-References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 289F06B0038
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 22:29:26 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q25so95024341pfg.6
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:29:26 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id f17si1806674pfe.160.2017.04.17.19.29.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Apr 2017 19:29:25 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id o123so30699999pga.1
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:29:24 -0700 (PDT)
+From: Hoeun Ryu <hoeun.ryu@gmail.com>
+Subject: [PATCH v2] mm: add VM_STATIC flag to vmalloc and prevent from removing the areas
+Date: Tue, 18 Apr 2017 11:26:40 +0900
+Message-Id: <1492482521-20733-1-git-send-email-hoeun.ryu@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Garnier <thgarnie@google.com>
+Cc: linux-arch@vger.kernel.org, Hoeun Ryu <hoeun.ryu@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello David,
+ vm_area_add_early/vm_area_register_early() are used to reserve vmalloc area
+during boot process and those virtually mapped areas are never unmapped.
+So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
+existing vmlist entries and prevent those areas from being removed from the
+rbtree by accident. This flags can be also used by other vmalloc APIs to
+specify that the area will never go away.
+ This makes remove_vm_area() more robust against other kind of errors (eg.
+programming errors).
 
-On Mon, Apr 17, 2017 at 05:06:20PM -0700, David Rientjes wrote:
-> The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
-> not swap anon pages just because free+file is low'") reintroduces is to
-> prefer swapping anonymous memory rather than trashing the file lru.
-> 
-> If all anonymous memory is unevictable, however, this insistance on
+Signed-off-by: Hoeun Ryu <hoeun.ryu@gmail.com>
+---
+v2:
+ - update changelog
+ - add description to VM_STATIC
+ - check VM_STATIC first before VM_VM_AREA in remove_vm_area()
 
-"unevictable" means hot workingset, not (mlocked and increased refcount
-by some driver)?
-I got confused.
+ include/linux/vmalloc.h | 7 +++++++
+ mm/vmalloc.c            | 9 ++++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)
 
-> SCAN_ANON ends up thrashing that lru instead.
-
-Sound reasonable.
-
-> 
-> Check that enough evictable anon memory is actually on this lruvec before
-> insisting on SCAN_ANON.  SWAP_CLUSTER_MAX is used as the threshold to
-> determine if only scanning anon is beneficial.
-
-Why do you use SWAP_CLUSTER_MAX instead of (high wmark + free) like
-file-backed pages?
-As considering anonymous pages have more probability to become workingset
-because they are are mapped, IMO, more {strong or equal} condition than
-file-LRU would be better to prevent anon LRU thrashing.
-
-> 
-> Otherwise, fallback to balanced reclaim so the file lru doesn't remain
-> untouched.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/vmscan.c | 41 +++++++++++++++++++++++------------------
->  1 file changed, 23 insertions(+), 18 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2186,26 +2186,31 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
->  	 * anon pages.  Try to detect this based on file LRU size.
-
-Please update this comment, too.
-
->  	 */
->  	if (global_reclaim(sc)) {
-> -		unsigned long pgdatfile;
-> -		unsigned long pgdatfree;
-> -		int z;
-> -		unsigned long total_high_wmark = 0;
-> -
-> -		pgdatfree = sum_zone_node_page_state(pgdat->node_id, NR_FREE_PAGES);
-> -		pgdatfile = node_page_state(pgdat, NR_ACTIVE_FILE) +
-> -			   node_page_state(pgdat, NR_INACTIVE_FILE);
-> -
-> -		for (z = 0; z < MAX_NR_ZONES; z++) {
-> -			struct zone *zone = &pgdat->node_zones[z];
-> -			if (!managed_zone(zone))
-> -				continue;
-> +		anon = lruvec_lru_size(lruvec, LRU_ACTIVE_ANON, sc->reclaim_idx) +
-> +		       lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx);
-> +		if (likely(anon >= SWAP_CLUSTER_MAX)) {
-
-With high_wmark, we can do this.
-
-        if (global_reclaim(sc)) {
-                pgdatfree = xxx;
-                pgdatfile = xxx;
-                total_high_wmark = xxx;
-
-                if (pgdatfile + pgdatfree <= total_high_wmark) {
-                        pgdatanon = xxx;
-                        if (pgdatanon + pgdatfree > total_high_wmark) {
-                                scan_balance = SCAN_ANON;
-                                goto out;
-                        }
-                }
-        }
-
-
-> +			unsigned long total_high_wmark = 0;
-> +			unsigned long pgdatfile;
-> +			unsigned long pgdatfree;
-> +			int z;
-> +
-> +			pgdatfree = sum_zone_node_page_state(pgdat->node_id,
-> +							     NR_FREE_PAGES);
-> +			pgdatfile = node_page_state(pgdat, NR_ACTIVE_FILE) +
-> +				    node_page_state(pgdat, NR_INACTIVE_FILE);
-> +
-> +			for (z = 0; z < MAX_NR_ZONES; z++) {
-> +				struct zone *zone = &pgdat->node_zones[z];
-> +				if (!managed_zone(zone))
-> +					continue;
->  
-> -			total_high_wmark += high_wmark_pages(zone);
-> -		}
-> +				total_high_wmark += high_wmark_pages(zone);
-> +			}
->  
-> -		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
-> -			scan_balance = SCAN_ANON;
-> -			goto out;
-> +			if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
-> +				scan_balance = SCAN_ANON;
-> +				goto out;
-> +			}
->  		}
->  	}
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 46991ad..a42c210 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -19,6 +19,13 @@ struct notifier_block;		/* in notifier.h */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
+ #define VM_NO_GUARD		0x00000040      /* don't add guard page */
+ #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
++/*
++ * static area, vmap_area will never go away.
++ * This flag is OR-ed automatically in vmalloc_init() if the area is inserted
++ * by vm_area_add_early()/vm_area_register_early() during early boot process
++ * or you can give this flag manually using other vmalloc APIs.
++ */
++#define VM_STATIC		0x00000200
+ /* bits [20..32] reserved for arch specific ioremap internals */
+ 
+ /*
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 8ef8ea1..6bc6c39 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1262,7 +1262,7 @@ void __init vmalloc_init(void)
+ 	/* Import existing vmlist entries. */
+ 	for (tmp = vmlist; tmp; tmp = tmp->next) {
+ 		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
+-		va->flags = VM_VM_AREA;
++		va->flags = VM_VM_AREA | VM_STATIC;
+ 		va->va_start = (unsigned long)tmp->addr;
+ 		va->va_end = va->va_start + tmp->size;
+ 		va->vm = tmp;
+@@ -1480,7 +1480,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 	might_sleep();
+ 
+ 	va = find_vmap_area((unsigned long)addr);
+-	if (va && va->flags & VM_VM_AREA) {
++	if (va && likely(!(va->flags & VM_STATIC)) && va->flags & VM_VM_AREA) {
+ 		struct vm_struct *vm = va->vm;
+ 
+ 		spin_lock(&vmap_area_lock);
+@@ -1510,7 +1510,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 
+ 	area = remove_vm_area(addr);
+ 	if (unlikely(!area)) {
+-		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
++		WARN(1, KERN_ERR "Trying to vfree() nonexistent or static vm area (%p)\n",
+ 				addr);
+ 		return;
+ 	}
+@@ -2708,6 +2708,9 @@ static int s_show(struct seq_file *m, void *p)
+ 	if (v->phys_addr)
+ 		seq_printf(m, " phys=%pa", &v->phys_addr);
+ 
++	if (v->flags & VM_STATIC)
++		seq_puts(m, " static");
++
+ 	if (v->flags & VM_IOREMAP)
+ 		seq_puts(m, " ioremap");
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
