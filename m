@@ -1,50 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6383C6B0390
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 12:43:00 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l44so19411077wrc.11
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 09:43:00 -0700 (PDT)
-Received: from mail-wr0-x22d.google.com (mail-wr0-x22d.google.com. [2a00:1450:400c:c0c::22d])
-        by mx.google.com with ESMTPS id j19si10302954wmf.87.2017.04.18.09.42.58
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA826B0390
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 14:27:21 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n4so251886qte.18
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 11:27:21 -0700 (PDT)
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com. [209.85.220.177])
+        by mx.google.com with ESMTPS id f73si14575455qkh.211.2017.04.18.11.27.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 09:42:58 -0700 (PDT)
-Received: by mail-wr0-x22d.google.com with SMTP id c55so106593895wrc.3
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 09:42:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170418071456.GD22360@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org> <20170411170317.GB21171@dhcp22.suse.cz>
- <CAA9_cmdrNZkOByvSecmocqs=6o8ZP5bz+Zx6NrwqjU66C=5Y4w@mail.gmail.com> <20170418071456.GD22360@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@gmail.com>
-Date: Tue, 18 Apr 2017 09:42:57 -0700
-Message-ID: <CAA9_cmfxa8QO=8-FeXWAg7iBrGh0LrZM4C=vWA5xb2ADLtO4Rw@mail.gmail.com>
-Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
-Content-Type: text/plain; charset=UTF-8
+        Tue, 18 Apr 2017 11:27:20 -0700 (PDT)
+Received: by mail-qk0-f177.google.com with SMTP id f133so1180803qke.2
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 11:27:20 -0700 (PDT)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCHv4 00/12] Ion cleanup in preparation for moving out of staging
+Date: Tue, 18 Apr 2017 11:27:02 -0700
+Message-Id: <1492540034-5466-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
+To: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Laura Abbott <labbott@redhat.com>, romlem@google.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, linux-mm@kvack.org, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-On Tue, Apr 18, 2017 at 12:14 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Mon 17-04-17 14:51:12, Dan Williams wrote:
->> On Tue, Apr 11, 2017 at 10:03 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> > All the reported issue seem to be fixed and pushed to my git tree
->> > attempts/rewrite-mem_hotplug branch. I will wait a day or two for more
->> > feedback and then repost for the inclusion. I would really appreaciate
->> > more testing/review!
->>
->> This still seems to be based on 4.10? It's missing some block-layer
->> fixes and other things that trigger failures in the nvdimm unit tests.
->> Can you rebase to a more recent 4.11-rc?
->
-> OK, I will rebase on top of linux-next. This has been based on mmotm
-> tree so far. Btw. is there anything that would change the current
-> implementation other than small context tweaks? In other words, do you
-> see any issues with the current implementation regarding nvdimm's
-> ZONE_DEVICE usage?
+Hi,
 
-I don't foresee any issues, but I wanted to be able to run the latest
-test suite to be sure.
+This is v4 of the series to cleanup to Ion. Greg took some of the patches
+that weren't CMA related already. There was a minor bisectability problem
+with the CMA APIs so this is a new version to address that. I also
+addressed some minor comments on the patch to collapse header files.
+
+Thanks,
+Laura
+
+Laura Abbott (12):
+  cma: Store a name in the cma structure
+  cma: Introduce cma_for_each_area
+  staging: android: ion: Use CMA APIs directly
+  staging: android: ion: Stop butchering the DMA address
+  staging: android: ion: Break the ABI in the name of forward progress
+  staging: android: ion: Get rid of ion_phys_addr_t
+  staging: android: ion: Collapse internal header files
+  staging: android: ion: Rework heap registration/enumeration
+  staging: android: ion: Drop ion_map_kernel interface
+  staging: android: ion: Remove ion_handle and ion_client
+  staging: android: ion: Set query return value
+  staging/android: Update Ion TODO list
+
+ arch/powerpc/kvm/book3s_hv_builtin.c            |   3 +-
+ drivers/base/dma-contiguous.c                   |   5 +-
+ drivers/staging/android/TODO                    |  21 +-
+ drivers/staging/android/ion/Kconfig             |  32 +
+ drivers/staging/android/ion/Makefile            |  11 +-
+ drivers/staging/android/ion/compat_ion.c        | 152 -----
+ drivers/staging/android/ion/compat_ion.h        |  29 -
+ drivers/staging/android/ion/ion-ioctl.c         |  55 +-
+ drivers/staging/android/ion/ion.c               | 812 ++----------------------
+ drivers/staging/android/ion/ion.h               | 386 ++++++++---
+ drivers/staging/android/ion/ion_carveout_heap.c |  21 +-
+ drivers/staging/android/ion/ion_chunk_heap.c    |  16 +-
+ drivers/staging/android/ion/ion_cma_heap.c      | 120 ++--
+ drivers/staging/android/ion/ion_heap.c          |  68 --
+ drivers/staging/android/ion/ion_page_pool.c     |   3 +-
+ drivers/staging/android/ion/ion_priv.h          | 453 -------------
+ drivers/staging/android/ion/ion_system_heap.c   |  39 +-
+ drivers/staging/android/uapi/ion.h              |  36 +-
+ include/linux/cma.h                             |   6 +-
+ mm/cma.c                                        |  31 +-
+ mm/cma.h                                        |   1 +
+ mm/cma_debug.c                                  |   2 +-
+ 22 files changed, 524 insertions(+), 1778 deletions(-)
+ delete mode 100644 drivers/staging/android/ion/compat_ion.c
+ delete mode 100644 drivers/staging/android/ion/compat_ion.h
+ delete mode 100644 drivers/staging/android/ion/ion_priv.h
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
