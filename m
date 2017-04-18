@@ -1,61 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A4D6B03A8
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 20:03:22 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t7so9583119pgt.0
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 17:03:22 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e5si12657985pga.100.2017.04.17.17.03.21
-        for <linux-mm@kvack.org>;
-        Mon, 17 Apr 2017 17:03:21 -0700 (PDT)
-Date: Tue, 18 Apr 2017 09:03:19 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-Message-ID: <20170418000319.GC21354@bbox>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain>
- <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 619E56B03AB
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 20:06:22 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id m1so100708061pgd.13
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 17:06:22 -0700 (PDT)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id r17si12669148pge.276.2017.04.17.17.06.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Apr 2017 17:06:21 -0700 (PDT)
+Received: by mail-pf0-x232.google.com with SMTP id i5so72318498pfc.2
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 17:06:21 -0700 (PDT)
+Date: Mon, 17 Apr 2017 17:06:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, vmscan: avoid thrashing anon lru when free + file is
+ low
+Message-ID: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 17, 2017 at 10:20:42AM -0500, Christoph Lameter wrote:
-> On Mon, 17 Apr 2017, Sergey Senozhatsky wrote:
-> 
-> > Minchan reported that doing copy_page() on a kmalloc(PAGE_SIZE) page
-> > with DEBUG_SLAB enabled can cause a memory corruption (See below or
-> > lkml.kernel.org/r/1492042622-12074-2-git-send-email-minchan@kernel.org )
-> 
-> Yes the alignment guarantees do not require alignment on a page boundary.
-> 
-> The alignment for kmalloc allocations is controlled by KMALLOC_MIN_ALIGN.
-> Usually this is either double word aligned or cache line aligned.
-> 
-> > that's an interesting problem. arm64 copy_page(), for instance, wants src
-> > and dst to be page aligned, which is reasonable, while generic copy_page(),
-> > on the contrary, simply does memcpy(). there are, probably, other callpaths
-> > that do copy_page() on kmalloc-ed pages and I'm wondering if there is some
-> > sort of a generic fix to the problem.
-> 
-> Simple solution is to not allocate pages via the slab allocator but use
-> the page allocator for this. The page allocator provides proper alignment.
-> 
-> There is a reason it is called the page allocator because if you want a
-> page you use the proper allocator for it.
+The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
+not swap anon pages just because free+file is low'") reintroduces is to
+prefer swapping anonymous memory rather than trashing the file lru.
 
-It would be better if the APIs works with struct page, not address but
-I can imagine there are many cases where don't have struct page itself
-and redundant for kmap/kunmap.
+If all anonymous memory is unevictable, however, this insistance on
+SCAN_ANON ends up thrashing that lru instead.
 
-Another approach is the API does normal thing for non-aligned prefix and
-tail space and fast thing for aligned space.
-Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
-address.
+Check that enough evictable anon memory is actually on this lruvec before
+insisting on SCAN_ANON.  SWAP_CLUSTER_MAX is used as the threshold to
+determine if only scanning anon is beneficial.
+
+Otherwise, fallback to balanced reclaim so the file lru doesn't remain
+untouched.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/vmscan.c | 41 +++++++++++++++++++++++------------------
+ 1 file changed, 23 insertions(+), 18 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2186,26 +2186,31 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	 * anon pages.  Try to detect this based on file LRU size.
+ 	 */
+ 	if (global_reclaim(sc)) {
+-		unsigned long pgdatfile;
+-		unsigned long pgdatfree;
+-		int z;
+-		unsigned long total_high_wmark = 0;
+-
+-		pgdatfree = sum_zone_node_page_state(pgdat->node_id, NR_FREE_PAGES);
+-		pgdatfile = node_page_state(pgdat, NR_ACTIVE_FILE) +
+-			   node_page_state(pgdat, NR_INACTIVE_FILE);
+-
+-		for (z = 0; z < MAX_NR_ZONES; z++) {
+-			struct zone *zone = &pgdat->node_zones[z];
+-			if (!managed_zone(zone))
+-				continue;
++		anon = lruvec_lru_size(lruvec, LRU_ACTIVE_ANON, sc->reclaim_idx) +
++		       lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx);
++		if (likely(anon >= SWAP_CLUSTER_MAX)) {
++			unsigned long total_high_wmark = 0;
++			unsigned long pgdatfile;
++			unsigned long pgdatfree;
++			int z;
++
++			pgdatfree = sum_zone_node_page_state(pgdat->node_id,
++							     NR_FREE_PAGES);
++			pgdatfile = node_page_state(pgdat, NR_ACTIVE_FILE) +
++				    node_page_state(pgdat, NR_INACTIVE_FILE);
++
++			for (z = 0; z < MAX_NR_ZONES; z++) {
++				struct zone *zone = &pgdat->node_zones[z];
++				if (!managed_zone(zone))
++					continue;
+ 
+-			total_high_wmark += high_wmark_pages(zone);
+-		}
++				total_high_wmark += high_wmark_pages(zone);
++			}
+ 
+-		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
+-			scan_balance = SCAN_ANON;
+-			goto out;
++			if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
++				scan_balance = SCAN_ANON;
++				goto out;
++			}
+ 		}
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
