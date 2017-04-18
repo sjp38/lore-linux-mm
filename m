@@ -1,83 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E2BB6B03B5
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 18:09:45 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id n80so1696002qke.6
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:09:45 -0700 (PDT)
-Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com. [216.71.154.45])
-        by mx.google.com with ESMTPS id v11si412449qtg.188.2017.04.18.15.09.43
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 990526B03A2
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 18:46:51 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id z185so4092906pgz.11
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:46:51 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a8si438813pgk.365.2017.04.18.15.46.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 15:09:44 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@sandisk.com>
-Subject: Re: [PATCH] mm: Make truncate_inode_pages_range() killable
-Date: Tue, 18 Apr 2017 22:09:39 +0000
-Message-ID: <1492553377.2689.13.camel@sandisk.com>
-References: <20170414215507.27682-1-bart.vanassche@sandisk.com>
-	 <alpine.LSU.2.11.1704141726260.9676@eggly.anvils>
-	 <1492217984.2557.1.camel@sandisk.com>
-	 <20170418081549.GJ22360@dhcp22.suse.cz>
-In-Reply-To: <20170418081549.GJ22360@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <5383C1EA53FC4843994E4BDC2C5C8EE3@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Tue, 18 Apr 2017 15:46:50 -0700 (PDT)
+Date: Tue, 18 Apr 2017 15:46:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] fs: fix data invalidation in the cleancache during
+ direct IO
+Message-Id: <20170418154647.9583bfa06705c614a2640a15@linux-foundation.org>
+In-Reply-To: <20170414140753.16108-2-aryabinin@virtuozzo.com>
+References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
+	<20170414140753.16108-2-aryabinin@virtuozzo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mhocko@kernel.org" <mhocko@kernel.org>
-Cc: "hughd@google.com" <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "snitzer@redhat.com" <snitzer@redhat.com>, "oleg@redhat.com" <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hare@suse.com" <hare@suse.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "jack@suse.cz" <jack@suse.cz>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Steve French <sfrench@samba.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, v9fs-developer@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2017-04-18 at 10:15 +0200, Michal Hocko wrote:
-> On Sat 15-04-17 00:59:46, Bart Van Assche wrote:
-> > On Fri, 2017-04-14 at 17:40 -0700, Hugh Dickins wrote:
-> > > Changing a fundamental function, silently not to do its essential job=
-,
-> > > when something in the kernel has forgotten (or is slow to) unlock_pag=
-e():
-> > > that seems very wrong to me in many ways.  But linux-fsdevel, Cc'ed, =
-will
-> > > be a better forum to advise on how to solve the problem you're seeing=
-.
-> >=20
-> > It seems like you have misunderstood the purpose of the patch I posted.=
- It's
-> > neither a missing unlock_page() nor slow I/O that I want to address but=
- a
-> > genuine deadlock. In case you would not be familiar with the queue_if_n=
-o_path
-> > multipath configuration option, the multipath.conf man page is availabl=
-e at
-> > e.g. https://linux.die.net/man/5/multipath.conf.
->=20
-> So, who is holding the page lock and why it cannot make forward
-> progress? Is the storage gone so that the ongoing IO will never
-> terminate? Btw. we have many other places which wait for the page lock
-> !killable way. Why they are any different from this case?
+On Fri, 14 Apr 2017 17:07:50 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 
-Hello Michal,
+> Some direct write fs hooks call invalidate_inode_pages2[_range]()
+> conditionally iff mapping->nrpages is not zero. If page cache is empty,
+> buffered read following after direct IO write would get stale data from
+> the cleancache.
+> 
+> Also it doesn't feel right to check only for ->nrpages because
+> invalidate_inode_pages2[_range] invalidates exceptional entries as well.
+> 
+> Fix this by calling invalidate_inode_pages2[_range]() regardless of nrpages
+> state.
 
-queue_if_no_path means that if no paths are available that the dm-mpath dri=
-ver
-does not complete an I/O request until a path becomes available.=A0A standa=
-rd
-test for multipathed storage is to alternatingly remove and restore all pat=
-hs.
+I'm not understanding this.  I can buy the argument about
+nrexceptional, but why does cleancache require the
+invalidate_inode_pages2_range) call even when ->nrpages is zero?
 
-If the reported lockup happens at the end of a test I can break the cycle b=
-y
-running "dmsetup message ${mpath} 0 fail_if_no_path". That command causes
-pending I/O requests to fail if no paths are available.
+I *assume* it's because invalidate_inode_pages2_range() calls
+cleancache_invalidate_inode(), yes?  If so, can we please add this to
+the changelog?  If not then please explain further.
 
-I think it is rather unintuitive that kill -9 does not work for a process t=
-hat
-uses a dm-mpath device for I/O as long as no paths are available.
 
-The call stack I reported in the first e-mail in this thread is what I ran
-into while running multipath tests. I'm not sure why I have not yet hit any
-other code paths that perform an unkillable wait on a page lock.
-
-Bart.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
