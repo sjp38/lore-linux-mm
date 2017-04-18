@@ -1,57 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3DB96B0038
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 07:06:37 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x61so18473084wrb.8
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 04:06:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a16si144138wma.151.2017.04.18.04.06.36
+	by kanga.kvack.org (Postfix) with ESMTP id 68C8D6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 07:10:35 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o21so18578449wrb.9
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 04:10:35 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id g207si15538735wme.150.2017.04.18.04.10.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Apr 2017 04:06:36 -0700 (PDT)
-Date: Tue, 18 Apr 2017 13:06:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-Message-ID: <20170418110632.GN22360@dhcp22.suse.cz>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain>
- <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
- <20170418000319.GC21354@bbox>
- <20170418073307.GF22360@dhcp22.suse.cz>
- <20170418105641.GC558@jagdpanzerIV.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Apr 2017 04:10:33 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id l28so24227401wre.0
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 04:10:33 -0700 (PDT)
+Date: Tue, 18 Apr 2017 14:10:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 3/8] x86/boot/64: Add support of additional page table
+ level during early boot
+Message-ID: <20170418111030.5zc4zhxlrbpi4bwm@node.shutemov.name>
+References: <20170406140106.78087-4-kirill.shutemov@linux.intel.com>
+ <20170411070203.GA14621@gmail.com>
+ <20170411105106.4zgbzuu4s4267zyv@node.shutemov.name>
+ <20170411112845.GA15212@gmail.com>
+ <20170411114616.otx2f6aw5lcvfc2o@black.fi.intel.com>
+ <20170411140907.GD4021@tassilo.jf.intel.com>
+ <20170412101804.cxo6h472ns76ukgo@node.shutemov.name>
+ <20170417103225.ycv73fdrfx33e5sd@gmail.com>
+ <20170418085926.bzdzs2wwxjmdxqxm@node.shutemov.name>
+ <20170418101534.oa3mchqyap2yvh7v@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170418105641.GC558@jagdpanzerIV.localdomain>
+In-Reply-To: <20170418101534.oa3mchqyap2yvh7v@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 18-04-17 19:56:41, Sergey Senozhatsky wrote:
-> On (04/18/17 09:33), Michal Hocko wrote:
-> [..]
-> > > Another approach is the API does normal thing for non-aligned prefix and
-> > > tail space and fast thing for aligned space.
-> > > Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
-> > > address.
+On Tue, Apr 18, 2017 at 01:15:34PM +0300, Kirill A. Shutemov wrote:
+> On Tue, Apr 18, 2017 at 11:59:26AM +0300, Kirill A. Shutemov wrote:
+> > On Mon, Apr 17, 2017 at 12:32:25PM +0200, Ingo Molnar wrote:
+> > > 
+> > > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > > 
+> > > > On Tue, Apr 11, 2017 at 07:09:07AM -0700, Andi Kleen wrote:
+> > > > > > I'll look closer (building proccess it's rather complicated), but my
+> > > > > > understanding is that VDSO is stand-alone binary and doesn't really links
+> > > > > > with the rest of the kernel, rather included as blob, no?
+> > > > > > 
+> > > > > > Andy, may be you have an idea?
+> > > > > 
+> > > > > There isn't any way I know of to directly link them together. The ELF 
+> > > > > format wasn't designed for that. You would need to merge blobs and then use
+> > > > > manual jump vectors, like the 16bit startup code does. It would be likely
+> > > > > complicated and ugly.
+> > > > 
+> > > > Ingo, can we proceed without coverting this assembly to C?
+> > > > 
+> > > > I'm committed to convert it to C later if we'll find reasonable solution
+> > > > to the issue.
+> > > 
+> > > So one way to do it would be to build it standalone as a .o, then add it not to 
+> > > the regular kernel objects link target (as you found out it's not possible to link 
+> > > 32-bit and 64-bit objects), but to link it in a manual fashion, as part of 
+> > > vmlinux.bin.all-y in arch/x86/boot/compressed/Makefile.
+> > > 
+> > > But there would be other complications with this approach, such as we'd have to 
+> > > add a size field and there might be symbol linking problems ...
+> > > 
+> > > Another, pretty hacky way would be to generate a .S from the .c, then post-process 
+> > > the .S and essentially generate today's 32-bit .S from it.
+> > > 
+> > > Probably not worth the trouble.
 > > 
-> > copy_page is a performance sensitive function and I believe that we do
-> > those tricks exactly for this purpose.
+> > So, do I need to do anything else to get part 4 applied?
 > 
-> a wild thought,
+> Doh!
 > 
-> use
-> 	#define copy_page(to,from)	memcpy((to), (from), PAGE_SIZE)
+> I've just realized we don't really need to enable 5-level paging in
+> decompression code. Leaving 4-level paging there works perfectly fine.
 > 
-> when DEBUG_SLAB is set? so arch copy_page() (if provided by arch)
-> won't be affected otherwise.
+> I'll drop changes to arch/x86/boot/compressed/head_64.S and resubmit the
+> patchset.
 
-Wouldn't this just paper over bugs? SLAB is not guaranteed to provide
-page size aligned object AFAIR.
+No. This breaks KASLR. Decompression code has to use 5-level paging to
+keep KASLR working.
+
+So, v4 of part 4 is up-to-date.
+
+Sorry for noise.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
