@@ -1,106 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 289F06B0038
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 22:29:26 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q25so95024341pfg.6
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:29:26 -0700 (PDT)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id f17si1806674pfe.160.2017.04.17.19.29.24
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 142EB6B0038
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 22:47:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x61so17402529wrb.8
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:47:04 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 59si18630651wrs.18.2017.04.17.19.47.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Apr 2017 19:29:25 -0700 (PDT)
-Received: by mail-pg0-x244.google.com with SMTP id o123so30699999pga.1
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 19:29:24 -0700 (PDT)
-From: Hoeun Ryu <hoeun.ryu@gmail.com>
-Subject: [PATCH v2] mm: add VM_STATIC flag to vmalloc and prevent from removing the areas
-Date: Tue, 18 Apr 2017 11:26:40 +0900
-Message-Id: <1492482521-20733-1-git-send-email-hoeun.ryu@gmail.com>
+        Mon, 17 Apr 2017 19:47:02 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3I2hYJw018880
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 22:47:01 -0400
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29vvwwe3py-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 22:47:00 -0400
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 18 Apr 2017 08:16:57 +0530
+Received: from d28av07.in.ibm.com (d28av07.in.ibm.com [9.184.220.146])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3I2knP517432592
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 08:16:49 +0530
+Received: from d28av07.in.ibm.com (localhost [127.0.0.1])
+	by d28av07.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3I2ksCE028864
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 08:16:54 +0530
+Subject: Re: [PATCH V2] mm/madvise: Move up the behavior parameter validation
+References: <20170413092008.5437-1-khandual@linux.vnet.ibm.com>
+ <20170414135141.15340-1-khandual@linux.vnet.ibm.com>
+ <20170417052729.GA23423@hori1.linux.bs1.fc.nec.co.jp>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 18 Apr 2017 08:16:53 +0530
+MIME-Version: 1.0
+In-Reply-To: <20170417052729.GA23423@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Message-Id: <c9428299-543c-128f-b7c6-71669a1aa20e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>, Chris Wilson <chris@chris-wilson.co.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Garnier <thgarnie@google.com>
-Cc: linux-arch@vger.kernel.org, Hoeun Ryu <hoeun.ryu@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
- vm_area_add_early/vm_area_register_early() are used to reserve vmalloc area
-during boot process and those virtually mapped areas are never unmapped.
-So `OR` VM_STATIC flag to the areas in vmalloc_init() when importing
-existing vmlist entries and prevent those areas from being removed from the
-rbtree by accident. This flags can be also used by other vmalloc APIs to
-specify that the area will never go away.
- This makes remove_vm_area() more robust against other kind of errors (eg.
-programming errors).
+On 04/17/2017 10:57 AM, Naoya Horiguchi wrote:
+> On Fri, Apr 14, 2017 at 07:21:41PM +0530, Anshuman Khandual wrote:
+>> The madvise_behavior_valid() function should be called before
+>> acting upon the behavior parameter. Hence move up the function.
+>> This also includes MADV_SOFT_OFFLINE and MADV_HWPOISON options
+>> as valid behavior parameter for the system call madvise().
+>>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>> ---
+>> Changes in V2:
+>>
+>> Added CONFIG_MEMORY_FAILURE check before using MADV_SOFT_OFFLINE
+>> and MADV_HWPOISONE constants.
+>>
+>>  mm/madvise.c | 9 +++++++--
+>>  1 file changed, 7 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/madvise.c b/mm/madvise.c
+>> index efd4721..ccff186 100644
+>> --- a/mm/madvise.c
+>> +++ b/mm/madvise.c
+>> @@ -694,6 +694,10 @@ static int madvise_inject_error(int behavior,
+>>  #endif
+>>  	case MADV_DONTDUMP:
+>>  	case MADV_DODUMP:
+>> +#ifdef CONFIG_MEMORY_FAILURE
+>> +	case MADV_SOFT_OFFLINE:
+>> +	case MADV_HWPOISON:
+>> +#endif
+>>  		return true;
+>>  
+>>  	default:
+>> @@ -767,12 +771,13 @@ static int madvise_inject_error(int behavior,
+>>  	size_t len;
+>>  	struct blk_plug plug;
+>>  
+>> +	if (!madvise_behavior_valid(behavior))
+>> +		return error;
+>> +
+>>  #ifdef CONFIG_MEMORY_FAILURE
+>>  	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+>>  		return madvise_inject_error(behavior, start, start + len_in);
+>>  #endif
+>> -	if (!madvise_behavior_valid(behavior))
+>> -		return error;
+> 
+> Hi Anshuman,
+> 
+> I'm wondering why current code calls madvise_inject_error() at the beginning
+> of SYSCALL_DEFINE3(madvise), without any boundary checks of address or length.
+> I agree to checking madvise_behavior_valid for MADV_{HWPOISON,SOFT_OFFLINE},
+> but checking boundary of other arguments is also helpful, so how about moving
+> down the existing #ifdef block like below?
 
-Signed-off-by: Hoeun Ryu <hoeun.ryu@gmail.com>
----
-v2:
- - update changelog
- - add description to VM_STATIC
- - check VM_STATIC first before VM_VM_AREA in remove_vm_area()
-
- include/linux/vmalloc.h | 7 +++++++
- mm/vmalloc.c            | 9 ++++++---
- 2 files changed, 13 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 46991ad..a42c210 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -19,6 +19,13 @@ struct notifier_block;		/* in notifier.h */
- #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
- #define VM_NO_GUARD		0x00000040      /* don't add guard page */
- #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
-+/*
-+ * static area, vmap_area will never go away.
-+ * This flag is OR-ed automatically in vmalloc_init() if the area is inserted
-+ * by vm_area_add_early()/vm_area_register_early() during early boot process
-+ * or you can give this flag manually using other vmalloc APIs.
-+ */
-+#define VM_STATIC		0x00000200
- /* bits [20..32] reserved for arch specific ioremap internals */
- 
- /*
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 8ef8ea1..6bc6c39 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1262,7 +1262,7 @@ void __init vmalloc_init(void)
- 	/* Import existing vmlist entries. */
- 	for (tmp = vmlist; tmp; tmp = tmp->next) {
- 		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
--		va->flags = VM_VM_AREA;
-+		va->flags = VM_VM_AREA | VM_STATIC;
- 		va->va_start = (unsigned long)tmp->addr;
- 		va->va_end = va->va_start + tmp->size;
- 		va->vm = tmp;
-@@ -1480,7 +1480,7 @@ struct vm_struct *remove_vm_area(const void *addr)
- 	might_sleep();
- 
- 	va = find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA) {
-+	if (va && likely(!(va->flags & VM_STATIC)) && va->flags & VM_VM_AREA) {
- 		struct vm_struct *vm = va->vm;
- 
- 		spin_lock(&vmap_area_lock);
-@@ -1510,7 +1510,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 
- 	area = remove_vm_area(addr);
- 	if (unlikely(!area)) {
--		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
-+		WARN(1, KERN_ERR "Trying to vfree() nonexistent or static vm area (%p)\n",
- 				addr);
- 		return;
- 	}
-@@ -2708,6 +2708,9 @@ static int s_show(struct seq_file *m, void *p)
- 	if (v->phys_addr)
- 		seq_printf(m, " phys=%pa", &v->phys_addr);
- 
-+	if (v->flags & VM_STATIC)
-+		seq_puts(m, " static");
-+
- 	if (v->flags & VM_IOREMAP)
- 		seq_puts(m, " ioremap");
- 
--- 
-2.7.4
+Sure, will fold both the patches together and send it out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
