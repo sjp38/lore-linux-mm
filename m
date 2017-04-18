@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 050136B0038
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:38:22 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id d3so1468749pfj.5
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 12:38:21 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id t26si80092pfk.332.2017.04.18.12.38.20
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C0196B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:54:41 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id h19so315827wmi.10
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 12:54:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h7si188871wrc.138.2017.04.18.12.54.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 12:38:21 -0700 (PDT)
-Date: Tue, 18 Apr 2017 13:38:08 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/4] fs: fix data invalidation in the cleancache during
- direct IO
-Message-ID: <20170418193808.GA16667@linux.intel.com>
-References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
- <20170414140753.16108-2-aryabinin@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Apr 2017 12:54:40 -0700 (PDT)
+Date: Tue, 18 Apr 2017 21:54:35 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+Message-ID: <20170418195435.GB20671@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170411170317.GB21171@dhcp22.suse.cz>
+ <CAA9_cmdrNZkOByvSecmocqs=6o8ZP5bz+Zx6NrwqjU66C=5Y4w@mail.gmail.com>
+ <20170418071456.GD22360@dhcp22.suse.cz>
+ <CAA9_cmfxa8QO=8-FeXWAg7iBrGh0LrZM4C=vWA5xb2ADLtO4Rw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170414140753.16108-2-aryabinin@virtuozzo.com>
+In-Reply-To: <CAA9_cmfxa8QO=8-FeXWAg7iBrGh0LrZM4C=vWA5xb2ADLtO4Rw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Steve French <sfrench@samba.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, v9fs-developer@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
 
-On Fri, Apr 14, 2017 at 05:07:50PM +0300, Andrey Ryabinin wrote:
-> Some direct write fs hooks call invalidate_inode_pages2[_range]()
-> conditionally iff mapping->nrpages is not zero. If page cache is empty,
-> buffered read following after direct IO write would get stale data from
-> the cleancache.
+On Tue 18-04-17 09:42:57, Dan Williams wrote:
+> On Tue, Apr 18, 2017 at 12:14 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Mon 17-04-17 14:51:12, Dan Williams wrote:
+> >> On Tue, Apr 11, 2017 at 10:03 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> > All the reported issue seem to be fixed and pushed to my git tree
+> >> > attempts/rewrite-mem_hotplug branch. I will wait a day or two for more
+> >> > feedback and then repost for the inclusion. I would really appreaciate
+> >> > more testing/review!
+> >>
+> >> This still seems to be based on 4.10? It's missing some block-layer
+> >> fixes and other things that trigger failures in the nvdimm unit tests.
+> >> Can you rebase to a more recent 4.11-rc?
+> >
+> > OK, I will rebase on top of linux-next. This has been based on mmotm
+> > tree so far. Btw. is there anything that would change the current
+> > implementation other than small context tweaks? In other words, do you
+> > see any issues with the current implementation regarding nvdimm's
+> > ZONE_DEVICE usage?
 > 
-> Also it doesn't feel right to check only for ->nrpages because
-> invalidate_inode_pages2[_range] invalidates exceptional entries as well.
-> 
-> Fix this by calling invalidate_inode_pages2[_range]() regardless of nrpages
-> state.
-> 
-> Fixes: c515e1fd361c ("mm/fs: add hooks to support cleancache")
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> ---
-<>
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 2e382fe..1e8cca0 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1047,7 +1047,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  	 * into page tables. We have to tear down these mappings so that data
->  	 * written by write(2) is visible in mmap.
->  	 */
-> -	if ((iomap->flags & IOMAP_F_NEW) && inode->i_mapping->nrpages) {
-> +	if ((iomap->flags & IOMAP_F_NEW)) {
->  		invalidate_inode_pages2_range(inode->i_mapping,
->  					      pos >> PAGE_SHIFT,
->  					      (end - 1) >> PAGE_SHIFT);
+> I don't foresee any issues, but I wanted to be able to run the latest
+> test suite to be sure.
 
-tl;dr: I think the old code is correct, and that you don't need this change.
+OK, the rebase on top of the current linux-next is in my git tree [1]
+attempts/rewrite-mem_hotplug branch. I will post the full series
+tomorrow hopefully.
 
-This should be harmless, but could slow us down a little if we keep
-calling invalidate_inode_pages2_range() without really needing to.  Really for
-DAX I think we need to call invalidate_inode_page2_range() only if we have
-zero pages mapped over the place where we are doing I/O, which is why we check
-nrpages.
-
-Is DAX even allowed to be used at the same time as cleancache?  From a brief
-look at Documentation/vm/cleancache.txt, it seems like these two features are
-incompatible.  With DAX we already are avoiding the page cache completely.
-
-Anyway, I don't see how this change in DAX can save us from a data corruption
-(which is what you're seeing, right?), and I think it could slow us down, so
-I'd prefer to leave things as they are.
+[1] git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
