@@ -1,119 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7524B6B0038
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 00:59:14 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a188so46230057pfa.3
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 21:59:14 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id d8si13272813pgn.60.2017.04.17.21.59.12
-        for <linux-mm@kvack.org>;
-        Mon, 17 Apr 2017 21:59:13 -0700 (PDT)
-Date: Tue, 18 Apr 2017 13:59:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-Message-ID: <20170418045909.GA11015@bbox>
-References: <20170407064901.25398-1-ying.huang@intel.com>
-MIME-Version: 1.0
-In-Reply-To: <20170407064901.25398-1-ying.huang@intel.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B13B6B0397
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 01:29:48 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id a80so17698900wrc.19
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 22:29:47 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 64si2166497wrn.189.2017.04.17.22.29.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Apr 2017 22:29:46 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3I5SXQu002406
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 01:29:45 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 29w2e9mc7a-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 01:29:44 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 18 Apr 2017 15:29:42 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3I5TVOf40370362
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:29:39 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3I5T6qF029899
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:29:06 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH V3] mm/madvise: Move up the behavior parameter validation
+Date: Tue, 18 Apr 2017 10:58:44 +0530
+In-Reply-To: <20170413092008.5437-1-khandual@linux.vnet.ibm.com>
+References: <20170413092008.5437-1-khandual@linux.vnet.ibm.com>
+Message-Id: <20170418052844.24891-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org
 
-Hi Huang,
+The madvise_behavior_valid() function should be called before
+acting upon the behavior parameter. Hence move up the function.
+This also includes MADV_SOFT_OFFLINE and MADV_HWPOISON options
+as valid behavior parameter for the system call madvise().
 
-On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
-> 
-> To reduce the lock contention of swap_info_struct->lock when freeing
-> swap entry.  The freed swap entries will be collected in a per-CPU
-> buffer firstly, and be really freed later in batch.  During the batch
-> freeing, if the consecutive swap entries in the per-CPU buffer belongs
-> to same swap device, the swap_info_struct->lock needs to be
-> acquired/released only once, so that the lock contention could be
-> reduced greatly.  But if there are multiple swap devices, it is
-> possible that the lock may be unnecessarily released/acquired because
-> the swap entries belong to the same swap device are non-consecutive in
-> the per-CPU buffer.
-> 
-> To solve the issue, the per-CPU buffer is sorted according to the swap
-> device before freeing the swap entries.  Test shows that the time
-> spent by swapcache_free_entries() could be reduced after the patch.
-> 
-> Test the patch via measuring the run time of swap_cache_free_entries()
-> during the exit phase of the applications use much swap space.  The
-> results shows that the average run time of swap_cache_free_entries()
-> reduced about 20% after applying the patch.
-> 
-> Signed-off-by: Huang Ying <ying.huang@intel.com>
-> Acked-by: Tim Chen <tim.c.chen@intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> 
-> v3:
-> 
-> - Add some comments in code per Rik's suggestion.
-> 
-> v2:
-> 
-> - Avoid sort swap entries if there is only one swap device.
-> ---
->  mm/swapfile.c | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 90054f3c2cdc..f23c56e9be39 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -37,6 +37,7 @@
->  #include <linux/swapfile.h>
->  #include <linux/export.h>
->  #include <linux/swap_slots.h>
-> +#include <linux/sort.h>
->  
->  #include <asm/pgtable.h>
->  #include <asm/tlbflush.h>
-> @@ -1065,6 +1066,13 @@ void swapcache_free(swp_entry_t entry)
->  	}
->  }
->  
-> +static int swp_entry_cmp(const void *ent1, const void *ent2)
-> +{
-> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
-> +
-> +	return (long)(swp_type(*e1) - swp_type(*e2));
-> +}
-> +
->  void swapcache_free_entries(swp_entry_t *entries, int n)
->  {
->  	struct swap_info_struct *p, *prev;
-> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
->  
->  	prev = NULL;
->  	p = NULL;
-> +
-> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> +	if (nr_swapfiles > 1)
-> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+Changes in V3:
 
-Let's think on other cases.
+Moved the madvise_inject_error() function down which will make
+sure that the boundary conditions are checked for address and
+length arguments as per Naoya.
 
-There are two swaps and they are configured by priority so a swap's usage
-would be zero unless other swap used up. In case of that, this sorting
-is pointless.
+Changes in V2:
 
-As well, nr_swapfiles is never decreased so if we enable multiple
-swaps and then disable until a swap is remained, this sorting is
-pointelss, too.
+Added CONFIG_MEMORY_FAILURE check before using MADV_SOFT_OFFLINE
+and MADV_HWPOISONE constants.
 
-How about lazy sorting approach? IOW, if we found prev != p and,
-then we can sort it.
+ mm/madvise.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
-Thanks.
+diff --git a/mm/madvise.c b/mm/madvise.c
+index efd4721..721dd6f 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -694,6 +694,10 @@ static int madvise_inject_error(int behavior,
+ #endif
+ 	case MADV_DONTDUMP:
+ 	case MADV_DODUMP:
++#ifdef CONFIG_MEMORY_FAILURE
++	case MADV_SOFT_OFFLINE:
++	case MADV_HWPOISON:
++#endif
+ 		return true;
+ 
+ 	default:
+@@ -767,10 +771,6 @@ static int madvise_inject_error(int behavior,
+ 	size_t len;
+ 	struct blk_plug plug;
+ 
+-#ifdef CONFIG_MEMORY_FAILURE
+-	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+-		return madvise_inject_error(behavior, start, start + len_in);
+-#endif
+ 	if (!madvise_behavior_valid(behavior))
+ 		return error;
+ 
+@@ -790,6 +790,11 @@ static int madvise_inject_error(int behavior,
+ 	if (end == start)
+ 		return error;
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
++		return madvise_inject_error(behavior, start, start + len_in);
++#endif
++
+ 	write = madvise_need_mmap_write(behavior);
+ 	if (write) {
+ 		if (down_write_killable(&current->mm->mmap_sem))
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
