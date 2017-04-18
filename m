@@ -1,109 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ADF516B0038
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 05:28:03 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u18so18137904wrc.17
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 02:28:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x8si15202323wmd.88.2017.04.18.02.28.01
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C720F6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 05:53:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a188so49045427pfa.3
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 02:53:01 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 63si13856004pgi.231.2017.04.18.02.53.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Apr 2017 02:28:02 -0700 (PDT)
-Date: Tue, 18 Apr 2017 11:27:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm: consider zone which is not fully populated to
- have holes
-Message-ID: <20170418092757.GM22360@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170415121734.6692-1-mhocko@kernel.org>
- <20170415121734.6692-2-mhocko@kernel.org>
- <97a658cd-e656-6efa-7725-150063d276f1@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <97a658cd-e656-6efa-7725-150063d276f1@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Apr 2017 02:53:00 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3I9o9qv081842
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 05:53:00 -0400
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29vwn12yjw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 05:52:59 -0400
+Received: from localhost
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 18 Apr 2017 15:22:56 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3I9qrYm18546798
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:22:53 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3I9qr5R009764
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:22:53 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] selftests/vm: Add a test for virtual address range mapping
+Date: Tue, 18 Apr 2017 15:22:52 +0530
+Message-Id: <20170418095252.20533-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On Tue 18-04-17 10:45:23, Vlastimil Babka wrote:
-> On 04/15/2017 02:17 PM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > __pageblock_pfn_to_page has two users currently, set_zone_contiguous
-> > which checks whether the given zone contains holes and
-> > pageblock_pfn_to_page which then carefully returns a first valid
-> > page from the given pfn range for the given zone. This doesn't handle
-> > zones which are not fully populated though. Memory pageblocks can be
-> > offlined or might not have been onlined yet. In such a case the zone
-> > should be considered to have holes otherwise pfn walkers can touch
-> > and play with offline pages.
-> > 
-> > Current callers of pageblock_pfn_to_page in compaction seem to work
-> > properly right now because they only isolate PageBuddy
-> > (isolate_freepages_block) or PageLRU resp. __PageMovable
-> > (isolate_migratepages_block) which will be always false for these pages.
-> > It would be safer to skip these pages altogether, though. In order
-> > to do that let's check PageReserved in __pageblock_pfn_to_page because
-> > offline pages are reserved.
-> 
-> My issue with this is that PageReserved can be also set for other
-> reasons than offlined block, e.g. by a random driver. So there are two
-> suboptimal scenarios:
-> 
-> - PageReserved is set on some page in the middle of pageblock. It won't
-> be detected by this patch. This violates the "it would be safer" argument.
-> - PageReserved is set on just the first (few) page(s) and because of
-> this patch, we skip it completely and won't compact the rest of it.
+This verifies virtual address mapping below and above the
+128TB range and makes sure that address returned are within
+the expected range depending upon the hint passed from the
+user space.
 
-Why would that be a big problem? PageReserved is used only very seldom
-and few page blocks skipped would seem like a minor issue to me.
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+ tools/testing/selftests/vm/Makefile                |   1 +
+ tools/testing/selftests/vm/run_vmtests             |  11 ++
+ tools/testing/selftests/vm/virtual_address_range.c | 122 +++++++++++++++++++++
+ 3 files changed, 134 insertions(+)
+ create mode 100644 tools/testing/selftests/vm/virtual_address_range.c
 
-> So if we decide we really need to check PageReserved to ensure safety,
-> then we have to check it on each page. But I hope the existing criteria
-> in compaction scanners are sufficient. Unless the semantic is that if
-> somebody sets PageReserved, he's free to repurpose the rest of flags at
-> his will (IMHO that's not the case).
-
-I am not aware of any such user. PageReserved has always been about "the
-core mm should touch these pages and modify their state" AFAIR.
-But I believe that touching those holes just asks for problems so I
-would rather have them covered.
-
-> The pageblock-level check them becomes a performance optimization so
-> when there's an "offline hole", compaction won't iterate it page by
-> page. But the downside is the false positive resulting in skipping whole
-> pageblock due to single page.
-> I guess it's uncommon for a longlived offline holes to exist, so we
-> could simply just drop this?
-
-This is hard to tell but I can imagine that some memory hotplug
-balloning drivers might want to offline hole into existing zones. 
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index 41642ba..367850a 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -18,6 +18,7 @@ TEST_GEN_FILES += userfaultfd
+ TEST_GEN_FILES += userfaultfd_hugetlb
+ TEST_GEN_FILES += userfaultfd_shmem
+ TEST_GEN_FILES += mlock-random-test
++TEST_GEN_FILES += virtual_address_range
  
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  mm/page_alloc.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 0cacba69ab04..dcbbcfdda60e 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1351,6 +1351,8 @@ struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
-> >  		return NULL;
-> >  
-> >  	start_page = pfn_to_page(start_pfn);
-> > +	if (PageReserved(start_page))
-> > +		return NULL;
-> >  
-> >  	if (page_zone(start_page) != zone)
-> >  		return NULL;
-> > 
-
+ TEST_PROGS := run_vmtests
+ 
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index c92f6cf..abd6a3d 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -165,4 +165,15 @@ else
+ 	echo "[PASS]"
+ fi
+ 
++echo "-----------------------------"
++echo "running virtual_address_range"
++echo "-----------------------------"
++./virtual_address_range
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
++
+ exit $exitcode
+diff --git a/tools/testing/selftests/vm/virtual_address_range.c b/tools/testing/selftests/vm/virtual_address_range.c
+new file mode 100644
+index 0000000..3b02aa6
+--- /dev/null
++++ b/tools/testing/selftests/vm/virtual_address_range.c
+@@ -0,0 +1,122 @@
++/*
++ * Copyright 2017, Anshuman Khandual, IBM Corp.
++ * Licensed under GPLv2.
++ *
++ * Works on architectures which support 128TB virtual
++ * address range and beyond.
++ */
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++#include <errno.h>
++#include <numaif.h>
++#include <sys/mman.h>
++#include <sys/time.h>
++
++/*
++ * Maximum address range mapped with a single mmap()
++ * call is little bit more than 16GB. Hence 16GB is
++ * chosen as the single chunk size for address space
++ * mapping.
++ */
++#define MAP_CHUNK_SIZE   17179869184UL /* 16GB */
++
++/*
++ * Address space till 128TB is mapped without any hint
++ * and is enabled by default. Address space beyond 128TB
++ * till 512TB is obtained by passing hint address as the
++ * first argument into mmap() system call.
++ *
++ * The process heap address space is divided into two
++ * different areas one below 128TB and one above 128TB
++ * till it reaches 512TB. One with size 128TB and the
++ * other being 384TB.
++ */
++#define NR_CHUNKS_128TB   8192UL /* Number of 16GB chunks for 128TB */
++#define NR_CHUNKS_384TB  24576UL /* Number of 16GB chunks for 384TB */
++
++#define ADDR_MARK_128TB  (1UL << 47) /* First address beyond 128TB */
++
++static char *hind_addr(void)
++{
++	int bits = 48 + rand() % 15;
++
++	return (char *) (1UL << bits);
++}
++
++static int validate_addr(char *ptr, int high_addr)
++{
++	unsigned long addr = (unsigned long) ptr;
++
++	if (high_addr) {
++		if (addr < ADDR_MARK_128TB) {
++			printf("Bad address %lx\n", addr);
++			return 1;
++		}
++		return 0;
++	}
++
++	if (addr > ADDR_MARK_128TB) {
++		printf("Bad address %lx\n", addr);
++		return 1;
++	}
++	return 0;
++}
++
++static int validate_lower_address_hint(void)
++{
++	char *ptr;
++
++	ptr = mmap((void *) (1UL << 45), MAP_CHUNK_SIZE, PROT_READ |
++			PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++
++	if (ptr == MAP_FAILED)
++		return 0;
++
++	return 1;
++}
++
++int main(int argc, char *argv[])
++{
++	char *ptr[NR_CHUNKS_128TB];
++	char *hptr[NR_CHUNKS_384TB];
++	char *hint;
++	unsigned long i, lchunks, hchunks;
++
++	for (i = 0; i < NR_CHUNKS_128TB; i++) {
++		ptr[i] = mmap(NULL, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
++					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++
++		if (ptr[i] == MAP_FAILED) {
++			if (validate_lower_address_hint())
++				return 1;
++			break;
++		}
++
++		if (validate_addr(ptr[i], 0))
++			return 1;
++	}
++	lchunks = i;
++
++	for (i = 0; i < NR_CHUNKS_384TB; i++) {
++		hint = hind_addr();
++		hptr[i] = mmap(hint, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
++					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++
++		if (hptr[i] == MAP_FAILED)
++			break;
++
++		if (validate_addr(hptr[i], 1))
++			return 1;
++	}
++	hchunks = i;
++
++	for (i = 0; i < lchunks; i++)
++		munmap(ptr[i], MAP_CHUNK_SIZE);
++
++	for (i = 0; i < hchunks; i++)
++		munmap(hptr[i], MAP_CHUNK_SIZE);
++
++	return 0;
++}
 -- 
-Michal Hocko
-SUSE Labs
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
