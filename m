@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 990526B03A2
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 18:46:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id z185so4092906pgz.11
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:46:51 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a8si438813pgk.365.2017.04.18.15.46.50
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 300436B03A2
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 19:10:38 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s19so4417590pgn.14
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 16:10:38 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id d66si509804pfb.67.2017.04.18.16.10.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 15:46:50 -0700 (PDT)
-Date: Tue, 18 Apr 2017 15:46:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] fs: fix data invalidation in the cleancache during
- direct IO
-Message-Id: <20170418154647.9583bfa06705c614a2640a15@linux-foundation.org>
-In-Reply-To: <20170414140753.16108-2-aryabinin@virtuozzo.com>
-References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
-	<20170414140753.16108-2-aryabinin@virtuozzo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 18 Apr 2017 16:10:37 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id a188so3354113pfa.0
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 16:10:37 -0700 (PDT)
+Date: Tue, 18 Apr 2017 16:10:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm, page_alloc: Remove debug_guardpage_minorder()
+ test in warn_alloc().
+In-Reply-To: <1492525366-4929-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1704181604460.141160@chino.kir.corp.google.com>
+References: <1492525366-4929-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Steve French <sfrench@samba.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, v9fs-developer@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stanislaw Gruszka <sgruszka@redhat.com>
 
-On Fri, 14 Apr 2017 17:07:50 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+On Tue, 18 Apr 2017, Tetsuo Handa wrote:
 
-> Some direct write fs hooks call invalidate_inode_pages2[_range]()
-> conditionally iff mapping->nrpages is not zero. If page cache is empty,
-> buffered read following after direct IO write would get stale data from
-> the cleancache.
+> Commit c0a32fc5a2e470d0 ("mm: more intensive memory corruption debugging")
+> changed to check debug_guardpage_minorder() > 0 when reporting allocation
+> failures. The reasoning was
 > 
-> Also it doesn't feel right to check only for ->nrpages because
-> invalidate_inode_pages2[_range] invalidates exceptional entries as well.
+>   When we use guard page to debug memory corruption, it shrinks available
+>   pages to 1/2, 1/4, 1/8 and so on, depending on parameter value.
+>   In such case memory allocation failures can be common and printing
+>   errors can flood dmesg. If somebody debug corruption, allocation
+>   failures are not the things he/she is interested about.
 > 
-> Fix this by calling invalidate_inode_pages2[_range]() regardless of nrpages
-> state.
+> but is misguided.
+> 
 
-I'm not understanding this.  I can buy the argument about
-nrexceptional, but why does cleancache require the
-invalidate_inode_pages2_range) call even when ->nrpages is zero?
+As discussed privately, I think the reasoning is worthwhile.  
+debug_guardpage_minorder is effectively pulling DIMMs from your system 
+from the perspective of the buddy allocator, which triggers these 
+warnings.  Nobody will be deploying with this config on production 
+systems, they are interesting in debugging or triaging issues.  As a 
+result, I agree that low on memory or fragmentation issues as a result of 
+the overhead required for this debugging is not interesting to report.  
 
-I *assume* it's because invalidate_inode_pages2_range() calls
-cleancache_invalidate_inode(), yes?  If so, can we please add this to
-the changelog?  If not then please explain further.
+> Allocation requests with __GFP_NOWARN flag by definition do not cause
+> flooding of allocation failure messages. Allocation requests with
+> __GFP_NORETRY flag likely also have __GFP_NOWARN flag. Costly allocation
+> requests likely also have __GFP_NOWARN flag.
+> 
+> Allocation requests without __GFP_DIRECT_RECLAIM flag likely also have
+> __GFP_NOWARN flag or __GFP_HIGH flag. Non-costly allocation requests with
+> __GFP_DIRECT_RECLAIM flag basically retry forever due to the "too small to
+> fail" memory-allocation rule.
+> 
+> Therefore, as a whole, shrinking available pages by
+> debug_guardpage_minorder= kernel boot parameter might cause flooding of
+> OOM killer messages but unlikely causes flooding of allocation failure
+> messages. Let's remove debug_guardpage_minorder() > 0 check which would
+> likely be pointless.
+> 
 
-
+Hmm, not necessarily, the oom killer can be used in situations where the 
+context allows it but there is still a great possibility that we are 
+getting page allocation failure warnings in softirq context, including 
+high-order allocations from the networking layer.  I think the reasoning 
+presented by Stanislaw in commit c0a32fc5a2e4 is correct and we ought to 
+avoid allocation failure warnings spamming the log when looking for real 
+debugging information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
