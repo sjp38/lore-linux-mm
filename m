@@ -1,76 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FF8D6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 23:20:20 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id b78so17388775wrd.18
-        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 20:20:20 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h7si18696971wrc.138.2017.04.17.20.20.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Apr 2017 20:20:19 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3I3JhO9069446
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 23:20:17 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 29w00kq3gk-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 17 Apr 2017 23:20:17 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 18 Apr 2017 13:20:14 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3I3K3Oj4980832
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 13:20:11 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3I3JcGm003773
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 13:19:38 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 5/7] mm/follow_page_mask: Add support for hugepage directory entry
-In-Reply-To: <201704180224.jNqHZuTL%fengguang.wu@intel.com>
-References: <201704180224.jNqHZuTL%fengguang.wu@intel.com>
-Date: Tue, 18 Apr 2017 08:49:14 +0530
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7524B6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 00:59:14 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a188so46230057pfa.3
+        for <linux-mm@kvack.org>; Mon, 17 Apr 2017 21:59:14 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d8si13272813pgn.60.2017.04.17.21.59.12
+        for <linux-mm@kvack.org>;
+        Mon, 17 Apr 2017 21:59:13 -0700 (PDT)
+Date: Tue, 18 Apr 2017 13:59:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+Message-ID: <20170418045909.GA11015@bbox>
+References: <20170407064901.25398-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87a87eh07h.fsf@skywalker.in.ibm.com>
+In-Reply-To: <20170407064901.25398-1-ying.huang@intel.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, mpe@ellerman.id.au, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
-kbuild test robot <lkp@intel.com> writes:
+Hi Huang,
 
-> Hi Aneesh,
->
-> [auto build test ERROR on linus/master]
-> [also build test ERROR on v4.11-rc7 next-20170413]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->
-> url:    https://github.com/0day-ci/linux/commits/Aneesh-Kumar-K-V/HugeTLB-migration-support-for-PPC64/20170418-011540
-> config: x86_64-randconfig-a0-04180109 (attached as .config)
-> compiler: gcc-4.4 (Debian 4.4.7-8) 4.4.7
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
->
-> All errors (new ones prefixed by >>):
->
->    In file included from mm//swap.c:35:
->>> include/linux/hugetlb.h:121: error: expected declaration specifiers or '...' before 'hugepd_t'
->
-> vim +121 include/linux/hugetlb.h
->
->    115				unsigned long addr, unsigned long sz);
->    116	pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
->    117	int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
->    118	struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
->    119				      int write);
->    120	struct page *follow_huge_pd(struct vm_area_struct *vma,
->  > 121				    unsigned long address, hugepd_t hpd,
->    122				    int flags, int pdshift);
->    123	struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
->    124					pmd_t *pmd, int flags);
->
+On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> To reduce the lock contention of swap_info_struct->lock when freeing
+> swap entry.  The freed swap entries will be collected in a per-CPU
+> buffer firstly, and be really freed later in batch.  During the batch
+> freeing, if the consecutive swap entries in the per-CPU buffer belongs
+> to same swap device, the swap_info_struct->lock needs to be
+> acquired/released only once, so that the lock contention could be
+> reduced greatly.  But if there are multiple swap devices, it is
+> possible that the lock may be unnecessarily released/acquired because
+> the swap entries belong to the same swap device are non-consecutive in
+> the per-CPU buffer.
+> 
+> To solve the issue, the per-CPU buffer is sorted according to the swap
+> device before freeing the swap entries.  Test shows that the time
+> spent by swapcache_free_entries() could be reduced after the patch.
+> 
+> Test the patch via measuring the run time of swap_cache_free_entries()
+> during the exit phase of the applications use much swap space.  The
+> results shows that the average run time of swap_cache_free_entries()
+> reduced about 20% after applying the patch.
+> 
+> Signed-off-by: Huang Ying <ying.huang@intel.com>
+> Acked-by: Tim Chen <tim.c.chen@intel.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> 
+> v3:
+> 
+> - Add some comments in code per Rik's suggestion.
+> 
+> v2:
+> 
+> - Avoid sort swap entries if there is only one swap device.
+> ---
+>  mm/swapfile.c | 12 ++++++++++++
+>  1 file changed, 12 insertions(+)
+> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 90054f3c2cdc..f23c56e9be39 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -37,6 +37,7 @@
+>  #include <linux/swapfile.h>
+>  #include <linux/export.h>
+>  #include <linux/swap_slots.h>
+> +#include <linux/sort.h>
+>  
+>  #include <asm/pgtable.h>
+>  #include <asm/tlbflush.h>
+> @@ -1065,6 +1066,13 @@ void swapcache_free(swp_entry_t entry)
+>  	}
+>  }
+>  
+> +static int swp_entry_cmp(const void *ent1, const void *ent2)
+> +{
+> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
+> +
+> +	return (long)(swp_type(*e1) - swp_type(*e2));
+> +}
+> +
+>  void swapcache_free_entries(swp_entry_t *entries, int n)
+>  {
+>  	struct swap_info_struct *p, *prev;
+> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+>  
+>  	prev = NULL;
+>  	p = NULL;
+> +
+> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+> +	if (nr_swapfiles > 1)
+> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
 
-Thanks for the report. How about
+Let's think on other cases.
+
+There are two swaps and they are configured by priority so a swap's usage
+would be zero unless other swap used up. In case of that, this sorting
+is pointless.
+
+As well, nr_swapfiles is never decreased so if we enable multiple
+swaps and then disable until a swap is remained, this sorting is
+pointelss, too.
+
+How about lazy sorting approach? IOW, if we found prev != p and,
+then we can sort it.
+
+Thanks.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
