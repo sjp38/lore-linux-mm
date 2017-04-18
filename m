@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 806956B0038
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 03:11:57 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k14so17831695wrc.16
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 00:11:57 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 700D96B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 03:15:01 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l44so17794717wrc.11
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 00:15:01 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 91si19251337wrd.272.2017.04.18.00.11.56
+        by mx.google.com with ESMTPS id 42si19357049wrw.199.2017.04.18.00.15.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Apr 2017 00:11:56 -0700 (PDT)
-Date: Tue, 18 Apr 2017 09:11:53 +0200
+        Tue, 18 Apr 2017 00:15:00 -0700 (PDT)
+Date: Tue, 18 Apr 2017 09:14:56 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, vmscan: avoid thrashing anon lru when free + file is
- low
-Message-ID: <20170418071153.GC22360@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
+Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+Message-ID: <20170418071456.GD22360@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170411170317.GB21171@dhcp22.suse.cz>
+ <CAA9_cmdrNZkOByvSecmocqs=6o8ZP5bz+Zx6NrwqjU66C=5Y4w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
+In-Reply-To: <CAA9_cmdrNZkOByvSecmocqs=6o8ZP5bz+Zx6NrwqjU66C=5Y4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
 
-On Mon 17-04-17 17:06:20, David Rientjes wrote:
-> The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
-> not swap anon pages just because free+file is low'") reintroduces is to
-> prefer swapping anonymous memory rather than trashing the file lru.
+On Mon 17-04-17 14:51:12, Dan Williams wrote:
+> On Tue, Apr 11, 2017 at 10:03 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > All the reported issue seem to be fixed and pushed to my git tree
+> > attempts/rewrite-mem_hotplug branch. I will wait a day or two for more
+> > feedback and then repost for the inclusion. I would really appreaciate
+> > more testing/review!
 > 
-> If all anonymous memory is unevictable, however, this insistance on
-> SCAN_ANON ends up thrashing that lru instead.
+> This still seems to be based on 4.10? It's missing some block-layer
+> fixes and other things that trigger failures in the nvdimm unit tests.
+> Can you rebase to a more recent 4.11-rc?
 
-Why would be the anonymous memory unevictable? If the swap is depleted
-then we enforce file scanning AFAIR. Are those pages pinned somehow, by
-who? It would be great if you could describe the workload which triggers
-a problem which you are trying to fix.
+OK, I will rebase on top of linux-next. This has been based on mmotm
+tree so far. Btw. is there anything that would change the current
+implementation other than small context tweaks? In other words, do you
+see any issues with the current implementation regarding nvdimm's
+ZONE_DEVICE usage?
 
-> Check that enough evictable anon memory is actually on this lruvec before
-> insisting on SCAN_ANON.  SWAP_CLUSTER_MAX is used as the threshold to
-> determine if only scanning anon is beneficial.
->
-> Otherwise, fallback to balanced reclaim so the file lru doesn't remain
-> untouched.
+Thanks!
 
-Why should we treat anonymous and file pages any different here. In
-other words why should file pages check for high wmark and anonymous for
-SWAP_CLUSTER_MAX.
-
-[...]
 -- 
 Michal Hocko
 SUSE Labs
