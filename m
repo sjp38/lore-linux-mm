@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A7E7A6B0397
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 17:47:34 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id r129so3266247pgr.18
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 14:47:34 -0700 (PDT)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id 66si336212pgh.214.2017.04.18.14.47.33
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E2BB6B03B5
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 18:09:45 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id n80so1696002qke.6
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 15:09:45 -0700 (PDT)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com. [216.71.154.45])
+        by mx.google.com with ESMTPS id v11si412449qtg.188.2017.04.18.15.09.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 14:47:33 -0700 (PDT)
-Received: by mail-pg0-x234.google.com with SMTP id 72so2726722pge.2
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 14:47:33 -0700 (PDT)
-Date: Tue, 18 Apr 2017 14:47:32 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure
- warning.
-In-Reply-To: <201704182049.BIE34837.FJOFOMFOQSLHVt@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org> <alpine.DEB.2.10.1704171539190.46404@chino.kir.corp.google.com>
- <201704182049.BIE34837.FJOFOMFOQSLHVt@I-love.SAKURA.ne.jp>
+        Tue, 18 Apr 2017 15:09:44 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@sandisk.com>
+Subject: Re: [PATCH] mm: Make truncate_inode_pages_range() killable
+Date: Tue, 18 Apr 2017 22:09:39 +0000
+Message-ID: <1492553377.2689.13.camel@sandisk.com>
+References: <20170414215507.27682-1-bart.vanassche@sandisk.com>
+	 <alpine.LSU.2.11.1704141726260.9676@eggly.anvils>
+	 <1492217984.2557.1.camel@sandisk.com>
+	 <20170418081549.GJ22360@dhcp22.suse.cz>
+In-Reply-To: <20170418081549.GJ22360@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <5383C1EA53FC4843994E4BDC2C5C8EE3@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, mhocko@kernel.org, sgruszka@redhat.com
+To: "mhocko@kernel.org" <mhocko@kernel.org>
+Cc: "hughd@google.com" <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "snitzer@redhat.com" <snitzer@redhat.com>, "oleg@redhat.com" <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hare@suse.com" <hare@suse.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "jack@suse.cz" <jack@suse.cz>
 
-On Tue, 18 Apr 2017, Tetsuo Handa wrote:
+On Tue, 2017-04-18 at 10:15 +0200, Michal Hocko wrote:
+> On Sat 15-04-17 00:59:46, Bart Van Assche wrote:
+> > On Fri, 2017-04-14 at 17:40 -0700, Hugh Dickins wrote:
+> > > Changing a fundamental function, silently not to do its essential job=
+,
+> > > when something in the kernel has forgotten (or is slow to) unlock_pag=
+e():
+> > > that seems very wrong to me in many ways.  But linux-fsdevel, Cc'ed, =
+will
+> > > be a better forum to advise on how to solve the problem you're seeing=
+.
+> >=20
+> > It seems like you have misunderstood the purpose of the patch I posted.=
+ It's
+> > neither a missing unlock_page() nor slow I/O that I want to address but=
+ a
+> > genuine deadlock. In case you would not be familiar with the queue_if_n=
+o_path
+> > multipath configuration option, the multipath.conf man page is availabl=
+e at
+> > e.g. https://linux.die.net/man/5/multipath.conf.
+>=20
+> So, who is holding the page lock and why it cannot make forward
+> progress? Is the storage gone so that the ongoing IO will never
+> terminate? Btw. we have many other places which wait for the page lock
+> !killable way. Why they are any different from this case?
 
-> > I have a couple of suggestions for Tetsuo about this patch, though:
-> > 
-> >  - We now have show_mem_rs, stall_rs, and nopage_rs.  Ugh.  I think it's
-> >    better to get rid of show_mem_rs and let warn_alloc_common() not 
-> >    enforce any ratelimiting at all and leave it to the callers.
-> 
-> Commit aa187507ef8bb317 ("mm: throttle show_mem() from warn_alloc()") says
-> that show_mem_rs was added because a big part of the output is show_mem()
-> which can generate a lot of output even on a small machines. Thus, I think
-> ratelimiting at warn_alloc_common() makes sense for users who want to use
-> warn_alloc_stall() for reporting stalls.
-> 
+Hello Michal,
 
-The suggestion is to eliminate show_mem_rs, it has an interval of HZ and 
-burst of 1 when the calling function(s), warn_alloc() and 
-warn_alloc_stall(), will have intervals of 5 * HZ and burst of 10.  We 
-don't need show_mem_rs :)
+queue_if_no_path means that if no paths are available that the dm-mpath dri=
+ver
+does not complete an I/O request until a path becomes available.=A0A standa=
+rd
+test for multipathed storage is to alternatingly remove and restore all pat=
+hs.
 
-> >  - warn_alloc() is probably better off renamed to warn_alloc_failed()
-> >    since it enforces __GFP_NOWARN and uses an allocation failure ratelimit 
-> >    regardless of what the passed text is.
-> 
-> I'm OK to rename warn_alloc() back to warn_alloc_failed() for reporting
-> allocation failures. Maybe we can remove debug_guardpage_minorder() > 0
-> check from warn_alloc_failed() anyway.
-> 
+If the reported lockup happens at the end of a test I can break the cycle b=
+y
+running "dmsetup message ${mpath} 0 fail_if_no_path". That command causes
+pending I/O requests to fail if no paths are available.
 
-s/warn_alloc/warn_alloc_failed/ makes sense because the function is 
-warning of allocation failures, not warning of allocations lol.
+I think it is rather unintuitive that kill -9 does not work for a process t=
+hat
+uses a dm-mpath device for I/O as long as no paths are available.
 
-I think the debug_guardpage_minorder() check makes sense for failed 
-allocations because we are essentially removing memory from the system for 
-debug, failed allocations as a result of low on memory or fragmentation 
-aren't concerning if we are removing memory from the system.  It isn't 
-needed for allocation stalls, though, if the guard pages were actually 
-mapped memory in use we would still be concerned about lengthy allocation 
-stalls.  So I think we should have a debug_guardpage_minorder() check for 
-warn_alloc_failed() and not for warn_alloc_stall().
+The call stack I reported in the first e-mail in this thread is what I ran
+into while running multipath tests. I'm not sure why I have not yet hit any
+other code paths that perform an unkillable wait on a page lock.
 
-If you choose to follow-up with this, I'd happily ack it.
+Bart.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
