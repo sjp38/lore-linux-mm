@@ -1,103 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CBE226B0038
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 04:23:15 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id m26so18015646wrm.5
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 01:23:15 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E046B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 04:45:27 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 28so15741043wrw.13
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 01:45:27 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 1si19582993wrd.118.2017.04.18.01.23.14
+        by mx.google.com with ESMTPS id d3si15064919wmf.12.2017.04.18.01.45.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Apr 2017 01:23:14 -0700 (PDT)
-Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
+        Tue, 18 Apr 2017 01:45:25 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm: consider zone which is not fully populated to
+ have holes
 References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170410162749.7d7f31c1@nial.brq.redhat.com>
- <20170410160228.GI4618@dhcp22.suse.cz>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170415121734.6692-2-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <c5ba7d24-1ad9-5f42-3c60-96aed4cc0a17@suse.cz>
-Date: Tue, 18 Apr 2017 10:23:12 +0200
+Message-ID: <97a658cd-e656-6efa-7725-150063d276f1@suse.cz>
+Date: Tue, 18 Apr 2017 10:45:23 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170410160228.GI4618@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20170415121734.6692-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Igor Mammedov <imammedo@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 04/10/2017 06:02 PM, Michal Hocko wrote:
-> On Mon 10-04-17 16:27:49, Igor Mammedov wrote:
-> [...]
->> #issue3:
->> removable flag flipped to non-removable state
->>
->> // before series at commit ef0b577b6:
->> memory32:offline removable: 0  zones: Normal Movable
->> memory33:offline removable: 0  zones: Normal Movable
->> memory34:offline removable: 0  zones: Normal Movable
->> memory35:offline removable: 0  zones: Normal Movable
-> 
-> did you mean _after_ the series because the bellow looks like
-> the original behavior (at least valid_zones).
->  
->> // after series at commit 6a010434
->> memory32:offline removable: 1  zones: Normal
->> memory33:offline removable: 1  zones: Normal
->> memory34:offline removable: 1  zones: Normal
->> memory35:offline removable: 1  zones: Normal Movable
->>
->> also looking at #issue1 removable flag state doesn't
->> seem to be consistent between state changes but maybe that's
->> been broken before
-> 
-> Well, the file has a very questionable semantic. It doesn't provide
-> a stable information. Anyway put that aside.
-> is_pageblock_removable_nolock relies on having zone association
-> which we do not have yet if the memblock is offline. So we need
-> the following. I will queue this as a preparatory patch.
-> ---
-> From 4f3ebc02f4d552d3fe114787ca8a38cc68702208 Mon Sep 17 00:00:00 2001
+On 04/15/2017 02:17 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
-> Date: Mon, 10 Apr 2017 17:59:03 +0200
-> Subject: [PATCH] mm, memory_hotplug: consider offline memblocks removable
 > 
-> is_pageblock_removable_nolock relies on having zone association to
-> examine all the page blocks to check whether they are movable or free.
-> This is just wasting of cycles when the memblock is offline. Later patch
-> in the series will also change the time when the page is associated with
-> a zone so we let's bail out early if the memblock is offline.
+> __pageblock_pfn_to_page has two users currently, set_zone_contiguous
+> which checks whether the given zone contains holes and
+> pageblock_pfn_to_page which then carefully returns a first valid
+> page from the given pfn range for the given zone. This doesn't handle
+> zones which are not fully populated though. Memory pageblocks can be
+> offlined or might not have been onlined yet. In such a case the zone
+> should be considered to have holes otherwise pfn walkers can touch
+> and play with offline pages.
 > 
-> Reported-by: Igor Mammedov <imammedo@redhat.com>
+> Current callers of pageblock_pfn_to_page in compaction seem to work
+> properly right now because they only isolate PageBuddy
+> (isolate_freepages_block) or PageLRU resp. __PageMovable
+> (isolate_migratepages_block) which will be always false for these pages.
+> It would be safer to skip these pages altogether, though. In order
+> to do that let's check PageReserved in __pageblock_pfn_to_page because
+> offline pages are reserved.
+
+My issue with this is that PageReserved can be also set for other
+reasons than offlined block, e.g. by a random driver. So there are two
+suboptimal scenarios:
+
+- PageReserved is set on some page in the middle of pageblock. It won't
+be detected by this patch. This violates the "it would be safer" argument.
+- PageReserved is set on just the first (few) page(s) and because of
+this patch, we skip it completely and won't compact the rest of it.
+
+So if we decide we really need to check PageReserved to ensure safety,
+then we have to check it on each page. But I hope the existing criteria
+in compaction scanners are sufficient. Unless the semantic is that if
+somebody sets PageReserved, he's free to repurpose the rest of flags at
+his will (IMHO that's not the case).
+
+The pageblock-level check them becomes a performance optimization so
+when there's an "offline hole", compaction won't iterate it page by
+page. But the downside is the false positive resulting in skipping whole
+pageblock due to single page.
+I guess it's uncommon for a longlived offline holes to exist, so we
+could simply just drop this?
+
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
 > ---
->  drivers/base/memory.c | 4 ++++
->  1 file changed, 4 insertions(+)
+>  mm/page_alloc.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 9677b6b711b0..0c29ec5598ea 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -128,6 +128,9 @@ static ssize_t show_mem_removable(struct device *dev,
->  	int ret = 1;
->  	struct memory_block *mem = to_memory_block(dev);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0cacba69ab04..dcbbcfdda60e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1351,6 +1351,8 @@ struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
+>  		return NULL;
 >  
-> +	if (mem->stat != MEM_ONLINE)
-> +		goto out;
-> +
->  	for (i = 0; i < sections_per_block; i++) {
->  		if (!present_section_nr(mem->start_section_nr + i))
->  			continue;
-> @@ -135,6 +138,7 @@ static ssize_t show_mem_removable(struct device *dev,
->  		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
->  	}
+>  	start_page = pfn_to_page(start_pfn);
+> +	if (PageReserved(start_page))
+> +		return NULL;
 >  
-> +out:
->  	return sprintf(buf, "%d\n", ret);
->  }
->  
+>  	if (page_zone(start_page) != zone)
+>  		return NULL;
 > 
 
 --
