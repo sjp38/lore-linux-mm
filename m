@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 03EDA6B03A7
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 02:11:47 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j11so8566203pgn.9
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 23:11:46 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id u140si1405796pgb.67.2017.04.18.23.11.46
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C85F6B0390
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 02:21:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 18so1398073wrz.4
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 23:21:41 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k203si2465202wmk.63.2017.04.18.23.21.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 23:11:46 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id a188so2247130pfa.2
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 23:11:46 -0700 (PDT)
-Date: Wed, 19 Apr 2017 15:11:49 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-Message-ID: <20170419061149.GD2881@jagdpanzerIV.localdomain>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain>
- <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
- <20170418000319.GC21354@bbox>
- <20170418073307.GF22360@dhcp22.suse.cz>
- <20170418105641.GC558@jagdpanzerIV.localdomain>
- <20170418110632.GN22360@dhcp22.suse.cz>
+        Tue, 18 Apr 2017 23:21:39 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3J6Efkn088807
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 02:21:38 -0400
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 29wqpu6avn-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 02:20:30 -0400
+Received: from localhost
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 19 Apr 2017 11:50:26 +0530
+Received: from d28av07.in.ibm.com (d28av07.in.ibm.com [9.184.220.146])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3J6KJdg18677780
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 11:50:19 +0530
+Received: from d28av07.in.ibm.com (localhost [127.0.0.1])
+	by d28av07.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3J6KObS006039
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 11:50:24 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC] mm/madvise: Enable (soft|hard) offline of HugeTLB pages at PGD level
+In-Reply-To: <20170419032759.29700-1-khandual@linux.vnet.ibm.com>
+References: <20170419032759.29700-1-khandual@linux.vnet.ibm.com>
+Date: Wed, 19 Apr 2017 11:50:24 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170418110632.GN22360@dhcp22.suse.cz>
+Content-Type: text/plain
+Message-Id: <877f2ghqaf.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org
 
-On (04/18/17 13:06), Michal Hocko wrote:
-[..]
-> > > copy_page is a performance sensitive function and I believe that we do
-> > > those tricks exactly for this purpose.
-> > 
-> > a wild thought,
-> > 
-> > use
-> > 	#define copy_page(to,from)	memcpy((to), (from), PAGE_SIZE)
-> > 
-> > when DEBUG_SLAB is set? so arch copy_page() (if provided by arch)
-> > won't be affected otherwise.
-> 
-> SLAB is not guaranteed to provide page size aligned object AFAIR.
+Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
 
-oh, if there are no guarantees for page_sized allocations regardless
-the .config then agree, won't help.
+> Though migrating gigantic HugeTLB pages does not sound much like real
+> world use case, they can be affected by memory errors. Hence migration
+> at the PGD level HugeTLB pages should be supported just to enable soft
+> and hard offline use cases.
 
-	-ss
+In that case do we want to isolated the entire 16GB range ? Should we
+just dequeue the page from hugepage pool convert them to regular 64K
+pages and then isolate the 64K that had memory error ?
+
+>
+> While allocating the new gigantic HugeTLB page, it should not matter
+> whether new page comes from the same node or not. There would be very
+> few gigantic pages on the system afterall, we should not be bothered
+> about node locality when trying to save a big page from crashing.
+>
+> This introduces a new HugeTLB allocator called alloc_gigantic_page()
+> which will scan over all online nodes on the system and allocate a
+> single HugeTLB page.
+>
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
