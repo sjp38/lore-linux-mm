@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F74A6B03A3
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 12:13:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 28so2924940wrw.13
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:13:26 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 92E776B0038
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 12:46:14 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m68so680861wmg.4
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:46:14 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i15si4334146wra.8.2017.04.19.09.13.23
+        by mx.google.com with ESMTPS id k25si4438680wre.305.2017.04.19.09.46.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 09:13:23 -0700 (PDT)
-Date: Wed, 19 Apr 2017 12:13:18 -0400
+        Wed, 19 Apr 2017 09:46:13 -0700 (PDT)
+Date: Wed, 19 Apr 2017 12:46:02 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm -v9 2/3] mm, THP, swap: Check whether THP can be
- split firstly
-Message-ID: <20170419161318.GC3376@cmpxchg.org>
-References: <20170419070625.19776-1-ying.huang@intel.com>
- <20170419070625.19776-3-ying.huang@intel.com>
+Subject: Re: acb32a95a9: BUG: kernel hang in test stage
+Message-ID: <20170419164602.GA4821@cmpxchg.org>
+References: <58f78acc.kZ0tk19VlXn2CBsV%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170419070625.19776-3-ying.huang@intel.com>
+In-Reply-To: <58f78acc.kZ0tk19VlXn2CBsV%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kernel test robot <fengguang.wu@intel.com>
+Cc: mmotm auto import <mm-commits@vger.kernel.org>, LKP <lkp@01.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com
 
-On Wed, Apr 19, 2017 at 03:06:24PM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+Hi,
+
+On Thu, Apr 20, 2017 at 12:05:32AM +0800, kernel test robot wrote:
+> Greetings,
 > 
-> To swap out THP (Transparent Huage Page), before splitting the THP,
-> the swap cluster will be allocated and the THP will be added into the
-> swap cache.  But it is possible that the THP cannot be split, so that
-> we must delete the THP from the swap cache and free the swap cluster.
-> To avoid that, in this patch, whether the THP can be split is checked
-> firstly.  The check can only be done racy, but it is good enough for
-> most cases.
+> 0day kernel testing robot got the below dmesg and the first bad commit is
 > 
-> With the patchset, the swap out throughput improves 3.6% (from about
-> 4.16GB/s to about 4.31GB/s) in the vm-scalability swap-w-seq test case
-> with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
-> device used is a RAM simulated PMEM (persistent memory) device.  To
-> test the sequential swapping out, the test case creates 8 processes,
-> which sequentially allocate and write to the anonymous pages until the
-> RAM and part of the swap device is used up.
+> git://git.cmpxchg.org/linux-mmotm.git master
 > 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com> [for can_split_huge_page()]
+> commit acb32a95a90a6f88860eb344d04e1634ebbc2170
+> Author:     mmotm auto import <mm-commits@vger.kernel.org>
+> AuthorDate: Thu Apr 13 22:02:16 2017 +0000
+> Commit:     Johannes Weiner <hannes@cmpxchg.org>
+> CommitDate: Thu Apr 13 22:02:16 2017 +0000
+> 
+>     linux-next
 
-How often does this actually happen in practice? Because all that this
-protects us from is trying to allocate a swap cluster - which with the
-si->free_clusters list really isn't all that expensive - and return it
-again. Unless this happens all the time in practice, this optimization
-seems misplaced.
+Hm, you'd think the linux-next commit in the mm tree would produce
+problems more often, but this is the first time I've seen it as the
+culprit in a problem report.
 
-It's especially a little strange because in the other email I asked
-about the need for unlikely() annotations, yet this patch is adding
-branches and checks for what seems to be an unlikely condition into
-the THP hot path.
+Do problems usually get spotted inside linux-next.git first and then
+the same issues are not reported against the -mm tree?
 
-I'd suggest you drop both these optimization attempts unless there is
-real data proving that they have a measurable impact.
+I also just noticed that <mm-commits@vger.kernel.org> might be a bad
+author email since AFAIK it drops everything but akpm-mail. Andrew,
+would it be better to set you as the Author of these import patches?
+Easy enough to change my scripts.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
