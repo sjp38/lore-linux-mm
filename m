@@ -1,46 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3495C6B039F
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:50:07 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id x86so39620880ioe.5
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 15:50:07 -0700 (PDT)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id r10si16634731itc.109.2017.04.19.15.50.03
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A53CC6B03A1
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 19:24:52 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id l21so43728250ioi.2
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 16:24:52 -0700 (PDT)
+Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
+        by mx.google.com with ESMTPS id c6si7731429ita.55.2017.04.19.16.24.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 15:50:03 -0700 (PDT)
-Received: by mail-io0-x236.google.com with SMTP id r16so40266663ioi.2
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 15:50:03 -0700 (PDT)
+        Wed, 19 Apr 2017 16:24:51 -0700 (PDT)
+Received: by mail-io0-x22f.google.com with SMTP id o22so45490243iod.3
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 16:24:50 -0700 (PDT)
+Date: Wed, 19 Apr 2017 16:24:48 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, vmscan: avoid thrashing anon lru when free + file
+ is low
+In-Reply-To: <20170419001405.GA13364@bbox>
+Message-ID: <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com> <20170418013659.GD21354@bbox> <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com> <20170419001405.GA13364@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20170419081701.GC29789@dhcp22.suse.cz>
-References: <201704190541.v3J5fUE3054131@www262.sakura.ne.jp>
- <20170419071039.GB28263@dhcp22.suse.cz> <201704190726.v3J7QAiC076509@www262.sakura.ne.jp>
- <20170419075712.GB29789@dhcp22.suse.cz> <CAMuHMdVmJrr6_sGeU4oxH5fn10BRdLC5nOEePN05p3kJ1x3YBQ@mail.gmail.com>
- <20170419081701.GC29789@dhcp22.suse.cz>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 19 Apr 2017 15:50:01 -0700
-Message-ID: <CA+55aFxQOJp0jq4Z9pFQzZtyc7KHapVT=ZbYyUufyGQhY=DvkQ@mail.gmail.com>
-Subject: Re: Re: Re: "mm: move pcp and lru-pcp draining into single wq" broke
- resume from s2ram
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-Renesas <linux-renesas-soc@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 19, 2017 at 1:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
->
-> Thanks for the testing. Linus will you take the patch from this thread
-> or you prefer a resend?
+On Wed, 19 Apr 2017, Minchan Kim wrote:
 
-I'll take it from this branch since I'm looking at it now, but in
-general I prefer resends just because finding patches deep in some
-discussion is very iffy.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 24efcc20af91..5d2f3fa41e92 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2174,8 +2174,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  		}
+>  
+>  		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
+> -			scan_balance = SCAN_ANON;
+> -			goto out;
+> +			/*
+> +			 * force SCAN_ANON if inactive anonymous LRU lists of
+> +			 * eligible zones are enough pages. Otherwise, thrashing
+> +			 * can be happen on the small anonymous LRU list.
+> +			 */
+> +			if (!inactive_list_is_low(lruvec, false, NULL, sc, false) &&
+> +			     lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+> +					>> sc->priority) {
+> +				scan_balance = SCAN_ANON;
+> +				goto out;
+> +			}
+>  		}
+>  	}
+>  
 
-I get too much email, so it really helps to make the patches more
-explicit than this...
+Hi Minchan,
 
-              Linus
+This looks good and it correctly biases against SCAN_ANON for my workload 
+that was thrashing the anon lrus.  Feel free to use parts of my changelog 
+if you'd like.
+
+Tested-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
