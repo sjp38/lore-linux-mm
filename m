@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 210216B03AE
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:33:43 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 6so2447142wra.23
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 06:33:43 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x25si3658103wrc.9.2017.04.19.06.33.41
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6926B03B1
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:46:01 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u77so2478205wrb.6
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 06:46:01 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a64si3666389wrc.296.2017.04.19.06.45.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 06:33:41 -0700 (PDT)
-Date: Wed, 19 Apr 2017 15:33:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-Message-ID: <20170419133339.GI29789@dhcp22.suse.cz>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
- <alpine.DEB.2.10.1704171539190.46404@chino.kir.corp.google.com>
- <201704182049.BIE34837.FJOFOMFOQSLHVt@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com>
- <20170419111342.GF29789@dhcp22.suse.cz>
- <20170419132212.GA3514@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Apr 2017 06:46:00 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3JDd52R044975
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:45:58 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 29x744x8h9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:45:58 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 19 Apr 2017 14:45:56 +0100
+Subject: Re: [RFC 2/4] Deactivate mmap_sem assert
+References: <cover.1492595897.git.ldufour@linux.vnet.ibm.com>
+ <582009a3f9459de3d8def1e76db46e815ea6153c.1492595897.git.ldufour@linux.vnet.ibm.com>
+ <20170419123051.GA5730@worktop>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 19 Apr 2017 15:45:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170419132212.GA3514@redhat.com>
+In-Reply-To: <20170419123051.GA5730@worktop>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <e6397c6c-6718-a0f3-0d72-7ad85760fdea@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, haren@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, Paul.McKenney@us.ibm.com, linux-kernel@vger.kernel.org
 
-On Wed 19-04-17 15:22:16, Stanislaw Gruszka wrote:
-> On Wed, Apr 19, 2017 at 01:13:43PM +0200, Michal Hocko wrote:
-> > On Tue 18-04-17 14:47:32, David Rientjes wrote:
-> > [...]
-> > > I think the debug_guardpage_minorder() check makes sense for failed 
-> > > allocations because we are essentially removing memory from the system for 
-> > > debug, failed allocations as a result of low on memory or fragmentation 
-> > > aren't concerning if we are removing memory from the system.
-> > 
-> > I really fail to see how this is any different from booting with
-> > mem=$SIZE to reduce the amount of available memory.
+On 19/04/2017 14:30, Peter Zijlstra wrote:
+> On Wed, Apr 19, 2017 at 02:18:25PM +0200, Laurent Dufour wrote:
+>> When mmap_sem will be moved to a range lock, some assertion done in
+>> the code are no more valid, like the one ensuring mmap_sem is held.
+>>
 > 
-> mem= shrink upper memory limit, debug_guardpage_minorder= fragments
-> available physical memory (deliberately to catch unintended access).
+> Why are they no longer valid?
 
-Yeah but both make allocation failures (especially higher order ones)
-more likely. So I really fail to see the point inhibit allocation
-failure warning for one and not for the other. This whole special casing
-of debug_guardpage_minorder is just too strange to me. We do have a rate
-limit to not flood the log.
--- 
-Michal Hocko
-SUSE Labs
+I didn't explain that very well..
+
+When using a range lock we can't check that the lock is simply held, but
+if the range we are interesting on is locked or not.
+
+As I mentioned this patch will have to be reverted / reviewed once the
+range lock is providing dedicated APIs, but some check might be
+difficult to adapt to a range.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
