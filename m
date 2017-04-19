@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F5BB2806E7
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 05:53:04 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id d81so4856640qkh.1
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 02:53:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n78si1733510qke.269.2017.04.19.02.53.03
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 356726B0038
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:13:50 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id o21so2101251wrb.9
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:13:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w75si3052634wrc.239.2017.04.19.04.13.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 02:53:03 -0700 (PDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20170419090224.frmv2jhwfwoxvdie@pd.tnic>
-References: <20170419090224.frmv2jhwfwoxvdie@pd.tnic> <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net> <20170418211625.10190.52568.stgit@tlendack-t1.amdoffice.net>
-Subject: Re: [PATCH v5 01/32] x86: Documentation for AMD Secure Memory Encryption (SME)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Apr 2017 04:13:48 -0700 (PDT)
+Date: Wed, 19 Apr 2017 13:13:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
+Message-ID: <20170419111342.GF29789@dhcp22.suse.cz>
+References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
+ <alpine.DEB.2.10.1704171539190.46404@chino.kir.corp.google.com>
+ <201704182049.BIE34837.FJOFOMFOQSLHVt@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <9976.1492595571.1@warthog.procyon.org.uk>
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 19 Apr 2017 10:52:51 +0100
-Message-ID: <9977.1492595571@warthog.procyon.org.uk>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: dhowells@redhat.com, Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, sgruszka@redhat.com
 
-Borislav Petkov <bp@alien8.de> wrote:
+On Tue 18-04-17 14:47:32, David Rientjes wrote:
+[...]
+> I think the debug_guardpage_minorder() check makes sense for failed 
+> allocations because we are essentially removing memory from the system for 
+> debug, failed allocations as a result of low on memory or fragmentation 
+> aren't concerning if we are removing memory from the system.
 
-> "Subject: [PATCH v5 01/32] x86: Add documentation for AMD Secure Memory =
-Encryption (SME)"
+I really fail to see how this is any different from booting with
+mem=$SIZE to reduce the amount of available memory.
 
-Or:
-
-	x86: Document AMD Secure Memory Encryption (SME) support
-
-David
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
