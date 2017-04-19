@@ -1,41 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 951476B0390
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:34:32 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l11so39064718iod.15
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 15:34:32 -0700 (PDT)
-Received: from mail-io0-x22c.google.com (mail-io0-x22c.google.com. [2607:f8b0:4001:c06::22c])
-        by mx.google.com with ESMTPS id 69si16701930itv.89.2017.04.19.15.34.31
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3495C6B039F
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:50:07 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id x86so39620880ioe.5
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 15:50:07 -0700 (PDT)
+Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
+        by mx.google.com with ESMTPS id r10si16634731itc.109.2017.04.19.15.50.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 15:34:31 -0700 (PDT)
-Received: by mail-io0-x22c.google.com with SMTP id k87so40793997ioi.0
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 15:34:31 -0700 (PDT)
-Date: Wed, 19 Apr 2017 15:34:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure
- warning.
-In-Reply-To: <20170419132212.GA3514@redhat.com>
-Message-ID: <alpine.DEB.2.10.1704191532460.94753@chino.kir.corp.google.com>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org> <alpine.DEB.2.10.1704171539190.46404@chino.kir.corp.google.com> <201704182049.BIE34837.FJOFOMFOQSLHVt@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com> <20170419111342.GF29789@dhcp22.suse.cz> <20170419132212.GA3514@redhat.com>
+        Wed, 19 Apr 2017 15:50:03 -0700 (PDT)
+Received: by mail-io0-x236.google.com with SMTP id r16so40266663ioi.2
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 15:50:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170419081701.GC29789@dhcp22.suse.cz>
+References: <201704190541.v3J5fUE3054131@www262.sakura.ne.jp>
+ <20170419071039.GB28263@dhcp22.suse.cz> <201704190726.v3J7QAiC076509@www262.sakura.ne.jp>
+ <20170419075712.GB29789@dhcp22.suse.cz> <CAMuHMdVmJrr6_sGeU4oxH5fn10BRdLC5nOEePN05p3kJ1x3YBQ@mail.gmail.com>
+ <20170419081701.GC29789@dhcp22.suse.cz>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 19 Apr 2017 15:50:01 -0700
+Message-ID: <CA+55aFxQOJp0jq4Z9pFQzZtyc7KHapVT=ZbYyUufyGQhY=DvkQ@mail.gmail.com>
+Subject: Re: Re: Re: "mm: move pcp and lru-pcp draining into single wq" broke
+ resume from s2ram
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-Renesas <linux-renesas-soc@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-On Wed, 19 Apr 2017, Stanislaw Gruszka wrote:
+On Wed, Apr 19, 2017 at 1:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>
+> Thanks for the testing. Linus will you take the patch from this thread
+> or you prefer a resend?
 
-> mem= shrink upper memory limit, debug_guardpage_minorder= fragments
-> available physical memory (deliberately to catch unintended access).
-> 
+I'll take it from this branch since I'm looking at it now, but in
+general I prefer resends just because finding patches deep in some
+discussion is very iffy.
 
-Agreed, and allocation failure warnings don't need to cache the mem= 
-kernel parameter and determine the difference between true system RAM and 
-configured system RAM to try to determine if a warning is appropriate lol.  
-Let's please leave the check as Stanislaw has repeatedly requested.
+I get too much email, so it really helps to make the patches more
+explicit than this...
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
