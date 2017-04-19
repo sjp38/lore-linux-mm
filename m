@@ -1,77 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 300436B03A2
-	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 19:10:38 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s19so4417590pgn.14
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 16:10:38 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id d66si509804pfb.67.2017.04.18.16.10.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Apr 2017 16:10:37 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id a188so3354113pfa.0
-        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 16:10:37 -0700 (PDT)
-Date: Tue, 18 Apr 2017 16:10:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm, page_alloc: Remove debug_guardpage_minorder()
- test in warn_alloc().
-In-Reply-To: <1492525366-4929-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.10.1704181604460.141160@chino.kir.corp.google.com>
-References: <1492525366-4929-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D0186B0038
+	for <linux-mm@kvack.org>; Tue, 18 Apr 2017 20:15:11 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d3so4624873pfj.5
+        for <linux-mm@kvack.org>; Tue, 18 Apr 2017 17:15:11 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id w185si609930pgd.418.2017.04.18.17.15.09
+        for <linux-mm@kvack.org>;
+        Tue, 18 Apr 2017 17:15:10 -0700 (PDT)
+Date: Wed, 19 Apr 2017 09:14:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch] mm, vmscan: avoid thrashing anon lru when free + file is
+ low
+Message-ID: <20170419001405.GA13364@bbox>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
+ <20170418013659.GD21354@bbox>
+ <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stanislaw Gruszka <sgruszka@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 18 Apr 2017, Tetsuo Handa wrote:
+Hi David,
 
-> Commit c0a32fc5a2e470d0 ("mm: more intensive memory corruption debugging")
-> changed to check debug_guardpage_minorder() > 0 when reporting allocation
-> failures. The reasoning was
+On Tue, Apr 18, 2017 at 02:32:56PM -0700, David Rientjes wrote:
+> On Tue, 18 Apr 2017, Minchan Kim wrote:
 > 
->   When we use guard page to debug memory corruption, it shrinks available
->   pages to 1/2, 1/4, 1/8 and so on, depending on parameter value.
->   In such case memory allocation failures can be common and printing
->   errors can flood dmesg. If somebody debug corruption, allocation
->   failures are not the things he/she is interested about.
+> > > The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
+> > > not swap anon pages just because free+file is low'") reintroduces is to
+> > > prefer swapping anonymous memory rather than trashing the file lru.
+> > > 
+> > > If all anonymous memory is unevictable, however, this insistance on
+> > 
+> > "unevictable" means hot workingset, not (mlocked and increased refcount
+> > by some driver)?
+> > I got confused.
+> > 
 > 
-> but is misguided.
-> 
+> For my purposes, it's mlocked, but I think this thrashing is possible 
+> anytime we fail the file lru heuristic and the evictable anon lrus are 
+> very small themselves.  I'll update the changelog to make this explicit.
 
-As discussed privately, I think the reasoning is worthwhile.  
-debug_guardpage_minorder is effectively pulling DIMMs from your system 
-from the perspective of the buddy allocator, which triggers these 
-warnings.  Nobody will be deploying with this config on production 
-systems, they are interesting in debugging or triaging issues.  As a 
-result, I agree that low on memory or fragmentation issues as a result of 
-the overhead required for this debugging is not interesting to report.  
+I understood now. Thanks for clarifying.
 
-> Allocation requests with __GFP_NOWARN flag by definition do not cause
-> flooding of allocation failure messages. Allocation requests with
-> __GFP_NORETRY flag likely also have __GFP_NOWARN flag. Costly allocation
-> requests likely also have __GFP_NOWARN flag.
 > 
-> Allocation requests without __GFP_DIRECT_RECLAIM flag likely also have
-> __GFP_NOWARN flag or __GFP_HIGH flag. Non-costly allocation requests with
-> __GFP_DIRECT_RECLAIM flag basically retry forever due to the "too small to
-> fail" memory-allocation rule.
+> > > Check that enough evictable anon memory is actually on this lruvec before
+> > > insisting on SCAN_ANON.  SWAP_CLUSTER_MAX is used as the threshold to
+> > > determine if only scanning anon is beneficial.
+> > 
+> > Why do you use SWAP_CLUSTER_MAX instead of (high wmark + free) like
+> > file-backed pages?
+> > As considering anonymous pages have more probability to become workingset
+> > because they are are mapped, IMO, more {strong or equal} condition than
+> > file-LRU would be better to prevent anon LRU thrashing.
+> > 
 > 
-> Therefore, as a whole, shrinking available pages by
-> debug_guardpage_minorder= kernel boot parameter might cause flooding of
-> OOM killer messages but unlikely causes flooding of allocation failure
-> messages. Let's remove debug_guardpage_minorder() > 0 check which would
-> likely be pointless.
-> 
+> If the suggestion is checking
+> NR_ACTIVE_ANON + NR_INACTIVE_ANON > total_high_wmark pages, it would be a 
+> separate heurstic to address a problem that I'm not having :)  My issue is 
+> specifically when NR_ACTIVE_FILE + NR_INACTIVE_FILE < total_high_wmark, 
+> NR_ACTIVE_ANON + NR_INACTIVE_ANON is very large, but all not on this 
+> lruvec's evictable lrus.
 
-Hmm, not necessarily, the oom killer can be used in situations where the 
-context allows it but there is still a great possibility that we are 
-getting page allocation failure warnings in softirq context, including 
-high-order allocations from the networking layer.  I think the reasoning 
-presented by Stanislaw in commit c0a32fc5a2e4 is correct and we ought to 
-avoid allocation failure warnings spamming the log when looking for real 
-debugging information.
+I understand it as "all not eligible LRU lists". Right?
+I will write the comment below with that my assumption is right.
+
+> 
+> This is the reason why I chose lruvec_lru_size() rather than per-node 
+> statistics.  The argument could also be made for the file lrus in the 
+> get_scan_count() heuristic that forces SCAN_ANON, but I have not met such 
+> an issue (yet).  I could follow-up with that change or incorporate it into 
+> a v2 of this patch if you'd prefer.
+
+I don't think we need to fix that part because the logic is to keep
+some amount of file-backed page workingset regardless of eligible
+zones. 
+
+> 
+> In other words, I want get_scan_count() to not force SCAN_ANON and 
+> fallback to SCAN_FRACT, absent other heuristics, if the amount of 
+> evictable anon is below a certain threshold for this lruvec.  I 
+> arbitrarily chose SWAP_CLUSTER_MAX to be conservative, but I could easily 
+> compare to total_high_wmark as well, although I would consider that more 
+> aggressive.
+
+I realize your problem now. It's rather different heuristic so no need
+to align file-lru. But SWAP_CLUSTER_MAX is too conservatie, too. IMHO.
+
+How about this?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 24efcc20af91..5d2f3fa41e92 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2174,8 +2174,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 		}
+ 
+ 		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
+-			scan_balance = SCAN_ANON;
+-			goto out;
++			/*
++			 * force SCAN_ANON if inactive anonymous LRU lists of
++			 * eligible zones are enough pages. Otherwise, thrashing
++			 * can be happen on the small anonymous LRU list.
++			 */
++			if (!inactive_list_is_low(lruvec, false, NULL, sc, false) &&
++			     lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
++					>> sc->priority) {
++				scan_balance = SCAN_ANON;
++				goto out;
++			}
+ 		}
+ 	}
+ 
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
