@@ -1,54 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AB34F6B03A6
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 11:38:36 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id d79so1494617wmi.8
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 08:38:36 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id r15si4130867wrr.287.2017.04.19.08.38.34
-        for <linux-mm@kvack.org>;
-        Wed, 19 Apr 2017 08:38:35 -0700 (PDT)
-Date: Wed, 19 Apr 2017 17:38:19 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 01/32] x86: Documentation for AMD Secure Memory
- Encryption (SME)
-Message-ID: <20170419153818.3pl3gkdpe42lve44@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211625.10190.52568.stgit@tlendack-t1.amdoffice.net>
- <20170419090224.frmv2jhwfwoxvdie@pd.tnic>
- <bbda868c-9b34-4404-f563-98b000124ac5@amd.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E9FA6B03A0
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 11:53:03 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 2so1503326wmp.21
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 08:53:03 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 126si4725411wmq.11.2017.04.19.08.53.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Apr 2017 08:53:01 -0700 (PDT)
+Date: Wed, 19 Apr 2017 11:52:52 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -mm -v9 1/3] mm, THP, swap: Delay splitting THP during
+ swap out
+Message-ID: <20170419155252.GA3376@cmpxchg.org>
+References: <20170419070625.19776-1-ying.huang@intel.com>
+ <20170419070625.19776-2-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bbda868c-9b34-4404-f563-98b000124ac5@amd.com>
+In-Reply-To: <20170419070625.19776-2-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
 
-On Wed, Apr 19, 2017 at 09:23:47AM -0500, Tom Lendacky wrote:
-> Btw, I tried to update all the subjects and descriptions to be
-> more descriptive but I'm sure there is still room for improvement
-> so keep the comments on them coming.
+On Wed, Apr 19, 2017 at 03:06:23PM +0800, Huang, Ying wrote:
+> @@ -206,17 +212,34 @@ int add_to_swap(struct page *page, struct list_head *list)
+>  	 */
+>  	err = add_to_swap_cache(page, entry,
+>  			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
+> -
+> -	if (!err) {
+> -		return 1;
+> -	} else {	/* -ENOMEM radix-tree allocation failure */
+> +	/* -ENOMEM radix-tree allocation failure */
+> +	if (err)
+>  		/*
+>  		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+>  		 * clear SWAP_HAS_CACHE flag.
+>  		 */
+> -		swapcache_free(entry);
+> -		return 0;
+> +		goto fail_free;
+> +
+> +	if (unlikely(PageTransHuge(page))) {
+> +		err = split_huge_page_to_list(page, list);
+> +		if (err) {
+> +			delete_from_swap_cache(page);
+> +			return 0;
+> +		}
+>  	}
+> +
+> +	return 1;
+> +
+> +fail_free:
+> +	if (unlikely(PageTransHuge(page)))
+> +		swapcache_free_cluster(entry);
+> +	else
+> +		swapcache_free(entry);
+> +fail:
+> +	if (unlikely(PageTransHuge(page)) &&
+> +	    !split_huge_page_to_list(page, list))
+> +		goto retry;
 
-No worries there :)
+May I ask why you added the unlikelies there? Can you generally say
+THPs are unlikely in this path? Is the swap-out path so hot that
+branch layout is critical? I doubt either is true.
 
-> Note, just because the bit is set in %cr3 doesn't mean the full
-> hierarchy is encrypted. Each level in the hierarchy needs to have the
-> encryption bit set. So, theoretically, you could have the encryption
-> bit set in %cr3 so that the PGD is encrypted, but not set the encryption
-> bit in the PGD entry for a PUD and so the PUD pointed to by that entry
-> would not be encrypted.
-
-Ha, that is a nice detail I didn't realize. You could add it to the text.
-
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Also please mention changes like these in the changelog next time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
