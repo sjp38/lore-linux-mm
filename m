@@ -1,127 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 20A586B03A3
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 10:23:56 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id h186so11947476ith.10
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:23:56 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0040.outbound.protection.outlook.com. [104.47.32.40])
-        by mx.google.com with ESMTPS id f80si1424039pfd.394.2017.04.19.07.23.54
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07DFB6B03A3
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 10:25:09 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l11so15618281iod.15
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:25:09 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id n9si2884106pll.112.2017.04.19.07.25.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 07:23:55 -0700 (PDT)
-Subject: Re: [PATCH v5 01/32] x86: Documentation for AMD Secure Memory
- Encryption (SME)
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211625.10190.52568.stgit@tlendack-t1.amdoffice.net>
- <20170419090224.frmv2jhwfwoxvdie@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <bbda868c-9b34-4404-f563-98b000124ac5@amd.com>
-Date: Wed, 19 Apr 2017 09:23:47 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Apr 2017 07:25:08 -0700 (PDT)
+Date: Wed, 19 Apr 2017 16:25:03 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
+Message-ID: <20170419142503.rqsrgjlc7ump7ijb@hirez.programming.kicks-ass.net>
+References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
+ <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <20170419090224.frmv2jhwfwoxvdie@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
- Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On 4/19/2017 4:02 AM, Borislav Petkov wrote:
-> Always have a verb in the Subject to form a "do this" or "do that"
-> sentence to better explain what the patch does:
->
-> "Subject: [PATCH v5 01/32] x86: Add documentation for AMD Secure Memory Encryption (SME)"
+On Tue, Mar 14, 2017 at 05:18:52PM +0900, Byungchul Park wrote:
+> +struct hist_lock {
+> +	/*
+> +	 * Each work of workqueue might run in a different context,
+> +	 * thanks to concurrency support of workqueue. So we have to
+> +	 * distinguish each work to avoid false positive.
+> +	 */
+> +	unsigned int		work_id;
+>  };
 
-Will do.
+> @@ -1749,6 +1749,14 @@ struct task_struct {
+>  	struct held_lock held_locks[MAX_LOCK_DEPTH];
+>  	gfp_t lockdep_reclaim_gfp;
+>  #endif
+> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> +#define MAX_XHLOCKS_NR 64UL
+> +	struct hist_lock *xhlocks; /* Crossrelease history locks */
+> +	unsigned int xhlock_idx;
+> +	unsigned int xhlock_idx_soft; /* For backing up at softirq entry */
+> +	unsigned int xhlock_idx_hard; /* For backing up at hardirq entry */
+> +	unsigned int work_id;
+> +#endif
+>  #ifdef CONFIG_UBSAN
+>  	unsigned int in_ubsan;
+>  #endif
 
-Btw, I tried to update all the subjects and descriptions to be
-more descriptive but I'm sure there is still room for improvement
-so keep the comments on them coming.
+> +/*
+> + * Crossrelease needs to distinguish each work of workqueues.
+> + * Caller is supposed to be a worker.
+> + */
+> +void crossrelease_work_start(void)
+> +{
+> +	if (current->xhlocks)
+> +		current->work_id++;
+> +}
 
->
-> On Tue, Apr 18, 2017 at 04:16:25PM -0500, Tom Lendacky wrote:
->> Create a Documentation entry to describe the AMD Secure Memory
->> Encryption (SME) feature and add documentation for the mem_encrypt=
->> kernel parameter.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  Documentation/admin-guide/kernel-parameters.txt |   11 ++++
->>  Documentation/x86/amd-memory-encryption.txt     |   60 +++++++++++++++++++++++
->>  2 files changed, 71 insertions(+)
->>  create mode 100644 Documentation/x86/amd-memory-encryption.txt
->>
->> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
->> index 3dd6d5d..84c5787 100644
->> --- a/Documentation/admin-guide/kernel-parameters.txt
->> +++ b/Documentation/admin-guide/kernel-parameters.txt
->> @@ -2165,6 +2165,17 @@
->>  			memory contents and reserves bad memory
->>  			regions that are detected.
->>
->> +	mem_encrypt=	[X86-64] AMD Secure Memory Encryption (SME) control
->> +			Valid arguments: on, off
->> +			Default (depends on kernel configuration option):
->> +			  on  (CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=y)
->> +			  off (CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=n)
->> +			mem_encrypt=on:		Activate SME
->> +			mem_encrypt=off:	Do not activate SME
->> +
->> +			Refer to Documentation/x86/amd-memory-encryption.txt
->> +			for details on when memory encryption can be activated.
->> +
->>  	mem_sleep_default=	[SUSPEND] Default system suspend mode:
->>  			s2idle  - Suspend-To-Idle
->>  			shallow - Power-On Suspend or equivalent (if supported)
->> diff --git a/Documentation/x86/amd-memory-encryption.txt b/Documentation/x86/amd-memory-encryption.txt
->> new file mode 100644
->> index 0000000..0b72ff2
->> --- /dev/null
->> +++ b/Documentation/x86/amd-memory-encryption.txt
->> @@ -0,0 +1,60 @@
->> +Secure Memory Encryption (SME) is a feature found on AMD processors.
->> +
->> +SME provides the ability to mark individual pages of memory as encrypted using
->> +the standard x86 page tables.  A page that is marked encrypted will be
->> +automatically decrypted when read from DRAM and encrypted when written to
->> +DRAM.  SME can therefore be used to protect the contents of DRAM from physical
->> +attacks on the system.
->> +
->> +A page is encrypted when a page table entry has the encryption bit set (see
->> +below on how to determine its position).  The encryption bit can be specified
->> +in the cr3 register, allowing the PGD table to be encrypted. Each successive
->
-> I missed that the last time: do you mean here, "The encryption bit can
-> be specified in the %cr3 register allowing for the page table hierarchy
-> itself to be encrypted."?
->
->> +level of page tables can also be encrypted.
->
-> Right, judging by the next sentence, it looks like it.
+> +/*
+> + * Only access local task's data, so irq disable is only required.
+> + */
+> +static int same_context_xhlock(struct hist_lock *xhlock)
+> +{
+> +	struct task_struct *curr = current;
+> +
+> +	/* In the case of hardirq context */
+> +	if (curr->hardirq_context) {
+> +		if (xhlock->hlock.irq_context & 2) /* 2: bitmask for hardirq */
+> +			return 1;
+> +	/* In the case of softriq context */
+> +	} else if (curr->softirq_context) {
+> +		if (xhlock->hlock.irq_context & 1) /* 1: bitmask for softirq */
+> +			return 1;
+> +	/* In the case of process context */
+> +	} else {
+> +		if (xhlock->work_id == curr->work_id)
+> +			return 1;
+> +	}
+> +	return 0;
+> +}
 
-Correct. I like the hierarchy term so I'll add that to the text.
+I still don't like work_id; it doesn't have anything to do with
+workqueues per se, other than the fact that they end up using it.
 
-Note, just because the bit is set in %cr3 doesn't mean the full
-hierarchy is encrypted. Each level in the hierarchy needs to have the
-encryption bit set. So, theoretically, you could have the encryption
-bit set in %cr3 so that the PGD is encrypted, but not set the encryption
-bit in the PGD entry for a PUD and so the PUD pointed to by that entry
-would not be encrypted.
+It's a history generation id; touching it completely invalidates our
+history. Workqueues need this because they run independent work from the
+same context.
 
-Thanks,
-Tom
-
->
-> The rest looks and reads really nice to me, so feel free to add:
->
-> Reviewed-by: Borislav Petkov <bp@suse.de>
->
-> after addressing those minor nitpicks on your next submission.
->
-> Thanks.
->
+But the same is true for other sites. Last time I suggested
+lockdep_assert_empty() to denote all suck places (and note we already
+have lockdep_sys_exit() that hooks into the return to user path).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
