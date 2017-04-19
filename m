@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E07D46B03A4
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 11:14:33 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id c67so13686625itg.23
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 08:14:33 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0106.outbound.protection.outlook.com. [104.47.2.106])
-        by mx.google.com with ESMTPS id k9si3027792pfe.92.2017.04.19.08.14.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 08:14:33 -0700 (PDT)
-Subject: Re: [PATCH 1/4] fs: fix data invalidation in the cleancache during
- direct IO
-References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
- <20170414140753.16108-2-aryabinin@virtuozzo.com>
- <20170418154647.9583bfa06705c614a2640a15@linux-foundation.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <64a3f71f-11af-2ab3-c2b5-8e26e03b0ceb@virtuozzo.com>
-Date: Wed, 19 Apr 2017 18:15:43 +0300
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AB34F6B03A6
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 11:38:36 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id d79so1494617wmi.8
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 08:38:36 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id r15si4130867wrr.287.2017.04.19.08.38.34
+        for <linux-mm@kvack.org>;
+        Wed, 19 Apr 2017 08:38:35 -0700 (PDT)
+Date: Wed, 19 Apr 2017 17:38:19 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 01/32] x86: Documentation for AMD Secure Memory
+ Encryption (SME)
+Message-ID: <20170419153818.3pl3gkdpe42lve44@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418211625.10190.52568.stgit@tlendack-t1.amdoffice.net>
+ <20170419090224.frmv2jhwfwoxvdie@pd.tnic>
+ <bbda868c-9b34-4404-f563-98b000124ac5@amd.com>
 MIME-Version: 1.0
-In-Reply-To: <20170418154647.9583bfa06705c614a2640a15@linux-foundation.org>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <bbda868c-9b34-4404-f563-98b000124ac5@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Steve French <sfrench@samba.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, v9fs-developer@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
+On Wed, Apr 19, 2017 at 09:23:47AM -0500, Tom Lendacky wrote:
+> Btw, I tried to update all the subjects and descriptions to be
+> more descriptive but I'm sure there is still room for improvement
+> so keep the comments on them coming.
 
+No worries there :)
 
-On 04/19/2017 01:46 AM, Andrew Morton wrote:
-> On Fri, 14 Apr 2017 17:07:50 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> 
->> Some direct write fs hooks call invalidate_inode_pages2[_range]()
->> conditionally iff mapping->nrpages is not zero. If page cache is empty,
->> buffered read following after direct IO write would get stale data from
->> the cleancache.
->>
->> Also it doesn't feel right to check only for ->nrpages because
->> invalidate_inode_pages2[_range] invalidates exceptional entries as well.
->>
->> Fix this by calling invalidate_inode_pages2[_range]() regardless of nrpages
->> state.
-> 
-> I'm not understanding this.  I can buy the argument about
-> nrexceptional, but why does cleancache require the
-> invalidate_inode_pages2_range) call even when ->nrpages is zero?
-> 
-> I *assume* it's because invalidate_inode_pages2_range() calls
-> cleancache_invalidate_inode(), yes?  If so, can we please add this to
-> the changelog?  If not then please explain further.
-> 
+> Note, just because the bit is set in %cr3 doesn't mean the full
+> hierarchy is encrypted. Each level in the hierarchy needs to have the
+> encryption bit set. So, theoretically, you could have the encryption
+> bit set in %cr3 so that the PGD is encrypted, but not set the encryption
+> bit in the PGD entry for a PUD and so the PUD pointed to by that entry
+> would not be encrypted.
 
-Yes, your assumption is correct. I'll fix the changelog.
+Ha, that is a nice detail I didn't realize. You could add it to the text.
+
+Thanks.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
