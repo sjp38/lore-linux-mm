@@ -1,75 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B65922806D8
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 08:50:15 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b124so1241204wmf.6
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 05:50:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l67si20630458wmd.167.2017.04.19.05.50.14
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E25DA6B03AC
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 09:21:20 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id h186so10415888ith.10
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 06:21:20 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0135.outbound.protection.outlook.com. [104.47.1.135])
+        by mx.google.com with ESMTPS id w126si2687567pgb.193.2017.04.19.06.21.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 05:50:14 -0700 (PDT)
-Date: Wed, 19 Apr 2017 14:50:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm: consider zone which is not fully populated to
- have holes
-Message-ID: <20170419125010.GH29789@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170415121734.6692-1-mhocko@kernel.org>
- <20170415121734.6692-2-mhocko@kernel.org>
- <97a658cd-e656-6efa-7725-150063d276f1@suse.cz>
- <20170418092757.GM22360@dhcp22.suse.cz>
- <12814e7e-5ed7-de1f-3e7c-9501eec1682a@suse.cz>
- <20170419121637.GG29789@dhcp22.suse.cz>
- <b9859e0e-79ee-6e79-0d25-a6e31895ee7f@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 19 Apr 2017 06:21:19 -0700 (PDT)
+Subject: Re: [PATCH 2/4] fs/block_dev: always invalidate cleancache in
+ invalidate_bdev()
+References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
+ <20170414140753.16108-3-aryabinin@virtuozzo.com>
+ <705067e3-eb15-ce2a-cfc8-d048dfc8be4f@gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <b2c72883-d9a2-bfda-2cd3-ae9475922bc5@virtuozzo.com>
+Date: Wed, 19 Apr 2017 16:22:42 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b9859e0e-79ee-6e79-0d25-a6e31895ee7f@suse.cz>
+In-Reply-To: <705067e3-eb15-ce2a-cfc8-d048dfc8be4f@gmail.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Nikolay Borisov <n.borisov.lkml@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Steve French <sfrench@samba.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, v9fs-developer@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 19-04-17 14:34:54, Vlastimil Babka wrote:
-> On 04/19/2017 02:16 PM, Michal Hocko wrote:
-> > On Wed 19-04-17 13:59:40, Vlastimil Babka wrote:
-> >> On 04/18/2017 11:27 AM, Michal Hocko wrote:
-> > [...]
-> >>> I am not aware of any such user. PageReserved has always been about "the
-> >>> core mm should touch these pages and modify their state" AFAIR.
-> >>> But I believe that touching those holes just asks for problems so I
-> >>> would rather have them covered.
-> >>
-> >> OK. I guess it's OK to use PageReserved of first pageblock page to
-> >> determine if we can trust page_zone(), because the memory offline
-> >> scenario should have sufficient granularity and not make holes inside
-> >> pageblock?
-> > 
-> > Yes memblocks should be section size aligned and that is 128M resp. 2GB
-> > on large machines. So we are talking about much larger than page block
-> > granularity here.
-> > 
-> > Anyway, Joonsoo didn't like the the explicit PageReserved checks so I
-> > have come with pfn_to_online_page which hides this implementation
-> > detail. How do you like the following instead?
+On 04/18/2017 09:51 PM, Nikolay Borisov wrote:
 > 
-> Yeah that's OK. The other two patches will be updated as well?
+> 
+> On 14.04.2017 17:07, Andrey Ryabinin wrote:
+>> invalidate_bdev() calls cleancache_invalidate_inode() iff ->nrpages != 0
+>> which doen't make any sense.
+>> Make invalidate_bdev() always invalidate cleancache data.
+>>
+>> Fixes: c515e1fd361c ("mm/fs: add hooks to support cleancache")
+>> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>> ---
+>>  fs/block_dev.c | 11 +++++------
+>>  1 file changed, 5 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/fs/block_dev.c b/fs/block_dev.c
+>> index e405d8e..7af4787 100644
+>> --- a/fs/block_dev.c
+>> +++ b/fs/block_dev.c
+>> @@ -103,12 +103,11 @@ void invalidate_bdev(struct block_device *bdev)
+>>  {
+>>  	struct address_space *mapping = bdev->bd_inode->i_mapping;
+>>  
+>> -	if (mapping->nrpages == 0)
+>> -		return;
+>> -
+>> -	invalidate_bh_lrus();
+>> -	lru_add_drain_all();	/* make sure all lru add caches are flushed */
+>> -	invalidate_mapping_pages(mapping, 0, -1);
+>> +	if (mapping->nrpages) {
+>> +		invalidate_bh_lrus();
+>> +		lru_add_drain_all();	/* make sure all lru add caches are flushed */
+>> +		invalidate_mapping_pages(mapping, 0, -1);
+>> +	}
+> 
+> How is this different than the current code? You will only invalidate
+> the mapping iff ->nrpages > 0 ( I assume it can't go down below 0) ?
 
-yes
+The difference is that invalidate_bdev() now always calls cleancache_invalidate_inode()
+(you won't see it in this diff, it's placed after this if(mapping->nrpages){} block,)
 
-> Ideally we would later convert this helper to use some special values
-> for zone/node id (such as -1) instead of PageReserved to indicate an
-> offline node, as we discussed.
+> Perhaps just remove the if altogether?
+> 
 
-I have considered zone_id to be -1 but there is just too much code which
-uses the id to translate it to the struct zone * directly and that would
-lead to subtle bugs. On the other hand zone_id == 0 is not optimal but
-much safer from that POV. I will think about the safest way forward long
-term but my intention was to have something reasonably good for starter.
--- 
-Michal Hocko
-SUSE Labs
+Given that invalidate_mapping_pages() invalidates exceptional entries as well, it certainly doesn't look
+right that we look only at mapping->nrpages and completely ignore ->nrexceptional.
+So maybe removing if() would be a right thing to do. But I think that should be a separate patch as it would
+fix a another bug probably introduced by commit 91b0abe36a7b ("mm + fs: store shadow entries in page cache")
+
+My intention here was to fix only cleancache case.
+
+
+>>  	/* 99% of the time, we don't need to flush the cleancache on the bdev.
+>>  	 * But, for the strange corners, lets be cautious
+>>  	 */
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
