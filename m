@@ -1,50 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A955A6B03A0
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:51:29 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id z67so8365077itb.4
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:51:29 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id s1si2368265pge.356.2017.04.19.04.51.28
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B7BF36B03A2
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:59:43 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l44so2193606wrc.11
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:59:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 6si3733322wmx.83.2017.04.19.04.59.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 04:51:29 -0700 (PDT)
-Date: Wed, 19 Apr 2017 04:51:25 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-Message-ID: <20170419115125.GA27790@bombadil.infradead.org>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain>
- <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
- <20170418000319.GC21354@bbox>
- <20170418073307.GF22360@dhcp22.suse.cz>
- <20170419060237.GA1636@bbox>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Apr 2017 04:59:42 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm: consider zone which is not fully populated to
+ have holes
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170415121734.6692-2-mhocko@kernel.org>
+ <97a658cd-e656-6efa-7725-150063d276f1@suse.cz>
+ <20170418092757.GM22360@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <12814e7e-5ed7-de1f-3e7c-9501eec1682a@suse.cz>
+Date: Wed, 19 Apr 2017 13:59:40 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170419060237.GA1636@bbox>
+In-Reply-To: <20170418092757.GM22360@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Apr 19, 2017 at 03:02:37PM +0900, Minchan Kim wrote:
-> On Tue, Apr 18, 2017 at 09:33:07AM +0200, Michal Hocko wrote:
-> > I do not follow. Why would you need kmap for something that is already
-> > in the kernel space?
+On 04/18/2017 11:27 AM, Michal Hocko wrote:
+> On Tue 18-04-17 10:45:23, Vlastimil Babka wrote:
+>> On 04/15/2017 02:17 PM, Michal Hocko wrote:
+>>> From: Michal Hocko <mhocko@suse.com>
+>>>
+>>
+>> My issue with this is that PageReserved can be also set for other
+>> reasons than offlined block, e.g. by a random driver. So there are two
+>> suboptimal scenarios:
+>>
+>> - PageReserved is set on some page in the middle of pageblock. It won't
+>> be detected by this patch. This violates the "it would be safer" argument.
+>> - PageReserved is set on just the first (few) page(s) and because of
+>> this patch, we skip it completely and won't compact the rest of it.
 > 
-> Because it can work with highmem pages.
+> Why would that be a big problem? PageReserved is used only very seldom
+> and few page blocks skipped would seem like a minor issue to me.
 
-That's copy_user_highpage().  If you want to define a new arch API
-copy_highpage(), feel free to make a case for it ...
+Yes it's not critical, just suboptimal. Can be improved later.
 
-> > > Another approach is the API does normal thing for non-aligned prefix and
-> > > tail space and fast thing for aligned space.
-> > > Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
-> > > address.
+>> So if we decide we really need to check PageReserved to ensure safety,
+>> then we have to check it on each page. But I hope the existing criteria
+>> in compaction scanners are sufficient. Unless the semantic is that if
+>> somebody sets PageReserved, he's free to repurpose the rest of flags at
+>> his will (IMHO that's not the case).
+> 
+> I am not aware of any such user. PageReserved has always been about "the
+> core mm should touch these pages and modify their state" AFAIR.
+> But I believe that touching those holes just asks for problems so I
+> would rather have them covered.
 
-Why not just use memcpy()?  Is copy_page() significantly faster than
-memcpy() for a PAGE_SIZE amount of data?
+OK. I guess it's OK to use PageReserved of first pageblock page to
+determine if we can trust page_zone(), because the memory offline
+scenario should have sufficient granularity and not make holes inside
+pageblock?
+
+>> The pageblock-level check them becomes a performance optimization so
+>> when there's an "offline hole", compaction won't iterate it page by
+>> page. But the downside is the false positive resulting in skipping whole
+>> pageblock due to single page.
+>> I guess it's uncommon for a longlived offline holes to exist, so we
+>> could simply just drop this?
+> 
+> This is hard to tell but I can imagine that some memory hotplug
+> balloning drivers might want to offline hole into existing zones.
+
+OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
