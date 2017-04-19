@@ -1,117 +1,364 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E986B03B8
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:17:05 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t189so915051wme.15
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 01:17:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r195si2817879wmb.166.2017.04.19.01.17.04
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA1F6B03BC
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:32:59 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id z129so928006wmb.23
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 01:32:59 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id 31si2393033wrl.337.2017.04.19.01.32.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 01:17:04 -0700 (PDT)
-Date: Wed, 19 Apr 2017 10:17:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: Re: "mm: move pcp and lru-pcp draining into single wq" broke
- resume from s2ram
-Message-ID: <20170419081701.GC29789@dhcp22.suse.cz>
-References: <201704190541.v3J5fUE3054131@www262.sakura.ne.jp>
- <20170419071039.GB28263@dhcp22.suse.cz>
- <201704190726.v3J7QAiC076509@www262.sakura.ne.jp>
- <20170419075712.GB29789@dhcp22.suse.cz>
- <CAMuHMdVmJrr6_sGeU4oxH5fn10BRdLC5nOEePN05p3kJ1x3YBQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Apr 2017 01:32:57 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id o81so3601718wmb.0
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 01:32:57 -0700 (PDT)
+Date: Wed, 19 Apr 2017 10:32:48 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [Linaro-mm-sig] [PATCHv4 05/12] staging: android: ion: Break the
+ ABI in the name of forward progress
+Message-ID: <20170419083248.mwkr5dn3tife2axy@phenom.ffwll.local>
+References: <1492540034-5466-1-git-send-email-labbott@redhat.com>
+ <1492540034-5466-6-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMuHMdVmJrr6_sGeU4oxH5fn10BRdLC5nOEePN05p3kJ1x3YBQ@mail.gmail.com>
+In-Reply-To: <1492540034-5466-6-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-Renesas <linux-renesas-soc@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>, Riley Andrews <riandrews@android.com>, arve@android.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, romlem@google.com, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Mark Brown <broonie@kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Daniel Vetter <daniel.vetter@intel.com>, Brian Starkey <brian.starkey@arm.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Wed 19-04-17 10:09:12, Geert Uytterhoeven wrote:
-> Hi Michal, Tetsuo,
+On Tue, Apr 18, 2017 at 11:27:07AM -0700, Laura Abbott wrote:
+> Several of the Ion ioctls were designed in such a way that they
+> necessitate compat ioctls. We're breaking a bunch of other ABIs and
+> cleaning stuff up anyway so let's follow the ioctl guidelines and clean
+> things up while everyone is busy converting things over anyway. As part
+> of this, also remove the useless alignment field from the allocation
+> structure.
 > 
-> On Wed, Apr 19, 2017 at 9:57 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > From f3c6e287042259d6ae9916f1ff66392c46ce2a3c Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Wed, 19 Apr 2017 09:52:46 +0200
-> > Subject: [PATCH] mm: make mm_percpu_wq non freezable
-> >
-> > Geert has reported a freeze during PM resume and some additional
-> > debugging has shown that the device_resume worker cannot make a forward
-> > progress because it waits for an event which is stuck waiting in
-> > drain_all_pages:
-> > [  243.691979] INFO: task kworker/u4:0:5 blocked for more than 120 seconds.
-> > [  243.698684]       Not tainted 4.11.0-rc7-koelsch-00029-g005882e53d62f25d-dirty #3476
-> > [  243.706439] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> > [  243.714276] kworker/u4:0    D    0     5      2 0x00000000
-> > [  243.719780] Workqueue: events_unbound async_run_entry_fn
-> > [  243.725118] [<c0700c20>] (__schedule) from [<c0700f44>] (schedule+0xb0/0xcc)
-> > [  243.732181] [<c0700f44>] (schedule) from [<c0705108>] (schedule_timeout+0x18/0x1f4)
-> > [  243.739840] [<c0705108>] (schedule_timeout) from [<c07019c0>] (wait_for_common+0x100/0x19c)
-> > [  243.748207] [<c07019c0>] (wait_for_common) from [<c04d2008>] (dpm_wait_for_superior+0x14/0x5c)
-> > [  243.756836] [<c04d2008>] (dpm_wait_for_superior) from [<c04d2624>] (device_resume+0x40/0x1a0)
-> > [  243.765380] [<c04d2624>] (device_resume) from [<c04d279c>] (async_resume+0x18/0x44)
-> > [  243.773055] [<c04d279c>] (async_resume) from [<c023db24>] (async_run_entry_fn+0x44/0x114)
-> > [  243.781245] [<c023db24>] (async_run_entry_fn) from [<c0236534>] (process_one_work+0x1cc/0x31c)
-> > [  243.789876] [<c0236534>] (process_one_work) from [<c0236c90>] (worker_thread+0x2b8/0x3f0)
-> > [  243.798080] [<c0236c90>] (worker_thread) from [<c023b230>] (kthread+0x120/0x140)
-> > [  243.805500] [<c023b230>] (kthread) from [<c0206d68>] (ret_from_fork+0x14/0x2c)
-> > [...]
-> > [  249.441198] bash            D    0  1703   1694 0x00000000
-> > [  249.446702] [<c0700c20>] (__schedule) from [<c0700f44>] (schedule+0xb0/0xcc)
-> > [  249.453764] [<c0700f44>] (schedule) from [<c0705108>] (schedule_timeout+0x18/0x1f4)
-> > [  249.461427] [<c0705108>] (schedule_timeout) from [<c07019c0>] (wait_for_common+0x100/0x19c)
-> > [  249.469797] [<c07019c0>] (wait_for_common) from [<c0234e44>] (flush_work+0x128/0x158)
-> > [  249.477650] [<c0234e44>] (flush_work) from [<c02ab488>] (drain_all_pages+0x198/0x1f0)
-> > [  249.485503] [<c02ab488>] (drain_all_pages) from [<c02e1a1c>] (start_isolate_page_range+0xd8/0x1ac)
-> > [  249.494484] [<c02e1a1c>] (start_isolate_page_range) from [<c02ae464>] (alloc_contig_range+0xc4/0x304)
-> > [  249.503724] [<c02ae464>] (alloc_contig_range) from [<c02e1e78>] (cma_alloc+0x134/0x1bc)
-> > [  249.511739] [<c02e1e78>] (cma_alloc) from [<c021308c>] (__alloc_from_contiguous+0x30/0xa0)
-> > [  249.520023] [<c021308c>] (__alloc_from_contiguous) from [<c021313c>] (cma_allocator_alloc+0x40/0x48)
-> > [  249.529173] [<c021313c>] (cma_allocator_alloc) from [<c0213318>] (__dma_alloc+0x1d4/0x2e8)
-> > [  249.537455] [<c0213318>] (__dma_alloc) from [<c02134a8>] (arm_dma_alloc+0x40/0x4c)
-> > [  249.545047] [<c02134a8>] (arm_dma_alloc) from [<c0534548>] (sh_eth_ring_init+0xec/0x1b8)
-> > [  249.553160] [<c0534548>] (sh_eth_ring_init) from [<c0536df0>] (sh_eth_open+0x88/0x1e0)
-> > [  249.561086] [<c0536df0>] (sh_eth_open) from [<c0536fc4>] (sh_eth_resume+0x7c/0xc0)
-> > [  249.568678] [<c0536fc4>] (sh_eth_resume) from [<c04d2240>] (dpm_run_callback+0x48/0xc8)
-> > [  249.576702] [<c04d2240>] (dpm_run_callback) from [<c04d2740>] (device_resume+0x15c/0x1a0)
-> > [  249.584898] [<c04d2740>] (device_resume) from [<c04d3644>] (dpm_resume+0xe4/0x244)
-> > [  249.592485] [<c04d3644>] (dpm_resume) from [<c04d3968>] (dpm_resume_end+0xc/0x18)
-> > [  249.599977] [<c04d3968>] (dpm_resume_end) from [<c0261010>] (suspend_devices_and_enter+0x3c8/0x490)
-> > [  249.609042] [<c0261010>] (suspend_devices_and_enter) from [<c0261300>] (pm_suspend+0x228/0x280)
-> > [  249.617759] [<c0261300>] (pm_suspend) from [<c025fecc>] (state_store+0xac/0xcc)
-> > [  249.625089] [<c025fecc>] (state_store) from [<c0343b04>] (kernfs_fop_write+0x164/0x1a0)
-> > [  249.633116] [<c0343b04>] (kernfs_fop_write) from [<c02e5838>] (__vfs_write+0x20/0x108)
-> > [  249.641043] [<c02e5838>] (__vfs_write) from [<c02e6c08>] (vfs_write+0xb8/0x144)
-> > [  249.648373] [<c02e6c08>] (vfs_write) from [<c02e788c>] (SyS_write+0x40/0x80)
-> > [  249.655437] [<c02e788c>] (SyS_write) from [<c0206cc0>] (ret_fast_syscall+0x0/0x34)
-> > [...]
-> > [  254.753928] Showing busy workqueues and worker pools:
-> > [...]
-> > [  254.854225] workqueue mm_percpu_wq: flags=0xc
-> > [  254.858583]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=0/0
-> > [  254.864428]     delayed: drain_local_pages_wq, vmstat_update
-> > [  254.870111]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=0/0
-> > [  254.875957]     delayed: drain_local_pages_wq BAR(1703), vmstat_update
-> >
-> > Tetsuo has properly noted that mm_percpu_wq is created as WQ_FREEZABLE
-> > so it is frozen this early during resume so we are effectively deadlocked.
-> > Fix this by dropping WQ_FREEZABLE when creating mm_percpu_wq. We really want to
-> > have it operational all the time.
-> >
-> > Fixes: ce612879ddc7 ("mm: move pcp and lru-pcp draining into single wq")
-> > Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
-> > Debugged-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Tested-by: Geert Uytterhoeven <geert+renesas@glider.be>
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
 
-Thanks for the testing. Linus will you take the patch from this thread
-or you prefer a resend?
+Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+> ---
+>  drivers/staging/android/ion/Makefile     |   3 -
+>  drivers/staging/android/ion/compat_ion.c | 152 -------------------------------
+>  drivers/staging/android/ion/compat_ion.h |  29 ------
+>  drivers/staging/android/ion/ion-ioctl.c  |   1 -
+>  drivers/staging/android/ion/ion.c        |   5 +-
+>  drivers/staging/android/uapi/ion.h       |  19 ++--
+>  6 files changed, 11 insertions(+), 198 deletions(-)
+>  delete mode 100644 drivers/staging/android/ion/compat_ion.c
+>  delete mode 100644 drivers/staging/android/ion/compat_ion.h
+> 
+> diff --git a/drivers/staging/android/ion/Makefile b/drivers/staging/android/ion/Makefile
+> index 66d0c4a..a892afa 100644
+> --- a/drivers/staging/android/ion/Makefile
+> +++ b/drivers/staging/android/ion/Makefile
+> @@ -2,6 +2,3 @@ obj-$(CONFIG_ION) +=	ion.o ion-ioctl.o ion_heap.o \
+>  			ion_page_pool.o ion_system_heap.o \
+>  			ion_carveout_heap.o ion_chunk_heap.o
+>  obj-$(CONFIG_ION_CMA_HEAP) += ion_cma_heap.o
+> -ifdef CONFIG_COMPAT
+> -obj-$(CONFIG_ION) += compat_ion.o
+> -endif
+> diff --git a/drivers/staging/android/ion/compat_ion.c b/drivers/staging/android/ion/compat_ion.c
+> deleted file mode 100644
+> index 5037ddd..0000000
+> --- a/drivers/staging/android/ion/compat_ion.c
+> +++ /dev/null
+> @@ -1,152 +0,0 @@
+> -/*
+> - * drivers/staging/android/ion/compat_ion.c
+> - *
+> - * Copyright (C) 2013 Google, Inc.
+> - *
+> - * This software is licensed under the terms of the GNU General Public
+> - * License version 2, as published by the Free Software Foundation, and
+> - * may be copied, distributed, and modified under those terms.
+> - *
+> - * This program is distributed in the hope that it will be useful,
+> - * but WITHOUT ANY WARRANTY; without even the implied warranty of
+> - * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> - * GNU General Public License for more details.
+> - *
+> - */
+> -
+> -#include <linux/compat.h>
+> -#include <linux/fs.h>
+> -#include <linux/uaccess.h>
+> -
+> -#include "ion.h"
+> -#include "compat_ion.h"
+> -
+> -/* See drivers/staging/android/uapi/ion.h for the definition of these structs */
+> -struct compat_ion_allocation_data {
+> -	compat_size_t len;
+> -	compat_size_t align;
+> -	compat_uint_t heap_id_mask;
+> -	compat_uint_t flags;
+> -	compat_int_t handle;
+> -};
+> -
+> -struct compat_ion_handle_data {
+> -	compat_int_t handle;
+> -};
+> -
+> -#define COMPAT_ION_IOC_ALLOC	_IOWR(ION_IOC_MAGIC, 0, \
+> -				      struct compat_ion_allocation_data)
+> -#define COMPAT_ION_IOC_FREE	_IOWR(ION_IOC_MAGIC, 1, \
+> -				      struct compat_ion_handle_data)
+> -
+> -static int compat_get_ion_allocation_data(
+> -			struct compat_ion_allocation_data __user *data32,
+> -			struct ion_allocation_data __user *data)
+> -{
+> -	compat_size_t s;
+> -	compat_uint_t u;
+> -	compat_int_t i;
+> -	int err;
+> -
+> -	err = get_user(s, &data32->len);
+> -	err |= put_user(s, &data->len);
+> -	err |= get_user(s, &data32->align);
+> -	err |= put_user(s, &data->align);
+> -	err |= get_user(u, &data32->heap_id_mask);
+> -	err |= put_user(u, &data->heap_id_mask);
+> -	err |= get_user(u, &data32->flags);
+> -	err |= put_user(u, &data->flags);
+> -	err |= get_user(i, &data32->handle);
+> -	err |= put_user(i, &data->handle);
+> -
+> -	return err;
+> -}
+> -
+> -static int compat_get_ion_handle_data(
+> -			struct compat_ion_handle_data __user *data32,
+> -			struct ion_handle_data __user *data)
+> -{
+> -	compat_int_t i;
+> -	int err;
+> -
+> -	err = get_user(i, &data32->handle);
+> -	err |= put_user(i, &data->handle);
+> -
+> -	return err;
+> -}
+> -
+> -static int compat_put_ion_allocation_data(
+> -			struct compat_ion_allocation_data __user *data32,
+> -			struct ion_allocation_data __user *data)
+> -{
+> -	compat_size_t s;
+> -	compat_uint_t u;
+> -	compat_int_t i;
+> -	int err;
+> -
+> -	err = get_user(s, &data->len);
+> -	err |= put_user(s, &data32->len);
+> -	err |= get_user(s, &data->align);
+> -	err |= put_user(s, &data32->align);
+> -	err |= get_user(u, &data->heap_id_mask);
+> -	err |= put_user(u, &data32->heap_id_mask);
+> -	err |= get_user(u, &data->flags);
+> -	err |= put_user(u, &data32->flags);
+> -	err |= get_user(i, &data->handle);
+> -	err |= put_user(i, &data32->handle);
+> -
+> -	return err;
+> -}
+> -
+> -long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+> -{
+> -	long ret;
+> -
+> -	if (!filp->f_op->unlocked_ioctl)
+> -		return -ENOTTY;
+> -
+> -	switch (cmd) {
+> -	case COMPAT_ION_IOC_ALLOC:
+> -	{
+> -		struct compat_ion_allocation_data __user *data32;
+> -		struct ion_allocation_data __user *data;
+> -		int err;
+> -
+> -		data32 = compat_ptr(arg);
+> -		data = compat_alloc_user_space(sizeof(*data));
+> -		if (!data)
+> -			return -EFAULT;
+> -
+> -		err = compat_get_ion_allocation_data(data32, data);
+> -		if (err)
+> -			return err;
+> -		ret = filp->f_op->unlocked_ioctl(filp, ION_IOC_ALLOC,
+> -							(unsigned long)data);
+> -		err = compat_put_ion_allocation_data(data32, data);
+> -		return ret ? ret : err;
+> -	}
+> -	case COMPAT_ION_IOC_FREE:
+> -	{
+> -		struct compat_ion_handle_data __user *data32;
+> -		struct ion_handle_data __user *data;
+> -		int err;
+> -
+> -		data32 = compat_ptr(arg);
+> -		data = compat_alloc_user_space(sizeof(*data));
+> -		if (!data)
+> -			return -EFAULT;
+> -
+> -		err = compat_get_ion_handle_data(data32, data);
+> -		if (err)
+> -			return err;
+> -
+> -		return filp->f_op->unlocked_ioctl(filp, ION_IOC_FREE,
+> -							(unsigned long)data);
+> -	}
+> -	case ION_IOC_SHARE:
+> -		return filp->f_op->unlocked_ioctl(filp, cmd,
+> -						(unsigned long)compat_ptr(arg));
+> -	default:
+> -		return -ENOIOCTLCMD;
+> -	}
+> -}
+> diff --git a/drivers/staging/android/ion/compat_ion.h b/drivers/staging/android/ion/compat_ion.h
+> deleted file mode 100644
+> index 9da8f91..0000000
+> --- a/drivers/staging/android/ion/compat_ion.h
+> +++ /dev/null
+> @@ -1,29 +0,0 @@
+> -/*
+> - * drivers/staging/android/ion/compat_ion.h
+> - *
+> - * Copyright (C) 2013 Google, Inc.
+> - *
+> - * This software is licensed under the terms of the GNU General Public
+> - * License version 2, as published by the Free Software Foundation, and
+> - * may be copied, distributed, and modified under those terms.
+> - *
+> - * This program is distributed in the hope that it will be useful,
+> - * but WITHOUT ANY WARRANTY; without even the implied warranty of
+> - * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> - * GNU General Public License for more details.
+> - *
+> - */
+> -
+> -#ifndef _LINUX_COMPAT_ION_H
+> -#define _LINUX_COMPAT_ION_H
+> -
+> -#if IS_ENABLED(CONFIG_COMPAT)
+> -
+> -long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+> -
+> -#else
+> -
+> -#define compat_ion_ioctl  NULL
+> -
+> -#endif /* CONFIG_COMPAT */
+> -#endif /* _LINUX_COMPAT_ION_H */
+> diff --git a/drivers/staging/android/ion/ion-ioctl.c b/drivers/staging/android/ion/ion-ioctl.c
+> index a361724..91b5c2b 100644
+> --- a/drivers/staging/android/ion/ion-ioctl.c
+> +++ b/drivers/staging/android/ion/ion-ioctl.c
+> @@ -20,7 +20,6 @@
+>  
+>  #include "ion.h"
+>  #include "ion_priv.h"
+> -#include "compat_ion.h"
+>  
+>  union ion_ioctl_arg {
+>  	struct ion_fd_data fd;
+> diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+> index 65638f5..fbab1e3 100644
+> --- a/drivers/staging/android/ion/ion.c
+> +++ b/drivers/staging/android/ion/ion.c
+> @@ -40,7 +40,6 @@
+>  
+>  #include "ion.h"
+>  #include "ion_priv.h"
+> -#include "compat_ion.h"
+>  
+>  bool ion_buffer_cached(struct ion_buffer *buffer)
+>  {
+> @@ -1065,7 +1064,9 @@ static const struct file_operations ion_fops = {
+>  	.open           = ion_open,
+>  	.release        = ion_release,
+>  	.unlocked_ioctl = ion_ioctl,
+> -	.compat_ioctl   = compat_ion_ioctl,
+> +#ifdef CONFIG_COMPAT
+> +	.compat_ioctl	= ion_ioctl,
+> +#endif
+>  };
+>  
+>  static size_t ion_debug_heap_total(struct ion_client *client,
+> diff --git a/drivers/staging/android/uapi/ion.h b/drivers/staging/android/uapi/ion.h
+> index abd72fd..bba1c47 100644
+> --- a/drivers/staging/android/uapi/ion.h
+> +++ b/drivers/staging/android/uapi/ion.h
+> @@ -20,8 +20,6 @@
+>  #include <linux/ioctl.h>
+>  #include <linux/types.h>
+>  
+> -typedef int ion_user_handle_t;
+> -
+>  /**
+>   * enum ion_heap_types - list of all possible types of heaps
+>   * @ION_HEAP_TYPE_SYSTEM:	 memory allocated via vmalloc
+> @@ -76,7 +74,6 @@ enum ion_heap_type {
+>  /**
+>   * struct ion_allocation_data - metadata passed from userspace for allocations
+>   * @len:		size of the allocation
+> - * @align:		required alignment of the allocation
+>   * @heap_id_mask:	mask of heap ids to allocate from
+>   * @flags:		flags passed to heap
+>   * @handle:		pointer that will be populated with a cookie to use to
+> @@ -85,11 +82,11 @@ enum ion_heap_type {
+>   * Provided by userspace as an argument to the ioctl
+>   */
+>  struct ion_allocation_data {
+> -	size_t len;
+> -	size_t align;
+> -	unsigned int heap_id_mask;
+> -	unsigned int flags;
+> -	ion_user_handle_t handle;
+> +	__u64 len;
+> +	__u32 heap_id_mask;
+> +	__u32 flags;
+> +	__u32 handle;
+> +	__u32 unused;
+>  };
+>  
+>  /**
+> @@ -103,8 +100,8 @@ struct ion_allocation_data {
+>   * provides the file descriptor and the kernel returns the handle.
+>   */
+>  struct ion_fd_data {
+> -	ion_user_handle_t handle;
+> -	int fd;
+> +	__u32 handle;
+> +	__u32 fd;
+>  };
+>  
+>  /**
+> @@ -112,7 +109,7 @@ struct ion_fd_data {
+>   * @handle:	a handle
+>   */
+>  struct ion_handle_data {
+> -	ion_user_handle_t handle;
+> +	__u32 handle;
+>  };
+>  
+>  #define MAX_HEAP_NAME			32
+> -- 
+> 2.7.4
+> 
+> _______________________________________________
+> Linaro-mm-sig mailing list
+> Linaro-mm-sig@lists.linaro.org
+> https://lists.linaro.org/mailman/listinfo/linaro-mm-sig
+
 -- 
-Michal Hocko
-SUSE Labs
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
