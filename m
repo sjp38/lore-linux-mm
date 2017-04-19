@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 356726B0038
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:13:50 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id o21so2101251wrb.9
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:13:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w75si3052634wrc.239.2017.04.19.04.13.48
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A955A6B03A0
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 07:51:29 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id z67so8365077itb.4
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 04:51:29 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id s1si2368265pge.356.2017.04.19.04.51.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 04:13:48 -0700 (PDT)
-Date: Wed, 19 Apr 2017 13:13:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-Message-ID: <20170419111342.GF29789@dhcp22.suse.cz>
-References: <1491825493-8859-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170410150308.c6e1a0213c32e6d587b33816@linux-foundation.org>
- <alpine.DEB.2.10.1704171539190.46404@chino.kir.corp.google.com>
- <201704182049.BIE34837.FJOFOMFOQSLHVt@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Apr 2017 04:51:29 -0700 (PDT)
+Date: Wed, 19 Apr 2017 04:51:25 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
+ "zram: do not use copy_page with non-page alinged address")
+Message-ID: <20170419115125.GA27790@bombadil.infradead.org>
+References: <20170417014803.GC518@jagdpanzerIV.localdomain>
+ <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
+ <20170418000319.GC21354@bbox>
+ <20170418073307.GF22360@dhcp22.suse.cz>
+ <20170419060237.GA1636@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1704181435560.112481@chino.kir.corp.google.com>
+In-Reply-To: <20170419060237.GA1636@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, sgruszka@redhat.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Tue 18-04-17 14:47:32, David Rientjes wrote:
-[...]
-> I think the debug_guardpage_minorder() check makes sense for failed 
-> allocations because we are essentially removing memory from the system for 
-> debug, failed allocations as a result of low on memory or fragmentation 
-> aren't concerning if we are removing memory from the system.
+On Wed, Apr 19, 2017 at 03:02:37PM +0900, Minchan Kim wrote:
+> On Tue, Apr 18, 2017 at 09:33:07AM +0200, Michal Hocko wrote:
+> > I do not follow. Why would you need kmap for something that is already
+> > in the kernel space?
+> 
+> Because it can work with highmem pages.
 
-I really fail to see how this is any different from booting with
-mem=$SIZE to reduce the amount of available memory.
+That's copy_user_highpage().  If you want to define a new arch API
+copy_highpage(), feel free to make a case for it ...
 
--- 
-Michal Hocko
-SUSE Labs
+> > > Another approach is the API does normal thing for non-aligned prefix and
+> > > tail space and fast thing for aligned space.
+> > > Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
+> > > address.
+
+Why not just use memcpy()?  Is copy_page() significantly faster than
+memcpy() for a PAGE_SIZE amount of data?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
