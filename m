@@ -1,85 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C20386B03A2
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 20:43:16 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l196so45298365ioe.19
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 17:43:16 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id s5si4478073pgo.232.2017.04.19.17.43.15
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C45AB2806CB
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 20:50:46 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id l11so45459138iod.15
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 17:50:46 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id r21si4484553pgr.406.2017.04.19.17.50.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 17:43:15 -0700 (PDT)
+        Wed, 19 Apr 2017 17:50:46 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v9 1/3] mm, THP, swap: Delay splitting THP during swap out
+Subject: Re: [PATCH -mm -v9 2/3] mm, THP, swap: Check whether THP can be split firstly
 References: <20170419070625.19776-1-ying.huang@intel.com>
-	<20170419070625.19776-2-ying.huang@intel.com>
-	<20170419155252.GA3376@cmpxchg.org>
-Date: Thu, 20 Apr 2017 08:43:12 +0800
-In-Reply-To: <20170419155252.GA3376@cmpxchg.org> (Johannes Weiner's message of
-	"Wed, 19 Apr 2017 11:52:52 -0400")
-Message-ID: <87inlzrjrz.fsf@yhuang-dev.intel.com>
+	<20170419070625.19776-3-ying.huang@intel.com>
+	<20170419161318.GC3376@cmpxchg.org>
+Date: Thu, 20 Apr 2017 08:50:43 +0800
+In-Reply-To: <20170419161318.GC3376@cmpxchg.org> (Johannes Weiner's message of
+	"Wed, 19 Apr 2017 12:13:18 -0400")
+Message-ID: <87efwnrjfg.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
-
-Hi, Johannes,
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Johannes Weiner <hannes@cmpxchg.org> writes:
 
-> On Wed, Apr 19, 2017 at 03:06:23PM +0800, Huang, Ying wrote:
->> @@ -206,17 +212,34 @@ int add_to_swap(struct page *page, struct list_head *list)
->>  	 */
->>  	err = add_to_swap_cache(page, entry,
->>  			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
->> -
->> -	if (!err) {
->> -		return 1;
->> -	} else {	/* -ENOMEM radix-tree allocation failure */
->> +	/* -ENOMEM radix-tree allocation failure */
->> +	if (err)
->>  		/*
->>  		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
->>  		 * clear SWAP_HAS_CACHE flag.
->>  		 */
->> -		swapcache_free(entry);
->> -		return 0;
->> +		goto fail_free;
->> +
->> +	if (unlikely(PageTransHuge(page))) {
->> +		err = split_huge_page_to_list(page, list);
->> +		if (err) {
->> +			delete_from_swap_cache(page);
->> +			return 0;
->> +		}
->>  	}
->> +
->> +	return 1;
->> +
->> +fail_free:
->> +	if (unlikely(PageTransHuge(page)))
->> +		swapcache_free_cluster(entry);
->> +	else
->> +		swapcache_free(entry);
->> +fail:
->> +	if (unlikely(PageTransHuge(page)) &&
->> +	    !split_huge_page_to_list(page, list))
->> +		goto retry;
+> On Wed, Apr 19, 2017 at 03:06:24PM +0800, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> To swap out THP (Transparent Huage Page), before splitting the THP,
+>> the swap cluster will be allocated and the THP will be added into the
+>> swap cache.  But it is possible that the THP cannot be split, so that
+>> we must delete the THP from the swap cache and free the swap cluster.
+>> To avoid that, in this patch, whether the THP can be split is checked
+>> firstly.  The check can only be done racy, but it is good enough for
+>> most cases.
+>> 
+>> With the patchset, the swap out throughput improves 3.6% (from about
+>> 4.16GB/s to about 4.31GB/s) in the vm-scalability swap-w-seq test case
+>> with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+>> device used is a RAM simulated PMEM (persistent memory) device.  To
+>> test the sequential swapping out, the test case creates 8 processes,
+>> which sequentially allocate and write to the anonymous pages until the
+>> RAM and part of the swap device is used up.
+>> 
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com> [for can_split_huge_page()]
 >
-> May I ask why you added the unlikelies there? Can you generally say
-> THPs are unlikely in this path? Is the swap-out path so hot that
-> branch layout is critical? I doubt either is true.
+> How often does this actually happen in practice? Because all that this
+> protects us from is trying to allocate a swap cluster - which with the
+> si->free_clusters list really isn't all that expensive - and return it
+> again. Unless this happens all the time in practice, this optimization
+> seems misplaced.
 
-I just found there are unlikely() encloses PageTransHuge() in the
-original add_to_swap(), so I just follow the original style.  But I
-don't think they make much sense too.  Will remove them in the next
-version.
+In addition to allocate/free swap cluster, add/delete to/from the swap
+cache will be called too.
 
-> Also please mention changes like these in the changelog next time.
+> It's especially a little strange because in the other email I asked
+> about the need for unlikely() annotations, yet this patch is adding
+> branches and checks for what seems to be an unlikely condition into
+> the THP hot path.
+>
+> I'd suggest you drop both these optimization attempts unless there is
+> real data proving that they have a measurable impact.
 
-Sorry and will do that in the future.
+To my surprise too, I found this patch has measurable impact in my
+test.  The swap out throughput improves 3.6% in the vm-scalability
+swap-w-seq test case with 8 processes.  Details are in the original
+patch description.
 
 Best Regards,
 Huang, Ying
