@@ -1,90 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C09B86B03E0
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 12:23:35 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id d203so85449588iof.20
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 09:23:35 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b130si19544259itb.21.2017.04.20.09.23.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 09:23:34 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 5/9] x86/mm: Add sync_global_pgds() for configuration with 5-level paging
-Date: Thu, 20 Apr 2017 19:21:43 +0300
-Message-Id: <20170420162147.86517-6-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170420162147.86517-1-kirill.shutemov@linux.intel.com>
-References: <20170420162147.86517-1-kirill.shutemov@linux.intel.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DCD72806EA
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 13:07:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id c55so6224169wrc.22
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 10:07:04 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id n89si3085802wmi.41.2017.04.20.10.07.02
+        for <linux-mm@kvack.org>;
+        Thu, 20 Apr 2017 10:07:03 -0700 (PDT)
+Date: Thu, 20 Apr 2017 18:59:22 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 05/32] x86/CPU/AMD: Handle SME reduction in physical
+ address size
+Message-ID: <20170420165922.j2inlwbchrs6senw@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418211711.10190.30861.stgit@tlendack-t1.amdoffice.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170418211711.10190.30861.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-This basically restores slightly modified version of original
-sync_global_pgds() which we had before folded p4d was introduced.
+On Tue, Apr 18, 2017 at 04:17:11PM -0500, Tom Lendacky wrote:
+> When System Memory Encryption (SME) is enabled, the physical address
+> space is reduced. Adjust the x86_phys_bits value to reflect this
+> reduction.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/kernel/cpu/amd.c |   14 +++++++++++---
+>  1 file changed, 11 insertions(+), 3 deletions(-)
 
-The only modification is protection against 'address' overflow.
+...
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/mm/init_64.c | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+> @@ -622,8 +624,14 @@ static void early_init_amd(struct cpuinfo_x86 *c)
+>  
+>  			/* Check if SME is enabled */
+>  			rdmsrl(MSR_K8_SYSCFG, msr);
+> -			if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+> +			if (msr & MSR_K8_SYSCFG_MEM_ENCRYPT) {
+> +				unsigned int ebx;
+> +
+> +				ebx = cpuid_ebx(0x8000001f);
+> +				c->x86_phys_bits -= (ebx >> 6) & 0x3f;
+> +			} else {
+>  				clear_cpu_cap(c, X86_FEATURE_SME);
+> +			}
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a242139df8fe..0b62b13e8655 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -92,6 +92,40 @@ __setup("noexec32=", nonx32_setup);
-  * When memory was added make sure all the processes MM have
-  * suitable PGD entries in the local PGD level page.
-  */
-+#ifdef CONFIG_X86_5LEVEL
-+void sync_global_pgds(unsigned long start, unsigned long end)
-+{
-+	unsigned long address;
-+
-+	for (address = start; address <= end && address >= start; address += PGDIR_SIZE) {
-+		const pgd_t *pgd_ref = pgd_offset_k(address);
-+		struct page *page;
-+
-+		if (pgd_none(*pgd_ref))
-+			continue;
-+
-+		spin_lock(&pgd_lock);
-+		list_for_each_entry(page, &pgd_list, lru) {
-+			pgd_t *pgd;
-+			spinlock_t *pgt_lock;
-+
-+			pgd = (pgd_t *)page_address(page) + pgd_index(address);
-+			/* the pgt_lock only for Xen */
-+			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
-+			spin_lock(pgt_lock);
-+
-+			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
-+				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-+
-+			if (pgd_none(*pgd))
-+				set_pgd(pgd, *pgd_ref);
-+
-+			spin_unlock(pgt_lock);
-+		}
-+		spin_unlock(&pgd_lock);
-+	}
-+}
-+#else
- void sync_global_pgds(unsigned long start, unsigned long end)
- {
- 	unsigned long address;
-@@ -135,6 +169,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
- 		spin_unlock(&pgd_lock);
- 	}
- }
-+#endif
- 
- /*
-  * NOTE: This function is marked __ref because it calls __init function
+Lemme do some simplifying to save an indent level, get rid of local var
+ebx and kill some { }-brackets for a bit better readability:
+
+        if (c->extended_cpuid_level >= 0x8000001f) {
+                u64 msr;
+
+                if (!cpu_has(c, X86_FEATURE_SME))
+                        return;
+
+                /* Check if SME is enabled */
+                rdmsrl(MSR_K8_SYSCFG, msr);
+                if (msr & MSR_K8_SYSCFG_MEM_ENCRYPT)
+                        c->x86_phys_bits -= (cpuid_ebx(0x8000001f) >> 6) & 0x3f;
+                else
+                        clear_cpu_cap(c, X86_FEATURE_SME);
+        }
+
 -- 
-2.11.0
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
