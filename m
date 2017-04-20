@@ -1,74 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B03AF6B03B0
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:09:08 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id b82so59029890iod.10
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:09:08 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id m4si2417074pln.319.2017.04.19.23.09.07
+	by kanga.kvack.org (Postfix) with ESMTP id 814B66B03B2
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:38:42 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id o22so55180933iod.6
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:38:42 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id q9si1332026pgd.40.2017.04.19.23.38.41
         for <linux-mm@kvack.org>;
-        Wed, 19 Apr 2017 23:09:08 -0700 (PDT)
-Date: Thu, 20 Apr 2017 15:09:04 +0900
+        Wed, 19 Apr 2017 23:38:41 -0700 (PDT)
+Date: Thu, 20 Apr 2017 15:38:34 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch] mm, vmscan: avoid thrashing anon lru when free + file is
- low
-Message-ID: <20170420060904.GA3720@bbox>
-References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
- <20170418013659.GD21354@bbox>
- <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
- <20170419001405.GA13364@bbox>
- <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+Message-ID: <20170420063834.GB3720@bbox>
+References: <20170407064901.25398-1-ying.huang@intel.com>
+ <20170418045909.GA11015@bbox>
+ <87y3uwrez0.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <87y3uwrez0.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
-Hi David,
-
-On Wed, Apr 19, 2017 at 04:24:48PM -0700, David Rientjes wrote:
-> On Wed, 19 Apr 2017, Minchan Kim wrote:
+On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
+> Minchan Kim <minchan@kernel.org> writes:
 > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 24efcc20af91..5d2f3fa41e92 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2174,8 +2174,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
-> >  		}
-> >  
-> >  		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
-> > -			scan_balance = SCAN_ANON;
-> > -			goto out;
-> > +			/*
-> > +			 * force SCAN_ANON if inactive anonymous LRU lists of
-> > +			 * eligible zones are enough pages. Otherwise, thrashing
-> > +			 * can be happen on the small anonymous LRU list.
-> > +			 */
-> > +			if (!inactive_list_is_low(lruvec, false, NULL, sc, false) &&
-> > +			     lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
-> > +					>> sc->priority) {
-> > +				scan_balance = SCAN_ANON;
-> > +				goto out;
-> > +			}
-> >  		}
-> >  	}
-> >  
+> > Hi Huang,
+> >
+> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+> >> From: Huang Ying <ying.huang@intel.com>
+> >> 
+> >> To reduce the lock contention of swap_info_struct->lock when freeing
+> >> swap entry.  The freed swap entries will be collected in a per-CPU
+> >> buffer firstly, and be really freed later in batch.  During the batch
+> >> freeing, if the consecutive swap entries in the per-CPU buffer belongs
+> >> to same swap device, the swap_info_struct->lock needs to be
+> >> acquired/released only once, so that the lock contention could be
+> >> reduced greatly.  But if there are multiple swap devices, it is
+> >> possible that the lock may be unnecessarily released/acquired because
+> >> the swap entries belong to the same swap device are non-consecutive in
+> >> the per-CPU buffer.
+> >> 
+> >> To solve the issue, the per-CPU buffer is sorted according to the swap
+> >> device before freeing the swap entries.  Test shows that the time
+> >> spent by swapcache_free_entries() could be reduced after the patch.
+> >> 
+> >> Test the patch via measuring the run time of swap_cache_free_entries()
+> >> during the exit phase of the applications use much swap space.  The
+> >> results shows that the average run time of swap_cache_free_entries()
+> >> reduced about 20% after applying the patch.
+> >> 
+> >> Signed-off-by: Huang Ying <ying.huang@intel.com>
+> >> Acked-by: Tim Chen <tim.c.chen@intel.com>
+> >> Cc: Hugh Dickins <hughd@google.com>
+> >> Cc: Shaohua Li <shli@kernel.org>
+> >> Cc: Minchan Kim <minchan@kernel.org>
+> >> Cc: Rik van Riel <riel@redhat.com>
+> >> 
+> >> v3:
+> >> 
+> >> - Add some comments in code per Rik's suggestion.
+> >> 
+> >> v2:
+> >> 
+> >> - Avoid sort swap entries if there is only one swap device.
+> >> ---
+> >>  mm/swapfile.c | 12 ++++++++++++
+> >>  1 file changed, 12 insertions(+)
+> >> 
+> >> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> >> index 90054f3c2cdc..f23c56e9be39 100644
+> >> --- a/mm/swapfile.c
+> >> +++ b/mm/swapfile.c
+> >> @@ -37,6 +37,7 @@
+> >>  #include <linux/swapfile.h>
+> >>  #include <linux/export.h>
+> >>  #include <linux/swap_slots.h>
+> >> +#include <linux/sort.h>
+> >>  
+> >>  #include <asm/pgtable.h>
+> >>  #include <asm/tlbflush.h>
+> >> @@ -1065,6 +1066,13 @@ void swapcache_free(swp_entry_t entry)
+> >>  	}
+> >>  }
+> >>  
+> >> +static int swp_entry_cmp(const void *ent1, const void *ent2)
+> >> +{
+> >> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
+> >> +
+> >> +	return (long)(swp_type(*e1) - swp_type(*e2));
+> >> +}
+> >> +
+> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+> >>  {
+> >>  	struct swap_info_struct *p, *prev;
+> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+> >>  
+> >>  	prev = NULL;
+> >>  	p = NULL;
+> >> +
+> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+> >> +	if (nr_swapfiles > 1)
+> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+> >
+> > Let's think on other cases.
+> >
+> > There are two swaps and they are configured by priority so a swap's usage
+> > would be zero unless other swap used up. In case of that, this sorting
+> > is pointless.
+> >
+> > As well, nr_swapfiles is never decreased so if we enable multiple
+> > swaps and then disable until a swap is remained, this sorting is
+> > pointelss, too.
+> >
+> > How about lazy sorting approach? IOW, if we found prev != p and,
+> > then we can sort it.
 > 
-> Hi Minchan,
-> 
-> This looks good and it correctly biases against SCAN_ANON for my workload 
-> that was thrashing the anon lrus.  Feel free to use parts of my changelog 
-> if you'd like.
+> Yes.  That should be better.  I just don't know whether the added
+> complexity is necessary, given the array is short and sort is fast.
 
-Thanks for the testing!
-As considering how it's hard to find such a problem, it should be totally your
-credit. So you can send the patch with detailed description. Feel free to
-add my suggested-by. :)
+Huh?
 
-Thanks!
+1. swapon /dev/XXX1
+2. swapon /dev/XXX2
+3. swapoff /dev/XXX2
+4. use only one swap
+5. then, always pointless sort.
+
+Do not add such bogus code.
+
+Nacked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
