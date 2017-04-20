@@ -1,123 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 525116B03A6
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 21:25:19 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id p80so49943292iop.16
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:25:19 -0700 (PDT)
-Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
-        by mx.google.com with ESMTPS id c131si5105455ioe.115.2017.04.19.18.25.18
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A71B6B03A9
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 21:28:08 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id h72so49929653iod.0
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:28:08 -0700 (PDT)
+Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
+        by mx.google.com with ESMTPS id k185si5110627itb.53.2017.04.19.18.28.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 18:25:18 -0700 (PDT)
-Received: by mail-io0-x22e.google.com with SMTP id k87so46898946ioi.0
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:25:18 -0700 (PDT)
-Message-ID: <1492651508.1015.2.camel@gmail.com>
-Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 20 Apr 2017 11:25:08 +1000
-In-Reply-To: <alpine.DEB.2.20.1704191355280.9478@east.gentwo.org>
-References: <20170419075242.29929-1-bsingharora@gmail.com>
-	 <alpine.DEB.2.20.1704191355280.9478@east.gentwo.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 19 Apr 2017 18:28:07 -0700 (PDT)
+Received: by mail-io0-x244.google.com with SMTP id h41so9988924ioi.1
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:28:07 -0700 (PDT)
+Date: Thu, 20 Apr 2017 10:27:55 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: your mail
+Message-ID: <20170420012753.GA22054@js1304-desktop>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170417054718.GD1351@js1304-desktop>
+ <20170417081513.GA12511@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170417081513.GA12511@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, arbab@linux.vnet.ibm.com, vbabka@suse.cz
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 2017-04-19 at 14:02 -0500, Christoph Lameter wrote:
-> On Wed, 19 Apr 2017, Balbir Singh wrote:
+On Mon, Apr 17, 2017 at 10:15:15AM +0200, Michal Hocko wrote:
+> On Mon 17-04-17 14:47:20, Joonsoo Kim wrote:
+> > On Sat, Apr 15, 2017 at 02:17:31PM +0200, Michal Hocko wrote:
+> > > Hi,
+> > > here I 3 more preparatory patches which I meant to send on Thursday but
+> > > forgot... After more thinking about pfn walkers I have realized that
+> > > the current code doesn't check offline holes in zones. From a quick
+> > > review that doesn't seem to be a problem currently. Pfn walkers can race
+> > > with memory offlining and with the original hotplug impementation those
+> > > offline pages can change the zone but I wasn't able to find any serious
+> > > problem other than small confusion. The new hotplug code, will not have
+> > > any valid zone, though so those code paths should check PageReserved
+> > > to rule offline holes. I hope I have addressed all of them in these 3
+> > > patches. I would appreciate if Vlastimil and Jonsoo double check after
+> > > me.
+> > 
+> > Hello, Michal.
+> > 
+> > s/Jonsoo/Joonsoo. :)
 > 
-> > The first patch defines N_COHERENT_MEMORY and supports onlining of
-> > N_COHERENT_MEMORY.  The second one enables marking of coherent
+> ups, sorry about that.
 > 
-> The name is confusing. All other NUMA nodes are coherent. Can we name this
-> in some way that describes what is special about these nodes?
+> > I'm not sure that it's a good idea to add PageResereved() check in pfn
+> > walkers. First, this makes struct page validity check as two steps,
+> > pfn_valid() and then PageResereved().
 > 
-> And we already have support for memory only nodes. Why is that not sufficient?
-> If you can answer that question then we may get to the term to be used to
-> name these nodes. We also have support for hotplug memory. How does the
-> memory here differ from hotplug?
-> 
->  > memory nodes in architecture specific code, the third patch
-> > enables mempolicy MPOL_BIND and MPOL_PREFERRED changes to
-> > explicitly specify a node for allocation. The fourth patch adds
-> 
-> Huh? MPOL_PREFERRED already allows specifying a node.
-> MPOL_BIND requires a set of nodes. ??
+> Yes, those are two separate checkes because semantically they are
+> different. Not all pfn walkers do care about the online status.
 
-Wording issues, I meant to support specification of the coherent
-memory node for specification.
+If offlined page has no valid information, reading information
+about offlined pages are just wrong. So, all pfn walkers that reads
+information about the page should do care about it.
 
-> 
-> > 1. Nodes with N_COHERENT_MEMORY don't have CPUs on them, so
-> > effectively they are CPUless memory nodes
-> > 2. Nodes with N_COHERENT_MEMORY are marked as movable_nodes.
-> > Slub allocations from these nodes will fail otherwise.
-> 
-> Isnt that what hotpluggable nodes do already?
-
-Yes, we need that coherent device memory as well.
-
-> 
-> > 1. MPOL_BIND with the coherent node (Node 3 in the above example) will
-> > not filter out N_COHERENT_MEMORY if any of the nodes in the nodemask
-> > is in N_COHERENT_MEMORY
-> > 2. MPOL_PREFERRED will use the FALLBACK list of the coherent node (Node 3)
-> > if a policy that specifies a preference to it is used.
-> 
-> So this means that "Coherent" nodes means that you need a different
-> fallback mechanism? Something like a ISOLATED_NODE or something?
-
-Couple of things are needed
-
-1. Isolation of allocation
-2. Isolation of certain algorithms like kswapd/auto-numa balancing
-
-There are some notes of (2) in hte limitations seciton as well.
+I guess that many callers for pfn_valid() is in this category.
 
 > 
-> The approach sounds pretty invasive to me.
-
-Could you please elaborate, you mean the user space programming bits?
-
-
- Can we first clarify what
-> features you need and develop terminology that describes things in terms
-> of a view from the Linux MM perspective?
-
-Ideally we need the following:
-
-1. Transparency about being able to allocate memory anywhere and the ability
-to migrate memory between coherent device memory and normal system memory
-2. The ability to explictly allocate memory from coherent device memory
-3. Isolation of normal allocations from coherent device memory unless
-explictly stated, same as (2) above
-4. The ability to hotplug in and out the memory at run-time
-5. Exchange pointers between coherent device memory and normal memory
-for the compute on the coherent device memory to use
-
-I could list further things, but largely coherent device memory is like
-system memory except that we believe that things like auto-numa balancing
-and kswapd will not work well due to lack of information about references
-and faults.
-
-Some of the mm-summit notes are at https://lwn.net/Articles/717601/
-The goals align with HMM, except that the device memory is coherent. HMM
-has a CDM variation as well.
-
- Coherent memory is nothing
-> special from there. It is special from the perspective of offload devices
-> that have heretofore not offered that. So its mainly a marketing term. We
-> need something descriptive here.
+> > If we should not use struct page
+> > in this case, it's better to pfn_valid() returns false rather than
+> > adding a separate check. Anyway, we need to fix more places (all pfn
+> > walker?) if we want to check validity by two steps.
 > 
+> Which pfn walkers you have in mind?
 
-We've been using the term coherent device memory (CDM). I could rephrase the
-text and documentation for consistency. Would you prefer a different term?
+For example, kpagecount_read() in fs/proc/page.c. I searched it by
+using pfn_valid().
 
-Thanks for the review!
-Balbir Singh.
+> > The other problem I found is that your change will makes some
+> > contiguous zones to be considered as non-contiguous. Memory allocated
+> > by memblock API is also marked as PageResereved. If we consider this as
+> > a hole, we will set such a zone as non-contiguous.
+> 
+> Why would that be a problem? We shouldn't touch those pages anyway?
+
+Skipping those pages in compaction are valid so no problem in this
+case.
+
+The problem I mentioned above is that adding PageReserved() check in
+__pageblock_pfn_to_page() invalidates optimization by
+set_zone_contiguous(). In compaction, we need to get a valid struct
+page and it requires a lot of work. There is performance problem
+report due to this so set_zone_contiguous() optimization is added. It
+checks if the zone is contiguous or not in boot time. If zone is
+determined as contiguous, we can easily get a valid struct page in
+runtime without expensive checks.
+
+Your patch try to add PageReserved() to __pageblock_pfn_to_page(). It
+woule make that zone->contiguous usually returns false since memory
+used by memblock API is marked as PageReserved() and your patch regard
+it as a hole. It invalidates set_zone_contiguous() optimization and I
+worry about it.
+
+>  
+> > And, I guess that it's not enough to check PageResereved() in
+> > pageblock_pfn_to_page() in order to skip these pages in compaction. If
+> > holes are in the middle of the pageblock, pageblock_pfn_to_page()
+> > cannot catch it and compaction will use struct page for this hole.
+> 
+> Yes pageblock_pfn_to_page cannot catch it and it wouldn't with the
+> current implementation anyway. So the implementation won't be any worse
+> than with the current code. On the other hand offline holes will always
+> fill the whole pageblock (assuming those are not spanning multiple
+> memblocks).
+>  
+> > Therefore, I think that making pfn_valid() return false for not
+> > onlined memory is a better solution for this problem. I don't know the
+> > implementation detail for hotplug and I don't see your recent change
+> > but we may defer memmap initialization until the zone is determined.
+> > It will make pfn_valid() return false for un-initialized range.
+> 
+> I am not really sure. pfn_valid is used in many context and its only
+> purpose is to tell whether pfn_to_page will return a valid struct page
+> AFAIU.
+> 
+> I agree that having more checks is more error prone and we can add a
+> helper pfn_to_valid_page or something similar but I believe we can do
+> that on top of the current hotplug rework. This would require a non
+> trivial amount of changes and I believe that a lacking check for the
+> offline holes is not critical - we would (ab)use the lowest zone which
+> is similar to (ab)using ZONE_NORMAL/MOVABLE with the original code.
+
+I'm not objecting your hotplug rework. In fact, I don't know the
+relationship between this work and hotplug rework. I'm agreeing
+with checking offline holes but I don't like the design and
+implementation about it.
+
+Let me clarify my desire(?) for this issue.
+
+1. If pfn_valid() returns true, struct page has valid information, at
+least, in flags (zone id, node id, flags, etc...). So, we can use them
+without checking PageResereved().
+
+2. pfn_valid() for offlined holes returns false. This can be easily
+(?) implemented by manipulating SECTION_MAP_MASK in hotplug code. I
+guess that there is no reason that pfn_valid() returns true for
+offlined holes. If there is, please let me know.
+
+3. We don't need to check PageReserved() in most of pfn walkers in
+order to check offline holes.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
