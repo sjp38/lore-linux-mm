@@ -1,72 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85E0A6B03C0
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:24:30 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id x8so8081265lfd.21
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 03:24:30 -0700 (PDT)
-Received: from bes.se.axis.com (bes.se.axis.com. [195.60.68.10])
-        by mx.google.com with ESMTP id 143si3278197ljj.139.2017.04.20.03.24.28
-        for <linux-mm@kvack.org>;
-        Thu, 20 Apr 2017 03:24:28 -0700 (PDT)
-From: Rabin Vincent <rabin.vincent@axis.com>
-Subject: [PATCH] mm: prevent NR_ISOLATE_* stats from going negative
-Date: Thu, 20 Apr 2017 12:24:25 +0200
-Message-Id: <1492683865-27549-1-git-send-email-rabin.vincent@axis.com>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A13A36B03C4
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:51:46 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k14so5210765wrc.16
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 03:51:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m74si15173386wmh.53.2017.04.20.03.51.45
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Apr 2017 03:51:45 -0700 (PDT)
+Subject: Re: [PATCH v3 6/9] mm, memory_hotplug: do not associate hotadded
+ memory to zones until online
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170410110351.12215-7-mhocko@kernel.org>
+ <20170410162547.GM4618@dhcp22.suse.cz>
+ <49b6c3e2-0e68-b77e-31d6-f589d3b4822e@suse.cz>
+ <20170420090605.GD15781@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <54f98d7c-2a7a-b81a-0e8b-85a4b55ebe9b@suse.cz>
+Date: Thu, 20 Apr 2017 12:51:42 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170420090605.GD15781@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rabin Vincent <rabinv@axis.com>, Ming Ling <ming.ling@spreadtrum.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-From: Rabin Vincent <rabinv@axis.com>
+On 04/20/2017 11:06 AM, Michal Hocko wrote:
+> On Thu 20-04-17 10:25:27, Vlastimil Babka wrote:
+>>> + * intersection with the given zone
+>>> + */
+>>> +static inline bool zone_intersects(struct zone *zone,
+>>> +		unsigned long start_pfn, unsigned long nr_pages)
+>>> +{
+>>
+>> I'm looking at your current mmotm tree branch, which looks like this:
+>>
+>> + * Return true if [start_pfn, start_pfn + nr_pages) range has a non-mpty
+>> + * intersection with the given zone
+>> + */
+>> +static inline bool zone_intersects(struct zone *zone,
+>> +               unsigned long start_pfn, unsigned long nr_pages)
+>> +{
+>> +       if (zone_is_empty(zone))
+>> +               return false;
+>> +       if (zone->zone_start_pfn <= start_pfn && start_pfn < zone_end_pfn(zone))
+>> +               return true;
+>> +       if (start_pfn + nr_pages > zone->zone_start_pfn)
+>> +               return true;
+>>
+>> A false positive is possible here, when start_pfn >= zone_end_pfn(zone)?
+> 
+> Ohh, right. Looks better?
 
-Commit 6afcf8ef0ca0 ("mm, compaction: fix NR_ISOLATED_* stats for pfn
-based migration") moved the dec_node_page_state() call (along with the
-page_is_file_cache() call) to after putback_lru_page().  But
-page_is_file_cache() can change after putback_lru_page() is called, so
-it should be called before putback_lru_page(), as it was before that
-patch, to prevent NR_ISOLATE_* stats from going negative.
+Yeah.
 
-Without this fix, non-CONFIG_SMP kernels end up hanging in the
-while(too_many_isolated()) { congestion_wait() } loop in
-shrink_active_list() due to the negative stats.
+You can add for the whole patch
 
- Mem-Info:
-  active_anon:32567 inactive_anon:121 isolated_anon:1
-  active_file:6066 inactive_file:6639 isolated_file:4294967295
-                                                    ^^^^^^^^^^
-  unevictable:0 dirty:115 writeback:0 unstable:0
-  slab_reclaimable:2086 slab_unreclaimable:3167
-  mapped:3398 shmem:18366 pagetables:1145 bounce:0
-  free:1798 free_pcp:13 free_cma:0
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Fixes: 6afcf8ef0ca0 ("mm, compaction: fix NR_ISOLATED_* stats for pfn based migration")
-Cc: Ming Ling <ming.ling@spreadtrum.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Rabin Vincent <rabinv@axis.com>
----
- mm/migrate.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+But I can't guarantee some corner case won't surface. The hotplug code
+is far from straightforward :(
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index ed97c2c..738f1d5 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -184,9 +184,9 @@ void putback_movable_pages(struct list_head *l)
- 			unlock_page(page);
- 			put_page(page);
- 		} else {
--			putback_lru_page(page);
- 			dec_node_page_state(page, NR_ISOLATED_ANON +
- 					page_is_file_cache(page));
-+			putback_lru_page(page);
- 		}
- 	}
- }
--- 
-2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
