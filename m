@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ECFE6B03B5
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:50:43 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id v34so58808950iov.22
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:50:43 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id i189si5382229pfb.162.2017.04.19.23.50.41
-        for <linux-mm@kvack.org>;
-        Wed, 19 Apr 2017 23:50:42 -0700 (PDT)
-Date: Thu, 20 Apr 2017 15:50:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-Message-ID: <20170420065028.GA3847@bbox>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain>
- <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
- <20170418000319.GC21354@bbox>
- <20170418073307.GF22360@dhcp22.suse.cz>
- <20170419060237.GA1636@bbox>
- <20170419115125.GA27790@bombadil.infradead.org>
- <20170420014542.GA542@jagdpanzerIV.localdomain>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 550506B03B7
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:53:33 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g31so4586562wrg.15
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:53:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t18si7630235wra.90.2017.04.19.23.53.31
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Apr 2017 23:53:32 -0700 (PDT)
+Date: Thu, 20 Apr 2017 08:53:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Re: Re: "mm: move pcp and lru-pcp draining into single wq" broke
+ resume from s2ram
+Message-ID: <20170420065327.GA15781@dhcp22.suse.cz>
+References: <201704190541.v3J5fUE3054131@www262.sakura.ne.jp>
+ <20170419071039.GB28263@dhcp22.suse.cz>
+ <201704190726.v3J7QAiC076509@www262.sakura.ne.jp>
+ <20170419075712.GB29789@dhcp22.suse.cz>
+ <CAMuHMdVmJrr6_sGeU4oxH5fn10BRdLC5nOEePN05p3kJ1x3YBQ@mail.gmail.com>
+ <20170419081701.GC29789@dhcp22.suse.cz>
+ <CA+55aFxQOJp0jq4Z9pFQzZtyc7KHapVT=ZbYyUufyGQhY=DvkQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170420014542.GA542@jagdpanzerIV.localdomain>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CA+55aFxQOJp0jq4Z9pFQzZtyc7KHapVT=ZbYyUufyGQhY=DvkQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-Renesas <linux-renesas-soc@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-On Thu, Apr 20, 2017 at 10:45:42AM +0900, Sergey Senozhatsky wrote:
-> On (04/19/17 04:51), Matthew Wilcox wrote:
-> [..]
-> > > > > Another approach is the API does normal thing for non-aligned prefix and
-> > > > > tail space and fast thing for aligned space.
-> > > > > Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
-> > > > > address.
-> > 
-> > Why not just use memcpy()?  Is copy_page() significantly faster than
-> > memcpy() for a PAGE_SIZE amount of data?
+On Wed 19-04-17 15:50:01, Linus Torvalds wrote:
+> On Wed, Apr 19, 2017 at 1:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > Thanks for the testing. Linus will you take the patch from this thread
+> > or you prefer a resend?
 > 
-> that's a good point.
-> 
-> I was going to ask yesterday - do we even need copy_page()? arch that
-> provides well optimized copy_page() quite likely provides somewhat
-> equally optimized memcpy(). so may be copy_page() is not even needed?
+> I'll take it from this branch since I'm looking at it now, but in
+> general I prefer resends just because finding patches deep in some
+> discussion is very iffy.
 
-I don't know.
+Yeah, I perfectly understand this and that's why I've asked. Thanks for
+taking the patch!
 
-Just I found https://download.samba.org/pub/paulus/ols-2003-presentation.pdf
-and heard https://lkml.org/lkml/2017/4/10/1270.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
