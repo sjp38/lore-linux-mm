@@ -1,53 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B7A576B03AB
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 21:45:40 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id p80so50831510iop.16
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:45:40 -0700 (PDT)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id 190si17064271itf.107.2017.04.19.18.45.39
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 901752806CB
+	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:14:58 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 7so10776404qtp.8
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 20:14:58 -0700 (PDT)
+Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
+        by mx.google.com with ESMTPS id e1si4491963qtc.337.2017.04.19.20.14.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 18:45:40 -0700 (PDT)
-Received: by mail-io0-x242.google.com with SMTP id d203so10185071iof.2
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 18:45:39 -0700 (PDT)
-Date: Thu, 20 Apr 2017 10:45:42 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
- "zram: do not use copy_page with non-page alinged address")
-Message-ID: <20170420014542.GA542@jagdpanzerIV.localdomain>
-References: <20170417014803.GC518@jagdpanzerIV.localdomain>
- <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
- <20170418000319.GC21354@bbox>
- <20170418073307.GF22360@dhcp22.suse.cz>
- <20170419060237.GA1636@bbox>
- <20170419115125.GA27790@bombadil.infradead.org>
+        Wed, 19 Apr 2017 20:14:57 -0700 (PDT)
+Received: by mail-qk0-x233.google.com with SMTP id f133so36328758qke.2
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 20:14:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170419115125.GA27790@bombadil.infradead.org>
+In-Reply-To: <20161028183113.GB4611@redhat.com>
+References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
+ <1447181081-30056-2-git-send-email-aarcange@redhat.com> <1459974829.28435.6.camel@redhat.com>
+ <20160406220202.GA2998@redhat.com> <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
+ <20160921153421.GA4716@redhat.com> <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
+ <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com> <20161028183113.GB4611@redhat.com>
+From: Gavin Guo <gavin.guo@canonical.com>
+Date: Thu, 20 Apr 2017 11:14:56 +0800
+Message-ID: <CA+eFSM3kA8HfTuu7QwPxjFUYjC1uHOk7UM5e34gT8PWem89Mkw@mail.gmail.com>
+Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
+ deduplication limit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Jay Vosburgh <jay.vosburgh@canonical.com>
 
-On (04/19/17 04:51), Matthew Wilcox wrote:
-[..]
-> > > > Another approach is the API does normal thing for non-aligned prefix and
-> > > > tail space and fast thing for aligned space.
-> > > > Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
-> > > > address.
-> 
-> Why not just use memcpy()?  Is copy_page() significantly faster than
-> memcpy() for a PAGE_SIZE amount of data?
+On Sat, Oct 29, 2016 at 2:31 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+>
+> On Fri, Oct 28, 2016 at 02:26:03PM +0800, Gavin Guo wrote:
+> > I have tried verifying these patches. However, the default 256
+> > bytes max_page_sharing still suffers the hung task issue. Then, the
+> > following sequence has been tried to mitigate the symptom. When the
+> > value is decreased, it took more time to reproduce the symptom.
+> > Finally, the value 8 has been tried and I didn't continue with lower
+> > value.
+> >
+> > 128 -> 64 -> 32 -> 16 -> 8
+> >
+> > The crashdump has also been investigated.
+>
+> You should try to get multiple sysrq+l too during the hang.
+>
+> > stable_node: 0xffff880d36413040 stable_node->hlist->first = 0xffff880e4c9f4cf0
+> > crash> list hlist_node.next 0xffff880e4c9f4cf0  > rmap_item.lst
+> >
+> > $ wc -l rmap_item.lst
+> > $ 8 rmap_item.lst
+> >
+> > This shows that the list is actually reduced to 8 items. I wondered if the
+> > loop is still consuming a lot of time and hold the mmap_sem too long.
+>
+> Even the default 256 would be enough (certainly with KVM that doesn't
+> have a deep anon_vma interval tree).
+>
+> Perhaps this is an app with a massively large anon_vma interval tree
+> and uses MADV_MERGEABLE and not qemu/kvm? However then you'd run in
+> similar issues with anon pages rmap walks so KSM wouldn't be to
+> blame. The depth of the rmap_items multiplies the cost of the rbtree
+> walk 512 times but still it shouldn't freeze for seconds.
+>
+> The important thing here is that the app is in control of the max
+> depth of the anon_vma interval tree while it's not in control of the
+> max depth of the rmap_item list, this is why it's fundamental that the
+> KSM rmap_item list is bounded to a max value, while the depth of the
+> interval tree is secondary issue because userland has a chance to
+> optimize for it. If the app deep forks and uses MADV_MERGEABLE that is
+> possible to optimize in userland. But I guess the app that is using
+> MADV_MERGEABLE is qemu/kvm for you too so it can't be a too long
+> interval tree. Furthermore if when the symptom triggers you still get
+> a long hang even with rmap_item depth of 8 and it just takes longer
+> time to reach the hanging point, it may be something else.
+>
+> I assume this is not an upstream kernel, can you reproduce on the
+> upstream kernel? Sorry but I can't help you any further, if this isn't
+> first verified on the upstream kernel.
+>
+> Also if you test on the upstream kernel you can leave the default
+> value of 256 and then use sysrq+l to get multiple dumps of what's
+> running in the CPUs. The crash dump is useful as well but it's also
+> interesting to see what's running most frequently during the hang
+> (which isn't guaranteed to be shown by the exact point in time the
+> crash dump is being taken). perf top -g may also help if this is a
+> computational complexity issue inside the kernel to see where most CPU
+> is being burnt.
+>
+> Note the problem was reproduced and verified as fixed. It's quite easy
+> to reproduce, I used migrate_pages syscall to do that, and after the
+> deep KSM merging that takes several seconds in strace -tt, while with
+> the fix it stays in the order of milliseconds. The point is that with
+> deeper merging the migrate_pages could take minutes in unkillable R
+> state (or during swapping), while with the KSMscale fix it gets capped
+> to milliseconds no matter what.
+>
+> Thanks,
+> Andrea
 
-that's a good point.
+Andrea,
 
-I was going to ask yesterday - do we even need copy_page()? arch that
-provides well optimized copy_page() quite likely provides somewhat
-equally optimized memcpy(). so may be copy_page() is not even needed?
+After spending some time, the problem was sorted out. Actually, there
+are 2 bugs in a tangle. The other one has been identified and solved.
 
-	-ss
+I've applied your patch to the Ubuntu 4.4 kernel and it works as
+expected. Without the patch, The bug can be observed by the perf flame
+graph[1]. With the patch, the unstable CPU loading cannot be observed
+inside the virtual appliances monitor[2].
+
+I have tested this patch at least 3 weeks, and it's stable. This patch
+should be merged into the upstream kernel.
+
+Tested-by: Gavin Guo <gavin.guo@canonical.com>
+
+[1]. http://kernel.ubuntu.com/~gavinguo/sf00131845/numa-131845.svg
+[2]. http://kernel.ubuntu.com/~gavinguo/sf00131845/virtual_appliances_loading.png
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
