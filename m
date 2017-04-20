@@ -1,202 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1665C2806D2
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:06:12 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v6so4924431wrc.21
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:06:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l125si8566898wmg.143.2017.04.20.02.06.10
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 511BF2806D2
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:26:10 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k87so59801915ioi.3
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:26:10 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 84si5789917pfu.393.2017.04.20.02.26.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Apr 2017 02:06:10 -0700 (PDT)
-Date: Thu, 20 Apr 2017 11:06:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 6/9] mm, memory_hotplug: do not associate hotadded
- memory to zones until online
-Message-ID: <20170420090605.GD15781@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170410110351.12215-7-mhocko@kernel.org>
- <20170410162547.GM4618@dhcp22.suse.cz>
- <49b6c3e2-0e68-b77e-31d6-f589d3b4822e@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <49b6c3e2-0e68-b77e-31d6-f589d3b4822e@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Apr 2017 02:26:09 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3K9Nx0Y022532
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:26:09 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29xpmbhfxh-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:26:08 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 20 Apr 2017 10:26:06 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [RFC 0/2] BUG raised when onlining HWPoisoned page
+Date: Thu, 20 Apr 2017 11:26:00 +0200
+Message-Id: <1492680362-24941-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Thu 20-04-17 10:25:27, Vlastimil Babka wrote:
-> On 04/10/2017 06:25 PM, Michal Hocko wrote:
-[...]
-> > Let's simulate memory hot online manually
-> > Normal Movable
-> > 
-> > /sys/devices/system/memory/memory32/valid_zones:Normal
-> > /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> > 
-> > /sys/devices/system/memory/memory32/valid_zones:Normal
-> > /sys/devices/system/memory/memory33/valid_zones:Normal
-> > /sys/devices/system/memory/memory34/valid_zones:Normal Movable
-> > 
-> > /sys/devices/system/memory/memory32/valid_zones:Normal
-> > /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> > /sys/devices/system/memory/memory34/valid_zones:Movable Normal
-> 
-> Commands seem to be missing above?
+When a page is HWPoisoned and later offlined and onlined back, a BUG
+warning is raised in the kernel:
 
-Yes. git commit just dropped everything starting with # which happened
-to be the bash prompt for my commands. I have changed that to $ and it
-looks as follows
-    $ echo 0x100000000 > /sys/devices/system/memory/probe
-    $ grep . /sys/devices/system/memory/memory32/valid_zones
-    Normal Movable
-    
-    $ echo $((0x100000000+(128<<20))) > /sys/devices/system/memory/probe
-    $ grep . /sys/devices/system/memory/memory3?/valid_zones
-    /sys/devices/system/memory/memory32/valid_zones:Normal
-    /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-    
-    $ echo $((0x100000000+2*(128<<20))) > /sys/devices/system/memory/probe
-    $ grep . /sys/devices/system/memory/memory3?/valid_zones
-    /sys/devices/system/memory/memory32/valid_zones:Normal
-    /sys/devices/system/memory/memory33/valid_zones:Normal
-    /sys/devices/system/memory/memory34/valid_zones:Normal Movable
-    
-    $ echo online_movable > /sys/devices/system/memory/memory34/state
-    $ grep . /sys/devices/system/memory/memory3?/valid_zones
-    /sys/devices/system/memory/memory32/valid_zones:Normal
-    /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-    /sys/devices/system/memory/memory34/valid_zones:Movable Normal
+BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
+page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null) index:0x1
+flags: 0x3ffff800200000(hwpoison)
+raw: 003ffff800200000 0000000000000000 0000000000000001 00000000ffffffff
+raw: 5deadbeef0000100 5deadbeef0000200 0000000000000000 c0000007fe055800
+page dumped because: page still charged to cgroup
+page->mem_cgroup:c0000007fe055800
+Modules linked in: pseries_rng rng_core vmx_crypto virtio_balloon ip_tables x_tables autofs4 virtio_blk virtio_net virtio_pci virtio_ring virtio
+CPU: 34 PID: 5946 Comm: mem-on-off-test Tainted: G    B 4.11.0-rc7-hwp #1
+Call Trace:
+[c0000007e4a737f0] [c000000000958e8c] dump_stack+0xb0/0xf0 (unreliable)
+[c0000007e4a73830] [c00000000021588c] bad_page+0x11c/0x190
+[c0000007e4a738c0] [c00000000021757c] free_pcppages_bulk+0x46c/0x600
+[c0000007e4a73990] [c00000000021924c] free_hot_cold_page+0x2ec/0x320
+[c0000007e4a739e0] [c0000000002a6440] generic_online_page+0x50/0x70
+[c0000007e4a73a10] [c0000000002a6184] online_pages_range+0x94/0xe0
+[c0000007e4a73a70] [c00000000005a2b0] walk_system_ram_range+0xe0/0x120
+[c0000007e4a73ac0] [c0000000002cce44] online_pages+0x2b4/0x6b0
+[c0000007e4a73b60] [c000000000600558] memory_subsys_online+0x218/0x270
+[c0000007e4a73bf0] [c0000000005dec84] device_online+0xb4/0x110
+[c0000007e4a73c30] [c000000000600f00] store_mem_state+0xc0/0x190
+[c0000007e4a73c70] [c0000000005da1d4] dev_attr_store+0x34/0x60
+[c0000007e4a73c90] [c000000000377c70] sysfs_kf_write+0x60/0xa0
+[c0000007e4a73cb0] [c0000000003769fc] kernfs_fop_write+0x16c/0x240
+[c0000007e4a73d00] [c0000000002d1b0c] __vfs_write+0x3c/0x1b0
+[c0000007e4a73d90] [c0000000002d34dc] vfs_write+0xcc/0x230
+[c0000007e4a73de0] [c0000000002d50e0] SyS_write+0x60/0x110
+[c0000007e4a73e30] [c00000000000b760] system_call+0x38/0xfc
 
-[...]
-> > This means that the same physical online steps as above will lead to the
-> > following state:
-> > Normal Movable
-> > 
-> > /sys/devices/system/memory/memory32/valid_zones:Normal Movable
-> > /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> > 
-> > /sys/devices/system/memory/memory32/valid_zones:Normal Movable
-> > /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> > /sys/devices/system/memory/memory34/valid_zones:Normal Movable
-> > 
-> > /sys/devices/system/memory/memory32/valid_zones:Normal Movable
-> > /sys/devices/system/memory/memory33/valid_zones:Normal Movable
-> > /sys/devices/system/memory/memory34/valid_zones:Movable
-> 
-> Ditto.
+This has been seen on x86 kvm guest, PowerPC bare metal system and KVM
+guest.
 
-This just copies the above so I didn't add those commands. I can if that
-is preferable.
- 
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -533,6 +533,20 @@ static inline bool zone_is_empty(struct zone *zone)
-> >  }
-> >  
-> >  /*
-> > + * Return true if [start_pfn, start_pfn + nr_pages) range has a non-mpty
-> 
-> 
-> 							       non-empty
+The issue is that the onlined page has already the mem_cgroup field
+set.
 
-fixed
+It seems that the mem_cgroup field should be cleared when the page is
+poisoned, which is done in the first patch of this series.
 
-> > + * intersection with the given zone
-> > + */
-> > +static inline bool zone_intersects(struct zone *zone,
-> > +		unsigned long start_pfn, unsigned long nr_pages)
-> > +{
-> 
-> I'm looking at your current mmotm tree branch, which looks like this:
-> 
-> + * Return true if [start_pfn, start_pfn + nr_pages) range has a non-mpty
-> + * intersection with the given zone
-> + */
-> +static inline bool zone_intersects(struct zone *zone,
-> +               unsigned long start_pfn, unsigned long nr_pages)
-> +{
-> +       if (zone_is_empty(zone))
-> +               return false;
-> +       if (zone->zone_start_pfn <= start_pfn && start_pfn < zone_end_pfn(zone))
-> +               return true;
-> +       if (start_pfn + nr_pages > zone->zone_start_pfn)
-> +               return true;
-> 
-> A false positive is possible here, when start_pfn >= zone_end_pfn(zone)?
+Then when the page is onlined back, the BUG warning is no more
+triggered, but the page is now available for use, and once a process
+is using it, it got killed because of the memory error.
+It seems that the page should be ignored when onlined, as it is when
+it is offlined (introduced by commit b023f46813cd "memory-hotplug:
+skip HWPoisoned page when offlining pages"). The second patch of this
+series is skipping HWPoisoned page when the memory block is onlined
+back.
 
-Ohh, right. Looks better?
+To be honest, I don't feel so comfortable with this series. It seems
+to fix the issue, but I'm not sure this is the right way to achieve
+that.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index eae6da28646e..611ff869fa4d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -541,10 +541,14 @@ static inline bool zone_intersects(struct zone *zone,
- {
- 	if (zone_is_empty(zone))
- 		return false;
--	if (zone->zone_start_pfn <= start_pfn && start_pfn < zone_end_pfn(zone))
-+	if (start_pfn >= zone_end_pfn(zone))
-+		return false;
-+
-+	if (zone->zone_start_pfn <= start_pfn)
- 		return true;
- 	if (start_pfn + nr_pages > zone->zone_start_pfn)
- 		return true;
-+
- 	return false;
- }
- 
-> > @@ -1029,39 +1018,114 @@ static void node_states_set_node(int node, struct memory_notify *arg)
-> >  	node_set_state(node, N_MEMORY);
-> >  }
-> >  
-> > -bool zone_can_shift(unsigned long pfn, unsigned long nr_pages,
-> > -		   enum zone_type target, int *zone_shift)
-> > +bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, int online_type)
-> >  {
-> > -	struct zone *zone = page_zone(pfn_to_page(pfn));
-> > -	enum zone_type idx = zone_idx(zone);
-> > -	int i;
-> > +	struct pglist_data *pgdat = NODE_DATA(nid);
-> > +	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
-> > +	struct zone *normal_zone =  &pgdat->node_zones[ZONE_NORMAL];
-> >  
-> > -	*zone_shift = 0;
-> > +	/*
-> > +	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
-> > +	 * physically before ZONE_MOVABLE. All we need is they do not
-> > +	 * overlap. Historically we didn't allow ZONE_NORMAL after ZONE_MOVABLE
-> > +	 * though so let's stick with it for simplicity for now.
-> > +	 * TODO make sure we do not overlap with ZONE_DEVICE
-> 
-> Is this last TODO a blocker, unlike the others?
+Please advise.
 
-I think it is not but my knowledge of the zone device is very limited. I
-was hoping for Dan's feedback here. From what I understand Zone device
-occupies the high end of the address space so we shouldn't overlap here.
-Is this correct Dan?
+Laurent Dufour (2):
+  mm: Uncharge poisoned pages
+  mm: skip HWPoisoned pages when onlining pages
 
-[...]
-> > +	if (online_type == MMOP_ONLINE_MOVABLE && !can_online_high_movable(nid))
-> > +		return -EINVAL;
-> >  
-> > -	zone = move_pfn_range(zone_shift, pfn, pfn + nr_pages);
-> > +	/* associate pfn range with the zone */
-> > +	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
-> >  	if (!zone)
-> >  		return -EINVAL;
-> 
-> Nit: This !zone currently cannot happen.
+ mm/memory-failure.c | 1 +
+ mm/memory_hotplug.c | 2 ++
+ 2 files changed, 3 insertions(+)
 
-fixed
-
-Thanks!
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
