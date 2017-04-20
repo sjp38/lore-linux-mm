@@ -1,58 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 21EA62806D2
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:26:16 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id a103so53472879ioj.8
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:26:16 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x9si5798756pgo.51.2017.04.20.02.26.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 02:26:15 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3K9O37Z073765
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:26:14 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29xmw4w81d-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 05:26:14 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 20 Apr 2017 10:26:08 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [RFC 1/2] mm: Uncharge poisoned pages
-Date: Thu, 20 Apr 2017 11:26:01 +0200
-In-Reply-To: <1492680362-24941-1-git-send-email-ldufour@linux.vnet.ibm.com>
-References: <1492680362-24941-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1492680362-24941-2-git-send-email-ldufour@linux.vnet.ibm.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 85E0A6B03C0
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:24:30 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id x8so8081265lfd.21
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 03:24:30 -0700 (PDT)
+Received: from bes.se.axis.com (bes.se.axis.com. [195.60.68.10])
+        by mx.google.com with ESMTP id 143si3278197ljj.139.2017.04.20.03.24.28
+        for <linux-mm@kvack.org>;
+        Thu, 20 Apr 2017 03:24:28 -0700 (PDT)
+From: Rabin Vincent <rabin.vincent@axis.com>
+Subject: [PATCH] mm: prevent NR_ISOLATE_* stats from going negative
+Date: Thu, 20 Apr 2017 12:24:25 +0200
+Message-Id: <1492683865-27549-1-git-send-email-rabin.vincent@axis.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rabin Vincent <rabinv@axis.com>, Ming Ling <ming.ling@spreadtrum.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
 
-When page are poisoned, they should be uncharged from the root memory
-cgroup.
+From: Rabin Vincent <rabinv@axis.com>
 
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Commit 6afcf8ef0ca0 ("mm, compaction: fix NR_ISOLATED_* stats for pfn
+based migration") moved the dec_node_page_state() call (along with the
+page_is_file_cache() call) to after putback_lru_page().  But
+page_is_file_cache() can change after putback_lru_page() is called, so
+it should be called before putback_lru_page(), as it was before that
+patch, to prevent NR_ISOLATE_* stats from going negative.
+
+Without this fix, non-CONFIG_SMP kernels end up hanging in the
+while(too_many_isolated()) { congestion_wait() } loop in
+shrink_active_list() due to the negative stats.
+
+ Mem-Info:
+  active_anon:32567 inactive_anon:121 isolated_anon:1
+  active_file:6066 inactive_file:6639 isolated_file:4294967295
+                                                    ^^^^^^^^^^
+  unevictable:0 dirty:115 writeback:0 unstable:0
+  slab_reclaimable:2086 slab_unreclaimable:3167
+  mapped:3398 shmem:18366 pagetables:1145 bounce:0
+  free:1798 free_pcp:13 free_cma:0
+
+Fixes: 6afcf8ef0ca0 ("mm, compaction: fix NR_ISOLATED_* stats for pfn based migration")
+Cc: Ming Ling <ming.ling@spreadtrum.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: <stable@vger.kernel.org>
+Signed-off-by: Rabin Vincent <rabinv@axis.com>
 ---
- mm/memory-failure.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/migrate.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 27f7210e7fab..00bd39d3d4cb 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -530,6 +530,7 @@ static const char * const action_page_types[] = {
- static int delete_from_lru_cache(struct page *p)
- {
- 	if (!isolate_lru_page(p)) {
-+		memcg_kmem_uncharge(p, 0);
- 		/*
- 		 * Clear sensible page flags, so that the buddy system won't
- 		 * complain when the page is unpoison-and-freed.
+diff --git a/mm/migrate.c b/mm/migrate.c
+index ed97c2c..738f1d5 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -184,9 +184,9 @@ void putback_movable_pages(struct list_head *l)
+ 			unlock_page(page);
+ 			put_page(page);
+ 		} else {
+-			putback_lru_page(page);
+ 			dec_node_page_state(page, NR_ISOLATED_ANON +
+ 					page_is_file_cache(page));
++			putback_lru_page(page);
+ 		}
+ 	}
+ }
 -- 
-2.7.4
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
