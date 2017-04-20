@@ -1,137 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 814B66B03B2
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:38:42 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id o22so55180933iod.6
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:38:42 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ECFE6B03B5
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:50:43 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id v34so58808950iov.22
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:50:43 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id q9si1332026pgd.40.2017.04.19.23.38.41
+        by mx.google.com with ESMTP id i189si5382229pfb.162.2017.04.19.23.50.41
         for <linux-mm@kvack.org>;
-        Wed, 19 Apr 2017 23:38:41 -0700 (PDT)
-Date: Thu, 20 Apr 2017 15:38:34 +0900
+        Wed, 19 Apr 2017 23:50:42 -0700 (PDT)
+Date: Thu, 20 Apr 2017 15:50:28 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-Message-ID: <20170420063834.GB3720@bbox>
-References: <20170407064901.25398-1-ying.huang@intel.com>
- <20170418045909.GA11015@bbox>
- <87y3uwrez0.fsf@yhuang-dev.intel.com>
+Subject: Re: copy_page() on a kmalloc-ed page with DEBUG_SLAB enabled (was
+ "zram: do not use copy_page with non-page alinged address")
+Message-ID: <20170420065028.GA3847@bbox>
+References: <20170417014803.GC518@jagdpanzerIV.localdomain>
+ <alpine.DEB.2.20.1704171016550.28407@east.gentwo.org>
+ <20170418000319.GC21354@bbox>
+ <20170418073307.GF22360@dhcp22.suse.cz>
+ <20170419060237.GA1636@bbox>
+ <20170419115125.GA27790@bombadil.infradead.org>
+ <20170420014542.GA542@jagdpanzerIV.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170420014542.GA542@jagdpanzerIV.localdomain>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <87y3uwrez0.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
+On Thu, Apr 20, 2017 at 10:45:42AM +0900, Sergey Senozhatsky wrote:
+> On (04/19/17 04:51), Matthew Wilcox wrote:
+> [..]
+> > > > > Another approach is the API does normal thing for non-aligned prefix and
+> > > > > tail space and fast thing for aligned space.
+> > > > > Otherwise, it would be happy if the API has WARN_ON non-page SIZE aligned
+> > > > > address.
+> > 
+> > Why not just use memcpy()?  Is copy_page() significantly faster than
+> > memcpy() for a PAGE_SIZE amount of data?
 > 
-> > Hi Huang,
-> >
-> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
-> >> From: Huang Ying <ying.huang@intel.com>
-> >> 
-> >> To reduce the lock contention of swap_info_struct->lock when freeing
-> >> swap entry.  The freed swap entries will be collected in a per-CPU
-> >> buffer firstly, and be really freed later in batch.  During the batch
-> >> freeing, if the consecutive swap entries in the per-CPU buffer belongs
-> >> to same swap device, the swap_info_struct->lock needs to be
-> >> acquired/released only once, so that the lock contention could be
-> >> reduced greatly.  But if there are multiple swap devices, it is
-> >> possible that the lock may be unnecessarily released/acquired because
-> >> the swap entries belong to the same swap device are non-consecutive in
-> >> the per-CPU buffer.
-> >> 
-> >> To solve the issue, the per-CPU buffer is sorted according to the swap
-> >> device before freeing the swap entries.  Test shows that the time
-> >> spent by swapcache_free_entries() could be reduced after the patch.
-> >> 
-> >> Test the patch via measuring the run time of swap_cache_free_entries()
-> >> during the exit phase of the applications use much swap space.  The
-> >> results shows that the average run time of swap_cache_free_entries()
-> >> reduced about 20% after applying the patch.
-> >> 
-> >> Signed-off-by: Huang Ying <ying.huang@intel.com>
-> >> Acked-by: Tim Chen <tim.c.chen@intel.com>
-> >> Cc: Hugh Dickins <hughd@google.com>
-> >> Cc: Shaohua Li <shli@kernel.org>
-> >> Cc: Minchan Kim <minchan@kernel.org>
-> >> Cc: Rik van Riel <riel@redhat.com>
-> >> 
-> >> v3:
-> >> 
-> >> - Add some comments in code per Rik's suggestion.
-> >> 
-> >> v2:
-> >> 
-> >> - Avoid sort swap entries if there is only one swap device.
-> >> ---
-> >>  mm/swapfile.c | 12 ++++++++++++
-> >>  1 file changed, 12 insertions(+)
-> >> 
-> >> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> >> index 90054f3c2cdc..f23c56e9be39 100644
-> >> --- a/mm/swapfile.c
-> >> +++ b/mm/swapfile.c
-> >> @@ -37,6 +37,7 @@
-> >>  #include <linux/swapfile.h>
-> >>  #include <linux/export.h>
-> >>  #include <linux/swap_slots.h>
-> >> +#include <linux/sort.h>
-> >>  
-> >>  #include <asm/pgtable.h>
-> >>  #include <asm/tlbflush.h>
-> >> @@ -1065,6 +1066,13 @@ void swapcache_free(swp_entry_t entry)
-> >>  	}
-> >>  }
-> >>  
-> >> +static int swp_entry_cmp(const void *ent1, const void *ent2)
-> >> +{
-> >> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
-> >> +
-> >> +	return (long)(swp_type(*e1) - swp_type(*e2));
-> >> +}
-> >> +
-> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
-> >>  {
-> >>  	struct swap_info_struct *p, *prev;
-> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
-> >>  
-> >>  	prev = NULL;
-> >>  	p = NULL;
-> >> +
-> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> >> +	if (nr_swapfiles > 1)
-> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
-> >
-> > Let's think on other cases.
-> >
-> > There are two swaps and they are configured by priority so a swap's usage
-> > would be zero unless other swap used up. In case of that, this sorting
-> > is pointless.
-> >
-> > As well, nr_swapfiles is never decreased so if we enable multiple
-> > swaps and then disable until a swap is remained, this sorting is
-> > pointelss, too.
-> >
-> > How about lazy sorting approach? IOW, if we found prev != p and,
-> > then we can sort it.
+> that's a good point.
 > 
-> Yes.  That should be better.  I just don't know whether the added
-> complexity is necessary, given the array is short and sort is fast.
+> I was going to ask yesterday - do we even need copy_page()? arch that
+> provides well optimized copy_page() quite likely provides somewhat
+> equally optimized memcpy(). so may be copy_page() is not even needed?
 
-Huh?
+I don't know.
 
-1. swapon /dev/XXX1
-2. swapon /dev/XXX2
-3. swapoff /dev/XXX2
-4. use only one swap
-5. then, always pointless sort.
-
-Do not add such bogus code.
-
-Nacked.
+Just I found https://download.samba.org/pub/paulus/ols-2003-presentation.pdf
+and heard https://lkml.org/lkml/2017/4/10/1270.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
