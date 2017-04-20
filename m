@@ -1,51 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 550506B03B7
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 02:53:33 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g31so4586562wrg.15
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:53:33 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t18si7630235wra.90.2017.04.19.23.53.31
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B0106B03B8
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 03:15:29 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id k87so55401286ioi.3
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 00:15:29 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id s79si5427942pfj.374.2017.04.20.00.15.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Apr 2017 23:53:32 -0700 (PDT)
-Date: Thu, 20 Apr 2017 08:53:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: Re: "mm: move pcp and lru-pcp draining into single wq" broke
- resume from s2ram
-Message-ID: <20170420065327.GA15781@dhcp22.suse.cz>
-References: <201704190541.v3J5fUE3054131@www262.sakura.ne.jp>
- <20170419071039.GB28263@dhcp22.suse.cz>
- <201704190726.v3J7QAiC076509@www262.sakura.ne.jp>
- <20170419075712.GB29789@dhcp22.suse.cz>
- <CAMuHMdVmJrr6_sGeU4oxH5fn10BRdLC5nOEePN05p3kJ1x3YBQ@mail.gmail.com>
- <20170419081701.GC29789@dhcp22.suse.cz>
- <CA+55aFxQOJp0jq4Z9pFQzZtyc7KHapVT=ZbYyUufyGQhY=DvkQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Apr 2017 00:15:28 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+References: <20170407064901.25398-1-ying.huang@intel.com>
+	<20170418045909.GA11015@bbox> <87y3uwrez0.fsf@yhuang-dev.intel.com>
+	<20170420063834.GB3720@bbox>
+Date: Thu, 20 Apr 2017 15:15:25 +0800
+In-Reply-To: <20170420063834.GB3720@bbox> (Minchan Kim's message of "Thu, 20
+	Apr 2017 15:38:34 +0900")
+Message-ID: <874lxjim7m.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxQOJp0jq4Z9pFQzZtyc7KHapVT=ZbYyUufyGQhY=DvkQ@mail.gmail.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-Renesas <linux-renesas-soc@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Wed 19-04-17 15:50:01, Linus Torvalds wrote:
-> On Wed, Apr 19, 2017 at 1:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > Thanks for the testing. Linus will you take the patch from this thread
-> > or you prefer a resend?
-> 
-> I'll take it from this branch since I'm looking at it now, but in
-> general I prefer resends just because finding patches deep in some
-> discussion is very iffy.
+Minchan Kim <minchan@kernel.org> writes:
 
-Yeah, I perfectly understand this and that's why I've asked. Thanks for
-taking the patch!
+> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> 
+>> > Hi Huang,
+>> >
+>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+>> >> From: Huang Ying <ying.huang@intel.com>
+>> >> 
+>> >> To reduce the lock contention of swap_info_struct->lock when freeing
+>> >> swap entry.  The freed swap entries will be collected in a per-CPU
+>> >> buffer firstly, and be really freed later in batch.  During the batch
+>> >> freeing, if the consecutive swap entries in the per-CPU buffer belongs
+>> >> to same swap device, the swap_info_struct->lock needs to be
+>> >> acquired/released only once, so that the lock contention could be
+>> >> reduced greatly.  But if there are multiple swap devices, it is
+>> >> possible that the lock may be unnecessarily released/acquired because
+>> >> the swap entries belong to the same swap device are non-consecutive in
+>> >> the per-CPU buffer.
+>> >> 
+>> >> To solve the issue, the per-CPU buffer is sorted according to the swap
+>> >> device before freeing the swap entries.  Test shows that the time
+>> >> spent by swapcache_free_entries() could be reduced after the patch.
+>> >> 
+>> >> Test the patch via measuring the run time of swap_cache_free_entries()
+>> >> during the exit phase of the applications use much swap space.  The
+>> >> results shows that the average run time of swap_cache_free_entries()
+>> >> reduced about 20% after applying the patch.
+>> >> 
+>> >> Signed-off-by: Huang Ying <ying.huang@intel.com>
+>> >> Acked-by: Tim Chen <tim.c.chen@intel.com>
+>> >> Cc: Hugh Dickins <hughd@google.com>
+>> >> Cc: Shaohua Li <shli@kernel.org>
+>> >> Cc: Minchan Kim <minchan@kernel.org>
+>> >> Cc: Rik van Riel <riel@redhat.com>
+>> >> 
+>> >> v3:
+>> >> 
+>> >> - Add some comments in code per Rik's suggestion.
+>> >> 
+>> >> v2:
+>> >> 
+>> >> - Avoid sort swap entries if there is only one swap device.
+>> >> ---
+>> >>  mm/swapfile.c | 12 ++++++++++++
+>> >>  1 file changed, 12 insertions(+)
+>> >> 
+>> >> diff --git a/mm/swapfile.c b/mm/swapfile.c
+>> >> index 90054f3c2cdc..f23c56e9be39 100644
+>> >> --- a/mm/swapfile.c
+>> >> +++ b/mm/swapfile.c
+>> >> @@ -37,6 +37,7 @@
+>> >>  #include <linux/swapfile.h>
+>> >>  #include <linux/export.h>
+>> >>  #include <linux/swap_slots.h>
+>> >> +#include <linux/sort.h>
+>> >>  
+>> >>  #include <asm/pgtable.h>
+>> >>  #include <asm/tlbflush.h>
+>> >> @@ -1065,6 +1066,13 @@ void swapcache_free(swp_entry_t entry)
+>> >>  	}
+>> >>  }
+>> >>  
+>> >> +static int swp_entry_cmp(const void *ent1, const void *ent2)
+>> >> +{
+>> >> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
+>> >> +
+>> >> +	return (long)(swp_type(*e1) - swp_type(*e2));
+>> >> +}
+>> >> +
+>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+>> >>  {
+>> >>  	struct swap_info_struct *p, *prev;
+>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+>> >>  
+>> >>  	prev = NULL;
+>> >>  	p = NULL;
+>> >> +
+>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+>> >> +	if (nr_swapfiles > 1)
+>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+>> >
+>> > Let's think on other cases.
+>> >
+>> > There are two swaps and they are configured by priority so a swap's usage
+>> > would be zero unless other swap used up. In case of that, this sorting
+>> > is pointless.
+>> >
+>> > As well, nr_swapfiles is never decreased so if we enable multiple
+>> > swaps and then disable until a swap is remained, this sorting is
+>> > pointelss, too.
+>> >
+>> > How about lazy sorting approach? IOW, if we found prev != p and,
+>> > then we can sort it.
+>> 
+>> Yes.  That should be better.  I just don't know whether the added
+>> complexity is necessary, given the array is short and sort is fast.
+>
+> Huh?
+>
+> 1. swapon /dev/XXX1
+> 2. swapon /dev/XXX2
+> 3. swapoff /dev/XXX2
+> 4. use only one swap
+> 5. then, always pointless sort.
 
--- 
-Michal Hocko
-SUSE Labs
+Yes.  In this situation we will do unnecessary sorting.  What I don't
+know is whether the unnecessary sorting will hurt performance in real
+life.  I can do some measurement.
+
+Best Regards,
+Huang, Ying
+
+> Do not add such bogus code.
+>
+> Nacked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
