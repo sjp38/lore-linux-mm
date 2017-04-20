@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E13052806EA
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 09:25:40 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k14so5621668wrc.16
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:25:40 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id g55si9051279wra.249.2017.04.20.06.25.39
+	by kanga.kvack.org (Postfix) with ESMTP id 0B3D62806EA
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 09:32:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g67so1255414wrd.0
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:32:49 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id l62si18107958wml.35.2017.04.20.06.32.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 06:25:39 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id u65so3108421wmu.3
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:25:39 -0700 (PDT)
-Date: Thu, 20 Apr 2017 15:25:37 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: Heads-up: two regressions in v4.11-rc series
-Message-ID: <20170420132536.GB25160@lerouge>
-References: <20170420110042.73d01e0f@redhat.com>
+        Thu, 20 Apr 2017 06:32:48 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id o81so10852646wmb.0
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 06:32:48 -0700 (PDT)
+Date: Thu, 20 Apr 2017 15:29:20 +0200
+From: Miklos Szeredi <miklos@szeredi.hu>
+Subject: Re: [fuse-devel] trying to steal weird page?
+Message-ID: <20170420132920.GA5214@veci.piliscsaba.szeredi.hu>
+References: <CAB3-ZyT5pPc68BiQ2aC4r1608YgaN5U4H8TjddPN9jiUTE0rRg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170420110042.73d01e0f@redhat.com>
+In-Reply-To: <CAB3-ZyT5pPc68BiQ2aC4r1608YgaN5U4H8TjddPN9jiUTE0rRg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, peterz@infradead.org
+To: Antonio SJ Musumeci <trapexit@spawn.link>
+Cc: fuse-devel <fuse-devel@lists.sourceforge.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 20, 2017 at 11:00:42AM +0200, Jesper Dangaard Brouer wrote:
-> Hi Linus,
+On Wed, Apr 12, 2017 at 11:30:00AM -0400, Antonio SJ Musumeci wrote:
+> A user reported getting the below errors when *not* using direct_io
+> but atomic_o_trunc, auto_cache, big_writes, default_permissions,
+> splice_move, splice_read, and splice_write are enabled.
 > 
-> Just wanted to give a heads-up on two regressions in 4.11-rc series.
-> 
-> (1) page allocator optimization revert
-> 
-> Mel Gorman and I have been playing with optimizing the page allocator,
-> but Tariq spotted that we caused a regression for (NIC) drivers that
-> refill DMA RX rings in softirq context.
-> 
-> The end result was a revert, and this is waiting in AKPMs quilt queue:
->  http://ozlabs.org/~akpm/mmots/broken-out/revert-mm-page_alloc-only-use-per-cpu-allocator-for-irq-safe-requests.patch
-> 
-> 
-> (2) Busy softirq can cause userspace not to be scheduled
-> 
-> I bisected the problem to a499a5a14dbd ("sched/cputime: Increment
-> kcpustat directly on irqtime account"). See email thread with
->  Subject: Bisected softirq accounting issue in v4.11-rc1~170^2~28
->  http://lkml.kernel.org/r/20170328101403.34a82fbf@redhat.com
-> 
-> I don't know the scheduler code well enough to fix this, and will have
-> to rely others to figure out this scheduler regression.
-> 
-> To make it clear: I'm only seeing this scheduler regression when a
-> remote host is sending many many network packets, towards the kernel
-> which keeps NAPI/softirq busy all the time.  A possible hint: tool
-> "top" only shows this in "si" column, while on v4.10 "top" also blames
-> "ksoftirqd/N", plus "ps" reported cputime (0:00) seems wrong for ksoftirqd.
+> Any ideas?
 
-(I'm currently working on reproducing that one.)
+I think this is due to the PageWaiters bit added in v4.10 by
+
+62906027091f ("mm: add PageWaiters indicating tasks are waiting for a page bit")
+
+That bit is harmless and probably left behind due to a race.  Following patch
+should fix the warning.
+
+Thanks,
+Miklos
+
+---
+ fs/fuse/dev.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/fs/fuse/dev.c
++++ b/fs/fuse/dev.c
+@@ -811,6 +811,7 @@ static int fuse_check_page(struct page *
+ 	       1 << PG_uptodate |
+ 	       1 << PG_lru |
+ 	       1 << PG_active |
++	       1 << PG_waiters |
+ 	       1 << PG_reclaim))) {
+ 		printk(KERN_WARNING "fuse: trying to steal weird page\n");
+ 		printk(KERN_WARNING "  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
