@@ -1,147 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B0106B03B8
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 03:15:29 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id k87so55401286ioi.3
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 00:15:29 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s79si5427942pfj.374.2017.04.20.00.15.27
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B56952806DB
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 03:28:25 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id n5so4676917wrb.7
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 00:28:25 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 33si7752381wrv.67.2017.04.20.00.28.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 00:15:28 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-References: <20170407064901.25398-1-ying.huang@intel.com>
-	<20170418045909.GA11015@bbox> <87y3uwrez0.fsf@yhuang-dev.intel.com>
-	<20170420063834.GB3720@bbox>
-Date: Thu, 20 Apr 2017 15:15:25 +0800
-In-Reply-To: <20170420063834.GB3720@bbox> (Minchan Kim's message of "Thu, 20
-	Apr 2017 15:38:34 +0900")
-Message-ID: <874lxjim7m.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Apr 2017 00:28:24 -0700 (PDT)
+Date: Thu, 20 Apr 2017 09:28:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: your mail
+Message-ID: <20170420072820.GB15781@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170417054718.GD1351@js1304-desktop>
+ <20170417081513.GA12511@dhcp22.suse.cz>
+ <20170420012753.GA22054@js1304-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170420012753.GA22054@js1304-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-Minchan Kim <minchan@kernel.org> writes:
+On Thu 20-04-17 10:27:55, Joonsoo Kim wrote:
+> On Mon, Apr 17, 2017 at 10:15:15AM +0200, Michal Hocko wrote:
+[...]
+> > Which pfn walkers you have in mind?
+> 
+> For example, kpagecount_read() in fs/proc/page.c. I searched it by
+> using pfn_valid().
 
-> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > Hi Huang,
->> >
->> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
->> >> From: Huang Ying <ying.huang@intel.com>
->> >> 
->> >> To reduce the lock contention of swap_info_struct->lock when freeing
->> >> swap entry.  The freed swap entries will be collected in a per-CPU
->> >> buffer firstly, and be really freed later in batch.  During the batch
->> >> freeing, if the consecutive swap entries in the per-CPU buffer belongs
->> >> to same swap device, the swap_info_struct->lock needs to be
->> >> acquired/released only once, so that the lock contention could be
->> >> reduced greatly.  But if there are multiple swap devices, it is
->> >> possible that the lock may be unnecessarily released/acquired because
->> >> the swap entries belong to the same swap device are non-consecutive in
->> >> the per-CPU buffer.
->> >> 
->> >> To solve the issue, the per-CPU buffer is sorted according to the swap
->> >> device before freeing the swap entries.  Test shows that the time
->> >> spent by swapcache_free_entries() could be reduced after the patch.
->> >> 
->> >> Test the patch via measuring the run time of swap_cache_free_entries()
->> >> during the exit phase of the applications use much swap space.  The
->> >> results shows that the average run time of swap_cache_free_entries()
->> >> reduced about 20% after applying the patch.
->> >> 
->> >> Signed-off-by: Huang Ying <ying.huang@intel.com>
->> >> Acked-by: Tim Chen <tim.c.chen@intel.com>
->> >> Cc: Hugh Dickins <hughd@google.com>
->> >> Cc: Shaohua Li <shli@kernel.org>
->> >> Cc: Minchan Kim <minchan@kernel.org>
->> >> Cc: Rik van Riel <riel@redhat.com>
->> >> 
->> >> v3:
->> >> 
->> >> - Add some comments in code per Rik's suggestion.
->> >> 
->> >> v2:
->> >> 
->> >> - Avoid sort swap entries if there is only one swap device.
->> >> ---
->> >>  mm/swapfile.c | 12 ++++++++++++
->> >>  1 file changed, 12 insertions(+)
->> >> 
->> >> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> >> index 90054f3c2cdc..f23c56e9be39 100644
->> >> --- a/mm/swapfile.c
->> >> +++ b/mm/swapfile.c
->> >> @@ -37,6 +37,7 @@
->> >>  #include <linux/swapfile.h>
->> >>  #include <linux/export.h>
->> >>  #include <linux/swap_slots.h>
->> >> +#include <linux/sort.h>
->> >>  
->> >>  #include <asm/pgtable.h>
->> >>  #include <asm/tlbflush.h>
->> >> @@ -1065,6 +1066,13 @@ void swapcache_free(swp_entry_t entry)
->> >>  	}
->> >>  }
->> >>  
->> >> +static int swp_entry_cmp(const void *ent1, const void *ent2)
->> >> +{
->> >> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
->> >> +
->> >> +	return (long)(swp_type(*e1) - swp_type(*e2));
->> >> +}
->> >> +
->> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
->> >>  {
->> >>  	struct swap_info_struct *p, *prev;
->> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
->> >>  
->> >>  	prev = NULL;
->> >>  	p = NULL;
->> >> +
->> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
->> >> +	if (nr_swapfiles > 1)
->> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
->> >
->> > Let's think on other cases.
->> >
->> > There are two swaps and they are configured by priority so a swap's usage
->> > would be zero unless other swap used up. In case of that, this sorting
->> > is pointless.
->> >
->> > As well, nr_swapfiles is never decreased so if we enable multiple
->> > swaps and then disable until a swap is remained, this sorting is
->> > pointelss, too.
->> >
->> > How about lazy sorting approach? IOW, if we found prev != p and,
->> > then we can sort it.
->> 
->> Yes.  That should be better.  I just don't know whether the added
->> complexity is necessary, given the array is short and sort is fast.
->
-> Huh?
->
-> 1. swapon /dev/XXX1
-> 2. swapon /dev/XXX2
-> 3. swapoff /dev/XXX2
-> 4. use only one swap
-> 5. then, always pointless sort.
+Yeah, I've checked that one and in fact this is a good example of the
+case where you do not really care about holes. It just checks the page
+count which is a valid information under any circumstances.
 
-Yes.  In this situation we will do unnecessary sorting.  What I don't
-know is whether the unnecessary sorting will hurt performance in real
-life.  I can do some measurement.
+> > > The other problem I found is that your change will makes some
+> > > contiguous zones to be considered as non-contiguous. Memory allocated
+> > > by memblock API is also marked as PageResereved. If we consider this as
+> > > a hole, we will set such a zone as non-contiguous.
+> > 
+> > Why would that be a problem? We shouldn't touch those pages anyway?
+> 
+> Skipping those pages in compaction are valid so no problem in this
+> case.
+> 
+> The problem I mentioned above is that adding PageReserved() check in
+> __pageblock_pfn_to_page() invalidates optimization by
+> set_zone_contiguous(). In compaction, we need to get a valid struct
+> page and it requires a lot of work. There is performance problem
+> report due to this so set_zone_contiguous() optimization is added. It
+> checks if the zone is contiguous or not in boot time. If zone is
+> determined as contiguous, we can easily get a valid struct page in
+> runtime without expensive checks.
 
-Best Regards,
-Huang, Ying
+OK, I see. I've had some vague understading and the clarification helps.
 
-> Do not add such bogus code.
->
-> Nacked.
+> Your patch try to add PageReserved() to __pageblock_pfn_to_page(). It
+> woule make that zone->contiguous usually returns false since memory
+> used by memblock API is marked as PageReserved() and your patch regard
+> it as a hole. It invalidates set_zone_contiguous() optimization and I
+> worry about it.
+
+OK, fair enough. I did't consider memblock allocations. I will rethink
+this patch but there are essentially 3 options
+	- use a different criterion for the offline holes dection. I
+	  have just realized we might do it by storing the online
+	  information into the mem sections
+	- drop this patch
+	- move the PageReferenced check down the chain into
+	  isolate_freepages_block resp. isolate_migratepages_block
+
+I would prefer 3 over 2 over 1. I definitely want to make this more
+robust so 1 is preferable long term but I do not want this to be a
+roadblock to the rest of the rework. Does that sound acceptable to you?
+ 
+[..]
+> Let me clarify my desire(?) for this issue.
+> 
+> 1. If pfn_valid() returns true, struct page has valid information, at
+> least, in flags (zone id, node id, flags, etc...). So, we can use them
+> without checking PageResereved().
+
+This is no longer true after my rework. Pages are associated with the
+zone during _onlining_ rather than when they are physically hotpluged.
+Basically only the nid is set properly. Strictly speaking this is the
+case also without my rework because the zone might change during online
+phase so you cannot assume it is correct even now. It just happens that
+it more or less works just fine.
+
+> 2. pfn_valid() for offlined holes returns false. This can be easily
+> (?) implemented by manipulating SECTION_MAP_MASK in hotplug code. I
+> guess that there is no reason that pfn_valid() returns true for
+> offlined holes. If there is, please let me know.
+
+There is some code which really expects that pfn_valid returns true iff
+there is a struct page and it doesn't care about the online status.
+E.g. hotplug code itself so no, we cannot change pfn_valid. What we can
+do though is to add pfn_to_online_page which would do the proper check.
+I have already sent [1]. As noted above we can (ab)use the remaining bit
+in SECTION_MAP_MASK to detect offline pages more robustly.
+
+> 3. We don't need to check PageReserved() in most of pfn walkers in
+> order to check offline holes.
+
+We still have to distinguish those who care about offline pages from
+those who do not care about it.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
