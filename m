@@ -1,118 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 856BF2806CB
-	for <linux-mm@kvack.org>; Wed, 19 Apr 2017 23:37:11 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id b78so4257362wrd.18
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 20:37:11 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id j1si6985138wrb.166.2017.04.19.20.37.09
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B2B726B03AE
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 01:06:42 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id o22so52464465iod.6
+        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 22:06:42 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s3si5160301plb.315.2017.04.19.22.06.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Apr 2017 20:37:09 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id z129so8300193wmb.1
-        for <linux-mm@kvack.org>; Wed, 19 Apr 2017 20:37:09 -0700 (PDT)
+        Wed, 19 Apr 2017 22:06:41 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3K53hPt083645
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 01:06:41 -0400
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29x6x1ypax-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 01:06:41 -0400
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 20 Apr 2017 15:06:13 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3K562Ga56164532
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 15:06:10 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3K55b8U019249
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 15:05:37 +1000
+Subject: Re: [RFC] mm/madvise: Enable (soft|hard) offline of HugeTLB pages at
+ PGD level
+References: <20170419032759.29700-1-khandual@linux.vnet.ibm.com>
+ <877f2ghqaf.fsf@skywalker.in.ibm.com>
+ <d3189584-4ddd-53b8-f412-57e378dbf7ca@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 20 Apr 2017 10:35:14 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170418195435.GB20671@dhcp22.suse.cz>
-References: <20170410110351.12215-1-mhocko@kernel.org> <20170411170317.GB21171@dhcp22.suse.cz>
- <CAA9_cmdrNZkOByvSecmocqs=6o8ZP5bz+Zx6NrwqjU66C=5Y4w@mail.gmail.com>
- <20170418071456.GD22360@dhcp22.suse.cz> <CAA9_cmfxa8QO=8-FeXWAg7iBrGh0LrZM4C=vWA5xb2ADLtO4Rw@mail.gmail.com>
- <20170418195435.GB20671@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 19 Apr 2017 20:37:08 -0700
-Message-ID: <CAA9_cmdJVaYg_KYPqRrnLe2V4rw7xPhzyCtVOp2pd+65hMX1Wg@mail.gmail.com>
-Subject: Re: [PATCH -v2 0/9] mm: make movable onlining suck less
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <d3189584-4ddd-53b8-f412-57e378dbf7ca@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <893ecbd7-e9fa-7a54-fc62-43f8a5b8107f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org
 
-On Tue, Apr 18, 2017 at 12:54 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 18-04-17 09:42:57, Dan Williams wrote:
->> On Tue, Apr 18, 2017 at 12:14 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> > On Mon 17-04-17 14:51:12, Dan Williams wrote:
->> >> On Tue, Apr 11, 2017 at 10:03 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> >> > All the reported issue seem to be fixed and pushed to my git tree
->> >> > attempts/rewrite-mem_hotplug branch. I will wait a day or two for more
->> >> > feedback and then repost for the inclusion. I would really appreaciate
->> >> > more testing/review!
->> >>
->> >> This still seems to be based on 4.10? It's missing some block-layer
->> >> fixes and other things that trigger failures in the nvdimm unit tests.
->> >> Can you rebase to a more recent 4.11-rc?
->> >
->> > OK, I will rebase on top of linux-next. This has been based on mmotm
->> > tree so far. Btw. is there anything that would change the current
->> > implementation other than small context tweaks? In other words, do you
->> > see any issues with the current implementation regarding nvdimm's
->> > ZONE_DEVICE usage?
+On 04/19/2017 12:12 PM, Anshuman Khandual wrote:
+> On 04/19/2017 11:50 AM, Aneesh Kumar K.V wrote:
+>> Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
 >>
->> I don't foresee any issues, but I wanted to be able to run the latest
->> test suite to be sure.
->
-> OK, the rebase on top of the current linux-next is in my git tree [1]
-> attempts/rewrite-mem_hotplug branch. I will post the full series
-> tomorrow hopefully.
->
-> [1] git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+>>> Though migrating gigantic HugeTLB pages does not sound much like real
+>>> world use case, they can be affected by memory errors. Hence migration
+>>> at the PGD level HugeTLB pages should be supported just to enable soft
+>>> and hard offline use cases.
+>> In that case do we want to isolated the entire 16GB range ? Should we
+>> just dequeue the page from hugepage pool convert them to regular 64K
+>> pages and then isolate the 64K that had memory error ?
+> Though its a better thing to do, assuming that we can actually dequeue
+> the huge page and push it to the buddy allocator as normal 64K pages
+> (need to check on this as the original allocation happened from the
+> memblock instead of the buddy allocator, guess it should be possible
+> given that we do similar stuff during memory hot plug). In that case
+> we will also have to consider the same for the PMD based HugeTLB pages
+> as well or it should be only for these gigantic huge pages ?
 
+If we look at the code inside the function soft_offline_huge_page(),
+if the source huge page has been freed to the active_freelist then
+we mark the *entire* hugepage as poisoned but if the huge page has
+been released back to the buddy allocator then only the page in
+question is marked poisoned not the entire huge page. This was
+part was added with the commit a49ecbcd7 ("mm/memory-failure.c:
+recheck PageHuge() after hugetlb page migrate successfully"). But
+when I look at the migrate_pages() handling of huge pages, it always
+calls putback_active_hugepage() after successful migration to release
+the huge page back the active list not to the buddy allocator. I am 
+not sure if the second half of 'if' block is ever getting executed
+at all.
 
-I'm hitting the following with the "device-dax" unit test [1]. Does
-not look like your changes, but I'm kicking off a bisect between
-v4.11-rc7 and this branch tip.
+I am starting to wonder whats the point of releasing the huge page
+to the active list in migrate_pages() when we will go and mark the
+entire huge page as *poisoned*, put it in a dangling state (page->lru
+pointing to itself) which can not be allocated anyway.
 
-[1]: https://github.com/pmem/ndctl/blob/master/test/device-dax.c
+After migrate_pages() is successful and the source huge page is
+release to the active list. We just mark the single normal page
+has poisoned, get the source page from the active list and free
+it to the buddy allocator. This should just take care both PMD
+and PGD based huge pages.
 
----
-
-[  547.047430] BUG: unable to handle kernel paging request at ffff880001000000
-[  547.048954] IP: native_set_pte_at+0x1/0x10
-[  547.049967] PGD 3197067
-[  547.049968] P4D 3197067
-[  547.050779] PUD 3198067
-[  547.051589] PMD 33ff00067
-[  547.052401] PTE 8000000001000161
-[  547.053237]
-[  547.054819] Oops: 0003 [#1] SMP DEBUG_PAGEALLOC
-[  547.055907] Dumping ftrace buffer:
-[  547.056864]    (ftrace buffer empty)
-[  547.057815] Modules linked in: nd_blk(O) ip6t_rpfilter ip6t_REJECT
-nf_reject_ipv6 xt_conntrack ebtable_nat ebtable_broute bridge stp llc
-ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_n
-at_ipv6 ip6table_mangle ip6table_raw ip6table_security iptable_nat
-nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack
-iptable_mangle iptable_raw iptable_security ebtable_filter
- ebtables ip6table_filter ip6_tables crct10dif_pclmul crc32_pclmul
-crc32c_intel ghash_clmulni_intel dax_pmem(O) nd_pmem(O) dax(O)
-nd_btt(O) nfit(O) nd_e820(O) tpm_tis libnvdimm(O) serio_raw
-tpm_tis_core tpm nfit_test_iomap(O) nfsd nfs_acl [last unloaded: nfit_test]
-[  547.069034] CPU: 17 PID: 9526 Comm: lt-ndctl Tainted: G           O
-   4.11.0-rc7-next-20170418+ #34
-[  547.071122] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
-BIOS 1.9.3-1.fc25 04/01/2014
-[  547.073163] task: ffff880322f518c0 task.stack: ffffc90002f08000
-[  547.074433] RIP: 0010:native_set_pte_at+0x1/0x10
-[  547.075523] RSP: 0018:ffffc90002f0bb90 EFLAGS: 00010246
-[  547.076703] RAX: 0000000000000000 RBX: ffff880200000000 RCX: 0000000000000000
-[  547.078129] RDX: ffff880001000000 RSI: ffff880200000000 RDI: ffffffff820892e0
-[  547.079549] RBP: ffffc90002f0bba8 R08: 0000000000000000 R09: ffffffff81ec7264
-[  547.080969] R10: ffffc90002f0bb28 R11: ffff880322f518c0 R12: ffff880200200000
-[  547.082389] R13: ffff88033ff00000 R14: ffff880200001000 R15: ffff880200000000
-[  547.083816] FS:  00007fc08d585380(0000) GS:ffff880336040000(0000)
-knlGS:0000000000000000
-[  547.085777] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  547.087013] CR2: ffff880001000000 CR3: 000000019fe1f000 CR4: 00000000000406e0
-[  547.091667] Call Trace:
-[  547.092466]  ? pte_clear.constprop.18+0x26/0x2b
-[  547.093563]  remove_pagetable+0x4af/0x783
-[  547.094582]  arch_remove_memory+0xa2/0xc0
-[  547.095598]  devm_memremap_pages_release+0xde/0x330
-[  547.096726]  release_nodes+0x16d/0x2b0
-[  547.097702]  devres_release_all+0x3c/0x50
-[  547.098726]  device_release_driver_internal+0x16d/0x210
-[  547.099900]  device_release_driver+0x12/0x20
-[  547.100949]  unbind_store+0x10f/0x160
-[
+----------------------------------------------------------------------
+ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+if (ret) {
+	pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+		pfn, ret, page->flags);
+	/*
+	 * We know that soft_offline_huge_page() tries to migrate
+	 * only one hugepage pointed to by hpage, so we need not
+	 * run through the pagelist here.
+	 */
+	putback_active_hugepage(hpage);
+	if (ret > 0)
+		ret = -EIO;
+} else {
+	/* overcommit hugetlb page will be freed to buddy */
+	if (PageHuge(page)) {
+		set_page_hwpoison_huge_page(hpage);
+		dequeue_hwpoisoned_huge_page(hpage);
+		num_poisoned_pages_add(1 << compound_order(hpage));
+	} else {
+		SetPageHWPoison(page);
+		num_poisoned_pages_inc();
+	}
+}
+----------------------------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
