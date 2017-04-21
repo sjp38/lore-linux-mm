@@ -1,149 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3A8B6B02C1
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 14:56:28 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id s85so153054841ios.1
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 11:56:28 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0058.outbound.protection.outlook.com. [104.47.34.58])
-        by mx.google.com with ESMTPS id y127si11023376pgy.49.2017.04.21.11.56.27
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0286F6B02C6
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 15:02:25 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id f23so16357737qkh.21
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 12:02:24 -0700 (PDT)
+Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
+        by mx.google.com with ESMTPS id n125si10277684qkd.262.2017.04.21.12.02.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 21 Apr 2017 11:56:27 -0700 (PDT)
-Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure Memory
- Encryption
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <c29edaff-24f2-ee9b-4142-bdbf8c42083f@amd.com>
-Date: Fri, 21 Apr 2017 13:56:13 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Apr 2017 12:02:24 -0700 (PDT)
+Received: by mail-qk0-x232.google.com with SMTP id y63so48943141qkd.1
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 12:02:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAN_72e3WpZXP3kGPeWjEpsfigGjnURLFTVsUf_P7ozzT8cN+bA@mail.gmail.com>
+References: <CAN_72e3WpZXP3kGPeWjEpsfigGjnURLFTVsUf_P7ozzT8cN+bA@mail.gmail.com>
+From: Pavel Roskin <plroskin@gmail.com>
+Date: Fri, 21 Apr 2017 12:02:23 -0700
+Message-ID: <CAN_72e2fz+XKb7cuKhiit6rwzRDSN89ODvTT8MZjeuQF8RDdtw@mail.gmail.com>
+Subject: Re: Allocating mock memory resources
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: linux-mm@kvack.org
 
-On 4/18/2017 4:22 PM, Tom Lendacky wrote:
-> Add support to check if SME has been enabled and if memory encryption
-> should be activated (checking of command line option based on the
-> configuration of the default state).  If memory encryption is to be
-> activated, then the encryption mask is set and the kernel is encrypted
-> "in place."
->
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/kernel/head_64.S |    1 +
->  arch/x86/mm/mem_encrypt.c |   83 +++++++++++++++++++++++++++++++++++++++++++--
->  2 files changed, 80 insertions(+), 4 deletions(-)
->
+Hello
 
-...
+On Sat, Apr 15, 2017 at 11:31 PM, Pavel Roskin <plroskin@gmail.com> wrote:
 
+> I'm working on a device driver for hardware that is being developed.
+> I'm coding against the specification and hoping for the best. It would
+> be very handy to have a mock implementation of the hardware so I could
+> test the driver against it. In the end, it would be an integration
+> test for the driver, which could be useful even after the hardware
+> arrives. For example, I could emulate hardware failures and see how
+> the driver reacts. Moreover, a driver test framework would be useful
+> for others.
 >
-> -unsigned long __init sme_enable(void)
-> +unsigned long __init sme_enable(struct boot_params *bp)
->  {
-> +	const char *cmdline_ptr, *cmdline_arg, *cmdline_on, *cmdline_off;
-> +	unsigned int eax, ebx, ecx, edx;
-> +	unsigned long me_mask;
-> +	bool active_by_default;
-> +	char buffer[16];
+> One issue I'm facing is creating resources for the device. Luckily,
+> the driver only needs memory resources. It should be simple to
+> allocate such resources in system RAM, but I could not find a good way
+> to do it. Either the resource allocation fails, or the kernel panics
+> right away, or it panics when I run "cat /proc/iomem"
 
-So it turns out that when KASLR is enabled (CONFIG_RAMDOMIZE_BASE=y)
-the stack-protector support causes issues with this function because
-it is called so early. I can get past it by adding:
+In case anybody cares, here's my working solution.
 
-CFLAGS_mem_encrypt.o := $(nostackp)
+The RAM resource is needed because request_region() cannot traverse
+busy RAM region, but request_resource() doesn't check if any resources
+are busy. I don't like iterating over resources in a driver, but I
+don't know a better approach. I assume that all system RAM resources
+are direct children of iomem_resource.
 
-in the arch/x86/mm/Makefile, but that obviously eliminates the support
-for the whole file.  Would it be better to split out the sme_enable()
-and other boot routines into a separate file or just apply the
-$(nostackp) to the whole file?
+SetPageReserved() is needed to allow ioremap() on the region (by the
+way, CamelCase in the kernel code looks so weird).
 
-Thanks,
-Tom
+I'm surprised there is no universal phys_to_page() macro, so I'm using
+virtual addresses to iterate over pages.
 
-> +	u64 msr;
-> +
-> +	/* Check for the SME support leaf */
-> +	eax = 0x80000000;
-> +	ecx = 0;
-> +	native_cpuid(&eax, &ebx, &ecx, &edx);
-> +	if (eax < 0x8000001f)
-> +		goto out;
-> +
-> +	/*
-> +	 * Check for the SME feature:
-> +	 *   CPUID Fn8000_001F[EAX] - Bit 0
-> +	 *     Secure Memory Encryption support
-> +	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
-> +	 *     Pagetable bit position used to indicate encryption
-> +	 */
-> +	eax = 0x8000001f;
-> +	ecx = 0;
-> +	native_cpuid(&eax, &ebx, &ecx, &edx);
-> +	if (!(eax & 1))
-> +		goto out;
-> +	me_mask = 1UL << (ebx & 0x3f);
-> +
-> +	/* Check if SME is enabled */
-> +	msr = __rdmsr(MSR_K8_SYSCFG);
-> +	if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
-> +		goto out;
-> +
-> +	/*
-> +	 * Fixups have not been applied to phys_base yet, so we must obtain
-> +	 * the address to the SME command line option data in the following
-> +	 * way.
-> +	 */
-> +	asm ("lea sme_cmdline_arg(%%rip), %0"
-> +	     : "=r" (cmdline_arg)
-> +	     : "p" (sme_cmdline_arg));
-> +	asm ("lea sme_cmdline_on(%%rip), %0"
-> +	     : "=r" (cmdline_on)
-> +	     : "p" (sme_cmdline_on));
-> +	asm ("lea sme_cmdline_off(%%rip), %0"
-> +	     : "=r" (cmdline_off)
-> +	     : "p" (sme_cmdline_off));
-> +
-> +	if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT))
-> +		active_by_default = true;
-> +	else
-> +		active_by_default = false;
-> +
-> +	cmdline_ptr = (const char *)((u64)bp->hdr.cmd_line_ptr |
-> +				     ((u64)bp->ext_cmd_line_ptr << 32));
-> +
-> +	cmdline_find_option(cmdline_ptr, cmdline_arg, buffer, sizeof(buffer));
-> +
-> +	if (strncmp(buffer, cmdline_on, sizeof(buffer)) == 0)
-> +		sme_me_mask = me_mask;
-> +	else if (strncmp(buffer, cmdline_off, sizeof(buffer)) == 0)
-> +		sme_me_mask = 0;
-> +	else
-> +		sme_me_mask = active_by_default ? me_mask : 0;
-> +
-> +out:
->  	return sme_me_mask;
->  }
->
-> @@ -543,9 +618,9 @@ unsigned long sme_get_me_mask(void)
->
->  #else	/* !CONFIG_AMD_MEM_ENCRYPT */
->
-> -void __init sme_encrypt_kernel(void)	{ }
-> -unsigned long __init sme_enable(void)	{ return 0; }
-> +void __init sme_encrypt_kernel(void)			{ }
-> +unsigned long __init sme_enable(struct boot_params *bp)	{ return 0; }
->
-> -unsigned long sme_get_me_mask(void)	{ return 0; }
-> +unsigned long sme_get_me_mask(void)			{ return 0; }
->
->  #endif	/* CONFIG_AMD_MEM_ENCRYPT */
->
+The only limitation on the driver under test is that it should not be
+using request_region() on iomem_resource, as the RAM resource is busy
+and cannot be traversed.
+
+
+static struct resource *fff_get_ram_resource(struct resource *res)
+{
+    resource_size_t start = res->start;
+    resource_size_t end = res->end;
+    struct resource *p;
+
+    for (p = iomem_resource.child; p && p->start <= end; p = p->sibling) {
+        if (p->end >= start)
+            return p;
+    }
+
+    return NULL;
+}
+
+static int __init fff_emu_alloc_resources(void)
+{
+    struct page *pg;
+    char *pg_base, *p;
+    struct resource *ram_res;
+    int ret;
+
+    pg = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(EMU_MEM_SIZE));
+    if (!pg) {
+        pr_err("Cannot allocate memory for emulator resource\n");
+        return -ENOMEM;
+    }
+
+    pg_base = page_to_virt(pg);
+
+    emu_mem.start = page_to_phys(pg);
+    emu_mem.end = emu_mem.start + EMU_MEM_SIZE - 1;
+
+    ram_res = fff_get_ram_resource(&emu_mem);
+    if (!ram_res) {
+        pr_err("no RAM resource found for %pR\n", &emu_mem);
+        ret = -ENXIO;
+        goto out_mem;
+    }
+
+    ret = request_resource(ram_res, &emu_mem);
+    if (ret) {
+        pr_err("request_resource failed on %pR under %pR: error %d\n",
+               &emu_mem, ram_res, ret);
+        goto out_mem;
+    }
+
+    for (p = pg_base; p < pg_base + EMU_MEM_SIZE; p += PAGE_SIZE)
+        SetPageReserved(virt_to_page(p));
+
+    return 0;
+
+out_mem:
+    free_pages((unsigned long)pg_base, get_order(EMU_MEM_SIZE));
+    return ret;
+}
+
+static void fff_emu_free_resources(void)
+{
+    char *pg_base, *p;
+
+    pg_base = __va(emu_mem.start);
+    release_resource(&emu_mem);
+
+    for (p = pg_base; p < pg_base + EMU_MEM_SIZE; p += PAGE_SIZE)
+        ClearPageReserved(virt_to_page(p));
+
+    free_pages((unsigned long)pg_base, get_order(EMU_MEM_SIZE));
+}
+
+
+
+-- 
+Regards,
+Pavel Roskin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
