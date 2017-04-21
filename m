@@ -1,140 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0286F6B02C6
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 15:02:25 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id f23so16357737qkh.21
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 12:02:24 -0700 (PDT)
-Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
-        by mx.google.com with ESMTPS id n125si10277684qkd.262.2017.04.21.12.02.23
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9263E6B0311
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 15:30:07 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id d203so154688741iof.20
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 12:30:07 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id m186si3459219itc.8.2017.04.21.12.30.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 12:02:24 -0700 (PDT)
-Received: by mail-qk0-x232.google.com with SMTP id y63so48943141qkd.1
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 12:02:23 -0700 (PDT)
+        Fri, 21 Apr 2017 12:30:06 -0700 (PDT)
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v3LJU4Xp028721
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 19:30:05 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id v3LJU4Z4024346
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 19:30:04 GMT
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id v3LJU4MH012825
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 19:30:04 GMT
+Date: Fri, 21 Apr 2017 22:29:58 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: Re: [bug report] hugetlbfs: fix offset overflow in hugetlbfs mmap
+Message-ID: <20170421192958.riy5bhdqp6cxhl6e@mwanda>
+References: <20170421105724.j4o2j5zj2jjkjges@mwanda>
+ <aa82140c-248f-143d-2b14-142e4775df65@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <CAN_72e3WpZXP3kGPeWjEpsfigGjnURLFTVsUf_P7ozzT8cN+bA@mail.gmail.com>
-References: <CAN_72e3WpZXP3kGPeWjEpsfigGjnURLFTVsUf_P7ozzT8cN+bA@mail.gmail.com>
-From: Pavel Roskin <plroskin@gmail.com>
-Date: Fri, 21 Apr 2017 12:02:23 -0700
-Message-ID: <CAN_72e2fz+XKb7cuKhiit6rwzRDSN89ODvTT8MZjeuQF8RDdtw@mail.gmail.com>
-Subject: Re: Allocating mock memory resources
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aa82140c-248f-143d-2b14-142e4775df65@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org
 
-Hello
+I only send new warnings, but in this case it doesn't find any similar
+bugs in hugetlbfs.  It's specifically looking for code like
+"(foo + bar < foo)" where the addition operation is signed.
 
-On Sat, Apr 15, 2017 at 11:31 PM, Pavel Roskin <plroskin@gmail.com> wrote:
+Could you CC me on the fixes, just for reference and maybe I can check
+for those as well.
 
-> I'm working on a device driver for hardware that is being developed.
-> I'm coding against the specification and hoping for the best. It would
-> be very handy to have a mock implementation of the hardware so I could
-> test the driver against it. In the end, it would be an integration
-> test for the driver, which could be useful even after the hardware
-> arrives. For example, I could emulate hardware failures and see how
-> the driver reacts. Moreover, a driver test framework would be useful
-> for others.
->
-> One issue I'm facing is creating resources for the device. Luckily,
-> the driver only needs memory resources. It should be simple to
-> allocate such resources in system RAM, but I could not find a good way
-> to do it. Either the resource allocation fails, or the kernel panics
-> right away, or it panics when I run "cat /proc/iomem"
-
-In case anybody cares, here's my working solution.
-
-The RAM resource is needed because request_region() cannot traverse
-busy RAM region, but request_resource() doesn't check if any resources
-are busy. I don't like iterating over resources in a driver, but I
-don't know a better approach. I assume that all system RAM resources
-are direct children of iomem_resource.
-
-SetPageReserved() is needed to allow ioremap() on the region (by the
-way, CamelCase in the kernel code looks so weird).
-
-I'm surprised there is no universal phys_to_page() macro, so I'm using
-virtual addresses to iterate over pages.
-
-The only limitation on the driver under test is that it should not be
-using request_region() on iomem_resource, as the RAM resource is busy
-and cannot be traversed.
-
-
-static struct resource *fff_get_ram_resource(struct resource *res)
-{
-    resource_size_t start = res->start;
-    resource_size_t end = res->end;
-    struct resource *p;
-
-    for (p = iomem_resource.child; p && p->start <= end; p = p->sibling) {
-        if (p->end >= start)
-            return p;
-    }
-
-    return NULL;
-}
-
-static int __init fff_emu_alloc_resources(void)
-{
-    struct page *pg;
-    char *pg_base, *p;
-    struct resource *ram_res;
-    int ret;
-
-    pg = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(EMU_MEM_SIZE));
-    if (!pg) {
-        pr_err("Cannot allocate memory for emulator resource\n");
-        return -ENOMEM;
-    }
-
-    pg_base = page_to_virt(pg);
-
-    emu_mem.start = page_to_phys(pg);
-    emu_mem.end = emu_mem.start + EMU_MEM_SIZE - 1;
-
-    ram_res = fff_get_ram_resource(&emu_mem);
-    if (!ram_res) {
-        pr_err("no RAM resource found for %pR\n", &emu_mem);
-        ret = -ENXIO;
-        goto out_mem;
-    }
-
-    ret = request_resource(ram_res, &emu_mem);
-    if (ret) {
-        pr_err("request_resource failed on %pR under %pR: error %d\n",
-               &emu_mem, ram_res, ret);
-        goto out_mem;
-    }
-
-    for (p = pg_base; p < pg_base + EMU_MEM_SIZE; p += PAGE_SIZE)
-        SetPageReserved(virt_to_page(p));
-
-    return 0;
-
-out_mem:
-    free_pages((unsigned long)pg_base, get_order(EMU_MEM_SIZE));
-    return ret;
-}
-
-static void fff_emu_free_resources(void)
-{
-    char *pg_base, *p;
-
-    pg_base = __va(emu_mem.start);
-    release_resource(&emu_mem);
-
-    for (p = pg_base; p < pg_base + EMU_MEM_SIZE; p += PAGE_SIZE)
-        ClearPageReserved(virt_to_page(p));
-
-    free_pages((unsigned long)pg_base, get_order(EMU_MEM_SIZE));
-}
-
-
-
--- 
-Regards,
-Pavel Roskin
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
