@@ -1,100 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A296B03A0
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:23:08 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id l21so124320929ioi.2
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 01:23:08 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x12si9595777pls.154.2017.04.21.01.23.07
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 42CF56B03A0
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:31:06 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w102so4924257wrb.17
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 01:31:06 -0700 (PDT)
+Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id i13si13665120wrb.104.2017.04.21.01.31.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 01:23:07 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3L8J2cs060815
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:23:07 -0400
-Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29y27x27qn-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:23:05 -0400
-Received: from localhost
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 21 Apr 2017 18:22:54 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3L8Mijv6488462
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 18:22:52 +1000
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3L8MKZY030224
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 18:22:20 +1000
-Subject: Re: [PATCH v5 09/11] mm: mempolicy: mbind and migrate_pages support
- thp migration
-References: <20170420204752.79703-1-zi.yan@sent.com>
- <20170420204752.79703-10-zi.yan@sent.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 21 Apr 2017 13:52:00 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 21 Apr 2017 01:31:04 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: RFC: post-init-read-only protection for data allocated dynamically
+Message-ID: <3eba3df7-6694-5c47-48f4-30088845035b@huawei.com>
+Date: Fri, 21 Apr 2017 11:30:04 +0300
 MIME-Version: 1.0
-In-Reply-To: <20170420204752.79703-10-zi.yan@sent.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <1ebd80d1-7bb1-db6d-a60c-7f4b7b6afe0f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
+To: linux-mm@kvack.org
 
-On 04/21/2017 02:17 AM, Zi Yan wrote:
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> 
-> This patch enables thp migration for mbind(2) and migrate_pages(2).
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
-> ChangeLog v1 -> v2:
-> - support pte-mapped and doubly-mapped thp
-> ---
->  mm/mempolicy.c | 108 +++++++++++++++++++++++++++++++++++++++++----------------
->  1 file changed, 79 insertions(+), 29 deletions(-)
+Hello,
 
-Snip
+I am looking for a mechanism to protect the kernel data which is 
+allocated dynamically during system initialization and is later-on 
+accessed only for reads.
 
-> @@ -981,7 +1012,17 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
->  	if (PageHuge(page))
->  		return alloc_huge_page_node(page_hstate(compound_head(page)),
->  					node);
-> -	else
-> +	else if (thp_migration_supported() && PageTransHuge(page)) {
-> +		struct page *thp;
-> +
-> +		thp = alloc_pages_node(node,
-> +			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
-> +			HPAGE_PMD_ORDER);
-> +		if (!thp)
-> +			return NULL;
-> +		prep_transhuge_page(thp);
-> +		return thp;
-> +	} else
->  		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
->  						    __GFP_THISNODE, 0);
->  }
-> @@ -1147,6 +1188,15 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
->  	if (PageHuge(page)) {
->  		BUG_ON(!vma);
->  		return alloc_huge_page_noerr(vma, address, 1);
-> +	} else if (thp_migration_supported() && PageTransHuge(page)) {
-> +		struct page *thp;
-> +
-> +		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
-> +					 HPAGE_PMD_ORDER);
-> +		if (!thp)
-> +			return NULL;
-> +		prep_transhuge_page(thp);
-> +		return thp;
+The functionality would be, in spirit, like the __read_only modifier, 
+which can be used to mark static data as read-only, in the post-init 
+phase. Only, it would apply to dynamically allocated data.
 
-GFP flags in both these new page allocation functions should be the same.
-Does alloc_hugepage_vma() will eventually call page allocation with the
-following flags.
+I couldn't find any such feature (did I miss it?), so I started looking 
+at what could be the best way to introduce it.
 
-(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM
+The static post-init write protection is achieved by placing all the 
+data into a page-aligned segment and then protecting the page from 
+writes, using the MMU, once the data is in its final state.
+
+In my case, as example, I want to protect the SE Linux policy database, 
+after the set of policy has been loaded from file.
+SE Linux uses fairly complex data structures, which are allocated 
+dynamically, depending on what rules/policy are loaded into it.
+
+If I knew upfront, roughly, which sizes will be requested and how many 
+requests will happen, for each size, I could use multiple pools of objects.
+However, I cannot assume upfront to know these parameters, because it's 
+very likely that the set of policies & rules will evolve.
+
+I would also like to extend the write protection to other data 
+structures, which means I would probably end up writing another memory 
+allocator, if I started to generate on-demand object pools.
+
+The alternative I'm considering is that, if I were to add a new memory 
+zone (let's call it LOCKABLE), I could piggy back on the existing 
+infrastructure for memory allocation.
+
+Such zone would be carved out from the NORMAL one and would consist of 
+contiguous memory pages.
+
+Memory from this zone could be requested through some additional flag, 
+for example GFP_LOCKABLE, through vmalloc/kmalloc and friends.
+
+The zone could, for example, default to GFP_KERNEL, if for some reason 
+the HW doesn't support the feature.
+
+How does the idea look like? Any better suggestion?
+
+I want to create a reference implementation, but I am not sure what 
+would be the correct way to extend the current set of flags:
+
+Looking at gfp.h and mmzone.h, it seems that the 4 lower bits are 
+reserved for DMA, DMA32, HIGHMEM and MOVABLE:
+
+#define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+#define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+#define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
+#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)
+[...]
+
+
+There's a note:
+
+/* If the above are modified, __GFP_BITS_SHIFT may need updating */
+
+
+Should I add the LOCKABLE zone as 5th bit?
+
+#define __GFP_LOCKABLE	((__force gfp_t)___GFP_LOCKABLE)
+
+In general it seems that the existing bits have been used in some very 
+clever way, but there are none to spare, at least on 32-bit systems 
+(this is also related to GFP_BITS_SHIFT):
+
+  *       bit       result
+  *       =================
+  *       0x0    => NORMAL
+  *       0x1    => DMA or NORMAL
+  *       0x2    => HIGHMEM or NORMAL
+  *       0x3    => BAD (DMA+HIGHMEM)
+  *       0x4    => DMA32 or DMA or NORMAL
+  *       0x5    => BAD (DMA+DMA32)
+  *       0x6    => BAD (HIGHMEM+DMA32)
+  *       0x7    => BAD (HIGHMEM+DMA32+DMA)
+  *       0x8    => NORMAL (MOVABLE+0)
+  *       0x9    => DMA or NORMAL (MOVABLE+DMA)
+  *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
+  *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
+  *       0xc    => DMA32 (MOVABLE+DMA32)
+  *       0xd    => BAD (MOVABLE+DMA32+DMA)
+  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+
+Initially I was thinking to use one of the bit patterns defined as BAD,
+but it looks like they are actually bitmasks, so I should have one bit 
+field reserved for the specific zone I want to introduce.
+
+Does it need to be contiguous to the existing ones?
+Or should it be for example in 0x10 ?
+
+  *       0x10   => LOCKABLE or NORMAL
+          [all other combinations follow]
+
+---
+thanks, igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
