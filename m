@@ -1,90 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F14C06B0038
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 06:57:36 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id k1so20994780qtb.20
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 03:57:36 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id r185si9167131qkc.202.2017.04.21.03.57.35
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 38DB36B0397
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 07:07:10 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id s85so131146306ios.1
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:07:10 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m39si10036797plg.44.2017.04.21.04.07.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 03:57:35 -0700 (PDT)
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v3LAvYN7010063
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 10:57:34 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id v3LAvX1a012303
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 10:57:34 GMT
-Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by aserv0121.oracle.com (8.13.8/8.13.8) with ESMTP id v3LAvVT2005193
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 10:57:32 GMT
-Date: Fri, 21 Apr 2017 13:57:24 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [bug report] hugetlbfs: fix offset overflow in hugetlbfs mmap
-Message-ID: <20170421105724.j4o2j5zj2jjkjges@mwanda>
+        Fri, 21 Apr 2017 04:07:09 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3LB4S6F087839
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 07:07:08 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 29xyxd7dew-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 07:07:08 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 21 Apr 2017 12:07:05 +0100
+Date: Fri, 21 Apr 2017 14:06:58 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: Review request: draft userfaultfd(2) manual page
+References: <487b2c79-f99b-6d0f-2412-aa75cde65569@gmail.com>
+ <20170321140118.GA6471@rapoport-lnx>
+ <8269f5a9-a30e-f6dd-edc7-8da9a087bebe@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <8269f5a9-a30e-f6dd-edc7-8da9a087bebe@gmail.com>
+Message-Id: <20170421110657.GB20569@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mike.kravetz@oracle.com
-Cc: linux-mm@kvack.org
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-man <linux-man@vger.kernel.org>
 
-Hello Mike Kravetz,
+On Fri, Apr 21, 2017 at 08:30:55AM +0200, Michael Kerrisk (man-pages) wrote:
+> Hello Mike,
+> 
+> On 03/21/2017 03:01 PM, Mike Rapoport wrote:
+> > Hello Michael,
+> > 
+> > On Mon, Mar 20, 2017 at 09:08:05PM +0100, Michael Kerrisk (man-pages) wrote:
+> >> Hello Andrea, Mike, and all,
+> >>
+> >> Mike: thanks for the page that you sent. I've reworked it
+> >> a bit, and also added a lot of further information,
+> >> and an example program. In the process, I split the page
+> >> into two pieces, with one piece describing the userfaultfd()
+> >> system call and the other describing the ioctl() operations.
+> >>
+> >> I'd like to get review input, especially from you and
+> >> Andrea, but also anyone else, for the current version
+> >> of this page, which includes a few FIXMEs to be sorted.
+> > 
+> > Thanks for the update. I'm adressing the FIXME points you've mentioned
+> > below.
+> 
+> Thanks!
+> 
+> > Otherwise, everything seems the right description of the current upstream.
+> > 4.11 will have quite a few updates to userfault and we'll need to udpate
+> > this page and ioctl_userfaultfd(2) to address those updates. I am planning
+> > to work on the man update in the next few weeks. 
+> >  
+> >> I've shown the rendered version of the page below. 
+> >> The groff source is attached, and can also be found
+> >> at the branch here:
+> >  
+> >> https://git.kernel.org/pub/scm/docs/man-pages/man-pages.git/log/?h=draft_userfaultfd
+> >>
+> >> The new ioctl_userfaultfd(2) page follows this mail.
+> >>
+> >> Cheers,
+> >>
+> >> Michael
+> >  
+> > --
+> > Sincerely yours,
+> > Mike. 
+> >  
+> > 
+> >> USERFAULTFD(2)         Linux Programmer's Manual        USERFAULTFD(2)
+> >>
+> >> a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >> a??FIXME                                                a??
+> >> a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >> a??Need  to  describe close(2) semantics for userfaulfd a??
+> >> a??file descriptor: what happens when  the  userfaultfd a??
+> >> a??FD is closed?                                        a??
+> >> a??                                                     a??
+> >> a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >  
+> > When userfaultfd is closed, it unregisters all memory ranges that were
+> > previously registered with it and flushes the outstanding page fault
+> > events.
+> 
+> Presumably, this is more precisely stated as, "when the last
+> file descriptor referring to a userfaultfd object is closed..."?
 
-The patch 045c7a3f53d9: "hugetlbfs: fix offset overflow in hugetlbfs
-mmap" from Apr 13, 2017, leads to the following static checker
-warning:
+You are right.
+ 
+> I've made the text:
+> 
+>        When the last file descriptor referring to a userfaultfd object
+>        is  closed,  all  memory  ranges  that were registered with the
+>        object  are  unregistered  and  unread  page-fault  events  are
+>        flushed.
+> 
+> [...]
 
-	fs/hugetlbfs/inode.c:152 hugetlbfs_file_mmap()
-	warn: signed overflow undefined. 'vma_len + (vma->vm_pgoff << 12) < vma_len'
+Perfect.
+ 
+> >>    Reading from the userfaultfd structure
+> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >>        a??FIXME                                                a??
+> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >>        a??are the details below correct?                       a??
+> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> > 
+> > Yes, at least for the current upstream version. 4.11 will have quite a few
+> > updates to userfaultfd.
+> 
+> Okay.
+> 
+> >>        Each read(2) from the userfaultfd file descriptor  returns  one
+> >>        or  more  uffd_msg  structures, each of which describes a page-
+> >>        fault event:
+> >>
+> >>            struct uffd_msg {
+> >>                __u8  event;                /* Type of event */
+> >>                ...
+> >>                union {
+> >>                    struct {
+> >>                        __u64 flags;        /* Flags describing fault */
+> >>                        __u64 address;      /* Faulting address */
+> >>                    } pagefault;
+> >>                    ...
+> >>                } arg;
+> >>
+> >>                /* Padding fields omitted */
+> >>            } __packed;
+> >>
+> >>        If multiple events are available and  the  supplied  buffer  is
+> >>        large enough, read(2) returns as many events as will fit in the
+> >>        supplied buffer.  If the buffer supplied to read(2) is  smaller
+> >>        than the size of the uffd_msg structure, the read(2) fails with
+> >>        the error EINVAL.
+> >>
+> >>        The fields set in the uffd_msg structure are as follows:
+> >>
+> >>        event  The type of event.  Currently, only one value can appear
+> >>               in  this  field: UFFD_EVENT_PAGEFAULT, which indicates a
+> >>               page-fault event.
+> >>
+> >>        address
+> >>               The address that triggered the page fault.
+> >>
+> >>        flags  A bit mask  of  flags  that  describe  the  event.   For
+> >>               UFFD_EVENT_PAGEFAULT, the following flag may appear:
+> >>
+> >>               UFFD_PAGEFAULT_FLAG_WRITE
+> >>                      If  the address is in a range that was registered
+> >>                      with the UFFDIO_REGISTER_MODE_MISSING  flag  (see
+> >>                      ioctl_userfaultfd(2))  and this flag is set, this
+> >>                      a write fault; otherwise it is a read fault.
+> >>
+> >>        A read(2) on a userfaultfd file descriptor can  fail  with  the
+> >>        following errors:
+> >>
+> >>        EINVAL The  userfaultfd  object  has not yet been enabled using
+> >>               the UFFDIO_API ioctl(2) operation
+> >>
+> >>        The userfaultfd file descriptor can be monitored with  poll(2),
+> >>        select(2),  and  epoll(7).  When events are available, the file
+> >>        descriptor indicates as readable.
+> >>
+> >>
+> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >>        a??FIXME                                                a??
+> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> >>        a??But, it seems,  the  object  must  be  created  with a??
+> >>        a??O_NONBLOCK.  What is the rationale for this requirea?? a??
+> >>        a??ment? Something needs to  be  said  in  this  manual a??
+> >>        a??page.                                                a??
+> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+> > 
+> > The object can be created without O_NONBLOCK, so probably the above
+> > sentence can be rephrased as:
+> > 
+> > When the userfaultfd file descriptor is opened in non-blocking mode, it can
+> > be monitored with ...
+> 
+> Yes, but why is there this requirement for poll() etc. with the
+> O_NONBLOCK flag? I think something about that needs to be said in the 
+> man page. Sorry, my FIXME was not clear enough. I've reworded the text 
+> and the FIXME:
+> 
+>        If the O_NONBLOCK flag is enabled in the associated  open  file
+>        description,  the  userfaultfd file descriptor can be monitored
+>        with poll(2), select(2), and epoll(7).  When events are  availa??
+>        able, the file descriptor indicates as readable.  If the O_NONa??
+>        BLOCK flag is not enabled, then poll(2) (always) indicates  the
+>        file as having a POLLERR condition, and select(2) indicates the
+>        file descriptor as both readable and writable.
+> 
+>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+>        a??FIXME                                                a??
+>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
+>        a??What is the reason for this seemingly  odd  behavior a??
+>        a??with  respect  to  the  O_NONBLOCK  flag? (see usera?? a??
+>        a??faultfd_poll()  in   fs/userfaultfd.c).    Something a??
+>        a??needs to be said about this.                         a??
+>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
 
-fs/hugetlbfs/inode.c
-   121  static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
-   122  {
-   123          struct inode *inode = file_inode(file);
-   124          loff_t len, vma_len;
-   125          int ret;
-   126          struct hstate *h = hstate_file(file);
-   127  
-   128          /*
-   129           * vma address alignment (but not the pgoff alignment) has
-   130           * already been checked by prepare_hugepage_range.  If you add
-   131           * any error returns here, do so after setting VM_HUGETLB, so
-   132           * is_vm_hugetlb_page tests below unmap_region go the right
-   133           * way when do_mmap_pgoff unwinds (may be important on powerpc
-   134           * and ia64).
-   135           */
-   136          vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND;
-   137          vma->vm_ops = &hugetlb_vm_ops;
-   138  
-   139          /*
-   140           * Offset passed to mmap (before page shift) could have been
-   141           * negative when represented as a (l)off_t.
-   142           */
-   143          if (((loff_t)vma->vm_pgoff << PAGE_SHIFT) < 0)
-   144                  return -EINVAL;
-   145  
-   146          if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
-   147                  return -EINVAL;
-   148  
-   149          vma_len = (loff_t)(vma->vm_end - vma->vm_start);
-   150          len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
-   151          /* check for overflow */
-   152          if (len < vma_len)
-                    ^^^^^^^^^^^^^
-This is undefined in C.  I think with kernel GCC options it's safe these
-days, but I can't swear on it.
+Andrea, can you please help with this one as well?
 
-   153                  return -EINVAL;
-   154  
-   155          inode_lock(inode);
-   156          file_accessed(file);
+> [...]
+> 
+> Thanks,
+> 
+> Michael
+> 
+> -- 
+> Michael Kerrisk
+> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+> Linux/UNIX System Programming Training: http://man7.org/training/
 
-regards,
-dan carpenter
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
