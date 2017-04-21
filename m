@@ -1,61 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 196EB6B0038
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 00:38:30 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id a103so92960948ioj.8
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 21:38:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s83si8896049pfi.205.2017.04.20.21.38.29
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D58D06B0390
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 00:38:37 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id c62so48646732oia.13
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 21:38:37 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id b66si4879509oia.156.2017.04.20.21.38.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 21:38:29 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3L4Y5Tg060794
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 00:38:28 -0400
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 29y9k7u568-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 00:38:25 -0400
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 21 Apr 2017 14:37:49 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3L4bevF6291938
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 14:37:48 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3L4bA9j016284
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 14:37:11 +1000
-Subject: Re: [PATCH v5 04/11] mm: thp: introduce
- CONFIG_ARCH_ENABLE_THP_MIGRATION
-References: <20170420204752.79703-1-zi.yan@sent.com>
- <20170420204752.79703-5-zi.yan@sent.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 21 Apr 2017 10:06:56 +0530
+        Thu, 20 Apr 2017 21:38:36 -0700 (PDT)
+Received: by mail-oi0-x232.google.com with SMTP id r203so77527778oib.3
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 21:38:36 -0700 (PDT)
+Date: Fri, 21 Apr 2017 13:38:28 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: your mail
+Message-ID: <20170421043826.GC13966@js1304-desktop>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170417054718.GD1351@js1304-desktop>
+ <20170417081513.GA12511@dhcp22.suse.cz>
+ <20170420012753.GA22054@js1304-desktop>
+ <20170420072820.GB15781@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170420204752.79703-5-zi.yan@sent.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <cd1091b7-a88a-160d-2f20-cd4b3be21ce9@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170420072820.GB15781@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/21/2017 02:17 AM, Zi Yan wrote:
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On Thu, Apr 20, 2017 at 09:28:20AM +0200, Michal Hocko wrote:
+> On Thu 20-04-17 10:27:55, Joonsoo Kim wrote:
+> > On Mon, Apr 17, 2017 at 10:15:15AM +0200, Michal Hocko wrote:
+> [...]
+> > > Which pfn walkers you have in mind?
+> > 
+> > For example, kpagecount_read() in fs/proc/page.c. I searched it by
+> > using pfn_valid().
 > 
-> Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
-> functionality to x86_64, which should be safer at the first step.
+> Yeah, I've checked that one and in fact this is a good example of the
+> case where you do not really care about holes. It just checks the page
+> count which is a valid information under any circumstances.
+
+I don't think so. First, it checks the page *map* count. Is it still valid
+even if PageReserved() is set? What I'd like to ask in this example is
+that what information is valid if PageReserved() is set. Is there any
+design document on this? I think that we need to define/document it first.
+
+And, I hope that all the information in flags field is valid in all
+cases if pfn_valid() return true. By the design.
+
+This makes all the exsiting pfn walkers happy since we don't need an
+additional check for PageReserved().
+
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > > The other problem I found is that your change will makes some
+> > > > contiguous zones to be considered as non-contiguous. Memory allocated
+> > > > by memblock API is also marked as PageResereved. If we consider this as
+> > > > a hole, we will set such a zone as non-contiguous.
+> > > 
+> > > Why would that be a problem? We shouldn't touch those pages anyway?
+> > 
+> > Skipping those pages in compaction are valid so no problem in this
+> > case.
+> > 
+> > The problem I mentioned above is that adding PageReserved() check in
+> > __pageblock_pfn_to_page() invalidates optimization by
+> > set_zone_contiguous(). In compaction, we need to get a valid struct
+> > page and it requires a lot of work. There is performance problem
+> > report due to this so set_zone_contiguous() optimization is added. It
+> > checks if the zone is contiguous or not in boot time. If zone is
+> > determined as contiguous, we can easily get a valid struct page in
+> > runtime without expensive checks.
+> 
+> OK, I see. I've had some vague understading and the clarification helps.
+> 
+> > Your patch try to add PageReserved() to __pageblock_pfn_to_page(). It
+> > woule make that zone->contiguous usually returns false since memory
+> > used by memblock API is marked as PageReserved() and your patch regard
+> > it as a hole. It invalidates set_zone_contiguous() optimization and I
+> > worry about it.
+> 
+> OK, fair enough. I did't consider memblock allocations. I will rethink
+> this patch but there are essentially 3 options
+> 	- use a different criterion for the offline holes dection. I
+> 	  have just realized we might do it by storing the online
+> 	  information into the mem sections
+> 	- drop this patch
+> 	- move the PageReferenced check down the chain into
+> 	  isolate_freepages_block resp. isolate_migratepages_block
+> 
+> I would prefer 3 over 2 over 1. I definitely want to make this more
+> robust so 1 is preferable long term but I do not want this to be a
+> roadblock to the rest of the rework. Does that sound acceptable to you?
 
-Aneesh's latest HugeTLB migration enablement on powerpc should
-make this work on powerpc platform as well. Will test it out
-in some time but for now enabling only on x86 where you have
-tested the series makes sense.
+I like #1 among of above options and I already see your patch for #1.
+It's much better than your first attempt but I'm still not happy due
+to the semantic of pfn_valid().
 
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> [..]
+> > Let me clarify my desire(?) for this issue.
+> > 
+> > 1. If pfn_valid() returns true, struct page has valid information, at
+> > least, in flags (zone id, node id, flags, etc...). So, we can use them
+> > without checking PageResereved().
+> 
+> This is no longer true after my rework. Pages are associated with the
+> zone during _onlining_ rather than when they are physically hotpluged.
+
+If your rework make information valid during _onlining_, my
+suggestion is making pfn_valid() return false until onlining.
+
+Caller of pfn_valid() expects that they can get valid information from
+the struct page. There is no reason to access the struct page if they
+can't get valid information from it. So, passing pfn_valid() should
+guarantee that, at least, some kind of information is valid.
+
+If pfn_valid() doesn't guarantee it, most of the pfn walker should
+check PageResereved() to make sure that validity of information from
+the struct page.
+
+> Basically only the nid is set properly. Strictly speaking this is the
+> case also without my rework because the zone might change during online
+> phase so you cannot assume it is correct even now. It just happens that
+> it more or less works just fine.
+>
+> > 2. pfn_valid() for offlined holes returns false. This can be easily
+> > (?) implemented by manipulating SECTION_MAP_MASK in hotplug code. I
+> > guess that there is no reason that pfn_valid() returns true for
+> > offlined holes. If there is, please let me know.
+> 
+> There is some code which really expects that pfn_valid returns true iff
+> there is a struct page and it doesn't care about the online status.
+> E.g. hotplug code itself so no, we cannot change pfn_valid. What we can
+> do though is to add pfn_to_online_page which would do the proper check.
+> I have already sent [1]. As noted above we can (ab)use the remaining bit
+> in SECTION_MAP_MASK to detect offline pages more robustly.
+
+Some pfn_valid() caller in hotplug code look wrong. They want to check
+section's validity rather than pfn's validity. Others want to access
+the struct page so they fit for my assumption (?) for pfn_valid().
+Therefore, we can change that pfn_valid() return false until online.
+
+> > 3. We don't need to check PageReserved() in most of pfn walkers in
+> > order to check offline holes.
+> 
+> We still have to distinguish those who care about offline pages from
+> those who do not care about it.
+
+Hotplug code can distinguish those by another way by using new section
+mask as you did in a new patch. If someone excluding hotplug code do
+care about offline pages, it would be just for optimization rather
+than correteness. I think that it's okay.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
