@@ -1,250 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D2AD6B0397
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 07:41:24 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a80so8682272wrc.19
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:41:24 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id p71si2659869wma.64.2017.04.21.04.41.22
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AFD06B0038
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 08:05:42 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 19so127347372ioo.9
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:05:42 -0700 (PDT)
+Received: from mail-io0-f195.google.com (mail-io0-f195.google.com. [209.85.223.195])
+        by mx.google.com with ESMTPS id y82si11025247ioi.73.2017.04.21.05.05.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 04:41:23 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id z129so4385099wmb.1
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 04:41:22 -0700 (PDT)
-Subject: Re: Review request: draft ioctl_userfaultfd(2) manual page
-References: <487b2c79-f99b-6d0f-2412-aa75cde65569@gmail.com>
- <9af29fc6-dce2-f729-0f07-a0bfcc6c3587@gmail.com>
- <20170322135423.GB27789@rapoport-lnx>
- <e8c5ca4a-0710-7206-b96e-10d171bda218@gmail.com>
- <20170421110714.GC20569@rapoport-lnx>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <4c05c2bb-af77-d706-9455-8ceaa5510580@gmail.com>
-Date: Fri, 21 Apr 2017 13:41:18 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170421110714.GC20569@rapoport-lnx>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        Fri, 21 Apr 2017 05:05:40 -0700 (PDT)
+Received: by mail-io0-f195.google.com with SMTP id x86so29646709ioe.3
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:05:39 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH -v3 0/13] mm: make movable onlining suck less
+Date: Fri, 21 Apr 2017 14:05:03 +0200
+Message-Id: <20170421120512.23960-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-man <linux-man@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michal Hocko <mhocko@suse.com>, Tobias Regnery <tobias.regnery@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-Hi Mike,
+Hi,
+The last version of this series has been posted here [1]. It has seen
+some more testing (thanks to Reza Arbab and Igor Mammedov[2]), Jerome's
+and Vlastimil's review resulted in few fixes mostly folded in their
+respected patches.
+There are 4 more patches (patch 6+ in this series).  I have checked the
+most prominent pfn walkers to skip over offline holes and now and I feel
+more comfortable to have this merged. All the reported issues should be
+fixed
 
-On 04/21/2017 01:07 PM, Mike Rapoport wrote:
-> Hello Michael,
-> 
-> On Fri, Apr 21, 2017 at 11:11:18AM +0200, Michael Kerrisk (man-pages) wrote:
->> Hello Mike,
->> Hello Andrea (we need your help!),
->>
->> On 03/22/2017 02:54 PM, Mike Rapoport wrote:
->>> Hello Michael,
->>>
->>> On Mon, Mar 20, 2017 at 09:11:07PM +0100, Michael Kerrisk (man-pages) wrote:
->>>> Hello Andrea, Mike, and all,
->>>>
->>>> Mike: here's the split out page that describes the 
->>>> userfaultfd ioctl() operations.
->>>>
->>>> I'd like to get review input, especially from you and
->>>> Andrea, but also anyone else, for the current version
->>>> of this page, which includes quite a few FIXMEs to be
->>>> sorted.
->>>>
->>>> I've shown the rendered version of the page below. 
->>>> The groff source is attached, and can also be found
->>>> at the branch here:
->>>>
->>>> https://git.kernel.org/pub/scm/docs/man-pages/man-pages.git/log/?h=draft_userfaultfd
->>>>
->>>> The new ioctl_userfaultfd(2) page follows this mail.
->>>>
->>>> Cheers,
->>>>
->>>> Michael
->>>>
->>>> NAME
->>>>        userfaultfd - create a file descriptor for handling page faults in user
->>>>        space
->>>>
->>>> SYNOPSIS
->>>>        #include <sys/ioctl.h>
->>>>
->>>>        int ioctl(int fd, int cmd, ...);
->>>>
->>>> DESCRIPTION
->>>>        Various ioctl(2) operations can be performed on  a  userfaultfd  object
->>>>        (created by a call to userfaultfd(2)) using calls of the form:
->>>>
->>>>            ioctl(fd, cmd, argp);
->>>>
->>>>        In  the  above,  fd  is  a  file  descriptor referring to a userfaultfd
->>>>        object, cmd is one of the commands listed below, and argp is a  pointer
->>>>        to a data structure that is specific to cmd.
->>>>
->>>>        The  various  ioctl(2) operations are described below.  The UFFDIO_API,
->>>>        UFFDIO_REGISTER, and UFFDIO_UNREGISTER operations are used to configure
->>>>        userfaultfd behavior.  These operations allow the caller to choose what
->>>>        features will be enabled and what kinds of events will be delivered  to
->>>>        the application.  The remaining operations are range operations.  These
->>>>        operations enable the calling application to resolve page-fault  events
->>>>        in a consistent way.
->>>>
->>>>
->>>>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>        a??FIXME                                                a??
->>>>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>        a??Above: What does "consistent" mean?                  a??
->>>>        a??                                                     a??
->>>>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>
->>> Andrea, can you please help with this one?
->>
->> Let's see what Andrea has to say.
-> 
-> Actually, I though I've copied this text from Andrea's docs, but now I've
-> found out it was my wording and I really don't remember now what was my
-> intention for "consistent" :)
-> My guess is that I was thinking about atomicity of UFFDIO_COPY, or the fact
-> that from the faulting thread perspective the page fault handling is the
-> same whether it's done in kernel or via userfaultfd...
-> That said, maybe it'd be better just to drop "in a consistent way".
+There is still a lot of work on top - namely this implementation doesn't
+support reonlining to a different zone on the zones boundaries but I
+will do that in a separate series because this one is getting quite
+large already and it should work reasonably well now.
 
-Okay. Dropped.
+Joonsoo had some worries about pfn_valid and suggested to change its
+semantic to return false on offline holes but I would be rally worried
+to change a established semantic used by a lot of code and so I have
+introuduced pfn_to_online_page helper instead. If this is seen as a
+controversial point I would rather drop pfn_to_online_page and related
+patches as they are not stictly necessary because the code would be
+similarly broken as now wrt. offline holes.
 
->>>>    UFFDIO_API
->>>>        (Since Linux 4.3.)  Enable operation of the userfaultfd and perform API
->>>>        handshake.  The argp argument is a pointer to a  uffdio_api  structure,
->>>>        defined as:
->>>>
->>>>            struct uffdio_api {
->>>>                __u64 api;        /* Requested API version (input) */
->>>>                __u64 features;   /* Must be zero */
->>>>                __u64 ioctls;     /* Available ioctl() operations (output) */
->>>>            };
->>>>
->>>>        The  api  field  denotes  the API version requested by the application.
->>>>        Before the call, the features field must be initialized to zero.
->>>>
->>>>
->>>>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>        a??FIXME                                                a??
->>>>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>        a??Above: Why must the 'features' field be  initialized a??
->>>>        a??to zero?                                             a??
->>>>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>
->>> Until 4.11 the only supported feature is delegation of missing page fault
->>> and the UFFDIO_FEATURES bitmask is 0.
->>
->> So, the thing that was not clear, but now I think I understand:
->> 'features' is an input field where one can ask about supported features
->> (but none are supported, before Linux 4.11). Is that correct?
-> 
-> Yes.
+This is a rebase on top of linux-next (next-20170418) and the full
+series is in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+try attempts/rewrite-mem_hotplug branch.
 
-Thanks.
+Motivation:
+Movable onlining is a real hack with many downsides - mainly
+reintroduction of lowmem/highmem issues we used to have on 32b systems -
+but it is the only way to make the memory hotremove more reliable which
+is something that people are asking for.
 
->> I've changed the text here to read:
->>
->>        Before the call, the features field must be  initialized
->>        to  zero.  In the future, it is intended that this field can be
->>        used to ask whether particular features are supported.
->>
->> Seem okay?
-> 
-> Yes.
-> Just the future is only a week or two from today as we are at 4.11-rc7 :)
+The current semantic of memory movable onlinening is really cumbersome,
+however. The main reason for this is that the udev driven approach is
+basically unusable because udev races with the memory probing while only
+the last memory block or the one adjacent to the existing zone_movable
+are allowed to be onlined movable. In short the criterion for the
+successful online_movable changes under udev's feet. A reliable udev
+approach would require a 2 phase approach where the first successful
+movable online would have to check all the previous blocks and online
+them in descending order. This is hard to be considered sane.
 
-Yes, I understand :-). So of course there's a *lot* more
-new stuff to document, right?
+This patchset aims at making the onlining semantic more usable. First of
+all it allows to online memory movable as long as it doesn't clash with
+the existing ZONE_NORMAL. That means that ZONE_NORMAL and ZONE_MOVABLE
+cannot overlap. Currently I preserve the original ordering semantic so
+the zone always precedes the movable zone but I have plans to remove this
+restriction in future because it is not really necessary.
 
-[...]
+First 3 patches are cleanups which should be ready to be merged right
+away (unless I have missed something subtle of course).
 
->>>>    UFFDIO_REGISTER
+Patch 4 deals with ZONE_DEVICE dependencies down the __add_pages path.
 
-[...]
+Patch 5 deals with implicit assumptions of register_one_node on pgdat
+initialization.
 
->>>>        EINVAL There as an incompatible mapping in the specified address range.
->>>>
->>>>
->>>>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>               a??FIXME                                                a??
->>>>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>               a??Above: What does "incompatible" mean?                a??
->>>>               a??                                                     a??
->>>>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>
->>> Up to 4.10 userfault context may be registered only for MAP_ANONYMOUS |
->>> MAP_PRIVATE mappings.
->>
->> Hmmm -- this restriction is not actually mentioned in the description
->> of UFFDIO_REGISTER. So, at the start of the description of that operation, 
->> I've made the text as follows:
->>
->> [[
->> .SS UFFDIO_REGISTER
->> (Since Linux 4.3.)
->> Register a memory address range with the userfaultfd object.
->> The pages in the range must be "compatible".
->> In the current implementation,
->> .\" According to Mike Rapoport, this will change in Linux 4.11.
->> only private anonymous ranges are compatible for registering with
->> .BR UFFDIO_REGISTER .
->> ]]
->>
->> Okay?
-> 
-> Yes.
+Patches 6-10 deal with offline holes in the zone for pfn walkers. I
+hope I got all of them right but people familiar with compaction should
+double check this.
 
-Thanks for checking it.
+Patch 11 is the core of the change. In order to make it easier to review
+I have tried it to be as minimalistic as possible and the large code
+removal is moved to patch 14.
 
->>>>    UFFDIO_UNREGISTER
+Patch 12 is a trivial follow up cleanup. Patch 13 fixes sparse warnings
+and finally patch 14 removes the unused code.
 
-[...]
+I have tested the patches in kvm:
+# qemu-system-x86_64 -enable-kvm -monitor pty -m 2G,slots=4,maxmem=4G -numa node,mem=1G -numa node,mem=1G ...
 
->>>>        EINVAL There as an incompatible mapping in the specified address range.
->>>>
->>>>
->>>>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>               a??FIXME                                                a??
->>>>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>>               a??Above: What does "incompatible" mean?                a??
->>>>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
->>>
->>> The same comments as for UFFDIO_REGISTER apply here as well.
->>
->> Okay. I changed the introductory text on UFFDIO_UNREGISTER to say:
->>
->> [[
->> .SS UFFDIO_UNREGISTER
->> (Since Linux 4.3.)
->> Unregister a memory address range from userfaultfd.
->> The pages in the range must be "compatible" (see the description of
->> .BR  UFFDIO_REGISTER .)
->> ]]
->>
->> Okay?
-> 
-> Yes.
+and then probed the additional memory by
+(qemu) object_add memory-backend-ram,id=mem1,size=1G
+(qemu) device_add pc-dimm,id=dimm1,memdev=mem1
 
-Thanks.
+Then I have used this simple script to probe the memory block by hand
+# cat probe_memblock.sh
+#!/bin/sh
 
-[...]
+BLOCK_NR=$1
 
-The current version of the two pages has been pushed to 
-https://git.kernel.org/pub/scm/docs/man-pages/man-pages.git/log/?h=draft_userfaultfd
+# echo $((0x100000000+$BLOCK_NR*(128<<20))) > /sys/devices/system/memory/probe
 
-Cheers,
+# for i in $(seq 10); do sh probe_memblock.sh $i; done
+# grep . /sys/devices/system/memory/memory3?/valid_zones 2>/dev/null 
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory34/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory35/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory36/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory37/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory38/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory39/valid_zones:Normal Movable
 
-Michael
+The main difference to the original implementation is that all new
+memblocks can be both online_kernel and online_movable initially
+because there is no clash obviously. For the comparison the original
+implementation would have
 
+/sys/devices/system/memory/memory33/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory34/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory35/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory36/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory37/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory38/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory39/valid_zones:Normal Movable
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Now
+# echo online_movable > /sys/devices/system/memory/memory34/state                                                                                                                                      
+# grep . /sys/devices/system/memory/memory3?/valid_zones 2>/dev/null                                                                                                                                   
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory34/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory35/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory36/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory37/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory38/valid_zones:Movable
+/sys/devices/system/memory/memory39/valid_zones:Movable
+
+Block 33 can still be online both kernel and movable while all
+the remaining can be only movable.
+/proc/zonelist says
+Node 0, zone   Normal
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+--
+Node 0, zone  Movable
+  pages free     32753
+        min      85
+        low      117
+        high     149
+        spanned  32768
+        present  32768
+
+A new memblock at a lower address will result in a new memblock (32)
+which will still allow both Normal and Movable.
+# sh probe_memblock.sh 0
+# grep . /sys/devices/system/memory/memory3[2-5]/valid_zones 2>/dev/null
+/sys/devices/system/memory/memory32/valid_zones:Normal Movable
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+/sys/devices/system/memory/memory34/valid_zones:Movable
+/sys/devices/system/memory/memory35/valid_zones:Movable
+
+and online_kernel will convert it to the zone normal properly
+while 33 can be still onlined both ways.
+# echo online_kernel > /sys/devices/system/memory/memory32/state
+# grep . /sys/devices/system/memory/memory3[2-5]/valid_zones 2>/dev/null
+/sys/devices/system/memory/memory32/valid_zones:Normal
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+/sys/devices/system/memory/memory34/valid_zones:Movable
+/sys/devices/system/memory/memory35/valid_zones:Movable
+
+/proc/zoneinfo will now tell
+Node 0, zone   Normal
+  pages free     65441
+        min      165
+        low      230
+        high     295
+        spanned  65536
+        present  65536
+--
+Node 0, zone  Movable
+  pages free     32740
+        min      82
+        low      114
+        high     146
+        spanned  32768
+        present  32768
+
+so both zones have one memblock spanned and present.
+
+Onlining 39 should associate this block to the movable zone
+# echo online > /sys/devices/system/memory/memory39/state
+
+/proc/zoneinfo will now tell
+Node 0, zone   Normal
+  pages free     32765
+        min      80
+        low      112
+        high     144
+        spanned  32768
+        present  32768
+--
+Node 0, zone  Movable
+  pages free     65501
+        min      160
+        low      225
+        high     290
+        spanned  196608
+        present  65536
+
+so we will have a movable zone which spans 6 memblocks, 2 present and 4
+representing a hole.
+
+Offlining both movable blocks will lead to the zone with no present
+pages which is the expected behavior I believe.
+# echo offline > /sys/devices/system/memory/memory39/state
+# echo offline > /sys/devices/system/memory/memory34/state
+# grep -A6 "Movable\|Normal" /proc/zoneinfo 
+Node 0, zone   Normal
+  pages free     32735
+        min      90
+        low      122
+        high     154
+        spanned  32768
+        present  32768
+--
+Node 0, zone  Movable
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  196608
+        present  0
+
+Any thoughts, complains, suggestions?
+
+As a bonus we will get a nice cleanup in the memory hotplug codebase.
+ arch/ia64/mm/init.c            |  11 +-
+ arch/powerpc/mm/mem.c          |  12 +-
+ arch/s390/mm/init.c            |  32 +--
+ arch/sh/mm/init.c              |  10 +-
+ arch/x86/mm/init_32.c          |   7 +-
+ arch/x86/mm/init_64.c          |  11 +-
+ drivers/base/memory.c          |  79 +++----
+ drivers/base/node.c            |  58 ++----
+ include/linux/memory_hotplug.h |  40 +++-
+ include/linux/mmzone.h         |  44 +++-
+ include/linux/node.h           |  35 +++-
+ kernel/memremap.c              |   6 +-
+ mm/compaction.c                |   5 +-
+ mm/memory_hotplug.c            | 455 ++++++++++++++---------------------------
+ mm/page_alloc.c                |  13 +-
+ mm/page_isolation.c            |  26 ++-
+ mm/sparse.c                    |  48 ++++-
+ 17 files changed, 407 insertions(+), 485 deletions(-)
+
+Shortlog says:
+Michal Hocko (13):
+      mm: remove return value from init_currently_empty_zone
+      mm, memory_hotplug: use node instead of zone in can_online_high_movable
+      mm: drop page_initialized check from get_nid_for_pfn
+      mm, memory_hotplug: get rid of is_zone_device_section
+      mm, memory_hotplug: split up register_one_node
+      mm, memory_hotplug: consider offline memblocks removable
+      mm: consider zone which is not fully populated to have holes
+      mm, compaction: skip over holes in __reset_isolation_suitable
+      mm: __first_valid_page skip over offline pages
+      mm, memory_hotplug: do not associate hotadded memory to zones until online
+      mm, memory_hotplug: replace for_device by want_memblock in arch_add_memory
+      mm, memory_hotplug: fix the section mismatch warning
+      mm, memory_hotplug: remove unused cruft after memory hotplug rework
+
+[1] http://lkml.kernel.org/r/20170410110351.12215-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20170410162749.7d7f31c1@nial.brq.redhat.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
