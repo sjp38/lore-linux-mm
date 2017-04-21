@@ -1,281 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CF79B6B03A2
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 08:22:48 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id j201so55305410oih.17
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:22:48 -0700 (PDT)
-Received: from mail-oi0-f65.google.com (mail-oi0-f65.google.com. [209.85.218.65])
-        by mx.google.com with ESMTPS id v35si5555452ota.24.2017.04.21.05.22.47
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 371096B0390
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 08:29:34 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id v34so131328470iov.22
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:29:34 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q20si10252199pfk.314.2017.04.21.05.29.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 05:22:47 -0700 (PDT)
-Received: by mail-oi0-f65.google.com with SMTP id a3so14362263oii.3
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:22:47 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 13/13] mm, memory_hotplug: remove unused cruft after memory hotplug rework
-Date: Fri, 21 Apr 2017 14:22:22 +0200
-Message-Id: <20170421122222.25040-1-mhocko@kernel.org>
-In-Reply-To: <20170421120512.23960-1-mhocko@kernel.org>
-References: <20170421120512.23960-1-mhocko@kernel.org>
+        Fri, 21 Apr 2017 05:29:33 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+References: <20170407064901.25398-1-ying.huang@intel.com>
+	<20170418045909.GA11015@bbox> <87y3uwrez0.fsf@yhuang-dev.intel.com>
+	<20170420063834.GB3720@bbox> <874lxjim7m.fsf@yhuang-dev.intel.com>
+Date: Fri, 21 Apr 2017 20:29:30 +0800
+In-Reply-To: <874lxjim7m.fsf@yhuang-dev.intel.com> (Ying Huang's message of
+	"Thu, 20 Apr 2017 15:15:25 +0800")
+Message-ID: <87tw5idjv9.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
-From: Michal Hocko <mhocko@suse.com>
+"Huang, Ying" <ying.huang@intel.com> writes:
 
-zone_for_memory doesn't have any user anymore as well as the whole zone
-shifting infrastructure so drop them all.
+> Minchan Kim <minchan@kernel.org> writes:
+>
+>> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
+>>> Minchan Kim <minchan@kernel.org> writes:
+>>> 
+>>> > Hi Huang,
+>>> >
+>>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+>>> >> From: Huang Ying <ying.huang@intel.com>
+>>> >> 
+>>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+>>> >>  {
+>>> >>  	struct swap_info_struct *p, *prev;
+>>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+>>> >>  
+>>> >>  	prev = NULL;
+>>> >>  	p = NULL;
+>>> >> +
+>>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+>>> >> +	if (nr_swapfiles > 1)
+>>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+>>> >
+>>> > Let's think on other cases.
+>>> >
+>>> > There are two swaps and they are configured by priority so a swap's usage
+>>> > would be zero unless other swap used up. In case of that, this sorting
+>>> > is pointless.
+>>> >
+>>> > As well, nr_swapfiles is never decreased so if we enable multiple
+>>> > swaps and then disable until a swap is remained, this sorting is
+>>> > pointelss, too.
+>>> >
+>>> > How about lazy sorting approach? IOW, if we found prev != p and,
+>>> > then we can sort it.
+>>> 
+>>> Yes.  That should be better.  I just don't know whether the added
+>>> complexity is necessary, given the array is short and sort is fast.
+>>
+>> Huh?
+>>
+>> 1. swapon /dev/XXX1
+>> 2. swapon /dev/XXX2
+>> 3. swapoff /dev/XXX2
+>> 4. use only one swap
+>> 5. then, always pointless sort.
+>
+> Yes.  In this situation we will do unnecessary sorting.  What I don't
+> know is whether the unnecessary sorting will hurt performance in real
+> life.  I can do some measurement.
 
-This shouldn't introduce any functional changes.
+I tested the patch with 1 swap device and 1 process to eat memory
+(remove the "if (nr_swapfiles > 1)" for test).  I think this is the
+worse case because there is no lock contention.  The memory freeing time
+increased from 1.94s to 2.12s (increase ~9.2%).  So there is some
+overhead for some cases.  I change the algorithm to something like
+below,
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/memory_hotplug.h |   2 -
- mm/memory_hotplug.c            | 207 -----------------------------------------
- 2 files changed, 209 deletions(-)
-
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index e1193c44aed1..aec88657ec49 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -295,8 +295,6 @@ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int add_memory(int nid, u64 start, u64 size);
- extern int add_memory_resource(int nid, struct resource *resource, bool online);
--extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
--		bool for_device);
- extern int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock);
- extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
- 		unsigned long nr_pages);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index f9e916a85792..de30822642c6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -300,180 +300,6 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
- }
- #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
- 
--static void __meminit grow_zone_span(struct zone *zone, unsigned long start_pfn,
--				     unsigned long end_pfn)
--{
--	unsigned long old_zone_end_pfn;
--
--	zone_span_writelock(zone);
--
--	old_zone_end_pfn = zone_end_pfn(zone);
--	if (zone_is_empty(zone) || start_pfn < zone->zone_start_pfn)
--		zone->zone_start_pfn = start_pfn;
--
--	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
--				zone->zone_start_pfn;
--
--	zone_span_writeunlock(zone);
--}
--
--static void resize_zone(struct zone *zone, unsigned long start_pfn,
--		unsigned long end_pfn)
--{
--	zone_span_writelock(zone);
--
--	if (end_pfn - start_pfn) {
--		zone->zone_start_pfn = start_pfn;
--		zone->spanned_pages = end_pfn - start_pfn;
--	} else {
--		/*
--		 * make it consist as free_area_init_core(),
--		 * if spanned_pages = 0, then keep start_pfn = 0
--		 */
--		zone->zone_start_pfn = 0;
--		zone->spanned_pages = 0;
--	}
--
--	zone_span_writeunlock(zone);
--}
--
--static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
--		unsigned long end_pfn)
--{
--	enum zone_type zid = zone_idx(zone);
--	int nid = zone->zone_pgdat->node_id;
--	unsigned long pfn;
--
--	for (pfn = start_pfn; pfn < end_pfn; pfn++)
--		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
--}
--
--static void __ref ensure_zone_is_initialized(struct zone *zone,
--			unsigned long start_pfn, unsigned long num_pages)
--{
--	if (!zone_is_initialized(zone))
--		init_currently_empty_zone(zone, start_pfn, num_pages);
--}
--
--static int __meminit move_pfn_range_left(struct zone *z1, struct zone *z2,
--		unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long flags;
--	unsigned long z1_start_pfn;
--
--	ensure_zone_is_initialized(z1, start_pfn, end_pfn - start_pfn);
--
--	pgdat_resize_lock(z1->zone_pgdat, &flags);
--
--	/* can't move pfns which are higher than @z2 */
--	if (end_pfn > zone_end_pfn(z2))
--		goto out_fail;
--	/* the move out part must be at the left most of @z2 */
--	if (start_pfn > z2->zone_start_pfn)
--		goto out_fail;
--	/* must included/overlap */
--	if (end_pfn <= z2->zone_start_pfn)
--		goto out_fail;
--
--	/* use start_pfn for z1's start_pfn if z1 is empty */
--	if (!zone_is_empty(z1))
--		z1_start_pfn = z1->zone_start_pfn;
--	else
--		z1_start_pfn = start_pfn;
--
--	resize_zone(z1, z1_start_pfn, end_pfn);
--	resize_zone(z2, end_pfn, zone_end_pfn(z2));
--
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--
--	fix_zone_id(z1, start_pfn, end_pfn);
--
--	return 0;
--out_fail:
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--	return -1;
--}
--
--static int __meminit move_pfn_range_right(struct zone *z1, struct zone *z2,
--		unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long flags;
--	unsigned long z2_end_pfn;
--
--	ensure_zone_is_initialized(z2, start_pfn, end_pfn - start_pfn);
--
--	pgdat_resize_lock(z1->zone_pgdat, &flags);
--
--	/* can't move pfns which are lower than @z1 */
--	if (z1->zone_start_pfn > start_pfn)
--		goto out_fail;
--	/* the move out part mast at the right most of @z1 */
--	if (zone_end_pfn(z1) >  end_pfn)
--		goto out_fail;
--	/* must included/overlap */
--	if (start_pfn >= zone_end_pfn(z1))
--		goto out_fail;
--
--	/* use end_pfn for z2's end_pfn if z2 is empty */
--	if (!zone_is_empty(z2))
--		z2_end_pfn = zone_end_pfn(z2);
--	else
--		z2_end_pfn = end_pfn;
--
--	resize_zone(z1, z1->zone_start_pfn, start_pfn);
--	resize_zone(z2, start_pfn, z2_end_pfn);
--
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--
--	fix_zone_id(z2, start_pfn, end_pfn);
--
--	return 0;
--out_fail:
--	pgdat_resize_unlock(z1->zone_pgdat, &flags);
--	return -1;
--}
--
--static void __meminit grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
--				      unsigned long end_pfn)
--{
--	unsigned long old_pgdat_end_pfn = pgdat_end_pfn(pgdat);
--
--	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
--		pgdat->node_start_pfn = start_pfn;
--
--	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
--					pgdat->node_start_pfn;
--}
--
--static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
--{
--	struct pglist_data *pgdat = zone->zone_pgdat;
--	int nr_pages = PAGES_PER_SECTION;
--	int nid = pgdat->node_id;
--	int zone_type;
--	unsigned long flags, pfn;
--
--	zone_type = zone - pgdat->node_zones;
--	ensure_zone_is_initialized(zone, phys_start_pfn, nr_pages);
--
--	pgdat_resize_lock(zone->zone_pgdat, &flags);
--	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
--	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
--			phys_start_pfn + nr_pages);
--	pgdat_resize_unlock(zone->zone_pgdat, &flags);
--	memmap_init_zone(nr_pages, nid, zone_type,
--			 phys_start_pfn, MEMMAP_HOTPLUG);
--
--	/* online_page_range is called later and expects pages reserved */
--	for (pfn = phys_start_pfn; pfn < phys_start_pfn + nr_pages; pfn++) {
--		if (!pfn_valid(pfn))
--			continue;
--
--		SetPageReserved(pfn_to_page(pfn));
--	}
--	return 0;
--}
--
- static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
- 		bool want_memblock)
+ void swapcache_free_entries(swp_entry_t *entries, int n)
  {
-@@ -1352,39 +1178,6 @@ static int check_hotplug_memory_range(u64 start, u64 size)
- 	return 0;
- }
+ 	struct swap_info_struct *p, *prev;
+ 	int i;
++	swp_entry_t entry;
++	unsigned int prev_swp_type;
  
--/*
-- * If movable zone has already been setup, newly added memory should be check.
-- * If its address is higher than movable zone, it should be added as movable.
-- * Without this check, movable zone may overlap with other zone.
-- */
--static int should_add_memory_movable(int nid, u64 start, u64 size)
--{
--	unsigned long start_pfn = start >> PAGE_SHIFT;
--	pg_data_t *pgdat = NODE_DATA(nid);
--	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
--
--	if (zone_is_empty(movable_zone))
--		return 0;
--
--	if (movable_zone->zone_start_pfn <= start_pfn)
--		return 1;
--
--	return 0;
--}
--
--int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
--		bool for_device)
--{
--#ifdef CONFIG_ZONE_DEVICE
--	if (for_device)
--		return ZONE_DEVICE;
--#endif
--	if (should_add_memory_movable(nid, start, size))
--		return ZONE_MOVABLE;
--
--	return zone_default;
--}
--
- static int online_memory_block(struct memory_block *mem, void *arg)
- {
- 	return device_online(&mem->dev);
--- 
-2.11.0
+ 	if (n <= 0)
+ 		return;
+ 
++	prev_swp_type = swp_type(entries[0]);
++	for (i = n - 1; i > 0; i--) {
++		if (swp_type(entries[i]) != prev_swp_type)
++			break;
++	}
++
++	/* Sort swap entries by swap device, so each lock is only taken once. */
++	if (i)
++		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+ 	prev = NULL;
+ 	p = NULL;
+ 	for (i = 0; i < n; ++i) {
+-		p = swap_info_get_cont(entries[i], prev);
++		entry = entries[i];
++		p = swap_info_get_cont(entry, prev);
+ 		if (p)
+-			swap_entry_free(p, entries[i]);
++			swap_entry_free(p, entry);
+ 		prev = p;
+ 	}
+ 	if (p)
+
+With this patch, the memory freeing time increased from 1.94s to 1.97s.
+I think this is good enough.  Do you think so?
+
+I will send out the formal patch soon.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
