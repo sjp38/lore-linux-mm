@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 43DE26B039F
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 08:06:05 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l196so127868439ioe.19
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:06:05 -0700 (PDT)
-Received: from mail-io0-f196.google.com (mail-io0-f196.google.com. [209.85.223.196])
-        by mx.google.com with ESMTPS id f9si1853201ite.78.2017.04.21.05.06.04
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 36BD86B03A0
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 08:06:21 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id l21so133118607ioi.2
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:06:21 -0700 (PDT)
+Received: from mail-io0-f195.google.com (mail-io0-f195.google.com. [209.85.223.195])
+        by mx.google.com with ESMTPS id v8si2240144iti.101.2017.04.21.05.06.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 05:06:04 -0700 (PDT)
-Received: by mail-io0-f196.google.com with SMTP id h41so29672298ioi.1
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:06:04 -0700 (PDT)
+        Fri, 21 Apr 2017 05:06:16 -0700 (PDT)
+Received: by mail-io0-f195.google.com with SMTP id d203so29739928iof.2
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 05:06:15 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 02/13] mm, memory_hotplug: use node instead of zone in can_online_high_movable
-Date: Fri, 21 Apr 2017 14:05:05 +0200
-Message-Id: <20170421120512.23960-3-mhocko@kernel.org>
+Subject: [PATCH 03/13] mm: drop page_initialized check from get_nid_for_pfn
+Date: Fri, 21 Apr 2017 14:05:06 +0200
+Message-Id: <20170421120512.23960-4-mhocko@kernel.org>
 In-Reply-To: <20170421120512.23960-1-mhocko@kernel.org>
 References: <20170421120512.23960-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
 From: Michal Hocko <mhocko@suse.com>
 
-the primary purpose of this helper is to query the node state so use
-the node id directly. This is a preparatory patch for later changes.
+c04fc586c1a4 ("mm: show node to memory section relationship with
+symlinks in sysfs") has added means to export memblock<->node
+association into the sysfs. It has also introduced get_nid_for_pfn
+which is a rather confusing counterpart of pfn_to_nid which checks also
+whether the pfn page is already initialized (page_initialized).  This
+is done by checking page::lru != NULL which doesn't make any sense at
+all. Nothing in this path really relies on the lru list being used or
+initialized. Just remove it because this will become a problem with
+later patches.
 
-This shouldn't introduce any functional change
+Thanks to Reza Arbab for testing which revealed this to be a problem
+(http://lkml.kernel.org/r/20170403202337.GA12482@dhcp22.suse.cz)
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/memory_hotplug.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ drivers/base/node.c | 7 -------
+ 1 file changed, 7 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b93c88125766..6b6362819be2 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -941,15 +941,15 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-  * When CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
-  * normal memory.
-  */
--static bool can_online_high_movable(struct zone *zone)
-+static bool can_online_high_movable(int nid)
- {
- 	return true;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 5548f9686016..06294d69779b 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -368,21 +368,14 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
  }
- #else /* CONFIG_MOVABLE_NODE */
- /* ensure every online node has NORMAL memory */
--static bool can_online_high_movable(struct zone *zone)
-+static bool can_online_high_movable(int nid)
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+-#define page_initialized(page)  (page->lru.next)
+-
+ static int __ref get_nid_for_pfn(unsigned long pfn)
  {
--	return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-+	return node_state(nid, N_NORMAL_MEMORY);
+-	struct page *page;
+-
+ 	if (!pfn_valid_within(pfn))
+ 		return -1;
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+ 	if (system_state == SYSTEM_BOOTING)
+ 		return early_pfn_to_nid(pfn);
+ #endif
+-	page = pfn_to_page(pfn);
+-	if (!page_initialized(page))
+-		return -1;
+ 	return pfn_to_nid(pfn);
  }
- #endif /* CONFIG_MOVABLE_NODE */
  
-@@ -1083,7 +1083,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 
- 	if ((zone_idx(zone) > ZONE_NORMAL ||
- 	    online_type == MMOP_ONLINE_MOVABLE) &&
--	    !can_online_high_movable(zone))
-+	    !can_online_high_movable(pfn_to_nid(pfn)))
- 		return -EINVAL;
- 
- 	if (online_type == MMOP_ONLINE_KERNEL) {
 -- 
 2.11.0
 
