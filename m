@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F8006B0038
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 19:36:59 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id b82so105336698iod.10
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 16:36:59 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id q2si7966152plh.271.2017.04.20.16.36.58
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 630E86B0038
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 20:34:25 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id z63so103978057ioz.23
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 17:34:25 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x74si8148292pfa.169.2017.04.20.17.34.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 16:36:58 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC 4/4] Change mmap_sem to range lock
-References: <cover.1492595897.git.ldufour@linux.vnet.ibm.com>
-	<1492698500-24219-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Date: Thu, 20 Apr 2017 16:36:57 -0700
-In-Reply-To: <1492698500-24219-1-git-send-email-ldufour@linux.vnet.ibm.com>
-	(Laurent Dufour's message of "Thu, 20 Apr 2017 16:28:20 +0200")
-Message-ID: <8737d2d52e.fsf@firstfloor.org>
+        Thu, 20 Apr 2017 17:34:24 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v9 2/3] mm, THP, swap: Check whether THP can be split firstly
+References: <20170419070625.19776-1-ying.huang@intel.com>
+	<20170419070625.19776-3-ying.huang@intel.com>
+	<20170419161318.GC3376@cmpxchg.org>
+	<87efwnrjfg.fsf@yhuang-dev.intel.com>
+	<20170420205035.GA13229@cmpxchg.org>
+Date: Fri, 21 Apr 2017 08:34:22 +0800
+In-Reply-To: <20170420205035.GA13229@cmpxchg.org> (Johannes Weiner's message
+	of "Thu, 20 Apr 2017 16:50:35 -0400")
+Message-ID: <87r30mha41.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, haren@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, Paul.McKenney@us.ibm.com, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+Johannes Weiner <hannes@cmpxchg.org> writes:
 
-> [resent this patch which seems to have not reached the mailing lists]
+> On Thu, Apr 20, 2017 at 08:50:43AM +0800, Huang, Ying wrote:
+>> Johannes Weiner <hannes@cmpxchg.org> writes:
+>> > On Wed, Apr 19, 2017 at 03:06:24PM +0800, Huang, Ying wrote:
+>> >> With the patchset, the swap out throughput improves 3.6% (from about
+>> >> 4.16GB/s to about 4.31GB/s) in the vm-scalability swap-w-seq test case
+>> >> with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+>> >> device used is a RAM simulated PMEM (persistent memory) device.  To
+>> >> test the sequential swapping out, the test case creates 8 processes,
+>> >> which sequentially allocate and write to the anonymous pages until the
+>> >> RAM and part of the swap device is used up.
+>> >> 
+>> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> >> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com> [for can_split_huge_page()]
+>> >
+>> > How often does this actually happen in practice? Because all that this
+>> > protects us from is trying to allocate a swap cluster - which with the
+>> > si->free_clusters list really isn't all that expensive - and return it
+>> > again. Unless this happens all the time in practice, this optimization
+>> > seems misplaced.
+>>
+>> To my surprise too, I found this patch has measurable impact in my
+>> test.  The swap out throughput improves 3.6% in the vm-scalability
+>> swap-w-seq test case with 8 processes.  Details are in the original
+>> patch description.
 >
-> Change the mmap_sem to a range lock to allow finer grain locking on
-> the memory layout of a task.
+> Yeah I think that justifies it.
 >
-> This patch rename mmap_sem into mmap_rw_tree to avoid confusion and
-> replace any locking (read or write) by complete range locking.  So
-> there is no functional change except in the way the underlying locking
-> is achieved.
->
-> Currently, this patch only supports x86 and PowerPc architectures,
-> furthermore it should break the build of any others.
+> The changelog says "the patchset", I didn't realize this is the gain
+> from just this patch alone. Care to update that?
 
-Thanks for working on this.
+Sorry for confusing, will update it in the next version.
 
-However as commented before I think the first step to make progress here
-is a description of everything mmap_sem protects.
+Best Regards,
+Huang, Ying
 
-Surely the init full case could be done shorter with some wrapper
-that combines the init_full and lock operation?
-
-Then it would be likely a simple search'n'replace to move the
-whole tree in one atomic step to the new wrappers.
-Initially they could be just defined to use rwsems too to
-not change anything at all.
-
-It would be a good idea to merge such a patch as quickly
-as possible beause it will be a nightmare to maintain
-longer term.
-
-Then you could add a config to use a range lock through
-the wrappers.
-
-Then after that you could add real ranges step by step,
-after doing the proper analysis.
-
--Andi
+> Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
