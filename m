@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 049246B03A5
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 10:05:08 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g27so21929516qte.12
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 07:05:08 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C29686B03A7
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 10:05:12 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id u30so22133667qtu.14
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 07:05:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g27si9628705qtg.133.2017.04.21.07.05.06
+        by mx.google.com with ESMTPS id c55si9632675qtb.120.2017.04.21.07.05.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 07:05:07 -0700 (PDT)
+        Fri, 21 Apr 2017 07:05:11 -0700 (PDT)
 From: Waiman Long <longman@redhat.com>
-Subject: [RFC PATCH 09/14] cgroup: Make debug cgroup support v2 and thread mode
-Date: Fri, 21 Apr 2017 10:04:07 -0400
-Message-Id: <1492783452-12267-10-git-send-email-longman@redhat.com>
+Subject: [RFC PATCH 10/14] cgroup: Implement new thread mode semantics
+Date: Fri, 21 Apr 2017 10:04:08 -0400
+Message-Id: <1492783452-12267-11-git-send-email-longman@redhat.com>
 In-Reply-To: <1492783452-12267-1-git-send-email-longman@redhat.com>
 References: <1492783452-12267-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,240 +20,446 @@ List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
 Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de, Waiman Long <longman@redhat.com>
 
-Besides supporting cgroup v2 and thread mode, the following changes
-are also made:
- 1) current_* cgroup files now resides only at the root as we don't
-    need duplicated files of the same function all over the cgroup
-    hierarchy.
- 2) The cgroup_css_links_read() function is modified to report
-    the number of tasks that are skipped because of overflow.
- 3) The relationship between proc_cset and threaded_csets are displayed.
- 4) The number of extra unaccounted references are displayed.
- 5) The status of being a thread root or threaded cgroup is displayed.
- 6) The current_css_set_read() function now prints out the addresses of
-    the css'es associated with the current css_set.
- 7) A new cgroup_subsys_states file is added to display the css objects
-    associated with a cgroup.
+The current thread mode semantics aren't sufficient to fully support
+threaded controllers like cpu. The main problem is that when thread
+mode is enabled at root (mainly for performance reason), all the
+non-threaded controllers cannot be supported at all.
+
+To alleviate this problem, the roles of thread root and threaded
+cgroups are now further separated. Now thread mode can only be enabled
+on a non-root leaf cgroup whose parent will then become the thread
+root. All the descendants of a threaded cgroup will still need to be
+threaded. All the non-threaded resource will be accounted for in the
+thread root. Unlike the previous thread mode, however, a thread root
+can have non-threaded children where system resources like memory
+can be further split down the hierarchy.
+
+Now we could have something like
+
+	R -- A -- B
+	 \
+	  T1 -- T2
+
+where R is the thread root, A and B are non-threaded cgroups, T1 and
+T2 are threaded cgroups. The cgroups R, T1, T2 form a threaded subtree
+where all the non-threaded resources are accounted for in R.  The no
+internal process constraint does not apply in the threaded subtree.
+Non-threaded controllers need to properly handle the competition
+between internal processes and child cgroups at the thread root.
+
+This model will be flexible enough to support the need of the threaded
+controllers.
 
 Signed-off-by: Waiman Long <longman@redhat.com>
 ---
- kernel/cgroup/debug.c | 151 ++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 134 insertions(+), 17 deletions(-)
+ Documentation/cgroup-v2.txt     |  51 +++++++----
+ kernel/cgroup/cgroup-internal.h |  10 +++
+ kernel/cgroup/cgroup.c          | 184 +++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 208 insertions(+), 37 deletions(-)
 
-diff --git a/kernel/cgroup/debug.c b/kernel/cgroup/debug.c
-index c8f7590..4d74458 100644
---- a/kernel/cgroup/debug.c
-+++ b/kernel/cgroup/debug.c
-@@ -38,10 +38,37 @@ static u64 debug_taskcount_read(struct cgroup_subsys_state *css,
- 	return count;
+diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+index 2375e22..4d1c24d 100644
+--- a/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
+@@ -222,21 +222,32 @@ process can be put in different cgroups and are not subject to the no
+ internal process constraint - threaded controllers can be enabled on
+ non-leaf cgroups whether they have threads in them or not.
+ 
+-To enable the thread mode, the following conditions must be met.
++To enable the thread mode on a cgroup, the following conditions must
++be met.
+ 
+-- The thread root doesn't have any child cgroups.
++- The cgroup doesn't have any child cgroups.
+ 
+-- The thread root doesn't have any controllers enabled.
++- The cgroup doesn't have any non-threaded controllers enabled.
++
++- The cgroup doesn't have any processes attached to it.
+ 
+ Thread mode can be enabled by writing "enable" to "cgroup.threads"
+ file.
+ 
+   # echo enable > cgroup.threads
+ 
+-Inside a threaded subtree, "cgroup.threads" can be read and contains
+-the list of the thread IDs of all threads in the cgroup.  Except that
+-the operations are per-thread instead of per-process, "cgroup.threads"
+-has the same format and behaves the same way as "cgroup.procs".
++The parent of the threaded cgroup will become the thread root, if
++it hasn't been a thread root yet. In other word, thread mode cannot
++be enabled on the root cgroup as it doesn't have a parent cgroup. A
++thread root can have child cgroups and controllers enabled before
++becoming one.
++
++A threaded subtree includes the thread root and all the threaded child
++cgroups as well as their descendants which are all threaded cgroups.
++"cgroup.threads" can be read and contains the list of the thread
++IDs of all threads in the cgroup.  Except that the operations are
++per-thread instead of per-process, "cgroup.threads" has the same
++format and behaves the same way as "cgroup.procs".
+ 
+ The thread root serves as the resource domain for the whole subtree,
+ and, while the threads can be scattered across the subtree, all the
+@@ -246,25 +257,30 @@ not readable in the subtree proper.  However, "cgroup.procs" can be
+ written to from anywhere in the subtree to migrate all threads of the
+ matching process to the cgroup.
+ 
+-Only threaded controllers can be enabled in a threaded subtree.  When
+-a threaded controller is enabled inside a threaded subtree, it only
+-accounts for and controls resource consumptions associated with the
+-threads in the cgroup and its descendants.  All consumptions which
+-aren't tied to a specific thread belong to the thread root.
++Only threaded controllers can be enabled in a non-root threaded cgroup.
++When a threaded controller is enabled inside a threaded subtree,
++it only accounts for and controls resource consumptions associated
++with the threads in the cgroup and its descendants.  All consumptions
++which aren't tied to a specific thread belong to the thread root.
+ 
+ Because a threaded subtree is exempt from no internal process
+ constraint, a threaded controller must be able to handle competition
+ between threads in a non-leaf cgroup and its child cgroups.  Each
+ threaded controller defines how such competitions are handled.
+ 
++A new child cgroup created under a thread root will not be threaded.
++Thread mode has to be explicitly enabled on each of the thread root's
++children.  Descendants of a threaded cgroup, however, will always be
++threaded and that mode cannot be disabled.
++
+ To disable the thread mode, the following conditions must be met.
+ 
+-- The cgroup is a thread root.  Thread mode can't be disabled
+-  partially in the subtree.
++- The cgroup is a child of a thread root.  Thread mode can't be
++  disabled partially further down the hierarchy.
+ 
+-- The thread root doesn't have any child cgroups.
++- The cgroup doesn't have any child cgroups.
+ 
+-- The thread root doesn't have any controllers enabled.
++- The cgroup doesn't have any threads attached to it.
+ 
+ Thread mode can be disabled by writing "disable" to "cgroup.threads"
+ file.
+@@ -366,6 +382,9 @@ with any other cgroups and requires special treatment from most
+ controllers.  How resource consumption in the root cgroup is governed
+ is up to each controller.
+ 
++The threaded cgroups and the thread roots are also exempt from this
++restriction.
++
+ Note that the restriction doesn't get in the way if there is no
+ enabled controller in the cgroup's "cgroup.subtree_control".  This is
+ important as otherwise it wouldn't be possible to create children of a
+diff --git a/kernel/cgroup/cgroup-internal.h b/kernel/cgroup/cgroup-internal.h
+index bea3928..8d27258 100644
+--- a/kernel/cgroup/cgroup-internal.h
++++ b/kernel/cgroup/cgroup-internal.h
+@@ -123,6 +123,16 @@ static inline bool notify_on_release(const struct cgroup *cgrp)
+ 	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
  }
  
--static u64 current_css_set_read(struct cgroup_subsys_state *css,
--				struct cftype *cft)
-+static int current_css_set_read(struct seq_file *seq, void *v)
- {
--	return (u64)(unsigned long)current->cgroups;
-+	struct css_set *cset;
-+	struct cgroup_subsys *ss;
-+	struct cgroup_subsys_state *css;
-+	int i, refcnt;
-+
-+	mutex_lock(&cgroup_mutex);
-+	spin_lock_irq(&css_set_lock);
-+	rcu_read_lock();
-+	cset = rcu_dereference(current->cgroups);
-+	refcnt = atomic_read(&cset->refcount);
-+	seq_printf(seq, "css_set %pK %d", cset, refcnt);
-+	if (refcnt > cset->task_count)
-+		seq_printf(seq, " +%d", refcnt - cset->task_count);
-+	seq_puts(seq, "\n");
-+
-+	/*
-+	 * Print the css'es stored in the current css_set.
-+	 */
-+	for_each_subsys(ss, i) {
-+		css = cset->subsys[ss->id];
-+		if (!css)
-+			continue;
-+		seq_printf(seq, "%2d: %-4s\t- %lx[%d]\n", ss->id, ss->name,
-+			  (unsigned long)css, css->id);
-+	}
-+	rcu_read_unlock();
-+	spin_unlock_irq(&css_set_lock);
-+	mutex_unlock(&cgroup_mutex);
-+	return 0;
- }
- 
- static u64 current_css_set_refcount_read(struct cgroup_subsys_state *css,
-@@ -86,31 +113,111 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
- {
- 	struct cgroup_subsys_state *css = seq_css(seq);
- 	struct cgrp_cset_link *link;
-+	int dead_cnt = 0, extra_refs = 0, threaded_csets = 0;
- 
- 	spin_lock_irq(&css_set_lock);
-+	if (css->cgroup->proc_cgrp)
-+		seq_puts(seq, (css->cgroup->proc_cgrp == css->cgroup)
-+			      ? "[thread root]\n" : "[threaded]\n");
-+
- 	list_for_each_entry(link, &css->cgroup->cset_links, cset_link) {
- 		struct css_set *cset = link->cset;
- 		struct task_struct *task;
- 		int count = 0;
-+		int refcnt = atomic_read(&cset->refcount);
- 
--		seq_printf(seq, "css_set %pK\n", cset);
-+		/*
-+		 * Print out the proc_cset and threaded_cset relationship
-+		 * and highlight difference between refcount and task_count.
-+		 */
-+		seq_printf(seq, "css_set %pK", cset);
-+		if (cset->proc_cset != cset) {
-+			threaded_csets++;
-+			seq_printf(seq, "=>%pK", cset->proc_cset);
-+		}
-+		if (!list_empty(&cset->threaded_csets)) {
-+			struct css_set *tcset;
-+			int idx = 0;
-+
-+			list_for_each_entry(tcset, &cset->threaded_csets,
-+					    threaded_csets_node) {
-+				seq_puts(seq, idx ? "," : "<=");
-+				seq_printf(seq, "%pK", tcset);
-+				idx++;
-+			}
-+		} else {
-+			seq_printf(seq, " %d", refcnt);
-+			if (refcnt - cset->task_count > 0) {
-+				int extra = refcnt - cset->task_count;
-+
-+				seq_printf(seq, " +%d", extra);
-+				/*
-+				 * Take out the one additional reference in
-+				 * init_css_set.
-+				 */
-+				if (cset == &init_css_set)
-+					extra--;
-+				extra_refs += extra;
-+			}
-+		}
-+		seq_puts(seq, "\n");
- 
- 		list_for_each_entry(task, &cset->tasks, cg_list) {
--			if (count++ > MAX_TASKS_SHOWN_PER_CSS)
--				goto overflow;
--			seq_printf(seq, "  task %d\n", task_pid_vnr(task));
-+			if (count++ <= MAX_TASKS_SHOWN_PER_CSS)
-+				seq_printf(seq, "  task %d\n",
-+					   task_pid_vnr(task));
- 		}
- 
- 		list_for_each_entry(task, &cset->mg_tasks, cg_list) {
--			if (count++ > MAX_TASKS_SHOWN_PER_CSS)
--				goto overflow;
--			seq_printf(seq, "  task %d\n", task_pid_vnr(task));
-+			if (count++ <= MAX_TASKS_SHOWN_PER_CSS)
-+				seq_printf(seq, "  task %d\n",
-+					   task_pid_vnr(task));
- 		}
--		continue;
--	overflow:
--		seq_puts(seq, "  ...\n");
-+		/* show # of overflowed tasks */
-+		if (count > MAX_TASKS_SHOWN_PER_CSS)
-+			seq_printf(seq, "  ... (%d)\n",
-+				   count - MAX_TASKS_SHOWN_PER_CSS);
-+
-+		if (cset->dead) {
-+			seq_puts(seq, "    [dead]\n");
-+			dead_cnt++;
-+		}
-+
-+		WARN_ON(count != cset->task_count);
- 	}
- 	spin_unlock_irq(&css_set_lock);
-+
-+	if (!dead_cnt && !extra_refs && !threaded_csets)
-+		return 0;
-+
-+	seq_puts(seq, "\n");
-+	if (threaded_csets)
-+		seq_printf(seq, "threaded css_sets = %d\n", threaded_csets);
-+	if (extra_refs)
-+		seq_printf(seq, "extra references = %d\n", extra_refs);
-+	if (dead_cnt)
-+		seq_printf(seq, "dead css_sets = %d\n", dead_cnt);
-+
-+	return 0;
++static inline bool cgroup_is_threaded(const struct cgroup *cgrp)
++{
++	return cgrp->proc_cgrp && (cgrp->proc_cgrp != cgrp);
 +}
 +
-+static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
++static inline bool cgroup_is_thread_root(const struct cgroup *cgrp)
 +{
-+	struct cgroup *cgrp = seq_css(seq)->cgroup;
-+	struct cgroup_subsys *ss;
-+	struct cgroup_subsys_state *css;
-+	int i;
++	return cgrp->proc_cgrp == cgrp;
++}
 +
-+	mutex_lock(&cgroup_mutex);
-+	for_each_subsys(ss, i) {
-+		css = rcu_dereference_check(cgrp->subsys[ss->id], true);
-+		if (!css)
-+			continue;
-+		seq_printf(seq, "%2d: %-4s\t- %lx[%d] %d\n", ss->id, ss->name,
-+			  (unsigned long)css, css->id,
-+			  atomic_read(&css->online_cnt));
+ void put_css_set_locked(struct css_set *cset);
+ 
+ static inline void put_css_set(struct css_set *cset)
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index 3186b1f..50577c5 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -334,8 +334,13 @@ static u16 cgroup_control(struct cgroup *cgrp)
+ 	struct cgroup *parent = cgroup_parent(cgrp);
+ 	u16 root_ss_mask = cgrp->root->subsys_mask;
+ 
+-	if (parent)
+-		return parent->subtree_control;
++	if (parent) {
++		u16 ss_mask = parent->subtree_control;
++
++		if (cgroup_is_threaded(cgrp))
++			ss_mask &= cgrp_dfl_threaded_ss_mask;
++		return ss_mask;
 +	}
-+	mutex_unlock(&cgroup_mutex);
- 	return 0;
+ 
+ 	if (cgroup_on_dfl(cgrp))
+ 		root_ss_mask &= ~(cgrp_dfl_inhibit_ss_mask |
+@@ -348,8 +353,13 @@ static u16 cgroup_ss_mask(struct cgroup *cgrp)
+ {
+ 	struct cgroup *parent = cgroup_parent(cgrp);
+ 
+-	if (parent)
+-		return parent->subtree_ss_mask;
++	if (parent) {
++		u16 ss_mask = parent->subtree_ss_mask;
++
++		if (cgroup_is_threaded(cgrp))
++			ss_mask &= cgrp_dfl_threaded_ss_mask;
++		return ss_mask;
++	}
+ 
+ 	return cgrp->root->subsys_mask;
+ }
+@@ -593,6 +603,24 @@ static bool css_set_threaded(struct css_set *cset)
  }
  
-@@ -128,17 +235,20 @@ static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
- 
- 	{
- 		.name = "current_css_set",
--		.read_u64 = current_css_set_read,
-+		.seq_show = current_css_set_read,
-+		.flags = CFTYPE_ONLY_ON_ROOT,
- 	},
- 
- 	{
- 		.name = "current_css_set_refcount",
- 		.read_u64 = current_css_set_refcount_read,
-+		.flags = CFTYPE_ONLY_ON_ROOT,
- 	},
- 
- 	{
- 		.name = "current_css_set_cg_links",
- 		.seq_show = current_css_set_cg_links_read,
-+		.flags = CFTYPE_ONLY_ON_ROOT,
- 	},
- 
- 	{
-@@ -147,6 +257,11 @@ static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
- 	},
- 
- 	{
-+		.name = "cgroup_subsys_states",
-+		.seq_show = cgroup_subsys_states_read,
-+	},
+ /**
++ * threaded_children_count - returns # of threaded children
++ * @cgrp: cgroup to be tested
++ *
++ * cgroup_mutex must be held by the caller.
++ */
++static int threaded_children_count(struct cgroup *cgrp)
++{
++	struct cgroup *child;
++	int count = 0;
 +
-+	{
- 		.name = "releasable",
- 		.read_u64 = releasable_read,
- 	},
-@@ -155,7 +270,9 @@ static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
- };
++	lockdep_assert_held(&cgroup_mutex);
++	cgroup_for_each_live_child(child, cgrp)
++		if (cgroup_is_threaded(child))
++			count++;
++	return count;
++}
++
++/**
+  * cgroup_update_populated - updated populated count of a cgroup
+  * @cgrp: the target cgroup
+  * @populated: inc or dec populated count
+@@ -2921,15 +2949,15 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
+ 	}
  
- struct cgroup_subsys debug_cgrp_subsys = {
--	.css_alloc = debug_css_alloc,
--	.css_free = debug_css_free,
--	.legacy_cftypes = debug_files,
-+	.css_alloc	= debug_css_alloc,
-+	.css_free	= debug_css_free,
-+	.legacy_cftypes	= debug_files,
-+	.dfl_cftypes	= debug_files,
-+	.threaded	= true,
- };
+ 	/* can't enable !threaded controllers on a threaded cgroup */
+-	if (cgrp->proc_cgrp && (enable & ~cgrp_dfl_threaded_ss_mask)) {
++	if (cgroup_is_threaded(cgrp) && (enable & ~cgrp_dfl_threaded_ss_mask)) {
+ 		ret = -EBUSY;
+ 		goto out_unlock;
+ 	}
+ 
+ 	/*
+-	 * Except for root and threaded cgroups, subtree_control must be
+-	 * zero for a cgroup with tasks so that child cgroups don't compete
+-	 * against tasks.
++	 * Except for root, thread roots and threaded cgroups, subtree_control
++	 * must be zero for a cgroup with tasks so that child cgroups don't
++	 * compete against tasks.
+ 	 */
+ 	if (enable && cgroup_parent(cgrp) && !cgrp->proc_cgrp) {
+ 		struct cgrp_cset_link *link;
+@@ -2977,7 +3005,9 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
+ 	LIST_HEAD(csets);
+ 	struct cgrp_cset_link *link;
+ 	struct css_set *cset, *cset_next;
++	struct cgroup *child;
+ 	int ret;
++	u16 ss_mask;
+ 
+ 	lockdep_assert_held(&cgroup_mutex);
+ 
+@@ -2985,14 +3015,38 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
+ 	if (cgrp->proc_cgrp)
+ 		return 0;
+ 
+-	/* allow only if there are neither children or enabled controllers */
+-	if (css_has_online_children(&cgrp->self) || cgrp->subtree_control)
++	/*
++	 * Allow only if it is not the root and there are:
++	 * 1) no children,
++	 * 2) no non-threaded controllers are enabled for the children, and
++	 * 3) no attached tasks.
++	 *
++	 * With no attached tasks, it is assumed that no css_sets will be
++	 * linked to the current cgroup. This may not be true if some dead
++	 * css_sets linger around due to task_struct leakage, for example.
++	 */
++	if (css_has_online_children(&cgrp->self) ||
++	   (cgrp->subtree_control & ~cgrp_dfl_threaded_ss_mask) ||
++	   !cgroup_parent(cgrp) || cgroup_is_populated(cgrp))
+ 		return -EBUSY;
+ 
+-	/* find all csets which need ->proc_cset updated */
++	/* make the parent cgroup a thread root */
++	child = cgrp;
++	cgrp = cgroup_parent(child);
++
++	/* noop for parent if parent has already been threaded */
++	if (cgrp->proc_cgrp)
++		goto setup_child;
++
++	/*
++	 * For the parent cgroup, we need to find all csets which need
++	 * ->proc_cset updated
++	 */
+ 	spin_lock_irq(&css_set_lock);
+ 	list_for_each_entry(link, &cgrp->cset_links, cset_link) {
+ 		cset = link->cset;
++		if (cset->dead)
++			continue;
+ 		if (css_set_populated(cset)) {
+ 			WARN_ON_ONCE(css_set_threaded(cset));
+ 			WARN_ON_ONCE(cset->pcset_preload);
+@@ -3031,7 +3085,34 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
+ 	/* mark it threaded */
+ 	cgrp->proc_cgrp = cgrp;
+ 
+-	return 0;
++setup_child:
++	ss_mask = cgroup_ss_mask(child);
++	/*
++	 * If some non-threaded controllers are enabled, they have to be
++	 * disabled.
++	 */
++	if (ss_mask & ~cgrp_dfl_threaded_ss_mask) {
++		cgroup_save_control(child);
++		child->proc_cgrp = cgrp;
++		ret = cgroup_apply_control(child);
++		cgroup_finalize_control(child, ret);
++		kernfs_activate(child->kn);
++
++		/*
++		 * If an error happen (it shouldn't), the thread mode
++		 * enablement fails, but the parent will remain as thread
++		 * root. That shouldn't be a problem as a thread root
++		 * without threaded children is not much different from
++		 * a non-threaded cgroup.
++		 */
++		WARN_ON_ONCE(ret);
++		if (ret)
++			child->proc_cgrp = NULL;
++	} else {
++		child->proc_cgrp = cgrp;
++		ret = 0;
++	}
++	return ret;
+ 
+ err_put_csets:
+ 	spin_lock_irq(&css_set_lock);
+@@ -3050,26 +3131,71 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
+ static int cgroup_disable_threaded(struct cgroup *cgrp)
+ {
+ 	struct cgrp_cset_link *link;
++	struct cgroup *parent = cgroup_parent(cgrp);
+ 
+ 	lockdep_assert_held(&cgroup_mutex);
+ 
+-	/* noop if already !threaded */
+-	if (!cgrp->proc_cgrp)
+-		return 0;
+-
+ 	/* partial disable isn't supported */
+-	if (cgrp->proc_cgrp != cgrp)
++	if (cgrp->proc_cgrp != parent)
+ 		return -EBUSY;
+ 
+-	/* allow only if there are neither children or enabled controllers */
+-	if (css_has_online_children(&cgrp->self) || cgrp->subtree_control)
++	/* noop if not a threaded cgroup */
++	if (!cgroup_is_threaded(cgrp))
++		return 0;
++
++	/*
++	 * Allow only if there are
++	 * 1) no children, and
++	 * 2) no attached tasks.
++	 *
++	 * With no attached tasks, it is assumed that no css_sets will be
++	 * linked to the current cgroup. This may not be true if some dead
++	 * css_sets linger around due to task_struct leakage, for example.
++	 */
++	if (css_has_online_children(&cgrp->self) || cgroup_is_populated(cgrp))
+ 		return -EBUSY;
+ 
+-	/* walk all csets and reset ->proc_cset */
++	/*
++	 * If the cgroup has some non-threaded controllers enabled at the
++	 * subtree_control level of the parent, we need to re-enabled those
++	 * controllers.
++	 */
++	cgrp->proc_cgrp = NULL;
++	if (cgroup_ss_mask(cgrp) & ~cgrp_dfl_threaded_ss_mask) {
++		int ret;
++
++		cgrp->proc_cgrp = parent;
++		cgroup_save_control(cgrp);
++		cgrp->proc_cgrp = NULL;
++		ret = cgroup_apply_control(cgrp);
++		cgroup_finalize_control(cgrp, ret);
++		kernfs_activate(cgrp->kn);
++
++		/*
++		 * If an error happen, we abandon update to the thread root
++		 * and return the erorr.
++		 */
++		if (ret)
++			return ret;
++	}
++
++	/*
++	 * Check remaining threaded children count to see if the threaded
++	 * csets of the parent need to be removed and ->proc_cset reset.
++	 */
+ 	spin_lock_irq(&css_set_lock);
++
++	if (threaded_children_count(parent))
++		goto out_unlock;	/* still have threaded children left */
++
++	cgrp = parent;
+ 	list_for_each_entry(link, &cgrp->cset_links, cset_link) {
+ 		struct css_set *cset = link->cset;
+ 
++		/* skip dead css_set */
++		if (cset->dead)
++			continue;
++
+ 		if (css_set_threaded(cset)) {
+ 			struct css_set *pcset = proc_css_set(cset);
+ 
+@@ -3085,6 +3211,7 @@ static int cgroup_disable_threaded(struct cgroup *cgrp)
+ 		}
+ 	}
+ 	cgrp->proc_cgrp = NULL;
++out_unlock:
+ 	spin_unlock_irq(&css_set_lock);
+ 
+ 	return 0;
+@@ -4475,7 +4602,16 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
+ 	cgrp->self.parent = &parent->self;
+ 	cgrp->root = root;
+ 	cgrp->level = level;
+-	cgrp->proc_cgrp = parent->proc_cgrp;
++
++	/*
++	 * A child cgroup created directly under a thread root will not
++	 * be threaded. Thread mode has to be explictly enabled for it.
++	 * The child cgroup will be threaded if its parent is threaded.
++	 */
++	if (cgroup_is_thread_root(parent))
++		cgrp->proc_cgrp = NULL;
++	else
++		cgrp->proc_cgrp = parent->proc_cgrp;
+ 
+ 	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp))
+ 		cgrp->ancestor_ids[tcgrp->level] = tcgrp->id;
+@@ -4702,6 +4838,12 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
+ 		return -EBUSY;
+ 
+ 	/*
++	 * Do an implicit thread mode disable if on default hierarchy.
++	 */
++	if (cgroup_on_dfl(cgrp))
++		cgroup_disable_threaded(cgrp);
++
++	/*
+ 	 * Mark @cgrp and the associated csets dead.  The former prevents
+ 	 * further task migration and child creation by disabling
+ 	 * cgroup_lock_live_group().  The latter makes the csets ignored by
 -- 
 1.8.3.1
 
