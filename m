@@ -1,71 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 630E86B0038
-	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 20:34:25 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id z63so103978057ioz.23
-        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 17:34:25 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id x74si8148292pfa.169.2017.04.20.17.34.24
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A6BE86B0038
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2017 21:33:00 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id k87so99936428ioi.3
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 18:33:00 -0700 (PDT)
+Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
+        by mx.google.com with ESMTPS id h130si23142itb.39.2017.04.20.18.32.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Apr 2017 17:34:24 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v9 2/3] mm, THP, swap: Check whether THP can be split firstly
-References: <20170419070625.19776-1-ying.huang@intel.com>
-	<20170419070625.19776-3-ying.huang@intel.com>
-	<20170419161318.GC3376@cmpxchg.org>
-	<87efwnrjfg.fsf@yhuang-dev.intel.com>
-	<20170420205035.GA13229@cmpxchg.org>
-Date: Fri, 21 Apr 2017 08:34:22 +0800
-In-Reply-To: <20170420205035.GA13229@cmpxchg.org> (Johannes Weiner's message
-	of "Thu, 20 Apr 2017 16:50:35 -0400")
-Message-ID: <87r30mha41.fsf@yhuang-dev.intel.com>
+        Thu, 20 Apr 2017 18:32:59 -0700 (PDT)
+Received: by mail-io0-x244.google.com with SMTP id h41so23599308ioi.1
+        for <linux-mm@kvack.org>; Thu, 20 Apr 2017 18:32:59 -0700 (PDT)
+Date: Fri, 21 Apr 2017 10:32:46 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: [PATCH v7 1/7] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170421013243.GA13966@js1304-desktop>
+References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1491880640-9944-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170417073808.GA21354@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170417073808.GA21354@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-Johannes Weiner <hannes@cmpxchg.org> writes:
+On Mon, Apr 17, 2017 at 04:38:08PM +0900, Minchan Kim wrote:
+> Hi Joonsoo,
+> 
+> On Tue, Apr 11, 2017 at 12:17:14PM +0900, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> > important to reserve. When ZONE_MOVABLE is used, this problem would
+> > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> > allocation request which is mainly used for page cache and anon page
+> > allocation. So, fix it.
+> > 
+> > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> > makes code complex. For example, if there is highmem system, following
+> > reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> > misleading people.
+> > 
+> >  #ifdef CONFIG_HIGHMEM
+> >  32
+> >  #endif
+> > 
+> > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> > array by MAX_NR_ZONES and place "#ifdef" to right place.
+> > 
+> > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  include/linux/mmzone.h |  2 +-
+> >  mm/page_alloc.c        | 11 ++++++-----
+> >  2 files changed, 7 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index ebaccd4..96194bf 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -869,7 +869,7 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+> >  					void __user *, size_t *, loff_t *);
+> >  int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
+> >  					void __user *, size_t *, loff_t *);
+> > -extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+> > +extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
+> >  int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+> >  					void __user *, size_t *, loff_t *);
+> >  int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 32b31d6..60ffa4e 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -203,17 +203,18 @@ static void __free_pages_ok(struct page *page, unsigned int order);
+> >   * TBD: should special case ZONE_DMA32 machines here - in those we normally
+> >   * don't need any ZONE_NORMAL reservation
+> >   */
+> > -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+> > +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
+> >  #ifdef CONFIG_ZONE_DMA
+> > -	 256,
+> > +	[ZONE_DMA] = 256,
+> >  #endif
+> >  #ifdef CONFIG_ZONE_DMA32
+> > -	 256,
+> > +	[ZONE_DMA32] = 256,
+> >  #endif
+> > +	[ZONE_NORMAL] = 32,
+> >  #ifdef CONFIG_HIGHMEM
+> > -	 32,
+> > +	[ZONE_HIGHMEM] = INT_MAX,
+> >  #endif
+> > -	 32,
+> > +	[ZONE_MOVABLE] = INT_MAX,
+> >  };
+> 
+> We need to update lowmem_reserve_ratio in Documentation/sysctl/vm.txt.
 
-> On Thu, Apr 20, 2017 at 08:50:43AM +0800, Huang, Ying wrote:
->> Johannes Weiner <hannes@cmpxchg.org> writes:
->> > On Wed, Apr 19, 2017 at 03:06:24PM +0800, Huang, Ying wrote:
->> >> With the patchset, the swap out throughput improves 3.6% (from about
->> >> 4.16GB/s to about 4.31GB/s) in the vm-scalability swap-w-seq test case
->> >> with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
->> >> device used is a RAM simulated PMEM (persistent memory) device.  To
->> >> test the sequential swapping out, the test case creates 8 processes,
->> >> which sequentially allocate and write to the anonymous pages until the
->> >> RAM and part of the swap device is used up.
->> >> 
->> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> >> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com> [for can_split_huge_page()]
->> >
->> > How often does this actually happen in practice? Because all that this
->> > protects us from is trying to allocate a swap cluster - which with the
->> > si->free_clusters list really isn't all that expensive - and return it
->> > again. Unless this happens all the time in practice, this optimization
->> > seems misplaced.
->>
->> To my surprise too, I found this patch has measurable impact in my
->> test.  The swap out throughput improves 3.6% in the vm-scalability
->> swap-w-seq test case with 8 processes.  Details are in the original
->> patch description.
->
-> Yeah I think that justifies it.
->
-> The changelog says "the patchset", I didn't realize this is the gain
-> from just this patch alone. Care to update that?
+Okay!
 
-Sorry for confusing, will update it in the next version.
+> And to me, INT_MAX is rather awkward.
 
-Best Regards,
-Huang, Ying
+I also think so.
 
-> Thanks!
+> # cat /proc/sys/vm/lowmem_reserve_ratio
+>         256     256     32      2147483647      2147483647
+> 
+> What do you think about to use 0 or -1 as special meaning
+> instead 2147483647?
+
+I have thought it but drop it. In setup_per_zone_lowmem_reserve(),
+there is a code to adjust the value to 1 if the value is less than 1.
+There might be someone who (ab)use this adjustment so it's safe to use
+INT_MAX.
+
+> Anyway, it could be separate patch regardless of zone_cma
+> so I hope Andrew to merge this patch regardless of other patches
+> in this patchset.
+
+Okay. I will send updated version soon.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
