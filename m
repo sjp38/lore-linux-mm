@@ -1,51 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 21D8E6B03BB
-	for <linux-mm@kvack.org>; Sat, 22 Apr 2017 00:46:29 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a3so74167979oii.3
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 21:46:29 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id v199si6568422oie.221.2017.04.21.21.46.28
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 416D36B03BC
+	for <linux-mm@kvack.org>; Sat, 22 Apr 2017 00:53:45 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id n80so27672380qke.6
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 21:53:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l32si1355089qtc.166.2017.04.21.21.53.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 21:46:28 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id y11so86174079oie.0
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 21:46:28 -0700 (PDT)
+        Fri, 21 Apr 2017 21:53:44 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [HMM 14/15] mm/hmm/devmem: dummy HMM device for ZONE_DEVICE memory v3
+Date: Fri, 21 Apr 2017 23:30:36 -0400
+Message-Id: <20170422033037.3028-15-jglisse@redhat.com>
+In-Reply-To: <20170422033037.3028-1-jglisse@redhat.com>
+References: <20170422033037.3028-1-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170422033037.3028-3-jglisse@redhat.com>
-References: <20170422033037.3028-1-jglisse@redhat.com> <20170422033037.3028-3-jglisse@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 21 Apr 2017 21:46:27 -0700
-Message-ID: <CAPcyv4gGa_RrsbXHMH3Jy=GHPX-Vup-Bto-QM2OwY+BpO8MeQQ@mail.gmail.com>
-Subject: Re: [HMM 02/15] mm/put_page: move ZONE_DEVICE page reference
- decrement v2
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Fri, Apr 21, 2017 at 8:30 PM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat.co=
-m> wrote:
-> Move page reference decrement of ZONE_DEVICE from put_page()
-> to put_zone_device_page() this does not affect non ZONE_DEVICE
-> page.
->
-> Doing this allow to catch when a ZONE_DEVICE page refcount reach
-> 1 which means the device is no longer reference by any one (unlike
-> page from other zone, ZONE_DEVICE page refcount never reach 0).
->
-> This patch is just a preparatory patch for HMM.
->
-> Changes since v1:
->   - commit message
->
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+This introduce a dummy HMM device class so device driver can use it to
+create hmm_device for the sole purpose of registering device memory.
+It is useful to device driver that want to manage multiple physical
+device memory under same struct device umbrella.
 
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+Changed since v2:
+  - use device_initcall() and drop everything that is module specific
+Changed since v1:
+  - Improve commit message
+  - Add drvdata parameter to set on struct device
+
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+---
+ include/linux/hmm.h | 22 +++++++++++++-
+ mm/hmm.c            | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 50a1115..374e5fd 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -72,11 +72,11 @@
+ 
+ #if IS_ENABLED(CONFIG_HMM)
+ 
++#include <linux/device.h>
+ #include <linux/migrate.h>
+ #include <linux/memremap.h>
+ #include <linux/completion.h>
+ 
+-
+ struct hmm;
+ 
+ /*
+@@ -433,6 +433,26 @@ static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
+ 
+ 	return drvdata[1];
+ }
++
++
++/*
++ * struct hmm_device - fake device to hang device memory onto
++ *
++ * @device: device struct
++ * @minor: device minor number
++ */
++struct hmm_device {
++	struct device		device;
++	unsigned int		minor;
++};
++
++/*
++ * A device driver that wants to handle multiple devices memory through a
++ * single fake device can use hmm_device to do so. This is purely a helper and
++ * it is not strictly needed, in order to make use of any HMM functionality.
++ */
++struct hmm_device *hmm_device_new(void *drvdata);
++void hmm_device_put(struct hmm_device *hmm_device);
+ #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
+ 
+ 
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 5d882e6..8b6b4c6 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -19,6 +19,7 @@
+  */
+ #include <linux/mm.h>
+ #include <linux/hmm.h>
++#include <linux/init.h>
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/slab.h>
+@@ -1112,4 +1113,91 @@ int hmm_devmem_fault_range(struct hmm_devmem *devmem,
+ 	return 0;
+ }
+ EXPORT_SYMBOL(hmm_devmem_fault_range);
++
++/*
++ * A device driver that wants to handle multiple devices memory through a
++ * single fake device can use hmm_device to do so. This is purely a helper
++ * and it is not needed to make use of any HMM functionality.
++ */
++#define HMM_DEVICE_MAX 256
++
++static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
++static DEFINE_SPINLOCK(hmm_device_lock);
++static struct class *hmm_device_class;
++static dev_t hmm_device_devt;
++
++static void hmm_device_release(struct device *device)
++{
++	struct hmm_device *hmm_device;
++
++	hmm_device = container_of(device, struct hmm_device, device);
++	spin_lock(&hmm_device_lock);
++	clear_bit(hmm_device->minor, hmm_device_mask);
++	spin_unlock(&hmm_device_lock);
++
++	kfree(hmm_device);
++}
++
++struct hmm_device *hmm_device_new(void *drvdata)
++{
++	struct hmm_device *hmm_device;
++	int ret;
++
++	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
++	if (!hmm_device)
++		return ERR_PTR(-ENOMEM);
++
++	ret = alloc_chrdev_region(&hmm_device->device.devt, 0, 1, "hmm_device");
++	if (ret < 0) {
++		kfree(hmm_device);
++		return NULL;
++	}
++
++	spin_lock(&hmm_device_lock);
++	hmm_device->minor = find_first_zero_bit(hmm_device_mask, HMM_DEVICE_MAX);
++	if (hmm_device->minor >= HMM_DEVICE_MAX) {
++		spin_unlock(&hmm_device_lock);
++		kfree(hmm_device);
++		return NULL;
++	}
++	set_bit(hmm_device->minor, hmm_device_mask);
++	spin_unlock(&hmm_device_lock);
++
++	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
++	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
++					hmm_device->minor);
++	hmm_device->device.release = hmm_device_release;
++	dev_set_drvdata(&hmm_device->device, drvdata);
++	hmm_device->device.class = hmm_device_class;
++	device_initialize(&hmm_device->device);
++
++	return hmm_device;
++}
++EXPORT_SYMBOL(hmm_device_new);
++
++void hmm_device_put(struct hmm_device *hmm_device)
++{
++	put_device(&hmm_device->device);
++}
++EXPORT_SYMBOL(hmm_device_put);
++
++static int __init hmm_init(void)
++{
++	int ret;
++
++	ret = alloc_chrdev_region(&hmm_device_devt, 0,
++				  HMM_DEVICE_MAX,
++				  "hmm_device");
++	if (ret)
++		return ret;
++
++	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
++	if (IS_ERR(hmm_device_class)) {
++		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
++		return PTR_ERR(hmm_device_class);
++	}
++	return 0;
++}
++
++device_initcall(hmm_init);
+ #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
