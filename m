@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE32831F3
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 23:31:07 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id o4so27420021qkb.5
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 20:31:07 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CAC3831F3
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 23:31:19 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id c45so26478035qtb.3
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 20:31:19 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 25si3311804qtt.224.2017.04.21.20.31.06
+        by mx.google.com with ESMTPS id i17si11540199qkh.295.2017.04.21.20.31.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 20:31:06 -0700 (PDT)
+        Fri, 21 Apr 2017 20:31:18 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM 13/15] mm/hmm/devmem: device memory hotplug using ZONE_DEVICE v3
-Date: Fri, 21 Apr 2017 23:30:35 -0400
-Message-Id: <20170422033037.3028-14-jglisse@redhat.com>
+Subject: [HMM 15/15] hmm: heterogeneous memory management documentation
+Date: Fri, 21 Apr 2017 23:30:37 -0400
+Message-Id: <20170422033037.3028-16-jglisse@redhat.com>
 In-Reply-To: <20170422033037.3028-1-jglisse@redhat.com>
 References: <20170422033037.3028-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,605 +21,386 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-This introduce a simple struct and associated helpers for device driver
-to use when hotpluging un-addressable device memory as ZONE_DEVICE. It
-will find a unuse physical address range and trigger memory hotplug for
-it which allocates and initialize struct page for the device memory.
-
-Changed since v2:
-  - s/SECTION_SIZE/PA_SECTION_SIZE
-Changed since v1:
-  - change to adapt to new add_pages() helper
-  - make this x86-64 only for now
+This add documentation for HMM (Heterogeneous Memory Management). It
+presents the motivation behind it, the features necessary for it to
+be useful and and gives an overview of how this is implemented.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h | 114 +++++++++++++++
- mm/Kconfig          |   9 ++
- mm/hmm.c            | 404 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 527 insertions(+)
+ Documentation/vm/hmm.txt | 362 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 362 insertions(+)
+ create mode 100644 Documentation/vm/hmm.txt
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index d267989..50a1115 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -72,6 +72,11 @@
- 
- #if IS_ENABLED(CONFIG_HMM)
- 
-+#include <linux/migrate.h>
-+#include <linux/memremap.h>
-+#include <linux/completion.h>
-+
-+
- struct hmm;
- 
- /*
-@@ -322,6 +327,115 @@ int hmm_vma_fault(struct vm_area_struct *vma,
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
- 
-+#if IS_ENABLED(CONFIG_HMM_DEVMEM)
-+struct hmm_devmem;
-+
-+struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
-+				       unsigned long addr);
-+
-+/*
-+ * struct hmm_devmem_ops - callback for ZONE_DEVICE memory events
-+ *
-+ * @free: call when refcount on page reach 1 and thus is no longer use
-+ * @fault: call when there is a page fault to unaddressable memory
-+ */
-+struct hmm_devmem_ops {
-+	void (*free)(struct hmm_devmem *devmem, struct page *page);
-+	int (*fault)(struct hmm_devmem *devmem,
-+		     struct vm_area_struct *vma,
-+		     unsigned long addr,
-+		     struct page *page,
-+		     unsigned int flags,
-+		     pmd_t *pmdp);
-+};
-+
-+/*
-+ * struct hmm_devmem - track device memory
-+ *
-+ * @completion: completion object for device memory
-+ * @pfn_first: first pfn for this resource (set by hmm_devmem_add())
-+ * @pfn_last: last pfn for this resource (set by hmm_devmem_add())
-+ * @resource: IO resource reserved for this chunk of memory
-+ * @pagemap: device page map for that chunk
-+ * @device: device to bind resource to
-+ * @ops: memory operations callback
-+ * @ref: per CPU refcount
-+ *
-+ * This an helper structure for device drivers that do not wish to implement
-+ * the gory details related to hotplugging new memoy and allocating struct
-+ * pages.
-+ *
-+ * Device drivers can directly use ZONE_DEVICE memory on their own if they
-+ * wish to do so.
-+ */
-+struct hmm_devmem {
-+	struct completion		completion;
-+	unsigned long			pfn_first;
-+	unsigned long			pfn_last;
-+	struct resource			*resource;
-+	struct device			*device;
-+	struct dev_pagemap		pagemap;
-+	const struct hmm_devmem_ops	*ops;
-+	struct percpu_ref		ref;
-+};
-+
-+/*
-+ * To add (hotplug) device memory, HMM assumes that there is no real resource
-+ * that reserves a range in the physical address space (this is intended to be
-+ * use by unaddressable device memory). It will reserve a physical range big
-+ * enough and allocate struct page for it.
-+ *
-+ * The device driver can wrap the hmm_devmem struct inside a private device
-+ * driver struct. The device driver must call hmm_devmem_remove() before the
-+ * device goes away and before freeing the hmm_devmem struct memory.
-+ */
-+struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
-+				  struct device *device,
-+				  unsigned long size);
-+void hmm_devmem_remove(struct hmm_devmem *devmem);
-+
-+int hmm_devmem_fault_range(struct hmm_devmem *devmem,
-+			   struct vm_area_struct *vma,
-+			   const struct migrate_vma_ops *ops,
-+			   unsigned long *src,
-+			   unsigned long *dst,
-+			   unsigned long start,
-+			   unsigned long addr,
-+			   unsigned long end,
-+			   void *private);
-+
-+/*
-+ * hmm_devmem_page_set_drvdata - set per-page driver data field
-+ *
-+ * @page: pointer to struct page
-+ * @data: driver data value to set
-+ *
-+ * Because page can not be on lru we have an unsigned long that driver can use
-+ * to store a per page field. This just a simple helper to do that.
-+ */
-+static inline void hmm_devmem_page_set_drvdata(struct page *page,
-+					       unsigned long data)
-+{
-+	unsigned long *drvdata = (unsigned long *)&page->pgmap;
-+
-+	drvdata[1] = data;
-+}
-+
-+/*
-+ * hmm_devmem_page_get_drvdata - get per page driver data field
-+ *
-+ * @page: pointer to struct page
-+ * Return: driver data value
-+ */
-+static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
-+{
-+	unsigned long *drvdata = (unsigned long *)&page->pgmap;
-+
-+	return drvdata[1];
-+}
-+#endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
-+
-+
- /* Below are for HMM internal use only! Not to be used by device driver! */
- void hmm_mm_destroy(struct mm_struct *mm);
- 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 3c1ffb1..ba5745f 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -314,6 +314,15 @@ config HMM_MIRROR
- 	  page tables (at PAGE_SIZE granularity), and must be able to recover from
- 	  the resulting potential page faults.
- 
-+config HMM_DEVMEM
-+	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
-+	depends on ARCH_HAS_HMM
-+	select HMM
-+	help
-+	  HMM devmem is a set of helper routines to leverage the ZONE_DEVICE
-+	  feature. This is just to avoid having device drivers to replicating a lot
-+	  of boiler plate code.  See Documentation/vm/hmm.txt.
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
- 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index be88807..5d882e6 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -23,9 +23,15 @@
- #include <linux/swap.h>
- #include <linux/slab.h>
- #include <linux/sched.h>
-+#include <linux/mmzone.h>
-+#include <linux/pagemap.h>
- #include <linux/swapops.h>
- #include <linux/hugetlb.h>
-+#include <linux/memremap.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/memory_hotplug.h>
-+
-+#define PA_SECTION_SIZE (1UL << PA_SECTION_SHIFT)
- 
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
- 
-@@ -709,3 +715,401 @@ int hmm_vma_fault(struct vm_area_struct *vma,
- }
- EXPORT_SYMBOL(hmm_vma_fault);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-+
-+
-+#if IS_ENABLED(CONFIG_HMM_DEVMEM)
-+struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
-+				       unsigned long addr)
-+{
-+	struct page *page;
-+
-+	page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+	if (!page)
-+		return NULL;
-+	lock_page(page);
-+	return page;
-+}
-+EXPORT_SYMBOL(hmm_vma_alloc_locked_page);
-+
-+
-+static void hmm_devmem_ref_release(struct percpu_ref *ref)
-+{
-+	struct hmm_devmem *devmem;
-+
-+	devmem = container_of(ref, struct hmm_devmem, ref);
-+	complete(&devmem->completion);
-+}
-+
-+static void hmm_devmem_ref_exit(void *data)
-+{
-+	struct percpu_ref *ref = data;
-+	struct hmm_devmem *devmem;
-+
-+	devmem = container_of(ref, struct hmm_devmem, ref);
-+	percpu_ref_exit(ref);
-+	devm_remove_action(devmem->device, &hmm_devmem_ref_exit, data);
-+}
-+
-+static void hmm_devmem_ref_kill(void *data)
-+{
-+	struct percpu_ref *ref = data;
-+	struct hmm_devmem *devmem;
-+
-+	devmem = container_of(ref, struct hmm_devmem, ref);
-+	percpu_ref_kill(ref);
-+	wait_for_completion(&devmem->completion);
-+	devm_remove_action(devmem->device, &hmm_devmem_ref_kill, data);
-+}
-+
-+static int hmm_devmem_fault(struct vm_area_struct *vma,
-+			    unsigned long addr,
-+			    struct page *page,
-+			    unsigned int flags,
-+			    pmd_t *pmdp)
-+{
-+	struct hmm_devmem *devmem = page->pgmap->data;
-+
-+	return devmem->ops->fault(devmem, vma, addr, page, flags, pmdp);
-+}
-+
-+static void hmm_devmem_free(struct page *page, void *data)
-+{
-+	struct hmm_devmem *devmem = data;
-+
-+	devmem->ops->free(devmem, page);
-+}
-+
-+static DEFINE_MUTEX(hmm_devmem_lock);
-+static RADIX_TREE(hmm_devmem_radix, GFP_KERNEL);
-+
-+static void hmm_devmem_radix_release(struct resource *resource)
-+{
-+	resource_size_t key, align_start, align_size, align_end;
-+
-+	align_start = resource->start & ~(PA_SECTION_SIZE - 1);
-+	align_size = ALIGN(resource_size(resource), PA_SECTION_SIZE);
-+	align_end = align_start + align_size - 1;
-+
-+	mutex_lock(&hmm_devmem_lock);
-+	for (key = resource->start;
-+	     key <= resource->end;
-+	     key += PA_SECTION_SIZE)
-+		radix_tree_delete(&hmm_devmem_radix, key >> PA_SECTION_SHIFT);
-+	mutex_unlock(&hmm_devmem_lock);
-+}
-+
-+static void hmm_devmem_release(struct device *dev, void *data)
-+{
-+	struct hmm_devmem *devmem = data;
-+	struct resource *resource = devmem->resource;
-+	unsigned long start_pfn, npages;
-+	struct zone *zone;
-+	struct page *page;
-+
-+	if (percpu_ref_tryget_live(&devmem->ref)) {
-+		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
-+		percpu_ref_put(&devmem->ref);
-+	}
-+
-+	/* pages are dead and unused, undo the arch mapping */
-+	start_pfn = (resource->start & ~(PA_SECTION_SIZE - 1)) >> PAGE_SHIFT;
-+	npages = ALIGN(resource_size(resource), PA_SECTION_SIZE) >> PAGE_SHIFT;
-+
-+	page = pfn_to_page(start_pfn);
-+	zone = page_zone(page);
-+
-+	mem_hotplug_begin();
-+	__remove_pages(zone, start_pfn, npages);
-+	mem_hotplug_done();
-+
-+	hmm_devmem_radix_release(resource);
-+}
-+
-+static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
-+{
-+	WARN_ON_ONCE(!rcu_read_lock_held());
-+
-+	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
-+}
-+
-+static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-+{
-+	resource_size_t key, align_start, align_size, align_end;
-+	struct device *device = devmem->device;
-+	int ret, nid, is_ram;
-+	unsigned long pfn;
-+
-+	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
-+	align_size = ALIGN(devmem->resource->start +
-+			   resource_size(devmem->resource),
-+			   PA_SECTION_SIZE) - align_start;
-+
-+	is_ram = region_intersects(align_start, align_size,
-+				   IORESOURCE_SYSTEM_RAM,
-+				   IORES_DESC_NONE);
-+	if (is_ram == REGION_MIXED) {
-+		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
-+				__func__, devmem->resource);
-+		return -ENXIO;
-+	}
-+	if (is_ram == REGION_INTERSECTS)
-+		return -ENXIO;
-+
-+	devmem->pagemap.type = MEMORY_DEVICE_UNADDRESSABLE;
-+	devmem->pagemap.res = devmem->resource;
-+	devmem->pagemap.page_fault = hmm_devmem_fault;
-+	devmem->pagemap.page_free = hmm_devmem_free;
-+	devmem->pagemap.dev = devmem->device;
-+	devmem->pagemap.ref = &devmem->ref;
-+	devmem->pagemap.data = devmem;
-+
-+	mutex_lock(&hmm_devmem_lock);
-+	align_end = align_start + align_size - 1;
-+	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
-+		struct hmm_devmem *dup;
-+
-+		rcu_read_lock();
-+		dup = hmm_devmem_find(key);
-+		rcu_read_unlock();
-+		if (dup) {
-+			dev_err(device, "%s: collides with mapping for %s\n",
-+				__func__, dev_name(dup->device));
-+			mutex_unlock(&hmm_devmem_lock);
-+			ret = -EBUSY;
-+			goto error;
-+		}
-+		ret = radix_tree_insert(&hmm_devmem_radix,
-+					key >> PA_SECTION_SHIFT,
-+					devmem);
-+		if (ret) {
-+			dev_err(device, "%s: failed: %d\n", __func__, ret);
-+			mutex_unlock(&hmm_devmem_lock);
-+			goto error_radix;
-+		}
-+	}
-+	mutex_unlock(&hmm_devmem_lock);
-+
-+	nid = dev_to_node(device);
-+	if (nid < 0)
-+		nid = numa_mem_id();
-+
-+	mem_hotplug_begin();
-+	ret = add_pages(nid, align_start >> PAGE_SHIFT,
-+			align_size >> PAGE_SHIFT, false);
-+	if (ret) {
-+		mem_hotplug_done();
-+		goto error_add_memory;
-+	}
-+	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-+				align_start >> PAGE_SHIFT,
-+				align_size >> PAGE_SHIFT);
-+	mem_hotplug_done();
-+
-+	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		/*
-+		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-+		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
-+		 * freed or placed on a driver-private list. Therefore,
-+		 * seed the storage with LIST_POISON* values.
-+		 */
-+		list_del(&page->lru);
-+		page->pgmap = &devmem->pagemap;
-+	}
-+	return 0;
-+
-+error_add_memory:
-+	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-+error_radix:
-+	hmm_devmem_radix_release(devmem->resource);
-+error:
-+	return ret;
-+}
-+
-+static int hmm_devmem_match(struct device *dev, void *data, void *match_data)
-+{
-+	struct hmm_devmem *devmem = data;
-+
-+	return devmem->resource == match_data;
-+}
-+
-+static void hmm_devmem_pages_remove(struct hmm_devmem *devmem)
-+{
-+	devres_release(devmem->device, &hmm_devmem_release,
-+		       &hmm_devmem_match, devmem->resource);
-+}
-+
-+/*
-+ * hmm_devmem_add() - hotplug ZONE_DEVICE memory for device memory
-+ *
-+ * @ops: memory event device driver callback (see struct hmm_devmem_ops)
-+ * @device: device struct to bind the resource too
-+ * @size: size in bytes of the device memory to add
-+ * Returns: pointer to new hmm_devmem struct ERR_PTR otherwise
-+ *
-+ * This first finds an empty range of physical address big enough to contain the
-+ * new resource, and then hotplugs it as ZONE_DEVICE memory, which in turn
-+ * allocates struct pages. It does not do anything beyond that; all events
-+ * affecting the memory will go through the various callbacks provided by
-+ * hmm_devmem_ops struct.
-+ */
-+struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
-+				  struct device *device,
-+				  unsigned long size)
-+{
-+	struct hmm_devmem *devmem;
-+	resource_size_t addr;
-+	int ret;
-+
-+	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
-+				   GFP_KERNEL, dev_to_node(device));
-+	if (!devmem)
-+		return ERR_PTR(-ENOMEM);
-+
-+	init_completion(&devmem->completion);
-+	devmem->pfn_first = -1UL;
-+	devmem->pfn_last = -1UL;
-+	devmem->resource = NULL;
-+	devmem->device = device;
-+	devmem->ops = ops;
-+
-+	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
-+			      0, GFP_KERNEL);
-+	if (ret)
-+		goto error_percpu_ref;
-+
-+	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
-+	if (ret)
-+		goto error_devm_add_action;
-+
-+	size = ALIGN(size, PA_SECTION_SIZE);
-+	addr = min((unsigned long)iomem_resource.end, 1UL << MAX_PHYSMEM_BITS);
-+	addr = addr - size + 1UL;
-+
-+	/*
-+	 * FIXME add a new helper to quickly walk resource tree and find free
-+	 * range
-+	 *
-+	 * FIXME what about ioport_resource resource ?
-+	 */
-+	for (; addr > size && addr >= iomem_resource.start; addr -= size) {
-+		ret = region_intersects(addr, size, 0, IORES_DESC_NONE);
-+		if (ret != REGION_DISJOINT)
-+			continue;
-+
-+		devmem->resource = devm_request_mem_region(device, addr, size,
-+							   dev_name(device));
-+		if (!devmem->resource) {
-+			ret = -ENOMEM;
-+			goto error_no_resource;
-+		}
-+		break;
-+	}
-+	if (!devmem->resource) {
-+		ret = -ERANGE;
-+		goto error_no_resource;
-+	}
-+
-+	devmem->resource->desc = IORES_DESC_DEVICE_MEMORY_UNADDRESSABLE;
-+	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
-+	devmem->pfn_last = devmem->pfn_first +
-+			   (resource_size(devmem->resource) >> PAGE_SHIFT);
-+
-+	ret = hmm_devmem_pages_create(devmem);
-+	if (ret)
-+		goto error_pages;
-+
-+	devres_add(device, devmem);
-+
-+	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
-+	if (ret) {
-+		hmm_devmem_remove(devmem);
-+		return ERR_PTR(ret);
-+	}
-+
-+	return devmem;
-+
-+error_pages:
-+	devm_release_mem_region(device, devmem->resource->start,
-+				resource_size(devmem->resource));
-+error_no_resource:
-+error_devm_add_action:
-+	hmm_devmem_ref_kill(&devmem->ref);
-+	hmm_devmem_ref_exit(&devmem->ref);
-+error_percpu_ref:
-+	devres_free(devmem);
-+	return ERR_PTR(ret);
-+}
-+EXPORT_SYMBOL(hmm_devmem_add);
-+
-+/*
-+ * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
-+ *
-+ * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
-+ *
-+ * This will hot-unplug memory that was hotplugged by hmm_devmem_add on behalf
-+ * of the device driver. It will free struct page and remove the resource that
-+ * reserved the physical address range for this device memory.
-+ */
-+void hmm_devmem_remove(struct hmm_devmem *devmem)
-+{
-+	resource_size_t start, size;
-+	struct device *device;
-+
-+	if (!devmem)
-+		return;
-+
-+	device = devmem->device;
-+	start = devmem->resource->start;
-+	size = resource_size(devmem->resource);
-+
-+	hmm_devmem_ref_kill(&devmem->ref);
-+	hmm_devmem_ref_exit(&devmem->ref);
-+	hmm_devmem_pages_remove(devmem);
-+
-+	devm_release_mem_region(device, start, size);
-+}
-+EXPORT_SYMBOL(hmm_devmem_remove);
-+
-+/*
-+ * hmm_devmem_fault_range() - migrate back a virtual range of memory
-+ *
-+ * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
-+ * @vma: virtual memory area containing the range to be migrated
-+ * @ops: migration callback for allocating destination memory and copying
-+ * @src: array of unsigned long containing source pfns
-+ * @dst: array of unsigned long containing destination pfns
-+ * @start: start address of the range to migrate (inclusive)
-+ * @addr: fault address (must be inside the range)
-+ * @end: end address of the range to migrate (exclusive)
-+ * @private: pointer passed back to each of the callback
-+ * Returns: 0 on success, VM_FAULT_SIGBUS on error
-+ *
-+ * This is a wrapper around migrate_vma() which checks the migration status
-+ * for a given fault address and returns the corresponding page fault handler
-+ * status. That will be 0 on success, or VM_FAULT_SIGBUS if migration failed
-+ * for the faulting address.
-+ *
-+ * This is a helper intendend to be used by the ZONE_DEVICE fault handler.
-+ */
-+int hmm_devmem_fault_range(struct hmm_devmem *devmem,
-+			   struct vm_area_struct *vma,
-+			   const struct migrate_vma_ops *ops,
-+			   unsigned long *src,
-+			   unsigned long *dst,
-+			   unsigned long start,
-+			   unsigned long addr,
-+			   unsigned long end,
-+			   void *private)
-+{
-+	if (migrate_vma(ops, vma, start, end, src, dst, private))
-+		return VM_FAULT_SIGBUS;
-+
-+	if (dst[(addr - start) >> PAGE_SHIFT] & MIGRATE_PFN_ERROR)
-+		return VM_FAULT_SIGBUS;
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(hmm_devmem_fault_range);
-+#endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
+diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
+new file mode 100644
+index 0000000..a18ffc0
+--- /dev/null
++++ b/Documentation/vm/hmm.txt
+@@ -0,0 +1,362 @@
++Heterogeneous Memory Management (HMM)
++
++Transparently allow any component of a program to use any memory region of said
++program with a device without using device specific memory allocator. This is
++becoming a requirement to simplify the use of advance heterogeneous computing
++where GPU, DSP or FPGA are use to perform various computations.
++
++This document is divided as follow, in the first section i expose the problems
++related to the use of a device specific allocator. The second section i expose
++the hardware limitations that are inherent to many platforms. The third section
++gives an overview of HMM designs. The fourth section explains how CPU page-
++table mirroring works and what is HMM purpose in this context. Fifth section
++deals with how device memory is represented inside the kernel. Finaly the last
++section present the new migration helper that allow to leverage the device DMA
++engine.
++
++
++-------------------------------------------------------------------------------
++
++1) Problems of using device specific memory allocator:
++
++Device with large amount of on board memory (several giga bytes) like GPU have
++historically manage their memory through dedicated driver specific API. This
++creates a disconnect between memory allocated and managed by device driver and
++regular application memory (private anonymous, share memory or regular file
++back memory). From here on i will refer to this aspect as split address space.
++I use share address space to refer to the opposite situation ie one in which
++any memory region can be use by device transparently.
++
++Split address space because device can only access memory allocated through the
++device specific API. This imply that all memory object in a program are not
++equal from device point of view which complicate large program that rely on a
++wide set of libraries.
++
++Concretly this means that code that wants to leverage device like GPU need to
++copy object between genericly allocated memory (malloc, mmap private/share/)
++and memory allocated through the device driver API (this still end up with an
++mmap but of the device file).
++
++For flat dataset (array, grid, image, ...) this isn't too hard to achieve but
++complex data-set (list, tree, ...) are hard to get right. Duplicating a complex
++data-set need to re-map all the pointer relations between each of its elements.
++This is error prone and program gets harder to debug because of the duplicate
++data-set.
++
++Split address space also means that library can not transparently use data they
++are getting from core program or other library and thus each library might have
++to duplicate its input data-set using specific memory allocator. Large project
++suffer from this and waste resources because of the various memory copy.
++
++Duplicating each library API to accept as input or output memory allocted by
++each device specific allocator is not a viable option. It would lead to a
++combinatorial explosions in the library entry points.
++
++Finaly with the advance of high level language constructs (in C++ but in other
++language too) it is now possible for compiler to leverage GPU or other devices
++without even the programmer knowledge. Some of compiler identified patterns are
++only do-able with a share address. It is as well more reasonable to use a share
++address space for all the other patterns.
++
++
++-------------------------------------------------------------------------------
++
++2) System bus, device memory characteristics
++
++System bus cripple share address due to few limitations. Most system bus only
++allow basic memory access from device to main memory, even cache coherency is
++often optional. Access to device memory from CPU is even more limited, most
++often than not it is not cache coherent.
++
++If we only consider the PCIE bus than device can access main memory (often
++through an IOMMU) and be cache coherent with the CPUs. However it only allows
++a limited set of atomic operation from device on main memory. This is worse
++in the other direction the CPUs can only access a limited range of the device
++memory and can not perform atomic operations on it. Thus device memory can not
++be consider like regular memory from kernel point of view.
++
++Another crippling factor is the limited bandwidth (~32GBytes/s with PCIE 4.0
++and 16 lanes). This is 33 times less that fastest GPU memory (1 TBytes/s).
++The final limitation is latency, access to main memory from the device has an
++order of magnitude higher latency than when the device access its own memory.
++
++Some platform are developing new system bus or additions/modifications to PCIE
++to address some of those limitations (OpenCAPI, CCIX). They mainly allow two
++way cache coherency between CPU and device and allow all atomic operations the
++architecture supports. Saddly not all platform are following this trends and
++some major architecture are left without hardware solutions to those problems.
++
++So for share address space to make sense not only we must allow device to
++access any memory memory but we must also permit any memory to be migrated to
++device memory while device is using it (blocking CPU access while it happens).
++
++
++-------------------------------------------------------------------------------
++
++3) Share address space and migration
++
++HMM intends to provide two main features. First one is to share the address
++space by duplication the CPU page table into the device page table so same
++address point to same memory and this for any valid main memory address in
++the process address space.
++
++To achieve this, HMM offer a set of helpers to populate the device page table
++while keeping track of CPU page table updates. Device page table updates are
++not as easy as CPU page table updates. To update the device page table you must
++allow a buffer (or use a pool of pre-allocated buffer) and write GPU specifics
++commands in it to perform the update (unmap, cache invalidations and flush,
++...). This can not be done through common code for all device. Hence why HMM
++provides helpers to factor out everything that can be while leaving the gory
++details to the device driver.
++
++The second mechanism HMM provide is a new kind of ZONE_DEVICE memory that does
++allow to allocate a struct page for each page of the device memory. Those page
++are special because the CPU can not map them. They however allow to migrate
++main memory to device memory using exhisting migration mechanism and everything
++looks like if page was swap out to disk from CPU point of view. Using a struct
++page gives the easiest and cleanest integration with existing mm mechanisms.
++Again here HMM only provide helpers, first to hotplug new ZONE_DEVICE memory
++for the device memory and second to perform migration. Policy decision of what
++and when to migrate things is left to the device driver.
++
++Note that any CPU access to a device page trigger a page fault and a migration
++back to main memory ie when a page backing an given address A is migrated from
++a main memory page to a device page then any CPU access to address A trigger a
++page fault and initiate a migration back to main memory.
++
++
++With this two features, HMM not only allow a device to mirror a process address
++space and keeps both CPU and device page table synchronize, but also allow to
++leverage device memory by migrating part of data-set that is actively use by a
++device.
++
++
++-------------------------------------------------------------------------------
++
++4) Address space mirroring implementation and API
++
++Address space mirroring main objective is to allow to duplicate range of CPU
++page table into a device page table and HMM helps keeping both synchronize. A
++device driver that want to mirror a process address space must start with the
++registration of an hmm_mirror struct:
++
++ int hmm_mirror_register(struct hmm_mirror *mirror,
++                         struct mm_struct *mm);
++ int hmm_mirror_register_locked(struct hmm_mirror *mirror,
++                                struct mm_struct *mm);
++
++The locked variant is to be use when the driver is already holding the mmap_sem
++of the mm in write mode. The mirror struct has a set of callback that are use
++to propagate CPU page table:
++
++ struct hmm_mirror_ops {
++     /* sync_cpu_device_pagetables() - synchronize page tables
++      *
++      * @mirror: pointer to struct hmm_mirror
++      * @update_type: type of update that occurred to the CPU page table
++      * @start: virtual start address of the range to update
++      * @end: virtual end address of the range to update
++      *
++      * This callback ultimately originates from mmu_notifiers when the CPU
++      * page table is updated. The device driver must update its page table
++      * in response to this callback. The update argument tells what action
++      * to perform.
++      *
++      * The device driver must not return from this callback until the device
++      * page tables are completely updated (TLBs flushed, etc); this is a
++      * synchronous call.
++      */
++      void (*update)(struct hmm_mirror *mirror,
++                     enum hmm_update action,
++                     unsigned long start,
++                     unsigned long end);
++ };
++
++Device driver must perform update to the range following action (turn range
++read only, or fully unmap, ...). Once driver callback returns the device must
++be done with the update.
++
++
++When device driver wants to populate a range of virtual address it can use
++either:
++ int hmm_vma_get_pfns(struct vm_area_struct *vma,
++                      struct hmm_range *range,
++                      unsigned long start,
++                      unsigned long end,
++                      hmm_pfn_t *pfns);
++ int hmm_vma_fault(struct vm_area_struct *vma,
++                   struct hmm_range *range,
++                   unsigned long start,
++                   unsigned long end,
++                   hmm_pfn_t *pfns,
++                   bool write,
++                   bool block);
++
++First one (hmm_vma_get_pfns()) will only fetch present CPU page table entry and
++will not trigger a page fault on missing or non present entry. The second one
++do trigger page fault on missing or read only entry if write parameter is true.
++Page fault use the generic mm page fault code path just like a CPU page fault.
++
++Both function copy CPU page table into their pfns array argument. Each entry in
++that array correspond to an address in the virtual range. HMM provide a set of
++flags to help driver identify special CPU page table entries.
++
++Locking with the update() callback is the most important aspect the driver must
++respect in order to keep things properly synchronize. The usage pattern is :
++
++ int driver_populate_range(...)
++ {
++      struct hmm_range range;
++      ...
++ again:
++      ret = hmm_vma_get_pfns(vma, &range, start, end, pfns);
++      if (ret)
++          return ret;
++      take_lock(driver->update);
++      if (!hmm_vma_range_done(vma, &range)) {
++          release_lock(driver->update);
++          goto again;
++      }
++
++      // Use pfns array content to update device page table
++
++      release_lock(driver->update);
++      return 0;
++ }
++
++The driver->update lock is the same lock that driver takes inside its update()
++callback. That lock must be call before hmm_vma_range_done() to avoid any race
++with a concurrent CPU page table update.
++
++HMM implements all this on top of the mmu_notifier API because we wanted to a
++simpler API and also to be able to perform optimization latter own like doing
++concurrent device update in multi-devices scenario.
++
++HMM also serve as an impedence missmatch between how CPU page table update are
++done (by CPU write to the page table and TLB flushes) from how device update
++their own page table. Device update is a multi-step process, first appropriate
++commands are write to a buffer, then this buffer is schedule for execution on
++the device. It is only once the device has executed commands in the buffer that
++the update is done. Creating and scheduling update command buffer can happen
++concurrently for multiple devices. Waiting for each device to report commands
++as executed is serialize (there is no point in doing this concurrently).
++
++
++-------------------------------------------------------------------------------
++
++5) Represent and manage device memory from core kernel point of view
++
++Several differents design were try to support device memory. First one use
++device specific data structure to keep information about migrated memory and
++HMM hooked itself in various place of mm code to handle any access to address
++that were back by device memory. It turns out that this ended up replicating
++most of the fields of struct page and also needed many kernel code path to be
++updated to understand this new kind of memory.
++
++Thing is most kernel code path never try to access the memory behind a page
++but only care about struct page contents. Because of this HMM switchted to
++directly using struct page for device memory which left most kernel code path
++un-aware of the difference. We only need to make sure that no one ever try to
++map those page from the CPU side.
++
++HMM provide a set of helpers to register and hotplug device memory as a new
++region needing struct page. This is offer through a very simple API:
++
++ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
++                                   struct device *device,
++                                   unsigned long size);
++ void hmm_devmem_remove(struct hmm_devmem *devmem);
++
++The hmm_devmem_ops is where most of the important things are:
++
++ struct hmm_devmem_ops {
++     void (*free)(struct hmm_devmem *devmem, struct page *page);
++     int (*fault)(struct hmm_devmem *devmem,
++                  struct vm_area_struct *vma,
++                  unsigned long addr,
++                  struct page *page,
++                  unsigned flags,
++                  pmd_t *pmdp);
++ };
++
++The first callback (free()) happens when the last reference on a device page is
++drop. This means the device page is now free and no longer use by anyone. The
++second callback happens whenever CPU try to access a device page which it can
++not do. This second callback must trigger a migration back to system memory,
++HMM provides an helper to do just that:
++
++ int hmm_devmem_fault_range(struct hmm_devmem *devmem,
++                            struct vm_area_struct *vma,
++                            const struct migrate_vma_ops *ops,
++                            unsigned long mentry,
++                            unsigned long *src,
++                            unsigned long *dst,
++                            unsigned long start,
++                            unsigned long addr,
++                            unsigned long end,
++                            void *private);
++
++It relies on new migrate_vma() helper which is a generic page migration helper
++that work on range of virtual address instead of working on individual pages,
++it also allow to leverage device DMA engine to perform the copy from device to
++main memory (or in the other direction). The next section goes over this new
++helper.
++
++
++-------------------------------------------------------------------------------
++
++6) Migrate to and from device memory
++
++Because CPU can not access device memory, migration must use device DMA engine
++to perform copy from and to device memory. For this we need a new migration
++helper:
++
++ int migrate_vma(const struct migrate_vma_ops *ops,
++                 struct vm_area_struct *vma,
++                 unsigned long mentries,
++                 unsigned long start,
++                 unsigned long end,
++                 unsigned long *src,
++                 unsigned long *dst,
++                 void *private);
++
++Unlike other migration function it works on a range of virtual address, there
++is two reasons for that. First device DMA copy has a high setup overhead cost
++and thus batching multiple pages is needed as otherwise the migration overhead
++make the whole excersie pointless. The second reason is because driver trigger
++such migration base on range of address the device is actively accessing.
++
++The migrate_vma_ops struct define two callbacks. First one (alloc_and_copy())
++control destination memory allocation and copy operation. Second one is there
++to allow device driver to perform cleanup operation after migration.
++
++ struct migrate_vma_ops {
++     void (*alloc_and_copy)(struct vm_area_struct *vma,
++                            const unsigned long *src,
++                            unsigned long *dst,
++                            unsigned long start,
++                            unsigned long end,
++                            void *private);
++     void (*finalize_and_map)(struct vm_area_struct *vma,
++                              const unsigned long *src,
++                              const unsigned long *dst,
++                              unsigned long start,
++                              unsigned long end,
++                              void *private);
++ };
++
++It is important to stress that this migration helpers allow for hole in the
++virtual address range. Some pages in the range might not be migrated for all
++the usual reasons (page is pin, page is lock, ...). This helper does not fail
++but just skip over those pages.
++
++The alloc_and_copy() might as well decide to not migrate all pages in the
++range (for reasons under the callback control). For those the callback just
++have to leave the corresponding dst entry empty.
++
++Finaly the migration of the struct page might fails (for file back page) for
++various reasons (failure to freeze reference, or update page cache, ...). If
++that happens then the finalize_and_map() can catch any pages that was not
++migrated. Note those page were still copied to new page and thus we wasted
++bandwidth but this is considered as a rare event and a price that we are
++willing to pay to keep all the code simpler.
 -- 
 2.9.3
 
