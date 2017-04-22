@@ -1,167 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AB57831F3
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 20:07:17 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 194so157491359iof.21
-        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 17:07:17 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q75si11630885pgq.338.2017.04.21.17.07.16
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2686B03A4
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2017 23:30:44 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id c28so7907951qta.8
+        for <linux-mm@kvack.org>; Fri, 21 Apr 2017 20:30:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q62si11554689qtd.4.2017.04.21.20.30.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Apr 2017 17:07:16 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v9 1/3] mm, THP, swap: Delay splitting THP during swap out
-References: <20170419070625.19776-1-ying.huang@intel.com>
-	<20170419070625.19776-2-ying.huang@intel.com>
-	<1492755096.24636.2.camel@gmail.com>
-	<20170421140812.GA15918@cmpxchg.org>
-Date: Sat, 22 Apr 2017 08:07:12 +0800
-In-Reply-To: <20170421140812.GA15918@cmpxchg.org> (Johannes Weiner's message
-	of "Fri, 21 Apr 2017 10:08:12 -0400")
-Message-ID: <87bmrpe24v.fsf@yhuang-dev.intel.com>
+        Fri, 21 Apr 2017 20:30:42 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [HMM 00/15] HMM (Heterogeneous Memory Management) v20
+Date: Fri, 21 Apr 2017 23:30:22 -0400
+Message-Id: <20170422033037.3028-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Johannes Weiner <hannes@cmpxchg.org> writes:
+Patchset is on top of mmotm mmotm-2017-04-18 and Michal patchset
+([PATCH -v3 0/13] mm: make movable onlining suck less). Branch:
 
-> On Fri, Apr 21, 2017 at 04:11:36PM +1000, Balbir Singh wrote:
->> > In the future of THP swap optimization, some information of the
->> > swapped out THP (such as compound map count) will be recorded in the
->> > swap_cluster_info data structure.
->> > 
->> > The mem cgroup swap accounting functions are enhanced to support
->> > charge or uncharge a swap cluster backing a THP as a whole.
->> 
->> Thanks and in the future it will be good to add stats to indicate
->> the number of THP swapped out for tracking.
->
-> Agreed. Huang, can you include stats from your test that show how many
-> times we succeed and how many times we fall back to splitting?
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v20
 
-Sorry, I don't fully understand your words.  If my understanding were
-correct, Balbir is asking some stats in /proc/vmstat.  For now, the
-stats we can provide is how many success swap cluster allocations and
-swap cache addings, and how many fails for them.  And in the next step
-(to split THP after swapping out), we can add stats for how many THP
-swapped out (written with 2M IO and reclaimed).  So I suggest to add two
-stats, thp_swpout and thp_swpout_fallback in the next step.  What do you
-think about that?
+I have included all suggestion made since v19, it is all build
+fix and change in respect to memory hotplug with Michal rework.
+Changes since v19:
+- Included various build fix and compilation warning fix
+- Limit HMM to x86-64 (easy to enable other arch as separate patch)
+- Rebase on top of Michal memory hotplug rework
 
->> > With the patch, the swap out throughput improves 11.5% (from about
->> > 3.73GB/s to about 4.16GB/s) in the vm-scalability swap-w-seq test case
->> > with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
->> > device used is a RAM simulated PMEM (persistent memory) device. 
->> 
->> I am not sure if RAM simulating PMEM is a fair way to test, its just
->> memcpy and no swap out.
->
-> It would be good to know exactly what simulating PMEM means. Does it
-> add some artificial delay, or is it a simple ramfs that holds a swap
-> file?
+Heterogeneous Memory Management (HMM) (description and justification)
 
-No artificial delay, just a RAM simulated block device implemented with
-memcpy.
+Today device driver expose dedicated memory allocation API through their
+device file, often relying on a combination of IOCTL and mmap calls. The
+device can only access and use memory allocated through this API. This
+effectively split the program address space into object allocated for the
+device and useable by the device and other regular memory (malloc, mmap
+of a file, share memory, a?|) only accessible by CPU (or in a very limited
+way by a device by pinning memory).
 
-> IMO, this patch isn't a pure cycles-optimization anyway in the "reduce
-> instructions involved in this path" sense. It's the groundwork to make
-> swapping THP-native. So slimming down the cycles is great, but the
-> infrastructure work to later do 2MB TLB shootdown and swap with 2MB IO
-> holds more weight for me.
+Allowing different isolated component of a program to use a device thus
+require duplication of the input data structure using device memory
+allocator. This is reasonable for simple data structure (array, grid,
+image, a?|) but this get extremely complex with advance data structure
+(list, tree, graph, a?|) that rely on a web of memory pointers. This is
+becoming a serious limitation on the kind of work load that can be
+offloaded to device like GPU.
 
-Yes.  Performance improvement is not the emphasis of this step, but will
-be of the next step.
+New industry standard like C++, OpenCL or CUDA are pushing to remove this
+barrier. This require a shared address space between GPU device and CPU so
+that GPU can access any memory of a process (while still obeying memory
+protection like read only). This kind of feature is also appearing in
+various other operating systems.
 
->> > @@ -326,11 +326,14 @@ PAGEFLAG_FALSE(HighMem)
->> >  #ifdef CONFIG_SWAP
->> >  static __always_inline int PageSwapCache(struct page *page)
->> >  {
->> > +#ifdef CONFIG_THP_SWAP
->> > +	page = compound_head(page);
->> > +#endif
->> 
->> Can we please add a static inline THPSwapPage() that returns page_compound(page)
->> for CONFIG_THP_SWAP and page otherwise?
->
-> Where else would it be used?
->
-> I think it'd be preferable to leave this #ifdef wart as a reminder
-> that we need to revisit this.
->
->> > @@ -5929,25 +5929,26 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
->> >  	memcg = mem_cgroup_id_get_online(memcg);
->> >  
->> >  	if (!mem_cgroup_is_root(memcg) &&
->> > -	    !page_counter_try_charge(&memcg->swap, 1, &counter)) {
->> > +	    !page_counter_try_charge(&memcg->swap, nr_pages, &counter)) {
->> >  		mem_cgroup_id_put(memcg);
->> >  		return -ENOMEM;
->> >  	}
->> >  
->> > -	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
->> > +	if (nr_pages > 1)
->> > +		mem_cgroup_id_get_many(memcg, nr_pages - 1);
->> 
->> The nr_pages -1 is not initutive, a comment about mem_cgroup_id_get_online()
->> getting 1 would help.
->
-> Agreed. Something like this might help:
->
-> 	/* Get references for the tail pages, too */
+HMM is a set of helpers to facilitate several aspects of address space
+sharing and device memory management. Unlike existing sharing mechanism
+that rely on pining pages use by a device, HMM relies on mmu_notifier to
+propagate CPU page table update to device page table.
 
-Good suggestion!  I will add this.
+Duplicating CPU page table is only one aspect necessary for efficiently
+using device like GPU. GPU local memory have bandwidth in the TeraBytes/
+second range but they are connected to main memory through a system bus
+like PCIE that is limited to 32GigaBytes/second (PCIE 4.0 16x). Thus it
+is necessary to allow migration of process memory from main system memory
+to device memory. Issue is that on platform that only have PCIE the device
+memory is not accessible by the CPU with the same properties as main
+memory (cache coherency, atomic operations, a?|).
 
->> > @@ -1066,6 +1155,33 @@ void swapcache_free(swp_entry_t entry)
->> >  	}
->> >  }
->> >  
->> > +#ifdef CONFIG_THP_SWAP
->> > +void swapcache_free_cluster(swp_entry_t entry)
->> > +{
->> > +	unsigned long offset = swp_offset(entry);
->> > +	unsigned long idx = offset / SWAPFILE_CLUSTER;
->> > +	struct swap_cluster_info *ci;
->> > +	struct swap_info_struct *si;
->> > +	unsigned char *map;
->> > +	unsigned int i;
->> > +
->> > +	si = swap_info_get(entry);
->> > +	if (!si)
->> > +		return;
->> > +
->> > +	ci = lock_cluster(si, offset);
->> > +	map = si->swap_map + offset;
->> > +	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
->> > +		VM_BUG_ON(map[i] != SWAP_HAS_CACHE);
->> > +		map[i] = 0;
->> > +	}
->> > +	unlock_cluster(ci);
->> > +	mem_cgroup_uncharge_swap(entry, SWAPFILE_CLUSTER);
->> > +	swap_free_cluster(si, idx);
->> > +	spin_unlock(&si->lock);
->> > +}
->> > +#endif /* CONFIG_THP_SWAP */
->> > +
->> >  static int swp_entry_cmp(const void *ent1, const void *ent2)
->> >  {
->> >  	const swp_entry_t *e1 = ent1, *e2 = ent2;
->> 
->> 
->> This is a massive patch, I presume you've got recommendations to keep it
->> this way?
->
-> It used to be split into patches that introduce API and helpers on one
-> hand and patches that use these functions on the other hand. That was
-> impossible to review, because you had to jump between emails.
->
-> If you have ideas about which parts could be split out and be
-> stand-alone changes in their own right, I'd be all for that.
+To allow migration from main memory to device memory HMM provides a set
+of helper to hotplug device memory as a new type of ZONE_DEVICE memory
+which is un-addressable by CPU but still has struct page representing it.
+This allow most of the core kernel logic that deals with a process memory
+to stay oblivious of the peculiarity of device memory.
 
-Best Regards,
-Huang, Ying
+When page backing an address of a process is migrated to device memory
+the CPU page table entry is set to a new specific swap entry. CPU access
+to such address triggers a migration back to system memory, just like if
+the page was swap on disk. HMM also blocks any one from pinning a
+ZONE_DEVICE page so that it can always be migrated back to system memory
+if CPU access it. Conversely HMM does not migrate to device memory any
+page that is pin in system memory.
+
+To allow efficient migration between device memory and main memory a new
+migrate_vma() helpers is added with this patchset. It allows to leverage
+device DMA engine to perform the copy operation.
+
+This feature will be use by upstream driver like nouveau mlx5 and probably
+other in the future (amdgpu is next suspect  in line). We are actively
+working on nouveau and mlx5 support. To test this patchset we also worked
+with NVidia close source driver team, they have more resources than us to
+test this kind of infrastructure and also a bigger and better userspace
+eco-system with various real industry workload they can be use to test and
+profile HMM.
+
+The expected workload is a program builds a data set on the CPU (from disk,
+from network, from sensors, a?|). Program uses GPU API (OpenCL, CUDA, ...)
+to give hint on memory placement for the input data and also for the output
+buffer. Program call GPU API to schedule a GPU job, this happens using
+device driver specific ioctl. All this is hidden from programmer point of
+view in case of C++ compiler that transparently offload some part of a
+program to GPU. Program can keep doing other stuff on the CPU while the
+GPU is crunching numbers.
+
+It is expected that CPU will not access the same data set as the GPU while
+GPU is working on it, but this is not mandatory. In fact we expect some
+small memory object to be actively access by both GPU and CPU concurrently
+as synchronization channel and/or for monitoring purposes. Such object will
+stay in system memory and should not be bottlenecked by system bus
+bandwidth (rare write and read access from both CPU and GPU).
+
+As we are relying on device driver API, HMM does not introduce any new
+syscall nor does it modify any existing ones. It does not change any POSIX
+semantics or behaviors. For instance the child after a fork of a process
+that is using HMM will not be impacted in anyway, nor is there any data
+hazard between child COW or parent COW of memory that was migrated to
+device prior to fork.
+
+HMM assume a numbers of hardware features. Device must allow device page
+table to be updated at any time (ie device job must be preemptable). Device
+page table must provides memory protection such as read only. Device must
+track write access (dirty bit). Device must have a minimum granularity that
+match PAGE_SIZE (ie 4k).
+
+
+Reviewer (just hint):
+Patch 1    add new add_pages() helper to avoid modifying each arch memory
+           hot plug function
+Patch 2    move the page reference decrement from put_page() to
+           put_zone_device_page() Dan Williams is the best person to review
+           this change
+Patch 3    add a new memory type for ZONE_DEVICE and also add all the logic
+           in various core mm to support this new type. Dan Williams and
+           any core mm contributor are best people to review each half of
+           this patchset
+Patch 4    add a new migrate mode. Any one familiar with page migration is
+           welcome to review.
+Patch 5    introduce a new migration helper (migrate_vma()) that allow to
+           migrate a range of virtual address of a process using device DMA
+           engine to perform the copy. It is not limited to do copy from and
+           to device but can also do copy between any kind of source and
+           destination memory. Again anyone familiar with migration code
+           should be able to verify the logic.
+Patch 6    optimize the new migrate_vma() by unmapping pages while we are
+           collecting them. This can be review by any mm folks.
+Patch 7    introduce core infrastructure and definition of HMM, pretty
+           small patch and easy to review
+Patch 8    introduce the mirror functionality of HMM, it relies on
+           mmu_notifier and thus someone familiar with that part would be
+           in better position to review
+Patch 9    is an helper to snapshot CPU page table while synchronizing with
+           concurrent page table update. Understanding mmu_notifier makes
+           review easier.
+Patch 10   is mostly a wrapper around handle_mm_fault()
+Patch 11   add unaddressable memory migration to helper introduced in patch
+           6, this can be review by anyone familiar with migration code
+Patch 12   add a feature that allow device to allocate non-present page on
+           the GPU when migrating a range of address to device memory. This
+           is an helper for device driver to avoid having to first allocate
+           system memory before migration to device memory
+Patch 13   add helper to hotplug un-addressable device memory as new type
+           of ZONE_DEVICE memory (new type introducted in patch 3 of this
+           serie). This is boiler plate code around memory hotplug and it
+           also pick a free range of physical address for the device memory.
+           Note that the physical address do not point to anything (at least
+           as far as the kernel knows).
+Patch 14   introduce a new hmm_device class as an helper for device driver
+           that want to expose multiple device memory under a common fake
+           device driver. This is usefull for multi-gpu configuration.
+           Anyone familiar with device driver infrastructure can review
+           this. Boiler plate code really.
+Patch 15   is the documentation for everything
+
+
+Previous patchset posting :
+    v1 http://lwn.net/Articles/597289/
+    v2 https://lkml.org/lkml/2014/6/12/559
+    v3 https://lkml.org/lkml/2014/6/13/633
+    v4 https://lkml.org/lkml/2014/8/29/423
+    v5 https://lkml.org/lkml/2014/11/3/759
+    v6 http://lwn.net/Articles/619737/
+    v7 http://lwn.net/Articles/627316/
+    v8 https://lwn.net/Articles/645515/
+    v9 https://lwn.net/Articles/651553/
+    v10 https://lwn.net/Articles/654430/
+    v11 http://www.gossamer-threads.com/lists/linux/kernel/2286424
+    v12 http://www.kernelhub.org/?msg=972982&p=2
+    v13 https://lwn.net/Articles/706856/
+    v14 https://lkml.org/lkml/2016/12/8/344
+    v15 http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1304107.html
+    v16 http://www.spinics.net/lists/linux-mm/msg119814.html
+    v17 https://lkml.org/lkml/2017/1/27/847
+    v18 https://lkml.org/lkml/2017/3/16/596
+    v19 https://lkml.org/lkml/2017/4/5/831
+
+JA(C)rA'me Glisse (14):
+  mm/put_page: move ZONE_DEVICE page reference decrement v2
+  mm/unaddressable-memory: new type of ZONE_DEVICE for unaddressable
+    memory
+  mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY
+  mm/migrate: new memory migration helper for use with device memory v4
+  mm/migrate: migrate_vma() unmap page from vma while collecting pages
+  mm/hmm: heterogeneous memory management (HMM for short) v2
+  mm/hmm/mirror: mirror process address space on device with HMM helpers
+    v2
+  mm/hmm/mirror: helper to snapshot CPU page table v2
+  mm/hmm/mirror: device page fault handler
+  mm/migrate: support un-addressable ZONE_DEVICE page in migration
+  mm/migrate: allow migrate_vma() to alloc new page on empty entry v2
+  mm/hmm/devmem: device memory hotplug using ZONE_DEVICE v3
+  mm/hmm/devmem: dummy HMM device for ZONE_DEVICE memory v3
+  hmm: heterogeneous memory management documentation
+
+Michal Hocko (1):
+  mm, memory_hotplug: introduce add_pages
+
+ Documentation/vm/hmm.txt       |  362 ++++++++++++
+ MAINTAINERS                    |    7 +
+ arch/x86/Kconfig               |    4 +
+ arch/x86/mm/init_64.c          |   22 +-
+ fs/aio.c                       |    8 +
+ fs/f2fs/data.c                 |    5 +-
+ fs/hugetlbfs/inode.c           |    5 +-
+ fs/proc/task_mmu.c             |    7 +
+ fs/ubifs/file.c                |    5 +-
+ include/linux/hmm.h            |  468 ++++++++++++++++
+ include/linux/ioport.h         |    1 +
+ include/linux/memory_hotplug.h |   11 +
+ include/linux/memremap.h       |   82 +++
+ include/linux/migrate.h        |  115 ++++
+ include/linux/migrate_mode.h   |    5 +
+ include/linux/mm.h             |   14 +-
+ include/linux/mm_types.h       |    5 +
+ include/linux/swap.h           |   24 +-
+ include/linux/swapops.h        |   68 +++
+ kernel/fork.c                  |    2 +
+ kernel/memremap.c              |   47 ++
+ mm/Kconfig                     |   47 ++
+ mm/Makefile                    |    1 +
+ mm/balloon_compaction.c        |    8 +
+ mm/hmm.c                       | 1203 ++++++++++++++++++++++++++++++++++++++++
+ mm/memory.c                    |   61 ++
+ mm/memory_hotplug.c            |   10 +-
+ mm/migrate.c                   |  789 +++++++++++++++++++++++++-
+ mm/mprotect.c                  |   14 +
+ mm/page_vma_mapped.c           |   10 +
+ mm/rmap.c                      |   25 +
+ mm/zsmalloc.c                  |    8 +
+ 32 files changed, 3412 insertions(+), 31 deletions(-)
+ create mode 100644 Documentation/vm/hmm.txt
+ create mode 100644 include/linux/hmm.h
+ create mode 100644 mm/hmm.c
+
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
