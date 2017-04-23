@@ -1,106 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 83FF66B028D
-	for <linux-mm@kvack.org>; Sun, 23 Apr 2017 09:16:39 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id z63so187939786ioz.23
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 06:16:39 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id d90si15750051pfk.351.2017.04.23.06.16.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DCED86B0038
+	for <linux-mm@kvack.org>; Sun, 23 Apr 2017 19:31:29 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id z129so3796160wmb.23
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 16:31:29 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id 42si23814550wrw.199.2017.04.23.16.31.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Apr 2017 06:16:38 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-References: <20170407064901.25398-1-ying.huang@intel.com>
-	<20170418045909.GA11015@bbox> <87y3uwrez0.fsf@yhuang-dev.intel.com>
-	<20170420063834.GB3720@bbox> <874lxjim7m.fsf@yhuang-dev.intel.com>
-	<87tw5idjv9.fsf@yhuang-dev.intel.com>
-	<1492817351.3209.56.camel@linux.intel.com>
-Date: Sun, 23 Apr 2017 21:16:35 +0800
-In-Reply-To: <1492817351.3209.56.camel@linux.intel.com> (Tim Chen's message of
-	"Fri, 21 Apr 2017 16:29:11 -0700")
-Message-ID: <87pog3b6x8.fsf@yhuang-dev.intel.com>
+        Sun, 23 Apr 2017 16:31:28 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id d79so14106017wmi.2
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 16:31:28 -0700 (PDT)
+Date: Mon, 24 Apr 2017 02:31:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: get_zone_device_page() in get_page() and page_cache_get_speculative()
+Message-ID: <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
+References: <CAA9_cmf7=aGXKoQFkzS_UJtznfRtWofitDpV2AyGwpaRGKyQkg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA9_cmf7=aGXKoQFkzS_UJtznfRtWofitDpV2AyGwpaRGKyQkg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org
+Cc: Catalin Marinas <catalin.marinas@arm.com>, aneesh.kumar@linux.vnet.ibm.com, steve.capper@linaro.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, dave.hansen@intel.com, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@redhat.com>, dann.frazier@canonical.com, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-tip-commits@vger.kernel.org
 
-Tim Chen <tim.c.chen@linux.intel.com> writes:
+On Thu, Apr 20, 2017 at 02:46:51PM -0700, Dan Williams wrote:
+> On Sat, Mar 18, 2017 at 2:52 AM, tip-bot for Kirill A. Shutemov
+> <tipbot@zytor.com> wrote:
+> > Commit-ID:  2947ba054a4dabbd82848728d765346886050029
+> > Gitweb:     http://git.kernel.org/tip/2947ba054a4dabbd82848728d765346886050029
+> > Author:     Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > AuthorDate: Fri, 17 Mar 2017 00:39:06 +0300
+> > Committer:  Ingo Molnar <mingo@kernel.org>
+> > CommitDate: Sat, 18 Mar 2017 09:48:03 +0100
+> >
+> > x86/mm/gup: Switch GUP to the generic get_user_page_fast() implementation
+> >
+> > This patch provides all required callbacks required by the generic
+> > get_user_pages_fast() code and switches x86 over - and removes
+> > the platform specific implementation.
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Aneesh Kumar K . V <aneesh.kumar@linux.vnet.ibm.com>
+> > Cc: Borislav Petkov <bp@alien8.de>
+> > Cc: Catalin Marinas <catalin.marinas@arm.com>
+> > Cc: Dann Frazier <dann.frazier@canonical.com>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Cc: H. Peter Anvin <hpa@zytor.com>
+> > Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> > Cc: Peter Zijlstra <peterz@infradead.org>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: Steve Capper <steve.capper@linaro.org>
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: linux-arch@vger.kernel.org
+> > Cc: linux-mm@kvack.org
+> > Link: http://lkml.kernel.org/r/20170316213906.89528-1-kirill.shutemov@linux.intel.com
+> > [ Minor readability edits. ]
+> > Signed-off-by: Ingo Molnar <mingo@kernel.org>
+> 
+> I'm still trying to spot the bug, but bisect points to this patch as
+> the point at which my unit tests start failing with the following
+> signature:
+> 
+> [   35.423841] WARNING: CPU: 8 PID: 245 at lib/percpu-refcount.c:155
+> percpu_ref_switch_to_atomic_rcu+0x1f5/0x200
 
-> On Fri, 2017-04-21 at 20:29 +0800, Huang, Ying wrote:
->> "Huang, Ying" <ying.huang@intel.com> writes:
->> 
->> > 
->> > Minchan Kim <minchan@kernel.org> writes:
->> > 
->> > > 
->> > > On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
->> > > > 
->> > > > Minchan Kim <minchan@kernel.org> writes:
->> > > > 
->> > > > > 
->> > > > > Hi Huang,
->> > > > > 
->> > > > > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
->> > > > > > 
->> > > > > > From: Huang Ying <ying.huang@intel.com>
->> > > > > > 
->> > > > > > A void swapcache_free_entries(swp_entry_t *entries, int n)
->> > > > > > A {
->> > > > > > A 	struct swap_info_struct *p, *prev;
->> > > > > > @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
->> > > > > > A 
->> > > > > > A 	prev = NULL;
->> > > > > > A 	p = NULL;
->> > > > > > +
->> > > > > > +	/* Sort swap entries by swap device, so each lock is only taken once. */
->> > > > > > +	if (nr_swapfiles > 1)
->> > > > > > +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
->> > > > > Let's think on other cases.
->> > > > > 
->> > > > > There are two swaps and they are configured by priority so a swap's usage
->> > > > > would be zero unless other swap used up. In case of that, this sorting
->> > > > > is pointless.
->> > > > > 
->> > > > > As well, nr_swapfiles is never decreased so if we enable multiple
->> > > > > swaps and then disable until a swap is remained, this sorting is
->> > > > > pointelss, too.
->> > > > > 
->> > > > > How about lazy sorting approach? IOW, if we found prev != p and,
->> > > > > then we can sort it.
->> > > > Yes.A A That should be better.A A I just don't know whether the added
->> > > > complexity is necessary, given the array is short and sort is fast.
->> > > Huh?
->> > > 
->> > > 1. swapon /dev/XXX1
->> > > 2. swapon /dev/XXX2
->> > > 3. swapoff /dev/XXX2
->> > > 4. use only one swap
->> > > 5. then, always pointless sort.
->> > Yes.A A In this situation we will do unnecessary sorting.A A What I don't
->> > know is whether the unnecessary sorting will hurt performance in real
->> > life.A A I can do some measurement.
->> I tested the patch with 1 swap device and 1 process to eat memory
->> (remove the "if (nr_swapfiles > 1)" for test).A A 
->
-> It is possible that nr_swapfiles > 1 when we have only 1 swapfile due
-> to swapoff. A The nr_swapfiles never decrement on swapoff.
-> We will need to use another counter in alloc_swap_info and
-> swapoff to track the true number of swapfiles in use to have a fast path
-> that avoid the search and sort for the 1 swap case.
+Okay, I've tracked it down. The issue is triggered by replacment
+get_page() with page_cache_get_speculative().
 
-Yes.  That is a possible optimization.  But it doesn't cover another use
-cases raised by Minchan (two swap device with different priority).  So
-in general, we still need to check whether there are entries from
-multiple swap devices in the array.  Given the cost of the checking code
-is really low, I think maybe we can just always use the checking code.
-Do you think so?
+page_cache_get_speculative() doesn't have get_zone_device_page(). :-|
 
-Best Regards,
-Huang, Ying
+And I think it's your bug, Dan: it's wrong to have
+get_/put_zone_device_page() in get_/put_page(). I must be handled by
+page_ref_* machinery to catch all cases where we manipulate with page
+refcount.
+
+Back to the big picture:
+
+I hate that we need to have such additional code in page refcount
+primitives. I worked hard to remove compound page ugliness from there and
+now zone_device creeping in...
+
+Is it the only option?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
