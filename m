@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD6D46B02F2
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 14:12:54 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id q71so15444688qkl.2
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:12:54 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BF0B6B02FA
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 14:12:55 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 39so42415953qts.5
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:12:55 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f123si18846184qkj.244.2017.04.24.11.12.53
+        by mx.google.com with ESMTPS id d201si18838996qka.36.2017.04.24.11.12.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 11:12:53 -0700 (PDT)
+        Mon, 24 Apr 2017 11:12:54 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM 01/15] mm, memory_hotplug: introduce add_pages
-Date: Mon, 24 Apr 2017 14:12:29 -0400
-Message-Id: <20170424181243.20320-2-jglisse@redhat.com>
+Subject: [HMM 02/15] mm/put_page: move ZONE_DEVICE page reference decrement v2
+Date: Mon, 24 Apr 2017 14:12:30 -0400
+Message-Id: <20170424181243.20320-3-jglisse@redhat.com>
 In-Reply-To: <20170424181243.20320-1-jglisse@redhat.com>
 References: <20170424181243.20320-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,116 +21,73 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-From: Michal Hocko <mhocko@suse.com>
+Move page reference decrement of ZONE_DEVICE from put_page()
+to put_zone_device_page() this does not affect non ZONE_DEVICE
+page.
 
-There are new users of memory hotplug emerging. Some of them require
-different subset of arch_add_memory. There are some which only require
-allocation of struct pages without mapping those pages to the kernel
-address space. We currently have __add_pages for that purpose. But this
-is rather lowlevel and not very suitable for the code outside of the
-memory hotplug. E.g. x86_64 wants to update max_pfn which should be
-done by the caller. Introduce add_pages() which should care about those
-details if they are needed. Each architecture should define its
-implementation and select CONFIG_ARCH_HAS_ADD_PAGES. All others use
-the currently existing __add_pages.
+Doing this allow to catch when a ZONE_DEVICE page refcount reach
+1 which means the device is no longer reference by any one (unlike
+page from other zone, ZONE_DEVICE page refcount never reach 0).
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+This patch is just a preparatory patch for HMM.
+
+Changes since v1:
+  - commit message
+
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- arch/x86/Kconfig               |  4 ++++
- arch/x86/mm/init_64.c          | 22 +++++++++++++++-------
- include/linux/memory_hotplug.h | 11 +++++++++++
- 3 files changed, 30 insertions(+), 7 deletions(-)
+ include/linux/mm.h | 14 +++++++++++---
+ kernel/memremap.c  |  6 ++++++
+ 2 files changed, 17 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index c43f476..e515dc2 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -2263,6 +2263,10 @@ source "kernel/livepatch/Kconfig"
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c82e8db..022423c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -821,11 +821,19 @@ static inline void put_page(struct page *page)
+ {
+ 	page = compound_head(page);
  
- endmenu
- 
-+config ARCH_HAS_ADD_PAGES
-+	def_bool y
-+	depends on X86_64 && ARCH_ENABLE_MEMORY_HOTPLUG
++	/*
++	 * ZONE_DEVICE pages should never have their refcount reach 0 (this
++	 * would be a bug), so call page_ref_dec() in put_zone_device_page()
++	 * to decrement page refcount and skip __put_page() here, as this
++	 * would worsen things if a ZONE_DEVICE had a refcount bug.
++	 */
++	if (unlikely(is_zone_device_page(page))) {
++		put_zone_device_page(page);
++		return;
++	}
 +
- config ARCH_ENABLE_MEMORY_HOTPLUG
- 	def_bool y
- 	depends on X86_64 || (X86_32 && HIGHMEM)
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index ffeba90..a573ebc 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -671,7 +671,7 @@ void __init paging_init(void)
-  * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
-  * updating.
-  */
--static void  update_end_of_memory_vars(u64 start, u64 size)
-+static void update_end_of_memory_vars(u64 start, u64 size)
- {
- 	unsigned long end_pfn = PFN_UP(start + size);
- 
-@@ -682,22 +682,30 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
- 	}
- }
- 
--int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
-+int add_pages(int nid, unsigned long start_pfn,
-+	      unsigned long nr_pages, bool want_memblock)
- {
--	unsigned long start_pfn = start >> PAGE_SHIFT;
--	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	int ret;
- 
--	init_memory_mapping(start, start + size);
+ 	if (put_page_testzero(page))
+ 		__put_page(page);
 -
- 	ret = __add_pages(nid, start_pfn, nr_pages, want_memblock);
- 	WARN_ON_ONCE(ret);
- 
- 	/* update max_pfn, max_low_pfn and high_memory */
--	update_end_of_memory_vars(start, size);
-+	update_end_of_memory_vars(start_pfn << PAGE_SHIFT,
-+				  nr_pages << PAGE_SHIFT);
- 
- 	return ret;
+-	if (unlikely(is_zone_device_page(page)))
+-		put_zone_device_page(page);
  }
-+
-+int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
-+{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+
-+	init_memory_mapping(start, start + size);
-+
-+	return add_pages(nid, start_pfn, nr_pages, want_memblock);
-+}
- EXPORT_SYMBOL_GPL(arch_add_memory);
  
- #define PAGE_INUSE 0xFD
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index aec8865..5ec6d64 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -126,6 +126,17 @@ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- extern int __add_pages(int nid, unsigned long start_pfn,
- 	unsigned long nr_pages, bool want_memblock);
+ #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index ea714ee..97ef676 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -190,6 +190,12 @@ EXPORT_SYMBOL(get_zone_device_page);
  
-+#ifndef CONFIG_ARCH_HAS_ADD_PAGES
-+static inline int add_pages(int nid, unsigned long start_pfn,
-+			    unsigned long nr_pages, bool want_memblock)
-+{
-+	return __add_pages(nid, start_pfn, nr_pages, want_memblock);
-+}
-+#else /* ARCH_HAS_ADD_PAGES */
-+int add_pages(int nid, unsigned long start_pfn,
-+	      unsigned long nr_pages, bool want_memblock);
-+#endif /* ARCH_HAS_ADD_PAGES */
+ void put_zone_device_page(struct page *page)
+ {
++	/*
++	 * ZONE_DEVICE page refcount should never reach 0 and never be freed
++	 * to kernel memory allocator.
++	 */
++	page_ref_dec(page);
 +
- #ifdef CONFIG_NUMA
- extern int memory_add_physaddr_to_nid(u64 start);
- #else
+ 	put_dev_pagemap(page->pgmap);
+ }
+ EXPORT_SYMBOL(put_zone_device_page);
 -- 
 2.9.3
 
