@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 93F8E6B02EE
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:54:09 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id l30so15683326pgc.15
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:54:09 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0088.outbound.protection.outlook.com. [104.47.38.88])
-        by mx.google.com with ESMTPS id g73si19491854pfg.34.2017.04.24.08.54.08
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E6EFA6B02F2
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:54:20 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t7so15665420pgt.0
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:54:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x20si19432325pge.143.2017.04.24.08.54.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Apr 2017 08:54:08 -0700 (PDT)
-Subject: Re: [PATCH v5 09/32] x86/mm: Provide general kernel support for
- memory encryption
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211754.10190.25082.stgit@tlendack-t1.amdoffice.net>
- <0106e3fc-9780-e872-2274-fecf79c28923@intel.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <9fc79e28-ad64-1c2f-4c46-a4efcdd550b0@amd.com>
-Date: Mon, 24 Apr 2017 10:53:58 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Apr 2017 08:54:20 -0700 (PDT)
+Date: Mon, 24 Apr 2017 17:54:16 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 06/20] dax: set errors in mapping when writeback fails
+Message-ID: <20170424155416.GH23988@quack2.suse.cz>
+References: <20170424132259.8680-1-jlayton@redhat.com>
+ <20170424132259.8680-7-jlayton@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <0106e3fc-9780-e872-2274-fecf79c28923@intel.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170424132259.8680-7-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-On 4/21/2017 4:52 PM, Dave Hansen wrote:
-> On 04/18/2017 02:17 PM, Tom Lendacky wrote:
->> @@ -55,7 +57,7 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
->>  	__phys_addr_symbol(__phys_reloc_hide((unsigned long)(x)))
->>
->>  #ifndef __va
->> -#define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
->> +#define __va(x)			((void *)(__sme_clr(x) + PAGE_OFFSET))
->>  #endif
->
-> It seems wrong to be modifying __va().  It currently takes a physical
-> address, and this modifies it to take a physical address plus the SME bits.
+On Mon 24-04-17 09:22:45, Jeff Layton wrote:
+> In order to get proper error codes from fsync, we must set an error in
+> the mapping range when writeback fails.
+> 
+> Signed-off-by: Jeff Layton <jlayton@redhat.com>
 
-This actually modifies it to be sure the encryption bit is not part of
-the physical address.
+So I'm fine with the change but please expand the changelog to something
+like:
 
->
-> How does that end up ever happening?  If we are pulling physical
-> addresses out of the page tables, we use p??_phys().  I'd expect *those*
-> to be masking off the SME bits.
->
-> Is it these cases?
->
-> 	pgd_t *base = __va(read_cr3());
->
-> For those, it seems like we really want to create two modes of reading
-> cr3.  One that truly reads CR3 and another that reads the pgd's physical
-> address out of CR3.  Then you only do the SME masking on the one
-> fetching a physical address, and the SME bits never leak into __va().
+DAX currently doesn't set errors in the mapping when cache flushing fails
+in dax_writeback_mapping_range(). Since this function can get called only
+from fsync(2) or sync(2), this is actually as good as it can currently get
+since we correctly propagate the error up from dax_writeback_mapping_range()
+to filemap_fdatawrite(). However in the future better writeback error
+handling will enable us to properly report these errors on fsync(2) even if
+there are multiple file descriptors open against the file or if sync(2)
+gets called before fsync(2). So convert DAX to using standard error
+reporting through the mapping.
 
-I'll investigate this and see if I can remove the mod to __va().
+After improving the changelog you can add:
 
-Thanks,
-Tom
+Reviewed-by: Jan Kara <jack@suse.cz>
 
->
+								Honza
+
+> ---
+>  fs/dax.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index 85abd741253d..9b6b04030c3f 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -901,8 +901,10 @@ int dax_writeback_mapping_range(struct address_space *mapping,
+>  
+>  			ret = dax_writeback_one(bdev, mapping, indices[i],
+>  					pvec.pages[i]);
+> -			if (ret < 0)
+> +			if (ret < 0) {
+> +				mapping_set_error(mapping, ret);
+>  				return ret;
+> +			}
+>  		}
+>  	}
+>  	return 0;
+> -- 
+> 2.9.3
+> 
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
