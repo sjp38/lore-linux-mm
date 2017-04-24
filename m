@@ -1,94 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 77C106B02F4
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 12:40:35 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id p21so16369464pgc.21
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:40:35 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50128.outbound.protection.outlook.com. [40.107.5.128])
-        by mx.google.com with ESMTPS id s67si19615925pfj.268.2017.04.24.09.40.34
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BB8D56B02D1
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 12:59:06 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id k1so41895437qtb.20
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:59:06 -0700 (PDT)
+Received: from mail-qt0-f180.google.com (mail-qt0-f180.google.com. [209.85.216.180])
+        by mx.google.com with ESMTPS id 30si18152377qtw.234.2017.04.24.09.59.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Apr 2017 09:40:34 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH v2 4/4] mm/truncate: avoid pointless cleancache_invalidate_inode() calls.
-Date: Mon, 24 Apr 2017 19:41:35 +0300
-Message-ID: <20170424164135.22350-5-aryabinin@virtuozzo.com>
-In-Reply-To: <20170424164135.22350-1-aryabinin@virtuozzo.com>
-References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
- <20170424164135.22350-1-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Apr 2017 09:59:06 -0700 (PDT)
+Received: by mail-qt0-f180.google.com with SMTP id g60so119283863qtd.3
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:59:05 -0700 (PDT)
+Message-ID: <1493053143.2895.15.camel@redhat.com>
+Subject: Re: [PATCH v3 20/20] gfs2: clean up some filemap_* calls
+From: Jeff Layton <jlayton@redhat.com>
+Date: Mon, 24 Apr 2017 12:59:03 -0400
+In-Reply-To: <2139341349.405174.1493043175630.JavaMail.zimbra@redhat.com>
+References: <20170424132259.8680-1-jlayton@redhat.com>
+	 <20170424132259.8680-21-jlayton@redhat.com>
+	 <2139341349.405174.1493043175630.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, Nikolay Borisov <n.borisov.lkml@gmail.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Bob Peterson <rpeterso@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross zwisler <ross.zwisler@linux.intel.com>, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-cleancache_invalidate_inode() called truncate_inode_pages_range()
-and invalidate_inode_pages2_range() twice - on entry and on exit.
-It's stupid and waste of time. It's enough to call it once at
-exit.
+On Mon, 2017-04-24 at 10:12 -0400, Bob Peterson wrote:
+> ----- Original Message -----
+> > In some places, it's trying to reset the mapping error after calling
+> > filemap_fdatawait. That's no longer required. Also, turn several
+> > filemap_fdatawrite+filemap_fdatawait calls into filemap_write_and_wait.
+> > That will at least return writeback errors that occur during the write
+> > phase.
+> > 
+> > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > ---
+> >  fs/gfs2/glops.c | 12 ++++--------
+> >  fs/gfs2/lops.c  |  4 +---
+> >  fs/gfs2/super.c |  6 ++----
+> >  3 files changed, 7 insertions(+), 15 deletions(-)
+> > 
+> > diff --git a/fs/gfs2/glops.c b/fs/gfs2/glops.c
+> > index 5db59d444838..7362d19fdc4c 100644
+> > --- a/fs/gfs2/glops.c
+> > +++ b/fs/gfs2/glops.c
+> > @@ -158,9 +158,7 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
+> >  	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
+> >  
+> >  	gfs2_log_flush(sdp, gl, NORMAL_FLUSH);
+> > -	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+> > -	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+> > -	mapping_set_error(mapping, error);
+> > +	filemap_write_and_wait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+> 
+> This should probably have "error = ", no?
+> 
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
----
- mm/truncate.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+This error is discarded in the current code after resetting the error in
+the mapping. With the earlier patches in this set we don't need to reset
+the error like this anymore.
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 8f12b0e..83a059e 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -266,9 +266,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 	pgoff_t		index;
- 	int		i;
- 
--	cleancache_invalidate_inode(mapping);
- 	if (mapping->nrpages == 0 && mapping->nrexceptional == 0)
--		return;
-+		goto out;
- 
- 	/* Offsets within partial pages */
- 	partial_start = lstart & (PAGE_SIZE - 1);
-@@ -363,7 +362,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 	 * will be released, just zeroed, so we can bail out now.
- 	 */
- 	if (start >= end)
--		return;
-+		goto out;
- 
- 	index = start;
- 	for ( ; ; ) {
-@@ -410,6 +409,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 		pagevec_release(&pvec);
- 		index++;
- 	}
-+
-+out:
- 	cleancache_invalidate_inode(mapping);
- }
- EXPORT_SYMBOL(truncate_inode_pages_range);
-@@ -623,9 +624,8 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 	int ret2 = 0;
- 	int did_range_unmap = 0;
- 
--	cleancache_invalidate_inode(mapping);
- 	if (mapping->nrpages == 0 && mapping->nrexceptional == 0)
--		return 0;
-+		goto out;
- 
- 	pagevec_init(&pvec, 0);
- 	index = start;
-@@ -689,6 +689,8 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 		cond_resched();
- 		index++;
- 	}
-+
-+out:
- 	cleancache_invalidate_inode(mapping);
- 	return ret;
- }
+Now, if this code should doing something else with those errors, then
+that's a separate problem.
+
+> >  	gfs2_ail_empty_gl(gl);
+> >  
+> >  	spin_lock(&gl->gl_lockref.lock);
+> > @@ -225,12 +223,10 @@ static void inode_go_sync(struct gfs2_glock *gl)
+> >  	filemap_fdatawrite(metamapping);
+> >  	if (ip) {
+> >  		struct address_space *mapping = ip->i_inode.i_mapping;
+> > -		filemap_fdatawrite(mapping);
+> > -		error = filemap_fdatawait(mapping);
+> > -		mapping_set_error(mapping, error);
+> > +		filemap_write_and_wait(mapping);
+> > +	} else {
+> > +		filemap_fdatawait(metamapping);
+> >  	}
+> > -	error = filemap_fdatawait(metamapping);
+> > -	mapping_set_error(metamapping, error);
+> 
+> This part doesn't look right at all. There's a big difference in gfs2 between
+> mapping and metamapping. We need to wait for metamapping regardless.
+> 
+
+...and this should wait. Basically, filemap_write_and_wait does
+filemap_fdatawrite and then filemap_fdatawait. This is mostly just
+replacing the existing code with a more concise helper.
+
 -- 
-2.10.2
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
