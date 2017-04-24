@@ -1,31 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A67676B02D1
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:22:52 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id k14so15291291pga.5
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:22:52 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 340806B02C4
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:23:38 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id m89so13676776pfi.14
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:23:38 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g16si11040840pli.218.2017.04.24.08.22.51
+        by mx.google.com with ESMTPS id h190si2031156pfb.50.2017.04.24.08.23.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 08:22:52 -0700 (PDT)
-Date: Mon, 24 Apr 2017 08:22:50 -0700
+        Mon, 24 Apr 2017 08:23:37 -0700 (PDT)
+Date: Mon, 24 Apr 2017 08:23:35 -0700
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v3 03/20] buffer: use mapping_set_error instead of
- setting the flag
-Message-ID: <20170424152250.GC9112@infradead.org>
+Subject: Re: [PATCH v3 04/20] fs: check for writeback errors after syncing
+ out buffers in generic_file_fsync
+Message-ID: <20170424152335.GD9112@infradead.org>
 References: <20170424132259.8680-1-jlayton@redhat.com>
- <20170424132259.8680-4-jlayton@redhat.com>
+ <20170424132259.8680-5-jlayton@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170424132259.8680-4-jlayton@redhat.com>
+In-Reply-To: <20170424132259.8680-5-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jeff Layton <jlayton@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-Looks fine,
+>  out:
+>  	inode_unlock(inode);
+> -	return ret;
+> +	err = filemap_check_errors(inode->i_mapping);
+> +	return ret ? : err;
+
+Can you spell out the whole unary operation instead of this weird GCC
+extension?
+
+Otherwise looks fine:
 
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 
