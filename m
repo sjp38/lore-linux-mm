@@ -1,111 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AC0616B02C4
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 05:30:55 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id d203so220318369iof.20
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 02:30:55 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id e124si18213854pfc.59.2017.04.24.02.30.54
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7989C6B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:05:02 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id l21so220900377ioi.2
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:05:02 -0700 (PDT)
+Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
+        by mx.google.com with ESMTPS id t70si10857792itb.60.2017.04.24.03.05.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 02:30:54 -0700 (PDT)
-Date: Mon, 24 Apr 2017 11:30:51 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
-Message-ID: <20170424093051.imizyhpifqf4t6bc@hirez.programming.kicks-ass.net>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
- <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
- <20170419171954.tqp5tkxlsg4jp2xz@hirez.programming.kicks-ass.net>
- <20170424030412.GG21430@X58A-UD3R>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170424030412.GG21430@X58A-UD3R>
+        Mon, 24 Apr 2017 03:05:01 -0700 (PDT)
+Received: by mail-io0-x243.google.com with SMTP id k87so47499393ioi.0
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:05:01 -0700 (PDT)
+From: Oliver O'Halloran <oohall@gmail.com>
+Subject: [resend PATCH v2] mm, x86: Add ARCH_HAS_ZONE_DEVICE to Kconfig
+Date: Mon, 24 Apr 2017 20:04:34 +1000
+Message-Id: <20170424100434.890-1-oohall@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: x86@kernel.org
+Cc: Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org
 
-On Mon, Apr 24, 2017 at 12:04:12PM +0900, Byungchul Park wrote:
-> On Wed, Apr 19, 2017 at 07:19:54PM +0200, Peter Zijlstra wrote:
-> > > +/*
-> > > + * For crosslock.
-> > > + */
-> > > +static int add_xlock(struct held_lock *hlock)
-> > > +{
-> > > +	struct cross_lock *xlock;
-> > > +	unsigned int gen_id;
-> > > +
-> > > +	if (!graph_lock())
-> > > +		return 0;
-> > > +
-> > > +	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
-> > > +
-> > > +	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
-> > > +	xlock->hlock = *hlock;
-> > > +	xlock->hlock.gen_id = gen_id;
-> > > +	graph_unlock();
-> > 
-> > What does graph_lock protect here?
-> 
-> Modifying xlock(not xhlock) instance should be protected with graph_lock.
-> Don't you think so?
+Currently ZONE_DEVICE depends on X86_64 and this will get unwieldly as
+new architectures (and platforms) get ZONE_DEVICE support. Move to an
+arch selected Kconfig option to save us the trouble.
 
-Ah, right you are. I think I got confused between our xhlock (local)
-array and the xlock instance thing. The latter needs protection to
-serialize concurrent acquires.
+Cc: x86@kernel.org
+Cc: linux-mm@kvack.org
+Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
+---
+v2: Added missing hunk.
+---
+ arch/x86/Kconfig | 1 +
+ mm/Kconfig       | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
 
-> > > +static int commit_xhlocks(struct cross_lock *xlock)
-> > > +{
-> > > +	unsigned int cur = current->xhlock_idx;
-> > > +	unsigned int i;
-> > > +
-> > > +	if (!graph_lock())
-> > > +		return 0;
-> > > +
-> > > +	for (i = cur - 1; !xhlock_same(i, cur); i--) {
-> > > +		struct hist_lock *xhlock = &xhlock(i);
-> > 
-> > *blink*, you mean this?
-> > 
-> > 	for (i = 0; i < MAX_XHLOCKS_NR; i++) {
-> > 		struct hist_lock *xhlock = &xhlock(cur - i);
-> 
-> I will change the loop to this form.
-> 
-> > Except you seem to skip over the most recent element (@cur), why?
-> 
-> Currently 'cur' points to the next *free* slot.
-
-Well, there's no such thing has a 'free' slot, its a _ring_ buffer.
-
-But:
-
-+static void add_xhlock(struct held_lock *hlock)
-+{
-+       unsigned int idx = current->xhlock_idx++;
-+       struct hist_lock *xhlock = &xhlock(idx);
-
-Yes, I misread that. Then '0' has the oldest entry, which is slightly
-weird. Should we change that?
-
-
-> > > +
-> > > +		if (!xhlock_used(xhlock))
-> > > +			break;
-> > > +
-> > > +		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
-> > > +			break;
-> > > +
-> > > +		if (same_context_xhlock(xhlock) &&
-> > > +		    !commit_xhlock(xlock, xhlock))
-> > 
-> > return with graph_lock held?
-> 
-> No. When commit_xhlock() returns 0, the lock was already unlocked.
-
-Please add a comment, because I completely missed that. That's at least
-2 functions deeper.
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index a694d0002758..84ac36ca3b42 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -58,6 +58,7 @@ config X86
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
++	select ARCH_HAS_ZONE_DEVICE		if X86_64
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+ 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 9b8fccb969dc..4282bee2731c 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -684,12 +684,15 @@ config IDLE_PAGE_TRACKING
+ 
+ 	  See Documentation/vm/idle_page_tracking.txt for more details.
+ 
++config ARCH_HAS_ZONE_DEVICE
++	def_bool n
++
+ config ZONE_DEVICE
+ 	bool "Device memory (pmem, etc...) hotplug support"
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on SPARSEMEM_VMEMMAP
+-	depends on X86_64 #arch_add_memory() comprehends device memory
++	depends on ARCH_HAS_ZONE_DEVICE
+ 
+ 	help
+ 	  Device memory hotplug support allows for establishing pmem,
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
