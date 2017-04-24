@@ -1,106 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C87BA6B0317
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 13:41:20 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m36so42102650qtb.16
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 10:41:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g2si9895187qta.30.2017.04.24.10.41.18
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2386B033C
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 13:47:46 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id a3so101731990oii.3
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 10:47:46 -0700 (PDT)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id g23si10126159ote.249.2017.04.24.10.47.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 10:41:19 -0700 (PDT)
-Date: Mon, 24 Apr 2017 13:41:14 -0400 (EDT)
-From: Bob Peterson <rpeterso@redhat.com>
-Message-ID: <2092108386.509535.1493055674293.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1493053143.2895.15.camel@redhat.com>
-References: <20170424132259.8680-1-jlayton@redhat.com> <20170424132259.8680-21-jlayton@redhat.com> <2139341349.405174.1493043175630.JavaMail.zimbra@redhat.com> <1493053143.2895.15.camel@redhat.com>
-Subject: Re: [PATCH v3 20/20] gfs2: clean up some filemap_* calls
+        Mon, 24 Apr 2017 10:47:45 -0700 (PDT)
+Received: by mail-oi0-x22f.google.com with SMTP id x184so144781537oia.1
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 10:47:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170424173021.ayj3hslvfrrgrie7@node.shutemov.name>
+References: <CAA9_cmf7=aGXKoQFkzS_UJtznfRtWofitDpV2AyGwpaRGKyQkg@mail.gmail.com>
+ <20170423233125.nehmgtzldgi25niy@node.shutemov.name> <CAPcyv4i8mBOCuA8k-A8RXGMibbnqHUsa3Ly+YcQbr0eCdjruUw@mail.gmail.com>
+ <20170424173021.ayj3hslvfrrgrie7@node.shutemov.name>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 24 Apr 2017 10:47:43 -0700
+Message-ID: <CAPcyv4g74LT6sK2WgG6FnwQHCC5fNTwfqBPq1BY8PnZ7zwdGPw@mail.gmail.com>
+Subject: Re: get_zone_device_page() in get_page() and page_cache_get_speculative()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross zwisler <ross.zwisler@linux.intel.com>, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Linux MM <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@redhat.com>, Dann Frazier <dann.frazier@canonical.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-tip-commits@vger.kernel.org
 
-Hi,
+On Mon, Apr 24, 2017 at 10:30 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Mon, Apr 24, 2017 at 10:23:59AM -0700, Dan Williams wrote:
+>> On Sun, Apr 23, 2017 at 4:31 PM, Kirill A. Shutemov
+>> <kirill@shutemov.name> wrote:
+>> > On Thu, Apr 20, 2017 at 02:46:51PM -0700, Dan Williams wrote:
+>> >> On Sat, Mar 18, 2017 at 2:52 AM, tip-bot for Kirill A. Shutemov
+>> >> <tipbot@zytor.com> wrote:
+>> >> > Commit-ID:  2947ba054a4dabbd82848728d765346886050029
+>> >> > Gitweb:     http://git.kernel.org/tip/2947ba054a4dabbd82848728d765346886050029
+>> >> > Author:     Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> >> > AuthorDate: Fri, 17 Mar 2017 00:39:06 +0300
+>> >> > Committer:  Ingo Molnar <mingo@kernel.org>
+>> >> > CommitDate: Sat, 18 Mar 2017 09:48:03 +0100
+>> >> >
+>> >> > x86/mm/gup: Switch GUP to the generic get_user_page_fast() implementation
+>> >> >
+>> >> > This patch provides all required callbacks required by the generic
+>> >> > get_user_pages_fast() code and switches x86 over - and removes
+>> >> > the platform specific implementation.
+>> >> >
+>> >> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> >> > Cc: Andrew Morton <akpm@linux-foundation.org>
+>> >> > Cc: Aneesh Kumar K . V <aneesh.kumar@linux.vnet.ibm.com>
+>> >> > Cc: Borislav Petkov <bp@alien8.de>
+>> >> > Cc: Catalin Marinas <catalin.marinas@arm.com>
+>> >> > Cc: Dann Frazier <dann.frazier@canonical.com>
+>> >> > Cc: Dave Hansen <dave.hansen@intel.com>
+>> >> > Cc: H. Peter Anvin <hpa@zytor.com>
+>> >> > Cc: Linus Torvalds <torvalds@linux-foundation.org>
+>> >> > Cc: Peter Zijlstra <peterz@infradead.org>
+>> >> > Cc: Rik van Riel <riel@redhat.com>
+>> >> > Cc: Steve Capper <steve.capper@linaro.org>
+>> >> > Cc: Thomas Gleixner <tglx@linutronix.de>
+>> >> > Cc: linux-arch@vger.kernel.org
+>> >> > Cc: linux-mm@kvack.org
+>> >> > Link: http://lkml.kernel.org/r/20170316213906.89528-1-kirill.shutemov@linux.intel.com
+>> >> > [ Minor readability edits. ]
+>> >> > Signed-off-by: Ingo Molnar <mingo@kernel.org>
+>> >>
+>> >> I'm still trying to spot the bug, but bisect points to this patch as
+>> >> the point at which my unit tests start failing with the following
+>> >> signature:
+>> >>
+>> >> [   35.423841] WARNING: CPU: 8 PID: 245 at lib/percpu-refcount.c:155
+>> >> percpu_ref_switch_to_atomic_rcu+0x1f5/0x200
+>> >
+>> > Okay, I've tracked it down. The issue is triggered by replacment
+>> > get_page() with page_cache_get_speculative().
+>> >
+>> > page_cache_get_speculative() doesn't have get_zone_device_page(). :-|
+>> >
+>> > And I think it's your bug, Dan: it's wrong to have
+>> > get_/put_zone_device_page() in get_/put_page(). I must be handled by
+>> > page_ref_* machinery to catch all cases where we manipulate with page
+>> > refcount.
+>>
+>> The page_ref conversion landed in 4.6 *after* the ZONE_DEVICE
+>> implementation that landed in 4.5, so there was a missed conversion of
+>> the zone-device reference counting to page_ref.
+>
+> Fair enough.
+>
+> But get_page_unless_zero() definitely predates ZONE_DEVICE. :)
+>
 
------ Original Message -----
-| On Mon, 2017-04-24 at 10:12 -0400, Bob Peterson wrote:
-| > > +	filemap_write_and_wait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
-| > 
-| > This should probably have "error = ", no?
-| > 
-| 
-| This error is discarded in the current code after resetting the error in
-| the mapping. With the earlier patches in this set we don't need to reset
-| the error like this anymore.
-| 
-| Now, if this code should doing something else with those errors, then
-| that's a separate problem.
-
-Okay, I see. My bad.
- 
-| > >  	gfs2_ail_empty_gl(gl);
-| > >  
-| > >  	spin_lock(&gl->gl_lockref.lock);
-| > > @@ -225,12 +223,10 @@ static void inode_go_sync(struct gfs2_glock *gl)
-| > >  	filemap_fdatawrite(metamapping);
-| > >  	if (ip) {
-| > >  		struct address_space *mapping = ip->i_inode.i_mapping;
-| > > -		filemap_fdatawrite(mapping);
-| > > -		error = filemap_fdatawait(mapping);
-| > > -		mapping_set_error(mapping, error);
-| > > +		filemap_write_and_wait(mapping);
-| > > +	} else {
-| > > +		filemap_fdatawait(metamapping);
-| > >  	}
-| > > -	error = filemap_fdatawait(metamapping);
-| > > -	mapping_set_error(metamapping, error);
-| > 
-| > This part doesn't look right at all. There's a big difference in gfs2
-| > between
-| > mapping and metamapping. We need to wait for metamapping regardless.
-| > 
-| 
-| ...and this should wait. Basically, filemap_write_and_wait does
-| filemap_fdatawrite and then filemap_fdatawait. This is mostly just
-| replacing the existing code with a more concise helper.
-
-But this isn't a simple replacement with a helper. This is two different
-address spaces (mapping and metamapping) and you added an else in there.
-
-So with this patch metamapping gets written, and if there's an ip,
-mapping gets written but it doesn't wait for metamapping. Unless
-I'm missing something.
-
-You could replace both filemap_fdatawrites with the helper instead.
-Today's code is structured as:
-
-(a) write metamapping
-if (ip)
-    (b) write mapping
-    (c) wait for mapping
-(d) wait for metamapping
-
-If you use the helper for both, it becomes, (a & d)(b & c) which is probably
-acceptable. (I think we just tried to optimize what the elevator was doing).
-
-But the way you've got it coded here still looks wrong. It looks like:
-(a)
-if (ip)
-   (b & c)
-ELSE -
-   (d)
-
-So (d) (metamapping) isn't guaranteed to be synced at the end of the function.
-Of course, you know the modified helper functions better than I do.
-What am I missing?
-
-Regards,
-
-Bob Peterson
-Red Hat File Systems
+It does, but that's deliberate. A ZONE_DEVICE page never has a zero
+reference count, it's always owned by the device, never by the page
+allocator. ZONE_DEVICE overrides the ->lru list_head to store private
+device information and we rely on the behavior that a non-zero
+reference means the page is not added to any lru or page cache list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
