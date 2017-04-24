@@ -1,45 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB896B0297
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:07:16 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id h18so72961192ita.9
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:07:16 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a21si756767oth.242.2017.04.24.08.07.14
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DCCA06B02C4
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:22:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s22so13722546pfs.0
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:22:26 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id c17si19364858pgf.65.2017.04.24.08.22.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Apr 2017 08:07:14 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170419132212.GA3514@redhat.com>
-	<20170419133339.GI29789@dhcp22.suse.cz>
-	<20170422081030.GA5476@redhat.com>
-	<20170424084216.GB1739@dhcp22.suse.cz>
-	<20170424130634.GA6267@redhat.com>
-In-Reply-To: <20170424130634.GA6267@redhat.com>
-Message-Id: <201704250006.EGD86943.HOFtOLFSOQVFJM@I-love.SAKURA.ne.jp>
-Date: Tue, 25 Apr 2017 00:06:54 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Apr 2017 08:22:26 -0700 (PDT)
+Date: Mon, 24 Apr 2017 08:22:23 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v3 01/20] mm: drop "wait" parameter from write_one_page
+Message-ID: <20170424152223.GA9112@infradead.org>
+References: <20170424132259.8680-1-jlayton@redhat.com>
+ <20170424132259.8680-2-jlayton@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170424132259.8680-2-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sgruszka@redhat.com, mhocko@kernel.org
-Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
+To: Jeff Layton <jlayton@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-Stanislaw Gruszka wrote:
-> On Mon, Apr 24, 2017 at 10:42:17AM +0200, Michal Hocko wrote:
-> > If there
-> > is really a problem logs flooded by the allocation failures while using
-> > the guard page we should address it by a more strict ratelimiting.
-> 
-> Ok, make sense.
+Looks fine,
 
-Stanislaw, can we apply updated version at
-http://lkml.kernel.org/r/1492525366-4929-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp ?
-
-> 
-> Stanislaw
-> 
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
