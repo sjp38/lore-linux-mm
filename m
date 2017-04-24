@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E57206B039F
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:24:27 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id o4so41615407qkb.5
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:24:27 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 26D6E6B03A2
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:24:32 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id f5so40427183qtf.22
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:24:32 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s4si18004850qtc.275.2017.04.24.06.24.26
+        by mx.google.com with ESMTPS id 3si18050676qtx.156.2017.04.24.06.24.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 06:24:27 -0700 (PDT)
+        Mon, 24 Apr 2017 06:24:31 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v3 16/20] mm: don't TestClearPageError in __filemap_fdatawait_range
-Date: Mon, 24 Apr 2017 09:22:55 -0400
-Message-Id: <20170424132259.8680-17-jlayton@redhat.com>
+Subject: [PATCH v3 17/20] cifs: cleanup writeback handling errors and comments
+Date: Mon, 24 Apr 2017 09:22:56 -0400
+Message-Id: <20170424132259.8680-18-jlayton@redhat.com>
 In-Reply-To: <20170424132259.8680-1-jlayton@redhat.com>
 References: <20170424132259.8680-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,90 +20,114 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org
 Cc: dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-The -EIO returned here can end up overriding whatever error is marked in
-the address space, and be returned at fsync time, even when there is a
-more appropriate error stored in the mapping.
+Now that writeback errors are handled on a per-file basis using the new
+sequence counter method at the vfs layer, we no longer need to re-set
+errors in the mapping after doing writeback in non-fsync codepaths.
 
-Read errors are also sometimes tracked on a per-page level using
-PG_error. Suppose we have a read error on a page, and then that page is
-subsequently dirtied by overwriting the whole page. Writeback doesn't
-clear PG_error, so we can then end up successfully writing back that
-page and still return -EIO on fsync.
-
-Worse yet, PG_error is cleared during a sync() syscall, but the -EIO
-return from that is silently discarded. Any subsystem that is relying on
-PG_error to report errors during fsync can easily lose writeback errors
-due to this. All you need is a stray sync() call on the box at the wrong
-time and you've lost the error.
-
-Since the handling of the PG_error flag is somewhat inconsistent across
-subsystems, let's just rely on marking the address space when there are
-writeback errors. Change the TestClearPageError call to ClearPageError,
-and make __filemap_fdatawait_range a void return function.
+Also, fix up some bogus comments.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- mm/filemap.c | 19 +++++--------------
- 1 file changed, 5 insertions(+), 14 deletions(-)
+ fs/cifs/cifsfs.c |  4 +---
+ fs/cifs/file.c   |  7 ++-----
+ fs/cifs/inode.c  | 22 +++++++---------------
+ 3 files changed, 10 insertions(+), 23 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index d94a76d4e023..47e7f50fb830 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -363,17 +363,16 @@ int filemap_flush(struct address_space *mapping)
- }
- EXPORT_SYMBOL(filemap_flush);
- 
--static int __filemap_fdatawait_range(struct address_space *mapping,
-+static void __filemap_fdatawait_range(struct address_space *mapping,
- 				     loff_t start_byte, loff_t end_byte)
- {
- 	pgoff_t index = start_byte >> PAGE_SHIFT;
- 	pgoff_t end = end_byte >> PAGE_SHIFT;
- 	struct pagevec pvec;
- 	int nr_pages;
--	int ret = 0;
- 
- 	if (end_byte < start_byte)
--		goto out;
-+		return;
- 
- 	pagevec_init(&pvec, 0);
- 	while ((index <= end) &&
-@@ -390,14 +389,11 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- 				continue;
- 
- 			wait_on_page_writeback(page);
--			if (TestClearPageError(page))
--				ret = -EIO;
-+			ClearPageError(page);
+diff --git a/fs/cifs/cifsfs.c b/fs/cifs/cifsfs.c
+index dd3f5fabfdf6..017a2d1d02c7 100644
+--- a/fs/cifs/cifsfs.c
++++ b/fs/cifs/cifsfs.c
+@@ -829,10 +829,8 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
+ 		if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
+ 		    inode->i_mapping->nrpages != 0) {
+ 			rc = filemap_fdatawait(inode->i_mapping);
+-			if (rc) {
+-				mapping_set_error(inode->i_mapping, rc);
++			if (rc)
+ 				return rc;
+-			}
  		}
- 		pagevec_release(&pvec);
- 		cond_resched();
- 	}
--out:
--	return ret;
- }
+ 		/*
+ 		 * Some applications poll for the file length in this strange
+diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+index 4b696a23b0b1..9b4f7f182add 100644
+--- a/fs/cifs/file.c
++++ b/fs/cifs/file.c
+@@ -722,9 +722,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
+ 	cinode = CIFS_I(inode);
  
- /**
-@@ -417,15 +413,10 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
- 			    loff_t end_byte)
- {
--	int ret, ret2;
- 	errseq_t since = filemap_sample_wb_error(mapping);
- 
--	ret = __filemap_fdatawait_range(mapping, start_byte, end_byte);
--	ret2 = filemap_check_wb_error(mapping, since);
--	if (!ret)
--		ret = ret2;
+ 	if (can_flush) {
+-		rc = filemap_write_and_wait(inode->i_mapping);
+-		mapping_set_error(inode->i_mapping, rc);
 -
--	return ret;
-+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
-+	return filemap_check_wb_error(mapping, since);
- }
- EXPORT_SYMBOL(filemap_fdatawait_range);
++		filemap_write_and_wait(inode->i_mapping);
+ 		if (tcon->unix_ext)
+ 			rc = cifs_get_inode_info_unix(&inode, full_path,
+ 						      inode->i_sb, xid);
+@@ -3906,8 +3904,7 @@ void cifs_oplock_break(struct work_struct *work)
+ 			break_lease(inode, O_WRONLY);
+ 		rc = filemap_fdatawrite(inode->i_mapping);
+ 		if (!CIFS_CACHE_READ(cinode)) {
+-			rc = filemap_fdatawait(inode->i_mapping);
+-			mapping_set_error(inode->i_mapping, rc);
++			filemap_fdatawait(inode->i_mapping);
+ 			cifs_zap_mapping(inode);
+ 		}
+ 		cifs_dbg(FYI, "Oplock flush inode %p rc %d\n", inode, rc);
+diff --git a/fs/cifs/inode.c b/fs/cifs/inode.c
+index b261db34103c..a58e605240fc 100644
+--- a/fs/cifs/inode.c
++++ b/fs/cifs/inode.c
+@@ -2008,10 +2008,8 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
+ 	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
+ 	    inode->i_mapping->nrpages != 0) {
+ 		rc = filemap_fdatawait(inode->i_mapping);
+-		if (rc) {
+-			mapping_set_error(inode->i_mapping, rc);
++		if (rc)
+ 			return rc;
+-		}
+ 	}
  
+ 	rc = cifs_revalidate_dentry_attr(dentry);
+@@ -2171,15 +2169,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
+ 	 * Attempt to flush data before changing attributes. We need to do
+ 	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+ 	 * ownership or mode then we may also need to do this. Here, we take
+-	 * the safe way out and just do the flush on all setattr requests. If
+-	 * the flush returns error, store it to report later and continue.
++	 * the safe way out and just do the flush on all setattr requests.
+ 	 *
+ 	 * BB: This should be smarter. Why bother flushing pages that
+-	 * will be truncated anyway? Also, should we error out here if
+-	 * the flush returns error?
++	 * will be truncated anyway?
+ 	 */
+-	rc = filemap_write_and_wait(inode->i_mapping);
+-	mapping_set_error(inode->i_mapping, rc);
++	filemap_write_and_wait(inode->i_mapping);
+ 	rc = 0;
+ 
+ 	if (attrs->ia_valid & ATTR_SIZE) {
+@@ -2314,15 +2309,12 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
+ 	 * Attempt to flush data before changing attributes. We need to do
+ 	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+ 	 * ownership or mode then we may also need to do this. Here, we take
+-	 * the safe way out and just do the flush on all setattr requests. If
+-	 * the flush returns error, store it to report later and continue.
++	 * the safe way out and just do the flush on all setattr requests.
+ 	 *
+ 	 * BB: This should be smarter. Why bother flushing pages that
+-	 * will be truncated anyway? Also, should we error out here if
+-	 * the flush returns error?
++	 * will be truncated anyway?
+ 	 */
+-	rc = filemap_write_and_wait(inode->i_mapping);
+-	mapping_set_error(inode->i_mapping, rc);
++	filemap_write_and_wait(inode->i_mapping);
+ 	rc = 0;
+ 
+ 	if (attrs->ia_valid & ATTR_SIZE) {
 -- 
 2.9.3
 
