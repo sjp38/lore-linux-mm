@@ -1,61 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 201E86B0297
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 00:38:07 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id d203so213869158iof.20
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 21:38:07 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id x30si1076598pgc.223.2017.04.23.21.38.05
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3255F6B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 00:52:19 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id l21so213861572ioi.2
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 21:52:19 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id y67si17594068pfj.22.2017.04.23.21.52.17
         for <linux-mm@kvack.org>;
-        Sun, 23 Apr 2017 21:38:06 -0700 (PDT)
-Date: Mon, 24 Apr 2017 13:36:56 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
-Message-ID: <20170424043656.GI21430@X58A-UD3R>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
- <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
- <20170419150835.f2nky5qda5ooqfhy@hirez.programming.kicks-ass.net>
+        Sun, 23 Apr 2017 21:52:18 -0700 (PDT)
+Date: Mon, 24 Apr 2017 13:52:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+Message-ID: <20170424045213.GA11287@bbox>
+References: <20170407064901.25398-1-ying.huang@intel.com>
+ <20170418045909.GA11015@bbox>
+ <87y3uwrez0.fsf@yhuang-dev.intel.com>
+ <20170420063834.GB3720@bbox>
+ <874lxjim7m.fsf@yhuang-dev.intel.com>
+ <87tw5idjv9.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170419150835.f2nky5qda5ooqfhy@hirez.programming.kicks-ass.net>
+In-Reply-To: <87tw5idjv9.fsf@yhuang-dev.intel.com>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Wed, Apr 19, 2017 at 05:08:35PM +0200, Peter Zijlstra wrote:
-> On Tue, Mar 14, 2017 at 05:18:52PM +0900, Byungchul Park wrote:
-> > +/*
-> > + * Only access local task's data, so irq disable is only required.
-> > + */
-> > +static int same_context_xhlock(struct hist_lock *xhlock)
-> > +{
-> > +	struct task_struct *curr = current;
-> > +
-> > +	/* In the case of hardirq context */
-> > +	if (curr->hardirq_context) {
-> > +		if (xhlock->hlock.irq_context & 2) /* 2: bitmask for hardirq */
-> > +			return 1;
-> > +	/* In the case of softriq context */
-> > +	} else if (curr->softirq_context) {
-> > +		if (xhlock->hlock.irq_context & 1) /* 1: bitmask for softirq */
-> > +			return 1;
-> > +	/* In the case of process context */
-> > +	} else {
-> > +		if (xhlock->work_id == curr->work_id)
-> > +			return 1;
-> > +	}
-> > +	return 0;
-> > +}
+On Fri, Apr 21, 2017 at 08:29:30PM +0800, Huang, Ying wrote:
+> "Huang, Ying" <ying.huang@intel.com> writes:
 > 
-> static bool same_context_xhlock(struct hist_lock *xhlock)
-> {
-> 	return xhlock->hlock.irq_context == task_irq_context(current) &&
-> 	       xhlock->work_id == current->work_id;
-> }
+> > Minchan Kim <minchan@kernel.org> writes:
+> >
+> >> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
+> >>> Minchan Kim <minchan@kernel.org> writes:
+> >>> 
+> >>> > Hi Huang,
+> >>> >
+> >>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+> >>> >> From: Huang Ying <ying.huang@intel.com>
+> >>> >> 
+> >>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+> >>> >>  {
+> >>> >>  	struct swap_info_struct *p, *prev;
+> >>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+> >>> >>  
+> >>> >>  	prev = NULL;
+> >>> >>  	p = NULL;
+> >>> >> +
+> >>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+> >>> >> +	if (nr_swapfiles > 1)
+> >>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+> >>> >
+> >>> > Let's think on other cases.
+> >>> >
+> >>> > There are two swaps and they are configured by priority so a swap's usage
+> >>> > would be zero unless other swap used up. In case of that, this sorting
+> >>> > is pointless.
+> >>> >
+> >>> > As well, nr_swapfiles is never decreased so if we enable multiple
+> >>> > swaps and then disable until a swap is remained, this sorting is
+> >>> > pointelss, too.
+> >>> >
+> >>> > How about lazy sorting approach? IOW, if we found prev != p and,
+> >>> > then we can sort it.
+> >>> 
+> >>> Yes.  That should be better.  I just don't know whether the added
+> >>> complexity is necessary, given the array is short and sort is fast.
+> >>
+> >> Huh?
+> >>
+> >> 1. swapon /dev/XXX1
+> >> 2. swapon /dev/XXX2
+> >> 3. swapoff /dev/XXX2
+> >> 4. use only one swap
+> >> 5. then, always pointless sort.
+> >
+> > Yes.  In this situation we will do unnecessary sorting.  What I don't
+> > know is whether the unnecessary sorting will hurt performance in real
+> > life.  I can do some measurement.
+> 
+> I tested the patch with 1 swap device and 1 process to eat memory
+> (remove the "if (nr_swapfiles > 1)" for test).  I think this is the
+> worse case because there is no lock contention.  The memory freeing time
+> increased from 1.94s to 2.12s (increase ~9.2%).  So there is some
+> overhead for some cases.  I change the algorithm to something like
+> below,
+> 
+>  void swapcache_free_entries(swp_entry_t *entries, int n)
+>  {
+>  	struct swap_info_struct *p, *prev;
+>  	int i;
+> +	swp_entry_t entry;
+> +	unsigned int prev_swp_type;
+>  
+>  	if (n <= 0)
+>  		return;
+>  
+> +	prev_swp_type = swp_type(entries[0]);
+> +	for (i = n - 1; i > 0; i--) {
+> +		if (swp_type(entries[i]) != prev_swp_type)
+> +			break;
+> +	}
 
-D'oh, thank you.
+That's really what I want to avoid. For many swap usecases,
+it adds unnecessary overhead.
+
+> +
+> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+> +	if (i)
+> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+>  	prev = NULL;
+>  	p = NULL;
+>  	for (i = 0; i < n; ++i) {
+> -		p = swap_info_get_cont(entries[i], prev);
+> +		entry = entries[i];
+> +		p = swap_info_get_cont(entry, prev);
+>  		if (p)
+> -			swap_entry_free(p, entries[i]);
+> +			swap_entry_free(p, entry);
+>  		prev = p;
+>  	}
+>  	if (p)
+> 
+> With this patch, the memory freeing time increased from 1.94s to 1.97s.
+> I think this is good enough.  Do you think so?
+
+What I mean is as follows(I didn't test it at all):
+
+With this, sort entries if we found multiple entries in current
+entries. It adds some condition checks for non-multiple swap
+usecase but it would be more cheaper than the sorting.
+And it adds a [un]lock overhead for multiple swap usecase but
+it should be a compromise for single-swap usecase which is more
+popular.
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f23c56e9be39..0d76a492786f 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1073,30 +1073,40 @@ static int swp_entry_cmp(const void *ent1, const void *ent2)
+ 	return (long)(swp_type(*e1) - swp_type(*e2));
+ }
+ 
+-void swapcache_free_entries(swp_entry_t *entries, int n)
++void swapcache_free_entries(swp_entry_t *entries, int nr)
+ {
+-	struct swap_info_struct *p, *prev;
+ 	int i;
++	struct swap_info_struct *cur, *prev = NULL;
++	bool sorted = false;
+ 
+-	if (n <= 0)
++	if (nr <= 0)
+ 		return;
+ 
+-	prev = NULL;
+-	p = NULL;
+-
+-	/* Sort swap entries by swap device, so each lock is only taken once. */
+-	if (nr_swapfiles > 1)
+-		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+-	for (i = 0; i < n; ++i) {
+-		p = swap_info_get_cont(entries[i], prev);
+-		if (p)
+-			swap_entry_free(p, entries[i]);
+-		else
++	for (i = 0; i < nr; i++) {
++		cur = swap_info_get_cont(entries[i], prev);
++		if (!cur)
+ 			break;
+-		prev = p;
++		if (cur != prev && !sorted && prev) {
++			spin_unlock(&cur->lock);
++			/*
++			 * Sort swap entries by swap device,
++			 * so each lock is only taken once.
++			 */
++			sort(entries + i, nr - i,
++					sizeof(swp_entry_t),
++					swp_entry_cmp, NULL);
++			sorted = true;
++			prev = NULL;
++			i--;
++			continue;
++		}
++
++		swap_entry_free(cur, entries[i]);
++		prev = cur;
+ 	}
+-	if (p)
+-		spin_unlock(&p->lock);
++
++	if (cur)
++		spin_unlock(&cur->lock);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
