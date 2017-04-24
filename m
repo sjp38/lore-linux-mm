@@ -1,104 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E63F6B0297
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 01:11:35 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id i90so212807374ioo.13
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 22:11:35 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id y10si8091711pfi.42.2017.04.23.22.11.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Apr 2017 22:11:34 -0700 (PDT)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id AD9ED2020F
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 05:11:32 +0000 (UTC)
-Received: from mail-ua0-f171.google.com (mail-ua0-f171.google.com [209.85.217.171])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 0EA4120172
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 05:11:30 +0000 (UTC)
-Received: by mail-ua0-f171.google.com with SMTP id f10so105680144uaa.2
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 22:11:30 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5FD6B02C1
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 01:12:13 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id g66so58820095ite.0
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 22:12:13 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 90si17616950pla.275.2017.04.23.22.12.11
+        for <linux-mm@kvack.org>;
+        Sun, 23 Apr 2017 22:12:12 -0700 (PDT)
+Date: Mon, 24 Apr 2017 14:11:02 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
+Message-ID: <20170424051102.GJ21430@X58A-UD3R>
+References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
+ <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
+ <20170419142503.rqsrgjlc7ump7ijb@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
-References: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Sun, 23 Apr 2017 22:11:08 -0700
-Message-ID: <CALCETrUcB7STNjVw=WBZdFfz_H1DKcLnj3HHtnGaHGQ1UY8Zrw@mail.gmail.com>
-Subject: Re: Question on the five-level page table support patches
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170419142503.rqsrgjlc7ump7ijb@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Sun, Apr 23, 2017 at 3:53 AM, John Paul Adrian Glaubitz
-<glaubitz@physik.fu-berlin.de> wrote:
-> Hi Kirill!
->
-> I recently read the LWN article on your and your colleagues work to
-> add five-level page table support for x86 to the Linux kernel [1]
-> and I got your email address from the last patch of the series.
->
-> Since this extends the address space beyond 48-bits, as you may know,
-> it will cause potential headaches with Javascript engines which use
-> tagged pointers. On SPARC, the virtual address space already extends
-> to 52 bits and we are running into these very issues with Javascript
-> engines on SPARC.
->
-> Now, a possible way to mitigate this problem would be to pass the
-> "hint" parameter to mmap() in order to tell the kernel not to allocate
-> memory beyond the 48 bits address space. Unfortunately, on Linux this
-> will only work when the area pointed to by "hint" is unallocated which
-> means one cannot simply use a hardcoded "hint" to mitigate this problem.
->
-> However, since this trick still works on NetBSD and used to work on
-> Linux [3], I was wondering whether there are plans to bring back
-> this behavior to mmap() in Linux.
->
-> Currently, people are using ugly work-arounds [4] to address this
-> problem which involve a manual iteration over memory blocks and
-> basically implementing another allocator in the user space
-> application.
->
-> Thanks,
-> Adrian
->
->> [1] https://lwn.net/Articles/717293/
->> [2] https://lwn.net/Articles/717300/
->> [3] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=3D824449#22
->> [4] https://hg.mozilla.org/mozilla-central/rev/dfaafbaaa291
->
+On Wed, Apr 19, 2017 at 04:25:03PM +0200, Peter Zijlstra wrote:
+> On Tue, Mar 14, 2017 at 05:18:52PM +0900, Byungchul Park wrote:
+> > +struct hist_lock {
+> > +	/*
+> > +	 * Each work of workqueue might run in a different context,
+> > +	 * thanks to concurrency support of workqueue. So we have to
+> > +	 * distinguish each work to avoid false positive.
+> > +	 */
+> > +	unsigned int		work_id;
+> >  };
+> 
+> > @@ -1749,6 +1749,14 @@ struct task_struct {
+> >  	struct held_lock held_locks[MAX_LOCK_DEPTH];
+> >  	gfp_t lockdep_reclaim_gfp;
+> >  #endif
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +#define MAX_XHLOCKS_NR 64UL
+> > +	struct hist_lock *xhlocks; /* Crossrelease history locks */
+> > +	unsigned int xhlock_idx;
+> > +	unsigned int xhlock_idx_soft; /* For backing up at softirq entry */
+> > +	unsigned int xhlock_idx_hard; /* For backing up at hardirq entry */
+> > +	unsigned int work_id;
+> > +#endif
+> >  #ifdef CONFIG_UBSAN
+> >  	unsigned int in_ubsan;
+> >  #endif
+> 
+> > +/*
+> > + * Crossrelease needs to distinguish each work of workqueues.
+> > + * Caller is supposed to be a worker.
+> > + */
+> > +void crossrelease_work_start(void)
+> > +{
+> > +	if (current->xhlocks)
+> > +		current->work_id++;
+> > +}
+> 
+> > +/*
+> > + * Only access local task's data, so irq disable is only required.
+> > + */
+> > +static int same_context_xhlock(struct hist_lock *xhlock)
+> > +{
+> > +	struct task_struct *curr = current;
+> > +
+> > +	/* In the case of hardirq context */
+> > +	if (curr->hardirq_context) {
+> > +		if (xhlock->hlock.irq_context & 2) /* 2: bitmask for hardirq */
+> > +			return 1;
+> > +	/* In the case of softriq context */
+> > +	} else if (curr->softirq_context) {
+> > +		if (xhlock->hlock.irq_context & 1) /* 1: bitmask for softirq */
+> > +			return 1;
+> > +	/* In the case of process context */
+> > +	} else {
+> > +		if (xhlock->work_id == curr->work_id)
+> > +			return 1;
+> > +	}
+> > +	return 0;
+> > +}
+> 
+> I still don't like work_id; it doesn't have anything to do with
+> workqueues per se, other than the fact that they end up using it.
+> 
+> It's a history generation id; touching it completely invalidates our
+> history. Workqueues need this because they run independent work from the
+> same context.
+> 
+> But the same is true for other sites. Last time I suggested
+> lockdep_assert_empty() to denote all suck places (and note we already
+> have lockdep_sys_exit() that hooks into the return to user path).
 
-Can you explain what the issue is?  What used to work on Linux and
-doesn't any more?  The man page is quite clear:
+I'm sorry but I don't understand what you intend. It would be appriciated
+if you explain more.
 
-       MAP_FIXED
-              Don't  interpret  addr  as  a hint: place the mapping at exac=
-tly
-              that address.  addr must be a multiple of the page size.  If =
-the
-              memory  region  specified  by addr and len overlaps pages of =
-any
-              existing mapping(s), then the overlapped part  of  the  exist=
-ing
-              mapping(s)  will  be discarded.  If the specified address can=
-not
-              be used, mmap() will fail.  Because requiring  a  fixed  addr=
-ess
-              for  a  mapping is less portable, the use of this option is d=
-is=E2=80=90
-              couraged.
+You might know why I introduced the 'work_id'.. Is there any alternative?
 
-and AFAIK Linux works exactly as documented.
-
-FWIW, a patch to add a new MAP_ mode to tell mmap(2) to use the hinted
-address if available and to *fail* if the hinted address is not
-available would very likely be accepted and would IMO be much nicer
-than the current behavior.
-
---Andy
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
