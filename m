@@ -1,160 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F166B0038
-	for <linux-mm@kvack.org>; Sun, 23 Apr 2017 21:44:56 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id h41so16804040ioi.1
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 18:44:56 -0700 (PDT)
-Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
-        by mx.google.com with ESMTPS id 201si9766116itw.49.2017.04.23.18.44.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Apr 2017 18:44:54 -0700 (PDT)
-Received: by mail-it0-x241.google.com with SMTP id z67so12733169itb.0
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 18:44:54 -0700 (PDT)
-Date: Mon, 24 Apr 2017 10:44:43 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: your mail
-Message-ID: <20170424014441.GA29305@js1304-desktop>
-References: <20170410110351.12215-1-mhocko@kernel.org>
- <20170415121734.6692-1-mhocko@kernel.org>
- <20170417054718.GD1351@js1304-desktop>
- <20170417081513.GA12511@dhcp22.suse.cz>
- <20170420012753.GA22054@js1304-desktop>
- <20170420072820.GB15781@dhcp22.suse.cz>
- <20170421043826.GC13966@js1304-desktop>
- <20170421071616.GC14154@dhcp22.suse.cz>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E3E7E6B0297
+	for <linux-mm@kvack.org>; Sun, 23 Apr 2017 23:05:25 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e132so56084079ite.19
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 20:05:25 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g8si17348168pfj.239.2017.04.23.20.05.23
+        for <linux-mm@kvack.org>;
+        Sun, 23 Apr 2017 20:05:24 -0700 (PDT)
+Date: Mon, 24 Apr 2017 12:04:12 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
+Message-ID: <20170424030412.GG21430@X58A-UD3R>
+References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
+ <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
+ <20170419171954.tqp5tkxlsg4jp2xz@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170419171954.tqp5tkxlsg4jp2xz@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170421071616.GC14154@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Fri, Apr 21, 2017 at 09:16:16AM +0200, Michal Hocko wrote:
-> On Fri 21-04-17 13:38:28, Joonsoo Kim wrote:
-> > On Thu, Apr 20, 2017 at 09:28:20AM +0200, Michal Hocko wrote:
-> > > On Thu 20-04-17 10:27:55, Joonsoo Kim wrote:
-> > > > On Mon, Apr 17, 2017 at 10:15:15AM +0200, Michal Hocko wrote:
-> > > [...]
-> > > > > Which pfn walkers you have in mind?
-> > > > 
-> > > > For example, kpagecount_read() in fs/proc/page.c. I searched it by
-> > > > using pfn_valid().
-> > > 
-> > > Yeah, I've checked that one and in fact this is a good example of the
-> > > case where you do not really care about holes. It just checks the page
-> > > count which is a valid information under any circumstances.
-> > 
-> > I don't think so. First, it checks the page *map* count. Is it still valid
-> > even if PageReserved() is set?
+On Wed, Apr 19, 2017 at 07:19:54PM +0200, Peter Zijlstra wrote:
+> On Tue, Mar 14, 2017 at 05:18:52PM +0900, Byungchul Park wrote:
+> > +/*
+> > + * Only access local task's data, so irq disable is only required.
 > 
-> I do not know about any user which would manipulate page map count for
-> referenced pages. The core MM code doesn't.
+> A comment describing what it does; record a hist_lock entry; would be
+> more useful.
 
-That's weird that we can get *map* count without PageReserved() check,
-but we cannot get zone information.
-Zone information is more static information than map count.
+Right. I will add it.
 
-It should be defined/documented in this time that what information in
-the struct page is valid even if PageReserved() is set. And then, we
-need to fix all the things based on this design decision.
-
+> > + */
+> > +static void add_xhlock(struct held_lock *hlock)
+> > +{
+> > +	unsigned int idx = current->xhlock_idx++;
+> > +	struct hist_lock *xhlock = &xhlock(idx);
+> > +
+> > +	/* Initialize hist_lock's members */
+> > +	xhlock->hlock = *hlock;
+> > +	xhlock->work_id = current->work_id;
+> > +
+> > +	xhlock->trace.nr_entries = 0;
+> > +	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
+> > +	xhlock->trace.entries = xhlock->trace_entries;
+> > +	xhlock->trace.skip = 3;
+> > +	save_stack_trace(&xhlock->trace);
+> > +}
 > 
-> > What I'd like to ask in this example is
-> > that what information is valid if PageReserved() is set. Is there any
-> > design document on this? I think that we need to define/document it first.
+> > +/*
+> > + * This should be lockless as far as possible because this would be
+> > + * called very frequently.
 > 
-> NO, it is not AFAIK.
+> idem; explain why depend_before().
+
+Right. I will add a comment on the following 'if' statement.
+
+> > + */
+> > +static void check_add_xhlock(struct held_lock *hlock)
+> > +{
 > 
-> [...]
-> > > OK, fair enough. I did't consider memblock allocations. I will rethink
-> > > this patch but there are essentially 3 options
-> > > 	- use a different criterion for the offline holes dection. I
-> > > 	  have just realized we might do it by storing the online
-> > > 	  information into the mem sections
-> > > 	- drop this patch
-> > > 	- move the PageReferenced check down the chain into
-> > > 	  isolate_freepages_block resp. isolate_migratepages_block
-> > > 
-> > > I would prefer 3 over 2 over 1. I definitely want to make this more
-> > > robust so 1 is preferable long term but I do not want this to be a
-> > > roadblock to the rest of the rework. Does that sound acceptable to you?
-> > 
-> > I like #1 among of above options and I already see your patch for #1.
-> > It's much better than your first attempt but I'm still not happy due
-> > to the semantic of pfn_valid().
+> The other thing could be done like:
 > 
-> You are trying to change a semantic of something that has a well defined
-> meaning. I disagree that we should change it. It might sound like a
-> simpler thing to do because pfn walkers will have to be checked but what
-> you are proposing is conflating two different things together.
+> #ifdef CONFIG_DEBUG_LOCKDEP
+> 	/*
+> 	 * This can be done locklessly because its all task-local state,
+> 	 * we must however ensure IRQs are disabled.
+> 	 */
+> 	WARN_ON_ONCE(!irqs_disabled());
+> #endif
 
-I don't think that *I* try to change the semantic of pfn_valid().
-It would be original semantic of pfn_valid().
+Yes. Much better.
 
-"If pfn_valid() returns true, we can get proper struct page and the
-zone information,"
-
-That situation is now being changed by your patch *hotplug rework*.
-
-"Even if pfn_valid() returns true, we cannot get the zone information
-without PageReserved() check, since *zone is determined during
-onlining* and pfn_valid() return true after adding the memory."
-
+> > +	if (!current->xhlocks || !depend_before(hlock))
+> > +		return;
+> > +
+> > +	add_xhlock(hlock);
+> > +}
 > 
-> > > [..]
-> > > > Let me clarify my desire(?) for this issue.
-> > > > 
-> > > > 1. If pfn_valid() returns true, struct page has valid information, at
-> > > > least, in flags (zone id, node id, flags, etc...). So, we can use them
-> > > > without checking PageResereved().
-> > > 
-> > > This is no longer true after my rework. Pages are associated with the
-> > > zone during _onlining_ rather than when they are physically hotpluged.
-> > 
-> > If your rework make information valid during _onlining_, my
-> > suggestion is making pfn_valid() return false until onlining.
-> > 
-> > Caller of pfn_valid() expects that they can get valid information from
-> > the struct page. There is no reason to access the struct page if they
-> > can't get valid information from it. So, passing pfn_valid() should
-> > guarantee that, at least, some kind of information is valid.
-> > 
-> > If pfn_valid() doesn't guarantee it, most of the pfn walker should
-> > check PageResereved() to make sure that validity of information from
-> > the struct page.
 > 
-> This is true only for those walkers which really depend on the full
-> initialization. This is not the case for all of them. I do not see any
-> reason to introduce another _pfn_valid to just check whether there is a
-> struct page...
+> > +
+> > +/*
+> > + * For crosslock.
+> > + */
+> > +static int add_xlock(struct held_lock *hlock)
+> > +{
+> > +	struct cross_lock *xlock;
+> > +	unsigned int gen_id;
+> > +
+> > +	if (!graph_lock())
+> > +		return 0;
+> > +
+> > +	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
+> > +
+> > +	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
+> > +	xlock->hlock = *hlock;
+> > +	xlock->hlock.gen_id = gen_id;
+> > +	graph_unlock();
+> 
+> What does graph_lock protect here?
 
-It's really confusing concept that only some information is valid for
-*not* fully initialized struct page. Even, there is no document that
-what information is valid for this half-initialized struct page.
+Modifying xlock(not xhlock) instance should be protected with graph_lock.
+Don't you think so?
 
-Better design would be that we regard that every information is
-invalid for half-initialized struct page. In this case, it's natural
-to make pfn_valid() returns false for this half-initialized struct page.
+> > +
+> > +	return 1;
+> > +}
+> > +
+> > +/*
+> > + * return 0: Stop. Failed to acquire graph_lock.
+> > + * return 1: Done. No more acquire ops is needed.
+> > + * return 2: Need to do normal acquire operation.
+> > + */
+> > +static int lock_acquire_crosslock(struct held_lock *hlock)
+> > +{
+> > +	/*
+> > +	 *	CONTEXT 1		CONTEXT 2
+> > +	 *	---------		---------
+> > +	 *	lock A (cross)
+> > +	 *	X = atomic_inc_return(&cross_gen_id)
+> > +	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> > +	 *				Y = atomic_read_acquire(&cross_gen_id)
+> > +	 *				lock B
+> > +	 *
+> > +	 * atomic_read_acquire() is for ordering between A and B,
+> > +	 * IOW, A happens before B, when CONTEXT 2 see Y >= X.
+> > +	 *
+> > +	 * Pairs with atomic_inc_return() in add_xlock().
+> > +	 */
+> > +	hlock->gen_id = (unsigned int)atomic_read_acquire(&cross_gen_id);
+> > +
+> > +	if (cross_lock(hlock->instance))
+> > +		return add_xlock(hlock);
+> > +
+> > +	check_add_xhlock(hlock);
+> > +	return 2;
+> > +}
+> 
+> So I was wondering WTH we'd call into this with a !xlock to begin with.
+> 
+> Maybe something like:
+> 
+> /*
+>  * Called for both normal and crosslock acquires. Normal locks will be
+>  * pushed on the hist_lock queue. Cross locks will record state and
+>  * stop regular lock_acquire() to avoid being placed on the held_lock
+>  * stack.
+>  *
+>  * Returns: 0 - failure;
+>  *          1 - cross-lock, done;
+>  *          2 - normal lock, continue to held_lock[].
+>  */
 
->  
-> So please do not conflate those two different concepts together. I
-> believe that the most prominent pfn walkers should be covered now and
-> others can be evaluated later.
+Why not? I will replace my comment with yours.
 
-Even if original pfn_valid()'s semantic is not the one that I mentioned,
-I think that suggested semantic from me is better.
-Only hotplug code need to be changed and others doesn't need to be changed.
-There is no overhead for others. What's the problem about this approach?
+> > +static int commit_xhlock(struct cross_lock *xlock, struct hist_lock *xhlock)
+> > +{
+> > +	unsigned int xid, pid;
+> > +	u64 chain_key;
+> > +
+> > +	xid = xlock_class(xlock) - lock_classes;
+> > +	chain_key = iterate_chain_key((u64)0, xid);
+> > +	pid = xhlock_class(xhlock) - lock_classes;
+> > +	chain_key = iterate_chain_key(chain_key, pid);
+> > +
+> > +	if (lookup_chain_cache(chain_key))
+> > +		return 1;
+> > +
+> > +	if (!add_chain_cache_classes(xid, pid, xhlock->hlock.irq_context,
+> > +				chain_key))
+> > +		return 0;
+> > +
+> > +	if (!check_prev_add(current, &xlock->hlock, &xhlock->hlock, 1,
+> > +			    &xhlock->trace, copy_trace))
+> > +		return 0;
+> > +
+> > +	return 1;
+> > +}
+> > +
+> > +static int commit_xhlocks(struct cross_lock *xlock)
+> > +{
+> > +	unsigned int cur = current->xhlock_idx;
+> > +	unsigned int i;
+> > +
+> > +	if (!graph_lock())
+> > +		return 0;
+> > +
+> > +	for (i = cur - 1; !xhlock_same(i, cur); i--) {
+> > +		struct hist_lock *xhlock = &xhlock(i);
+> 
+> *blink*, you mean this?
+> 
+> 	for (i = 0; i < MAX_XHLOCKS_NR; i++) {
+> 		struct hist_lock *xhlock = &xhlock(cur - i);
 
-And, I'm not sure that you covered the most prominent pfn walkers.
-Please see pagetypeinfo_showblockcount_print() in mm/vmstat.c.
-As you admitted, additional check approach is really error-prone and
-this example shows that.
+I will change the loop to this form.
 
-Thanks.
+> Except you seem to skip over the most recent element (@cur), why?
+
+Currently 'cur' points to the next *free* slot.
+
+> > +
+> > +		if (!xhlock_used(xhlock))
+> > +			break;
+> > +
+> > +		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
+> > +			break;
+> > +
+> > +		if (same_context_xhlock(xhlock) &&
+> > +		    !commit_xhlock(xlock, xhlock))
+> 
+> return with graph_lock held?
+
+No. When commit_xhlock() returns 0, the lock was already unlocked.
+
+> > +			return 0;
+> > +	}
+> > +
+> > +	graph_unlock();
+> > +	return 1;
+> > +}
+> > +
+> > +void lock_commit_crosslock(struct lockdep_map *lock)
+> > +{
+> > +	struct cross_lock *xlock;
+> > +	unsigned long flags;
+> > +
+> > +	if (unlikely(!debug_locks || current->lockdep_recursion))
+> > +		return;
+> > +
+> > +	if (!current->xhlocks)
+> > +		return;
+> > +
+> > +	/*
+> > +	 * We have to check this here instead of in add_xlock(), since
+> > +	 * otherwise invalid cross_lock might be accessed on commit. In
+> > +	 * other words, building xlock in add_xlock() should not be
+> > +	 * skipped in order to access valid cross_lock on commit.
+> > +	 */
+> > +	if (!depend_after(&((struct lockdep_map_cross *)lock)->xlock.hlock))
+> > +		return;
+> > +
+> > +	raw_local_irq_save(flags);
+> > +	check_flags(flags);
+> > +	current->lockdep_recursion = 1;
+> > +	xlock = &((struct lockdep_map_cross *)lock)->xlock;
+> > +	commit_xhlocks(xlock);
+> 
+> We don't seem to use the return value much..
+
+I will get rid of the return type.
+
+Thank you very much.
+
+> > +	current->lockdep_recursion = 0;
+> > +	raw_local_irq_restore(flags);
+> > +}
+> > +EXPORT_SYMBOL_GPL(lock_commit_crosslock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
