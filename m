@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AC1CE6B0311
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:56:18 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m22so15826729pgc.4
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:56:18 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s1si19203432plk.256.2017.04.24.08.56.17
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1911E6B0317
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:57:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b17so14239000pfd.1
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:57:19 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id w15si19459043plk.292.2017.04.24.08.57.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Apr 2017 08:56:17 -0700 (PDT)
-Date: Mon, 24 Apr 2017 17:56:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 08/20] mm: ensure that we set mapping error if
- writeout() fails
-Message-ID: <20170424155614.GI23988@quack2.suse.cz>
-References: <20170424132259.8680-1-jlayton@redhat.com>
- <20170424132259.8680-9-jlayton@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Apr 2017 08:57:17 -0700 (PDT)
+Subject: Re: [PATCH v5 09/32] x86/mm: Provide general kernel support for
+ memory encryption
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418211754.10190.25082.stgit@tlendack-t1.amdoffice.net>
+ <0106e3fc-9780-e872-2274-fecf79c28923@intel.com>
+ <9fc79e28-ad64-1c2f-4c46-a4efcdd550b0@amd.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <67926f62-a068-6114-92ee-39bc08488b32@intel.com>
+Date: Mon, 24 Apr 2017 08:57:17 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170424132259.8680-9-jlayton@redhat.com>
+In-Reply-To: <9fc79e28-ad64-1c2f-4c46-a4efcdd550b0@amd.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
+To: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Mon 24-04-17 09:22:47, Jeff Layton wrote:
-> If writepage fails during a page migration, then we need to ensure that
-> fsync will see it by flagging the mapping.
+On 04/24/2017 08:53 AM, Tom Lendacky wrote:
+> On 4/21/2017 4:52 PM, Dave Hansen wrote:
+>> On 04/18/2017 02:17 PM, Tom Lendacky wrote:
+>>> @@ -55,7 +57,7 @@ static inline void copy_user_page(void *to, void
+>>> *from, unsigned long vaddr,
+>>>      __phys_addr_symbol(__phys_reloc_hide((unsigned long)(x)))
+>>>
+>>>  #ifndef __va
+>>> -#define __va(x)            ((void *)((unsigned long)(x)+PAGE_OFFSET))
+>>> +#define __va(x)            ((void *)(__sme_clr(x) + PAGE_OFFSET))
+>>>  #endif
+>>
+>> It seems wrong to be modifying __va().  It currently takes a physical
+>> address, and this modifies it to take a physical address plus the SME
+>> bits.
 > 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> This actually modifies it to be sure the encryption bit is not part of
+> the physical address.
 
-Looks good to me. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-> ---
->  mm/migrate.c | 6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 738f1d5f8350..3a59830bdae2 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -792,7 +792,11 @@ static int writeout(struct address_space *mapping, struct page *page)
->  		/* unlocked. Relock */
->  		lock_page(page);
->  
-> -	return (rc < 0) ? -EIO : -EAGAIN;
-> +	if (rc < 0) {
-> +		mapping_set_error(mapping, rc);
-> +		return -EIO;
-> +	}
-> +	return -EAGAIN;
->  }
->  
->  /*
-> -- 
-> 2.9.3
-> 
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+If SME bits make it this far, we have a bug elsewhere.  Right?  Probably
+best not to paper over it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
