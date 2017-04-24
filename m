@@ -1,88 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D48946B0297
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:46:18 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t23so13908250pfe.17
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:46:18 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f20si19414049pgn.275.2017.04.24.08.46.17
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BEEAB6B02C6
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:47:52 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t23so13931466pfe.17
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 08:47:52 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y71si15659374pgd.130.2017.04.24.08.47.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Apr 2017 08:46:17 -0700 (PDT)
-Date: Mon, 24 Apr 2017 17:46:13 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 04/20] fs: check for writeback errors after syncing
- out buffers in generic_file_fsync
-Message-ID: <20170424154613.GG23988@quack2.suse.cz>
-References: <20170424132259.8680-1-jlayton@redhat.com>
- <20170424132259.8680-5-jlayton@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Apr 2017 08:47:52 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3OFhq1A113278
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:47:51 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a0mgfs4p0-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 11:47:51 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 24 Apr 2017 16:47:48 +0100
+Subject: Re: [RFC 4/4] Change mmap_sem to range lock
+References: <cover.1492595897.git.ldufour@linux.vnet.ibm.com>
+ <1492698500-24219-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <8737d2d52e.fsf@firstfloor.org>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 24 Apr 2017 17:47:43 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170424132259.8680-5-jlayton@redhat.com>
+In-Reply-To: <8737d2d52e.fsf@firstfloor.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <13a115b6-2f75-e399-265e-2e6c73c09e9a@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, haren@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, Paul.McKenney@us.ibm.com, linux-kernel@vger.kernel.org
 
-On Mon 24-04-17 09:22:43, Jeff Layton wrote:
-> ext2 currently does a test+clear of the AS_EIO flag, which is
-> is problematic for some coming changes.
+On 21/04/2017 01:36, Andi Kleen wrote:
+> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
 > 
-> What we really need to do instead is call filemap_check_errors
-> in __generic_file_fsync after syncing out the buffers. That
-> will be sufficient for this case, and help other callers detect
-> these errors properly as well.
+>> [resent this patch which seems to have not reached the mailing lists]
+>>
+>> Change the mmap_sem to a range lock to allow finer grain locking on
+>> the memory layout of a task.
+>>
+>> This patch rename mmap_sem into mmap_rw_tree to avoid confusion and
+>> replace any locking (read or write) by complete range locking.  So
+>> there is no functional change except in the way the underlying locking
+>> is achieved.
+>>
+>> Currently, this patch only supports x86 and PowerPc architectures,
+>> furthermore it should break the build of any others.
 > 
-> With that, we don't need to twiddle it in ext2.
+> Thanks for working on this.
 > 
-> Suggested-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> However as commented before I think the first step to make progress here
+> is a description of everything mmap_sem protects.
 
-Looks good to me. You can add:
+Hi Andy,
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+I looked for the write mmap_sem locking in x86 and ppc64 architectures,
+here is what I found:
 
-								Honza
-> ---
->  fs/ext2/file.c | 2 +-
->  fs/libfs.c     | 3 ++-
->  2 files changed, 3 insertions(+), 2 deletions(-)
+mmap_sem protects
+ vdso mapping
+ VMA layout changes
+ VMA cache
+ Page protection/layout
+ Changes to mmu notifier chain
+ mmap_sem is used to serialize khugepaged's access
+ mmap_sem is used to serialize ksm's access
+ protection keys (pkey_alloc()...)
+
+Calls to
+ get_unmap_area()
+ do_mmap()
+ do_mmap_pgoff()
+ do_munmap()
+ get_user_pages()
+ put_page()
+ set_page_dirty_lock()
+ find_vma()
+ find_vma_intersection()
+ alloc_empty_pages()
+ insert_vm_struct()
+ get_mm_rss()
+ uprobe_consumer->filter() (currently only uprobe_perf_filter())
+ _install_special_mapping()
+ pmdp_collapse_flush()
+ do_swap_page()
+ do_brk()
+ __split_vma()
+ mremap_to()
+ vma_to_resize()
+ vma_adjust()
+
+MM fields
+   pinned_vm
+   stack_vm
+   total_vm
+   locked_vm
+   start_stack
+   start_code
+   end_code
+   start_data
+   start_brk
+   bd_addr
+   mm_users
+   core_state
+   context.vdso_*
+   def_flags
+   mmu_notifier_mm
+
+VMA fields
+    vm_private_data
+    vm_flags
+    vm_page_prot
+    vm_file
+    vm_pgoff
+    vm_policy
+
+
+Userfaultfd has not been looked in details yet.
+dup_mmap() locks the oldmm in write mode when copying it, is it necessary ?
+
+> Surely the init full case could be done shorter with some wrapper
+> that combines the init_full and lock operation?
+
+Yes that doable, I wrote this like that, because the range should be
+initialized based on the on going operation, so having an explicit init
+operation is making this more explicit.
+
+> Then it would be likely a simple search'n'replace to move the
+> whole tree in one atomic step to the new wrappers.
+> Initially they could be just defined to use rwsems too to
+> not change anything at all.
 > 
-> diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-> index b21891a6bfca..ed00e7ae0ef3 100644
-> --- a/fs/ext2/file.c
-> +++ b/fs/ext2/file.c
-> @@ -177,7 +177,7 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
->  	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
->  
->  	ret = generic_file_fsync(file, start, end, datasync);
-> -	if (ret == -EIO || test_and_clear_bit(AS_EIO, &mapping->flags)) {
-> +	if (ret == -EIO) {
->  		/* We don't really know where the IO error happened... */
->  		ext2_error(sb, __func__,
->  			   "detected IO error when writing metadata buffers");
-> diff --git a/fs/libfs.c b/fs/libfs.c
-> index a8b62e5d43a9..12a48ee442d3 100644
-> --- a/fs/libfs.c
-> +++ b/fs/libfs.c
-> @@ -991,7 +991,8 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
->  
->  out:
->  	inode_unlock(inode);
-> -	return ret;
-> +	err = filemap_check_errors(inode->i_mapping);
-> +	return ret ? : err;
->  }
->  EXPORT_SYMBOL(__generic_file_fsync);
->  
-> -- 
-> 2.9.3
+> It would be a good idea to merge such a patch as quickly
+> as possible beause it will be a nightmare to maintain
+> longer term.
 > 
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> Then you could add a config to use a range lock through
+> the wrappers.
+
+I agree, I should try a way to make that patch activated through a
+CONFIG_value, but there is a the additional range value that make it
+more complex to achieve. I'll try to figure out a way to do that.
+
+> Then after that you could add real ranges step by step,
+> after doing the proper analysis.
+
+That's the biggest part of the job.
+I'm also wondering if a dedicated lock/sem should be introduced to
+protect the VMA cache and the VMA list, since the range itself will not
+protect against change while walking the VMA list.
+
+Please advise.
+
+Cheers,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
