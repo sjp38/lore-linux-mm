@@ -1,74 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7989C6B0297
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:05:02 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id l21so220900377ioi.2
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:05:02 -0700 (PDT)
-Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
-        by mx.google.com with ESMTPS id t70si10857792itb.60.2017.04.24.03.05.01
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6101D6B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:17:57 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id g66so66021852ite.0
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:17:57 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id k8si10880843itf.35.2017.04.24.03.17.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 03:05:01 -0700 (PDT)
-Received: by mail-io0-x243.google.com with SMTP id k87so47499393ioi.0
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:05:01 -0700 (PDT)
-From: Oliver O'Halloran <oohall@gmail.com>
-Subject: [resend PATCH v2] mm, x86: Add ARCH_HAS_ZONE_DEVICE to Kconfig
-Date: Mon, 24 Apr 2017 20:04:34 +1000
-Message-Id: <20170424100434.890-1-oohall@gmail.com>
+        Mon, 24 Apr 2017 03:17:56 -0700 (PDT)
+Date: Mon, 24 Apr 2017 12:17:47 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
+Message-ID: <20170424101747.iirvjjoq66x25w7n@hirez.programming.kicks-ass.net>
+References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
+ <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
+ <20170419142503.rqsrgjlc7ump7ijb@hirez.programming.kicks-ass.net>
+ <20170424051102.GJ21430@X58A-UD3R>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170424051102.GJ21430@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org
-Cc: Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Currently ZONE_DEVICE depends on X86_64 and this will get unwieldly as
-new architectures (and platforms) get ZONE_DEVICE support. Move to an
-arch selected Kconfig option to save us the trouble.
+On Mon, Apr 24, 2017 at 02:11:02PM +0900, Byungchul Park wrote:
+> On Wed, Apr 19, 2017 at 04:25:03PM +0200, Peter Zijlstra wrote:
 
-Cc: x86@kernel.org
-Cc: linux-mm@kvack.org
-Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
----
-v2: Added missing hunk.
----
- arch/x86/Kconfig | 1 +
- mm/Kconfig       | 5 ++++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+> > I still don't like work_id; it doesn't have anything to do with
+> > workqueues per se, other than the fact that they end up using it.
+> > 
+> > It's a history generation id; touching it completely invalidates our
+> > history. Workqueues need this because they run independent work from the
+> > same context.
+> > 
+> > But the same is true for other sites. Last time I suggested
+> > lockdep_assert_empty() to denote all suck places (and note we already
+> > have lockdep_sys_exit() that hooks into the return to user path).
+> 
+> I'm sorry but I don't understand what you intend. It would be appriciated
+> if you explain more.
+> 
+> You might know why I introduced the 'work_id'.. Is there any alternative?
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index a694d0002758..84ac36ca3b42 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -58,6 +58,7 @@ config X86
- 	select ARCH_HAS_STRICT_KERNEL_RWX
- 	select ARCH_HAS_STRICT_MODULE_RWX
- 	select ARCH_HAS_UBSAN_SANITIZE_ALL
-+	select ARCH_HAS_ZONE_DEVICE		if X86_64
- 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
- 	select ARCH_MIGHT_HAVE_PC_PARPORT
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9b8fccb969dc..4282bee2731c 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -684,12 +684,15 @@ config IDLE_PAGE_TRACKING
- 
- 	  See Documentation/vm/idle_page_tracking.txt for more details.
- 
-+config ARCH_HAS_ZONE_DEVICE
-+	def_bool n
-+
- config ZONE_DEVICE
- 	bool "Device memory (pmem, etc...) hotplug support"
- 	depends on MEMORY_HOTPLUG
- 	depends on MEMORY_HOTREMOVE
- 	depends on SPARSEMEM_VMEMMAP
--	depends on X86_64 #arch_add_memory() comprehends device memory
-+	depends on ARCH_HAS_ZONE_DEVICE
- 
- 	help
- 	  Device memory hotplug support allows for establishing pmem,
--- 
-2.9.3
+My complaint is mostly about naming.. and "hist_gen_id" might be a
+better name.
+
+But let me explain.
+
+
+The reason workqueues need this is because the lock history for each
+'work' are independent. The locks of Work-B do not depend on the locks
+of the preceding Work-A, because the completion of Work-B is not
+dependent on those locks.
+
+But this is true for many things; pretty much all kthreads fall in this
+pattern, where they have an 'idle' state and future completions do not
+depend on past completions. Its just that since they all have the 'same'
+form -- the kthread does the same over and over -- it doesn't matter
+much.
+
+The same is true for system-calls, once a system call is complete (we've
+returned to userspace) the next system call does not depend on the lock
+history of the previous one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
