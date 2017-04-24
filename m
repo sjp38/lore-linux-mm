@@ -1,118 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB0A6B0038
-	for <linux-mm@kvack.org>; Sun, 23 Apr 2017 20:39:14 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id c26so52884772itd.16
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 17:39:14 -0700 (PDT)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id y206si17087189pfb.368.2017.04.23.17.39.14
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F166B0038
+	for <linux-mm@kvack.org>; Sun, 23 Apr 2017 21:44:56 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id h41so16804040ioi.1
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 18:44:56 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id 201si9766116itw.49.2017.04.23.18.44.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Apr 2017 17:39:14 -0700 (PDT)
-Subject: Re: [HMM 03/15] mm/unaddressable-memory: new type of ZONE_DEVICE for
- unaddressable memory
-References: <20170422033037.3028-1-jglisse@redhat.com>
- <20170422033037.3028-4-jglisse@redhat.com>
- <CAPcyv4jq0+FptsqUY14PA7WfgjYOt-kA5r084c8vvmkAU8WqaQ@mail.gmail.com>
- <20170422181151.GA2360@redhat.com>
- <CAPcyv4jr=CNuaGQt80SwR5dpiXy_pDr8aD-w0EtLNE4oGC8WcQ@mail.gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <f88de491-1cd2-75e1-4304-dc11c96b5d2a@nvidia.com>
-Date: Sun, 23 Apr 2017 17:39:12 -0700
+        Sun, 23 Apr 2017 18:44:54 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id z67so12733169itb.0
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 18:44:54 -0700 (PDT)
+Date: Mon, 24 Apr 2017 10:44:43 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: your mail
+Message-ID: <20170424014441.GA29305@js1304-desktop>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170417054718.GD1351@js1304-desktop>
+ <20170417081513.GA12511@dhcp22.suse.cz>
+ <20170420012753.GA22054@js1304-desktop>
+ <20170420072820.GB15781@dhcp22.suse.cz>
+ <20170421043826.GC13966@js1304-desktop>
+ <20170421071616.GC14154@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jr=CNuaGQt80SwR5dpiXy_pDr8aD-w0EtLNE4oGC8WcQ@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170421071616.GC14154@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 4/23/17 6:13 AM, Dan Williams wrote:
-> On Sat, Apr 22, 2017 at 11:11 AM, Jerome Glisse <jglisse@redhat.com> wrot=
-e:
->> On Fri, Apr 21, 2017 at 10:30:01PM -0700, Dan Williams wrote:
->>> On Fri, Apr 21, 2017 at 8:30 PM, J=C3=A9r=C3=B4me Glisse <jglisse@redha=
-t.com> wrote:
->>
->> [...]
->>
->>>> +/*
->>>> + * Specialize ZONE_DEVICE memory into multiple types each having diff=
-erents
->>>> + * usage.
->>>> + *
->>>> + * MEMORY_DEVICE_PERSISTENT:
->>>> + * Persistent device memory (pmem): struct page might be allocated in=
- different
->>>> + * memory and architecture might want to perform special actions. It =
-is similar
->>>> + * to regular memory, in that the CPU can access it transparently. Ho=
-wever,
->>>> + * it is likely to have different bandwidth and latency than regular =
-memory.
->>>> + * See Documentation/nvdimm/nvdimm.txt for more information.
->>>> + *
->>>> + * MEMORY_DEVICE_UNADDRESSABLE:
->>>> + * Device memory that is not directly addressable by the CPU: CPU can=
- neither
->>>> + * read nor write _UNADDRESSABLE memory. In this case, we do still ha=
-ve struct
->>>> + * pages backing the device memory. Doing so simplifies the implement=
-ation, but
->>>> + * it is important to remember that there are certain points at which=
- the struct
->>>> + * page must be treated as an opaque object, rather than a "normal" s=
-truct page.
->>>> + * A more complete discussion of unaddressable memory may be found in
->>>> + * include/linux/hmm.h and Documentation/vm/hmm.txt.
->>>> + */
->>>> +enum memory_type {
->>>> +       MEMORY_DEVICE_PERSISTENT =3D 0,
->>>> +       MEMORY_DEVICE_UNADDRESSABLE,
->>>> +};
->>>
->>> Ok, this is a bikeshed, but I think it is important. I think these
->>> should be called MEMORY_DEVICE_PUBLIC and MEMORY_DEVICE_PRIVATE. The
->>> reason is that persistence has nothing to do with the code paths that
->>> deal with the pmem use case of ZONE_DEVICE. The only property the mm
->>> cares about is that the address range behaves the same as host memory
->>> for dma and cpu accesses. The "unaddressable" designation always
->>> confuses me because a memory range isn't memory if it's
->>> "unaddressable". It is addressable, it's just "private" to the device.
->>
->> I can change the name but the memory is truely unaddressable, the CPU
->> can not access it whatsoever (well it can access a small window but
->> even that is not guaranteed).
->>
->
-> Understood, but that's still "addressable only by certain agents or
-> through a proxy" which seems closer to "private" to me.
->
+On Fri, Apr 21, 2017 at 09:16:16AM +0200, Michal Hocko wrote:
+> On Fri 21-04-17 13:38:28, Joonsoo Kim wrote:
+> > On Thu, Apr 20, 2017 at 09:28:20AM +0200, Michal Hocko wrote:
+> > > On Thu 20-04-17 10:27:55, Joonsoo Kim wrote:
+> > > > On Mon, Apr 17, 2017 at 10:15:15AM +0200, Michal Hocko wrote:
+> > > [...]
+> > > > > Which pfn walkers you have in mind?
+> > > > 
+> > > > For example, kpagecount_read() in fs/proc/page.c. I searched it by
+> > > > using pfn_valid().
+> > > 
+> > > Yeah, I've checked that one and in fact this is a good example of the
+> > > case where you do not really care about holes. It just checks the page
+> > > count which is a valid information under any circumstances.
+> > 
+> > I don't think so. First, it checks the page *map* count. Is it still valid
+> > even if PageReserved() is set?
+> 
+> I do not know about any user which would manipulate page map count for
+> referenced pages. The core MM code doesn't.
 
-Actually, MEMORY_DEVICE_PRIVATE / _PUBLIC seems like a good choice to=20
-me, because the memory may not remain CPU-unaddressable in the future.=20
-By that, I mean that I know of at least one company (ours) that is=20
-working on products that will support hardware-based memory coherence=20
-(and access counters to go along with that). If someone were to enable=20
-HMM on such a system, then the device memory would be, in fact, directly=20
-addressable by a CPU--thus exactly contradicting the "unaddressable" name.
+That's weird that we can get *map* count without PageReserved() check,
+but we cannot get zone information.
+Zone information is more static information than map count.
 
-Yes, it is true that we would have to modify HMM anyway, in order to=20
-work in that situation, partly because HMM today relies on CPU and=20
-device page faults in order to work. And it's also true that we might=20
-want to take a different approach than HMM, to support that kind of=20
-device: for example, making it a NUMA node has been debated here, recently.
+It should be defined/documented in this time that what information in
+the struct page is valid even if PageReserved() is set. And then, we
+need to fix all the things based on this design decision.
 
-But even so, I think the potential for the "unaddressable" memory=20
-actually becoming "addressable" someday, is a good argument for using a=20
-different name.
+> 
+> > What I'd like to ask in this example is
+> > that what information is valid if PageReserved() is set. Is there any
+> > design document on this? I think that we need to define/document it first.
+> 
+> NO, it is not AFAIK.
+> 
+> [...]
+> > > OK, fair enough. I did't consider memblock allocations. I will rethink
+> > > this patch but there are essentially 3 options
+> > > 	- use a different criterion for the offline holes dection. I
+> > > 	  have just realized we might do it by storing the online
+> > > 	  information into the mem sections
+> > > 	- drop this patch
+> > > 	- move the PageReferenced check down the chain into
+> > > 	  isolate_freepages_block resp. isolate_migratepages_block
+> > > 
+> > > I would prefer 3 over 2 over 1. I definitely want to make this more
+> > > robust so 1 is preferable long term but I do not want this to be a
+> > > roadblock to the rest of the rework. Does that sound acceptable to you?
+> > 
+> > I like #1 among of above options and I already see your patch for #1.
+> > It's much better than your first attempt but I'm still not happy due
+> > to the semantic of pfn_valid().
+> 
+> You are trying to change a semantic of something that has a well defined
+> meaning. I disagree that we should change it. It might sound like a
+> simpler thing to do because pfn walkers will have to be checked but what
+> you are proposing is conflating two different things together.
 
-thanks,
+I don't think that *I* try to change the semantic of pfn_valid().
+It would be original semantic of pfn_valid().
 
---
-John Hubbard
-NVIDIA
+"If pfn_valid() returns true, we can get proper struct page and the
+zone information,"
+
+That situation is now being changed by your patch *hotplug rework*.
+
+"Even if pfn_valid() returns true, we cannot get the zone information
+without PageReserved() check, since *zone is determined during
+onlining* and pfn_valid() return true after adding the memory."
+
+> 
+> > > [..]
+> > > > Let me clarify my desire(?) for this issue.
+> > > > 
+> > > > 1. If pfn_valid() returns true, struct page has valid information, at
+> > > > least, in flags (zone id, node id, flags, etc...). So, we can use them
+> > > > without checking PageResereved().
+> > > 
+> > > This is no longer true after my rework. Pages are associated with the
+> > > zone during _onlining_ rather than when they are physically hotpluged.
+> > 
+> > If your rework make information valid during _onlining_, my
+> > suggestion is making pfn_valid() return false until onlining.
+> > 
+> > Caller of pfn_valid() expects that they can get valid information from
+> > the struct page. There is no reason to access the struct page if they
+> > can't get valid information from it. So, passing pfn_valid() should
+> > guarantee that, at least, some kind of information is valid.
+> > 
+> > If pfn_valid() doesn't guarantee it, most of the pfn walker should
+> > check PageResereved() to make sure that validity of information from
+> > the struct page.
+> 
+> This is true only for those walkers which really depend on the full
+> initialization. This is not the case for all of them. I do not see any
+> reason to introduce another _pfn_valid to just check whether there is a
+> struct page...
+
+It's really confusing concept that only some information is valid for
+*not* fully initialized struct page. Even, there is no document that
+what information is valid for this half-initialized struct page.
+
+Better design would be that we regard that every information is
+invalid for half-initialized struct page. In this case, it's natural
+to make pfn_valid() returns false for this half-initialized struct page.
+
+>  
+> So please do not conflate those two different concepts together. I
+> believe that the most prominent pfn walkers should be covered now and
+> others can be evaluated later.
+
+Even if original pfn_valid()'s semantic is not the one that I mentioned,
+I think that suggested semantic from me is better.
+Only hotplug code need to be changed and others doesn't need to be changed.
+There is no overhead for others. What's the problem about this approach?
+
+And, I'm not sure that you covered the most prominent pfn walkers.
+Please see pagetypeinfo_showblockcount_print() in mm/vmstat.c.
+As you admitted, additional check approach is really error-prone and
+this example shows that.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
