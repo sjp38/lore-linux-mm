@@ -1,142 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A39EA6B02E1
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:09:42 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c2so11913586pfd.9
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:09:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b8si1554542pgn.169.2017.04.24.06.09.41
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE7CD6B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:16:06 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k14so13395704pga.5
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 06:16:06 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y12si18930398pgo.307.2017.04.24.06.16.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Apr 2017 06:09:41 -0700 (PDT)
-Date: Mon, 24 Apr 2017 15:09:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
-Message-ID: <20170424130936.GB1746@dhcp22.suse.cz>
-References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170411181519.GC21171@dhcp22.suse.cz>
- <20170412013503.GA8448@js1304-desktop>
- <20170413115615.GB11795@dhcp22.suse.cz>
- <20170417020210.GA1351@js1304-desktop>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Apr 2017 06:16:06 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3ODEn4U134945
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:16:05 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a02g3c7g1-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:16:05 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 24 Apr 2017 14:16:03 +0100
+Subject: Re: [RFC 1/2] mm: Uncharge poisoned pages
+References: <1492680362-24941-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1492680362-24941-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170424090530.GA31900@hori1.linux.bs1.fc.nec.co.jp>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 24 Apr 2017 15:15:59 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170417020210.GA1351@js1304-desktop>
+In-Reply-To: <20170424090530.GA31900@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Message-Id: <bd92f14f-e438-030d-3a7c-98994dab2035@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Mon 17-04-17 11:02:12, Joonsoo Kim wrote:
-> On Thu, Apr 13, 2017 at 01:56:15PM +0200, Michal Hocko wrote:
-> > On Wed 12-04-17 10:35:06, Joonsoo Kim wrote:
-[...]
-> > > ZONE_CMA is conceptually the same with ZONE_MOVABLE. There is a software
-> > > constraint to guarantee the success of future allocation request from
-> > > the device. If the device requests the specific range of the memory in CMA
-> > > area at the runtime, page that allocated by MM will be migrated to
-> > > the other page and it will be returned to the device. To guarantee it,
-> > > ZONE_CMA only takes the allocation request with GFP_MOVABLE.
-> > 
-> > The immediate follow up question is. Why cannot we reuse ZONE_MOVABLE
-> > for that purpose?
+On 24/04/2017 11:05, Naoya Horiguchi wrote:
+> On Thu, Apr 20, 2017 at 11:26:01AM +0200, Laurent Dufour wrote:
+>> When page are poisoned, they should be uncharged from the root memory
+>> cgroup.
 > 
-> I can make CMA reuses the ZONE_MOVABLE but I don't want it. Reasons
-> are that
+> Could you include some information about what problem this patch tries
+> to solve?
+> # I know that you already explain it in patch 0/2, so you can simply
+> # copy from it.
+
+Thanks for the review, I will add the BUG's output in the next version.
+
 > 
-> 1. If ZONE_MOVABLE has two different types of memory, hotpluggable and
-> CMA, it may need special handling for each type. This would lead to a new
-> migratetype again (to distinguish them) and easy to be error-prone. I
-> don't want that case.
-
-Hmm, I see your motivation. I believe that we could find a way
-around this. Anyway, movable zones are quite special and configuring
-overlapping CMA and hotplug movable regions could be refused. So I am
-not even sure this is a real problem in practice.
-
-> 2. CMA users want to see usage stat separately since CMA often causes
-> the problems and separate stat would helps to debug it.
-
-That could be solved by a per-zone/node counter.
-
-Anyway, these reasons should be mentioned as well. Adding a new zone is
-not for free. For most common configurations where we have ZONE_DMA,
-ZONE_DMA32, ZONE_NORMAL and ZONE_MOVABLE all the 3 bits are already
-consumed so a new zone will need a new one AFAICS.
-
-[...]
-> > > Other things are completely the same with other zones. For MM POV, there is
-> > > no difference in allocation process except that it only takes
-> > > GFP_MOVABLE request. In reclaim, pages that are allocated by MM will
-> > > be reclaimed by the same policy of the MM. So, no difference.
-> > 
-> > OK, so essentially this is yet another "highmem" zone. We already know
-> > that only GFP_MOVABLE are allowed to fallback to ZONE_CMA but do CMA
-> > allocations fallback to other zones and punch new holes? In which zone
-> > order?
+>>
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>> ---
+>>  mm/memory-failure.c | 1 +
+>>  1 file changed, 1 insertion(+)
+>>
+>> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>> index 27f7210e7fab..00bd39d3d4cb 100644
+>> --- a/mm/memory-failure.c
+>> +++ b/mm/memory-failure.c
+>> @@ -530,6 +530,7 @@ static const char * const action_page_types[] = {
+>>  static int delete_from_lru_cache(struct page *p)
+>>  {
+>>  	if (!isolate_lru_page(p)) {
+>> +		memcg_kmem_uncharge(p, 0);
 > 
-> Hmm... I don't understand your question. Could you elaborate it more?
-
-Well, my question was about the zone fallback chain. MOVABLE allocation
-can fallback to lower zones and also to the ZONE_CMA with your patch. If
-there is a CMA allocation it doesn't fall back to any other zone - in
-other words no new holes are punched to other zones. Is this correct?
-
-> > > This 'no difference' is a strong point of this approach. ZONE_CMA is
-> > > naturally handled by MM subsystem unlike as before (special handling is
-> > > required for MIGRATE_CMA).
-> > > 
-> > > 3. Controversial Point
-> > > 
-> > > Major concern from Mel is that zone concept is abused. ZONE is originally
-> > > introduced to solve some issues due to H/W addressing limitation.
-> > 
-> > Yes, very much agreed on that. You basically want to punch holes into
-> > other zones to guarantee an allocation progress. Marking those wholes
-> > with special migrate type sounds quite natural but I will have to study
-> > the current code some more to see whether issues you mention are
-> > inherently unfixable. This might very well turn out to be the case.
+> This function is supposed to be called with if (memcg_kmem_enabled()) check,
+> so could you do like below?
 > 
-> At a glance, special migratetype sound natural. I also did. However,
-> it's not natural in implementation POV. Zone consists of the same type
-> of memory (by definition ?) and MM subsystem is implemented with that
-> assumption. If difference type of memory shares the same zone, it easily
-> causes the problem and CMA problems are the such case.
+> +		if (memcg_kmem_enabled())
+> +			memcg_kmem_uncharge(p, 0);
+> 
+> 
+> And I feel that we can call this function outside if (!isolate_lru_page(p))
+> block, because isolate_lru_page could fail and then the error page is left
+> incompletely isolated. Such error page has PageHWPoison set, so I guess that
+> the reported bug still triggers on such case.
 
-But this is not any different from the highmem vs. lowmem problems we
-already have, no? I have looked at your example in the cover where you
-mention utilization and the reclaim problems. With the node reclaim we
-will have pages from all zones on the same LRU(s). isolate_lru_pages
-will skip those from ZONE_CMA because their zone_idx is higher than
-gfp_idx(GFP_KERNEL). The same could be achieved by an explicit check for
-the pageblock migrate type. So the zone doesn't really help much. Or is
-there some aspect that I am missing?
+I move the call to memcg_kmem_uncharge() outside if
+(!isolate_lru_page(p)) and it seems to work as well.
 
-Another worry I would have with the zone approach is that there is a
-risk to reintroduce issues we used to have with small zones in the
-past. Just consider that the CMA will get depleted by CMA users almost
-completely. Now that zone will not get balanced with only few pages.
-wakeup_kswapd/pgdat_balanced already has measures to prevent from wake
-ups but I cannot say I would be sure everything will work smoothly.
+I'll wait a bit for any other review to come and I'll send a new version.
 
-I have glanced through the cumulative diff and to be honest I am not
-really sure the result is a great simplification in the end. There is
-still quite a lot of special casing. It is true that the page allocator
-path is cleaned up and some CMA specific checks are moved away. This is
-definitely good to see but I am not convinced that the new zone is
-really justified. Only very little from the zone infrastructure is used
-in the end AFAICS. Is there any specific usecase which cannot be solved
-with the pageblock while it could be with the zone approach? That would
-be a strong argument to chose one over another.
-
-Please do _not_ take this as a NAK from me. At least not at this time. I
-am still trying to understand all the consequences but my intuition
-tells me that building on top of highmem like approach will turn out to
-be problematic in future (as we have already seen with the highmem and
-movable zones) so this needs a very prudent consideration.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
