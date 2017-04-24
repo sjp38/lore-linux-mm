@@ -1,202 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3255F6B0297
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 00:52:19 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id l21so213861572ioi.2
-        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 21:52:19 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id y67si17594068pfj.22.2017.04.23.21.52.17
-        for <linux-mm@kvack.org>;
-        Sun, 23 Apr 2017 21:52:18 -0700 (PDT)
-Date: Mon, 24 Apr 2017 13:52:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-Message-ID: <20170424045213.GA11287@bbox>
-References: <20170407064901.25398-1-ying.huang@intel.com>
- <20170418045909.GA11015@bbox>
- <87y3uwrez0.fsf@yhuang-dev.intel.com>
- <20170420063834.GB3720@bbox>
- <874lxjim7m.fsf@yhuang-dev.intel.com>
- <87tw5idjv9.fsf@yhuang-dev.intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 3E63F6B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 01:11:35 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id i90so212807374ioo.13
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 22:11:35 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id y10si8091711pfi.42.2017.04.23.22.11.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Apr 2017 22:11:34 -0700 (PDT)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id AD9ED2020F
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 05:11:32 +0000 (UTC)
+Received: from mail-ua0-f171.google.com (mail-ua0-f171.google.com [209.85.217.171])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0EA4120172
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 05:11:30 +0000 (UTC)
+Received: by mail-ua0-f171.google.com with SMTP id f10so105680144uaa.2
+        for <linux-mm@kvack.org>; Sun, 23 Apr 2017 22:11:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <87tw5idjv9.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
+References: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Sun, 23 Apr 2017 22:11:08 -0700
+Message-ID: <CALCETrUcB7STNjVw=WBZdFfz_H1DKcLnj3HHtnGaHGQ1UY8Zrw@mail.gmail.com>
+Subject: Re: Question on the five-level page table support patches
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Apr 21, 2017 at 08:29:30PM +0800, Huang, Ying wrote:
-> "Huang, Ying" <ying.huang@intel.com> writes:
-> 
-> > Minchan Kim <minchan@kernel.org> writes:
-> >
-> >> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
-> >>> Minchan Kim <minchan@kernel.org> writes:
-> >>> 
-> >>> > Hi Huang,
-> >>> >
-> >>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
-> >>> >> From: Huang Ying <ying.huang@intel.com>
-> >>> >> 
-> >>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
-> >>> >>  {
-> >>> >>  	struct swap_info_struct *p, *prev;
-> >>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
-> >>> >>  
-> >>> >>  	prev = NULL;
-> >>> >>  	p = NULL;
-> >>> >> +
-> >>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> >>> >> +	if (nr_swapfiles > 1)
-> >>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
-> >>> >
-> >>> > Let's think on other cases.
-> >>> >
-> >>> > There are two swaps and they are configured by priority so a swap's usage
-> >>> > would be zero unless other swap used up. In case of that, this sorting
-> >>> > is pointless.
-> >>> >
-> >>> > As well, nr_swapfiles is never decreased so if we enable multiple
-> >>> > swaps and then disable until a swap is remained, this sorting is
-> >>> > pointelss, too.
-> >>> >
-> >>> > How about lazy sorting approach? IOW, if we found prev != p and,
-> >>> > then we can sort it.
-> >>> 
-> >>> Yes.  That should be better.  I just don't know whether the added
-> >>> complexity is necessary, given the array is short and sort is fast.
-> >>
-> >> Huh?
-> >>
-> >> 1. swapon /dev/XXX1
-> >> 2. swapon /dev/XXX2
-> >> 3. swapoff /dev/XXX2
-> >> 4. use only one swap
-> >> 5. then, always pointless sort.
-> >
-> > Yes.  In this situation we will do unnecessary sorting.  What I don't
-> > know is whether the unnecessary sorting will hurt performance in real
-> > life.  I can do some measurement.
-> 
-> I tested the patch with 1 swap device and 1 process to eat memory
-> (remove the "if (nr_swapfiles > 1)" for test).  I think this is the
-> worse case because there is no lock contention.  The memory freeing time
-> increased from 1.94s to 2.12s (increase ~9.2%).  So there is some
-> overhead for some cases.  I change the algorithm to something like
-> below,
-> 
->  void swapcache_free_entries(swp_entry_t *entries, int n)
->  {
->  	struct swap_info_struct *p, *prev;
->  	int i;
-> +	swp_entry_t entry;
-> +	unsigned int prev_swp_type;
->  
->  	if (n <= 0)
->  		return;
->  
-> +	prev_swp_type = swp_type(entries[0]);
-> +	for (i = n - 1; i > 0; i--) {
-> +		if (swp_type(entries[i]) != prev_swp_type)
-> +			break;
-> +	}
+On Sun, Apr 23, 2017 at 3:53 AM, John Paul Adrian Glaubitz
+<glaubitz@physik.fu-berlin.de> wrote:
+> Hi Kirill!
+>
+> I recently read the LWN article on your and your colleagues work to
+> add five-level page table support for x86 to the Linux kernel [1]
+> and I got your email address from the last patch of the series.
+>
+> Since this extends the address space beyond 48-bits, as you may know,
+> it will cause potential headaches with Javascript engines which use
+> tagged pointers. On SPARC, the virtual address space already extends
+> to 52 bits and we are running into these very issues with Javascript
+> engines on SPARC.
+>
+> Now, a possible way to mitigate this problem would be to pass the
+> "hint" parameter to mmap() in order to tell the kernel not to allocate
+> memory beyond the 48 bits address space. Unfortunately, on Linux this
+> will only work when the area pointed to by "hint" is unallocated which
+> means one cannot simply use a hardcoded "hint" to mitigate this problem.
+>
+> However, since this trick still works on NetBSD and used to work on
+> Linux [3], I was wondering whether there are plans to bring back
+> this behavior to mmap() in Linux.
+>
+> Currently, people are using ugly work-arounds [4] to address this
+> problem which involve a manual iteration over memory blocks and
+> basically implementing another allocator in the user space
+> application.
+>
+> Thanks,
+> Adrian
+>
+>> [1] https://lwn.net/Articles/717293/
+>> [2] https://lwn.net/Articles/717300/
+>> [3] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=3D824449#22
+>> [4] https://hg.mozilla.org/mozilla-central/rev/dfaafbaaa291
+>
 
-That's really what I want to avoid. For many swap usecases,
-it adds unnecessary overhead.
+Can you explain what the issue is?  What used to work on Linux and
+doesn't any more?  The man page is quite clear:
 
-> +
-> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> +	if (i)
-> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
->  	prev = NULL;
->  	p = NULL;
->  	for (i = 0; i < n; ++i) {
-> -		p = swap_info_get_cont(entries[i], prev);
-> +		entry = entries[i];
-> +		p = swap_info_get_cont(entry, prev);
->  		if (p)
-> -			swap_entry_free(p, entries[i]);
-> +			swap_entry_free(p, entry);
->  		prev = p;
->  	}
->  	if (p)
-> 
-> With this patch, the memory freeing time increased from 1.94s to 1.97s.
-> I think this is good enough.  Do you think so?
+       MAP_FIXED
+              Don't  interpret  addr  as  a hint: place the mapping at exac=
+tly
+              that address.  addr must be a multiple of the page size.  If =
+the
+              memory  region  specified  by addr and len overlaps pages of =
+any
+              existing mapping(s), then the overlapped part  of  the  exist=
+ing
+              mapping(s)  will  be discarded.  If the specified address can=
+not
+              be used, mmap() will fail.  Because requiring  a  fixed  addr=
+ess
+              for  a  mapping is less portable, the use of this option is d=
+is=E2=80=90
+              couraged.
 
-What I mean is as follows(I didn't test it at all):
+and AFAIK Linux works exactly as documented.
 
-With this, sort entries if we found multiple entries in current
-entries. It adds some condition checks for non-multiple swap
-usecase but it would be more cheaper than the sorting.
-And it adds a [un]lock overhead for multiple swap usecase but
-it should be a compromise for single-swap usecase which is more
-popular.
+FWIW, a patch to add a new MAP_ mode to tell mmap(2) to use the hinted
+address if available and to *fail* if the hinted address is not
+available would very likely be accepted and would IMO be much nicer
+than the current behavior.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index f23c56e9be39..0d76a492786f 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1073,30 +1073,40 @@ static int swp_entry_cmp(const void *ent1, const void *ent2)
- 	return (long)(swp_type(*e1) - swp_type(*e2));
- }
- 
--void swapcache_free_entries(swp_entry_t *entries, int n)
-+void swapcache_free_entries(swp_entry_t *entries, int nr)
- {
--	struct swap_info_struct *p, *prev;
- 	int i;
-+	struct swap_info_struct *cur, *prev = NULL;
-+	bool sorted = false;
- 
--	if (n <= 0)
-+	if (nr <= 0)
- 		return;
- 
--	prev = NULL;
--	p = NULL;
--
--	/* Sort swap entries by swap device, so each lock is only taken once. */
--	if (nr_swapfiles > 1)
--		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
--	for (i = 0; i < n; ++i) {
--		p = swap_info_get_cont(entries[i], prev);
--		if (p)
--			swap_entry_free(p, entries[i]);
--		else
-+	for (i = 0; i < nr; i++) {
-+		cur = swap_info_get_cont(entries[i], prev);
-+		if (!cur)
- 			break;
--		prev = p;
-+		if (cur != prev && !sorted && prev) {
-+			spin_unlock(&cur->lock);
-+			/*
-+			 * Sort swap entries by swap device,
-+			 * so each lock is only taken once.
-+			 */
-+			sort(entries + i, nr - i,
-+					sizeof(swp_entry_t),
-+					swp_entry_cmp, NULL);
-+			sorted = true;
-+			prev = NULL;
-+			i--;
-+			continue;
-+		}
-+
-+		swap_entry_free(cur, entries[i]);
-+		prev = cur;
- 	}
--	if (p)
--		spin_unlock(&p->lock);
-+
-+	if (cur)
-+		spin_unlock(&cur->lock);
- }
- 
- /*
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
