@@ -1,62 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C34E6B02C1
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 12:20:03 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g31so16033478wrg.15
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:20:03 -0700 (PDT)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id 66si842719wmj.95.2017.04.24.09.20.01
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FEB66B02C4
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 12:40:26 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t7so16401645pgt.0
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:40:26 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50136.outbound.protection.outlook.com. [40.107.5.136])
+        by mx.google.com with ESMTPS id m1si19631188plb.2.2017.04.24.09.40.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 09:20:01 -0700 (PDT)
-Received: by mail-wm0-x22a.google.com with SMTP id m123so72717449wma.0
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 09:20:01 -0700 (PDT)
-Date: Mon, 24 Apr 2017 19:19:59 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Question on the five-level page table support patches
-Message-ID: <20170424161959.c5ba2nhnxyy57wxe@node.shutemov.name>
-References: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 24 Apr 2017 09:40:22 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH v2 0/4] Properly invalidate data in the cleancache.
+Date: Mon, 24 Apr 2017 19:41:31 +0300
+Message-ID: <20170424164135.22350-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20170414140753.16108-1-aryabinin@virtuozzo.com>
+References: <20170414140753.16108-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Christoph Hellwig <hch@lst.de>, Nikolay Borisov <n.borisov.lkml@gmail.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Apr 23, 2017 at 12:53:46PM +0200, John Paul Adrian Glaubitz wrote:
-> Hi Kirill!
-> 
-> I recently read the LWN article on your and your colleagues work to
-> add five-level page table support for x86 to the Linux kernel [1]
-> and I got your email address from the last patch of the series.
-> 
-> Since this extends the address space beyond 48-bits, as you may know,
-> it will cause potential headaches with Javascript engines which use
-> tagged pointers. On SPARC, the virtual address space already extends
-> to 52 bits and we are running into these very issues with Javascript
-> engines on SPARC.
-> 
-> Now, a possible way to mitigate this problem would be to pass the
-> "hint" parameter to mmap() in order to tell the kernel not to allocate
-> memory beyond the 48 bits address space. Unfortunately, on Linux this
-> will only work when the area pointed to by "hint" is unallocated which
-> means one cannot simply use a hardcoded "hint" to mitigate this problem.
+Changes since v1:
+ - Exclude DAX/nfs/cifs/9p hunks from the first patch. All these fs'es
+     doesn't call cleancache_get_page() (nor directly, nor via mpage_readpage[s]()),
+     so they are not affected by this bug.
+ - Updated changelog.
+     
 
-In proposed implementation, we also use hint address, but in different
-way: by default, if hint address is NULL, kernel would not create mappings
-above 47-bits, preserving compatibility.
+We've noticed that after direct IO write, buffered read sometimes gets
+stale data which is coming from the cleancache.
+The reason for this is that some direct write hooks call call invalidate_inode_pages2[_range]()
+conditionally iff mapping->nrpages is not zero, so we may not invalidate
+data in the cleancache.
 
-If an application wants to have access to larger address space, it has to
-specify hint addess above 47-bits.
+Another odd thing is that we check only for ->nrpages and don't check for ->nrexceptional,
+but invalidate_inode_pages2[_range] also invalidates exceptional entries as well.
+So we invalidate exceptional entries only if ->nrpages != 0? This doesn't feel right.
 
-See details here:
+ - Patch 1 fixes direct IO writes by removing ->nrpages check.
+ - Patch 2 fixes similar case in invalidate_bdev(). 
+     Note: I only fixed conditional cleancache_invalidate_inode() here.
+       Do we also need to add ->nrexceptional check in into invalidate_bdev()?
+     
+ - Patches 3-4: some optimizations.
 
-http://lkml.kernel.org/r/20170420162147.86517-10-kirill.shutemov@linux.intel.com
+Andrey Ryabinin (4):
+  fs: fix data invalidation in the cleancache during direct IO
+  fs/block_dev: always invalidate cleancache in invalidate_bdev()
+  mm/truncate: bail out early from invalidate_inode_pages2_range() if
+    mapping is empty
+  mm/truncate: avoid pointless cleancache_invalidate_inode() calls.
+
+ fs/block_dev.c | 11 +++++------
+ fs/iomap.c     | 18 ++++++++----------
+ mm/filemap.c   | 26 +++++++++++---------------
+ mm/truncate.c  | 13 +++++++++----
+ 4 files changed, 33 insertions(+), 35 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
