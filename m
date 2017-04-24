@@ -1,54 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E99D6B02F2
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 10:00:42 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id a103so191624582ioj.8
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 07:00:42 -0700 (PDT)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id f15si20266207iod.240.2017.04.24.07.00.41
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DA506B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 10:13:02 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id q140so2331623qke.6
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 07:13:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h6si18166733qkf.178.2017.04.24.07.13.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 07:00:41 -0700 (PDT)
-Date: Mon, 24 Apr 2017 09:00:39 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
-In-Reply-To: <1492993241.2418.2.camel@gmail.com>
-Message-ID: <alpine.DEB.2.20.1704240858410.15223@east.gentwo.org>
-References: <20170419075242.29929-1-bsingharora@gmail.com> <alpine.DEB.2.20.1704191355280.9478@east.gentwo.org> <1492651508.1015.2.camel@gmail.com> <alpine.DEB.2.20.1704201025360.26403@east.gentwo.org> <1492993241.2418.2.camel@gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 24 Apr 2017 07:13:01 -0700 (PDT)
+Date: Mon, 24 Apr 2017 10:12:55 -0400 (EDT)
+From: Bob Peterson <rpeterso@redhat.com>
+Message-ID: <2139341349.405174.1493043175630.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20170424132259.8680-21-jlayton@redhat.com>
+References: <20170424132259.8680-1-jlayton@redhat.com> <20170424132259.8680-21-jlayton@redhat.com>
+Subject: Re: [PATCH v3 20/20] gfs2: clean up some filemap_* calls
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, arbab@linux.vnet.ibm.com, vbabka@suse.cz
+To: Jeff Layton <jlayton@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross zwisler <ross.zwisler@linux.intel.com>, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-On Mon, 24 Apr 2017, Balbir Singh wrote:
+----- Original Message -----
+| In some places, it's trying to reset the mapping error after calling
+| filemap_fdatawait. That's no longer required. Also, turn several
+| filemap_fdatawrite+filemap_fdatawait calls into filemap_write_and_wait.
+| That will at least return writeback errors that occur during the write
+| phase.
+| 
+| Signed-off-by: Jeff Layton <jlayton@redhat.com>
+| ---
+|  fs/gfs2/glops.c | 12 ++++--------
+|  fs/gfs2/lops.c  |  4 +---
+|  fs/gfs2/super.c |  6 ++----
+|  3 files changed, 7 insertions(+), 15 deletions(-)
+| 
+| diff --git a/fs/gfs2/glops.c b/fs/gfs2/glops.c
+| index 5db59d444838..7362d19fdc4c 100644
+| --- a/fs/gfs2/glops.c
+| +++ b/fs/gfs2/glops.c
+| @@ -158,9 +158,7 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
+|  	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
+|  
+|  	gfs2_log_flush(sdp, gl, NORMAL_FLUSH);
+| -	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+| -	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+| -	mapping_set_error(mapping, error);
+| +	filemap_write_and_wait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
 
-> > cgroups, memory policy and cpuset provide that
-> >
->
-> Yes and we are building on top of mempolicies. The problem becomes a little
-> worse when the coherent device memory node is seen as CPUless node. I
-> was trying to solve 1 and 2 with the same approach.
+This should probably have "error = ", no?
 
-Well I think having the ability to restrict autonuma/ksm per node may also
-be useful for other things. Like running regular processes on node 0 and
-running low latency stuff on  node 1 that should not be interrupted. Right
-now you cannot do that.
+|  	gfs2_ail_empty_gl(gl);
+|  
+|  	spin_lock(&gl->gl_lockref.lock);
+| @@ -225,12 +223,10 @@ static void inode_go_sync(struct gfs2_glock *gl)
+|  	filemap_fdatawrite(metamapping);
+|  	if (ip) {
+|  		struct address_space *mapping = ip->i_inode.i_mapping;
+| -		filemap_fdatawrite(mapping);
+| -		error = filemap_fdatawait(mapping);
+| -		mapping_set_error(mapping, error);
+| +		filemap_write_and_wait(mapping);
+| +	} else {
+| +		filemap_fdatawait(metamapping);
+|  	}
+| -	error = filemap_fdatawait(metamapping);
+| -	mapping_set_error(metamapping, error);
 
-> > > 2. Isolation of certain algorithms like kswapd/auto-numa balancing
-> >
-> > Ok that may mean adding some generic functionality to limit those
->
-> As in per-algorithm tunables? I think it would be definitely good to have
-> that. I do not know how well that would scale?
+This part doesn't look right at all. There's a big difference in gfs2 between
+mapping and metamapping. We need to wait for metamapping regardless.
 
->From what I can see it should not be too difficult to implement a node
-mask constraining those activities.
+(snip)
 
-> Some of these requirements come from whether we use NUMA or HMM-CDM.
-> We prefer NUMA and it meets the above requirements quite well.
+Regards,
 
-Great.
+Bob Peterson
+Red Hat File Systems
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
