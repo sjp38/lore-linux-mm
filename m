@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4E646B0315
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 15:16:06 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j16so16954922pfk.4
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 12:16:06 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 1si4036813ply.290.2017.04.24.12.16.05
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0B86B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 16:33:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 184so5519080wmy.18
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 13:33:30 -0700 (PDT)
+Received: from outpost3.zedat.fu-berlin.de (outpost3.zedat.fu-berlin.de. [130.133.4.78])
+        by mx.google.com with ESMTPS id a60si3808392edf.157.2017.04.24.13.33.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 12:16:06 -0700 (PDT)
-Date: Mon, 24 Apr 2017 13:16:04 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 06/20] dax: set errors in mapping when writeback fails
-Message-ID: <20170424191604.GA2884@linux.intel.com>
-References: <20170424132259.8680-1-jlayton@redhat.com>
- <20170424132259.8680-7-jlayton@redhat.com>
+        Mon, 24 Apr 2017 13:33:28 -0700 (PDT)
+Subject: Re: Question on the five-level page table support patches
+References: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
+ <CALCETrUcB7STNjVw=WBZdFfz_H1DKcLnj3HHtnGaHGQ1UY8Zrw@mail.gmail.com>
+ <20170424130311.GR4021@tassilo.jf.intel.com>
+From: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
+Message-ID: <8f8467b5-70e6-466b-f53b-1c64622ba82d@physik.fu-berlin.de>
+Date: Mon, 24 Apr 2017 22:33:22 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170424132259.8680-7-jlayton@redhat.com>
+In-Reply-To: <20170424130311.GR4021@tassilo.jf.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
+To: Andi Kleen <ak@linux.intel.com>, Andy Lutomirski <luto@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Apr 24, 2017 at 09:22:45AM -0400, Jeff Layton wrote:
-> In order to get proper error codes from fsync, we must set an error in
-> the mapping range when writeback fails.
+On 04/24/2017 03:03 PM, Andi Kleen wrote:
+> In old Linux hint was a search hint, so if there isn't a hole
+> at the hinted area it will search starting from there for a hole
+> instead of giving up immediately.
+
+Yep, that's what I meant. It used to work like that and it still
+works like that on NetBSD, for example. Although it has apparently
+been a long time since it changed [1].
+
+> Now it just gives up, which means every user has to implement
+> their own search.
+
+Correct. And the resulting code is usually ugly and inefficient [2].
+
+> Yes I ran into the same problem and it's annoying. It broke
+> originally when top down mmap was added I believe
 > 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> Before the augmented rbtree it was potentially very expensive, but now
+> it should be cheap.
 
-Works fine in some error injection testing.
+I'm not sure whether I understand what that means.
 
-Tested-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Thanks,
+Adrian
 
-> ---
->  fs/dax.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 85abd741253d..9b6b04030c3f 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -901,8 +901,10 @@ int dax_writeback_mapping_range(struct address_space *mapping,
->  
->  			ret = dax_writeback_one(bdev, mapping, indices[i],
->  					pvec.pages[i]);
-> -			if (ret < 0)
-> +			if (ret < 0) {
-> +				mapping_set_error(mapping, ret);
->  				return ret;
-> +			}
->  		}
->  	}
->  	return 0;
-> -- 
-> 2.9.3
-> 
+> [1] http://lkml.iu.edu/hypermail/linux/kernel/0305.2/0828.html
+> [2] https://hg.mozilla.org/mozilla-central/rev/dfaafbaaa291
+
+-- 
+ .''`.  John Paul Adrian Glaubitz
+: :' :  Debian Developer - glaubitz@debian.org
+`. `'   Freie Universitaet Berlin - glaubitz@physik.fu-berlin.de
+  `-    GPG: 62FF 8A75 84E0 2956 9546  0006 7426 3B37 F5B5 F913
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
