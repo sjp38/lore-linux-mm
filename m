@@ -1,178 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C666B02C4
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:05:49 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 70so60516389ita.22
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 00:05:49 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id q13si191049pgf.56.2017.04.24.00.05.48
-        for <linux-mm@kvack.org>;
-        Mon, 24 Apr 2017 00:05:48 -0700 (PDT)
-Date: Mon, 24 Apr 2017 16:05:45 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: thrashing on file pages
-Message-ID: <20170424070545.GC11287@bbox>
-References: <CAA25o9TyPusF1Frn2a4OAco-DKFcskZVzy6S2JvhTANpm8cL7A@mail.gmail.com>
- <20170413054248.GB16783@bbox>
- <CAA25o9RzWxWueRasHFVTwAPJ9k8uEJ9bd_FB3NwCDv_ZLK4BMA@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 13E346B0297
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2017 03:53:19 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 70so61666577its.15
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 00:53:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u3si17940797pfd.324.2017.04.24.00.53.17
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Apr 2017 00:53:18 -0700 (PDT)
+Date: Mon, 24 Apr 2017 09:53:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: your mail
+Message-ID: <20170424075312.GA1739@dhcp22.suse.cz>
+References: <20170410110351.12215-1-mhocko@kernel.org>
+ <20170415121734.6692-1-mhocko@kernel.org>
+ <20170417054718.GD1351@js1304-desktop>
+ <20170417081513.GA12511@dhcp22.suse.cz>
+ <20170420012753.GA22054@js1304-desktop>
+ <20170420072820.GB15781@dhcp22.suse.cz>
+ <20170421043826.GC13966@js1304-desktop>
+ <20170421071616.GC14154@dhcp22.suse.cz>
+ <20170424014441.GA29305@js1304-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA25o9RzWxWueRasHFVTwAPJ9k8uEJ9bd_FB3NwCDv_ZLK4BMA@mail.gmail.com>
+In-Reply-To: <20170424014441.GA29305@js1304-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>, Johannes Weiner <hannes@cmpxchg.org>, vinmenon@codeaurora.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Apr 21, 2017 at 11:15:11AM -0700, Luigi Semenzato wrote:
-> Thank you very much Minchan.
+On Mon 24-04-17 10:44:43, Joonsoo Kim wrote:
+> On Fri, Apr 21, 2017 at 09:16:16AM +0200, Michal Hocko wrote:
+> > On Fri 21-04-17 13:38:28, Joonsoo Kim wrote:
+> > > On Thu, Apr 20, 2017 at 09:28:20AM +0200, Michal Hocko wrote:
+> > > > On Thu 20-04-17 10:27:55, Joonsoo Kim wrote:
+> > > > > On Mon, Apr 17, 2017 at 10:15:15AM +0200, Michal Hocko wrote:
+> > > > [...]
+> > > > > > Which pfn walkers you have in mind?
+> > > > > 
+> > > > > For example, kpagecount_read() in fs/proc/page.c. I searched it by
+> > > > > using pfn_valid().
+> > > > 
+> > > > Yeah, I've checked that one and in fact this is a good example of the
+> > > > case where you do not really care about holes. It just checks the page
+> > > > count which is a valid information under any circumstances.
+> > > 
+> > > I don't think so. First, it checks the page *map* count. Is it still valid
+> > > even if PageReserved() is set?
+> > 
+> > I do not know about any user which would manipulate page map count for
+> > referenced pages. The core MM code doesn't.
 > 
-> I took a look at Johannes proposal.  It all makes sense but I'd like
-> to point out one additional issue, which is partly a time scale issue.
-> 
-> In Chrome OS (and this potentially applies to Android) one common use
-> pattern is to do some work in one browser tab, then switch to another
-> tab and do some work there and so on (think of apps instead of tabs on
-> Android).  Thus there is a loose notion of a "working set of tabs".
-> 
-> For Chrome OS, it is important that the tab working set fit in memory
-> (RAM + swap).  If it does not, some tabs in the set get "discarded"
-> while using the others: i.e. the browser releases most of their
-> resources, including their javascript and DOM state.
-> 
-> Thus, swapping is *much* better than discarding, and usually faster.
-> Then it is quite allright for a renderer process (a process backing
-> one or more tabs) to make very little progress for some time, while it
-> pages in its code and data (mostly data in the case of Chrome OS).
-> The length of "some time" depends on the application, but in this case
-> (interactive application) could be as long as a small number of
-> seconds.
-> 
-> Thus there should be a way of nullifying any actions that may be taken
-> as a result of thrashing detection, because in these cases the
-> thrashing is expected and preferable to the alternatives.
+> That's weird that we can get *map* count without PageReserved() check,
+> but we cannot get zone information.
+> Zone information is more static information than map count.
 
-Once we are able to quantify memory pressure, it would be more easier
-to have a relative scale of memory pressure discrimination like
-Johannes mentioned.
+As I've already pointed out the rework of the hotplug code is mainly
+about postponing the zone initialization from the physical hot add to
+the logical onlining. The zone is really not clear until that moment.
+ 
+> It should be defined/documented in this time that what information in
+> the struct page is valid even if PageReserved() is set. And then, we
+> need to fix all the things based on this design decision.
 
->From the idea, we can implement "reclaiming priorities per mem cgroup"
-from Tim more sientific, IMHO. With that, you can make some groups's
-reclaim void although thrashing happens.
+Where would you suggest documenting this? We do have
+Documentation/memory-hotplug.txt but it is not really specific about
+struct page.
 
+[...]
+
+> > You are trying to change a semantic of something that has a well defined
+> > meaning. I disagree that we should change it. It might sound like a
+> > simpler thing to do because pfn walkers will have to be checked but what
+> > you are proposing is conflating two different things together.
 > 
+> I don't think that *I* try to change the semantic of pfn_valid().
+> It would be original semantic of pfn_valid().
 > 
+> "If pfn_valid() returns true, we can get proper struct page and the
+> zone information,"
+
+I do not see any guarantee about the zone information anywhere. In fact
+this is not true with the original implementation as I've tried to
+explain already. We do have new pages associated with a zone but that
+association might change during the online phase. So you cannot really
+rely on that information until the page is online. There is no real
+change in that regards after my rework.
+
+[...]
+> > So please do not conflate those two different concepts together. I
+> > believe that the most prominent pfn walkers should be covered now and
+> > others can be evaluated later.
 > 
-> 
-> On Wed, Apr 12, 2017 at 10:42 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hi Luigi,
-> >
-> > On Tue, Apr 04, 2017 at 06:01:50PM -0700, Luigi Semenzato wrote:
-> >> Greetings MM community, and apologies for being out of touch.
-> >>
-> >> We're running into a MM problem which we encountered in the early
-> >> versions of Chrome OS, about 7 years ago, which is that under certain
-> >> interactive loads we thrash on executable pages.
-> >>
-> >> At the time, Mandeep Baines solved this problem by introducing a
-> >> min_filelist_kbytes parameter, which simply stops the scanning of the
-> >> file list whenever the number of pages in it is below that threshold.
-> >> This works surprisingly well for Chrome OS because the Chrome browser
-> >> has a known text size and is the only large user program.
-> >> Additionally we use Feedback-Directed Optimization to keep the hot
-> >> code together in the same pages.
-> >>
-> >> But given that Chromebooks can run Android apps, the picture is
-> >> changing.  We can bump min_filelist_kbytes, but we no longer have an
-> >> upper bound for the working set of a workflow which cycles through
-> >> multiple Android apps.  Tab/app switching is more natural and
-> >> therefore more frequent on laptops than it is on phones, and it puts a
-> >> bigger strain on the MM.
-> >>
-> >> I should mention that we manage memory also by OOM-killing Android
-> >> apps and discarding Chrome tabs before the system runs our of memory.
-> >> We also reassign kernel-OOM-kill priorities for the cases in which our
-> >> user-level killing code isn't quick enough.
-> >>
-> >> In our attempts to avoid the thrashing, we played around with
-> >> swappiness.  Dmitry Torokhov (three desks down from mine) suggested
-> >> shifting the upper bound of 100 to 200, which makes sense because we
-> >
-> > It does makes sense but look at below.
-> >
-> >> use zram to reclaim anonymous pages, and paging back from zram is a
-> >> lot faster than reading from SSD.  So I have played around with
-> >> swappiness up to 190 but I can still reproduce the thrashing.  I have
-> >> noticed this code in vmscan.c:
-> >>
-> >>         if (!sc->priority && swappiness) {
-> >>                 scan_balance = SCAN_EQUAL;
-> >>                 goto out;
-> >>         }
-> >>
-> >> which suggests that under heavy pressure, swappiness is ignored.  I
-> >> removed this code, but that didn't help either.  I am not fully
-> >> convinced that my experiments are fully repeatable (quite the
-> >> opposite), and there may be variations in the point at which thrashing
-> >> starts, but the bottom line is that it still starts.
-> >
-> > If sc->priroity is zero, maybe, it means VM would already reclaim
-> > lots of workingset. That might be one of reason you cannot see the
-> > difference.
-> >
-> > I think more culprit is as follow,
-> >
-> > get_scan_count:
-> >
-> >         if (!inactive_file_is_low(lruvec) && lruvec_lru_size() >> sc->priroity) {
-> >                 scan_balance = SCAN_FILE;
-> >                 goto out;
-> >         }
-> >
-> > And it works with
-> > shrink_list:
-> >         if (is_active_lru(lru))
-> >                 if (inactive_list_is_low(lru)
-> >                                 shrink_active_list(lru);
-> >
-> > It means VM prefer file-backed page to anonymous page reclaim until below condition.
-> >
-> > get_scan_count:
-> >
-> >         if (global_reclaim(sc)) {
-> >                 if (zonefile + zonefree <= high_wmark_pages(zone))
-> >                         scan_balance = SCAN_ANON;
-> >         }
-> >
-> > It means VM will protect some amount of file-backed pages but
-> > the amount of pages VM protected depends high watermark which relies on
-> > min_free_kbytes. Recently, you can control the size via watermark_scale_factor
-> > without min_free_kbytes. So you can mimic min_filelist_kbytes with that
-> > although it has limitation for high watermark(20%).
-> > (795ae7a0de6b, mm: scale kswapd watermarks in proportion to memory)
-> >
-> >>
-> >> Are we the only ones with this problem?  It's possible, since Android
-> >
-> > No. You're not lonely.
-> > http://lkml.kernel.org/r/20170317231636.142311-1-timmurray@google.com
-> >
-> > Johannes are preparing some patches(aggressive anonymous page reclaim
-> > + thrashing detection).
-> >
-> > https://lwn.net/Articles/690069/
-> > https://marc.info/?l=linux-mm&m=148351203826308
-> >
-> > I hope we makes progress the discussion to find some solution.
-> > Please, join the discussion if you have interested. :)
-> >
-> > Thanks.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Even if original pfn_valid()'s semantic is not the one that I mentioned,
+> I think that suggested semantic from me is better.
+> Only hotplug code need to be changed and others doesn't need to be changed.
+> There is no overhead for others. What's the problem about this approach?
+
+That this would require to check _every_ single pfn_valid user in the
+kernel. That is beyond my time capacity and not really necessary because
+the current code already suffers from the same/similar class of
+problems.
+ 
+> And, I'm not sure that you covered the most prominent pfn walkers.
+> Please see pagetypeinfo_showblockcount_print() in mm/vmstat.c.
+
+I probably haven't (and will send a patch to fix this one - thanks for
+pointing to it) but the point is they those are broken already and they
+can be fixed in follow up patches. If you change pfn_valid you might
+break an existing code in an unexpected ways.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
