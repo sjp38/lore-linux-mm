@@ -1,147 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8FE6B0317
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 09:19:12 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id c2so31200047pga.1
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 06:19:12 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id a88si22485895pfl.243.2017.04.25.06.19.11
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6436B0317
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 10:00:28 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o4so50042563qkb.4
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:00:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r137si3660181qke.194.2017.04.25.07.00.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 06:19:11 -0700 (PDT)
-Date: Tue, 25 Apr 2017 16:19:04 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: get_zone_device_page() in get_page() and
- page_cache_get_speculative()
-Message-ID: <20170425131904.nu5dlhweblwzyeit@black.fi.intel.com>
-References: <CAA9_cmf7=aGXKoQFkzS_UJtznfRtWofitDpV2AyGwpaRGKyQkg@mail.gmail.com>
- <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
- <CAPcyv4i8mBOCuA8k-A8RXGMibbnqHUsa3Ly+YcQbr0eCdjruUw@mail.gmail.com>
- <20170424173021.ayj3hslvfrrgrie7@node.shutemov.name>
- <CAPcyv4g74LT6sK2WgG6FnwQHCC5fNTwfqBPq1BY8PnZ7zwdGPw@mail.gmail.com>
- <20170424180158.y26m3kgzhpmawbhg@node.shutemov.name>
- <20170424182555.faoarzlpi4ilm5dt@black.fi.intel.com>
- <CAPcyv4iFhpSo-nbypHuZVZz7S92PwPx17bxUgMsksRHYPQkqEA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iFhpSo-nbypHuZVZz7S92PwPx17bxUgMsksRHYPQkqEA@mail.gmail.com>
+        Tue, 25 Apr 2017 07:00:27 -0700 (PDT)
+Message-Id: <20170425135843.636700422@redhat.com>
+Date: Tue, 25 Apr 2017 10:57:18 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: [patch 1/2] MM: remove unused quiet_vmstat function
+References: <20170425135717.375295031@redhat.com>
+Content-Disposition: inline; filename=remove-vmstat-quiet
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linux MM <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@redhat.com>, Dann Frazier <dann.frazier@canonical.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-tip-commits@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, Marcelo Tosatti <mtosatti@redhat.com>
 
-On Mon, Apr 24, 2017 at 11:41:51AM -0700, Dan Williams wrote:
-> On Mon, Apr 24, 2017 at 11:25 AM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > On Mon, Apr 24, 2017 at 09:01:58PM +0300, Kirill A. Shutemov wrote:
-> >> On Mon, Apr 24, 2017 at 10:47:43AM -0700, Dan Williams wrote:
-> >> I think it's still better to do it on page_ref_* level.
-> >
-> > Something like patch below? What do you think?
-> 
-> From a quick glance, I think this looks like the right way to go.
+Remove unused quiet_vmstat function.
 
-Okay, but I still would like to remove manipulation with pgmap->ref from
-hot path.
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 
-Can we just check that page_count() match our expectation on
-devm_memremap_pages_release() instead of this?
+---
+ include/linux/vmstat.h |    1 -
+ mm/vmstat.c            |   25 -------------------------
+ 2 files changed, 26 deletions(-)
 
-I probably miss something in bigger picture, but would something like
-patch work too? It seems work for the test case.
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a835edd2db34..695da2a19b4c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -762,19 +762,11 @@ static inline enum zone_type page_zonenum(const struct page *page)
+Index: linux-2.6-git-disable-vmstat-worker/include/linux/vmstat.h
+===================================================================
+--- linux-2.6-git-disable-vmstat-worker.orig/include/linux/vmstat.h	2017-04-24 18:52:42.957724687 -0300
++++ linux-2.6-git-disable-vmstat-worker/include/linux/vmstat.h	2017-04-24 18:53:15.086793496 -0300
+@@ -233,7 +233,6 @@
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_node_state(struct pglist_data *, enum node_stat_item);
+ 
+-void quiet_vmstat(void);
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
+ 
+Index: linux-2.6-git-disable-vmstat-worker/mm/vmstat.c
+===================================================================
+--- linux-2.6-git-disable-vmstat-worker.orig/mm/vmstat.c	2017-04-24 18:52:42.957724687 -0300
++++ linux-2.6-git-disable-vmstat-worker/mm/vmstat.c	2017-04-24 18:53:53.075874785 -0300
+@@ -1657,31 +1657,6 @@
  }
  
- #ifdef CONFIG_ZONE_DEVICE
--void get_zone_device_page(struct page *page);
--void put_zone_device_page(struct page *page);
- static inline bool is_zone_device_page(const struct page *page)
- {
- 	return page_zonenum(page) == ZONE_DEVICE;
- }
- #else
--static inline void get_zone_device_page(struct page *page)
+ /*
+- * Switch off vmstat processing and then fold all the remaining differentials
+- * until the diffs stay at zero. The function is used by NOHZ and can only be
+- * invoked when tick processing is not active.
+- */
+-void quiet_vmstat(void)
 -{
--}
--static inline void put_zone_device_page(struct page *page)
--{
--}
- static inline bool is_zone_device_page(const struct page *page)
- {
- 	return false;
-@@ -790,9 +782,6 @@ static inline void get_page(struct page *page)
- 	 */
- 	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
- 	page_ref_inc(page);
+-	if (system_state != SYSTEM_RUNNING)
+-		return;
 -
--	if (unlikely(is_zone_device_page(page)))
--		get_zone_device_page(page);
- }
- 
- static inline void put_page(struct page *page)
-@@ -801,9 +790,6 @@ static inline void put_page(struct page *page)
- 
- 	if (put_page_testzero(page))
- 		__put_page(page);
+-	if (!delayed_work_pending(this_cpu_ptr(&vmstat_work)))
+-		return;
 -
--	if (unlikely(is_zone_device_page(page)))
--		put_zone_device_page(page);
- }
- 
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 07e85e5229da..e542bb2f7ab0 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -182,18 +182,6 @@ struct page_map {
- 	struct vmem_altmap altmap;
- };
- 
--void get_zone_device_page(struct page *page)
--{
--	percpu_ref_get(page->pgmap->ref);
+-	if (!need_update(smp_processor_id()))
+-		return;
+-
+-	/*
+-	 * Just refresh counters and do not care about the pending delayed
+-	 * vmstat_update. It doesn't fire that often to matter and canceling
+-	 * it would be too expensive from this path.
+-	 * vmstat_shepherd will take care about that for us.
+-	 */
+-	refresh_cpu_vm_stats(false);
 -}
--EXPORT_SYMBOL(get_zone_device_page);
 -
--void put_zone_device_page(struct page *page)
--{
--	put_dev_pagemap(page->pgmap);
--}
--EXPORT_SYMBOL(put_zone_device_page);
--
- static void pgmap_radix_release(struct resource *res)
- {
- 	resource_size_t key, align_start, align_size, align_end;
-@@ -237,12 +225,21 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
- 	struct resource *res = &page_map->res;
- 	resource_size_t align_start, align_size;
- 	struct dev_pagemap *pgmap = &page_map->pgmap;
-+	unsigned long pfn;
- 
- 	if (percpu_ref_tryget_live(pgmap->ref)) {
- 		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
- 		percpu_ref_put(pgmap->ref);
- 	}
- 
-+	for_each_device_pfn(pfn, page_map) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		dev_WARN_ONCE(dev, page_count(page) != 1,
-+				"%s: unexpected page count: %d!\n",
-+				__func__, page_count(page));
-+	}
-+
- 	/* pages are dead and unused, undo the arch mapping */
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
--- 
- Kirill A. Shutemov
+-/*
+  * Shepherd worker thread that checks the
+  * differentials of processors that have their worker
+  * threads for vm statistics updates disabled because of
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
