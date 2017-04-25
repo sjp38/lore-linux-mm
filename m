@@ -1,48 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DDF666B02F2
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 02:36:10 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id o36so46169238qtb.2
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 23:36:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x94si20935276qte.200.2017.04.24.23.36.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Apr 2017 23:36:10 -0700 (PDT)
-Date: Tue, 25 Apr 2017 08:36:07 +0200
-From: Stanislaw Gruszka <sgruszka@redhat.com>
-Subject: Re: [PATCH] mm,page_alloc: Split stall warning and failure warning.
-Message-ID: <20170425063606.GA8306@redhat.com>
-References: <20170419132212.GA3514@redhat.com>
- <20170419133339.GI29789@dhcp22.suse.cz>
- <20170422081030.GA5476@redhat.com>
- <20170424084216.GB1739@dhcp22.suse.cz>
- <20170424130634.GA6267@redhat.com>
- <201704250006.EGD86943.HOFtOLFSOQVFJM@I-love.SAKURA.ne.jp>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B83C6B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:02:34 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p81so23435671pfd.12
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 00:02:34 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id j61si14346841plb.85.2017.04.25.00.02.32
+        for <linux-mm@kvack.org>;
+        Tue, 25 Apr 2017 00:02:32 -0700 (PDT)
+Date: Tue, 25 Apr 2017 15:59:43 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
+Message-ID: <20170425065943.GL21430@X58A-UD3R>
+References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
+ <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
+ <20170419171954.tqp5tkxlsg4jp2xz@hirez.programming.kicks-ass.net>
+ <20170424030412.GG21430@X58A-UD3R>
+ <20170424093051.imizyhpifqf4t6bc@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170424093051.imizyhpifqf4t6bc@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <201704250006.EGD86943.HOFtOLFSOQVFJM@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Tue, Apr 25, 2017 at 12:06:54AM +0900, Tetsuo Handa wrote:
-> Stanislaw Gruszka wrote:
-> > On Mon, Apr 24, 2017 at 10:42:17AM +0200, Michal Hocko wrote:
-> > > If there
-> > > is really a problem logs flooded by the allocation failures while using
-> > > the guard page we should address it by a more strict ratelimiting.
-> > 
-> > Ok, make sense.
+On Mon, Apr 24, 2017 at 11:30:51AM +0200, Peter Zijlstra wrote:
+> +static void add_xhlock(struct held_lock *hlock)
+> +{
+> +       unsigned int idx = current->xhlock_idx++;
+> +       struct hist_lock *xhlock = &xhlock(idx);
 > 
-> Stanislaw, can we apply updated version at
-> http://lkml.kernel.org/r/1492525366-4929-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp ?
+> Yes, I misread that. Then '0' has the oldest entry, which is slightly
+> weird. Should we change that?
 
-The change is fine to me.
+I will just follow your decision. Do you think I should change it so
+that 'xhlock_idx' points to newest one, or ok to keep it unchanged?
 
-Stanislaw
+> 
+> 
+> > > > +
+> > > > +		if (!xhlock_used(xhlock))
+> > > > +			break;
+> > > > +
+> > > > +		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
+> > > > +			break;
+> > > > +
+> > > > +		if (same_context_xhlock(xhlock) &&
+> > > > +		    !commit_xhlock(xlock, xhlock))
+> > > 
+> > > return with graph_lock held?
+> > 
+> > No. When commit_xhlock() returns 0, the lock was already unlocked.
+> 
+> Please add a comment, because I completely missed that. That's at least
+> 2 functions deeper.
+
+Yes, I will add a comment.
+
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
