@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A9326B0038
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 17:37:22 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 194so240588194iof.21
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 14:37:22 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b31si1103943ioj.82.2017.04.25.14.37.20
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7086B0038
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 17:44:05 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id u5so7739558wmg.13
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 14:44:05 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p23si1185550edc.0.2017.04.25.14.44.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 14:37:21 -0700 (PDT)
-Date: Tue, 25 Apr 2017 14:37:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] mm, swap: Fix swap space leak in error path of
- swap_free_entries()
-Message-Id: <20170425143718.d05d4f5020b266dfdd61ed9c@linux-foundation.org>
-In-Reply-To: <20170421124739.24534-1-ying.huang@intel.com>
-References: <20170421124739.24534-1-ying.huang@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Apr 2017 14:44:04 -0700 (PDT)
+Date: Tue, 25 Apr 2017 17:43:57 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -mm -v10 2/3] mm, THP, swap: Check whether THP can be
+ split firstly
+Message-ID: <20170425214357.GA6841@cmpxchg.org>
+References: <20170425125658.28684-1-ying.huang@intel.com>
+ <20170425125658.28684-3-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170425125658.28684-3-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Huang, Ying" <ying.huang@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 21 Apr 2017 20:47:39 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
-
+On Tue, Apr 25, 2017 at 08:56:57PM +0800, Huang, Ying wrote:
 > From: Huang Ying <ying.huang@intel.com>
 > 
-> In swapcache_free_entries(), if swap_info_get_cont() return NULL,
-> something wrong occurs for the swap entry.  But we should still
-> continue to free the following swap entries in the array instead of
-> skip them to avoid swap space leak.  This is just problem in error
-> path, where system may be in an inconsistent state, but it is still
-> good to fix it.
+> To swap out THP (Transparent Huage Page), before splitting the THP,
+> the swap cluster will be allocated and the THP will be added into the
+> swap cache.  But it is possible that the THP cannot be split, so that
+> we must delete the THP from the swap cache and free the swap cluster.
+> To avoid that, in this patch, whether the THP can be split is checked
+> firstly.  The check can only be done racy, but it is good enough for
+> most cases.
 > 
-> ...
->
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1079,8 +1079,6 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
->  		p = swap_info_get_cont(entries[i], prev);
->  		if (p)
->  			swap_entry_free(p, entries[i]);
-> -		else
-> -			break;
->  		prev = p;
+> With the patch, the swap out throughput improves 3.6% (from about
+> 4.16GB/s to about 4.31GB/s) in the vm-scalability swap-w-seq test case
+> with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+> device used is a RAM simulated PMEM (persistent memory) device.  To
+> test the sequential swapping out, the test case creates 8 processes,
+> which sequentially allocate and write to the anonymous pages until the
+> RAM and part of the swap device is used up.
+> 
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com> [for can_split_huge_page()]
 
-So now prev==NULL.  Will this code get the locking correct in
-swap_info_get_cont()?  I think so, but please double-check.
-
->  	}
->  	if (p)
-
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
