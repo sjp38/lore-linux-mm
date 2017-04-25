@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2666B02EE
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 18:35:43 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id o22so235494461iod.6
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:35:43 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id 69si6285713itu.106.2017.04.25.15.35.42
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 95D4A6B02F2
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 18:35:50 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id p80so245494252iop.16
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:35:50 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id n81si1259268ioe.149.2017.04.25.15.35.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 15:35:42 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id t7so10251793pgt.1
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:35:42 -0700 (PDT)
+        Tue, 25 Apr 2017 15:35:49 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id a188so12811466pfa.2
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:35:49 -0700 (PDT)
 From: Florian Fainelli <f.fainelli@gmail.com>
-Subject: [PATCH 1/2] ARM: Silence first allocation with CONFIG_ARM_MODULE_PLTS=y
-Date: Tue, 25 Apr 2017 15:33:27 -0700
-Message-Id: <20170425223332.6999-2-f.fainelli@gmail.com>
+Subject: [PATCH 1/2] ARM: Silence non PLT allocation with CONFIG_ARM_MODULE_PLTS=y
+Date: Tue, 25 Apr 2017 15:33:28 -0700
+Message-Id: <20170425223332.6999-3-f.fainelli@gmail.com>
 In-Reply-To: <20170425223332.6999-1-f.fainelli@gmail.com>
 References: <20170425223332.6999-1-f.fainelli@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,7 +25,7 @@ Cc: Florian Fainelli <f.fainelli@gmail.com>, Russell King <linux@armlinux.org.uk
 When CONFIG_ARM_MODULE_PLTS is enabled, the first allocation using the
 module space fails, because the module is too big, and then the module
 allocation is attempted from vmalloc space. Silence the first allocation
-failure in that case by setting __GFP_NOWARN.
+failure in that case, since that scares people out.
 
 Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
 ---
