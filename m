@@ -1,175 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6140D6B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:14:26 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c16so26332588pfl.21
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:14:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t19si1456856pgj.88.2017.04.25.04.14.25
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AA5956B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:19:14 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id o3so17455906pgn.13
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:19:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t126si22029280pgb.42.2017.04.25.04.19.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 04:14:25 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3PBDn1i119309
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:14:25 -0400
-Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2a1j61xwvq-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:14:24 -0400
-Received: from localhost
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 25 Apr 2017 21:14:18 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3PBE3at49348766
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 21:14:11 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3PBDc78032462
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 21:13:38 +1000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] mm/madvise: Enable (soft|hard) offline of HugeTLB pages at PGD level
-Date: Tue, 25 Apr 2017 16:43:15 +0530
-Message-Id: <20170425111315.12480-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Apr 2017 04:19:13 -0700 (PDT)
+Date: Tue, 25 Apr 2017 13:19:03 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 10/20] fuse: set mapping error in writepage_locked
+ when it fails
+Message-ID: <20170425111903.GI2793@quack2.suse.cz>
+References: <20170424132259.8680-1-jlayton@redhat.com>
+ <20170424132259.8680-11-jlayton@redhat.com>
+ <20170424160431.GK23988@quack2.suse.cz>
+ <1493054076.2895.17.camel@redhat.com>
+ <20170425081720.GA2793@quack2.suse.cz>
+ <1493116513.2758.1.camel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1493116513.2758.1.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-Though migrating gigantic HugeTLB pages does not sound much like real
-world use case, they can be affected by memory errors. Hence migration
-at the PGD level HugeTLB pages should be supported just to enable soft
-and hard offline use cases.
+On Tue 25-04-17 06:35:13, Jeff Layton wrote:
+> On Tue, 2017-04-25 at 10:17 +0200, Jan Kara wrote:
+> > On Mon 24-04-17 13:14:36, Jeff Layton wrote:
+> > > On Mon, 2017-04-24 at 18:04 +0200, Jan Kara wrote:
+> > > > On Mon 24-04-17 09:22:49, Jeff Layton wrote:
+> > > > > This ensures that we see errors on fsync when writeback fails.
+> > > > > 
+> > > > > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > > > 
+> > > > Hum, but do we really want to clobber mapping errors with temporary stuff
+> > > > like ENOMEM? Or do you want to handle that in mapping_set_error?
+> > > > 
+> > > 
+> > > Right now we don't really have such a thing as temporary errors in the
+> > > writeback codepath. If you return an error here, the data doesn't stay
+> > > dirty or anything, and I think we want to ensure that that gets reported
+> > > via fsync.
+> > > 
+> > > I'd like to see us add better handling for retryable errors for stuff
+> > > like ENOMEM or EAGAIN. I think this is the first step toward that
+> > > though. Once we have more consistent handling of writeback errors in
+> > > general, then we can start doing more interesting things with retryable
+> > > errors.
+> > > 
+> > > So yeah, I this is the right thing to do for now.
+> > 
+> > OK, fair enough. And question number 2):
+> > 
+> > Who is actually responsible for setting the error in the mapping when error
+> > happens inside ->writepage()? Is it the ->writepage() callback or the
+> > caller of ->writepage()? Or something else? Currently it seems to be a
+> > strange mix (e.g. mm/page-writeback.c: __writepage() calls
+> > mapping_set_error() when ->writepage() returns error) so I'd like to
+> > understand what's the plan and have that recorded in the changelogs.
+> > 
+> 
+> That's an excellent question.
+> 
+> I think we probably want the writepage/launder_page operations to call
+> mapping_set_error. That makes it possible for filesystems (e.g. NFS) to
+> handle their own error tracking and reporting without using the new
+> infrastructure. If they never call mapping_set_error then we'll always
+> just return whatever their ->fsync operation returns on an fsync.
 
-While allocating the new gigantic HugeTLB page, it should not matter
-whether new page comes from the same node or not. There would be very
-few gigantic pages on the system afterall, we should not be bothered
-about node locality when trying to save a big page from crashing.
+OK, makes sense. It is also in line with what you did for DAX, 9p, or here
+for FUSE. So feel free to add:
 
-This introduces a new HugeTLB allocator called alloc_huge_page_nonid()
-which will scan over all online nodes on the system and allocate a
-single HugeTLB page.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
-Tested on a POWER8 machine with 16GB pages along with Aneesh's
-recent HugeTLB enablement patch series on powerpc which can
-be found here.
+for this patch but please also add a sentense that ->writepage() is
+responsible for calling mapping_set_error() if it fails and page is not
+redirtied to the changelogs of patches changing writepage handlers.
 
-https://lkml.org/lkml/2017/4/17/225
+> I'll make another pass through the tree and see whether we have some
+> mapping_set_error calls that should be removed, and will flesh out
+> vfs.txt to state this. Maybe that file needs a whole section on
+> writeback error reporting? Hmmm...
 
-Here, we directly call alloc_huge_page_nonid() which ignores the
-node locality. But we can also first call normal alloc_huge_page()
-with the node number and if that fails to allocate only then call
-alloc_huge_page_nonid() as a fallback option.
+I think it would be nice to have all the logic described in one place. So
++1 from me.
 
-Aneesh mentioned about the waste of memory if we just have to
-soft offline a single page. The problem persists both on PGD
-as well as PMD level HugeTLB pages. Tried solving the problem
-with https://patchwork.kernel.org/patch/9690119/ but right now
-madvise splits the entire range of HugeTLB pages (if the page
-is HugeTLB one) and calls soft_offline_page() on the head page
-of each HugeTLB page as soft_offline_page() acts on the entire
-HugeTLB range not just the individual pages. Changing the iterator
-in madvise() scan over individual pages solves the problem but
-then it creates multiple HugeTLB migrations (HUGE_PAGE_SIZE /
-PAGE_SIZE times to be precise) if we really have to soft offline
-a single HugeTLB page which is not optimal.
+> That probably also means that I should drop patch 8 from this series
+> (mm: ensure that we set mapping error if writeout fails), since that
+> should be happening in writepage already.
 
-Hence for now, lets just enable PGD level HugeTLB soft offline
-at par with the PMD level HugeTLB before we can go back and
-address the memory wastage problem comprehensively for both
-PGD and PMD level HugeTLB page as mentioned above.
+Yes.
 
- include/linux/hugetlb.h |  8 +++++++-
- mm/hugetlb.c            | 17 +++++++++++++++++
- mm/memory-failure.c     |  8 ++++++--
- 3 files changed, 30 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 04b73a9c8b4b..882e6241da71 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -347,6 +347,7 @@ struct huge_bootmem_page {
- 
- struct page *alloc_huge_page(struct vm_area_struct *vma,
- 				unsigned long addr, int avoid_reserve);
-+struct page *alloc_huge_page_nonid(struct hstate *h);
- struct page *alloc_huge_page_node(struct hstate *h, int nid);
- struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
- 				unsigned long addr, int avoid_reserve);
-@@ -473,7 +474,11 @@ extern int dissolve_free_huge_pages(unsigned long start_pfn,
- static inline bool hugepage_migration_supported(struct hstate *h)
- {
- #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
--	return huge_page_shift(h) == PMD_SHIFT;
-+	if ((huge_page_shift(h) == PMD_SHIFT) ||
-+		(huge_page_shift(h) == PGDIR_SHIFT))
-+		return true;
-+	else
-+		return false;
- #else
- 	return false;
- #endif
-@@ -511,6 +516,7 @@ static inline void hugetlb_count_sub(long l, struct mm_struct *mm)
- #else	/* CONFIG_HUGETLB_PAGE */
- struct hstate {};
- #define alloc_huge_page(v, a, r) NULL
-+#define alloc_huge_page_nonid(h) NULL
- #define alloc_huge_page_node(h, nid) NULL
- #define alloc_huge_page_noerr(v, a, r) NULL
- #define alloc_bootmem_huge_page(h) NULL
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 97a44db06850..bd96fff2bc09 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1669,6 +1669,23 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
- 	return __alloc_buddy_huge_page(h, vma, addr, NUMA_NO_NODE);
- }
- 
-+struct page *alloc_huge_page_nonid(struct hstate *h)
-+{
-+	struct page *page = NULL;
-+	int nid = 0;
-+
-+	spin_lock(&hugetlb_lock);
-+	if (h->free_huge_pages - h->resv_huge_pages > 0) {
-+		for_each_online_node(nid) {
-+			page = dequeue_huge_page_node(h, nid);
-+			if (page)
-+				break;
-+		}
-+	}
-+	spin_unlock(&hugetlb_lock);
-+	return page;
-+}
-+
- /*
-  * This allocation function is useful in the context where vma is irrelevant.
-  * E.g. soft-offlining uses this function because it only cares physical
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index fe64d7729a8e..d4f5710cf3f7 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1481,11 +1481,15 @@ EXPORT_SYMBOL(unpoison_memory);
- static struct page *new_page(struct page *p, unsigned long private, int **x)
- {
- 	int nid = page_to_nid(p);
--	if (PageHuge(p))
-+	if (PageHuge(p)) {
-+		if (hstate_is_gigantic(page_hstate(compound_head(p))))
-+			return alloc_huge_page_nonid(page_hstate(compound_head(p)));
-+
- 		return alloc_huge_page_node(page_hstate(compound_head(p)),
- 						   nid);
--	else
-+	} else {
- 		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-+	}
- }
- 
- /*
+								Honza
 -- 
-2.12.0
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
