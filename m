@@ -1,294 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F212B6B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:27:42 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id j29so47661796qtj.19
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:27:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d42si21662547qtd.241.2017.04.25.04.27.41
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 949986B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 08:57:11 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z185so30714102pgz.11
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 05:57:11 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id a90si22400448plc.67.2017.04.25.05.57.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 04:27:41 -0700 (PDT)
-Date: Tue, 25 Apr 2017 19:27:39 +0800
-From: Eryu Guan <eguan@redhat.com>
-Subject: Re: [PATCH 2/2] dax: add regression test for stale mmap reads
-Message-ID: <20170425112738.GV26397@eguan.usersys.redhat.com>
-References: <20170421034437.4359-1-ross.zwisler@linux.intel.com>
- <20170424174932.15613-1-ross.zwisler@linux.intel.com>
- <20170424174932.15613-2-ross.zwisler@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170424174932.15613-2-ross.zwisler@linux.intel.com>
+        Tue, 25 Apr 2017 05:57:10 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -v10 0/3] THP swap: Delay splitting THP during swapping out
+Date: Tue, 25 Apr 2017 20:56:55 +0800
+Message-Id: <20170425125658.28684-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: fstests@vger.kernel.org, Xiong Zhou <xzhou@redhat.com>, jmoyer@redhat.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Mon, Apr 24, 2017 at 11:49:32AM -0600, Ross Zwisler wrote:
-> This adds a regression test for the following kernel patch:
-> 
->   dax: fix data corruption due to stale mmap reads
-> 
+From: Huang Ying <ying.huang@intel.com>
 
-Seems that this patch hasn't been merged into linus tree, thus 4.11-rc8
-kernel should fail this test, but it passed for me, tested with 4.11-rc8
-kernel on both ext4 and xfs, with both brd devices and pmem devices
-created from "memmap=10G!5G memmap=15G!15G" kernel boot command line.
-Did I miss anything?
+This patchset is to optimize the performance of Transparent Huge Page
+(THP) swap.
 
-# ./check -s ext4_pmem_4k generic/427
-SECTION       -- ext4_pmem_4k
-RECREATING    -- ext4 on /dev/pmem0
-FSTYP         -- ext4
-PLATFORM      -- Linux/x86_64 hp-dl360g9-15 4.11.0-rc8.kasan
-MKFS_OPTIONS  -- -b 4096 /dev/pmem1
-MOUNT_OPTIONS -- -o acl,user_xattr -o context=system_u:object_r:root_t:s0 /dev/pmem1 /scratch
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swap out even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
 
-generic/427 1s ... 1s
-Ran: generic/427
-Passed all 1 tests
+The advantages of the THP swap support include:
 
-Some comments inline.
+- Batch the swap operations for the THP to reduce lock
+  acquiring/releasing, including allocating/freeing the swap space,
+  adding/deleting to/from the swap cache, and writing/reading the swap
+  space, etc.  This will help improve the performance of the THP swap.
 
-> The above patch fixes an issue where users of DAX can suffer data
-> corruption from stale mmap reads via the following sequence:
-> 
-> - open an mmap over a 2MiB hole
-> 
-> - read from a 2MiB hole, faulting in a 2MiB zero page
-> 
-> - write to the hole with write(3p).  The write succeeds but we incorrectly
->   leave the 2MiB zero page mapping intact.
-> 
-> - via the mmap, read the data that was just written.  Since the zero page
->   mapping is still intact we read back zeroes instead of the new data.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  .gitignore            |  1 +
->  src/Makefile          |  2 +-
->  src/t_dax_stale_pmd.c | 56 ++++++++++++++++++++++++++++++++++++++++++
->  tests/generic/427     | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++
->  tests/generic/427.out |  2 ++
->  tests/generic/group   |  1 +
->  6 files changed, 129 insertions(+), 1 deletion(-)
->  create mode 100644 src/t_dax_stale_pmd.c
->  create mode 100755 tests/generic/427
->  create mode 100644 tests/generic/427.out
-> 
-> diff --git a/.gitignore b/.gitignore
-> index ded4a61..9664dc9 100644
-> --- a/.gitignore
-> +++ b/.gitignore
-> @@ -134,6 +134,7 @@
->  /src/renameat2
->  /src/t_rename_overwrite
->  /src/t_mmap_dio
-> +/src/t_dax_stale_pmd
->  
->  # dmapi/ binaries
->  /dmapi/src/common/cmd/read_invis
-> diff --git a/src/Makefile b/src/Makefile
-> index abfd873..7e22b50 100644
-> --- a/src/Makefile
-> +++ b/src/Makefile
-> @@ -12,7 +12,7 @@ TARGETS = dirstress fill fill2 getpagesize holes lstat64 \
->  	godown resvtest writemod makeextents itrash rename \
->  	multi_open_unlink dmiperf unwritten_sync genhashnames t_holes \
->  	t_mmap_writev t_truncate_cmtime dirhash_collide t_rename_overwrite \
-> -	holetest t_truncate_self t_mmap_dio af_unix
-> +	holetest t_truncate_self t_mmap_dio af_unix t_dax_stale_pmd
->  
->  LINUX_TARGETS = xfsctl bstat t_mtab getdevicesize preallo_rw_pattern_reader \
->  	preallo_rw_pattern_writer ftrunc trunc fs_perms testx looptest \
-> diff --git a/src/t_dax_stale_pmd.c b/src/t_dax_stale_pmd.c
-> new file mode 100644
-> index 0000000..d0016eb
-> --- /dev/null
-> +++ b/src/t_dax_stale_pmd.c
-> @@ -0,0 +1,56 @@
-> +#include <errno.h>
-> +#include <fcntl.h>
-> +#include <libgen.h>
-> +#include <stdio.h>
-> +#include <stdlib.h>
-> +#include <string.h>
-> +#include <sys/mman.h>
-> +#include <sys/stat.h>
-> +#include <sys/types.h>
-> +#include <unistd.h>
-> +
-> +#define MiB(a) ((a)*1024*1024)
-> +
-> +void err_exit(char *op)
-> +{
-> +	fprintf(stderr, "%s: %s\n", op, strerror(errno));
-> +	exit(1);
-> +}
-> +
-> +int main(int argc, char *argv[])
-> +{
-> +	volatile int a __attribute__((__unused__));
-> +	char *buffer = "HELLO WORLD!";
-> +	char *data;
-> +	int fd;
-> +
-> +	if (argc < 2) {
-> +		printf("Usage: %s <pmem file>\n", basename(argv[0]));
-> +		exit(0);
-> +	}
-> +
-> +	fd = open(argv[1], O_RDWR);
-> +	if (fd < 0)
-> +		err_exit("fd");
-                         ^^^^ Nitpick, the "op" should be "open"?
-> +
-> +	data = mmap(NULL, MiB(2), PROT_READ, MAP_SHARED, fd, MiB(2));
-> +
-> +	/*
-> +	 * This faults in a 2MiB zero page to satisfy the read.
-> +	 * 'a' is volatile so this read doesn't get optimized out.
-> +	 */
-> +	a = data[0];
-> +
-> +	pwrite(fd, buffer, strlen(buffer), MiB(2));
-> +
-> +	/*
-> +	 * Try and use the mmap to read back the data we just wrote with
-> +	 * pwrite().  If the kernel bug is present the mapping from the 2MiB
-> +	 * zero page will still be intact, and we'll read back zeros instead.
-> +	 */
-> +	if (strncmp(buffer, data, strlen(buffer)))
-> +		err_exit("strncmp mismatch!");
+- The THP swap space read/write will be 2M sequential IO.  It is
+  particularly helpful for the swap read, which are usually 4k random
+  IO.  This will improve the performance of the THP swap too.
 
-strncmp doesn't set errno, this err_exit message might be confusing:
-"strncmp mismatch!: Success"
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The 2M continuous pages will be
+  free up after THP swapping out.
 
-> +
-> +	close(fd);
-> +	return 0;
-> +}
-> diff --git a/tests/generic/427 b/tests/generic/427
-> new file mode 100755
-> index 0000000..baf1099
-> --- /dev/null
-> +++ b/tests/generic/427
-> @@ -0,0 +1,68 @@
-> +#! /bin/bash
-> +# FS QA Test 427
-> +#
-> +# This is a regression test for kernel patch:
-> +#  dax: fix data corruption due to stale mmap reads
-> +# created by Ross Zwisler <ross.zwisler@linux.intel.com>
-> +#
-> +#-----------------------------------------------------------------------
-> +# Copyright (c) 2017 Intel Corporation.  All Rights Reserved.
-> +#
-> +# This program is free software; you can redistribute it and/or
-> +# modify it under the terms of the GNU General Public License as
-> +# published by the Free Software Foundation.
-> +#
-> +# This program is distributed in the hope that it would be useful,
-> +# but WITHOUT ANY WARRANTY; without even the implied warranty of
-> +# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> +# GNU General Public License for more details.
-> +#
-> +# You should have received a copy of the GNU General Public License
-> +# along with this program; if not, write the Free Software Foundation,
-> +# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-> +#-----------------------------------------------------------------------
-> +#
-> +
-> +seq=`basename $0`
-> +seqres=$RESULT_DIR/$seq
-> +echo "QA output created by $seq"
-> +
-> +here=`pwd`
-> +tmp=/tmp/$$
-> +status=1	# failure is the default!
-> +trap "_cleanup; exit \$status" 0 1 2 3 15
-> +
-> +_cleanup()
-> +{
-> +	cd /
-> +	rm -f $tmp.*
-> +}
-> +
-> +# get standard environment, filters and checks
-> +. ./common/rc
-> +. ./common/filter
-> +
-> +# remove previous $seqres.full before test
-> +rm -f $seqres.full
-> +
-> +# Modify as appropriate.
-> +_supported_fs generic
-> +_supported_os Linux
-> +_require_scratch_dax
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapping out, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapped in.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
 
-I don't think dax is a requirement here, this test could run on normal
-block device without "-o dax" option too. It won't hurt to run with more
-test configurations. And test on nvdimm device with dax mount option
-could be one of the test configs, e.g.
+There are some concerns regarding THP swap in, mainly because possible
+enlarged read/write IO size (for swap in/out) may put more overhead on
+the storage device.  To deal with that, the THP swap in should be
+turned on only when necessary.  For example, it can be selected via
+"always/never/madvise" logic, to be turned on globally, turned off
+globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
 
-TEST_DEV=/dev/pmem0
-SCRATCH_DEV=/dev/pmem1
-MOUNT_OPTIONS="-o dax"
-...
+This patchset is based on 04/13 head of mmotm/master.
 
-> +_require_test_program "t_dax_stale_pmd"
-> +_require_user
+This patchset is the first step for the THP swap support.  The plan is
+to delay splitting THP step by step, finally avoid splitting THP
+during the THP swapping out and swap out/in the THP as a whole.
 
-_require_xfs_io_command "falloc"
+As the first step, in this patchset, the splitting huge page is
+delayed from almost the first step of swapping out to after allocating
+the swap space for the THP and adding the THP into the swap cache.
+This will reduce lock acquiring/releasing for the locks used for the
+swap cache management.
 
-So test _notrun on ext2/3.
+With the patchset, the swap out throughput improves 15.5% (from about
+3.73GB/s to about 4.31GB/s) in the vm-scalability swap-w-seq test case
+with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+device used is a RAM simulated PMEM (persistent memory) device.  To
+test the sequential swapping out, the test case creates 8 processes,
+which sequentially allocate and write to the anonymous pages until the
+RAM and part of the swap device is used up.
 
-> +
-> +# real QA test starts here
-> +_scratch_mkfs >>$seqres.full 2>&1
-> +_scratch_mount "-o dax"
+Changelog:
 
-Same here, dax is not required.
+v10:
 
-> +
-> +$XFS_IO_PROG -f -c "falloc 0 4M" $SCRATCH_MNT/testfile >> $seqres.full 2>&1
-> +chmod 0644 $SCRATCH_MNT/testfile
-> +chown $qa_user $SCRATCH_MNT/testfile
+- Remove unlikely() in add_to_swap() per Johannes' comments
+- Improve code comments in add_to_swap() and mem_cgroup_try_charge_swap()
 
-Any specific reason to use $qa_user to run this test? Comments would be
-great.
+v9:
 
-Thanks,
-Eryu
+- Rebased on latest -mm tree
+- Johannes done extensive cleanups and simplifications
+- Johannes resolved the code size increases
+- Update the test results
 
-> +
-> +_user_do "src/t_dax_stale_pmd $SCRATCH_MNT/testfile"
-> +
-> +# success, all done
-> +echo "Silence is golden"
-> +status=0
-> +exit
-> diff --git a/tests/generic/427.out b/tests/generic/427.out
-> new file mode 100644
-> index 0000000..61295e5
-> --- /dev/null
-> +++ b/tests/generic/427.out
-> @@ -0,0 +1,2 @@
-> +QA output created by 427
-> +Silence is golden
-> diff --git a/tests/generic/group b/tests/generic/group
-> index f29009c..06f6e9d 100644
-> --- a/tests/generic/group
-> +++ b/tests/generic/group
-> @@ -429,3 +429,4 @@
->  424 auto quick
->  425 auto quick attr
->  426 auto quick exportfs
-> +427 auto quick
-> -- 
-> 2.9.3
-> 
+v8:
+
+- Rebased on latest -mm tree
+- Reorganize the patchset per Johannes' comments
+- Merge add_to_swap_trans_huge() and add_to_swap() per Johannes' comments
+
+v7:
+
+- Rebased on latest -mm tree
+- Revise get_swap_pages() THP support per Tim's comments
+
+v6:
+
+- Rebased on latest -mm tree (cluster lock, etc).
+- Fix a potential uninitialized variable bug in __swap_entry_free()
+- Revise the swap read-ahead changes to avoid a potential race
+  condition between swap off and swap out in theory.
+
+v5:
+
+- Per Hillf's comments, fix a locking bug in error path of
+  __add_to_swap_cache().  And merge the code to calculate extra_pins
+  into can_split_huge_page().
+
+v4:
+
+- Per Johannes' comments, simplified swap cgroup array accessing code.
+- Per Kirill and Dave Hansen's comments, used HPAGE_PMD_NR instead of
+  HPAGE_SIZE/PAGE_SIZE.
+- Per Anshuman's comments, used HPAGE_PMD_NR instead of 512 in patch
+  description.
+
+v3:
+
+- Per Andrew's suggestion, used a more systematical way to determine
+  whether to enable THP swap optimization
+- Per Andrew's comments, moved as much as possible code into
+  #ifdef CONFIG_TRANSPARENT_HUGE_PAGE/#endif or "if (PageTransHuge())"
+- Fixed some coding style warning.
+
+v2:
+
+- Original [1/11] sent separately and merged
+- Use switch in 10/10 per Hiff's suggestion
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
