@@ -1,83 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 66A886B02F2
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 05:26:14 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 70so81879517ita.22
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 02:26:14 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id c80si7390850ioj.1.2017.04.25.02.26.13
+	by kanga.kvack.org (Postfix) with ESMTP id 67B336B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 05:38:54 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id f187so83149931ite.5
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 02:38:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z31si3938186ita.41.2017.04.25.02.38.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 02:26:13 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] x86/mm/64: Fix crash in remove_pagetable()
-Date: Tue, 25 Apr 2017 12:25:57 +0300
-Message-Id: <20170425092557.21852-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Apr 2017 02:38:53 -0700 (PDT)
+Date: Tue, 25 Apr 2017 10:17:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 10/20] fuse: set mapping error in writepage_locked
+ when it fails
+Message-ID: <20170425081720.GA2793@quack2.suse.cz>
+References: <20170424132259.8680-1-jlayton@redhat.com>
+ <20170424132259.8680-11-jlayton@redhat.com>
+ <20170424160431.GK23988@quack2.suse.cz>
+ <1493054076.2895.17.camel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1493054076.2895.17.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
 
-remove_pagetable() does page walk using p*d_page_vaddr() plus cast.
-It's not canonical approach -- we usually use p*d_offset() for that.
+On Mon 24-04-17 13:14:36, Jeff Layton wrote:
+> On Mon, 2017-04-24 at 18:04 +0200, Jan Kara wrote:
+> > On Mon 24-04-17 09:22:49, Jeff Layton wrote:
+> > > This ensures that we see errors on fsync when writeback fails.
+> > > 
+> > > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > 
+> > Hum, but do we really want to clobber mapping errors with temporary stuff
+> > like ENOMEM? Or do you want to handle that in mapping_set_error?
+> > 
+> 
+> Right now we don't really have such a thing as temporary errors in the
+> writeback codepath. If you return an error here, the data doesn't stay
+> dirty or anything, and I think we want to ensure that that gets reported
+> via fsync.
+> 
+> I'd like to see us add better handling for retryable errors for stuff
+> like ENOMEM or EAGAIN. I think this is the first step toward that
+> though. Once we have more consistent handling of writeback errors in
+> general, then we can start doing more interesting things with retryable
+> errors.
+> 
+> So yeah, I this is the right thing to do for now.
 
-It works fine as long as all page table levels are present. We broke the
-invariant by introducing folded p4d page table level.
+OK, fair enough. And question number 2):
 
-As result, remove_pagetable() interprets PMD as PUD and it leads to
-crash:
+Who is actually responsible for setting the error in the mapping when error
+happens inside ->writepage()? Is it the ->writepage() callback or the
+caller of ->writepage()? Or something else? Currently it seems to be a
+strange mix (e.g. mm/page-writeback.c: __writepage() calls
+mapping_set_error() when ->writepage() returns error) so I'd like to
+understand what's the plan and have that recorded in the changelogs.
 
-	BUG: unable to handle kernel paging request at ffff880300000000
-	IP: memchr_inv+0x60/0x110
-	PGD 317d067
-	P4D 317d067
-	PUD 3180067
-	PMD 33f102067
-	PTE 8000000300000060
+								Honza
 
-Let's fix this by using p*d_offset() instead of p*d_page_vaddr() for
-page walk.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Dan Williams <dan.j.williams@intel.com>
-Fixes: f2a6a7050109 ("x86: Convert the rest of the code to support p4d_t")
----
- arch/x86/mm/init_64.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a242139df8fe..745e5e183169 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -962,7 +962,7 @@ remove_pud_table(pud_t *pud_start, unsigned long addr, unsigned long end,
- 			continue;
- 		}
- 
--		pmd_base = (pmd_t *)pud_page_vaddr(*pud);
-+		pmd_base = pmd_offset(pud, 0);
- 		remove_pmd_table(pmd_base, addr, next, direct);
- 		free_pmd_table(pmd_base, pud);
- 	}
-@@ -988,7 +988,7 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
- 
- 		BUILD_BUG_ON(p4d_large(*p4d));
- 
--		pud_base = (pud_t *)p4d_page_vaddr(*p4d);
-+		pud_base = pud_offset(p4d, 0);
- 		remove_pud_table(pud_base, addr, next, direct);
- 		free_pud_table(pud_base, p4d);
- 	}
-@@ -1013,7 +1013,7 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
- 		if (!pgd_present(*pgd))
- 			continue;
- 
--		p4d = (p4d_t *)pgd_page_vaddr(*pgd);
-+		p4d = p4d_offset(pgd, 0);
- 		remove_p4d_table(p4d, addr, next, direct);
- 	}
- 
+> 
+> > 
+> > > ---
+> > >  fs/fuse/file.c | 1 +
+> > >  1 file changed, 1 insertion(+)
+> > > 
+> > > diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+> > > index ec238fb5a584..07d0efcb050c 100644
+> > > --- a/fs/fuse/file.c
+> > > +++ b/fs/fuse/file.c
+> > > @@ -1669,6 +1669,7 @@ static int fuse_writepage_locked(struct page *page)
+> > >  err_free:
+> > >  	fuse_request_free(req);
+> > >  err:
+> > > +	mapping_set_error(page->mapping, error);
+> > >  	end_page_writeback(page);
+> > >  	return error;
+> > >  }
+> > > -- 
+> > > 2.9.3
+> > > 
+> > > 
+> 
+> -- 
+> Jeff Layton <jlayton@redhat.com>
 -- 
-2.11.0
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
