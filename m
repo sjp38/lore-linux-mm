@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 789476B0038
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 18:05:32 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id g184so130887150oif.6
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:05:32 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s12si13548507ots.35.2017.04.25.15.05.30
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F3B86B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 18:35:37 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id i90so244373026ioo.13
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:35:37 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id g132si1213142ioa.221.2017.04.25.15.35.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 15:05:31 -0700 (PDT)
-Message-ID: <1493157929.3209.113.camel@linux.intel.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix swap space leak in error path of
- swap_free_entries()
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Tue, 25 Apr 2017 15:05:29 -0700
-In-Reply-To: <20170425143718.d05d4f5020b266dfdd61ed9c@linux-foundation.org>
-References: <20170421124739.24534-1-ying.huang@intel.com>
-	 <20170425143718.d05d4f5020b266dfdd61ed9c@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Tue, 25 Apr 2017 15:35:36 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id t7so10251460pgt.1
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:35:36 -0700 (PDT)
+From: Florian Fainelli <f.fainelli@gmail.com>
+Subject: [PATCH 0/3] ARM/ARM64: silence large module first time allocation
+Date: Tue, 25 Apr 2017 15:33:26 -0700
+Message-Id: <20170425223332.6999-1-f.fainelli@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Huang, Ying" <ying.huang@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Florian Fainelli <f.fainelli@gmail.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-On Tue, 2017-04-25 at 14:37 -0700, Andrew Morton wrote:
-> On Fri, 21 Apr 2017 20:47:39 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
-> 
-> > 
-> > From: Huang Ying <ying.huang@intel.com>
-> > 
-> > In swapcache_free_entries(), if swap_info_get_cont() return NULL,
-> > something wrong occurs for the swap entry.A A But we should still
-> > continue to free the following swap entries in the array instead of
-> > skip them to avoid swap space leak.A A This is just problem in error
-> > path, where system may be in an inconsistent state, but it is still
-> > good to fix it.
-> > 
-> > ...
-> > 
-> > --- a/mm/swapfile.c
-> > +++ b/mm/swapfile.c
-> > @@ -1079,8 +1079,6 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
-> > A 		p = swap_info_get_cont(entries[i], prev);
-> > A 		if (p)
-> > A 			swap_entry_free(p, entries[i]);
-> > -		else
-> > -			break;
-> > A 		prev = p;
-> So now prev==NULL.A A Will this code get the locking correct in
-> swap_info_get_cont()?A A I think so, but please double-check.
-> 
+With kernels built with CONFIG_ARM{,64}_MODULES_PLTS=y, the first allocation
+done from module space will fail, produce a general OOM allocation and also a
+vmap warning. The second allocation from vmalloc space may or may not be
+successful, but is actually the one we are interested about in these cases.
 
-There are 4 possible cases, and I checked that the logic
-in swap_info_get_cont do the expected:
+This patch series passed __GFP_NOWARN to silence such allocations from the
+ARM/ARM64 module loader's first time allocation when the MODULES_PLT option is
+enabled, and also makes alloc_vmap_area() react to the caller setting
+__GFP_NOWARN to silence "vmap allocation for size..." messages.
 
-entries[i]
-valid?		prev	A 	Expected swap_info_get_cont behavior
----------------------------------------------------------------------
-NO		NULL		Return NULL p, Do nothing on lock/unlock
-NO		NON-NULL	Return NULL p, Unlock prevA 
-YES		NULL		Return non-NULL p, lock p
-YES		NON-NULL	Return non-NULL p, (p != prev) unlock prev and lock pA 
-						A  A (p == prev) do nothing on lock/unlock
+Here is an example of what we would get without these two patches, pretty
+scary huh?
 
-Thanks.
+# insmod /mnt/nfs/huge.ko 
+[   22.114143] random: nonblocking pool is initialized
+[   22.183575] vmap allocation for size 15736832 failed: use vmalloc=<size> to increase size.
+[   22.191873] vmalloc: allocation failure: 15729534 bytes
+[   22.197112] insmod: page allocation failure: order:0, mode:0xd0
+[   22.203048] CPU: 2 PID: 1506 Comm: insmod Tainted: G           O    4.1.20-1.9pre-01082-gbbbff07bc3ce #9
+[   22.212536] Hardware name: Broadcom STB (Flattened Device Tree)
+[   22.218480] [<c0017eec>] (unwind_backtrace) from [<c00135c8>] (show_stack+0x10/0x14)
+[   22.226238] [<c00135c8>] (show_stack) from [<c0638684>] (dump_stack+0x90/0xa4)
+[   22.233473] [<c0638684>] (dump_stack) from [<c00aae1c>] (warn_alloc_failed+0x104/0x144)
+[   22.241490] [<c00aae1c>] (warn_alloc_failed) from [<c00d72e0>] (__vmalloc_node_range+0x170/0x218)
+[   22.250375] [<c00d72e0>] (__vmalloc_node_range) from [<c00147d0>] (module_alloc+0x50/0xac)
+[   22.258651] [<c00147d0>] (module_alloc) from [<c008ae2c>] (module_alloc_update_bounds+0xc/0x6c)
+[   22.267360] [<c008ae2c>] (module_alloc_update_bounds) from [<c008b778>] (load_module+0x8ec/0x2058)
+[   22.276329] [<c008b778>] (load_module) from [<c008cfd4>] (SyS_init_module+0xf0/0x174)
+[   22.284170] [<c008cfd4>] (SyS_init_module) from [<c0010140>] (ret_fast_syscall+0x0/0x3c)
+[   22.292277] Mem-Info:
+[   22.294567] active_anon:5236 inactive_anon:1773 isolated_anon:0
+[   22.294567]  active_file:1 inactive_file:3822 isolated_file:0
+[   22.294567]  unevictable:0 dirty:0 writeback:0 unstable:0
+[   22.294567]  slab_reclaimable:238 slab_unreclaimable:1594
+[   22.294567]  mapped:855 shmem:2950 pagetables:36 bounce:0
+[   22.294567]  free:39031 free_pcp:198 free_cma:3928
+[   22.327196] DMA free:156124kB min:1880kB low:2348kB high:2820kB active_anon:20944kB inactive_anon:7092kB active_file:4kB inactive_file:15288kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:262144kB managed:227676kB mlocked:0kB dirty:0kB writeback:0kB mapped:3420kB shmem:11800kB slab_reclaimable:952kB slab_unreclaimable:6376kB kernel_stack:560kB pagetables:144kB unstable:0kB bounce:0kB free_pcp:792kB local_pcp:68kB free_cma:15712kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[   22.371631] lowmem_reserve[]: 0 0 0 0
+[   22.375372] HighMem free:0kB min:128kB low:128kB high:128kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:2883584kB managed:0kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+[   22.416249] lowmem_reserve[]: 0 0 0 0
+[   22.419986] DMA: 3*4kB (UEM) 4*8kB (UE) 1*16kB (M) 4*32kB (UEMC) 3*64kB (EMC) 1*128kB (E) 4*256kB (UEMC) 2*512kB (UE) 2*1024kB (MC) 4*2048kB (UEMC) 35*4096kB (MRC) = 156156kB
+[   22.435922] HighMem: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+[   22.446130] 6789 total pagecache pages
+[   22.449889] 0 pages in swap cache
+[   22.453212] Swap cache stats: add 0, delete 0, find 0/0
+[   22.458447] Free swap  = 0kB
+[   22.461334] Total swap = 0kB
+[   22.464222] 786432 pages RAM
+[   22.467110] 720896 pages HighMem/MovableOnly
+[   22.471388] 725417 pages reserved
+[   22.474711] 4096 pages cma reserved
+[   22.511310] big_init: I am a big module using 3932160 bytes of data!
 
-Tim
+Florian Fainelli (3):
+  mm: Silence vmap() allocation failures based on caller gfp_flags
+  ARM: Silence first allocation with CONFIG_ARM_MODULE_PLTS=y
+  arm64: Silence first allocation with CONFIG_ARM64_MODULE_PLTS=y
 
-> 
+ arch/arm/kernel/module.c   | 11 +++++++++--
+ arch/arm64/kernel/module.c |  7 ++++++-
+ mm/vmalloc.c               |  2 +-
+ 3 files changed, 16 insertions(+), 4 deletions(-)
+
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
