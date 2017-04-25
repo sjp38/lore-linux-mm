@@ -1,158 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B38796B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:10:49 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id l30so29304309pgc.15
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:10:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g16si13706263pli.218.2017.04.25.04.10.48
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6140D6B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:14:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c16so26332588pfl.21
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:14:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t19si1456856pgj.88.2017.04.25.04.14.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Apr 2017 04:10:48 -0700 (PDT)
-Date: Tue, 25 Apr 2017 13:10:43 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] dax: fix data corruption due to stale mmap reads
-Message-ID: <20170425111043.GH2793@quack2.suse.cz>
-References: <20170420191446.GA21694@linux.intel.com>
- <20170421034437.4359-1-ross.zwisler@linux.intel.com>
- <20170421034437.4359-2-ross.zwisler@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170421034437.4359-2-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Apr 2017 04:14:25 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3PBDn1i119309
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:14:25 -0400
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a1j61xwvq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 07:14:24 -0400
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 25 Apr 2017 21:14:18 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3PBE3at49348766
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 21:14:11 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3PBDc78032462
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 21:13:38 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] mm/madvise: Enable (soft|hard) offline of HugeTLB pages at PGD level
+Date: Tue, 25 Apr 2017 16:43:15 +0530
+Message-Id: <20170425111315.12480-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Anna Schumaker <anna.schumaker@netapp.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Latchesar Ionkov <lucho@ionkov.net>, linux-cifs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-nvdimm@lists.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Ron Minnich <rminnich@sandia.gov>, samba-technical@lists.samba.org, Steve French <sfrench@samba.org>, Trond Myklebust <trond.myklebust@primarydata.com>, v9fs-developer@lists.sourceforge.net
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
 
-On Thu 20-04-17 21:44:37, Ross Zwisler wrote:
-> Users of DAX can suffer data corruption from stale mmap reads via the
-> following sequence:
-> 
-> - open an mmap over a 2MiB hole
-> 
-> - read from a 2MiB hole, faulting in a 2MiB zero page
-> 
-> - write to the hole with write(3p).  The write succeeds but we incorrectly
->   leave the 2MiB zero page mapping intact.
-> 
-> - via the mmap, read the data that was just written.  Since the zero page
->   mapping is still intact we read back zeroes instead of the new data.
-> 
-> We fix this by unconditionally calling invalidate_inode_pages2_range() in
-> dax_iomap_actor() for new block allocations, and by enhancing
-> __dax_invalidate_mapping_entry() so that it properly unmaps the DAX entry
-> being removed from the radix tree.
-> 
-> This is based on an initial patch from Jan Kara.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Fixes: c6dcf52c23d2 ("mm: Invalidate DAX radix tree entries only if appropriate")
-> Reported-by: Jan Kara <jack@suse.cz>
-> Cc: <stable@vger.kernel.org>    [4.10+]
-> ---
->  fs/dax.c | 26 +++++++++++++++++++-------
->  1 file changed, 19 insertions(+), 7 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 166504c..3f445d5 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -468,23 +468,35 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
->  					  pgoff_t index, bool trunc)
->  {
->  	int ret = 0;
-> -	void *entry;
-> +	void *entry, **slot;
->  	struct radix_tree_root *page_tree = &mapping->page_tree;
->  
->  	spin_lock_irq(&mapping->tree_lock);
-> -	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-> +	entry = get_unlocked_mapping_entry(mapping, index, &slot);
->  	if (!entry || !radix_tree_exceptional_entry(entry))
->  		goto out;
->  	if (!trunc &&
->  	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
->  	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
->  		goto out;
-> +
-> +	/*
-> +	 * Make sure 'entry' remains valid while we drop mapping->tree_lock to
-> +	 * do the unmap_mapping_range() call.
-> +	 */
-> +	entry = lock_slot(mapping, slot);
+Though migrating gigantic HugeTLB pages does not sound much like real
+world use case, they can be affected by memory errors. Hence migration
+at the PGD level HugeTLB pages should be supported just to enable soft
+and hard offline use cases.
 
-This also stops page faults from mapping the entry again. Maybe worth
-mentioning here as well.
+While allocating the new gigantic HugeTLB page, it should not matter
+whether new page comes from the same node or not. There would be very
+few gigantic pages on the system afterall, we should not be bothered
+about node locality when trying to save a big page from crashing.
 
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +
-> +	unmap_mapping_range(mapping, (loff_t)index << PAGE_SHIFT,
-> +			(loff_t)PAGE_SIZE << dax_radix_order(entry), 0);
+This introduces a new HugeTLB allocator called alloc_huge_page_nonid()
+which will scan over all online nodes on the system and allocate a
+single HugeTLB page.
 
-Ouch, unmapping entry-by-entry may get quite expensive if you are unmapping
-large ranges - each unmap means an rmap walk... Since this is a data
-corruption class of bug, let's fix it this way for now but I think we'll
-need to improve this later.
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+Tested on a POWER8 machine with 16GB pages along with Aneesh's
+recent HugeTLB enablement patch series on powerpc which can
+be found here.
 
-E.g. what if we called unmap_mapping_range() for the whole invalidated
-range after removing the radix tree entries?
+https://lkml.org/lkml/2017/4/17/225
 
-Hum, but now thinking more about it I have hard time figuring out why write
-vs fault cannot actually still race:
+Here, we directly call alloc_huge_page_nonid() which ignores the
+node locality. But we can also first call normal alloc_huge_page()
+with the node number and if that fails to allocate only then call
+alloc_huge_page_nonid() as a fallback option.
 
-CPU1 - write(2)				CPU2 - read fault
+Aneesh mentioned about the waste of memory if we just have to
+soft offline a single page. The problem persists both on PGD
+as well as PMD level HugeTLB pages. Tried solving the problem
+with https://patchwork.kernel.org/patch/9690119/ but right now
+madvise splits the entire range of HugeTLB pages (if the page
+is HugeTLB one) and calls soft_offline_page() on the head page
+of each HugeTLB page as soft_offline_page() acts on the entire
+HugeTLB range not just the individual pages. Changing the iterator
+in madvise() scan over individual pages solves the problem but
+then it creates multiple HugeTLB migrations (HUGE_PAGE_SIZE /
+PAGE_SIZE times to be precise) if we really have to soft offline
+a single HugeTLB page which is not optimal.
 
-					dax_iomap_pte_fault()
-					  ->iomap_begin() - sees hole
-dax_iomap_rw()
-  iomap_apply()
-    ->iomap_begin - allocates blocks
-    dax_iomap_actor()
-      invalidate_inode_pages2_range()
-        - there's nothing to invalidate
-					  grab_mapping_entry()
-					  - we add zero page in the radix
-					    tree & map it to page tables
+Hence for now, lets just enable PGD level HugeTLB soft offline
+at par with the PMD level HugeTLB before we can go back and
+address the memory wastage problem comprehensively for both
+PGD and PMD level HugeTLB page as mentioned above.
 
-Similarly read vs write fault may end up racing in a wrong way and try to
-replace already existing exceptional entry with a hole page?
+ include/linux/hugetlb.h |  8 +++++++-
+ mm/hugetlb.c            | 17 +++++++++++++++++
+ mm/memory-failure.c     |  8 ++++++--
+ 3 files changed, 30 insertions(+), 3 deletions(-)
 
-								Honza
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
->  	radix_tree_delete(page_tree, index);
->  	mapping->nrexceptional--;
->  	ret = 1;
->  out:
-> -	put_unlocked_mapping_entry(mapping, index, entry);
->  	spin_unlock_irq(&mapping->tree_lock);
-> +	dax_wake_mapping_entry_waiter(mapping, index, entry, true);
->  	return ret;
->  }
->  /*
-> @@ -999,11 +1011,11 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  		return -EIO;
->  
->  	/*
-> -	 * Write can allocate block for an area which has a hole page mapped
-> -	 * into page tables. We have to tear down these mappings so that data
-> -	 * written by write(2) is visible in mmap.
-> +	 * Write can allocate block for an area which has a hole page or zero
-> +	 * PMD entry in the radix tree.  We have to tear down these mappings so
-> +	 * that data written by write(2) is visible in mmap.
->  	 */
-> -	if ((iomap->flags & IOMAP_F_NEW) && inode->i_mapping->nrpages) {
-> +	if (iomap->flags & IOMAP_F_NEW) {
->  		invalidate_inode_pages2_range(inode->i_mapping,
->  					      pos >> PAGE_SHIFT,
->  					      (end - 1) >> PAGE_SHIFT);
-> -- 
-> 2.9.3
-> 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 04b73a9c8b4b..882e6241da71 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -347,6 +347,7 @@ struct huge_bootmem_page {
+ 
+ struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 				unsigned long addr, int avoid_reserve);
++struct page *alloc_huge_page_nonid(struct hstate *h);
+ struct page *alloc_huge_page_node(struct hstate *h, int nid);
+ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+ 				unsigned long addr, int avoid_reserve);
+@@ -473,7 +474,11 @@ extern int dissolve_free_huge_pages(unsigned long start_pfn,
+ static inline bool hugepage_migration_supported(struct hstate *h)
+ {
+ #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+-	return huge_page_shift(h) == PMD_SHIFT;
++	if ((huge_page_shift(h) == PMD_SHIFT) ||
++		(huge_page_shift(h) == PGDIR_SHIFT))
++		return true;
++	else
++		return false;
+ #else
+ 	return false;
+ #endif
+@@ -511,6 +516,7 @@ static inline void hugetlb_count_sub(long l, struct mm_struct *mm)
+ #else	/* CONFIG_HUGETLB_PAGE */
+ struct hstate {};
+ #define alloc_huge_page(v, a, r) NULL
++#define alloc_huge_page_nonid(h) NULL
+ #define alloc_huge_page_node(h, nid) NULL
+ #define alloc_huge_page_noerr(v, a, r) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 97a44db06850..bd96fff2bc09 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1669,6 +1669,23 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+ 	return __alloc_buddy_huge_page(h, vma, addr, NUMA_NO_NODE);
+ }
+ 
++struct page *alloc_huge_page_nonid(struct hstate *h)
++{
++	struct page *page = NULL;
++	int nid = 0;
++
++	spin_lock(&hugetlb_lock);
++	if (h->free_huge_pages - h->resv_huge_pages > 0) {
++		for_each_online_node(nid) {
++			page = dequeue_huge_page_node(h, nid);
++			if (page)
++				break;
++		}
++	}
++	spin_unlock(&hugetlb_lock);
++	return page;
++}
++
+ /*
+  * This allocation function is useful in the context where vma is irrelevant.
+  * E.g. soft-offlining uses this function because it only cares physical
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index fe64d7729a8e..d4f5710cf3f7 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1481,11 +1481,15 @@ EXPORT_SYMBOL(unpoison_memory);
+ static struct page *new_page(struct page *p, unsigned long private, int **x)
+ {
+ 	int nid = page_to_nid(p);
+-	if (PageHuge(p))
++	if (PageHuge(p)) {
++		if (hstate_is_gigantic(page_hstate(compound_head(p))))
++			return alloc_huge_page_nonid(page_hstate(compound_head(p)));
++
+ 		return alloc_huge_page_node(page_hstate(compound_head(p)),
+ 						   nid);
+-	else
++	} else {
+ 		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
++	}
+ }
+ 
+ /*
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.12.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
