@@ -1,68 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C51C6B02FA
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 08:57:16 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 72so30703895pge.10
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 05:57:16 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a90si22400448plc.67.2017.04.25.05.57.15
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8FE6B0317
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 09:19:12 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id c2so31200047pga.1
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 06:19:12 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id a88si22485895pfl.243.2017.04.25.06.19.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 05:57:15 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v10 3/3] mm, THP, swap: Enable THP swap optimization only if has compound map
-Date: Tue, 25 Apr 2017 20:56:58 +0800
-Message-Id: <20170425125658.28684-4-ying.huang@intel.com>
-In-Reply-To: <20170425125658.28684-1-ying.huang@intel.com>
-References: <20170425125658.28684-1-ying.huang@intel.com>
+        Tue, 25 Apr 2017 06:19:11 -0700 (PDT)
+Date: Tue, 25 Apr 2017 16:19:04 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: get_zone_device_page() in get_page() and
+ page_cache_get_speculative()
+Message-ID: <20170425131904.nu5dlhweblwzyeit@black.fi.intel.com>
+References: <CAA9_cmf7=aGXKoQFkzS_UJtznfRtWofitDpV2AyGwpaRGKyQkg@mail.gmail.com>
+ <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
+ <CAPcyv4i8mBOCuA8k-A8RXGMibbnqHUsa3Ly+YcQbr0eCdjruUw@mail.gmail.com>
+ <20170424173021.ayj3hslvfrrgrie7@node.shutemov.name>
+ <CAPcyv4g74LT6sK2WgG6FnwQHCC5fNTwfqBPq1BY8PnZ7zwdGPw@mail.gmail.com>
+ <20170424180158.y26m3kgzhpmawbhg@node.shutemov.name>
+ <20170424182555.faoarzlpi4ilm5dt@black.fi.intel.com>
+ <CAPcyv4iFhpSo-nbypHuZVZz7S92PwPx17bxUgMsksRHYPQkqEA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4iFhpSo-nbypHuZVZz7S92PwPx17bxUgMsksRHYPQkqEA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linux MM <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@redhat.com>, Dann Frazier <dann.frazier@canonical.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-tip-commits@vger.kernel.org
 
-From: Huang Ying <ying.huang@intel.com>
+On Mon, Apr 24, 2017 at 11:41:51AM -0700, Dan Williams wrote:
+> On Mon, Apr 24, 2017 at 11:25 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > On Mon, Apr 24, 2017 at 09:01:58PM +0300, Kirill A. Shutemov wrote:
+> >> On Mon, Apr 24, 2017 at 10:47:43AM -0700, Dan Williams wrote:
+> >> I think it's still better to do it on page_ref_* level.
+> >
+> > Something like patch below? What do you think?
+> 
+> From a quick glance, I think this looks like the right way to go.
 
-If there is no compound map for a THP (Transparent Huge Page), it is
-possible that the map count of some sub-pages of the THP is 0.  So it
-is better to split the THP before swapping out. In this way, the
-sub-pages not mapped will be freed, and we can avoid the unnecessary
-swap out operations for these sub-pages.
+Okay, but I still would like to remove manipulation with pgmap->ref from
+hot path.
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
----
- mm/swap_state.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+Can we just check that page_count() match our expectation on
+devm_memremap_pages_release() instead of this?
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 006d91d8fc53..13f83c6bb1b4 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -192,9 +192,19 @@ int add_to_swap(struct page *page, struct list_head *list)
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+I probably miss something in bigger picture, but would something like
+patch work too? It seems work for the test case.
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a835edd2db34..695da2a19b4c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -762,19 +762,11 @@ static inline enum zone_type page_zonenum(const struct page *page)
+ }
  
--	/* cannot split, skip it */
--	if (PageTransHuge(page) && !can_split_huge_page(page, NULL))
--		return 0;
-+	if (PageTransHuge(page)) {
-+		/* cannot split, skip it */
-+		if (!can_split_huge_page(page, NULL))
-+			return 0;
-+		/*
-+		 * Split pages without a PMD map right away. Chances
-+		 * are some or all of the tail pages can be freed
-+		 * without IO.
-+		 */
-+		if (!compound_mapcount(page) &&
-+		    split_huge_page_to_list(page, list))
-+			return 0;
+ #ifdef CONFIG_ZONE_DEVICE
+-void get_zone_device_page(struct page *page);
+-void put_zone_device_page(struct page *page);
+ static inline bool is_zone_device_page(const struct page *page)
+ {
+ 	return page_zonenum(page) == ZONE_DEVICE;
+ }
+ #else
+-static inline void get_zone_device_page(struct page *page)
+-{
+-}
+-static inline void put_zone_device_page(struct page *page)
+-{
+-}
+ static inline bool is_zone_device_page(const struct page *page)
+ {
+ 	return false;
+@@ -790,9 +782,6 @@ static inline void get_page(struct page *page)
+ 	 */
+ 	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
+ 	page_ref_inc(page);
+-
+-	if (unlikely(is_zone_device_page(page)))
+-		get_zone_device_page(page);
+ }
+ 
+ static inline void put_page(struct page *page)
+@@ -801,9 +790,6 @@ static inline void put_page(struct page *page)
+ 
+ 	if (put_page_testzero(page))
+ 		__put_page(page);
+-
+-	if (unlikely(is_zone_device_page(page)))
+-		put_zone_device_page(page);
+ }
+ 
+ #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 07e85e5229da..e542bb2f7ab0 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -182,18 +182,6 @@ struct page_map {
+ 	struct vmem_altmap altmap;
+ };
+ 
+-void get_zone_device_page(struct page *page)
+-{
+-	percpu_ref_get(page->pgmap->ref);
+-}
+-EXPORT_SYMBOL(get_zone_device_page);
+-
+-void put_zone_device_page(struct page *page)
+-{
+-	put_dev_pagemap(page->pgmap);
+-}
+-EXPORT_SYMBOL(put_zone_device_page);
+-
+ static void pgmap_radix_release(struct resource *res)
+ {
+ 	resource_size_t key, align_start, align_size, align_end;
+@@ -237,12 +225,21 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+ 	struct resource *res = &page_map->res;
+ 	resource_size_t align_start, align_size;
+ 	struct dev_pagemap *pgmap = &page_map->pgmap;
++	unsigned long pfn;
+ 
+ 	if (percpu_ref_tryget_live(pgmap->ref)) {
+ 		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
+ 		percpu_ref_put(pgmap->ref);
+ 	}
+ 
++	for_each_device_pfn(pfn, page_map) {
++		struct page *page = pfn_to_page(pfn);
++
++		dev_WARN_ONCE(dev, page_count(page) != 1,
++				"%s: unexpected page count: %d!\n",
++				__func__, page_count(page));
 +	}
- 
- retry:
- 	entry = get_swap_page(page);
++
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
 -- 
-2.11.0
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
