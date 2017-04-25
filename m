@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B83C6B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:02:34 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p81so23435671pfd.12
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 00:02:34 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id j61si14346841plb.85.2017.04.25.00.02.32
-        for <linux-mm@kvack.org>;
-        Tue, 25 Apr 2017 00:02:32 -0700 (PDT)
-Date: Tue, 25 Apr 2017 15:59:43 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
-Message-ID: <20170425065943.GL21430@X58A-UD3R>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
- <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
- <20170419171954.tqp5tkxlsg4jp2xz@hirez.programming.kicks-ass.net>
- <20170424030412.GG21430@X58A-UD3R>
- <20170424093051.imizyhpifqf4t6bc@hirez.programming.kicks-ass.net>
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD9E86B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:08:47 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id j29so46328423qtj.19
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 00:08:47 -0700 (PDT)
+Received: from edison.jonmasters.org (edison.jonmasters.org. [173.255.233.168])
+        by mx.google.com with ESMTPS id e126si21051469qkb.62.2017.04.25.00.08.47
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Apr 2017 00:08:47 -0700 (PDT)
+References: <20170422033037.3028-1-jglisse@redhat.com>
+ <20170422033037.3028-4-jglisse@redhat.com>
+ <CAPcyv4jq0+FptsqUY14PA7WfgjYOt-kA5r084c8vvmkAU8WqaQ@mail.gmail.com>
+ <20170422181151.GA2360@redhat.com>
+ <CAPcyv4jr=CNuaGQt80SwR5dpiXy_pDr8aD-w0EtLNE4oGC8WcQ@mail.gmail.com>
+ <f88de491-1cd2-75e1-4304-dc11c96b5d2a@nvidia.com>
+From: Jon Masters <jcm@jonmasters.org>
+Message-ID: <b94c74b6-14a1-a537-ada2-ee98bdafb255@jonmasters.org>
+Date: Tue, 25 Apr 2017 03:08:43 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170424093051.imizyhpifqf4t6bc@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <f88de491-1cd2-75e1-4304-dc11c96b5d2a@nvidia.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Subject: Re: [HMM 03/15] mm/unaddressable-memory: new type of ZONE_DEVICE for
+ unaddressable memory
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Nellans <dnellans@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon, Apr 24, 2017 at 11:30:51AM +0200, Peter Zijlstra wrote:
-> +static void add_xhlock(struct held_lock *hlock)
-> +{
-> +       unsigned int idx = current->xhlock_idx++;
-> +       struct hist_lock *xhlock = &xhlock(idx);
-> 
-> Yes, I misread that. Then '0' has the oldest entry, which is slightly
-> weird. Should we change that?
+On 04/23/2017 08:39 PM, John Hubbard wrote:
 
-I will just follow your decision. Do you think I should change it so
-that 'xhlock_idx' points to newest one, or ok to keep it unchanged?
+> Actually, MEMORY_DEVICE_PRIVATE / _PUBLIC seems like a good choice to 
+> me, because the memory may not remain CPU-unaddressable in the future. 
+> By that, I mean that I know of at least one company (ours) that is 
+> working on products that will support hardware-based memory coherence 
+> (and access counters to go along with that). If someone were to enable 
+> HMM on such a system, then the device memory would be, in fact, directly 
+> addressable by a CPU--thus exactly contradicting the "unaddressable" name.
 
-> 
-> 
-> > > > +
-> > > > +		if (!xhlock_used(xhlock))
-> > > > +			break;
-> > > > +
-> > > > +		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
-> > > > +			break;
-> > > > +
-> > > > +		if (same_context_xhlock(xhlock) &&
-> > > > +		    !commit_xhlock(xlock, xhlock))
-> > > 
-> > > return with graph_lock held?
-> > 
-> > No. When commit_xhlock() returns 0, the lock was already unlocked.
-> 
-> Please add a comment, because I completely missed that. That's at least
-> 2 functions deeper.
+I'm expecting similar with CCIX-like coherently attached accelerators
+running within FPGAs and as discrete devices as well. Everyone and their
+dog is working on hardware based coherence as a programming convenience
+and so the notion of ZONE_DEVICE as it stood is going to rapidly evolve
+over the next 18 months, maybe less. Short term anyway.
 
-Yes, I will add a comment.
-
-Thank you.
+Jon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
