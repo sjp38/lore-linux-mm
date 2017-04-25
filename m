@@ -1,63 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5500A6B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:25:19 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id q71so19532417qkl.2
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 00:25:19 -0700 (PDT)
-Received: from edison.jonmasters.org (edison.jonmasters.org. [173.255.233.168])
-        by mx.google.com with ESMTPS id i135si12898150qka.57.2017.04.25.00.25.18
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 04F076B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:01:00 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 72so26889307pge.10
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 01:00:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s74si21434595pfs.386.2017.04.25.01.00.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Apr 2017 00:25:18 -0700 (PDT)
-References: <030ea57b-5f6c-13d8-02f7-b245a754a87d@physik.fu-berlin.de>
- <20170424161959.c5ba2nhnxyy57wxe@node.shutemov.name>
- <fdc80e3c-6909-cf39-fe0b-6f1c012571e4@physik.fu-berlin.de>
- <20170424.180948.1311847745777709716.davem@davemloft.net>
-From: Jon Masters <jcm@jonmasters.org>
-Message-ID: <eb59ccee-f479-ef42-ebf5-f2fde2776709@jonmasters.org>
-Date: Tue, 25 Apr 2017 03:25:09 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Apr 2017 01:00:58 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3P7wxYt144678
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:00:58 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a22cdrkq2-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 04:00:57 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 25 Apr 2017 09:00:55 +0100
+Date: Tue, 25 Apr 2017 11:00:48 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: Review request: draft ioctl_userfaultfd(2) manual page
+References: <487b2c79-f99b-6d0f-2412-aa75cde65569@gmail.com>
+ <9af29fc6-dce2-f729-0f07-a0bfcc6c3587@gmail.com>
+ <20170322135423.GB27789@rapoport-lnx>
+ <e8c5ca4a-0710-7206-b96e-10d171bda218@gmail.com>
+ <20170421110714.GC20569@rapoport-lnx>
+ <4c05c2bb-af77-d706-9455-8ceaa5510580@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170424.180948.1311847745777709716.davem@davemloft.net>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Subject: Re: Question on the five-level page table support patches
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4c05c2bb-af77-d706-9455-8ceaa5510580@gmail.com>
+Message-Id: <20170425080047.GA16770@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, glaubitz@physik.fu-berlin.de
-Cc: kirill@shutemov.name, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, ak@linux.intel.com, dave.hansen@intel.com, luto@amacapital.net, mhocko@suse.com, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-man <linux-man@vger.kernel.org>
 
-On 04/24/2017 06:09 PM, David Miller wrote:
-> From: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
-> Date: Mon, 24 Apr 2017 22:37:40 +0200
+Hello Michael,
+
+On Fri, Apr 21, 2017 at 01:41:18PM +0200, Michael Kerrisk (man-pages) wrote:
+> Hi Mike,
 > 
->> Would be really nice to able to have a canonical solution for this issue,
->> it's been biting us on SPARC for quite a while now due to the fact that
->> virtual address space has been 52 bits on SPARC for a while now.
+
+[...]
+
+> > 
+> > Yes.
+> > Just the future is only a week or two from today as we are at 4.11-rc7 :)
 > 
-> It's going to break again with things like ADI which encode protection
-> keys in the high bits of the 64-bit virtual address.
-> 
-> Reallly, it would be nice if these tags were instead encoded in the
-> low bits of suitably aligned memory allocations but I am sure it's to
-> late to do that now.
+> Yes, I understand :-). So of course there's a *lot* more
+> new stuff to document, right?
 
-I'm curious (and hey, ARM has 52-bit VAs coming[0] that was added in
-ARMv8.2). Does anyone really think pointer tagging is a good idea for a
-new architecture being created going forward? This could be archived
-somewhere so that the folks in Berkeley and elsewhere have an answer.
+I've started to add the description of the new functionality to both
+userfaultfd.2 and ioctl_userfaultfd.2 and it's somewhat difficult for me to
+decide how it would be better to split the information between these two
+pages and what should be the pages internal structure.
 
-As an aside, one of the reasons I've been tracking these Intel patches
-personally is to figure out the best way to play out the ARMv8 story.
-There isn't the same legacy of precompiled code out there (and the
-things that broke and were fixed when moving from 42-bit to 48-bit VA
-are already accounting for a later switch to 52-bit). I do find it
-amusing that I proposed a solution similar Kirill's a year or so back to
-some other folks elsewhere with a similar set of goals in mind.
+I even thought about possibility of adding relatively comprehensive
+description of userfaultfd as man7/userfaultfd.7 and then keeping the pages
+in man2 relatively small, just with brief description of APIs and SEE ALSO
+pointing to man7.
 
-Jon.
+Any advise is highly appreciated.
+ 
+> [...]
 
-[0] Requires 64K pages on ARMv8. It's one of the previously unmentioned
-reasons why RHEL for ARM was built with 64K granule size ;)
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
