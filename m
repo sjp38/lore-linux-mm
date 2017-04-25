@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3126B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 01:41:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id m89so22885584pfi.14
-        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 22:41:58 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id r83si21054972pfj.27.2017.04.24.22.41.56
-        for <linux-mm@kvack.org>;
-        Mon, 24 Apr 2017 22:41:57 -0700 (PDT)
-Date: Tue, 25 Apr 2017 14:40:44 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
-Message-ID: <20170425054044.GK21430@X58A-UD3R>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
- <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
- <20170419142503.rqsrgjlc7ump7ijb@hirez.programming.kicks-ass.net>
- <20170424051102.GJ21430@X58A-UD3R>
- <20170424101747.iirvjjoq66x25w7n@hirez.programming.kicks-ass.net>
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9836F6B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 02:33:08 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id p187so19323810qkd.11
+        for <linux-mm@kvack.org>; Mon, 24 Apr 2017 23:33:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m8si20982494qtf.56.2017.04.24.23.33.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Apr 2017 23:33:07 -0700 (PDT)
+Date: Tue, 25 Apr 2017 08:33:03 +0200
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+Message-ID: <20170425063245.GA8208@redhat.com>
+References: <20170309180540.GA8678@cmpxchg.org>
+ <20170310102010.GD3753@dhcp22.suse.cz>
+ <201703102044.DBJ04626.FLVMFOQOJtOFHS@I-love.SAKURA.ne.jp>
+ <201704231924.GDF05718.LQSMtJOOFOFHFV@I-love.SAKURA.ne.jp>
+ <20170424123936.GA6152@redhat.com>
+ <201704242206.IEF52621.HFJLFFtOSVOQMO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20170424101747.iirvjjoq66x25w7n@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <201704242206.IEF52621.HFJLFFtOSVOQMO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com
 
-On Mon, Apr 24, 2017 at 12:17:47PM +0200, Peter Zijlstra wrote:
-> On Mon, Apr 24, 2017 at 02:11:02PM +0900, Byungchul Park wrote:
-> > On Wed, Apr 19, 2017 at 04:25:03PM +0200, Peter Zijlstra wrote:
-> 
-> > > I still don't like work_id; it doesn't have anything to do with
-> > > workqueues per se, other than the fact that they end up using it.
+On Mon, Apr 24, 2017 at 10:06:32PM +0900, Tetsuo Handa wrote:
+> Stanislaw Gruszka wrote:
+> > On Sun, Apr 23, 2017 at 07:24:21PM +0900, Tetsuo Handa wrote:
+> > > On 2017/03/10 20:44, Tetsuo Handa wrote:
+> > > > Michal Hocko wrote:
+> > > >> I am definitely not against. There is no reason to rush the patch in.
+> > > > 
+> > > > I don't hurry if we can check using watchdog whether this problem is occurring
+> > > > in the real world. I have to test corner cases because watchdog is missing.
+> > > > 
+> > > Ping?
 > > > 
-> > > It's a history generation id; touching it completely invalidates our
-> > > history. Workqueues need this because they run independent work from the
-> > > same context.
+> > > This problem can occur even immediately after the first invocation of
+> > > the OOM killer. I believe this problem can occur in the real world.
+> > > When are we going to apply this patch or watchdog patch?
 > > > 
-> > > But the same is true for other sites. Last time I suggested
-> > > lockdep_assert_empty() to denote all suck places (and note we already
-> > > have lockdep_sys_exit() that hooks into the return to user path).
+> > > ----------------------------------------
+> > > [    0.000000] Linux version 4.11.0-rc7-next-20170421+ (root@ccsecurity) (gcc version 4.8.5 20150623 (Red Hat 4.8.5-11) (GCC) ) #588 SMP Sun Apr 23 17:38:02 JST 2017
+> > > [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-4.11.0-rc7-next-20170421+ root=UUID=17c3c28f-a70a-4666-95fa-ecf6acd901e4 ro vconsole.keymap=jp106 crashkernel=256M vconsole.font=latarcyrheb-sun16 security=none sysrq_always_enabled console=ttyS0,115200n8 console=tty0 LANG=en_US.UTF-8 debug_guardpage_minorder=1
 > > 
-> > I'm sorry but I don't understand what you intend. It would be appriciated
-> > if you explain more.
-> > 
-> > You might know why I introduced the 'work_id'.. Is there any alternative?
+> > Are you debugging memory corruption problem?
 > 
-> My complaint is mostly about naming.. and "hist_gen_id" might be a
-> better name.
+> No. Just a random testing trying to find how we can avoid flooding of
+> warn_alloc_stall() warning messages while also avoiding ratelimiting.
 
-Ah, I also think the name, 'work_id', is not good... and frankly I am
-not sure if 'hist_gen_id' is good, either. What about to apply 'rollback',
-which I did for locks in irq, into works of workqueues? If you say yes,
-I will try to do it.
+This is not right way to stress mm subsystem, debug_guardpage_minorder= 
+option is for _debug_ purpose. Use mem= instead if you want to limit
+available memory.
 
-> But let me explain.
+> > FWIW, if you use debug_guardpage_minorder= you can expect any
+> > allocation memory problems. This option is intended to debug
+> > memory corruption bugs and it shrinks available memory in 
+> > artificial way. Taking that, I don't think justifying any
+> > patch, by problem happened when debug_guardpage_minorder= is 
+> > used, is reasonable.
+> >  
+> > Stanislaw
 > 
-> 
-> The reason workqueues need this is because the lock history for each
-> 'work' are independent. The locks of Work-B do not depend on the locks
-> of the preceding Work-A, because the completion of Work-B is not
-> dependent on those locks.
-> 
-> But this is true for many things; pretty much all kthreads fall in this
-> pattern, where they have an 'idle' state and future completions do not
-> depend on past completions. Its just that since they all have the 'same'
-> form -- the kthread does the same over and over -- it doesn't matter
-> much.
-> 
-> The same is true for system-calls, once a system call is complete (we've
-> returned to userspace) the next system call does not depend on the lock
-> history of the previous one.
+> This problem occurs without debug_guardpage_minorder= parameter and
 
-Yes. I agree. As you said, actually two independent job e.g. syscalls,
-works.. should not depend on each other.
+So please justify your patches by that.
 
-Frankly speaking, nevertheless, if they depend on each other, then I
-think it would be better to detect the cases, too. But for now, since
-it's more important to avoid false positive detections, I will do it as
-conservatively as possible, as my current implementation.
-
-And thank you for additional explanation!
+Thanks
+Stanislaw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
