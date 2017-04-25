@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 41CD06B02F2
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:01:25 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id k77so106242661oih.11
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 12:01:25 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id 126si13212114oig.267.2017.04.25.12.01.23
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 86AC06B0038
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 15:29:11 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id i18so51004826qte.1
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 12:29:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m65si23115115qkb.227.2017.04.25.12.29.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 12:01:23 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id y11so151100050oie.0
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 12:01:23 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170425185333.3ecz46gn5ufy4bwi@gmail.com>
-References: <20170425092557.21852-1-kirill.shutemov@linux.intel.com>
- <CAPcyv4j6woeE7QfTVXEohh-kCbcFFJQmciMmgf5RDDWntM+P5w@mail.gmail.com> <20170425185333.3ecz46gn5ufy4bwi@gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 25 Apr 2017 12:01:22 -0700
-Message-ID: <CAPcyv4gxbD2CNEfwacO=c1P9qJnRX3mo3=07HzV45Lpqem-=ag@mail.gmail.com>
-Subject: Re: [PATCH] x86/mm/64: Fix crash in remove_pagetable()
-Content-Type: text/plain; charset=UTF-8
+        Tue, 25 Apr 2017 12:29:10 -0700 (PDT)
+Message-ID: <1493148546.31102.1.camel@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and
+ vmstat_worker configuration
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 25 Apr 2017 15:29:06 -0400
+In-Reply-To: <20170425135846.203663532@redhat.com>
+References: <20170425135717.375295031@redhat.com>
+	 <20170425135846.203663532@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Marcelo Tosatti <mtosatti@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>
 
-On Tue, Apr 25, 2017 at 11:53 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Dan Williams <dan.j.williams@intel.com> wrote:
->
->> On Tue, Apr 25, 2017 at 2:25 AM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->> > remove_pagetable() does page walk using p*d_page_vaddr() plus cast.
->> > It's not canonical approach -- we usually use p*d_offset() for that.
->> >
->> > It works fine as long as all page table levels are present. We broke the
->> > invariant by introducing folded p4d page table level.
->> >
->> > As result, remove_pagetable() interprets PMD as PUD and it leads to
->> > crash:
->> >
->> >         BUG: unable to handle kernel paging request at ffff880300000000
->> >         IP: memchr_inv+0x60/0x110
->> >         PGD 317d067
->> >         P4D 317d067
->> >         PUD 3180067
->> >         PMD 33f102067
->> >         PTE 8000000300000060
->> >
->> > Let's fix this by using p*d_offset() instead of p*d_page_vaddr() for
->> > page walk.
->> >
->> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> > Reported-by: Dan Williams <dan.j.williams@intel.com>
->> > Fixes: f2a6a7050109 ("x86: Convert the rest of the code to support p4d_t")
->>
->> Thanks! This patch on top of tip/master passes a full run of the
->> nvdimm regression suite.
->>
->> Tested-by: Dan Williams <dan.j.williams@intel.com>
->
-> Does a re-application of:
->
->   "x86/mm/gup: Switch GUP to the generic get_user_page_fast() implementation"
->
-> still work (which you can achive via 'git revert 6dd29b3df975'), or is that
-> another breakage?
+On Tue, 2017-04-25 at 10:57 -0300, Marcelo Tosatti wrote:
+> The per-CPU vmstat worker is a problem on -RT workloads (because
+> ideally the CPU is entirely reserved for the -RT app, without
+> interference). The worker transfers accumulated per-CPUA 
+> vmstat counters to global counters.
+> 
+> To resolve the problem, create two tunables:
+> 
+> * Userspace configurable per-CPU vmstat threshold: by default theA 
+> VM code calculates the size of the per-CPU vmstat arrays. ThisA 
+> tunable allows userspace to configure the values.
+> 
+> * Userspace configurable per-CPU vmstat worker: allow disabling
+> the per-CPU vmstat worker.
+> 
+> The patch below contains documentation which describes the tunables
+> in more detail.
 
-That's another breakage. We're discussing how to resolve it in this thread:
+The documentation says what the tunables do, but
+not how you should set them in different scenarios,
+or why.
 
-    http://www.spinics.net/lists/linux-mm/msg126056.html
+That could be a little more helpful to sysadmins.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
