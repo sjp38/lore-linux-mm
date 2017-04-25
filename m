@@ -1,115 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B85196B02E1
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 06:35:20 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id i18so47432118qte.1
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:35:20 -0700 (PDT)
-Received: from mail-qt0-f179.google.com (mail-qt0-f179.google.com. [209.85.216.179])
-        by mx.google.com with ESMTPS id a48si21564387qte.93.2017.04.25.03.35.17
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 799F66B02E1
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2017 06:59:33 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id z129so6549059wmb.23
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:59:33 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id r20si29645757wra.91.2017.04.25.03.59.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 03:35:19 -0700 (PDT)
-Received: by mail-qt0-f179.google.com with SMTP id c45so135578176qtb.1
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:35:17 -0700 (PDT)
-Message-ID: <1493116513.2758.1.camel@redhat.com>
-Subject: Re: [PATCH v3 10/20] fuse: set mapping error in writepage_locked
- when it fails
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 25 Apr 2017 06:35:13 -0400
-In-Reply-To: <20170425081720.GA2793@quack2.suse.cz>
-References: <20170424132259.8680-1-jlayton@redhat.com>
-	 <20170424132259.8680-11-jlayton@redhat.com>
-	 <20170424160431.GK23988@quack2.suse.cz>
-	 <1493054076.2895.17.camel@redhat.com>
-	 <20170425081720.GA2793@quack2.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Apr 2017 03:59:31 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id d79so24085829wmi.2
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 03:59:31 -0700 (PDT)
+MIME-Version: 1.0
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <20170425080047.GA16770@rapoport-lnx>
+References: <487b2c79-f99b-6d0f-2412-aa75cde65569@gmail.com>
+ <9af29fc6-dce2-f729-0f07-a0bfcc6c3587@gmail.com> <20170322135423.GB27789@rapoport-lnx>
+ <e8c5ca4a-0710-7206-b96e-10d171bda218@gmail.com> <20170421110714.GC20569@rapoport-lnx>
+ <4c05c2bb-af77-d706-9455-8ceaa5510580@gmail.com> <20170425080047.GA16770@rapoport-lnx>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Tue, 25 Apr 2017 12:59:11 +0200
+Message-ID: <CAKgNAkjWPgBtSay0B9V8dD1cEax=0Yk+vZjRrGyfgB-BgQpbvQ@mail.gmail.com>
+Subject: Re: Review request: draft ioctl_userfaultfd(2) manual page
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, osd-dev@open-osd.org, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-man <linux-man@vger.kernel.org>
 
-On Tue, 2017-04-25 at 10:17 +0200, Jan Kara wrote:
-> On Mon 24-04-17 13:14:36, Jeff Layton wrote:
-> > On Mon, 2017-04-24 at 18:04 +0200, Jan Kara wrote:
-> > > On Mon 24-04-17 09:22:49, Jeff Layton wrote:
-> > > > This ensures that we see errors on fsync when writeback fails.
-> > > > 
-> > > > Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> > > 
-> > > Hum, but do we really want to clobber mapping errors with temporary stuff
-> > > like ENOMEM? Or do you want to handle that in mapping_set_error?
-> > > 
-> > 
-> > Right now we don't really have such a thing as temporary errors in the
-> > writeback codepath. If you return an error here, the data doesn't stay
-> > dirty or anything, and I think we want to ensure that that gets reported
-> > via fsync.
-> > 
-> > I'd like to see us add better handling for retryable errors for stuff
-> > like ENOMEM or EAGAIN. I think this is the first step toward that
-> > though. Once we have more consistent handling of writeback errors in
-> > general, then we can start doing more interesting things with retryable
-> > errors.
-> > 
-> > So yeah, I this is the right thing to do for now.
-> 
-> OK, fair enough. And question number 2):
-> 
-> Who is actually responsible for setting the error in the mapping when error
-> happens inside ->writepage()? Is it the ->writepage() callback or the
-> caller of ->writepage()? Or something else? Currently it seems to be a
-> strange mix (e.g. mm/page-writeback.c: __writepage() calls
-> mapping_set_error() when ->writepage() returns error) so I'd like to
-> understand what's the plan and have that recorded in the changelogs.
-> 
+Hi Mike,
 
-That's an excellent question.
+On 25 April 2017 at 10:00, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> Hello Michael,
+>
+> On Fri, Apr 21, 2017 at 01:41:18PM +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Mike,
+>>
+>
+> [...]
+>
+>> >
+>> > Yes.
+>> > Just the future is only a week or two from today as we are at 4.11-rc7 :)
+>>
+>> Yes, I understand :-). So of course there's a *lot* more
+>> new stuff to document, right?
+>
+> I've started to add the description of the new functionality to both
+> userfaultfd.2 and ioctl_userfaultfd.2
 
-I think we probably want the writepage/launder_page operations to call
-mapping_set_error. That makes it possible for filesystems (e.g. NFS) to
-handle their own error tracking and reporting without using the new
-infrastructure. If they never call mapping_set_error then we'll always
-just return whatever their ->fsync operation returns on an fsync.
+Thanks for doing this!
 
-I'll make another pass through the tree and see whether we have some
-mapping_set_error calls that should be removed, and will flesh out
-vfs.txt to state this. Maybe that file needs a whole section on
-writeback error reporting? Hmmm...
+> and it's somewhat difficult for me to
+> decide how it would be better to split the information between these two
+> pages and what should be the pages internal structure.
+>
+> I even thought about possibility of adding relatively comprehensive
+> description of userfaultfd as man7/userfaultfd.7 and then keeping the pages
+> in man2 relatively small, just with brief description of APIs and SEE ALSO
+> pointing to man7.
+>
+> Any advise is highly appreciated.
 
-That probably also means that I should drop patch 8 from this series
-(mm: ensure that we set mapping error if writeout fails), since that
-should be happening in writepage already.
+I'm not averse to the notion of a userfaultfd.7 page, but it's a
+little hard to advise because I'm not sure of the size and scope of
+your planned changes.
 
-> > 
-> > > 
-> > > > ---
-> > > >  fs/fuse/file.c | 1 +
-> > > >  1 file changed, 1 insertion(+)
-> > > > 
-> > > > diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> > > > index ec238fb5a584..07d0efcb050c 100644
-> > > > --- a/fs/fuse/file.c
-> > > > +++ b/fs/fuse/file.c
-> > > > @@ -1669,6 +1669,7 @@ static int fuse_writepage_locked(struct page *page)
-> > > >  err_free:
-> > > >  	fuse_request_free(req);
-> > > >  err:
-> > > > +	mapping_set_error(page->mapping, error);
-> > > >  	end_page_writeback(page);
-> > > >  	return error;
-> > > >  }
-> > > > -- 
-> > > > 2.9.3
-> > > > 
-> > > > 
-> > 
-> > -- 
-> > Jeff Layton <jlayton@redhat.com>
+In the meantime, I've merged the userfaultfd pages into master,
+dropped the "draft" branch, and pushed the updates in master to Git.
 
--- 
-Jeff Layton <jlayton@redhat.com>
+Can you write your changes as a series of patches, and perhaps first
+give a brief oultine of the proposed changes before getting too far
+into the work? Then we could tweak the direction if needed.
+
+Cheers,
+
+Michael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
