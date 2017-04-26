@@ -1,145 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 001CF6B02F2
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 16:13:46 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p2so6468041pge.7
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 13:13:45 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 2si319266pla.216.2017.04.26.13.13.44
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 057536B02E1
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 18:30:51 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b17so9287461pfd.1
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 15:30:50 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id w5si624986pls.148.2017.04.26.15.30.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Apr 2017 13:13:44 -0700 (PDT)
-Message-ID: <1493237623.3209.142.camel@linux.intel.com>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Wed, 26 Apr 2017 13:13:43 -0700
-In-Reply-To: <87y3un2vdp.fsf@yhuang-dev.intel.com>
-References: <20170407064901.25398-1-ying.huang@intel.com>
-	 <20170418045909.GA11015@bbox> <87y3uwrez0.fsf@yhuang-dev.intel.com>
-	 <20170420063834.GB3720@bbox> <874lxjim7m.fsf@yhuang-dev.intel.com>
-	 <87tw5idjv9.fsf@yhuang-dev.intel.com> <20170424045213.GA11287@bbox>
-	 <87y3un2vdp.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 26 Apr 2017 15:30:50 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id c198so3257221pfc.0
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 15:30:49 -0700 (PDT)
+Date: Wed, 26 Apr 2017 15:30:47 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH 00/14] cgroup: Implement cgroup v2 thread mode & CPU
+ controller
+Message-ID: <20170426223047.GA11348@wtj.duckdns.org>
+References: <1492783452-12267-1-git-send-email-longman@redhat.com>
+ <fa35c889-85a8-8b85-c836-4c5070cd7cdc@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fa35c889-85a8-8b85-c836-4c5070cd7cdc@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
+Hello, Waiman.
 
+On Wed, Apr 26, 2017 at 12:05:27PM -0400, Waiman Long wrote:
+> Does anyone has time to take a look at these patches?
 > 
-> From 7bd903c42749c448ef6acbbdee8dcbc1c5b498b9 Mon Sep 17 00:00:00 2001
-> From: Huang Ying <ying.huang@intel.com>
-> Date: Thu, 23 Feb 2017 13:05:20 +0800
-> Subject: [PATCH -v5] mm, swap: Sort swap entries before free
-> 
->A 
-> ---
-> A mm/swapfile.c | 43 ++++++++++++++++++++++++++++++++++++++-----
-> A 1 file changed, 38 insertions(+), 5 deletions(-)
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 71890061f653..10e75f9e8ac1 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -37,6 +37,7 @@
-> A #include <linux/swapfile.h>
-> A #include <linux/export.h>
-> A #include <linux/swap_slots.h>
-> +#include <linux/sort.h>
-> A 
-> A #include <asm/pgtable.h>
-> A #include <asm/tlbflush.h>
-> @@ -1065,20 +1066,52 @@ void swapcache_free(swp_entry_t entry)
-> A 	}
-> A }
-> A 
-> +static int swp_entry_cmp(const void *ent1, const void *ent2)
-> +{
-> +	const swp_entry_t *e1 = ent1, *e2 = ent2;
-> +
-> +	return (int)(swp_type(*e1) - swp_type(*e2));
-> +}
-> +
-> A void swapcache_free_entries(swp_entry_t *entries, int n)
-> A {
-> A 	struct swap_info_struct *p, *prev;
-> -	int i;
-> +	int i, m;
-> +	swp_entry_t entry;
-> +	unsigned int prev_swp_type;
+> As the merge window is going to open up next week, I am not going to
+> bother you guys when the merge window opens.
 
-I think it will be clearer to name prev_swp_type as first_swp_type
-as this is the swp type of the first entry.
-
-> A 
-> A 	if (n <= 0)
-> A 		return;
-> A 
-> A 	prev = NULL;
-> A 	p = NULL;
-> -	for (i = 0; i < n; ++i) {
-> -		p = swap_info_get_cont(entries[i], prev);
-> -		if (p)
-> -			swap_entry_free(p, entries[i]);
-> +	m = 0;
-> +	prev_swp_type = swp_type(entries[0]);
-> +	for (i = 0; i < n; i++) {
-> +		entry = entries[i];
-> +		if (likely(swp_type(entry) == prev_swp_type)) {
-> +			p = swap_info_get_cont(entry, prev);
-> +			if (likely(p))
-> +				swap_entry_free(p, entry);
-> +			prev = p;
-> +		} else if (!m)
-> +			m = i;
-> +	}
-> +	if (p)
-> +		spin_unlock(&p->lock);
-> +	if (likely(!m))
-> +		return;
-> +
-
-We could still have prev_swp_type at the first entry after sorting.
-and we can avoid an unlock/relock for this case if we do this:
-
-	if (likely(!m)) {
-		if (p)
-			spin_unlock(&p->lock);
-		return;
-	}
-		
-> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> +	sort(entries + m, n - m, sizeof(entries[0]), swp_entry_cmp, NULL);
-> +	prev = NULL;
-
-Can eliminate prev=NULL if we adopt the above change.
-
-> +	for (i = m; i < n; i++) {
-> +		entry = entries[i];
-> +		if (swp_type(entry) == prev_swp_type)
-> +			continue;
-
-The if/continue statement seems incorrect. When swp_type(entry) == prev_swp_type
-we also need to free entry. A The if/continue statement should be deleted.
-
-Say we have 3 entries with swp_type
-1,2,1
-
-We will get prev_swp_type as 1 and free the first entry
-and sort the remaining two. A The last entry with
-swp_type 1 will not be freed.
-
-> +		p = swap_info_get_cont(entry, prev);
-> +		if (likely(p))
-> +			swap_entry_free(p, entry);
-> A 		prev = p;
-> A 	}
-> A 	if (p)
+Will get to it next week.  Sorry about the delay.  We're deploying
+cgroup2 across the fleet and seeing a lot of interesting issues and I
+was chasing down CPU controller performance issues for the last month
+or so, which is now getting wrapped up.
 
 Thanks.
 
-Tim
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
