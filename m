@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F29E6B02F2
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 14:00:23 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t7so4395630pgt.6
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 11:00:23 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id o64si1177187pga.16.2017.04.26.11.00.22
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 487BE831F4
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 14:05:41 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p81so3983165pfd.12
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 11:05:41 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id d19si1168491pgk.8.2017.04.26.11.05.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Apr 2017 11:00:22 -0700 (PDT)
-Date: Wed, 26 Apr 2017 12:00:21 -0600
+        Wed, 26 Apr 2017 11:05:40 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 2/2] dax: add regression test for stale mmap reads
-Message-ID: <20170426180021.GB15921@linux.intel.com>
-References: <20170425205106.20576-1-ross.zwisler@linux.intel.com>
- <20170425205106.20576-2-ross.zwisler@linux.intel.com>
- <20170426090907.q5jj3ywsvldsbq7n@XZHOUW.usersys.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170426090907.q5jj3ywsvldsbq7n@XZHOUW.usersys.redhat.com>
+Subject: [PATCH v3 1/2] xfs: fix incorrect argument count check
+Date: Wed, 26 Apr 2017 12:05:30 -0600
+Message-Id: <20170426180531.26291-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiong Zhou <xzhou@redhat.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, fstests@vger.kernel.org, jmoyer@redhat.com, eguan@redhat.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>
+To: fstests@vger.kernel.org, Xiong Zhou <xzhou@redhat.com>, jmoyer@redhat.com, eguan@redhat.com
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Apr 26, 2017 at 05:09:07PM +0800, Xiong Zhou wrote:
-> On Tue, Apr 25, 2017 at 02:51:06PM -0600, Ross Zwisler wrote:
-<>
-> > +	/*
-> > +	 * Try and use the mmap to read back the data we just wrote with
-> > +	 * pwrite().  If the kernel bug is present the mapping from the 2MiB
-> > +	 * zero page will still be intact, and we'll read back zeros instead.
-> > +	 */
-> > +	if (strncmp(buffer, data, strlen(buffer))) {
-> > +		fprintf(stderr, "strncmp mismatch: '%s' vs '%s'\n", buffer,
-> > +				data);
-> 		munmap
-> 		close(fd);
-> > +		exit(1);
-> > +	}
-> > +
-> 	munmap
+t_mmap_dio.c actually requires 4 arguments, not 3 as the current check
+enforces:
 
-Yep, thanks, fixed in v3.
+	# ./src/t_mmap_dio
+	usage: t_mmap_dio <src file> <dest file> <size> <msg>
+	# ./src/t_mmap_dio  one two three
+	open src(No such file or directory) len 0 (null)
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Fixes: 456581661b4d ("xfs: test per-inode DAX flag by IO")
+---
+ src/t_mmap_dio.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/t_mmap_dio.c b/src/t_mmap_dio.c
+index 69b9ca8..6c8ca1a 100644
+--- a/src/t_mmap_dio.c
++++ b/src/t_mmap_dio.c
+@@ -39,7 +39,7 @@ int main(int argc, char **argv)
+ 	char *dfile;
+ 	unsigned long len, opt;
+ 
+-	if (argc < 4)
++	if (argc < 5)
+ 		usage(basename(argv[0]));
+ 
+ 	while ((opt = getopt(argc, argv, "b")) != -1)
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
