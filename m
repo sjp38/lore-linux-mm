@@ -1,243 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C185831F4
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 14:05:42 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b23so3940385pfc.22
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 11:05:42 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id d19si1168491pgk.8.2017.04.26.11.05.40
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 618DC6B02E1
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 16:11:31 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id d79so1043423wma.0
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 13:11:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g17si7891259wmc.157.2017.04.26.13.11.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Apr 2017 11:05:40 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v3 2/2] dax: add regression test for stale mmap reads
-Date: Wed, 26 Apr 2017 12:05:31 -0600
-Message-Id: <20170426180531.26291-2-ross.zwisler@linux.intel.com>
-In-Reply-To: <20170426180531.26291-1-ross.zwisler@linux.intel.com>
-References: <20170426180531.26291-1-ross.zwisler@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 26 Apr 2017 13:11:29 -0700 (PDT)
+Date: Wed, 26 Apr 2017 22:11:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
+Message-ID: <20170426201126.GA32407@dhcp22.suse.cz>
+References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
+ <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
+ <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: fstests@vger.kernel.org, Xiong Zhou <xzhou@redhat.com>, jmoyer@redhat.com, eguan@redhat.com
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-This adds a regression test for the following kernel patch:
+On Fri 03-03-17 15:32:47, Andrew Morton wrote:
+> On Thu,  2 Mar 2017 00:33:45 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+> 
+> > Allow hash tables to scale with memory but at slower pace, when HASH_ADAPT
+> > is provided every time memory quadruples the sizes of hash tables will only
+> > double instead of quadrupling as well. This algorithm starts working only
+> > when memory size reaches a certain point, currently set to 64G.
+> > 
+> > This is example of dentry hash table size, before and after four various
+> > memory configurations:
+> > 
+> > MEMORY	   SCALE	 HASH_SIZE
+> > 	old	new	old	new
+> >     8G	 13	 13      8M      8M
+> >    16G	 13	 13     16M     16M
+> >    32G	 13	 13     32M     32M
+> >    64G	 13	 13     64M     64M
+> >   128G	 13	 14    128M     64M
+> >   256G	 13	 14    256M    128M
+> >   512G	 13	 15    512M    128M
+> >  1024G	 13	 15   1024M    256M
+> >  2048G	 13	 16   2048M    256M
+> >  4096G	 13	 16   4096M    512M
+> >  8192G	 13	 17   8192M    512M
+> > 16384G	 13	 17  16384M   1024M
+> > 32768G	 13	 18  32768M   1024M
+> > 65536G	 13	 18  65536M   2048M
+> 
+> OK, but what are the runtime effects?  Presumably some workloads will
+> slow down a bit.  How much? How do we know that this is a worthwhile
+> tradeoff?
+> 
+> If the effect of this change is "undetectable" then those hash tables
+> are simply too large, and additional tuning is needed, yes?
 
-  dax: fix data corruption due to stale mmap reads
+I am playing with a 3TB and have hit the following
+[    0.961309] Dentry cache hash table entries: 536870912 (order: 20, 4294967296 bytes)
+[    2.300012] vmalloc: allocation failure, allocated 1383612416 of 2147487744 bytes
+[    2.307473] swapper/0: page allocation failure: order:0, mode:0x2080020(GFP_ATOMIC)
+[    2.315101] CPU: 0 PID: 0 Comm: swapper/0 Tainted: G        W          4.4.49-hotplug19-default #1
+[    2.324017] Hardware name: Huawei 9008/IT91SMUB, BIOS BLXSV607 04/17/2017
+[    2.330775]  ffffffff8101aba5 ffffffff8130efa0 ffffffff81863f48 ffffffff81c03e40
+[    2.338201]  ffffffff8118c9a2 02080020fff00300 ffffffff81863f48 ffffffff81c03de0
+[    2.345628]  0000000000000018 ffffffff81c03e50 ffffffff81c03df8 ffffffff811d28e6
+[    2.353056] Call Trace:
+[    2.355507]  [<ffffffff81019a99>] dump_trace+0x59/0x310
+[    2.360710]  [<ffffffff81019e3a>] show_stack_log_lvl+0xea/0x170
+[    2.366605]  [<ffffffff8101abc1>] show_stack+0x21/0x40
+[    2.371723]  [<ffffffff8130efa0>] dump_stack+0x5c/0x7c
+[    2.376842]  [<ffffffff8118c9a2>] warn_alloc_failed+0xe2/0x150
+[    2.382655]  [<ffffffff811c2a10>] __vmalloc_node_range+0x240/0x280
+[    2.388814]  [<ffffffff811c2a97>] __vmalloc+0x47/0x50
+[    2.393851]  [<ffffffff81da02ae>] alloc_large_system_hash+0x189/0x25d
+[    2.400264]  [<ffffffff81da7625>] inode_init+0x74/0xa3
+[    2.405381]  [<ffffffff81da7483>] vfs_caches_init+0x59/0xe1
+[    2.410930]  [<ffffffff81d6f070>] start_kernel+0x474/0x4d0
+[    2.416392]  [<ffffffff81d6e719>] x86_64_start_kernel+0x147/0x156
 
-The above patch fixes an issue where users of DAX can suffer data
-corruption from stale mmap reads via the following sequence:
+Allocating 4G for a hash table is just ridiculous. 512MB which this
+patch should give looks much reasonable, although I would argue it is
+still a _lot_.
+I cannot say I would be really happy about the chosen approach,
+though. Why HASH_ADAPT is not implicit? Which hash table would need
+gigabytes of memory and still benefit from it? Even if there is such an
+example then it should use the explicit high_limit. I do not like this
+opt-in because it is just too easy to miss that and hit the same issue
+again. And in fact only few users of alloc_large_system_hash are using
+the flag. E.g. why {dcache,inode}_init_early do not have the flag? I
+am pretty sure that having a physically contiguous hash table would be
+better over vmalloc from the TLB point of view.
 
-- open an mmap over a 2MiB hole
-
-- read from a 2MiB hole, faulting in a 2MiB zero page
-
-- write to the hole with write(3p).  The write succeeds but we incorrectly
-  leave the 2MiB zero page mapping intact.
-
-- via the mmap, read the data that was just written.  Since the zero page
-  mapping is still intact we read back zeroes instead of the new data.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+mount_hashtable resp. mountpoint_hashtable are another example. Other
+users just have a reasonable max value. So can we do the following
+on top of your commit? I think that we should rethink the scaling as
+well but I do not have a good answer for the maximum size so let's just
+start with a more reasonable API first.
 ---
- .gitignore             |  1 +
- src/Makefile           |  2 +-
- src/t_mmap_stale_pmd.c | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++
- tests/generic/427      | 59 ++++++++++++++++++++++++++++++++++++++++
- tests/generic/427.out  |  2 ++
- tests/generic/group    |  1 +
- 6 files changed, 137 insertions(+), 1 deletion(-)
- create mode 100644 src/t_mmap_stale_pmd.c
- create mode 100755 tests/generic/427
- create mode 100644 tests/generic/427.out
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 808ea99062c2..363502faa328 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -3585,7 +3585,7 @@ static void __init dcache_init(void)
+ 					sizeof(struct hlist_bl_head),
+ 					dhash_entries,
+ 					13,
+-					HASH_ZERO | HASH_ADAPT,
++					HASH_ZERO,
+ 					&d_hash_shift,
+ 					&d_hash_mask,
+ 					0,
+diff --git a/fs/inode.c b/fs/inode.c
+index a9caf53df446..b3c0731ec1fe 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -1950,7 +1950,7 @@ void __init inode_init(void)
+ 					sizeof(struct hlist_head),
+ 					ihash_entries,
+ 					14,
+-					HASH_ZERO | HASH_ADAPT,
++					HASH_ZERO,
+ 					&i_hash_shift,
+ 					&i_hash_mask,
+ 					0,
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index dbaf312b3317..e223d91b6439 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -359,7 +359,6 @@ extern void *alloc_large_system_hash(const char *tablename,
+ #define HASH_SMALL	0x00000002	/* sub-page allocation allowed, min
+ 					 * shift passed via *_hash_shift */
+ #define HASH_ZERO	0x00000004	/* Zero allocated hash table */
+-#define	HASH_ADAPT	0x00000008	/* Adaptive scale for large memory */
+ 
+ /* Only NUMA needs hash distribution. 64bit NUMA architectures have
+  * sufficient vmalloc space.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index fa752de84eef..3bf60669d200 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7226,7 +7226,7 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 		if (PAGE_SHIFT < 20)
+ 			numentries = round_up(numentries, (1<<20)/PAGE_SIZE);
+ 
+-		if (flags & HASH_ADAPT) {
++		if (!high_limit) {
+ 			unsigned long adapt;
+ 
+ 			for (adapt = ADAPT_SCALE_NPAGES; adapt < numentries;
 
-diff --git a/.gitignore b/.gitignore
-index ded4a61..4d64414 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -134,6 +134,7 @@
- /src/renameat2
- /src/t_rename_overwrite
- /src/t_mmap_dio
-+/src/t_mmap_stale_pmd
- 
- # dmapi/ binaries
- /dmapi/src/common/cmd/read_invis
-diff --git a/src/Makefile b/src/Makefile
-index abfd873..f1338ca 100644
---- a/src/Makefile
-+++ b/src/Makefile
-@@ -12,7 +12,7 @@ TARGETS = dirstress fill fill2 getpagesize holes lstat64 \
- 	godown resvtest writemod makeextents itrash rename \
- 	multi_open_unlink dmiperf unwritten_sync genhashnames t_holes \
- 	t_mmap_writev t_truncate_cmtime dirhash_collide t_rename_overwrite \
--	holetest t_truncate_self t_mmap_dio af_unix
-+	holetest t_truncate_self t_mmap_dio af_unix t_mmap_stale_pmd
- 
- LINUX_TARGETS = xfsctl bstat t_mtab getdevicesize preallo_rw_pattern_reader \
- 	preallo_rw_pattern_writer ftrunc trunc fs_perms testx looptest \
-diff --git a/src/t_mmap_stale_pmd.c b/src/t_mmap_stale_pmd.c
-new file mode 100644
-index 0000000..b447222
---- /dev/null
-+++ b/src/t_mmap_stale_pmd.c
-@@ -0,0 +1,73 @@
-+#include <errno.h>
-+#include <fcntl.h>
-+#include <libgen.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <string.h>
-+#include <sys/mman.h>
-+#include <sys/stat.h>
-+#include <sys/types.h>
-+#include <unistd.h>
-+
-+#define MiB(a) ((a)*1024*1024)
-+
-+void err_exit(char *op)
-+{
-+	fprintf(stderr, "%s: %s\n", op, strerror(errno));
-+	exit(1);
-+}
-+
-+int main(int argc, char *argv[])
-+{
-+	volatile int a __attribute__((__unused__));
-+	char *buffer = "HELLO WORLD!";
-+	char *data;
-+	int fd, err, ret = 0;
-+
-+	if (argc < 2) {
-+		printf("Usage: %s <pmem file>\n", basename(argv[0]));
-+		exit(0);
-+	}
-+
-+	fd = open(argv[1], O_RDWR|O_CREAT, S_IRUSR|S_IWUSR);
-+	if (fd < 0)
-+		err_exit("fd");
-+
-+	/*
-+	 * This allows us to map a huge zero page, and we do it at a non-zero
-+	 * offset for a little additional testing.
-+	 */
-+	ftruncate(fd, 0);
-+	ftruncate(fd, MiB(4));
-+
-+	data = mmap(NULL, MiB(2), PROT_READ, MAP_SHARED, fd, MiB(2));
-+
-+	/*
-+	 * This faults in a 2MiB zero page to satisfy the read.
-+	 * 'a' is volatile so this read doesn't get optimized out.
-+	 */
-+	a = data[0];
-+
-+	pwrite(fd, buffer, strlen(buffer), MiB(2));
-+
-+	/*
-+	 * Try and use the mmap to read back the data we just wrote with
-+	 * pwrite().  If the kernel bug is present the mapping from the 2MiB
-+	 * zero page will still be intact, and we'll read back zeros instead.
-+	 */
-+	if (strncmp(buffer, data, strlen(buffer))) {
-+		fprintf(stderr, "strncmp mismatch: '%s' vs '%s'\n", buffer,
-+				data);
-+		ret = 1;
-+	}
-+
-+	err = munmap(data, MiB(2));
-+	if (err < 0)
-+		err_exit("munmap");
-+
-+	err = close(fd);
-+	if (err < 0)
-+		err_exit("close");
-+
-+	return ret;
-+}
-diff --git a/tests/generic/427 b/tests/generic/427
-new file mode 100755
-index 0000000..3677fce
---- /dev/null
-+++ b/tests/generic/427
-@@ -0,0 +1,59 @@
-+#! /bin/bash
-+# FS QA Test 427
-+#
-+# This is a regression test for kernel patch:
-+#  dax: fix data corruption due to stale mmap reads
-+# created by Ross Zwisler <ross.zwisler@linux.intel.com>
-+#
-+#-----------------------------------------------------------------------
-+# Copyright (c) 2017 Intel Corporation.  All Rights Reserved.
-+#
-+# This program is free software; you can redistribute it and/or
-+# modify it under the terms of the GNU General Public License as
-+# published by the Free Software Foundation.
-+#
-+# This program is distributed in the hope that it would be useful,
-+# but WITHOUT ANY WARRANTY; without even the implied warranty of
-+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+# GNU General Public License for more details.
-+#
-+# You should have received a copy of the GNU General Public License
-+# along with this program; if not, write the Free Software Foundation,
-+# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-+#-----------------------------------------------------------------------
-+#
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=1	# failure is the default!
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+	cd /
-+	rm -f $tmp.*
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+
-+# remove previous $seqres.full before test
-+rm -f $seqres.full
-+
-+# Modify as appropriate.
-+_supported_fs generic
-+_supported_os Linux
-+_require_test_program "t_mmap_stale_pmd"
-+
-+# real QA test starts here
-+src/t_mmap_stale_pmd $TEST_DIR/testfile
-+
-+# success, all done
-+echo "Silence is golden"
-+status=0
-+exit
-diff --git a/tests/generic/427.out b/tests/generic/427.out
-new file mode 100644
-index 0000000..61295e5
---- /dev/null
-+++ b/tests/generic/427.out
-@@ -0,0 +1,2 @@
-+QA output created by 427
-+Silence is golden
-diff --git a/tests/generic/group b/tests/generic/group
-index f29009c..06f6e9d 100644
---- a/tests/generic/group
-+++ b/tests/generic/group
-@@ -429,3 +429,4 @@
- 424 auto quick
- 425 auto quick attr
- 426 auto quick exportfs
-+427 auto quick
 -- 
-2.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
