@@ -1,156 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E136B02F4
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 09:49:44 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j16so394087pfk.4
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 06:49:44 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a5si277008pgd.190.2017.04.26.06.49.42
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BDEE46B02E1
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 10:47:53 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g67so260801wrd.0
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 07:47:53 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a82si6840127wma.159.2017.04.26.07.47.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Apr 2017 06:49:43 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3QDmqgT078614
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 09:49:42 -0400
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2a2ebxmxv4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 09:49:42 -0400
-Received: from localhost
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 26 Apr 2017 23:49:39 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v3QDnTls60817444
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 23:49:37 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v3QDn3U2010938
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 23:49:04 +1000
-Subject: Re: [PATCH] powerpc/mm/hugetlb: Add support for 1G huge pages
-References: <1492449255-29062-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 26 Apr 2017 19:18:41 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 26 Apr 2017 07:47:52 -0700 (PDT)
+Date: Wed, 26 Apr 2017 16:47:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/1] Remove hardcoding of ___GFP_xxx bitmasks
+Message-ID: <20170426144750.GH12504@dhcp22.suse.cz>
+References: <20170426133549.22603-1-igor.stoppa@huawei.com>
+ <20170426133549.22603-2-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1492449255-29062-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <2ccc1911-ff33-d0fd-195d-44ed4b8d1fb3@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170426133549.22603-2-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/17/2017 10:44 PM, Aneesh Kumar K.V wrote:
-> POWER9 supports hugepages of size 2M and 1G in radix MMU mode. This patch
-> enables the usage of 1G page size for hugetlbfs. This also update the helper
-> such we can do 1G page allocation at runtime.
-> 
-> Since we can do this only when radix translation mode is enabled, we can't use
-> the generic gigantic_page_supported helper. Hence provide a way for architecture
-> to override gigantic_page_supported helper.
-> 
-> We still don't enable 1G page size on DD1 version. This is to avoid doing
-> workaround mentioned in commit: 6d3a0379ebdc8 (powerpc/mm: Add
-> radix__tlb_flush_pte_p9_dd1()
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+On Wed 26-04-17 16:35:49, Igor Stoppa wrote:
+> The bitmasks used for ___GFP_xxx can be defined in terms of an enum,
+> which doesn't require manual updates to its values.
+
+GFP masks are rarely updated so why is this worth doing?
+
+> As bonus, __GFP_BITS_SHIFT is automatically kept consistent.
+
+this alone doesn't sound like a huge win to me, to be honest. We already
+have ___GFP_$FOO and __GFP_FOO you are adding __GFP_$FOO_SHIFT. This is
+too much IMHO.
+
+Also the current mm tree has ___GFP_NOLOCKDEP which is not addressed
+here so I suspect you have based your change on the Linus tree.
+
+> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 > ---
->  arch/powerpc/include/asm/book3s/64/hugetlb.h | 13 +++++++++++++
->  arch/powerpc/mm/hugetlbpage.c                |  7 +++++--
->  arch/powerpc/platforms/Kconfig.cputype       |  1 +
->  mm/hugetlb.c                                 |  4 ++++
->  4 files changed, 23 insertions(+), 2 deletions(-)
+>  include/linux/gfp.h | 82 +++++++++++++++++++++++++++++++++++------------------
+>  1 file changed, 55 insertions(+), 27 deletions(-)
 > 
-> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> index 6666cd366596..86f27cc8ec61 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> @@ -50,4 +50,17 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
->  	else
->  		return entry;
->  }
-> +
-> +#if defined(CONFIG_ARCH_HAS_GIGANTIC_PAGE) &&				\
-> +	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
-> +	 defined(CONFIG_CMA))
-> +#define gigantic_page_supported gigantic_page_supported
-
-As I have mentioned in later part of the reply, it does not really
-make sense to have both arch call back as well as generic config
-option checking to decide on whether a feature is enabled or not.
-
-> +static inline bool gigantic_page_supported(void)
-> +{
-> +	if (radix_enabled())
-> +		return true;
-> +	return false;
-> +}
-> +#endif
-> +
->  #endif
-> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-> index a4f33de4008e..80f6d2ed551a 100644
-> --- a/arch/powerpc/mm/hugetlbpage.c
-> +++ b/arch/powerpc/mm/hugetlbpage.c
-> @@ -763,8 +763,11 @@ static int __init add_huge_page_size(unsigned long long size)
->  	 * Hash: 16M and 16G
->  	 */
->  	if (radix_enabled()) {
-> -		if (mmu_psize != MMU_PAGE_2M)
-> -			return -EINVAL;
-> +		if (mmu_psize != MMU_PAGE_2M) {
-> +			if (cpu_has_feature(CPU_FTR_POWER9_DD1) ||
-> +			    (mmu_psize != MMU_PAGE_1G))
-> +				return -EINVAL;
-> +		}
->  	} else {
->  		if (mmu_psize != MMU_PAGE_16M && mmu_psize != MMU_PAGE_16G)
->  			return -EINVAL;
-> diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
-> index ef4c4b8fc547..f4ba4bf0d762 100644
-> --- a/arch/powerpc/platforms/Kconfig.cputype
-> +++ b/arch/powerpc/platforms/Kconfig.cputype
-> @@ -343,6 +343,7 @@ config PPC_STD_MMU_64
->  config PPC_RADIX_MMU
->  	bool "Radix MMU Support"
->  	depends on PPC_BOOK3S_64
-> +	select ARCH_HAS_GIGANTIC_PAGE
->  	default y
->  	help
-
-As we are already checking for radix_enabled() test inside function
-gigantic_page_supported(), do we still need to conditionally enable
-this on Radix based platforms only ?
-
-
->  	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3d0aab9ee80d..2c090189f314 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1158,7 +1158,11 @@ static int alloc_fresh_gigantic_page(struct hstate *h,
->  	return 0;
->  }
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 0fe0b62..2f894c5 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -14,33 +14,62 @@ struct vm_area_struct;
+>   * include/trace/events/mmflags.h and tools/perf/builtin-kmem.c
+>   */
 >  
-> +#ifndef gigantic_page_supported
->  static inline bool gigantic_page_supported(void) { return true; }
-> +#define gigantic_page_supported gigantic_page_supported
-> +#endif
+> +enum gfp_bitmask_shift {
+> +	__GFP_DMA_SHIFT = 0,
+> +	__GFP_HIGHMEM_SHIFT,
+> +	__GFP_DMA32_SHIFT,
+> +	__GFP_MOVABLE_SHIFT,
+> +	__GFP_RECLAIMABLE_SHIFT,
+> +	__GFP_HIGH_SHIFT,
+> +	__GFP_IO_SHIFT,
+> +	__GFP_FS_SHIFT,
+> +	__GFP_COLD_SHIFT,
+> +	__GFP_NOWARN_SHIFT,
+> +	__GFP_REPEAT_SHIFT,
+> +	__GFP_NOFAIL_SHIFT,
+> +	__GFP_NORETRY_SHIFT,
+> +	__GFP_MEMALLOC_SHIFT,
+> +	__GFP_COMP_SHIFT,
+> +	__GFP_ZERO_SHIFT,
+> +	__GFP_NOMEMALLOC_SHIFT,
+> +	__GFP_HARDWALL_SHIFT,
+> +	__GFP_THISNODE_SHIFT,
+> +	__GFP_ATOMIC_SHIFT,
+> +	__GFP_ACCOUNT_SHIFT,
+> +	__GFP_NOTRACK_SHIFT,
+> +	__GFP_DIRECT_RECLAIM_SHIFT,
+> +	__GFP_WRITE_SHIFT,
+> +	__GFP_KSWAPD_RECLAIM_SHIFT,
+> +	__GFP_BITS_SHIFT
+> +};
+> +
+> +
+>  /* Plain integer GFP bitmasks. Do not use this directly. */
+> -#define ___GFP_DMA		0x01u
+> -#define ___GFP_HIGHMEM		0x02u
+> -#define ___GFP_DMA32		0x04u
+> -#define ___GFP_MOVABLE		0x08u
+> -#define ___GFP_RECLAIMABLE	0x10u
+> -#define ___GFP_HIGH		0x20u
+> -#define ___GFP_IO		0x40u
+> -#define ___GFP_FS		0x80u
+> -#define ___GFP_COLD		0x100u
+> -#define ___GFP_NOWARN		0x200u
+> -#define ___GFP_REPEAT		0x400u
+> -#define ___GFP_NOFAIL		0x800u
+> -#define ___GFP_NORETRY		0x1000u
+> -#define ___GFP_MEMALLOC		0x2000u
+> -#define ___GFP_COMP		0x4000u
+> -#define ___GFP_ZERO		0x8000u
+> -#define ___GFP_NOMEMALLOC	0x10000u
+> -#define ___GFP_HARDWALL		0x20000u
+> -#define ___GFP_THISNODE		0x40000u
+> -#define ___GFP_ATOMIC		0x80000u
+> -#define ___GFP_ACCOUNT		0x100000u
+> -#define ___GFP_NOTRACK		0x200000u
+> -#define ___GFP_DIRECT_RECLAIM	0x400000u
+> -#define ___GFP_WRITE		0x800000u
+> -#define ___GFP_KSWAPD_RECLAIM	0x1000000u
+> -/* If the above are modified, __GFP_BITS_SHIFT may need updating */
+> +#define ___GFP_DMA		(1u << __GFP_DMA_SHIFT)
+> +#define ___GFP_HIGHMEM		(1u << __GFP_HIGHMEM_SHIFT)
+> +#define ___GFP_DMA32		(1u << __GFP_DMA32_SHIFT)
+> +#define ___GFP_MOVABLE		(1u << __GFP_MOVABLE_SHIFT)
+> +#define ___GFP_RECLAIMABLE	(1u << __GFP_RECLAIMABLE_SHIFT)
+> +#define ___GFP_HIGH		(1u << __GFP_HIGH_SHIFT)
+> +#define ___GFP_IO		(1u << __GFP_IO_SHIFT)
+> +#define ___GFP_FS		(1u << __GFP_FS_SHIFT)
+> +#define ___GFP_COLD		(1u << __GFP_COLD_SHIFT)
+> +#define ___GFP_NOWARN		(1u << __GFP_NOWARN_SHIFT)
+> +#define ___GFP_REPEAT		(1u << __GFP_REPEAT_SHIFT)
+> +#define ___GFP_NOFAIL		(1u << __GFP_NOFAIL_SHIFT)
+> +#define ___GFP_NORETRY		(1u << __GFP_NORETRY_SHIFT)
+> +#define ___GFP_MEMALLOC		(1u << __GFP_MEMALLOC_SHIFT)
+> +#define ___GFP_COMP		(1u << __GFP_COMP_SHIFT)
+> +#define ___GFP_ZERO		(1u << __GFP_ZERO_SHIFT)
+> +#define ___GFP_NOMEMALLOC	(1u << __GFP_NOMEMALLOC_SHIFT)
+> +#define ___GFP_HARDWALL		(1u << __GFP_HARDWALL_SHIFT)
+> +#define ___GFP_THISNODE		(1u << __GFP_THISNODE_SHIFT)
+> +#define ___GFP_ATOMIC		(1u << __GFP_ATOMIC_SHIFT)
+> +#define ___GFP_ACCOUNT		(1u << __GFP_ACCOUNT_SHIFT)
+> +#define ___GFP_NOTRACK		(1u << __GFP_NOTRACK_SHIFT)
+> +#define ___GFP_DIRECT_RECLAIM	(1u << __GFP_DIRECT_RECLAIM_SHIFT)
+> +#define ___GFP_WRITE		(1u << __GFP_WRITE_SHIFT)
+> +#define ___GFP_KSWAPD_RECLAIM	(1u << __GFP_KSWAPD_RECLAIM_SHIFT)
+>  
+>  /*
+>   * Physical address zone modifiers (see linux/mmzone.h - low four bits)
+> @@ -180,7 +209,6 @@ struct vm_area_struct;
+>  #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+>  
+>  /* Room for N __GFP_FOO bits */
+> -#define __GFP_BITS_SHIFT 25
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+>  
+>  /*
+> -- 
+> 2.9.3
+> 
 
-As seen above, now that arch's decision to support this feature is not
-based solely on ARCH_HAS_GIGANTIC_PAGE config option but also on the
-availability of platform features like radix, is it a good time to have
-an arch call back deciding on gigantic_page_supported() test instead of
-just checking presence of config options like 
-
-#if defined(CONFIG_ARCH_HAS_GIGANTIC_PAGE) && \
-	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
-	defined(CONFIG_CMA))
-
-We should not have both as proposed. I mean CONFIG_ARCH_HAS_GIGANTIC_PAGE
-should not be enabled unless we have MEMORY_ISOLATION && COMPACTION && CMA
-and once enabled we should have arch_gigantic_page_supported() deciding for
-gigantic_page_supported().
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
