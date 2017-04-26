@@ -1,131 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D55646B02E1
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 12:05:39 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id f23so1121956qkh.21
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 09:05:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o44si674319qtc.5.2017.04.26.09.05.37
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A01536B02E1
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 13:50:49 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k13so4096390pgp.23
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 10:50:49 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g18si1102264pgi.316.2017.04.26.10.50.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Apr 2017 09:05:37 -0700 (PDT)
-Subject: Re: [RFC PATCH 00/14] cgroup: Implement cgroup v2 thread mode & CPU
- controller
-References: <1492783452-12267-1-git-send-email-longman@redhat.com>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <fa35c889-85a8-8b85-c836-4c5070cd7cdc@redhat.com>
-Date: Wed, 26 Apr 2017 12:05:27 -0400
+        Wed, 26 Apr 2017 10:50:48 -0700 (PDT)
+Date: Wed, 26 Apr 2017 11:50:46 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 2/2] dax: add regression test for stale mmap reads
+Message-ID: <20170426175046.GA15921@linux.intel.com>
+References: <20170425205106.20576-1-ross.zwisler@linux.intel.com>
+ <20170425205106.20576-2-ross.zwisler@linux.intel.com>
+ <20170426074727.GG26397@eguan.usersys.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1492783452-12267-1-git-send-email-longman@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170426074727.GG26397@eguan.usersys.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
-Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Eryu Guan <eguan@redhat.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, fstests@vger.kernel.org, Xiong Zhou <xzhou@redhat.com>, jmoyer@redhat.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 04/21/2017 10:03 AM, Waiman Long wrote:
-> This patchset incorporates the following 2 patchsets from Tejun Heo:
->
->  1) cgroup v2 thread mode patchset (5 patches)
->     https://lkml.org/lkml/2017/2/2/592
->  2) CPU Controller on Control Group v2 (2 patches)
->     https://lkml.org/lkml/2016/8/5/368
->
-> Additional patches are then layered on top to implement the following
-> new features:
->
->  1) An enhanced v2 thread mode where a thread root (root of a threaded
->     subtree) can have non-threaded children with non-threaded
->     controllers enabled and no internal process constraint does
->     not apply.
->  2) An enhanced debug controller which dumps out more information
->     relevant to the debugging and testing of cgroup v2 in general.
->  3) Separate control knobs for resource domain controllers can be
->     enabled in a thread root to manage all the internal processes in
->     the threaded subtree.
->
-> Patches 1-5 are Tejun's cgroup v2 thread mode patchset.
->
-> Patch 6 fixes a task_struct reference counting bug introduced in
-> patch 1.
->
-> Patch 7 moves the debug cgroup out from cgroup_v1.c into its own
-> file.
->
-> Patch 8 keeps more accurate counts of the number of tasks associated
-> with each css_set.
->
-> Patch 9 enhances the debug controller to provide more information
-> relevant to the cgroup v2 thread mode to ease debugging effort.
->
-> Patch 10 implements the enhanced cgroup v2 thread mode with the
-> following enhancements:
->
->  1) Thread roots are treated differently from threaded cgroups.
->  2) Thread root can now have non-threaded controllers enabled as well
->     as non-threaded children.
->
-> Patches 11-12 are Tejun's CPU controller on control group v2 patchset.
->
-> Patch 13 makes both cpu and cpuacct controllers threaded.
->
-> Patch 14 enables the creation of a special "cgroup.self" directory
-> under the thread root to hold resource control knobs for controllers
-> that don't want resource competiton between internal processes and
-> non-threaded child cgroups.
->
-> Preliminary testing was done with the debug controller enabled. Things
-> seemed to work fine so far. More rigorous testing will be needed, and
-> any suggestions are welcome.
->
-> Tejun Heo (7):
->   cgroup: reorganize cgroup.procs / task write path
->   cgroup: add @flags to css_task_iter_start() and implement
->     CSS_TASK_ITER_PROCS
->   cgroup: introduce cgroup->proc_cgrp and threaded css_set handling
->   cgroup: implement CSS_TASK_ITER_THREADED
->   cgroup: implement cgroup v2 thread support
->   sched: Misc preps for cgroup unified hierarchy interface
->   sched: Implement interface for cgroup unified hierarchy
->
-> Waiman Long (7):
->   cgroup: Fix reference counting bug in cgroup_procs_write()
->   cgroup: Move debug cgroup to its own file
->   cgroup: Keep accurate count of tasks in each css_set
->   cgroup: Make debug cgroup support v2 and thread mode
->   cgroup: Implement new thread mode semantics
->   sched: Make cpu/cpuacct threaded controllers
->   cgroup: Enable separate control knobs for thread root internal
->     processes
->
->  Documentation/cgroup-v2.txt     | 114 +++++-
->  include/linux/cgroup-defs.h     |  56 +++
->  include/linux/cgroup.h          |  12 +-
->  kernel/cgroup/Makefile          |   1 +
->  kernel/cgroup/cgroup-internal.h |  18 +-
->  kernel/cgroup/cgroup-v1.c       | 217 +++-------
->  kernel/cgroup/cgroup.c          | 862 ++++++++++++++++++++++++++++++++++------
->  kernel/cgroup/cpuset.c          |   6 +-
->  kernel/cgroup/debug.c           | 284 +++++++++++++
->  kernel/cgroup/freezer.c         |   6 +-
->  kernel/cgroup/pids.c            |   1 +
->  kernel/events/core.c            |   1 +
->  kernel/sched/core.c             | 150 ++++++-
->  kernel/sched/cpuacct.c          |  55 ++-
->  kernel/sched/cpuacct.h          |   5 +
->  mm/memcontrol.c                 |   3 +-
->  net/core/netclassid_cgroup.c    |   2 +-
->  17 files changed, 1478 insertions(+), 315 deletions(-)
->  create mode 100644 kernel/cgroup/debug.c
->
-Does anyone has time to take a look at these patches?
+On Wed, Apr 26, 2017 at 03:47:27PM +0800, Eryu Guan wrote:
+> On Tue, Apr 25, 2017 at 02:51:06PM -0600, Ross Zwisler wrote:
+<>
+> > diff --git a/tests/generic/427 b/tests/generic/427
+> > new file mode 100755
+> > index 0000000..6e265a1
+> > --- /dev/null
+> > +++ b/tests/generic/427
+> > @@ -0,0 +1,67 @@
+> > +#! /bin/bash
+> > +# FS QA Test 427
+> > +#
+> > +# This is a regression test for kernel patch:
+> > +#  dax: fix data corruption due to stale mmap reads
+> > +# created by Ross Zwisler <ross.zwisler@linux.intel.com>
+> > +#
+> > +#-----------------------------------------------------------------------
+> > +# Copyright (c) 2017 Intel Corporation.  All Rights Reserved.
+> > +#
+> > +# This program is free software; you can redistribute it and/or
+> > +# modify it under the terms of the GNU General Public License as
+> > +# published by the Free Software Foundation.
+> > +#
+> > +# This program is distributed in the hope that it would be useful,
+> > +# but WITHOUT ANY WARRANTY; without even the implied warranty of
+> > +# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> > +# GNU General Public License for more details.
+> > +#
+> > +# You should have received a copy of the GNU General Public License
+> > +# along with this program; if not, write the Free Software Foundation,
+> > +# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+> > +#-----------------------------------------------------------------------
+> > +#
+> > +
+> > +seq=`basename $0`
+> > +seqres=$RESULT_DIR/$seq
+> > +echo "QA output created by $seq"
+> > +
+> > +here=`pwd`
+> > +tmp=/tmp/$$
+> > +status=1	# failure is the default!
+> > +trap "_cleanup; exit \$status" 0 1 2 3 15
+> > +
+> > +_cleanup()
+> > +{
+> > +	cd /
+> > +	rm -f $tmp.*
+> > +}
+> > +
+> > +# get standard environment, filters and checks
+> > +. ./common/rc
+> > +. ./common/filter
+> > +
+> > +# remove previous $seqres.full before test
+> > +rm -f $seqres.full
+> > +
+> > +# Modify as appropriate.
+> > +_supported_fs generic
+> > +_supported_os Linux
+> > +_require_test_program "t_dax_stale_pmd"
+> > +_require_xfs_io_command "falloc"
+> 
+> I'm wondering if falloc is really needed? If not, this test could be run
+> with ext2/3 too. See below.
+> 
+> > +_require_user
+> 
+> This is not needed anymore.
 
-As the merge window is going to open up next week, I am not going to
-bother you guys when the merge window opens.
+Fixed in v3.
 
-Cheers,
-Longman
+> > +
+> > +# real QA test starts here
+> > +
+> > +# ensure we have no pre-existing block allocations, so we get a hole
+> > +rm -f $TEST_DIR/testfile
+> > +$XFS_IO_PROG -f -c "falloc 0 4M" $TEST_DIR/testfile >> $seqres.full 2>&1
+> 
+> I found that 'xfs_io -fc "truncate 4M" $TEST_DIR/testfile' works too,
+> from the comments in test and kernel patch, if I understand correctly,
+> we only need to mmap un-allocated blocks, right?
+> 
+> If truncate(2) works too, I think we can move truncate operation to the
+> t_dax_stale_pmd program too, because the whole truncate && mmap && read
+> sequence are logically together, this also avoids the confusion on why
+> testfile is in 4M size.
+
+Yep, that works.  In v3 I've moved to using only ftruncate so we can enable
+ext2/3, and I've moved those calls into the C file with comments explaining
+why we're doing things.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
