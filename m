@@ -1,91 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D4CD6B02E1
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 11:30:20 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id x28so668100uab.7
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 08:30:20 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id g65si251067vkh.82.2017.04.26.08.30.18
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D55646B02E1
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 12:05:39 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f23so1121956qkh.21
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 09:05:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o44si674319qtc.5.2017.04.26.09.05.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Apr 2017 08:30:19 -0700 (PDT)
-Subject: Re: [PATCH 1/1] Remove hardcoding of ___GFP_xxx bitmasks
-References: <20170426133549.22603-1-igor.stoppa@huawei.com>
- <20170426133549.22603-2-igor.stoppa@huawei.com>
- <20170426144750.GH12504@dhcp22.suse.cz>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <e3fe4d80-10a8-2008-1798-af3893fe418a@huawei.com>
-Date: Wed, 26 Apr 2017 18:29:08 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Apr 2017 09:05:37 -0700 (PDT)
+Subject: Re: [RFC PATCH 00/14] cgroup: Implement cgroup v2 thread mode & CPU
+ controller
+References: <1492783452-12267-1-git-send-email-longman@redhat.com>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <fa35c889-85a8-8b85-c836-4c5070cd7cdc@redhat.com>
+Date: Wed, 26 Apr 2017 12:05:27 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170426144750.GH12504@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <1492783452-12267-1-git-send-email-longman@redhat.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
+Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
+On 04/21/2017 10:03 AM, Waiman Long wrote:
+> This patchset incorporates the following 2 patchsets from Tejun Heo:
+>
+>  1) cgroup v2 thread mode patchset (5 patches)
+>     https://lkml.org/lkml/2017/2/2/592
+>  2) CPU Controller on Control Group v2 (2 patches)
+>     https://lkml.org/lkml/2016/8/5/368
+>
+> Additional patches are then layered on top to implement the following
+> new features:
+>
+>  1) An enhanced v2 thread mode where a thread root (root of a threaded
+>     subtree) can have non-threaded children with non-threaded
+>     controllers enabled and no internal process constraint does
+>     not apply.
+>  2) An enhanced debug controller which dumps out more information
+>     relevant to the debugging and testing of cgroup v2 in general.
+>  3) Separate control knobs for resource domain controllers can be
+>     enabled in a thread root to manage all the internal processes in
+>     the threaded subtree.
+>
+> Patches 1-5 are Tejun's cgroup v2 thread mode patchset.
+>
+> Patch 6 fixes a task_struct reference counting bug introduced in
+> patch 1.
+>
+> Patch 7 moves the debug cgroup out from cgroup_v1.c into its own
+> file.
+>
+> Patch 8 keeps more accurate counts of the number of tasks associated
+> with each css_set.
+>
+> Patch 9 enhances the debug controller to provide more information
+> relevant to the cgroup v2 thread mode to ease debugging effort.
+>
+> Patch 10 implements the enhanced cgroup v2 thread mode with the
+> following enhancements:
+>
+>  1) Thread roots are treated differently from threaded cgroups.
+>  2) Thread root can now have non-threaded controllers enabled as well
+>     as non-threaded children.
+>
+> Patches 11-12 are Tejun's CPU controller on control group v2 patchset.
+>
+> Patch 13 makes both cpu and cpuacct controllers threaded.
+>
+> Patch 14 enables the creation of a special "cgroup.self" directory
+> under the thread root to hold resource control knobs for controllers
+> that don't want resource competiton between internal processes and
+> non-threaded child cgroups.
+>
+> Preliminary testing was done with the debug controller enabled. Things
+> seemed to work fine so far. More rigorous testing will be needed, and
+> any suggestions are welcome.
+>
+> Tejun Heo (7):
+>   cgroup: reorganize cgroup.procs / task write path
+>   cgroup: add @flags to css_task_iter_start() and implement
+>     CSS_TASK_ITER_PROCS
+>   cgroup: introduce cgroup->proc_cgrp and threaded css_set handling
+>   cgroup: implement CSS_TASK_ITER_THREADED
+>   cgroup: implement cgroup v2 thread support
+>   sched: Misc preps for cgroup unified hierarchy interface
+>   sched: Implement interface for cgroup unified hierarchy
+>
+> Waiman Long (7):
+>   cgroup: Fix reference counting bug in cgroup_procs_write()
+>   cgroup: Move debug cgroup to its own file
+>   cgroup: Keep accurate count of tasks in each css_set
+>   cgroup: Make debug cgroup support v2 and thread mode
+>   cgroup: Implement new thread mode semantics
+>   sched: Make cpu/cpuacct threaded controllers
+>   cgroup: Enable separate control knobs for thread root internal
+>     processes
+>
+>  Documentation/cgroup-v2.txt     | 114 +++++-
+>  include/linux/cgroup-defs.h     |  56 +++
+>  include/linux/cgroup.h          |  12 +-
+>  kernel/cgroup/Makefile          |   1 +
+>  kernel/cgroup/cgroup-internal.h |  18 +-
+>  kernel/cgroup/cgroup-v1.c       | 217 +++-------
+>  kernel/cgroup/cgroup.c          | 862 ++++++++++++++++++++++++++++++++++------
+>  kernel/cgroup/cpuset.c          |   6 +-
+>  kernel/cgroup/debug.c           | 284 +++++++++++++
+>  kernel/cgroup/freezer.c         |   6 +-
+>  kernel/cgroup/pids.c            |   1 +
+>  kernel/events/core.c            |   1 +
+>  kernel/sched/core.c             | 150 ++++++-
+>  kernel/sched/cpuacct.c          |  55 ++-
+>  kernel/sched/cpuacct.h          |   5 +
+>  mm/memcontrol.c                 |   3 +-
+>  net/core/netclassid_cgroup.c    |   2 +-
+>  17 files changed, 1478 insertions(+), 315 deletions(-)
+>  create mode 100644 kernel/cgroup/debug.c
+>
+Does anyone has time to take a look at these patches?
 
+As the merge window is going to open up next week, I am not going to
+bother you guys when the merge window opens.
 
-On 26/04/17 17:47, Michal Hocko wrote:
-> On Wed 26-04-17 16:35:49, Igor Stoppa wrote:
->> The bitmasks used for ___GFP_xxx can be defined in terms of an enum,
->> which doesn't require manual updates to its values.
-> 
-> GFP masks are rarely updated so why is this worth doing?
-
-I have plans for that [1] - yeah, I should have not written only to ml -
-but I thought there was sufficient value in this patch to be sent alone.
-
-I got into this part of the code because (if I understood correctly)
-there are no spare bits available from the 32bits mask that is currently
-in use.
-
-Adding a new zone, therefore, would cause the bumping to a 64bits type.
-If the zone is not strictly needed, some people might prefer to have the
-option to stick to 32 bits.
-
-Which in turn would mean more #ifdefs.
-
-Using the enum should provide the same flexibility with a more limited
-number of #ifdefs in the code.
-
-But I really thought that there is a value in the change per-se.
-Regardless of what other patches might follow.
-
-
->> As bonus, __GFP_BITS_SHIFT is automatically kept consistent.
-> 
-> this alone doesn't sound like a huge win to me, to be honest. We already
-> have ___GFP_$FOO and __GFP_FOO you are adding __GFP_$FOO_SHIFT. This is
-> too much IMHO.
-
-I do not like the #defines being floating and potentially inconsistent
-with the rest, when they are supposed to represent all the individual
-bits in a bitmask.
-One might argue that an error will be detected fairly soon, but to me
-using an enum to automatically manage the values and counter of items
-seems preferable.
-
-> Also the current mm tree has ___GFP_NOLOCKDEP which is not addressed
-> here so I suspect you have based your change on the Linus tree.
-
-I used your tree from kernel.org - I asked yesterday on #mm if it was a
-good idea and was told that it should be ok, so I did it, but I can redo
-the patch with mm.
-
-
-If you prefer to have this patch only as part of the larger patchset,
-I'm also fine with it.
-Also, if you could reply to [1], that would be greatly appreciated.
-
-Maybe I'm starting from some wrong assumption or there is a better way
-to achieve what I want.
-
-
-thanks, igor
-
-[1] http://marc.info/?l=linux-mm&m=149276346722464&w=2
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
