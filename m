@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 473756B0038
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 00:47:21 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id h72so248342880iod.0
-        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 21:47:21 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id 89si2117594ior.64.2017.04.25.21.47.19
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 532E66B0038
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2017 02:52:25 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b20so8235411wma.11
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 23:52:25 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id c78si5663502wme.30.2017.04.25.23.52.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Apr 2017 21:47:20 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-Date: Wed, 26 Apr 2017 04:46:09 +0000
-Message-ID: <20170426044608.GA32451@hori1.linux.bs1.fc.nec.co.jp>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493171698.4828.1.camel@gmail.com>
- <20170426023410.GA11619@hori1.linux.bs1.fc.nec.co.jp>
- <1493178300.4828.5.camel@gmail.com>
-In-Reply-To: <1493178300.4828.5.camel@gmail.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <B75C875EEA53464D864911466F69A183@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 25 Apr 2017 23:52:19 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id g12so9743482wrg.2
+        for <linux-mm@kvack.org>; Tue, 25 Apr 2017 23:52:19 -0700 (PDT)
+Subject: Re: [PATCH 1/5] userfaultfd.2: describe memory types that can be used
+ from 4.11
+References: <1493137748-32452-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1493137748-32452-2-git-send-email-rppt@linux.vnet.ibm.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <adc6c2a6-1cd8-cdf9-86b2-5e9e517833c8@gmail.com>
+Date: Wed, 26 Apr 2017 08:52:16 +0200
 MIME-Version: 1.0
+In-Reply-To: <1493137748-32452-2-git-send-email-rppt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Wed, Apr 26, 2017 at 01:45:00PM +1000, Balbir Singh wrote:
-> > > >  static int delete_from_lru_cache(struct page *p)
-> > > >  {
-> > > > +	if (memcg_kmem_enabled())
-> > > > +		memcg_kmem_uncharge(p, 0);
-> > > > +
-> > >=20
-> > > The changelog is not quite clear, so we are uncharging a page using
-> > > memcg_kmem_uncharge for a page in swap cache/page cache?
-> >=20
-> > Hi Balbir,
-> >=20
-> > Yes, in the normal page lifecycle, uncharge is done in page free time.
-> > But in memory error handling case, in-use pages (i.e. swap cache and pa=
-ge
-> > cache) are removed from normal path and they don't pass page freeing co=
-de.
-> > So I think that this change is to keep the consistent charging for such=
- a case.
->=20
-> I agree we should uncharge, but looking at the API name, it seems to
-> be for kmem pages, why are we not using mem_cgroup_uncharge()? Am I missi=
-ng
-> something?
+On 04/25/2017 06:29 PM, Mike Rapoport wrote:
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Thank you for pointing out.
-Actually I had the same question and this surely looks strange.
-But simply calling mem_cgroup_uncharge() here doesn't work because it
-assumes that page_refcount(p) =3D=3D 0, which is not true in hwpoison conte=
-xt.
-We need some other clearer way or at least some justifying comment about
-why this is ok.
+Thanks, Mike. Applied.
 
-- Naoya=
+Cheers,
+
+Michael
+
+
+
+> ---
+>  man2/userfaultfd.2 | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+> index 1603c20..c89484f 100644
+> --- a/man2/userfaultfd.2
+> +++ b/man2/userfaultfd.2
+> @@ -130,8 +130,12 @@ Details of the various
+>  operations can be found in
+>  .BR ioctl_userfaultfd (2).
+>  
+> -Currently, userfaultfd can be used only with anonymous private memory
+> -mappings.
+> +Up to Linux 4.11,
+> +userfaultfd can be used only with anonymous private memory mappings.
+> +
+> +Since Linux 4.11,
+> +userfaultfd can be also used with hugetlbfs and shared memory mappings.
+> +
+>  .\"
+>  .SS Reading from the userfaultfd structure
+>  Each
+> 
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
