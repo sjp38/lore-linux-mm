@@ -1,78 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EE0D26B0038
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:20:22 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g67so3789419wrd.0
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:20:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o40si3887806wrc.80.2017.04.27.11.20.21
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A8026B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:22:05 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w102so3800960wrb.17
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:22:05 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id 132si4229638wmh.131.2017.04.27.11.22.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Apr 2017 11:20:21 -0700 (PDT)
-Date: Thu, 27 Apr 2017 20:20:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Apr 2017 11:22:04 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id y10so6374096wmh.0
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:22:04 -0700 (PDT)
 Subject: Re: [PATCH v2 1/3] mm: Silence vmap() allocation failures based on
  caller gfp_flags
-Message-ID: <20170427182018.GC30672@dhcp22.suse.cz>
 References: <20170427173900.2538-1-f.fainelli@gmail.com>
  <20170427173900.2538-2-f.fainelli@gmail.com>
  <20170427175653.GB30672@dhcp22.suse.cz>
  <416a788c-6160-1ce8-fccc-839f719b2a88@gmail.com>
+ <20170427182018.GC30672@dhcp22.suse.cz>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Message-ID: <6f8480e5-5993-4b9c-2c28-0996ce4b0d81@gmail.com>
+Date: Thu, 27 Apr 2017 11:21:57 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <416a788c-6160-1ce8-fccc-839f719b2a88@gmail.com>
+In-Reply-To: <20170427182018.GC30672@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Fainelli <f.fainelli@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-arm-kernel@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-On Thu 27-04-17 11:03:31, Florian Fainelli wrote:
-> On 04/27/2017 10:56 AM, Michal Hocko wrote:
-> > On Thu 27-04-17 10:38:58, Florian Fainelli wrote:
-> >> If the caller has set __GFP_NOWARN don't print the following message:
-> >> vmap allocation for size 15736832 failed: use vmalloc=<size> to increase
-> >> size.
-> >>
-> >> This can happen with the ARM/Linux or ARM64/Linux module loader built
-> >> with CONFIG_ARM{,64}_MODULE_PLTS=y which does a first attempt at loading
-> >> a large module from module space, then falls back to vmalloc space.
-> >>
-> >> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
-> > 
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> > 
-> > just a nit
-> > 
-> >> ---
-> >>  mm/vmalloc.c | 4 ++++
-> >>  1 file changed, 4 insertions(+)
-> >>
-> >> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> >> index 0b057628a7ba..d8a851634674 100644
-> >> --- a/mm/vmalloc.c
-> >> +++ b/mm/vmalloc.c
-> >> @@ -521,9 +521,13 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
-> >>  		}
-> >>  	}
-> >>  
-> >> +	if (gfp_mask & __GFP_NOWARN)
-> >> +		goto out;
-> >> +
-> >>  	if (printk_ratelimit())
-> > 
-> > 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit())
-> >>  		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
-> >>  			size);
-> > 
-> > would be shorter and you wouldn't need the goto and a label.
+On 04/27/2017 11:20 AM, Michal Hocko wrote:
+>>> would be shorter and you wouldn't need the goto and a label.
+>>
+>> Do you want me to resubmit with that change included?
 > 
-> Do you want me to resubmit with that change included?
+> Up to you. As I've said this is a nit at best.
 
-Up to you. As I've said this is a nit at best.
+I just sent a v3 based on feedback from Ard, thanks!
 -- 
-Michal Hocko
-SUSE Labs
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
