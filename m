@@ -1,77 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BB1706B02E1
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:35:27 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y106so3099342wrb.14
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 06:35:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w81si10368726wmd.42.2017.04.27.06.35.26
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7247D6B02EE
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:37:24 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id n104so3099928wrb.20
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 06:37:24 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id t17si3189568edf.304.2017.04.27.06.37.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Apr 2017 06:35:26 -0700 (PDT)
-Date: Thu, 27 Apr 2017 15:35:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Question on ___GFP_NOLOCKDEP - Was: Re: [PATCH 1/1] Remove
- hardcoding of ___GFP_xxx bitmasks
-Message-ID: <20170427133523.GG4706@dhcp22.suse.cz>
-References: <20170426133549.22603-1-igor.stoppa@huawei.com>
- <20170426133549.22603-2-igor.stoppa@huawei.com>
- <20170426144750.GH12504@dhcp22.suse.cz>
- <e3fe4d80-10a8-2008-1798-af3893fe418a@huawei.com>
- <9929419e-c22e-2a9f-a8a6-ad98d5a9da06@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Apr 2017 06:37:23 -0700 (PDT)
+Date: Thu, 27 Apr 2017 09:37:09 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -mm -v10 1/3] mm, THP, swap: Delay splitting THP during
+ swap out
+Message-ID: <20170427133709.GA13841@cmpxchg.org>
+References: <20170425125658.28684-1-ying.huang@intel.com>
+ <20170425125658.28684-2-ying.huang@intel.com>
+ <20170427053141.GA1925@bbox>
+ <87mvb21fz1.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9929419e-c22e-2a9f-a8a6-ad98d5a9da06@huawei.com>
+In-Reply-To: <87mvb21fz1.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
 
-On Thu 27-04-17 15:16:47, Igor Stoppa wrote:
-> On 26/04/17 18:29, Igor Stoppa wrote:
+On Thu, Apr 27, 2017 at 03:12:34PM +0800, Huang, Ying wrote:
+> Minchan Kim <minchan@kernel.org> writes:
+> > On Tue, Apr 25, 2017 at 08:56:56PM +0800, Huang, Ying wrote:
+> >> @@ -178,20 +192,12 @@ int add_to_swap(struct page *page, struct list_head *list)
+> >>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> >>  	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+> >>  
+> >> -	entry = get_swap_page();
+> >> +retry:
+> >> +	entry = get_swap_page(page);
+> >>  	if (!entry.val)
+> >> -		return 0;
+> >> -
+> >> -	if (mem_cgroup_try_charge_swap(page, entry)) {
+> >> -		swapcache_free(entry);
+> >> -		return 0;
+> >> -	}
+> >> -
+> >> -	if (unlikely(PageTransHuge(page)))
+> >> -		if (unlikely(split_huge_page_to_list(page, list))) {
+> >> -			swapcache_free(entry);
+> >> -			return 0;
+> >> -		}
+> >> +		goto fail;
+> >
+> > So, with non-SSD swap, THP page *always* get the fail to get swp_entry_t
+> > and retry after split the page. However, it makes unncessary get_swap_pages
+> > call which is not trivial. If there is no SSD swap, thp-swap out should
+> > be void without adding any performance overhead.
+> > Hmm, but I have no good idea to do it simple. :(
 > 
-> > On 26/04/17 17:47, Michal Hocko wrote:
-> 
-> [...]
-> 
-> >> Also the current mm tree has ___GFP_NOLOCKDEP which is not addressed
-> >> here so I suspect you have based your change on the Linus tree.
-> 
-> > I used your tree from kernel.org
-> 
-> I found it, I was using master, instead of auto-latest (is it correct?)
+> For HDD swap, the device raw throughput is so low (< 100M Bps
+> typically), that the added overhead here will not be a big issue.  Do
+> you agree?
 
-yes
+I fully agree. If you swap to spinning rust, an extra function call
+here is the least of your concern.
 
-> But now I see something that I do not understand (apologies if I'm
-> asking something obvious).
-> 
-> First there is:
-> 
-> [...]
-> #define ___GFP_WRITE		0x800000u
-> #define ___GFP_KSWAPD_RECLAIM	0x1000000u
-> #ifdef CONFIG_LOCKDEP
-> #define ___GFP_NOLOCKDEP	0x4000000u
-> #else
-> #define ___GFP_NOLOCKDEP	0
-> #endif
-> 
-> Then:
-> 
-> /* Room for N __GFP_FOO bits */
-> #define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
-> 
-> 
-> 
-> Shouldn't it be either:
-> ___GFP_NOLOCKDEP	0x2000000u
-
-Yes it should. At the time when this patch was written this value was
-used. Later I've removed __GFP_OTHER by 41b6167e8f74 ("mm: get rid of
-__GFP_OTHER_NODE") and forgot to refresh this one. Thanks for noticing
-this.
-
-Andrew, could you fold the following in please?
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
