@@ -1,62 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D7B16B02F3
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:19:17 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id k46so9156441qtf.21
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:19:17 -0700 (PDT)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id s3si3422366qkh.239.2017.04.27.11.19.15
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EE0D26B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:20:22 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g67so3789419wrd.0
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:20:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o40si3887806wrc.80.2017.04.27.11.20.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 11:19:15 -0700 (PDT)
-Received: by mail-qt0-x244.google.com with SMTP id y33so5513654qta.1
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:19:15 -0700 (PDT)
-From: Florian Fainelli <f.fainelli@gmail.com>
-Subject: [PATCH v3 3/3] arm64: Silence first allocation with CONFIG_ARM64_MODULE_PLTS=y
-Date: Thu, 27 Apr 2017 11:19:02 -0700
-Message-Id: <20170427181902.28829-4-f.fainelli@gmail.com>
-In-Reply-To: <20170427181902.28829-1-f.fainelli@gmail.com>
-References: <20170427181902.28829-1-f.fainelli@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 27 Apr 2017 11:20:21 -0700 (PDT)
+Date: Thu, 27 Apr 2017 20:20:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/3] mm: Silence vmap() allocation failures based on
+ caller gfp_flags
+Message-ID: <20170427182018.GC30672@dhcp22.suse.cz>
+References: <20170427173900.2538-1-f.fainelli@gmail.com>
+ <20170427173900.2538-2-f.fainelli@gmail.com>
+ <20170427175653.GB30672@dhcp22.suse.cz>
+ <416a788c-6160-1ce8-fccc-839f719b2a88@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <416a788c-6160-1ce8-fccc-839f719b2a88@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Florian Fainelli <f.fainelli@gmail.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
+To: Florian Fainelli <f.fainelli@gmail.com>
+Cc: linux-arm-kernel@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-When CONFIG_ARM64_MODULE_PLTS is enabled, the first allocation using the
-module space fails, because the module is too big, and then the module
-allocation is attempted from vmalloc space. Silence the first allocation
-failure in that case by setting __GFP_NOWARN.
+On Thu 27-04-17 11:03:31, Florian Fainelli wrote:
+> On 04/27/2017 10:56 AM, Michal Hocko wrote:
+> > On Thu 27-04-17 10:38:58, Florian Fainelli wrote:
+> >> If the caller has set __GFP_NOWARN don't print the following message:
+> >> vmap allocation for size 15736832 failed: use vmalloc=<size> to increase
+> >> size.
+> >>
+> >> This can happen with the ARM/Linux or ARM64/Linux module loader built
+> >> with CONFIG_ARM{,64}_MODULE_PLTS=y which does a first attempt at loading
+> >> a large module from module space, then falls back to vmalloc space.
+> >>
+> >> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
+> > 
+> > Acked-by: Michal Hocko <mhocko@suse.com>
+> > 
+> > just a nit
+> > 
+> >> ---
+> >>  mm/vmalloc.c | 4 ++++
+> >>  1 file changed, 4 insertions(+)
+> >>
+> >> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> >> index 0b057628a7ba..d8a851634674 100644
+> >> --- a/mm/vmalloc.c
+> >> +++ b/mm/vmalloc.c
+> >> @@ -521,9 +521,13 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+> >>  		}
+> >>  	}
+> >>  
+> >> +	if (gfp_mask & __GFP_NOWARN)
+> >> +		goto out;
+> >> +
+> >>  	if (printk_ratelimit())
+> > 
+> > 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit())
+> >>  		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
+> >>  			size);
+> > 
+> > would be shorter and you wouldn't need the goto and a label.
+> 
+> Do you want me to resubmit with that change included?
 
-Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
----
- arch/arm64/kernel/module.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-
-diff --git a/arch/arm64/kernel/module.c b/arch/arm64/kernel/module.c
-index 7f316982ce00..093c13541efb 100644
---- a/arch/arm64/kernel/module.c
-+++ b/arch/arm64/kernel/module.c
-@@ -32,11 +32,16 @@
- 
- void *module_alloc(unsigned long size)
- {
-+	gfp_t gfp_mask = GFP_KERNEL;
- 	void *p;
- 
-+	/* Silence the initial allocation */
-+	if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS))
-+		gfp_mask |= __GFP_NOWARN;
-+
- 	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
- 				module_alloc_base + MODULES_VSIZE,
--				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
-+				gfp_mask, PAGE_KERNEL_EXEC, 0,
- 				NUMA_NO_NODE, __builtin_return_address(0));
- 
- 	if (!p && IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
+Up to you. As I've said this is a nit at best.
 -- 
-2.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
