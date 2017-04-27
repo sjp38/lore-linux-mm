@@ -1,71 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 35D506B0317
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 12:12:31 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g12so3515143wrg.15
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:12:31 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id b124si3609928wmc.118.2017.04.27.09.12.29
-        for <linux-mm@kvack.org>;
-        Thu, 27 Apr 2017 09:12:30 -0700 (PDT)
-Date: Thu, 27 Apr 2017 18:12:27 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 09/32] x86/mm: Provide general kernel support for
- memory encryption
-Message-ID: <20170427161227.c57dkvghz63pvmu2@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211754.10190.25082.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D036B02F4
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 12:14:11 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id o22so15285456iod.6
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:14:11 -0700 (PDT)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id k136si3423523ioe.18.2017.04.27.09.14.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Apr 2017 09:14:10 -0700 (PDT)
+Received: by mail-io0-x234.google.com with SMTP id k87so26845272ioi.0
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:14:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170418211754.10190.25082.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <3e595ba6-2ea1-e25d-e254-6c7edcf23f88@deltatee.com>
+References: <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
+ <149325431313.40660.7404075559824162131.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <3e595ba6-2ea1-e25d-e254-6c7edcf23f88@deltatee.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 27 Apr 2017 09:14:09 -0700
+Message-ID: <CAPcyv4it4eGhLjws_j8+M1BeAzr_gHRZ4zE-nC+4QMpFp72Hyg@mail.gmail.com>
+Subject: Re: [PATCH] mm, zone_device: replace {get, put}_zone_device_page()
+ with a single reference
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-On Tue, Apr 18, 2017 at 04:17:54PM -0500, Tom Lendacky wrote:
-> Changes to the existing page table macros will allow the SME support to
-> be enabled in a simple fashion with minimal changes to files that use these
-> macros.  Since the memory encryption mask will now be part of the regular
-> pagetable macros, we introduce two new macros (_PAGE_TABLE_NOENC and
-> _KERNPG_TABLE_NOENC) to allow for early pagetable creation/initialization
-> without the encryption mask before SME becomes active.  Two new pgprot()
-> macros are defined to allow setting or clearing the page encryption mask.
+On Thu, Apr 27, 2017 at 9:11 AM, Logan Gunthorpe <logang@deltatee.com> wrote:
+>
+>
+> On 26/04/17 06:55 PM, Dan Williams wrote:
+>> @@ -277,7 +269,10 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+>>   *
+>>   * Notes:
+>>   * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
+>> - *    (or devm release event).
+>> + *    (or devm release event). The expected order of events is that @ref has
+>> + *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
+>> + *    wait for the completion of kill and percpu_ref_exit() must occur after
+>> + *    devm_memremap_pages_release().
+>>   *
+>>   * 2/ @res is expected to be a host memory range that could feasibly be
+>>   *    treated as a "System RAM" range, i.e. not a device mmio range, but
+>> @@ -379,6 +374,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>>                */
+>>               list_del(&page->lru);
+>>               page->pgmap = pgmap;
+>> +             percpu_ref_get(ref);
+>>       }
+>>       devres_add(dev, page_map);
+>>       return __va(res->start);
+>> diff --git a/mm/swap.c b/mm/swap.c
+>> index 5dabf444d724..01267dda6668 100644
+>> --- a/mm/swap.c
+>> +++ b/mm/swap.c
+>> @@ -97,6 +97,16 @@ static void __put_compound_page(struct page *page)
+>>
+>>  void __put_page(struct page *page)
+>>  {
+>> +     if (is_zone_device_page(page)) {
+>> +             put_dev_pagemap(page->pgmap);
+>> +
+>> +             /*
+>> +              * The page belong to device, do not return it to
+>> +              * page allocator.
+>> +              */
+>> +             return;
+>> +     }
+>> +
+>>       if (unlikely(PageCompound(page)))
+>>               __put_compound_page(page);
+>>       else
+>>
+>
+> Forgive me if I'm missing something but this doesn't make sense to me.
+> We are taking a reference once when the region is initialized and
+> releasing it every time a page within the region's reference count drops
+> to zero. That does not seem to be symmetric and I don't see how it
+> tracks that pages are in use. Shouldn't get_dev_pagemap be called when
+> any page is allocated or something like that (ie. the inverse of
+> __put_page)?
 
-...
-
-> @@ -55,7 +57,7 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
->  	__phys_addr_symbol(__phys_reloc_hide((unsigned long)(x)))
->  
->  #ifndef __va
-> -#define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
-> +#define __va(x)			((void *)(__sme_clr(x) + PAGE_OFFSET))
->  #endif
->  
->  #define __boot_va(x)		__va(x)
-> diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-> index 7bd0099..fead0a5 100644
-> --- a/arch/x86/include/asm/page_types.h
-> +++ b/arch/x86/include/asm/page_types.h
-> @@ -15,7 +15,7 @@
->  #define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
->  #define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
->  
-> -#define __PHYSICAL_MASK		((phys_addr_t)((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
-> +#define __PHYSICAL_MASK		((phys_addr_t)(__sme_clr((1ULL << __PHYSICAL_MASK_SHIFT) - 1)))
-
-That looks strange: poking SME mask hole into a mask...?
-
->  #define __VIRTUAL_MASK		((1UL << __VIRTUAL_MASK_SHIFT) - 1)
->  
->  /* Cast *PAGE_MASK to a signed type so that it is sign-extended if
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+You're overlooking that the page reference count 1 after
+arch_add_memory(). So at the end of time we're just dropping the
+arch_add_memory() reference to release the page and related
+dev_pagemap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
