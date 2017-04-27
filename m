@@ -1,397 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1219B6B0038
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:28:48 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g12so3800456wrg.15
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:28:48 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r25si1698377wra.269.2017.04.27.11.28.46
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 77ED56B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:34:28 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 194so32352697pfv.11
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:34:28 -0700 (PDT)
+Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
+        by mx.google.com with ESMTPS id l138si3385525wmd.2.2017.04.27.11.34.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 11:28:46 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3RISjYB077117
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:28:45 -0400
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2a3a4f1rrs-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:28:45 -0400
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 27 Apr 2017 14:28:43 -0400
-Date: Thu, 27 Apr 2017 11:28:40 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [RFC v3 05/17] RCU free VMAs
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1493308376-23851-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493308376-23851-6-git-send-email-ldufour@linux.vnet.ibm.com>
+        Thu, 27 Apr 2017 11:34:27 -0700 (PDT)
+Received: by mail-wr0-x242.google.com with SMTP id v42so4703203wrc.3
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:34:27 -0700 (PDT)
+Subject: Re: [PATCH 0/3 v3] ARM/ARM64: silence large module first time
+ allocation
+References: <20170427181902.28829-1-f.fainelli@gmail.com>
+ <56EE35F5-97F9-4EA4-894B-581E7AE09A78@linaro.org>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Message-ID: <d12fa030-9d81-6740-dabf-d3305259f38e@gmail.com>
+Date: Thu, 27 Apr 2017 11:34:21 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1493308376-23851-6-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <20170427182840.GP3956@linux.vnet.ibm.com>
+In-Reply-To: <56EE35F5-97F9-4EA4-894B-581E7AE09A78@linaro.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: linux-arm-kernel@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-On Thu, Apr 27, 2017 at 05:52:44PM +0200, Laurent Dufour wrote:
-> From: Peter Zijlstra <peterz@infradead.org>
+On 04/27/2017 11:24 AM, Ard Biesheuvel wrote:
 > 
-> Manage the VMAs with SRCU such that we can do a lockless VMA lookup.
+>> On 27 Apr 2017, at 19:18, Florian Fainelli <f.fainelli@gmail.com> wrote:
+>>
+>> With kernels built with CONFIG_ARM{,64}_MODULES_PLTS=y, the first allocation
+>> done from module space will fail, produce a general OOM allocation and also a
+>> vmap warning. The second allocation from vmalloc space may or may not be
+>> successful, but is actually the one we are interested about in these cases.
+>>
+>> This patch series passed __GFP_NOWARN to silence such allocations from the
+>> ARM/ARM64 module loader's first time allocation when the MODULES_PLT option is
+>> enabled, and also makes alloc_vmap_area() react to the caller setting
+>> __GFP_NOWARN to silence "vmap allocation for size..." messages.
+>>
+>>
+>> Changes in v3:
+>> - check for __GFP_NOWARN not set where the check for printk_ratelimited()
+>>  is done, add Michal's Acked-by
+>>
+>> - use C conditionals and not CPP conditionals for IS_ENABLED(), add Ard's
+>>  Reviewed-by tag
+>>
 > 
-> We put the fput(vma->vm_file) in the SRCU callback, this keeps files
-> valid during speculative faults, this is possible due to the delayed
-> fput work by Al Viro -- do we need srcu_barrier() in unmount
-> someplace?
-> 
-> We guard the mm_rb tree with a seqlock (XXX could be a seqcount but
-> we'd have to disable preemption around the write side in order to make
-> the retry loop in __read_seqcount_begin() work) such that we can know
-> if the rb tree walk was correct. We cannot trust the restult of a
-> lockless tree walk in the face of concurrent tree rotations; although
-> we can trust on the termination of such walks -- tree rotations
-> guarantee the end result is a tree again after all.
-> 
-> Furthermore, we rely on the WMB implied by the
-> write_seqlock/count_begin() to separate the VMA initialization and the
-> publishing stores, analogous to the RELEASE in rcu_assign_pointer().
-> We also rely on the RMB from read_seqretry() to separate the vma load
-> from further loads like the smp_read_barrier_depends() in regular
-> RCU.
-> 
-> We must not touch the vmacache while doing SRCU lookups as that is not
-> properly serialized against changes. We update gap information after
-> publishing the VMA, but A) we don't use that and B) the seqlock
-> read side would fix that anyhow.
-> 
-> We clear vma->vm_rb for nodes removed from the vma tree such that we
-> can easily detect such 'dead' nodes, we rely on the WMB from
-> write_sequnlock() to separate the tree removal and clearing the node.
-> 
-> Provide find_vma_srcu() which wraps the required magic.
-> 
-> XXX: mmap()/munmap() heavy workloads might suffer from the global lock
-> in call_srcu() -- this is fixable with a 'better' SRCU implementation.
+> Ok these look fine now. But are you sure that omitting the single pr_warn() gets rid of all of that?
+> Or do we need more patches on top?
 
-An alleged 'better' SRCU implementation is now in -tip at branch
-tip/core/rcu.  This implementation maintains per-CPU callback lists,
-which eliminates the previous global lock.  The goal is to get this
-'better' SRCU into mainline during the upcoming merge window.
+Since the caller now set __GFP_NOWARN, this propagates correctly to all
+functions called from alloc_vmap_area() like kmalloc_node(). With the
+patches applied, I only get the stuff that I would expect:
 
-							Thanx, Paul
+# echo 8 7 4 1 > /proc/sys/kernel/printk
+# insmod huge.ko
+[   59.285547] huge: loading out-of-tree module taints kernel.
+[   59.328553] big_init: I am a big module using 3932160 bytes of data!
+#
 
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> ---
->  include/linux/mm_types.h |   2 +
->  kernel/fork.c            |   1 +
->  mm/init-mm.c             |   1 +
->  mm/internal.h            |  18 +++++++++
->  mm/mmap.c                | 100 +++++++++++++++++++++++++++++++++++------------
->  5 files changed, 96 insertions(+), 26 deletions(-)
 > 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index daa5fbba9349..f276973b0f91 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -359,6 +359,7 @@ struct vm_area_struct {
->  #endif
->  	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
->  	seqcount_t vm_sequence;
-> +	struct rcu_head vm_rcu_head;
->  };
 > 
->  struct core_thread {
-> @@ -397,6 +398,7 @@ struct kioctx_table;
->  struct mm_struct {
->  	struct vm_area_struct *mmap;		/* list of VMAs */
->  	struct rb_root mm_rb;
-> +	seqlock_t mm_seq;
->  	u32 vmacache_seqnum;                   /* per-thread vmacache */
->  #ifdef CONFIG_MMU
->  	unsigned long (*get_unmapped_area) (struct file *filp,
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 11c5c8ab827c..352cf3fd6c19 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -753,6 +753,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	mm->mmap = NULL;
->  	mm->mm_rb = RB_ROOT;
->  	mm->vmacache_seqnum = 0;
-> +	seqlock_init(&mm->mm_seq);
->  	atomic_set(&mm->mm_users, 1);
->  	atomic_set(&mm->mm_count, 1);
->  	init_rwsem(&mm->mmap_sem);
-> diff --git a/mm/init-mm.c b/mm/init-mm.c
-> index 975e49f00f34..2b1fa061684f 100644
-> --- a/mm/init-mm.c
-> +++ b/mm/init-mm.c
-> @@ -16,6 +16,7 @@
-> 
->  struct mm_struct init_mm = {
->  	.mm_rb		= RB_ROOT,
-> +	.mm_seq		= __SEQLOCK_UNLOCKED(init_mm.mm_seq),
->  	.pgd		= swapper_pg_dir,
->  	.mm_users	= ATOMIC_INIT(2),
->  	.mm_count	= ATOMIC_INIT(1),
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 7aa2ea0a8623..69df80ebc93d 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -40,6 +40,24 @@ void page_writeback_init(void);
-> 
->  int do_swap_page(struct vm_fault *vmf);
-> 
-> +extern struct srcu_struct vma_srcu;
-> +
-> +extern struct vm_area_struct *find_vma_srcu(struct mm_struct *mm, unsigned long addr);
-> +
-> +static inline bool vma_is_dead(struct vm_area_struct *vma, unsigned int sequence)
-> +{
-> +	int ret = RB_EMPTY_NODE(&vma->vm_rb);
-> +	unsigned seq = ACCESS_ONCE(vma->vm_sequence.sequence);
-> +
-> +	/*
-> +	 * Matches both the wmb in write_seqlock_{begin,end}() and
-> +	 * the wmb in vma_rb_erase().
-> +	 */
-> +	smp_rmb();
-> +
-> +	return ret || seq != sequence;
-> +}
-> +
->  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
->  		unsigned long floor, unsigned long ceiling);
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index cb41659bc9f9..44e19aa31315 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -159,6 +159,23 @@ void unlink_file_vma(struct vm_area_struct *vma)
->  	}
->  }
-> 
-> +DEFINE_SRCU(vma_srcu);
-> +
-> +static void __free_vma(struct rcu_head *head)
-> +{
-> +	struct vm_area_struct *vma =
-> +		container_of(head, struct vm_area_struct, vm_rcu_head);
-> +
-> +	if (vma->vm_file)
-> +		fput(vma->vm_file);
-> +	kmem_cache_free(vm_area_cachep, vma);
-> +}
-> +
-> +static void free_vma(struct vm_area_struct *vma)
-> +{
-> +	call_srcu(&vma_srcu, &vma->vm_rcu_head, __free_vma);
-> +}
-> +
->  /*
->   * Close a vm structure and free it, returning the next.
->   */
-> @@ -169,10 +186,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
->  	might_sleep();
->  	if (vma->vm_ops && vma->vm_ops->close)
->  		vma->vm_ops->close(vma);
-> -	if (vma->vm_file)
-> -		fput(vma->vm_file);
->  	mpol_put(vma_policy(vma));
-> -	kmem_cache_free(vm_area_cachep, vma);
-> +	free_vma(vma);
->  	return next;
->  }
-> 
-> @@ -394,26 +409,37 @@ static void vma_gap_update(struct vm_area_struct *vma)
->  }
-> 
->  static inline void vma_rb_insert(struct vm_area_struct *vma,
-> -				 struct rb_root *root)
-> +				 struct mm_struct *mm)
->  {
-> +	struct rb_root *root = &mm->mm_rb;
-> +
->  	/* All rb_subtree_gap values must be consistent prior to insertion */
->  	validate_mm_rb(root, NULL);
-> 
->  	rb_insert_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
->  }
-> 
-> -static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
-> +static void __vma_rb_erase(struct vm_area_struct *vma, struct mm_struct *mm)
->  {
-> +	struct rb_root *root = &mm->mm_rb;
->  	/*
->  	 * Note rb_erase_augmented is a fairly large inline function,
->  	 * so make sure we instantiate it only once with our desired
->  	 * augmented rbtree callbacks.
->  	 */
-> +	write_seqlock(&mm->mm_seq);
->  	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
-> +	write_sequnlock(&mm->mm_seq); /* wmb */
-> +
-> +	/*
-> +	 * Ensure the removal is complete before clearing the node.
-> +	 * Matched by vma_is_dead()/handle_speculative_fault().
-> +	 */
-> +	RB_CLEAR_NODE(&vma->vm_rb);
->  }
-> 
->  static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
-> -						struct rb_root *root,
-> +						struct mm_struct *mm,
->  						struct vm_area_struct *ignore)
->  {
->  	/*
-> @@ -421,21 +447,21 @@ static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
->  	 * with the possible exception of the "next" vma being erased if
->  	 * next->vm_start was reduced.
->  	 */
-> -	validate_mm_rb(root, ignore);
-> +	validate_mm_rb(&mm->mm_rb, ignore);
-> 
-> -	__vma_rb_erase(vma, root);
-> +	__vma_rb_erase(vma, mm);
->  }
-> 
->  static __always_inline void vma_rb_erase(struct vm_area_struct *vma,
-> -					 struct rb_root *root)
-> +					 struct mm_struct *mm)
->  {
->  	/*
->  	 * All rb_subtree_gap values must be consistent prior to erase,
->  	 * with the possible exception of the vma being erased.
->  	 */
-> -	validate_mm_rb(root, vma);
-> +	validate_mm_rb(&mm->mm_rb, vma);
-> 
-> -	__vma_rb_erase(vma, root);
-> +	__vma_rb_erase(vma, mm);
->  }
-> 
->  /*
-> @@ -552,10 +578,12 @@ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * immediately update the gap to the correct value. Finally we
->  	 * rebalance the rbtree after all augmented values have been set.
->  	 */
-> +	write_seqlock(&mm->mm_seq);
->  	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
->  	vma->rb_subtree_gap = 0;
->  	vma_gap_update(vma);
-> -	vma_rb_insert(vma, &mm->mm_rb);
-> +	vma_rb_insert(vma, mm);
-> +	write_sequnlock(&mm->mm_seq);
->  }
-> 
->  static void __vma_link_file(struct vm_area_struct *vma)
-> @@ -631,7 +659,7 @@ static __always_inline void __vma_unlink_common(struct mm_struct *mm,
->  {
->  	struct vm_area_struct *next;
-> 
-> -	vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
-> +	vma_rb_erase_ignore(vma, mm, ignore);
->  	next = vma->vm_next;
->  	if (has_prev)
->  		prev->vm_next = next;
-> @@ -883,21 +911,19 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
->  	}
-> 
->  	if (remove_next) {
-> -		if (file) {
-> +		if (file)
->  			uprobe_munmap(next, next->vm_start, next->vm_end);
-> -			fput(file);
-> -		}
->  		if (next->anon_vma)
->  			anon_vma_merge(vma, next);
->  		mm->map_count--;
->  		mpol_put(vma_policy(next));
-> -		kmem_cache_free(vm_area_cachep, next);
-> -		write_seqcount_end(&next->vm_sequence);
-> +		free_vma(next);
->  		/*
->  		 * In mprotect's case 6 (see comments on vma_merge),
->  		 * we must remove another next too. It would clutter
->  		 * up the code too much to do both in one go.
->  		 */
-> +		write_seqcount_end(&next->vm_sequence);
->  		if (remove_next != 3) {
->  			/*
->  			 * If "next" was removed and vma->vm_end was
-> @@ -2103,16 +2129,11 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
->  EXPORT_SYMBOL(get_unmapped_area);
-> 
->  /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
-> -struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
-> +static struct vm_area_struct *__find_vma(struct mm_struct *mm, unsigned long addr)
->  {
->  	struct rb_node *rb_node;
->  	struct vm_area_struct *vma;
-> 
-> -	/* Check the cache first. */
-> -	vma = vmacache_find(mm, addr);
-> -	if (likely(vma))
-> -		return vma;
-> -
->  	rb_node = mm->mm_rb.rb_node;
-> 
->  	while (rb_node) {
-> @@ -2129,13 +2150,40 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
->  			rb_node = rb_node->rb_right;
->  	}
-> 
-> +	return vma;
-> +}
-> +
-> +struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
-> +{
-> +	struct vm_area_struct *vma;
-> +
-> +	/* Check the cache first. */
-> +	vma = vmacache_find(mm, addr);
-> +	if (likely(vma))
-> +		return vma;
-> +
-> +	vma = __find_vma(mm, addr);
->  	if (vma)
->  		vmacache_update(addr, vma);
->  	return vma;
->  }
-> -
->  EXPORT_SYMBOL(find_vma);
-> 
-> +struct vm_area_struct *find_vma_srcu(struct mm_struct *mm, unsigned long addr)
-> +{
-> +	struct vm_area_struct *vma;
-> +	unsigned int seq;
-> +
-> +	WARN_ON_ONCE(!srcu_read_lock_held(&vma_srcu));
-> +
-> +	do {
-> +		seq = read_seqbegin(&mm->mm_seq);
-> +		vma = __find_vma(mm, addr);
-> +	} while (read_seqretry(&mm->mm_seq, seq));
-> +
-> +	return vma;
-> +}
-> +
->  /*
->   * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
->   */
-> @@ -2490,7 +2538,7 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
->  	insertion_point = (prev ? &prev->vm_next : &mm->mmap);
->  	vma->vm_prev = NULL;
->  	do {
-> -		vma_rb_erase(vma, &mm->mm_rb);
-> +		vma_rb_erase(vma, mm);
->  		mm->map_count--;
->  		tail_vma = vma;
->  		vma = vma->vm_next;
-> -- 
-> 2.7.4
-> 
+>> Changes in v2:
+>>
+>> - check __GFP_NOWARN out of the printk_ratelimited() check (Michal)
+>>
+>> Here is an example of what we would get without these two patches, pretty
+>> scary huh?
+>>
+>> # insmod /mnt/nfs/huge.ko 
+>> [   22.114143] random: nonblocking pool is initialized
+>> [   22.183575] vmap allocation for size 15736832 failed: use vmalloc=<size> to increase size.
+>> [   22.191873] vmalloc: allocation failure: 15729534 bytes
+>> [   22.197112] insmod: page allocation failure: order:0, mode:0xd0
+>> [   22.203048] CPU: 2 PID: 1506 Comm: insmod Tainted: G           O    4.1.20-1.9pre-01082-gbbbff07bc3ce #9
+>> [   22.212536] Hardware name: Broadcom STB (Flattened Device Tree)
+>> [   22.218480] [<c0017eec>] (unwind_backtrace) from [<c00135c8>] (show_stack+0x10/0x14)
+>> [   22.226238] [<c00135c8>] (show_stack) from [<c0638684>] (dump_stack+0x90/0xa4)
+>> [   22.233473] [<c0638684>] (dump_stack) from [<c00aae1c>] (warn_alloc_failed+0x104/0x144)
+>> [   22.241490] [<c00aae1c>] (warn_alloc_failed) from [<c00d72e0>] (__vmalloc_node_range+0x170/0x218)
+>> [   22.250375] [<c00d72e0>] (__vmalloc_node_range) from [<c00147d0>] (module_alloc+0x50/0xac)
+>> [   22.258651] [<c00147d0>] (module_alloc) from [<c008ae2c>] (module_alloc_update_bounds+0xc/0x6c)
+>> [   22.267360] [<c008ae2c>] (module_alloc_update_bounds) from [<c008b778>] (load_module+0x8ec/0x2058)
+>> [   22.276329] [<c008b778>] (load_module) from [<c008cfd4>] (SyS_init_module+0xf0/0x174)
+>> [   22.284170] [<c008cfd4>] (SyS_init_module) from [<c0010140>] (ret_fast_syscall+0x0/0x3c)
+>> [   22.292277] Mem-Info:
+>> [   22.294567] active_anon:5236 inactive_anon:1773 isolated_anon:0
+>> [   22.294567]  active_file:1 inactive_file:3822 isolated_file:0
+>> [   22.294567]  unevictable:0 dirty:0 writeback:0 unstable:0
+>> [   22.294567]  slab_reclaimable:238 slab_unreclaimable:1594
+>> [   22.294567]  mapped:855 shmem:2950 pagetables:36 bounce:0
+>> [   22.294567]  free:39031 free_pcp:198 free_cma:3928
+>> [   22.327196] DMA free:156124kB min:1880kB low:2348kB high:2820kB active_anon:20944kB inactive_anon:7092kB active_file:4kB inactive_file:15288kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:262144kB managed:227676kB mlocked:0kB dirty:0kB writeback:0kB mapped:3420kB shmem:11800kB slab_reclaimable:952kB slab_unreclaimable:6376kB kernel_stack:560kB pagetables:144kB unstable:0kB bounce:0kB free_pcp:792kB local_pcp:68kB free_cma:15712kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+>> [   22.371631] lowmem_reserve[]: 0 0 0 0
+>> [   22.375372] HighMem free:0kB min:128kB low:128kB high:128kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:2883584kB managed:0kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+>> [   22.416249] lowmem_reserve[]: 0 0 0 0
+>> [   22.419986] DMA: 3*4kB (UEM) 4*8kB (UE) 1*16kB (M) 4*32kB (UEMC) 3*64kB (EMC) 1*128kB (E) 4*256kB (UEMC) 2*512kB (UE) 2*1024kB (MC) 4*2048kB (UEMC) 35*4096kB (MRC) = 156156kB
+>> [   22.435922] HighMem: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+>> [   22.446130] 6789 total pagecache pages
+>> [   22.449889] 0 pages in swap cache
+>> [   22.453212] Swap cache stats: add 0, delete 0, find 0/0
+>> [   22.458447] Free swap  = 0kB
+>> [   22.461334] Total swap = 0kB
+>> [   22.464222] 786432 pages RAM
+>> [   22.467110] 720896 pages HighMem/MovableOnly
+>> [   22.471388] 725417 pages reserved
+>> [   22.474711] 4096 pages cma reserved
+>> [   22.511310] big_init: I am a big module using 3932160 bytes of data!
+>>
+>> Florian Fainelli (3):
+>>  mm: Silence vmap() allocation failures based on caller gfp_flags
+>>  ARM: Silence first allocation with CONFIG_ARM_MODULE_PLTS=y
+>>  arm64: Silence first allocation with CONFIG_ARM64_MODULE_PLTS=y
+>>
+>> arch/arm/kernel/module.c   | 11 +++++++++--
+>> arch/arm64/kernel/module.c |  7 ++++++-
+>> mm/vmalloc.c               |  2 +-
+>> 3 files changed, 16 insertions(+), 4 deletions(-)
+>>
+>> -- 
+>> 2.9.3
+>>
+
+
+-- 
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
