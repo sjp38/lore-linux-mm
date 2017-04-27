@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 76B986B02EE
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:19:13 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id a19so9240275qkg.22
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:19:13 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id z41si3680311qtz.67.2017.04.27.11.19.11
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A516B02F2
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:19:15 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id d132so9135387qkg.23
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:19:15 -0700 (PDT)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id q62si3378399qtd.4.2017.04.27.11.19.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 11:19:11 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id o85so5871387qkh.0
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:19:11 -0700 (PDT)
+        Thu, 27 Apr 2017 11:19:14 -0700 (PDT)
+Received: by mail-qk0-x244.google.com with SMTP id o85so5871534qkh.0
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:19:13 -0700 (PDT)
 From: Florian Fainelli <f.fainelli@gmail.com>
-Subject: [PATCH v3 1/3] mm: Silence vmap() allocation failures based on caller gfp_flags
-Date: Thu, 27 Apr 2017 11:19:00 -0700
-Message-Id: <20170427181902.28829-2-f.fainelli@gmail.com>
+Subject: [PATCH v3 2/3] ARM: Silence first allocation with CONFIG_ARM_MODULE_PLTS=y
+Date: Thu, 27 Apr 2017 11:19:01 -0700
+Message-Id: <20170427181902.28829-3-f.fainelli@gmail.com>
 In-Reply-To: <20170427181902.28829-1-f.fainelli@gmail.com>
 References: <20170427181902.28829-1-f.fainelli@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,33 +22,38 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org
 Cc: Florian Fainelli <f.fainelli@gmail.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-If the caller has set __GFP_NOWARN don't print the following message:
-vmap allocation for size 15736832 failed: use vmalloc=<size> to increase
-size.
+When CONFIG_ARM_MODULE_PLTS is enabled, the first allocation using the
+module space fails, because the module is too big, and then the module
+allocation is attempted from vmalloc space. Silence the first allocation
+failure in that case by setting __GFP_NOWARN.
 
-This can happen with the ARM/Linux or ARM64/Linux module loader built
-with CONFIG_ARM{,64}_MODULE_PLTS=y which does a first attempt at loading
-a large module from module space, then falls back to vmalloc space.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
 Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
 ---
- mm/vmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/arm/kernel/module.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0b057628a7ba..b74f1d01ef76 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -521,7 +521,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 		}
- 	}
- 
--	if (printk_ratelimit())
-+	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit())
- 		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
- 			size);
- 	kfree(va);
+diff --git a/arch/arm/kernel/module.c b/arch/arm/kernel/module.c
+index 80254b47dc34..3ff571c2c71c 100644
+--- a/arch/arm/kernel/module.c
++++ b/arch/arm/kernel/module.c
+@@ -40,8 +40,15 @@
+ #ifdef CONFIG_MMU
+ void *module_alloc(unsigned long size)
+ {
+-	void *p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+-				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
++	gfp_t gfp_mask = GFP_KERNEL;
++	void *p;
++
++	/* Silence the initial allocation */
++	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS))
++		gfp_mask |= __GFP_NOWARN;
++
++	p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
++				gfp_mask, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+ 				__builtin_return_address(0));
+ 	if (!IS_ENABLED(CONFIG_ARM_MODULE_PLTS) || p)
+ 		return p;
 -- 
 2.9.3
 
