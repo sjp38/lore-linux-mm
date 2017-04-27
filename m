@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B906B02F2
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 08:17:58 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i137so1160944wmf.19
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 05:17:57 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1513D6B02F2
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 08:20:34 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id x184so15888190oia.18
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 05:20:34 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id p11si2628585wrd.131.2017.04.27.05.17.56
+        by mx.google.com with ESMTPS id v139si1015315oia.147.2017.04.27.05.20.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Apr 2017 05:17:56 -0700 (PDT)
+        Thu, 27 Apr 2017 05:20:33 -0700 (PDT)
 Subject: Question on ___GFP_NOLOCKDEP - Was: Re: [PATCH 1/1] Remove hardcoding
  of ___GFP_xxx bitmasks
 References: <20170426133549.22603-1-igor.stoppa@huawei.com>
@@ -16,8 +16,8 @@ References: <20170426133549.22603-1-igor.stoppa@huawei.com>
  <20170426144750.GH12504@dhcp22.suse.cz>
  <e3fe4d80-10a8-2008-1798-af3893fe418a@huawei.com>
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <9929419e-c22e-2a9f-a8a6-ad98d5a9da06@huawei.com>
-Date: Thu, 27 Apr 2017 15:16:47 +0300
+Message-ID: <66c4a94a-eb55-8d31-f975-aee49778ceb4@huawei.com>
+Date: Thu, 27 Apr 2017 15:18:58 +0300
 MIME-Version: 1.0
 In-Reply-To: <e3fe4d80-10a8-2008-1798-af3893fe418a@huawei.com>
 Content-Type: text/plain; charset="windows-1252"
