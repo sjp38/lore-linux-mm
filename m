@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E56D46B039F
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:53:33 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y22so2188978wry.1
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 08:53:33 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j80si3662348wmj.45.2017.04.27.08.53.31
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3CB6B02FA
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 12:11:53 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id h41so15197501ioi.1
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:11:53 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id i129si5942436itd.43.2017.04.27.09.11.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 08:53:32 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3RFooKe120089
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:53:30 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2a3had7ucn-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:53:30 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 27 Apr 2017 16:53:28 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [RFC v3 16/17] mm: protect madvise vs speculative pf
-Date: Thu, 27 Apr 2017 17:52:55 +0200
-In-Reply-To: <1493308376-23851-1-git-send-email-ldufour@linux.vnet.ibm.com>
-References: <1493308376-23851-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1493308376-23851-17-git-send-email-ldufour@linux.vnet.ibm.com>
+        Thu, 27 Apr 2017 09:11:52 -0700 (PDT)
+References: <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
+ <149325431313.40660.7404075559824162131.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <3e595ba6-2ea1-e25d-e254-6c7edcf23f88@deltatee.com>
+Date: Thu, 27 Apr 2017 10:11:46 -0600
+MIME-Version: 1.0
+In-Reply-To: <149325431313.40660.7404075559824162131.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] mm, zone_device: replace {get, put}_zone_device_page()
+ with a single reference
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-This is an attempt to protect madvise's effect against the speculative
-page fault handler.
 
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- mm/madvise.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 0e3828eae9f8..f91b64564571 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -132,8 +132,9 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	/*
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 */
-+	write_seqcount_begin(&vma->vm_sequence);
- 	vma->vm_flags = new_flags;
--
-+	write_seqcount_end(&vma->vm_sequence);
- out:
- 	if (error == -ENOMEM)
- 		error = -EAGAIN;
-@@ -403,9 +404,11 @@ static void madvise_free_page_range(struct mmu_gather *tlb,
- 		.private = tlb,
- 	};
- 
-+	write_seqcount_begin(&vma->vm_sequence);
- 	tlb_start_vma(tlb, vma);
- 	walk_page_range(addr, end, &free_walk);
- 	tlb_end_vma(tlb, vma);
-+	write_seqcount_end(&vma->vm_sequence);
- }
- 
- static int madvise_free_single_vma(struct vm_area_struct *vma,
--- 
-2.7.4
+On 26/04/17 06:55 PM, Dan Williams wrote:
+> @@ -277,7 +269,10 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+>   *
+>   * Notes:
+>   * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
+> - *    (or devm release event).
+> + *    (or devm release event). The expected order of events is that @ref has
+> + *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
+> + *    wait for the completion of kill and percpu_ref_exit() must occur after
+> + *    devm_memremap_pages_release().
+>   *
+>   * 2/ @res is expected to be a host memory range that could feasibly be
+>   *    treated as a "System RAM" range, i.e. not a device mmio range, but
+> @@ -379,6 +374,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>  		 */
+>  		list_del(&page->lru);
+>  		page->pgmap = pgmap;
+> +		percpu_ref_get(ref);
+>  	}
+>  	devres_add(dev, page_map);
+>  	return __va(res->start);
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 5dabf444d724..01267dda6668 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -97,6 +97,16 @@ static void __put_compound_page(struct page *page)
+>  
+>  void __put_page(struct page *page)
+>  {
+> +	if (is_zone_device_page(page)) {
+> +		put_dev_pagemap(page->pgmap);
+> +
+> +		/*
+> +		 * The page belong to device, do not return it to
+> +		 * page allocator.
+> +		 */
+> +		return;
+> +	}
+> +
+>  	if (unlikely(PageCompound(page)))
+>  		__put_compound_page(page);
+>  	else
+> 
+
+Forgive me if I'm missing something but this doesn't make sense to me.
+We are taking a reference once when the region is initialized and
+releasing it every time a page within the region's reference count drops
+to zero. That does not seem to be symmetric and I don't see how it
+tracks that pages are in use. Shouldn't get_dev_pagemap be called when
+any page is allocated or something like that (ie. the inverse of
+__put_page)?
+
+Thanks,
+
+Logan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
