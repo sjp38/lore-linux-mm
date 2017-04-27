@@ -1,42 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F9FF6B0038
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:37:25 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id t189so1396046wme.15
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 07:37:25 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C5E86B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:42:16 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id z129so1400257wmb.23
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 07:42:16 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 132si3614077wmh.131.2017.04.27.07.37.23
+        by mx.google.com with ESMTPS id d32si11117657wma.84.2017.04.27.07.42.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Apr 2017 07:37:23 -0700 (PDT)
-Date: Thu, 27 Apr 2017 16:37:21 +0200
+        Thu, 27 Apr 2017 07:42:14 -0700 (PDT)
+Date: Thu, 27 Apr 2017 16:42:12 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-Message-ID: <20170427143721.GK4706@dhcp22.suse.cz>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/3] mm: Silence vmap() allocation failures based on
+ caller gfp_flags
+Message-ID: <20170427144211.GL4706@dhcp22.suse.cz>
+References: <20170425223332.6999-1-f.fainelli@gmail.com>
+ <20170425223332.6999-4-f.fainelli@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+In-Reply-To: <20170425223332.6999-4-f.fainelli@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Florian Fainelli <f.fainelli@gmail.com>
+Cc: linux-arm-kernel@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-On Tue 25-04-17 16:27:51, Laurent Dufour wrote:
-> When page are poisoned, they should be uncharged from the root memory
-> cgroup.
+On Tue 25-04-17 15:33:29, Florian Fainelli wrote:
+> If the caller has set __GFP_NOWARN don't print the following message:
+> vmap allocation for size 15736832 failed: use vmalloc=<size> to increase
+> size.
 > 
-> This is required to avoid a BUG raised when the page is onlined back:
-> BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
-> page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null)
-> index:0x1
-> flags: 0x3ffff800200000(hwpoison)
+> This can happen with the ARM/Linux module loader built with
+> CONFIG_ARM_MODULE_PLTS=y which does a first attempt at loading a large
+> module from module space, then falls back to vmalloc space.
+> 
+> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
+> ---
+>  mm/vmalloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 0b057628a7ba..5a788eb58741 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -521,7 +521,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+>  		}
+>  	}
+>  
+> -	if (printk_ratelimit())
+> +	if (printk_ratelimit() && !(gfp_mask & __GFP_NOWARN))
 
-My knowledge of memory poisoning is very rudimentary but aren't those
-pages supposed to leak and never come back? In other words isn't the
-hoplug code broken because it should leave them alone?
+Are you sure about this ordering? Should NOWARN requests alter the
+ratelimit state?
+
+>  		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
+>  			size);
+>  	kfree(va);
+> -- 
+> 2.9.3
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
