@@ -1,269 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AD46E6B03A8
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 04:33:21 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b20so808256wma.11
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 01:33:21 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id l187si8959289wmf.64.2017.04.27.01.33.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 01:33:20 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id z129so2951041wmb.1
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 01:33:19 -0700 (PDT)
-Date: Thu, 27 Apr 2017 11:33:17 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm, zone_device: replace {get, put}_zone_device_page()
- with a single reference
-Message-ID: <20170427083317.vzfiw7up63draslc@node.shutemov.name>
-References: <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
- <149325431313.40660.7404075559824162131.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CCFC6B02E1
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 05:06:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d3so21619048pfj.5
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 02:06:44 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id g34si1950442pld.328.2017.04.27.02.06.41
+        for <linux-mm@kvack.org>;
+        Thu, 27 Apr 2017 02:06:43 -0700 (PDT)
+Subject: 4.11.0-rc8+/x86_64 desktop lockup until applications closed
+References: <md5:RQiZYAYNN/yJzTrY48XZ7w==>
+From: Arthur Marsh <arthur.marsh@internode.on.net>
+Message-ID: <ccd5aac8-b24a-713a-db54-c35688905595@internode.on.net>
+Date: Thu, 27 Apr 2017 18:36:38 +0930
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <149325431313.40660.7404075559824162131.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <md5:RQiZYAYNN/yJzTrY48XZ7w==>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org, Kirill Shutemov <kirill.shutemov@linux.intel.com>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 
-On Wed, Apr 26, 2017 at 05:55:31PM -0700, Dan Williams wrote:
-> Kirill points out that the calls to {get,put}_dev_pagemap() can be
-> removed from the mm fast path if we take a single get_dev_pagemap()
-> reference to signify that the page is alive and use the final put of the
-> page to drop that reference.
-> 
-> This does require some care to make sure that any waits for the
-> percpu_ref to drop to zero occur *after* devm_memremap_page_release(),
-> since it now maintains its own elevated reference.
-> 
-> Cc Ingo Molnar <mingo@redhat.com>
-> Cc: Jerome Glisse <jglisse@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Suggested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
-> 
-> This patch might fix the regression that we found with the conversion to
-> generic get_user_pages_fast() in the x86/mm branch pending for 4.12
-> (commit 2947ba054a4d "x86/mm/gup: Switch GUP to the generic
-> get_user_page_fast() implementation"). I'll test tomorrow, but in case
-> someone can give it a try before I wake up, here's an early version.
 
-+ Ingo.
+I came home yesterday to discover my desktop KDE/plasma session locked 
+up until I could shutdown firefox and chromium from a console login.
 
-This works for me with and without GUP revert.
+The desktop then became responsive and I could then restart firefox and 
+chromium.
 
-Tested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+the 4GiB swap space was nearly full, but the OOM killer apparently 
+didn't run.
 
->  drivers/dax/pmem.c    |    2 +-
->  drivers/nvdimm/pmem.c |   13 +++++++++++--
+dmesg showed:
 
-There's a trivial conflict in drivers/nvdimm/pmem.c when applied to
-tip/master.
 
->  include/linux/mm.h    |   14 --------------
->  kernel/memremap.c     |   22 +++++++++-------------
->  mm/swap.c             |   10 ++++++++++
->  5 files changed, 31 insertions(+), 30 deletions(-)
-> 
-> diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-> index d4ca19bd74eb..9f2a0b4fd801 100644
-> --- a/drivers/dax/pmem.c
-> +++ b/drivers/dax/pmem.c
-> @@ -43,6 +43,7 @@ static void dax_pmem_percpu_exit(void *data)
->  	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
->  
->  	dev_dbg(dax_pmem->dev, "%s\n", __func__);
-> +	wait_for_completion(&dax_pmem->cmp);
->  	percpu_ref_exit(ref);
->  }
->  
-> @@ -53,7 +54,6 @@ static void dax_pmem_percpu_kill(void *data)
->  
->  	dev_dbg(dax_pmem->dev, "%s\n", __func__);
->  	percpu_ref_kill(ref);
-> -	wait_for_completion(&dax_pmem->cmp);
->  }
->  
->  static int dax_pmem_probe(struct device *dev)
-> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-> index 3b3dab73d741..6be0c1253fcd 100644
-> --- a/drivers/nvdimm/pmem.c
-> +++ b/drivers/nvdimm/pmem.c
-> @@ -25,6 +25,7 @@
->  #include <linux/badblocks.h>
->  #include <linux/memremap.h>
->  #include <linux/vmalloc.h>
-> +#include <linux/blk-mq.h>
->  #include <linux/pfn_t.h>
->  #include <linux/slab.h>
->  #include <linux/pmem.h>
-> @@ -243,6 +244,11 @@ static void pmem_release_queue(void *q)
->  	blk_cleanup_queue(q);
->  }
->  
-> +static void pmem_freeze_queue(void *q)
-> +{
-> +	blk_mq_freeze_queue_start(q);
-> +}
-> +
->  static void pmem_release_disk(void *__pmem)
->  {
->  	struct pmem_device *pmem = __pmem;
-> @@ -301,6 +307,9 @@ static int pmem_attach_disk(struct device *dev,
->  	if (!q)
->  		return -ENOMEM;
->  
-> +	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
-> +		return -ENOMEM;
-> +
->  	pmem->pfn_flags = PFN_DEV;
->  	if (is_nd_pfn(dev)) {
->  		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
-> @@ -320,10 +329,10 @@ static int pmem_attach_disk(struct device *dev,
->  				pmem->size, ARCH_MEMREMAP_PMEM);
->  
->  	/*
-> -	 * At release time the queue must be dead before
-> +	 * At release time the queue must be frozen before
->  	 * devm_memremap_pages is unwound
->  	 */
-> -	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
-> +	if (devm_add_action_or_reset(dev, pmem_freeze_queue, q))
->  		return -ENOMEM;
->  
->  	if (IS_ERR(addr))
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 00a8fa7e366a..ce17b35257ac 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -758,19 +758,11 @@ static inline enum zone_type page_zonenum(const struct page *page)
->  }
->  
->  #ifdef CONFIG_ZONE_DEVICE
-> -void get_zone_device_page(struct page *page);
-> -void put_zone_device_page(struct page *page);
->  static inline bool is_zone_device_page(const struct page *page)
->  {
->  	return page_zonenum(page) == ZONE_DEVICE;
->  }
->  #else
-> -static inline void get_zone_device_page(struct page *page)
-> -{
-> -}
-> -static inline void put_zone_device_page(struct page *page)
-> -{
-> -}
->  static inline bool is_zone_device_page(const struct page *page)
->  {
->  	return false;
-> @@ -786,9 +778,6 @@ static inline void get_page(struct page *page)
->  	 */
->  	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
->  	page_ref_inc(page);
-> -
-> -	if (unlikely(is_zone_device_page(page)))
-> -		get_zone_device_page(page);
->  }
->  
->  static inline void put_page(struct page *page)
-> @@ -797,9 +786,6 @@ static inline void put_page(struct page *page)
->  
->  	if (put_page_testzero(page))
->  		__put_page(page);
-> -
-> -	if (unlikely(is_zone_device_page(page)))
-> -		put_zone_device_page(page);
->  }
->  
->  #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 07e85e5229da..5316efdde083 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -182,18 +182,6 @@ struct page_map {
->  	struct vmem_altmap altmap;
->  };
->  
-> -void get_zone_device_page(struct page *page)
-> -{
-> -	percpu_ref_get(page->pgmap->ref);
-> -}
-> -EXPORT_SYMBOL(get_zone_device_page);
-> -
-> -void put_zone_device_page(struct page *page)
-> -{
-> -	put_dev_pagemap(page->pgmap);
-> -}
-> -EXPORT_SYMBOL(put_zone_device_page);
-> -
->  static void pgmap_radix_release(struct resource *res)
->  {
->  	resource_size_t key, align_start, align_size, align_end;
-> @@ -237,6 +225,10 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
->  	struct resource *res = &page_map->res;
->  	resource_size_t align_start, align_size;
->  	struct dev_pagemap *pgmap = &page_map->pgmap;
-> +	unsigned long pfn;
-> +
-> +	for_each_device_pfn(pfn, page_map)
-> +		put_page(pfn_to_page(pfn));
->  
->  	if (percpu_ref_tryget_live(pgmap->ref)) {
->  		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
-> @@ -277,7 +269,10 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
->   *
->   * Notes:
->   * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
-> - *    (or devm release event).
-> + *    (or devm release event). The expected order of events is that @ref has
-> + *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
-> + *    wait for the completion of kill and percpu_ref_exit() must occur after
-> + *    devm_memremap_pages_release().
->   *
->   * 2/ @res is expected to be a host memory range that could feasibly be
->   *    treated as a "System RAM" range, i.e. not a device mmio range, but
-> @@ -379,6 +374,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
->  		 */
->  		list_del(&page->lru);
->  		page->pgmap = pgmap;
-> +		percpu_ref_get(ref);
->  	}
->  	devres_add(dev, page_map);
->  	return __va(res->start);
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 5dabf444d724..01267dda6668 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -97,6 +97,16 @@ static void __put_compound_page(struct page *page)
->  
->  void __put_page(struct page *page)
->  {
-> +	if (is_zone_device_page(page)) {
-> +		put_dev_pagemap(page->pgmap);
-> +
-> +		/*
-> +		 * The page belong to device, do not return it to
-> +		 * page allocator.
-> +		 */
-> +		return;
-> +	}
-> +
->  	if (unlikely(PageCompound(page)))
->  		__put_compound_page(page);
->  	else
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[55363.482931] QXcbEventReader: page allocation stalls for 10048ms, 
+order:0, mode:0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null)
+[55363.482942] QXcbEventReader cpuset=/ mems_allowed=0
+[55363.482948] CPU: 2 PID: 4092 Comm: QXcbEventReader Not tainted 
+4.11.0-rc8+ #2670
+[55363.482950] Hardware name: System manufacturer System Product 
+Name/M3A78 PRO, BIOS 1701    01/27/2011
+[55363.482951] Call Trace:
+[55363.482959]  ? dump_stack+0x5c/0x84
+[55363.482962]  ? warn_alloc+0x112/0x1b0
+[55363.482964]  ? __alloc_pages_slowpath+0x836/0xde0
+[55363.482967]  ? ktime_get+0x51/0xd0
+[55363.482979]  ? scsi_request_fn+0x3d/0x690 [scsi_mod]
+[55363.482981]  ? __alloc_pages_nodemask+0x1eb/0x230
+[55363.482984]  ? alloc_pages_vma+0xc4/0x280
+[55363.482987]  ? __read_swap_cache_async+0x189/0x280
+[55363.482990]  ? read_swap_cache_async+0x24/0x60
+[55363.482991]  ? swapin_readahead+0x10d/0x1c0
+[55363.482994]  ? do_swap_page+0x272/0x720
+[55363.482997]  ? __handle_mm_fault+0x773/0x10f0
+[55363.482999]  ? handle_mm_fault+0xe7/0x260
+[55363.483002]  ? __do_page_fault+0x2d4/0x630
+[55363.483005]  ? page_fault+0x28/0x30
+[55363.483008]  ? copy_user_generic_string+0x2c/0x40
+[55363.483011]  ? copy_page_to_iter+0x91/0x2d0
+[55363.483014]  ? skb_copy_datagram_iter+0x146/0x270
+[55363.483016]  ? unix_stream_read_actor+0x1a/0x30
+[55363.483018]  ? unix_stream_read_generic+0x2f8/0x8c0
+[55363.483020]  ? _raw_spin_lock+0x13/0x40
+[55363.483022]  ? _raw_spin_unlock_irq+0x1d/0x40
+[55363.483024]  ? free_swap_slot+0x4e/0x110
+[55363.483026]  ? _raw_spin_unlock+0x16/0x40
+[55363.483028]  ? unix_stream_recvmsg+0x81/0xa0
+[55363.483029]  ? unix_state_double_unlock+0x40/0x40
+[55363.483031]  ? SYSC_recvfrom+0xe3/0x170
+[55363.483034]  ? handle_mm_fault+0xe7/0x260
+[55363.483036]  ? __do_page_fault+0x301/0x630
+[55363.483038]  ? entry_SYSCALL_64_fastpath+0x1e/0xad
+[55363.483040] Mem-Info:
+[55363.483044] active_anon:1479559 inactive_anon:281161 isolated_anon:299
+                 active_file:49213 inactive_file:42134 isolated_file:0
+                 unevictable:4651 dirty:108 writeback:188 unstable:0
+                 slab_reclaimable:11225 slab_unreclaimable:20186
+                 mapped:204768 shmem:145888 pagetables:39859 bounce:0
+                 free:25470 free_pcp:0 free_cma:0
+[55363.483050] Node 0 active_anon:5918236kB inactive_anon:1124644kB 
+active_file:196852kB inactive_file:168536kB unevictable:18604kB 
+isolated(anon):1196kB isolated(file):0kB mapped:819072kB dirty:432kB 
+writeback:752kB shmem:583552kB shmem_thp: 0kB shmem_pmdmapped: 0kB 
+anon_thp: 0kB writeback_tmp:0kB unstable:0kB pages_scanned:0 
+all_unreclaimable? no
+[55363.483052] Node 0 DMA free:15904kB min:132kB low:164kB high:196kB 
+active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB 
+unevictable:0kB writepending:0kB present:15992kB managed:15904kB 
+mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB 
+pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[55363.483056] lowmem_reserve[]: 0 3150 7885 7885
+[55363.483059] Node 0 DMA32 free:45556kB min:26948kB low:33684kB 
+high:40420kB active_anon:2273532kB inactive_anon:542768kB 
+active_file:99788kB inactive_file:89940kB unevictable:32kB 
+writepending:440kB present:3391168kB managed:3314260kB mlocked:32kB 
+slab_reclaimable:8800kB slab_unreclaimable:25976kB kernel_stack:7992kB 
+pagetables:68028kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[55363.483063] lowmem_reserve[]: 0 0 4734 4734
+[55363.483066] Node 0 Normal free:40420kB min:40500kB low:50624kB 
+high:60748kB active_anon:3644668kB inactive_anon:581672kB 
+active_file:97068kB inactive_file:78784kB unevictable:18572kB 
+writepending:0kB present:4980736kB managed:4848692kB mlocked:18572kB 
+slab_reclaimable:36100kB slab_unreclaimable:54768kB kernel_stack:13544kB 
+pagetables:91408kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[55363.483069] lowmem_reserve[]: 0 0 0 0
+[55363.483072] Node 0 DMA: 0*4kB 0*8kB 0*16kB 1*32kB (U) 2*64kB (U) 
+1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M) 3*4096kB (M) = 
+15904kB
+[55363.483081] Node 0 DMA32: 422*4kB (UME) 847*8kB (UME) 734*16kB (UME) 
+338*32kB (UME) 108*64kB (UME) 23*128kB (UME) 9*256kB (M) 3*512kB (M) 
+2*1024kB (M) 0*2048kB 0*4096kB = 46768kB
+[55363.483090] Node 0 Normal: 1293*4kB (UME) 1451*8kB (UME) 845*16kB 
+(UME) 293*32kB (UME) 36*64kB (UM) 0*128kB 0*256kB 0*512kB 0*1024kB 
+0*2048kB 0*4096kB = 41980kB
+[55363.483099] Node 0 hugepages_total=0 hugepages_free=0 
+hugepages_surp=0 hugepages_size=1048576kB
+[55363.483100] Node 0 hugepages_total=0 hugepages_free=0 
+hugepages_surp=0 hugepages_size=2048kB
+[55363.483101] 251525 total pagecache pages
+[55363.483104] 10025 pages in swap cache
+[55363.483105] Swap cache stats: add 3287896, delete 3277870, find 
+405176/629612
+[55363.483106] Free swap  = 498568kB
+[55363.483107] Total swap = 4194288kB
+[55363.483108] 2096974 pages RAM
+[55363.483109] 0 pages HighMem/MovableOnly
+[55363.483110] 52260 pages reserved
+[55363.483111] 0 pages hwpoisoned
 
--- 
- Kirill A. Shutemov
+I'm happy to supply configuation information and run further tests.
+
+Arthur.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
