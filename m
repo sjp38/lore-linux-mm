@@ -1,134 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 77ED56B0038
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:34:28 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 194so32352697pfv.11
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:34:28 -0700 (PDT)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id l138si3385525wmd.2.2017.04.27.11.34.27
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A7C716B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:42:22 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p138so1786320wmg.3
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:42:22 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id s23si3229089wra.10.2017.04.27.11.42.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 11:34:27 -0700 (PDT)
-Received: by mail-wr0-x242.google.com with SMTP id v42so4703203wrc.3
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:34:27 -0700 (PDT)
-Subject: Re: [PATCH 0/3 v3] ARM/ARM64: silence large module first time
- allocation
-References: <20170427181902.28829-1-f.fainelli@gmail.com>
- <56EE35F5-97F9-4EA4-894B-581E7AE09A78@linaro.org>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Message-ID: <d12fa030-9d81-6740-dabf-d3305259f38e@gmail.com>
-Date: Thu, 27 Apr 2017 11:34:21 -0700
+        Thu, 27 Apr 2017 11:42:21 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3RIce49038520
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:42:19 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2a3hhy5nsc-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:42:19 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Thu, 27 Apr 2017 14:42:19 -0400
+Date: Thu, 27 Apr 2017 13:42:13 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [RFC 1/4] mm: create N_COHERENT_MEMORY
+References: <20170419075242.29929-1-bsingharora@gmail.com>
+ <20170419075242.29929-2-bsingharora@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <56EE35F5-97F9-4EA4-894B-581E7AE09A78@linaro.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20170419075242.29929-2-bsingharora@gmail.com>
+Message-Id: <20170427184213.tco7hu5w2zlm4lpg@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: linux-arm-kernel@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, vbabka@suse.cz, cl@linux.com
 
-On 04/27/2017 11:24 AM, Ard Biesheuvel wrote:
-> 
->> On 27 Apr 2017, at 19:18, Florian Fainelli <f.fainelli@gmail.com> wrote:
->>
->> With kernels built with CONFIG_ARM{,64}_MODULES_PLTS=y, the first allocation
->> done from module space will fail, produce a general OOM allocation and also a
->> vmap warning. The second allocation from vmalloc space may or may not be
->> successful, but is actually the one we are interested about in these cases.
->>
->> This patch series passed __GFP_NOWARN to silence such allocations from the
->> ARM/ARM64 module loader's first time allocation when the MODULES_PLT option is
->> enabled, and also makes alloc_vmap_area() react to the caller setting
->> __GFP_NOWARN to silence "vmap allocation for size..." messages.
->>
->>
->> Changes in v3:
->> - check for __GFP_NOWARN not set where the check for printk_ratelimited()
->>  is done, add Michal's Acked-by
->>
->> - use C conditionals and not CPP conditionals for IS_ENABLED(), add Ard's
->>  Reviewed-by tag
->>
-> 
-> Ok these look fine now. But are you sure that omitting the single pr_warn() gets rid of all of that?
-> Or do we need more patches on top?
+On Wed, Apr 19, 2017 at 05:52:39PM +1000, Balbir Singh wrote:
+>In this patch we create N_COHERENT_MEMORY, which is different
+>from N_MEMORY. A node hotplugged as coherent memory will have
+>this state set. The expectation then is that this memory gets
+>onlined like regular nodes. Memory allocation from such nodes
+>occurs only when the the node is contained explicitly in the
+>mask.
 
-Since the caller now set __GFP_NOWARN, this propagates correctly to all
-functions called from alloc_vmap_area() like kmalloc_node(). With the
-patches applied, I only get the stuff that I would expect:
+Finally got around to test drive this. From what I can see, as expected,
+both kernel and userspace seem to ignore these nodes, unless you 
+allocate specifically from them. Very convenient.
 
-# echo 8 7 4 1 > /proc/sys/kernel/printk
-# insmod huge.ko
-[   59.285547] huge: loading out-of-tree module taints kernel.
-[   59.328553] big_init: I am a big module using 3932160 bytes of data!
-#
+Is "online_coherent"/MMOP_ONLINE_COHERENT the right way to trigger this?  
+That mechanism is used to specify zone, and only for a single block of 
+memory. This concept applies to the node as a whole. I think it should 
+be independent of memory onlining.
 
-> 
-> 
->> Changes in v2:
->>
->> - check __GFP_NOWARN out of the printk_ratelimited() check (Michal)
->>
->> Here is an example of what we would get without these two patches, pretty
->> scary huh?
->>
->> # insmod /mnt/nfs/huge.ko 
->> [   22.114143] random: nonblocking pool is initialized
->> [   22.183575] vmap allocation for size 15736832 failed: use vmalloc=<size> to increase size.
->> [   22.191873] vmalloc: allocation failure: 15729534 bytes
->> [   22.197112] insmod: page allocation failure: order:0, mode:0xd0
->> [   22.203048] CPU: 2 PID: 1506 Comm: insmod Tainted: G           O    4.1.20-1.9pre-01082-gbbbff07bc3ce #9
->> [   22.212536] Hardware name: Broadcom STB (Flattened Device Tree)
->> [   22.218480] [<c0017eec>] (unwind_backtrace) from [<c00135c8>] (show_stack+0x10/0x14)
->> [   22.226238] [<c00135c8>] (show_stack) from [<c0638684>] (dump_stack+0x90/0xa4)
->> [   22.233473] [<c0638684>] (dump_stack) from [<c00aae1c>] (warn_alloc_failed+0x104/0x144)
->> [   22.241490] [<c00aae1c>] (warn_alloc_failed) from [<c00d72e0>] (__vmalloc_node_range+0x170/0x218)
->> [   22.250375] [<c00d72e0>] (__vmalloc_node_range) from [<c00147d0>] (module_alloc+0x50/0xac)
->> [   22.258651] [<c00147d0>] (module_alloc) from [<c008ae2c>] (module_alloc_update_bounds+0xc/0x6c)
->> [   22.267360] [<c008ae2c>] (module_alloc_update_bounds) from [<c008b778>] (load_module+0x8ec/0x2058)
->> [   22.276329] [<c008b778>] (load_module) from [<c008cfd4>] (SyS_init_module+0xf0/0x174)
->> [   22.284170] [<c008cfd4>] (SyS_init_module) from [<c0010140>] (ret_fast_syscall+0x0/0x3c)
->> [   22.292277] Mem-Info:
->> [   22.294567] active_anon:5236 inactive_anon:1773 isolated_anon:0
->> [   22.294567]  active_file:1 inactive_file:3822 isolated_file:0
->> [   22.294567]  unevictable:0 dirty:0 writeback:0 unstable:0
->> [   22.294567]  slab_reclaimable:238 slab_unreclaimable:1594
->> [   22.294567]  mapped:855 shmem:2950 pagetables:36 bounce:0
->> [   22.294567]  free:39031 free_pcp:198 free_cma:3928
->> [   22.327196] DMA free:156124kB min:1880kB low:2348kB high:2820kB active_anon:20944kB inactive_anon:7092kB active_file:4kB inactive_file:15288kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:262144kB managed:227676kB mlocked:0kB dirty:0kB writeback:0kB mapped:3420kB shmem:11800kB slab_reclaimable:952kB slab_unreclaimable:6376kB kernel_stack:560kB pagetables:144kB unstable:0kB bounce:0kB free_pcp:792kB local_pcp:68kB free_cma:15712kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
->> [   22.371631] lowmem_reserve[]: 0 0 0 0
->> [   22.375372] HighMem free:0kB min:128kB low:128kB high:128kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:2883584kB managed:0kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
->> [   22.416249] lowmem_reserve[]: 0 0 0 0
->> [   22.419986] DMA: 3*4kB (UEM) 4*8kB (UE) 1*16kB (M) 4*32kB (UEMC) 3*64kB (EMC) 1*128kB (E) 4*256kB (UEMC) 2*512kB (UE) 2*1024kB (MC) 4*2048kB (UEMC) 35*4096kB (MRC) = 156156kB
->> [   22.435922] HighMem: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
->> [   22.446130] 6789 total pagecache pages
->> [   22.449889] 0 pages in swap cache
->> [   22.453212] Swap cache stats: add 0, delete 0, find 0/0
->> [   22.458447] Free swap  = 0kB
->> [   22.461334] Total swap = 0kB
->> [   22.464222] 786432 pages RAM
->> [   22.467110] 720896 pages HighMem/MovableOnly
->> [   22.471388] 725417 pages reserved
->> [   22.474711] 4096 pages cma reserved
->> [   22.511310] big_init: I am a big module using 3932160 bytes of data!
->>
->> Florian Fainelli (3):
->>  mm: Silence vmap() allocation failures based on caller gfp_flags
->>  ARM: Silence first allocation with CONFIG_ARM_MODULE_PLTS=y
->>  arm64: Silence first allocation with CONFIG_ARM64_MODULE_PLTS=y
->>
->> arch/arm/kernel/module.c   | 11 +++++++++--
->> arch/arm64/kernel/module.c |  7 ++++++-
->> mm/vmalloc.c               |  2 +-
->> 3 files changed, 16 insertions(+), 4 deletions(-)
->>
->> -- 
->> 2.9.3
->>
+I mean, let's say online_kernel N blocks, some of them get allocated, 
+and then you online_coherent block N+1, flipping the entire node into 
+N_COHERENT_MEMORY. That doesn't seem right.
+
+That said, this set as it stands needs an adjustment when based on top 
+of Michal's onlining revamp [1]. As-is, allow_online_pfn_range() is 
+returning false. The patch below fixed it for me.
+
+[1] http://lkml.kernel.org/r/20170421120512.23960-1-mhocko@kernel.org
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 4a535f1..ccb7a84 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -869,16 +869,20 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
+ 	 * though so let's stick with it for simplicity for now.
+ 	 * TODO make sure we do not overlap with ZONE_DEVICE
+ 	 */
+-	if (online_type == MMOP_ONLINE_KERNEL) {
++	switch (online_type) {
++	case MMOP_ONLINE_KERNEL:
+ 		if (zone_is_empty(movable_zone))
+ 			return true;
+ 		return movable_zone->zone_start_pfn >= pfn + nr_pages;
+-	} else if (online_type == MMOP_ONLINE_MOVABLE) {
++	case MMOP_ONLINE_MOVABLE:
+ 		return zone_end_pfn(normal_zone) <= pfn;
++	case MMOP_ONLINE_KEEP:
++	case MMOP_ONLINE_COHERENT:
++		/* These will always succeed and inherit the current zone */
++		return true;
+ 	}
+ 
+-	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
+-	return online_type == MMOP_ONLINE_KEEP;
++	return false;
+ }
+ 
+ static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
 
 
 -- 
-Florian
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
