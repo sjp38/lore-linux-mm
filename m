@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A7C716B0038
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:42:22 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p138so1786320wmg.3
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 11:42:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s23si3229089wra.10.2017.04.27.11.42.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 718116B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 16:51:28 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d3so35365027pfj.5
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 13:51:28 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q74si3801028pfi.346.2017.04.27.13.51.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 11:42:21 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3RIce49038520
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:42:19 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2a3hhy5nsc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 14:42:19 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 27 Apr 2017 14:42:19 -0400
-Date: Thu, 27 Apr 2017 13:42:13 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [RFC 1/4] mm: create N_COHERENT_MEMORY
-References: <20170419075242.29929-1-bsingharora@gmail.com>
- <20170419075242.29929-2-bsingharora@gmail.com>
+        Thu, 27 Apr 2017 13:51:27 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
+References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
+	<1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+	<20170427143721.GK4706@dhcp22.suse.cz>
+Date: Thu, 27 Apr 2017 13:51:23 -0700
+In-Reply-To: <20170427143721.GK4706@dhcp22.suse.cz> (Michal Hocko's message of
+	"Thu, 27 Apr 2017 16:37:21 +0200")
+Message-ID: <87pofxk20k.fsf@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20170419075242.29929-2-bsingharora@gmail.com>
-Message-Id: <20170427184213.tco7hu5w2zlm4lpg@arbab-laptop.localdomain>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, vbabka@suse.cz, cl@linux.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Wed, Apr 19, 2017 at 05:52:39PM +1000, Balbir Singh wrote:
->In this patch we create N_COHERENT_MEMORY, which is different
->from N_MEMORY. A node hotplugged as coherent memory will have
->this state set. The expectation then is that this memory gets
->onlined like regular nodes. Memory allocation from such nodes
->occurs only when the the node is contained explicitly in the
->mask.
+Michal Hocko <mhocko@kernel.org> writes:
 
-Finally got around to test drive this. From what I can see, as expected,
-both kernel and userspace seem to ignore these nodes, unless you 
-allocate specifically from them. Very convenient.
+> On Tue 25-04-17 16:27:51, Laurent Dufour wrote:
+>> When page are poisoned, they should be uncharged from the root memory
+>> cgroup.
+>> 
+>> This is required to avoid a BUG raised when the page is onlined back:
+>> BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
+>> page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null)
+>> index:0x1
+>> flags: 0x3ffff800200000(hwpoison)
+>
+> My knowledge of memory poisoning is very rudimentary but aren't those
+> pages supposed to leak and never come back? In other words isn't the
+> hoplug code broken because it should leave them alone?
 
-Is "online_coherent"/MMOP_ONLINE_COHERENT the right way to trigger this?  
-That mechanism is used to specify zone, and only for a single block of 
-memory. This concept applies to the node as a whole. I think it should 
-be independent of memory onlining.
+Yes that would be the right interpretation. If it was really offlined
+due to a hardware error the memory will be poisoned and any access
+could cause a machine check.
 
-I mean, let's say online_kernel N blocks, some of them get allocated, 
-and then you online_coherent block N+1, flipping the entire node into 
-N_COHERENT_MEMORY. That doesn't seem right.
+hwpoison has an own "unpoison" option (only used for debugging), which
+I think handles this.
 
-That said, this set as it stands needs an adjustment when based on top 
-of Michal's onlining revamp [1]. As-is, allow_online_pfn_range() is 
-returning false. The patch below fixed it for me.
-
-[1] http://lkml.kernel.org/r/20170421120512.23960-1-mhocko@kernel.org
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 4a535f1..ccb7a84 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -869,16 +869,20 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- 	 * though so let's stick with it for simplicity for now.
- 	 * TODO make sure we do not overlap with ZONE_DEVICE
- 	 */
--	if (online_type == MMOP_ONLINE_KERNEL) {
-+	switch (online_type) {
-+	case MMOP_ONLINE_KERNEL:
- 		if (zone_is_empty(movable_zone))
- 			return true;
- 		return movable_zone->zone_start_pfn >= pfn + nr_pages;
--	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-+	case MMOP_ONLINE_MOVABLE:
- 		return zone_end_pfn(normal_zone) <= pfn;
-+	case MMOP_ONLINE_KEEP:
-+	case MMOP_ONLINE_COHERENT:
-+		/* These will always succeed and inherit the current zone */
-+		return true;
- 	}
- 
--	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
--	return online_type == MMOP_ONLINE_KEEP;
-+	return false;
- }
- 
- static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
-
-
--- 
-Reza Arbab
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
