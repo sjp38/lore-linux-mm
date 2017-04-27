@@ -1,180 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B32A36B0311
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 00:44:01 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id m132so3877788ith.17
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 21:44:01 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id 202si2247011itv.105.2017.04.26.21.44.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Apr 2017 21:44:00 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v5 08/11] mm: hwpoison: soft offline supports thp
- migration
-Date: Thu, 27 Apr 2017 04:41:13 +0000
-Message-ID: <20170427044112.GA18781@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170420204752.79703-1-zi.yan@sent.com>
- <20170420204752.79703-9-zi.yan@sent.com>
- <62d7eea3-96c8-3230-3e1b-fdc2bfbea6bd@linux.vnet.ibm.com>
- <58FA2B85.5040904@cs.rutgers.edu>
-In-Reply-To: <58FA2B85.5040904@cs.rutgers.edu>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <16528C837D5DBE48BF2753238348F7C9@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 55ABF6B0317
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 01:31:45 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e16so17515094pfj.15
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2017 22:31:45 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id j63si1561931pgd.7.2017.04.26.22.31.43
+        for <linux-mm@kvack.org>;
+        Wed, 26 Apr 2017 22:31:44 -0700 (PDT)
+Date: Thu, 27 Apr 2017 14:31:41 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v10 1/3] mm, THP, swap: Delay splitting THP during
+ swap out
+Message-ID: <20170427053141.GA1925@bbox>
+References: <20170425125658.28684-1-ying.huang@intel.com>
+ <20170425125658.28684-2-ying.huang@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170425125658.28684-2-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Zi Yan <zi.yan@sent.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "dnellans@nvidia.com" <dnellans@nvidia.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
 
-On Fri, Apr 21, 2017 at 10:55:49AM -0500, Zi Yan wrote:
->=20
->=20
-> Anshuman Khandual wrote:
-> > On 04/21/2017 02:17 AM, Zi Yan wrote:
-> >> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> >>
-> >> This patch enables thp migration for soft offline.
-> >>
-> >> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> >>
-> >> ChangeLog: v1 -> v5:
-> >> - fix page isolation counting error
-> >>
-> >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> >> ---
-> >>  mm/memory-failure.c | 35 ++++++++++++++---------------------
-> >>  1 file changed, 14 insertions(+), 21 deletions(-)
-> >>
-> >> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> >> index 9b77476ef31f..23ff02eb3ed4 100644
-> >> --- a/mm/memory-failure.c
-> >> +++ b/mm/memory-failure.c
-> >> @@ -1481,7 +1481,17 @@ static struct page *new_page(struct page *p, un=
-signed long private, int **x)
-> >>  	if (PageHuge(p))
-> >>  		return alloc_huge_page_node(page_hstate(compound_head(p)),
-> >>  						   nid);
-> >> -	else
-> >> +	else if (thp_migration_supported() && PageTransHuge(p)) {
-> >> +		struct page *thp;
-> >> +
-> >> +		thp =3D alloc_pages_node(nid,
-> >> +			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
-> >=20
-> > Why not __GFP_RECLAIM ? Its soft offline path we wait a bit before
-> > declaring that THP page cannot be allocated and hence should invoke
-> > reclaim methods as well.
->=20
-> I am not sure how much effort the kernel wants to put here to soft
-> offline a THP. Naoya knows more here.
+On Tue, Apr 25, 2017 at 08:56:56PM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> In this patch, splitting huge page is delayed from almost the first
+> step of swapping out to after allocating the swap space for the
+> THP (Transparent Huge Page) and adding the THP into the swap cache.
+> This will batch the corresponding operation, thus improve THP swap out
+> throughput.
+> 
+> This is the first step for the THP swap optimization.  The plan is to
+> delay splitting the THP step by step and avoid splitting the THP
+> finally.
+> 
+> The advantages of the THP swap support include:
+> 
+> - Batch the swap operations for the THP and reduce lock
+>   acquiring/releasing, including allocating/freeing the swap space,
+>   adding/deleting to/from the swap cache, and writing/reading the swap
+>   space, etc.  This will help to improve the THP swap performance.
+> 
+> - The THP swap space read/write will be 2M sequential IO.  It is
+>   particularly helpful for the swap read, which usually are 4k random
+>   IO.  This will help to improve the THP swap performance.
+> 
+> - It will help the memory fragmentation, especially when the THP is
+>   heavily used by the applications.  The 2M continuous pages will be
+>   free up after the THP swapping out.
+> 
+> - It will improve the THP utilization on the system with the swap
+>   turned on.  Because the speed for khugepaged to collapse the normal
+>   pages into the THP is quite slow.  After the THP is split during the
+>   swapping out, it will take quite long time for the normal pages to
+>   collapse back into the THP after being swapped in.  The high THP
+>   utilization helps the efficiency of the page based memory management
+>   too.
+> 
+> There are some concerns regarding THP swap in, mainly because possible
+> enlarged read/write IO size (for swap in/out) may put more overhead on
+> the storage device.  To deal with that, the THP swap in should be
+> turned on only when necessary.  For example, it can be selected via
+> "always/never/madvise" logic, to be turned on globally, turned off
+> globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
+> 
+> In this patch, one swap cluster is used to hold the contents of each
+> THP swapped out.  So, the size of the swap cluster is changed to that
+> of the THP (Transparent Huge Page) on x86_64 architecture (512).  For
+> other architectures which want such THP swap optimization,
+> ARCH_USES_THP_SWAP_CLUSTER needs to be selected in the Kconfig file
+> for the architecture.  In effect, this will enlarge swap cluster size
+> by 2 times on x86_64.  Which may make it harder to find a free cluster
+> when the swap space becomes fragmented.  So that, this may reduce the
+> continuous swap space allocation and sequential write in theory.  The
+> performance test in 0day shows no regressions caused by this.
 
-What I thought at first was that soft offline is not an urgent user
-and no need to reclaim (i.e. give a little impact on other thread.)
-But that's not a strong opinion, so if you like __GFP_RECLAIM here,
-I'm fine about that.
+What about other architecures?
 
->=20
->=20
-> >=20
-> >> +			HPAGE_PMD_ORDER);
-> >> +		if (!thp)
-> >> +			return NULL;
-> >> +		prep_transhuge_page(thp);
-> >> +		return thp;
-> >> +	} else
-> >>  		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-> >>  }
-> >> =20
-> >> @@ -1665,8 +1675,8 @@ static int __soft_offline_page(struct page *page=
-, int flags)
-> >>  		 * cannot have PAGE_MAPPING_MOVABLE.
-> >>  		 */
-> >>  		if (!__PageMovable(page))
-> >> -			inc_node_page_state(page, NR_ISOLATED_ANON +
-> >> -						page_is_file_cache(page));
-> >> +			mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON +
-> >> +						page_is_file_cache(page), hpage_nr_pages(page));
-> >>  		list_add(&page->lru, &pagelist);
-> >>  		ret =3D migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
-> >>  					MIGRATE_SYNC, MR_MEMORY_FAILURE);
-> >> @@ -1689,28 +1699,11 @@ static int __soft_offline_page(struct page *pa=
-ge, int flags)
-> >>  static int soft_offline_in_use_page(struct page *page, int flags)
-> >>  {
-> >>  	int ret;
-> >> -	struct page *hpage =3D compound_head(page);
-> >> -
-> >> -	if (!PageHuge(page) && PageTransHuge(hpage)) {
-> >> -		lock_page(hpage);
-> >> -		if (!PageAnon(hpage) || unlikely(split_huge_page(hpage))) {
-> >> -			unlock_page(hpage);
-> >> -			if (!PageAnon(hpage))
-> >> -				pr_info("soft offline: %#lx: non anonymous thp\n", page_to_pfn(pa=
-ge));
-> >> -			else
-> >> -				pr_info("soft offline: %#lx: thp split failed\n", page_to_pfn(pag=
-e));
-> >> -			put_hwpoison_page(hpage);
-> >> -			return -EBUSY;
-> >> -		}
-> >> -		unlock_page(hpage);
-> >> -		get_hwpoison_page(page);
-> >> -		put_hwpoison_page(hpage);
-> >> -	}
-> >> =20
-> >>  	if (PageHuge(page))
-> >>  		ret =3D soft_offline_huge_page(page, flags);
-> >>  	else
-> >> -		ret =3D __soft_offline_page(page, flags);
-> >> +		ret =3D __soft_offline_page(compound_head(page), flags);
-> >=20
-> > Hmm, what if the THP allocation fails in the new_page() path and
-> > we fallback for general page allocation. In that case we will
-> > always be still calling with the head page ? Because we dont
-> > split the huge page any more.
->=20
-> This could be a problem if the user wants to offline a TailPage but due
-> to THP allocation failure, the HeadPage is offlined.
+I mean THP page size on every architectures would be various.
+If THP page size is much bigger than 2M, the architecture should
+have big swap cluster size for supporting THP swap-out feature.
+It means fast empty-swap cluster consumption so that it can suffer
+from fragmentation easily which causes THP swap void and swap slot
+allocations slow due to not being able to use per-cpu.
 
-Right, "retry with split" part is unfinished, so we need some improvement.
+What I suggested was contiguous multiple swap cluster allocations
+to meet THP page size. If some of architecure's THP size is 64M
+and SWAP_CLUSTER_SIZE is 2M, it should allocate 32 contiguos
+swap clusters. For that, swap layer need to manage clusters sort
+in order which would be more overhead in CONFIG_THP_SWAP case
+but I think it's tradeoff. With that, every architectures can
+support THP swap easily without arch-specific something.
 
->=20
-> It may be better to only soft offline THPs if page =3D=3D
-> compound_head(page). If page !=3D compound_head(page), we still split THP=
-s
-> like before.
->=20
-> Because in migrate_pages(), we cannot guarantee any TailPages in that
-> THP are migrated (1. THP allocation failure causes THP splitting, then
-> only HeadPage is going to be migrated; 2. even if we change existing
-> migrate_pages() implementation to add all TailPages to migration list
-> instead of LRU list, we still cannot guarantee the TailPage we want to
-> migrate is migrated.).
->=20
-> Naoya, what do you think?
+If (PAGE_SIZE * 512) swap cluster size were okay for most of
+architecture, just increase it. It's orthogonal work regardless of
+THP swapout. Then, we don't need to manage swap clusters sort
+in order in x86_64 which SWAP_CLUSTER_SIZE is equal to
+THP_PAGE_SIZE. It's just a bonus by side-effect.
 
-Maybe soft offline is a special caller of page migration because it
-basically wants to migrate only one page, but thp migration still has
-a benefit because we can avoid thp split.
-So I like that we try thp migration at first, and if it fails we fall
-back to split and migrate (only) a raw error page. This should be done
-in caller side for soft offline, because it knows where the error page is.
+AFAIR, I suggested it but cannot remember why we cannot go with
+this way.
 
-As for generic case (for other migration callers which mainly want to
-migrate multiple pages for their purpose,) thp split and retry can be
-done in common migration code. After thp split, all subpages are linked
-to migration list, then we retry without returning to the caller.
-So I think that split_huge_page() can be moved to (for example) for-loop
-in migrate_pages().
+> 
+> In the future of THP swap optimization, some information of the
+> swapped out THP (such as compound map count) will be recorded in the
+> swap_cluster_info data structure.
+> 
+> The mem cgroup swap accounting functions are enhanced to support
+> charge or uncharge a swap cluster backing a THP as a whole.
+> 
+> The swap cluster allocate/free functions are added to allocate/free a
+> swap cluster for a THP.  A fair simple algorithm is used for swap
+> cluster allocation, that is, only the first swap device in priority
+> list will be tried to allocate the swap cluster.  The function will
+> fail if the trying is not successful, and the caller will fallback to
+> allocate a single swap slot instead.  This works good enough for
+> normal cases.  If the difference of the number of the free swap
+> clusters among multiple swap devices is significant, it is possible
+> that some THPs are split earlier than necessary.  For example, this
+> could be caused by big size difference among multiple swap devices.
+> 
+> The swap cache functions is enhanced to support add/delete THP to/from
+> the swap cache as a set of (HPAGE_PMD_NR) sub-pages.  This may be
+> enhanced in the future with multi-order radix tree.  But because we
+> will split the THP soon during swapping out, that optimization doesn't
+> make much sense for this first step.
+> 
+> The THP splitting functions are enhanced to support to split THP in
+> swap cache during swapping out.  The page lock will be held during
+> allocating the swap cluster, adding the THP into the swap cache and
+> splitting the THP.  So in the code path other than swapping out, if
+> the THP need to be split, the PageSwapCache(THP) will be always false.
+> 
+> The swap cluster is only available for SSD, so the THP swap
+> optimization in this patchset has no effect for HDD.
+> 
+> With the patch, the swap out throughput improves 11.5% (from about
+> 3.73GB/s to about 4.16GB/s) in the vm-scalability swap-w-seq test case
+> with 8 processes.  The test is done on a Xeon E5 v3 system.  The swap
+> device used is a RAM simulated PMEM (persistent memory) device.  To
+> test the sequential swapping out, the test case creates 8 processes,
+> which sequentially allocate and write to the anonymous pages until the
+> RAM and part of the swap device is used up.
+> 
+> [hannes@cmpxchg.org: extensive cleanups and simplifications, reduce code size]
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: cgroups@vger.kernel.org
+> Suggested-by: Andrew Morton <akpm@linux-foundation.org> [for config option]
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com> [for changes in huge_memory.c and huge_mm.h]
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  arch/x86/Kconfig            |   1 +
+>  include/linux/page-flags.h  |   7 +-
+>  include/linux/swap.h        |  25 ++++-
+>  include/linux/swap_cgroup.h |   6 +-
+>  mm/Kconfig                  |  12 +++
+>  mm/huge_memory.c            |  11 +-
+>  mm/memcontrol.c             |  50 ++++-----
+>  mm/shmem.c                  |   2 +-
+>  mm/swap_cgroup.c            |  40 +++++--
+>  mm/swap_slots.c             |  16 ++-
+>  mm/swap_state.c             | 114 ++++++++++++--------
+>  mm/swapfile.c               | 256 ++++++++++++++++++++++++++++++++------------
+>  12 files changed, 375 insertions(+), 165 deletions(-)
 
-I tried to write a patch for it last year, but considering vm event
-accounting, the patch might be large (~100 lines).
+< snip >
 
-Thanks,
-Naoya Horiguchi=
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1290,7 +1290,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+>  		SetPageUptodate(page);
+>  	}
+>  
+> -	swap = get_swap_page();
+> +	swap = get_swap_page(page);
+>  	if (!swap.val)
+>  		goto redirty;
+>  
+
+If swap is non-ssd, swap.val could be zero. Right?
+If so, could we retry like anonymous page swapout?
+
+>  
+> -swp_entry_t get_swap_page(void)
+> +swp_entry_t get_swap_page(struct page *page)
+>  {
+>  	swp_entry_t entry, *pentry;
+>  	struct swap_slots_cache *cache;
+>  
+> +	entry.val = 0;
+> +
+> +	if (PageTransHuge(page)) {
+> +		if (hpage_nr_pages(page) == SWAPFILE_CLUSTER)
+> +			get_swap_pages(1, true, &entry);
+> +		return entry;
+> +	}
+> +
+
+
+< snip >
+
+>  /**
+> @@ -178,20 +192,12 @@ int add_to_swap(struct page *page, struct list_head *list)
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>  	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+>  
+> -	entry = get_swap_page();
+> +retry:
+> +	entry = get_swap_page(page);
+>  	if (!entry.val)
+> -		return 0;
+> -
+> -	if (mem_cgroup_try_charge_swap(page, entry)) {
+> -		swapcache_free(entry);
+> -		return 0;
+> -	}
+> -
+> -	if (unlikely(PageTransHuge(page)))
+> -		if (unlikely(split_huge_page_to_list(page, list))) {
+> -			swapcache_free(entry);
+> -			return 0;
+> -		}
+> +		goto fail;
+
+So, with non-SSD swap, THP page *always* get the fail to get swp_entry_t
+and retry after split the page. However, it makes unncessary get_swap_pages
+call which is not trivial. If there is no SSD swap, thp-swap out should
+be void without adding any performance overhead.
+Hmm, but I have no good idea to do it simple. :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
