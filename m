@@ -1,140 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 304C26B02EE
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 13:26:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u65so1676427wmu.12
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:26:26 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id 141si65200wmr.5.2017.04.27.10.26.24
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 411436B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 13:39:22 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id q2so14222006ybb.0
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:39:22 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id 83si1311845ywc.7.2017.04.27.10.39.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 10:26:24 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id u65so6022031wmu.3
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:26:24 -0700 (PDT)
-Subject: Re: [PATCH man-pages 2/2] ioctl_userfaultfd.2: start adding details
- about userfaultfd features
-References: <1493302474-4701-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1493302474-4701-3-git-send-email-rppt@linux.vnet.ibm.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <063f52b3-ca66-8196-80f4-a1b7fac90de5@gmail.com>
-Date: Thu, 27 Apr 2017 19:26:22 +0200
-MIME-Version: 1.0
-In-Reply-To: <1493302474-4701-3-git-send-email-rppt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Thu, 27 Apr 2017 10:39:21 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id a19so5725139qkg.2
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:39:21 -0700 (PDT)
+From: Florian Fainelli <f.fainelli@gmail.com>
+Subject: [PATCH 0/3 v2] ARM/ARM64: silence large module first time allocation
+Date: Thu, 27 Apr 2017 10:38:57 -0700
+Message-Id: <20170427173900.2538-1-f.fainelli@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: linux-arm-kernel@lists.infradead.org
+Cc: Florian Fainelli <f.fainelli@gmail.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-On 04/27/2017 04:14 PM, Mike Rapoport wrote:
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+With kernels built with CONFIG_ARM{,64}_MODULES_PLTS=y, the first allocation
+done from module space will fail, produce a general OOM allocation and also a
+vmap warning. The second allocation from vmalloc space may or may not be
+successful, but is actually the one we are interested about in these cases.
 
-Thanks, Mike. Applied, and lightly edited.
+This patch series passed __GFP_NOWARN to silence such allocations from the
+ARM/ARM64 module loader's first time allocation when the MODULES_PLT option is
+enabled, and also makes alloc_vmap_area() react to the caller setting
+__GFP_NOWARN to silence "vmap allocation for size..." messages.
 
-All changes now pushed to Git.
+Changes in v2:
 
-Cheers,
+- check __GFP_NOWARN out of the printk_ratelimited() check (Michal)
 
-Michael
+Here is an example of what we would get without these two patches, pretty
+scary huh?
 
-> ---
->  man2/ioctl_userfaultfd.2 | 53 ++++++++++++++++++++++++++++++++++++++++++++++--
->  1 file changed, 51 insertions(+), 2 deletions(-)
-> 
-> diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
-> index 42bf7a7..cdc07e0 100644
-> --- a/man2/ioctl_userfaultfd.2
-> +++ b/man2/ioctl_userfaultfd.2
-> @@ -121,22 +121,70 @@ and explicitly enable userfaultfd features that are disabled by default.
->  The kernel always reports all the available features in the
->  .I features
->  field.
-> +
-> +To enable userfaultfd features the application should set
-> +a bit corresponding to each feature it wants to enable in the
-> +.I features
-> +field.
-> +If the kernel supports all the requested features it will enable them.
-> +Otherwise it will zero out the returned
-> +.I uffdio_api
-> +structure and return
-> +.BR EINVAL .
->  .\" FIXME add more details about feature negotiation and enablement
->  
->  Since Linux 4.11, the following feature bits may be set:
->  .TP
->  .B UFFD_FEATURE_EVENT_FORK
-> +When this feature is enabled,
-> +the userfaultfd objects associated with a parent process are duplicated
-> +into the child process during
-> +.BR fork (2)
-> +system call and the
-> +.I UFFD_EVENT_FORK
-> +is delivered to the userfaultfd monitor
->  .TP
->  .B UFFD_FEATURE_EVENT_REMAP
-> +If this feature is enabled,
-> +when the faulting process invokes
-> +.BR mremap (2)
-> +system call
-> +the userfaultfd monitor will receive an event of type
-> +.I UFFD_EVENT_REMAP.
->  .TP
->  .B UFFD_FEATURE_EVENT_REMOVE
-> +If this feature is enabled,
-> +when the faulting process calls
-> +.BR madvise(2)
-> +system call with
-> +.I MADV_DONTNEED
-> +or
-> +.I MADV_REMOVE
-> +advice to free a virtual memory area
-> +the userfaultfd monitor will receive an event of type
-> +.I UFFD_EVENT_REMOVE.
->  .TP
->  .B UFFD_FEATURE_EVENT_UNMAP
-> +If this feature is enabled,
-> +when the faulting process unmaps virtual memory either explicitly with
-> +.BR munmap (2)
-> +system call, or implicitly either during
-> +.BR mmap (2)
-> +or
-> +.BR mremap (2)
-> +system call,
-> +the userfaultfd monitor will receive an event of type
-> +.I UFFD_EVENT_UNMAP
->  .TP
->  .B UFFD_FEATURE_MISSING_HUGETLBFS
-> +If this feature bit is set,
-> +the kernel supports registering userfaultfd ranges on hugetlbfs
-> +virtual memory areas
->  .TP
->  .B UFFD_FEATURE_MISSING_SHMEM
-> -.\" FIXME add feature description
-> +If this feature bit is set,
-> +the kernel supports registering userfaultfd ranges on tmpfs
-> +virtual memory areas
->  
->  The returned
->  .I ioctls
-> @@ -182,7 +230,8 @@ The API version requested in the
->  .I api
->  field is not supported by this kernel, or the
->  .I features
-> -field was not zero.
-> +field passed to the kernel includes feature bits that are not supported
-> +by the current kernel version.
->  .\" FIXME In the above error case, the returned 'uffdio_api' structure is
->  .\" zeroed out. Why is this done? This should be explained in the manual page.
->  .\"
-> 
+# insmod /mnt/nfs/huge.ko 
+[   22.114143] random: nonblocking pool is initialized
+[   22.183575] vmap allocation for size 15736832 failed: use vmalloc=<size> to increase size.
+[   22.191873] vmalloc: allocation failure: 15729534 bytes
+[   22.197112] insmod: page allocation failure: order:0, mode:0xd0
+[   22.203048] CPU: 2 PID: 1506 Comm: insmod Tainted: G           O    4.1.20-1.9pre-01082-gbbbff07bc3ce #9
+[   22.212536] Hardware name: Broadcom STB (Flattened Device Tree)
+[   22.218480] [<c0017eec>] (unwind_backtrace) from [<c00135c8>] (show_stack+0x10/0x14)
+[   22.226238] [<c00135c8>] (show_stack) from [<c0638684>] (dump_stack+0x90/0xa4)
+[   22.233473] [<c0638684>] (dump_stack) from [<c00aae1c>] (warn_alloc_failed+0x104/0x144)
+[   22.241490] [<c00aae1c>] (warn_alloc_failed) from [<c00d72e0>] (__vmalloc_node_range+0x170/0x218)
+[   22.250375] [<c00d72e0>] (__vmalloc_node_range) from [<c00147d0>] (module_alloc+0x50/0xac)
+[   22.258651] [<c00147d0>] (module_alloc) from [<c008ae2c>] (module_alloc_update_bounds+0xc/0x6c)
+[   22.267360] [<c008ae2c>] (module_alloc_update_bounds) from [<c008b778>] (load_module+0x8ec/0x2058)
+[   22.276329] [<c008b778>] (load_module) from [<c008cfd4>] (SyS_init_module+0xf0/0x174)
+[   22.284170] [<c008cfd4>] (SyS_init_module) from [<c0010140>] (ret_fast_syscall+0x0/0x3c)
+[   22.292277] Mem-Info:
+[   22.294567] active_anon:5236 inactive_anon:1773 isolated_anon:0
+[   22.294567]  active_file:1 inactive_file:3822 isolated_file:0
+[   22.294567]  unevictable:0 dirty:0 writeback:0 unstable:0
+[   22.294567]  slab_reclaimable:238 slab_unreclaimable:1594
+[   22.294567]  mapped:855 shmem:2950 pagetables:36 bounce:0
+[   22.294567]  free:39031 free_pcp:198 free_cma:3928
+[   22.327196] DMA free:156124kB min:1880kB low:2348kB high:2820kB active_anon:20944kB inactive_anon:7092kB active_file:4kB inactive_file:15288kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:262144kB managed:227676kB mlocked:0kB dirty:0kB writeback:0kB mapped:3420kB shmem:11800kB slab_reclaimable:952kB slab_unreclaimable:6376kB kernel_stack:560kB pagetables:144kB unstable:0kB bounce:0kB free_pcp:792kB local_pcp:68kB free_cma:15712kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[   22.371631] lowmem_reserve[]: 0 0 0 0
+[   22.375372] HighMem free:0kB min:128kB low:128kB high:128kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:2883584kB managed:0kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+[   22.416249] lowmem_reserve[]: 0 0 0 0
+[   22.419986] DMA: 3*4kB (UEM) 4*8kB (UE) 1*16kB (M) 4*32kB (UEMC) 3*64kB (EMC) 1*128kB (E) 4*256kB (UEMC) 2*512kB (UE) 2*1024kB (MC) 4*2048kB (UEMC) 35*4096kB (MRC) = 156156kB
+[   22.435922] HighMem: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+[   22.446130] 6789 total pagecache pages
+[   22.449889] 0 pages in swap cache
+[   22.453212] Swap cache stats: add 0, delete 0, find 0/0
+[   22.458447] Free swap  = 0kB
+[   22.461334] Total swap = 0kB
+[   22.464222] 786432 pages RAM
+[   22.467110] 720896 pages HighMem/MovableOnly
+[   22.471388] 725417 pages reserved
+[   22.474711] 4096 pages cma reserved
+[   22.511310] big_init: I am a big module using 3932160 bytes of data!
 
+Florian Fainelli (3):
+  mm: Silence vmap() allocation failures based on caller gfp_flags
+  ARM: Silence first allocation with CONFIG_ARM_MODULE_PLTS=y
+  arm64: Silence first allocation with CONFIG_ARM64_MODULE_PLTS=y
+
+ arch/arm/kernel/module.c   | 11 +++++++++--
+ arch/arm64/kernel/module.c |  7 ++++++-
+ mm/vmalloc.c               |  2 +-
+ 3 files changed, 16 insertions(+), 4 deletions(-)
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
