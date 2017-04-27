@@ -1,172 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 70AE96B0311
-	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 12:48:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 194so30154337pfv.11
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 09:48:04 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id s89si3220633pfi.317.2017.04.27.09.48.03
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 779A96B0038
+	for <linux-mm@kvack.org>; Thu, 27 Apr 2017 13:26:24 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id d79so1688031wma.0
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:26:24 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id k203si22230wma.165.2017.04.27.10.26.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 09:48:03 -0700 (PDT)
-Message-ID: <1493311682.3209.150.camel@linux.intel.com>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Thu, 27 Apr 2017 09:48:02 -0700
-In-Reply-To: <87efwe3as0.fsf@yhuang-dev.intel.com>
-References: <20170407064901.25398-1-ying.huang@intel.com>
-	 <20170418045909.GA11015@bbox> <87y3uwrez0.fsf@yhuang-dev.intel.com>
-	 <20170420063834.GB3720@bbox> <874lxjim7m.fsf@yhuang-dev.intel.com>
-	 <87tw5idjv9.fsf@yhuang-dev.intel.com> <20170424045213.GA11287@bbox>
-	 <87y3un2vdp.fsf@yhuang-dev.intel.com>
-	 <1493237623.3209.142.camel@linux.intel.com>
-	 <87efwe3as0.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Thu, 27 Apr 2017 10:26:21 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id z129so6057257wmb.1
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 10:26:21 -0700 (PDT)
+Subject: Re: [PATCH man-pages 1/2] userfaultfd.2: start documenting
+ non-cooperative events
+References: <1493302474-4701-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1493302474-4701-2-git-send-email-rppt@linux.vnet.ibm.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <a95f9ae6-f7db-1ed9-6e25-99ced1fd37a3@gmail.com>
+Date: Thu, 27 Apr 2017 19:26:16 +0200
+MIME-Version: 1.0
+In-Reply-To: <1493302474-4701-2-git-send-email-rppt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Thu, 2017-04-27 at 09:21 +0800, Huang, Ying wrote:
-> Tim Chen <tim.c.chen@linux.intel.com> writes:
+Hi Mike,
+
+I've applied this, but have some questions/points I think 
+further clarification.
+
+On 04/27/2017 04:14 PM, Mike Rapoport wrote:
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> ---
+>  man2/userfaultfd.2 | 135 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+>  1 file changed, 128 insertions(+), 7 deletions(-)
 > 
-> > 
-> > > 
-> > > 
-> > > From 7bd903c42749c448ef6acbbdee8dcbc1c5b498b9 Mon Sep 17 00:00:00 2001
-> > > From: Huang Ying <ying.huang@intel.com>
-> > > Date: Thu, 23 Feb 2017 13:05:20 +0800
-> > > Subject: [PATCH -v5] mm, swap: Sort swap entries before free
-> > > 
-> > > A 
-> > > ---
-> > > A mm/swapfile.c | 43 ++++++++++++++++++++++++++++++++++++++-----
-> > > A 1 file changed, 38 insertions(+), 5 deletions(-)
-> > > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> > > index 71890061f653..10e75f9e8ac1 100644
-> > > --- a/mm/swapfile.c
-> > > +++ b/mm/swapfile.c
-> > > @@ -37,6 +37,7 @@
-> > > A #include <linux/swapfile.h>
-> > > A #include <linux/export.h>
-> > > A #include <linux/swap_slots.h>
-> > > +#include <linux/sort.h>
-> > > A 
-> > > A #include <asm/pgtable.h>
-> > > A #include <asm/tlbflush.h>
-> > > @@ -1065,20 +1066,52 @@ void swapcache_free(swp_entry_t entry)
-> > > A 	}
-> > > A }
-> > > A 
-> > > +static int swp_entry_cmp(const void *ent1, const void *ent2)
-> > > +{
-> > > +	const swp_entry_t *e1 = ent1, *e2 = ent2;
-> > > +
-> > > +	return (int)(swp_type(*e1) - swp_type(*e2));
-> > > +}
-> > > +
-> > > A void swapcache_free_entries(swp_entry_t *entries, int n)
-> > > A {
-> > > A 	struct swap_info_struct *p, *prev;
-> > > -	int i;
-> > > +	int i, m;
-> > > +	swp_entry_t entry;
-> > > +	unsigned int prev_swp_type;
-> > I think it will be clearer to name prev_swp_type as first_swp_type
-> > as this is the swp type of the first entry.
-> Yes.A A That is better!A A Will do that.
-> 
-> > 
-> > > 
-> > > A 
-> > > A 	if (n <= 0)
-> > > A 		return;
-> > > A 
-> > > A 	prev = NULL;
-> > > A 	p = NULL;
-> > > -	for (i = 0; i < n; ++i) {
-> > > -		p = swap_info_get_cont(entries[i], prev);
-> > > -		if (p)
-> > > -			swap_entry_free(p, entries[i]);
-> > > +	m = 0;
-> > > +	prev_swp_type = swp_type(entries[0]);
-> > > +	for (i = 0; i < n; i++) {
-> > > +		entry = entries[i];
-> > > +		if (likely(swp_type(entry) == prev_swp_type)) {
-> > > +			p = swap_info_get_cont(entry, prev);
-> > > +			if (likely(p))
-> > > +				swap_entry_free(p, entry);
-> > > +			prev = p;
-> > > +		} else if (!m)
-> > > +			m = i;
-> > > +	}
-> > > +	if (p)
-> > > +		spin_unlock(&p->lock);
-> > > +	if (likely(!m))
-> > > +		return;
-> > > +
-> > We could still have prev_swp_type at the first entry after sorting.
-> > and we can avoid an unlock/relock for this case if we do this:
-> > 
-> > 	if (likely(!m)) {
-> > 		if (p)
-> > 			spin_unlock(&p->lock);
-> > 		return;
-> > 	}
-> > 		
-> > > 
-> > > +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> > > +	sort(entries + m, n - m, sizeof(entries[0]), swp_entry_cmp, NULL);
-> > > +	prev = NULL;
-> > Can eliminate prev=NULL if we adopt the above change.
-> > 
-> > > 
-> > > +	for (i = m; i < n; i++) {
-> > > +		entry = entries[i];
-> > > +		if (swp_type(entry) == prev_swp_type)
-> > > +			continue;
-> > The if/continue statement seems incorrect. When swp_type(entry) == prev_swp_type
-> > we also need to free entry. A The if/continue statement should be deleted.
-> > 
-> > Say we have 3 entries with swp_type
-> > 1,2,1
-> > 
-> > We will get prev_swp_type as 1 and free the first entry
-> > and sort the remaining two. A The last entry with
-> > swp_type 1 will not be freed.
-> The first loop in the function will scan all elements of the array, so
-> the first and third entry will be freed in the first loop.A A Then the the
-> second and the third entry will be sorted.A A But all entries with the
-> same swap type (device) of the first entry needn't to be freed again.
-> The key point is that we will scan all elements of the array in the
-> first loop, record the first entry that has different swap type
-> (device).
+> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+> index cfea5cb..44af3e4 100644
+> --- a/man2/userfaultfd.2
+> +++ b/man2/userfaultfd.2
+> @@ -75,7 +75,7 @@ flag in
+>  .PP
+>  When the last file descriptor referring to a userfaultfd object is closed,
+>  all memory ranges that were registered with the object are unregistered
+> -and unread page-fault events are flushed.
+> +and unread events are flushed.
+>  .\"
+>  .SS Usage
+>  The userfaultfd mechanism is designed to allow a thread in a multithreaded
+> @@ -99,6 +99,20 @@ In such non-cooperative mode,
+>  the process that monitors userfaultfd and handles page faults
+>  needs to be aware of the changes in the virtual memory layout
+>  of the faulting process to avoid memory corruption.
+> +
+> +Starting from Linux 4.11,
+> +userfaultfd may notify the fault-handling threads about changes
+> +in the virtual memory layout of the faulting process.
+> +In addition, if the faulting process invokes
+> +.BR fork (2)
+> +system call,
+> +the userfaultfd objects associated with the parent may be duplicated
+> +into the child process and the userfaultfd monitor will be notified
+> +about the file descriptor associated with the userfault objects
 
-I was under the wrong impression that the code break from the first
-loop when it finds a different swp type. A Yes, we should skip the
-free in the second loop if the first loop scan the whole list.
+What does "notified about the file descriptor" mean?
 
-Thanks.
+> +created for the child process,
+> +which allows userfaultfd monitor to perform user-space paging
+> +for the child process.
+> +
+>  .\" FIXME elaborate about non-cooperating mode, describe its limitations
+>  .\" for kernels before 4.11, features added in 4.11
+>  .\" and limitations remaining in 4.11
+> @@ -144,6 +158,10 @@ Details of the various
+>  operations can be found in
+>  .BR ioctl_userfaultfd (2).
+>  
+> +Since Linux 4.11, events other than page-fault may enabled during
+> +.B UFFDIO_API
+> +operation.
+> +
+>  Up to Linux 4.11,
+>  userfaultfd can be used only with anonymous private memory mappings.
+>  
+> @@ -156,7 +174,8 @@ Each
+>  .BR read (2)
+>  from the userfaultfd file descriptor returns one or more
+>  .I uffd_msg
+> -structures, each of which describes a page-fault event:
+> +structures, each of which describes a page-fault event
+> +or an event required for the non-cooperative userfaultfd usage:
+>  
+>  .nf
+>  .in +4n
+> @@ -168,6 +187,23 @@ struct uffd_msg {
+>              __u64 flags;        /* Flags describing fault */
+>              __u64 address;      /* Faulting address */
+>          } pagefault;
+> +        struct {
+> +            __u32 ufd;          /* userfault file descriptor
+> +                                   of the child process */
+> +        } fork;                 /* since Linux 4.11 */
+> +        struct {
+> +            __u64 from;         /* old address of the
+> +                                   remapped area */
+> +            __u64 to;           /* new address of the
+> +                                   remapped area */
+> +            __u64 len;          /* original mapping length */
+> +        } remap;                /* since Linux 4.11 */
+> +        struct {
+> +            __u64 start;        /* start address of the
+> +                                   removed area */
+> +            __u64 end;          /* end address of the
+> +                                   removed area */
+> +        } remove;               /* since Linux 4.11 */
+>          ...
+>      } arg;
+>  
+> @@ -194,14 +230,73 @@ structure are as follows:
+>  .TP
+>  .I event
+>  The type of event.
+> -Currently, only one value can appear in this field:
+> -.BR UFFD_EVENT_PAGEFAULT ,
+> -which indicates a page-fault event.
+> +Depending of the event type,
+> +different fields of the
+> +.I arg
+> +union represent details required for the event processing.
+> +The non-page-fault events are generated only when appropriate feature
+> +is enabled during API handshake with
+> +.B UFFDIO_API
+> +.BR ioctl (2).
+> +
+> +The following values can appear in the
+> +.I event
+> +field:
+> +.RS
+> +.TP
+> +.B UFFD_EVENT_PAGEFAULT
+> +A page-fault event.
+> +The page-fault details are available in the
+> +.I pagefault
+> +field.
+>  .TP
+> -.I address
+> +.B UFFD_EVENT_FORK
+> +Generated when the faulting process invokes
+> +.BR fork (2)
+> +system call.
+> +The event details are available in the
+> +.I fork
+> +field.
+> +.\" FIXME descirbe duplication of userfault file descriptor during fork
+> +.TP
+> +.B UFFD_EVENT_REMAP
+> +Generated when the faulting process invokes
+> +.BR mremap (2)
+> +system call.
+> +The event details are available in the
+> +.I remap
+> +field.
+> +.TP
+> +.B UFFD_EVENT_REMOVE
+> +Generated when the faulting process invokes
+> +.BR madvise (2)
+> +system call with
+> +.BR MADV_DONTNEED
+> +or
+> +.BR MADV_REMOVE
+> +advice.
+> +The event details are available in the
+> +.I remove
+> +field.
+> +.TP
+> +.B UFFD_EVENT_UNMAP
+> +Generated when the faulting process unmaps a memory range,
+> +either explicitly using
+> +.BR munmap (2)
+> +system call or implicitly during
+> +.BR mmap (2)
+> +or
+> +.BR mremap (2)
+> +system calls.
+> +The event details are available in the
+> +.I remove
+> +field.
+> +.RE
+> +.TP
+> +.I pagefault.address
+>  The address that triggered the page fault.
+>  .TP
+> -.I flags
+> +.I pagefault.flags
+>  A bit mask of flags that describe the event.
+>  For
+>  .BR UFFD_EVENT_PAGEFAULT ,
+> @@ -218,6 +313,32 @@ otherwise it is a read fault.
+>  .\"
+>  .\" UFFD_PAGEFAULT_FLAG_WP is not yet supported.
+>  .RE
+> +.TP
+> +.I fork.ufd
+> +The file descriptor associated with the userfault object
+> +created for the child process
+> +.TP
+> +.I remap.from
+> +The original address of the memory range that was remapped using
+> +.BR mremap (2).
+> +.TP
+> +.I remap.to
+> +The new address of the memory range that was remapped using
+> +.BR mremap (2).
+> +.TP
+> +.I remap.len
+> +The original length of the the memory range that was remapped using
+> +.BR mremap (2).
+> +.TP
+> +.I remove.start
+> +The start address of the memory range that was freed using
+> +.BR madvise (2)
+> +or unmapped
+> +.TP
+> +.I remove.end
+> +The end address of the memory range that was freed using
+> +.BR madvise (2)
+> +or unmapped
+>  .PP
+>  A
+>  .BR read (2)
 
-Tim
+Cheers,
 
-> 
-> Best Regards,
-> Huang, Ying
-> 
-> > 
-> > > 
-> > > +		p = swap_info_get_cont(entry, prev);
-> > > +		if (likely(p))
-> > > +			swap_entry_free(p, entry);
-> > > A 		prev = p;
-> > > A 	}
-> > > A 	if (p)
-> > Thanks.
-> > 
-> > Tim
+Michael
+
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
