@@ -1,208 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 802456B02E1
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:16:49 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id k11so11166227pgc.17
-        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:16:49 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id u13si5727493pfj.254.2017.04.28.02.16.47
-        for <linux-mm@kvack.org>;
-        Fri, 28 Apr 2017 02:16:48 -0700 (PDT)
-Date: Fri, 28 Apr 2017 18:00:49 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-Message-ID: <20170428090049.GA26460@bbox>
-References: <87y3uwrez0.fsf@yhuang-dev.intel.com>
- <20170420063834.GB3720@bbox>
- <874lxjim7m.fsf@yhuang-dev.intel.com>
- <87tw5idjv9.fsf@yhuang-dev.intel.com>
- <20170424045213.GA11287@bbox>
- <87y3un2vdp.fsf@yhuang-dev.intel.com>
- <20170427043545.GA1726@bbox>
- <87r30dz6am.fsf@yhuang-dev.intel.com>
- <20170428074257.GA19510@bbox>
- <871ssdvtx5.fsf@yhuang-dev.intel.com>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED3506B02EE
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:17:44 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 44so1787903wry.5
+        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:17:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n188si5874663wmg.3.2017.04.28.02.17.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Apr 2017 02:17:43 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3S9Dppx131450
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:17:42 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2a3hj06ch0-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:17:42 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Fri, 28 Apr 2017 10:17:40 +0100
+Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
+References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170427143721.GK4706@dhcp22.suse.cz> <87pofxk20k.fsf@firstfloor.org>
+ <20170428060755.GA8143@dhcp22.suse.cz> <20170428073136.GE8143@dhcp22.suse.cz>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Fri, 28 Apr 2017 11:17:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <871ssdvtx5.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20170428073136.GE8143@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>, Andi Kleen <andi@firstfloor.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Fri, Apr 28, 2017 at 04:05:26PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
+On 28/04/2017 09:31, Michal Hocko wrote:
+> [CC Johannes and Vladimir - the patch is
+> http://lkml.kernel.org/r/1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com]
 > 
-> > On Fri, Apr 28, 2017 at 09:09:53AM +0800, Huang, Ying wrote:
-> >> Minchan Kim <minchan@kernel.org> writes:
-> >> 
-> >> > On Wed, Apr 26, 2017 at 08:42:10PM +0800, Huang, Ying wrote:
-> >> >> Minchan Kim <minchan@kernel.org> writes:
-> >> >> 
-> >> >> > On Fri, Apr 21, 2017 at 08:29:30PM +0800, Huang, Ying wrote:
-> >> >> >> "Huang, Ying" <ying.huang@intel.com> writes:
-> >> >> >> 
-> >> >> >> > Minchan Kim <minchan@kernel.org> writes:
-> >> >> >> >
-> >> >> >> >> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
-> >> >> >> >>> Minchan Kim <minchan@kernel.org> writes:
-> >> >> >> >>> 
-> >> >> >> >>> > Hi Huang,
-> >> >> >> >>> >
-> >> >> >> >>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
-> >> >> >> >>> >> From: Huang Ying <ying.huang@intel.com>
-> >> >> >> >>> >> 
-> >> >> >> >>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
-> >> >> >> >>> >>  {
-> >> >> >> >>> >>  	struct swap_info_struct *p, *prev;
-> >> >> >> >>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
-> >> >> >> >>> >>  
-> >> >> >> >>> >>  	prev = NULL;
-> >> >> >> >>> >>  	p = NULL;
-> >> >> >> >>> >> +
-> >> >> >> >>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> >> >> >> >>> >> +	if (nr_swapfiles > 1)
-> >> >> >> >>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
-> >> >> >> >>> >
-> >> >> >> >>> > Let's think on other cases.
-> >> >> >> >>> >
-> >> >> >> >>> > There are two swaps and they are configured by priority so a swap's usage
-> >> >> >> >>> > would be zero unless other swap used up. In case of that, this sorting
-> >> >> >> >>> > is pointless.
-> >> >> >> >>> >
-> >> >> >> >>> > As well, nr_swapfiles is never decreased so if we enable multiple
-> >> >> >> >>> > swaps and then disable until a swap is remained, this sorting is
-> >> >> >> >>> > pointelss, too.
-> >> >> >> >>> >
-> >> >> >> >>> > How about lazy sorting approach? IOW, if we found prev != p and,
-> >> >> >> >>> > then we can sort it.
-> >> >> >> >>> 
-> >> >> >> >>> Yes.  That should be better.  I just don't know whether the added
-> >> >> >> >>> complexity is necessary, given the array is short and sort is fast.
-> >> >> >> >>
-> >> >> >> >> Huh?
-> >> >> >> >>
-> >> >> >> >> 1. swapon /dev/XXX1
-> >> >> >> >> 2. swapon /dev/XXX2
-> >> >> >> >> 3. swapoff /dev/XXX2
-> >> >> >> >> 4. use only one swap
-> >> >> >> >> 5. then, always pointless sort.
-> >> >> >> >
-> >> >> >> > Yes.  In this situation we will do unnecessary sorting.  What I don't
-> >> >> >> > know is whether the unnecessary sorting will hurt performance in real
-> >> >> >> > life.  I can do some measurement.
-> >> >> >> 
-> >> >> >> I tested the patch with 1 swap device and 1 process to eat memory
-> >> >> >> (remove the "if (nr_swapfiles > 1)" for test).  I think this is the
-> >> >> >> worse case because there is no lock contention.  The memory freeing time
-> >> >> >> increased from 1.94s to 2.12s (increase ~9.2%).  So there is some
-> >> >> >> overhead for some cases.  I change the algorithm to something like
-> >> >> >> below,
-> >> >> >> 
-> >> >> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
-> >> >> >>  {
-> >> >> >>  	struct swap_info_struct *p, *prev;
-> >> >> >>  	int i;
-> >> >> >> +	swp_entry_t entry;
-> >> >> >> +	unsigned int prev_swp_type;
-> >> >> >>  
-> >> >> >>  	if (n <= 0)
-> >> >> >>  		return;
-> >> >> >>  
-> >> >> >> +	prev_swp_type = swp_type(entries[0]);
-> >> >> >> +	for (i = n - 1; i > 0; i--) {
-> >> >> >> +		if (swp_type(entries[i]) != prev_swp_type)
-> >> >> >> +			break;
-> >> >> >> +	}
-> >> >> >
-> >> >> > That's really what I want to avoid. For many swap usecases,
-> >> >> > it adds unnecessary overhead.
-> >> >> >
-> >> >> >> +
-> >> >> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
-> >> >> >> +	if (i)
-> >> >> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
-> >> >> >>  	prev = NULL;
-> >> >> >>  	p = NULL;
-> >> >> >>  	for (i = 0; i < n; ++i) {
-> >> >> >> -		p = swap_info_get_cont(entries[i], prev);
-> >> >> >> +		entry = entries[i];
-> >> >> >> +		p = swap_info_get_cont(entry, prev);
-> >> >> >>  		if (p)
-> >> >> >> -			swap_entry_free(p, entries[i]);
-> >> >> >> +			swap_entry_free(p, entry);
-> >> >> >>  		prev = p;
-> >> >> >>  	}
-> >> >> >>  	if (p)
-> >> >> >> 
-> >> >> >> With this patch, the memory freeing time increased from 1.94s to 1.97s.
-> >> >> >> I think this is good enough.  Do you think so?
-> >> >> >
-> >> >> > What I mean is as follows(I didn't test it at all):
-> >> >> >
-> >> >> > With this, sort entries if we found multiple entries in current
-> >> >> > entries. It adds some condition checks for non-multiple swap
-> >> >> > usecase but it would be more cheaper than the sorting.
-> >> >> > And it adds a [un]lock overhead for multiple swap usecase but
-> >> >> > it should be a compromise for single-swap usecase which is more
-> >> >> > popular.
-> >> >> >
-> >> >> 
-> >> >> How about the following solution?  It can avoid [un]lock overhead and
-> >> >> double lock issue for multiple swap user case and has good performance
-> >> >> for one swap user case too.
-> >> >
-> >> > How worse with approach I suggested compared to as-is?
-> >> 
-> >> The performance difference between your version and my version is small
-> >> for my testing.
-> >
-> > If so, why should we add code to optimize further?
-> >
-> >> 
-> >> > Unless it's too bad, let's not add more complicated thing to just
-> >> > enhance the minor usecase in such even *slow* path.
-> >> > It adds code size/maintainance overead.
-> >> > With your suggestion, it might enhance a bit with speicific benchmark
-> >> > but not sure it's really worth for real practice.
-> >> 
-> >> I don't think the code complexity has much difference between our latest
-> >> versions.  As for complexity, I think my original version which just
-> >
-> > What I suggested is to avoid pointless overhead for *major* usecase
-> > and the code you are adding now is to optimize further for *minor*
-> > usecase. And now I dobut the code you are adding is really worth
-> > unless it makes a meaningful output.
-> > If it doesn't, it adds just overhead(code size, maintainance, power and
-> > performance). You might argue it's really *small* so it would be okay
-> > but think about that you would be not only one in the community so
-> > kernel bloats day by day with code to handle corner cases.
-> >
-> >> uses nr_swapfiles to avoid sort() for single swap device is simple and
-> >> good enough for this task.  Maybe we can just improve the correctness of
-> >
-> > But it hurts *major* usecase.
-> >
-> >> swap device counting as Tim suggested.
-> >
-> > I don't know what Tim suggested. Anyway, my point is that minor
-> > usecase doesn't hurt major usecase and justify the benefit
-> > if you want to put more. So I'm okay with either solution to
-> > meet it.
+> On Fri 28-04-17 08:07:55, Michal Hocko wrote:
+>> On Thu 27-04-17 13:51:23, Andi Kleen wrote:
+>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>
+>>>> On Tue 25-04-17 16:27:51, Laurent Dufour wrote:
+>>>>> When page are poisoned, they should be uncharged from the root memory
+>>>>> cgroup.
+>>>>>
+>>>>> This is required to avoid a BUG raised when the page is onlined back:
+>>>>> BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
+>>>>> page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null)
+>>>>> index:0x1
+>>>>> flags: 0x3ffff800200000(hwpoison)
+>>>>
+>>>> My knowledge of memory poisoning is very rudimentary but aren't those
+>>>> pages supposed to leak and never come back? In other words isn't the
+>>>> hoplug code broken because it should leave them alone?
+>>>
+>>> Yes that would be the right interpretation. If it was really offlined
+>>> due to a hardware error the memory will be poisoned and any access
+>>> could cause a machine check.
+>>
+>> OK, thanks for the clarification. Then I am not sure the patch is
+>> correct. Why do we need to uncharge that page at all?
 > 
-> Tim suggested to add a mechanism to correctly track how many swap
-> devices are in use in swapon/swapoff.  So we only sort if the number of
-> the swap device > 1.  This will not cover multiple swap devices with
-> different priorities, but will cover the major usecases.  The code
-> should be simpler.
+> Now, I have realized that we actually want to uncharge that page because
+> it will pin the memcg and we do not want to have that memcg and its
+> whole hierarchy pinned as well. This used to work before the charge
+> rework 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API") I guess
+> because we used to uncharge on page cache removal.
+> 
+> I do not think the patch is correct, though. memcg_kmem_enabled() will
+> check whether kmem accounting is enabled and we are talking about page
+> cache pages here. You should be using mem_cgroup_uncharge instead.
 
-As you know, it doesn't solve multiple swaps by priority.
-Even, there are cases full with entries same swap device
-although multiple swap devices are used.
+Thanks for the review Michal.
 
-So, I think runtime sorting by judging need to be sored is still
-better.
+I was not comfortable either with this patch.
+
+I did some tests calling mem_cgroup_uncharge() when isolate_lru_page()
+succeeds only, so not calling it if isolate_lru_page() failed.
+
+This seems to work as well, so if everyone agree on that, I'll send a
+new version soon.
+
+Cheers,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
