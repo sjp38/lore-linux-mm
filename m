@@ -1,70 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BAF156B02E1
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 03:40:34 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b20so2691657wma.11
-        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 00:40:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s80si4871810wme.160.2017.04.28.00.40.33
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Apr 2017 00:40:33 -0700 (PDT)
-Date: Fri, 28 Apr 2017 09:40:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] Remove hardcoding of ___GFP_xxx bitmasks
-Message-ID: <20170428074028.GF8143@dhcp22.suse.cz>
-References: <20170426133549.22603-1-igor.stoppa@huawei.com>
- <20170426133549.22603-2-igor.stoppa@huawei.com>
- <20170426144750.GH12504@dhcp22.suse.cz>
- <e3fe4d80-10a8-2008-1798-af3893fe418a@huawei.com>
- <20170427134158.GI4706@dhcp22.suse.cz>
- <f741d053-4303-5441-21bc-ec86bca1164c@huawei.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 415416B02EE
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 03:43:04 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b23so41017785pfc.22
+        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 00:43:04 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id q11si5432379pli.266.2017.04.28.00.43.02
+        for <linux-mm@kvack.org>;
+        Fri, 28 Apr 2017 00:43:03 -0700 (PDT)
+Date: Fri, 28 Apr 2017 16:42:57 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+Message-ID: <20170428074257.GA19510@bbox>
+References: <20170407064901.25398-1-ying.huang@intel.com>
+ <20170418045909.GA11015@bbox>
+ <87y3uwrez0.fsf@yhuang-dev.intel.com>
+ <20170420063834.GB3720@bbox>
+ <874lxjim7m.fsf@yhuang-dev.intel.com>
+ <87tw5idjv9.fsf@yhuang-dev.intel.com>
+ <20170424045213.GA11287@bbox>
+ <87y3un2vdp.fsf@yhuang-dev.intel.com>
+ <20170427043545.GA1726@bbox>
+ <87r30dz6am.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f741d053-4303-5441-21bc-ec86bca1164c@huawei.com>
+In-Reply-To: <87r30dz6am.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Thu 27-04-17 17:06:05, Igor Stoppa wrote:
+On Fri, Apr 28, 2017 at 09:09:53AM +0800, Huang, Ying wrote:
+> Minchan Kim <minchan@kernel.org> writes:
 > 
+> > On Wed, Apr 26, 2017 at 08:42:10PM +0800, Huang, Ying wrote:
+> >> Minchan Kim <minchan@kernel.org> writes:
+> >> 
+> >> > On Fri, Apr 21, 2017 at 08:29:30PM +0800, Huang, Ying wrote:
+> >> >> "Huang, Ying" <ying.huang@intel.com> writes:
+> >> >> 
+> >> >> > Minchan Kim <minchan@kernel.org> writes:
+> >> >> >
+> >> >> >> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
+> >> >> >>> Minchan Kim <minchan@kernel.org> writes:
+> >> >> >>> 
+> >> >> >>> > Hi Huang,
+> >> >> >>> >
+> >> >> >>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+> >> >> >>> >> From: Huang Ying <ying.huang@intel.com>
+> >> >> >>> >> 
+> >> >> >>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+> >> >> >>> >>  {
+> >> >> >>> >>  	struct swap_info_struct *p, *prev;
+> >> >> >>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+> >> >> >>> >>  
+> >> >> >>> >>  	prev = NULL;
+> >> >> >>> >>  	p = NULL;
+> >> >> >>> >> +
+> >> >> >>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+> >> >> >>> >> +	if (nr_swapfiles > 1)
+> >> >> >>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+> >> >> >>> >
+> >> >> >>> > Let's think on other cases.
+> >> >> >>> >
+> >> >> >>> > There are two swaps and they are configured by priority so a swap's usage
+> >> >> >>> > would be zero unless other swap used up. In case of that, this sorting
+> >> >> >>> > is pointless.
+> >> >> >>> >
+> >> >> >>> > As well, nr_swapfiles is never decreased so if we enable multiple
+> >> >> >>> > swaps and then disable until a swap is remained, this sorting is
+> >> >> >>> > pointelss, too.
+> >> >> >>> >
+> >> >> >>> > How about lazy sorting approach? IOW, if we found prev != p and,
+> >> >> >>> > then we can sort it.
+> >> >> >>> 
+> >> >> >>> Yes.  That should be better.  I just don't know whether the added
+> >> >> >>> complexity is necessary, given the array is short and sort is fast.
+> >> >> >>
+> >> >> >> Huh?
+> >> >> >>
+> >> >> >> 1. swapon /dev/XXX1
+> >> >> >> 2. swapon /dev/XXX2
+> >> >> >> 3. swapoff /dev/XXX2
+> >> >> >> 4. use only one swap
+> >> >> >> 5. then, always pointless sort.
+> >> >> >
+> >> >> > Yes.  In this situation we will do unnecessary sorting.  What I don't
+> >> >> > know is whether the unnecessary sorting will hurt performance in real
+> >> >> > life.  I can do some measurement.
+> >> >> 
+> >> >> I tested the patch with 1 swap device and 1 process to eat memory
+> >> >> (remove the "if (nr_swapfiles > 1)" for test).  I think this is the
+> >> >> worse case because there is no lock contention.  The memory freeing time
+> >> >> increased from 1.94s to 2.12s (increase ~9.2%).  So there is some
+> >> >> overhead for some cases.  I change the algorithm to something like
+> >> >> below,
+> >> >> 
+> >> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+> >> >>  {
+> >> >>  	struct swap_info_struct *p, *prev;
+> >> >>  	int i;
+> >> >> +	swp_entry_t entry;
+> >> >> +	unsigned int prev_swp_type;
+> >> >>  
+> >> >>  	if (n <= 0)
+> >> >>  		return;
+> >> >>  
+> >> >> +	prev_swp_type = swp_type(entries[0]);
+> >> >> +	for (i = n - 1; i > 0; i--) {
+> >> >> +		if (swp_type(entries[i]) != prev_swp_type)
+> >> >> +			break;
+> >> >> +	}
+> >> >
+> >> > That's really what I want to avoid. For many swap usecases,
+> >> > it adds unnecessary overhead.
+> >> >
+> >> >> +
+> >> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+> >> >> +	if (i)
+> >> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+> >> >>  	prev = NULL;
+> >> >>  	p = NULL;
+> >> >>  	for (i = 0; i < n; ++i) {
+> >> >> -		p = swap_info_get_cont(entries[i], prev);
+> >> >> +		entry = entries[i];
+> >> >> +		p = swap_info_get_cont(entry, prev);
+> >> >>  		if (p)
+> >> >> -			swap_entry_free(p, entries[i]);
+> >> >> +			swap_entry_free(p, entry);
+> >> >>  		prev = p;
+> >> >>  	}
+> >> >>  	if (p)
+> >> >> 
+> >> >> With this patch, the memory freeing time increased from 1.94s to 1.97s.
+> >> >> I think this is good enough.  Do you think so?
+> >> >
+> >> > What I mean is as follows(I didn't test it at all):
+> >> >
+> >> > With this, sort entries if we found multiple entries in current
+> >> > entries. It adds some condition checks for non-multiple swap
+> >> > usecase but it would be more cheaper than the sorting.
+> >> > And it adds a [un]lock overhead for multiple swap usecase but
+> >> > it should be a compromise for single-swap usecase which is more
+> >> > popular.
+> >> >
+> >> 
+> >> How about the following solution?  It can avoid [un]lock overhead and
+> >> double lock issue for multiple swap user case and has good performance
+> >> for one swap user case too.
+> >
+> > How worse with approach I suggested compared to as-is?
 > 
-> On 27/04/17 16:41, Michal Hocko wrote:
-> > On Wed 26-04-17 18:29:08, Igor Stoppa wrote:
-> > [...]
-> >> If you prefer to have this patch only as part of the larger patchset,
-> >> I'm also fine with it.
-> > 
-> > I agree that the situation is not ideal. If a larger set of changes
-> > would benefit from this change then it would clearly add arguments...
-> 
-> Ok, then I'll send it out as part of the larger RFC set.
-> 
-> 
-> >> Also, if you could reply to [1], that would be greatly appreciated.
-> > 
-> > I will try to get to it but from a quick glance, yet-another-zone will
-> > hit a lot of opposition...
-> 
-> The most basic questions, that I hope can be answered with Yes/No =) are:
-> 
-> - should a new zone be added after DMA32?
-> 
-> - should I try hard to keep the mask fitting a 32bit word - at least for
-> hose who do not use the new zone - or is it ok to just stretch it to 64
-> bits?
+> The performance difference between your version and my version is small
+> for my testing.
 
-Do not add a new zone, really. What you seem to be looking for is an
-allocator on top of the page/memblock allocator which does write
-protection on top. I understand that you would like to avoid object
-management duplication but I am not really sure how much you can re-use
-what slab allocators do already, anyway. I will respond to the original
-thread to not mix things together.
--- 
-Michal Hocko
-SUSE Labs
+If so, why should we add code to optimize further?
+
+> 
+> > Unless it's too bad, let's not add more complicated thing to just
+> > enhance the minor usecase in such even *slow* path.
+> > It adds code size/maintainance overead.
+> > With your suggestion, it might enhance a bit with speicific benchmark
+> > but not sure it's really worth for real practice.
+> 
+> I don't think the code complexity has much difference between our latest
+> versions.  As for complexity, I think my original version which just
+
+What I suggested is to avoid pointless overhead for *major* usecase
+and the code you are adding now is to optimize further for *minor*
+usecase. And now I dobut the code you are adding is really worth
+unless it makes a meaningful output.
+If it doesn't, it adds just overhead(code size, maintainance, power and
+performance). You might argue it's really *small* so it would be okay
+but think about that you would be not only one in the community so
+kernel bloats day by day with code to handle corner cases.
+
+> uses nr_swapfiles to avoid sort() for single swap device is simple and
+> good enough for this task.  Maybe we can just improve the correctness of
+
+But it hurts *major* usecase.
+
+> swap device counting as Tim suggested.
+
+I don't know what Tim suggested. Anyway, my point is that minor
+usecase doesn't hurt major usecase and justify the benefit
+if you want to put more. So I'm okay with either solution to
+meet it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
