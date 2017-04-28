@@ -1,79 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C28986B02E1
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:39:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b20so2610862wma.11
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 23:39:17 -0700 (PDT)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id f8si5783602wmh.127.2017.04.27.23.39.16
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ECC66B02E1
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:50:56 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id t189so2628857wme.15
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 23:50:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g53si5647686wrg.76.2017.04.27.23.50.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 23:39:16 -0700 (PDT)
-Received: by mail-wr0-x244.google.com with SMTP id w50so6012104wrc.0
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 23:39:16 -0700 (PDT)
-Date: Fri, 28 Apr 2017 08:39:13 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] mm, zone_device: replace {get, put}_zone_device_page()
- with a single reference
-Message-ID: <20170428063913.iz6xjcxblecofjlq@gmail.com>
-References: <20170423233125.nehmgtzldgi25niy@node.shutemov.name>
- <149325431313.40660.7404075559824162131.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170427083317.vzfiw7up63draslc@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 27 Apr 2017 23:50:55 -0700 (PDT)
+Date: Fri, 28 Apr 2017 08:50:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 2/2] mm: skip HWPoisoned pages when onlining pages
+Message-ID: <20170428065050.GC8143@dhcp22.suse.cz>
+References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493172615.4828.3.camel@gmail.com>
+ <20170426031255.GB11619@hori1.linux.bs1.fc.nec.co.jp>
+ <20170428063048.GA9399@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170427083317.vzfiw7up63draslc@node.shutemov.name>
+In-Reply-To: <20170428063048.GA9399@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org, Kirill Shutemov <kirill.shutemov@linux.intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>
 
+[Drop Wen Congyang because his address bounces - we will have to find
+out ourselves...]
 
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
-
-> On Wed, Apr 26, 2017 at 05:55:31PM -0700, Dan Williams wrote:
-> > Kirill points out that the calls to {get,put}_dev_pagemap() can be
-> > removed from the mm fast path if we take a single get_dev_pagemap()
-> > reference to signify that the page is alive and use the final put of the
-> > page to drop that reference.
+On Fri 28-04-17 08:30:48, Michal Hocko wrote:
+> On Wed 26-04-17 03:13:04, Naoya Horiguchi wrote:
+> > On Wed, Apr 26, 2017 at 12:10:15PM +1000, Balbir Singh wrote:
+> > > On Tue, 2017-04-25 at 16:27 +0200, Laurent Dufour wrote:
+> > > > The commit b023f46813cd ("memory-hotplug: skip HWPoisoned page when
+> > > > offlining pages") skip the HWPoisoned pages when offlining pages, but
+> > > > this should be skipped when onlining the pages too.
+> > > >
+> > > > Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> > > > ---
+> > > >  mm/memory_hotplug.c | 4 ++++
+> > > >  1 file changed, 4 insertions(+)
+> > > >
+> > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > > > index 6fa7208bcd56..741ddb50e7d2 100644
+> > > > --- a/mm/memory_hotplug.c
+> > > > +++ b/mm/memory_hotplug.c
+> > > > @@ -942,6 +942,10 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+> > > >  	if (PageReserved(pfn_to_page(start_pfn)))
+> > > >  		for (i = 0; i < nr_pages; i++) {
+> > > >  			page = pfn_to_page(start_pfn + i);
+> > > > +			if (PageHWPoison(page)) {
+> > > > +				ClearPageReserved(page);
+> > >
+> > > Why do we clear page reserved? Also if the page is marked PageHWPoison, it
+> > > was never offlined to begin with? Or do you expect this to be set on newly
+> > > hotplugged memory? Also don't we need to skip the entire pageblock?
 > > 
-> > This does require some care to make sure that any waits for the
-> > percpu_ref to drop to zero occur *after* devm_memremap_page_release(),
-> > since it now maintains its own elevated reference.
-> > 
-> > Cc Ingo Molnar <mingo@redhat.com>
-> > Cc: Jerome Glisse <jglisse@redhat.com>
-> > Cc: Logan Gunthorpe <logang@deltatee.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Suggested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> > ---
-> > 
-> > This patch might fix the regression that we found with the conversion to
-> > generic get_user_pages_fast() in the x86/mm branch pending for 4.12
-> > (commit 2947ba054a4d "x86/mm/gup: Switch GUP to the generic
-> > get_user_page_fast() implementation"). I'll test tomorrow, but in case
-> > someone can give it a try before I wake up, here's an early version.
+> > If I read correctly, to "skip HWPoiosned page" in commit b023f46813cd means
+> > that we skip the page status check for hwpoisoned pages *not* to prevent
+> > memory offlining for memblocks with hwpoisoned pages. That means that
+> > hwpoisoned pages can be offlined.
 > 
-> + Ingo.
+> Is this patch actually correct? I am trying to wrap my head around it
+> but it smells like it tries to avoid the problem rather than fix it
+> properly. I might be wrong here of course but to me it sounds like
+> poisoned page should simply be offlined and keep its poison state all
+> the time. If the memory is hot-removed and added again we have lost the
+> struct page along with the state which is the expected behavior. If it
+> is still broken we will re-poison it.
 > 
-> This works for me with and without GUP revert.
+> Anyway a patch to skip over poisoned pages during online makes perfect
+> sense to me. The PageReserved fiddling around much less so.
 > 
-> Tested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> 
-> >  drivers/dax/pmem.c    |    2 +-
-> >  drivers/nvdimm/pmem.c |   13 +++++++++++--
-> 
-> There's a trivial conflict in drivers/nvdimm/pmem.c when applied to
-> tip/master.
+> Or am I missing something. Let's CC Wen Congyang for the clarification
+> here.
 
-Ok, could someone please send a version either to Linus for v4.11, or a version 
-against latest -tip so I can included it in x86/mm, so that x86/mm gets unbroken.
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
