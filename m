@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AD4036B02E1
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 01:07:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id s72so5092247pfi.19
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 22:07:33 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id w6si4915053pfi.411.2017.04.27.22.07.32
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D8156B02E1
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 01:33:04 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id i18so11804615qte.1
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 22:33:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l14si5296867qtb.91.2017.04.27.22.33.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Apr 2017 22:07:32 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id g23so15703819pfj.1
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 22:07:32 -0700 (PDT)
-Message-ID: <1493356043.28002.5.camel@gmail.com>
-Subject: Re: [RFC 1/4] mm: create N_COHERENT_MEMORY
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Fri, 28 Apr 2017 15:07:23 +1000
-In-Reply-To: <20170427184213.tco7hu5w2zlm4lpg@arbab-laptop.localdomain>
-References: <20170419075242.29929-1-bsingharora@gmail.com>
-	 <20170419075242.29929-2-bsingharora@gmail.com>
-	 <20170427184213.tco7hu5w2zlm4lpg@arbab-laptop.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 27 Apr 2017 22:33:03 -0700 (PDT)
+Date: Fri, 28 Apr 2017 13:32:33 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH v5 31/32] x86: Add sysfs support for Secure Memory
+ Encryption
+Message-ID: <20170428053233.GA6149@dhcp-128-65.nay.redhat.com>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
+ <1498ec98-b19d-c47d-902b-a68870a3f860@intel.com>
+ <20170427072547.GB15297@dhcp-128-65.nay.redhat.com>
+ <1f034974-20e6-b5e9-e6ff-434b634e1522@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1f034974-20e6-b5e9-e6ff-434b634e1522@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, vbabka@suse.cz, cl@linux.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu, 2017-04-27 at 13:42 -0500, Reza Arbab wrote:
-> On Wed, Apr 19, 2017 at 05:52:39PM +1000, Balbir Singh wrote:
-> > In this patch we create N_COHERENT_MEMORY, which is different
-> > from N_MEMORY. A node hotplugged as coherent memory will have
-> > this state set. The expectation then is that this memory gets
-> > onlined like regular nodes. Memory allocation from such nodes
-> > occurs only when the the node is contained explicitly in the
-> > mask.
+On 04/27/17 at 08:52am, Dave Hansen wrote:
+> On 04/27/2017 12:25 AM, Dave Young wrote:
+> > On 04/21/17 at 02:55pm, Dave Hansen wrote:
+> >> On 04/18/2017 02:22 PM, Tom Lendacky wrote:
+> >>> Add sysfs support for SME so that user-space utilities (kdump, etc.) can
+> >>> determine if SME is active.
+> >>>
+> >>> A new directory will be created:
+> >>>   /sys/kernel/mm/sme/
+> >>>
+> >>> And two entries within the new directory:
+> >>>   /sys/kernel/mm/sme/active
+> >>>   /sys/kernel/mm/sme/encryption_mask
+> >>
+> >> Why do they care, and what will they be doing with this information?
+> > 
+> > Since kdump will copy old memory but need this to know if the old memory
+> > was encrypted or not. With this sysfs file we can know the previous SME
+> > status and pass to kdump kernel as like a kernel param.
+> > 
+> > Tom, have you got chance to try if it works or not?
 > 
-> Finally got around to test drive this. From what I can see, as expected,
-> both kernel and userspace seem to ignore these nodes, unless you 
-> allocate specifically from them. Very convenient.
+> What will the kdump kernel do with it though?  We kexec() into that
+> kernel so the SME keys will all be the same, right?  So, will the kdump
+> kernel be just setting the encryption bit in the PTE so it can copy the
+> old plaintext out?
 
-Thanks for testing them!
+I assume it is for active -> non active case, the new boot need to know
+the old memory is encrypted. But I think I did not read all the patches
+I may miss things.
 
 > 
-> Is "online_coherent"/MMOP_ONLINE_COHERENT the right way to trigger this?  
+> Why do we need both 'active' and 'encryption_mask'?  How could it be
+> that the hardware-enumerated 'encryption_mask' changes across a kexec()?
 
-Now that we mark the node state at boot/hotplug time, I think we can ignore
-these changes.
+Leave this question to Tom..
 
-> That mechanism is used to specify zone, and only for a single block of 
-> memory. This concept applies to the node as a whole. I think it should 
-> be independent of memory onlining.
-> 
-> I mean, let's say online_kernel N blocks, some of them get allocated, 
-> and then you online_coherent block N+1, flipping the entire node into 
-> N_COHERENT_MEMORY. That doesn't seem right.
-> 
-
-Agreed, I'll remove these bits in the next posting.
-
-Thanks for the review!
-Balbir Singh.
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
