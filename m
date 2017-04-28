@@ -1,60 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 509406B02E1
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:08:00 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id n104so4910192wrb.20
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 23:08:00 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 333226B02E1
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:16:43 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id b28so4941508wrb.2
+        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 23:16:43 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p193si5300710wme.51.2017.04.27.23.07.58
+        by mx.google.com with ESMTPS id s80si4691649wme.160.2017.04.27.23.16.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Apr 2017 23:07:58 -0700 (PDT)
-Date: Fri, 28 Apr 2017 08:07:55 +0200
+        Thu, 27 Apr 2017 23:16:41 -0700 (PDT)
+Date: Fri, 28 Apr 2017 08:16:38 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-Message-ID: <20170428060755.GA8143@dhcp22.suse.cz>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170427143721.GK4706@dhcp22.suse.cz>
- <87pofxk20k.fsf@firstfloor.org>
+Subject: Re: [PATCH] mm: Add additional consistency check
+Message-ID: <20170428061637.GB8143@dhcp22.suse.cz>
+References: <20170404151600.GN15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041412050.27424@east.gentwo.org>
+ <20170404194220.GT15132@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1704041457030.28085@east.gentwo.org>
+ <20170404201334.GV15132@dhcp22.suse.cz>
+ <CAGXu5jL1t2ZZkwnGH9SkFyrKDeCugSu9UUzvHf3o_MgraDFL1Q@mail.gmail.com>
+ <20170411134618.GN6729@dhcp22.suse.cz>
+ <CAGXu5j+EVCU1WrjpMmr0PYW2N_RzF0tLUgFumDR+k4035uqthA@mail.gmail.com>
+ <20170411141956.GP6729@dhcp22.suse.cz>
+ <CAGXu5j+vVn02Vsx5TzWPz3MS7Jow1gi+m3ojwMXrL-w6aaZhtw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87pofxk20k.fsf@firstfloor.org>
+In-Reply-To: <CAGXu5j+vVn02Vsx5TzWPz3MS7Jow1gi+m3ojwMXrL-w6aaZhtw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 27-04-17 13:51:23, Andi Kleen wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
-> > On Tue 25-04-17 16:27:51, Laurent Dufour wrote:
-> >> When page are poisoned, they should be uncharged from the root memory
-> >> cgroup.
-> >> 
-> >> This is required to avoid a BUG raised when the page is onlined back:
-> >> BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
-> >> page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null)
-> >> index:0x1
-> >> flags: 0x3ffff800200000(hwpoison)
+On Thu 27-04-17 18:11:28, Kees Cook wrote:
+> On Tue, Apr 11, 2017 at 7:19 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > I would do something like...
+> > ---
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index bd63450a9b16..87c99a5e9e18 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -393,10 +393,15 @@ static inline void set_store_user_dirty(struct kmem_cache *cachep) {}
+> >  static int slab_max_order = SLAB_MAX_ORDER_LO;
+> >  static bool slab_max_order_set __initdata;
 > >
-> > My knowledge of memory poisoning is very rudimentary but aren't those
-> > pages supposed to leak and never come back? In other words isn't the
-> > hoplug code broken because it should leave them alone?
+> > +static inline struct kmem_cache *page_to_cache(struct page *page)
+> > +{
+> > +       return page->slab_cache;
+> > +}
+> > +
+> >  static inline struct kmem_cache *virt_to_cache(const void *obj)
+> >  {
+> >         struct page *page = virt_to_head_page(obj);
+> > -       return page->slab_cache;
+> > +       return page_to_cache(page);
+> >  }
+> >
+> >  static inline void *index_to_obj(struct kmem_cache *cache, struct page *page,
+> > @@ -3813,14 +3818,18 @@ void kfree(const void *objp)
+> >  {
+> >         struct kmem_cache *c;
+> >         unsigned long flags;
+> > +       struct page *page;
+> >
+> >         trace_kfree(_RET_IP_, objp);
+> >
+> >         if (unlikely(ZERO_OR_NULL_PTR(objp)))
+> >                 return;
+> > +       page = virt_to_head_page(obj);
+> > +       if (CHECK_DATA_CORRUPTION(!PageSlab(page)))
+> > +               return;
+> >         local_irq_save(flags);
+> >         kfree_debugcheck(objp);
+> > -       c = virt_to_cache(objp);
+> > +       c = page_to_cache(page);
+> >         debug_check_no_locks_freed(objp, c->object_size);
+> >
+> >         debug_check_no_obj_freed(objp, c->object_size);
 > 
-> Yes that would be the right interpretation. If it was really offlined
-> due to a hardware error the memory will be poisoned and any access
-> could cause a machine check.
+> Sorry for the delay, I've finally had time to look at this again.
+> 
+> So, this only handles the kfree() case, not the kmem_cache_free() nor
+> kmem_cache_free_bulk() cases, so it misses all the non-kmalloc
+> allocations (and kfree() ultimately calls down to kmem_cache_free()).
+> Similarly, my proposed patch missed the kfree() path. :P
 
-OK, thanks for the clarification. Then I am not sure the patch is
-correct. Why do we need to uncharge that page at all? It is not freed.
-The correct thing to do is to not online it in the first place which is
-done in patch2 [1]. Even if we need to uncharge the page the reason is
-not to silent the BUG, that is merely papering a issue than a real fix.
-Laurent can you elaborate please.
+yes
 
-[1] http://lkml.kernel.org/r/1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com
+> As I work on a replacement, is the goal to avoid the checks while
+> under local_irq_save()? (i.e. I can't just put the check in
+> virt_to_cache(), etc.)
+
+You would have to check all callers of virt_to_cache. I would simply
+replace BUG_ON(!PageSlab()) in cache_from_obj. kmem_cache_free already
+handles NULL cache. kmem_cache_free_bulk and build_detached_freelist can
+be made to do so.
+
 -- 
 Michal Hocko
 SUSE Labs
