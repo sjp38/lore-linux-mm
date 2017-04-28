@@ -1,90 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B856B02EE
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:51:35 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l198so8472wmb.20
-        for <linux-mm@kvack.org>; Thu, 27 Apr 2017 23:51:35 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E29346B02E1
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 03:31:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u65so2672902wmu.12
+        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 00:31:40 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y205si2015518wmg.123.2017.04.27.23.51.33
+        by mx.google.com with ESMTPS id n20si1099051wra.263.2017.04.28.00.31.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Apr 2017 23:51:34 -0700 (PDT)
-Date: Fri, 28 Apr 2017 08:51:31 +0200
+        Fri, 28 Apr 2017 00:31:39 -0700 (PDT)
+Date: Fri, 28 Apr 2017 09:31:36 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 2/2] mm: skip HWPoisoned pages when onlining pages
-Message-ID: <20170428065131.GD8143@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
+Message-ID: <20170428073136.GE8143@dhcp22.suse.cz>
 References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493172615.4828.3.camel@gmail.com>
- <20170426031255.GB11619@hori1.linux.bs1.fc.nec.co.jp>
- <20170428063048.GA9399@dhcp22.suse.cz>
- <20170428065050.GC8143@dhcp22.suse.cz>
+ <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170427143721.GK4706@dhcp22.suse.cz>
+ <87pofxk20k.fsf@firstfloor.org>
+ <20170428060755.GA8143@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170428065050.GC8143@dhcp22.suse.cz>
+In-Reply-To: <20170428060755.GA8143@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Fri 28-04-17 08:50:50, Michal Hocko wrote:
-> [Drop Wen Congyang because his address bounces - we will have to find
-> out ourselves...]
+[CC Johannes and Vladimir - the patch is
+http://lkml.kernel.org/r/1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com]
 
-Ble, for real this time. Sorry about spamming
- 
-> On Fri 28-04-17 08:30:48, Michal Hocko wrote:
-> > On Wed 26-04-17 03:13:04, Naoya Horiguchi wrote:
-> > > On Wed, Apr 26, 2017 at 12:10:15PM +1000, Balbir Singh wrote:
-> > > > On Tue, 2017-04-25 at 16:27 +0200, Laurent Dufour wrote:
-> > > > > The commit b023f46813cd ("memory-hotplug: skip HWPoisoned page when
-> > > > > offlining pages") skip the HWPoisoned pages when offlining pages, but
-> > > > > this should be skipped when onlining the pages too.
-> > > > >
-> > > > > Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> > > > > ---
-> > > > >  mm/memory_hotplug.c | 4 ++++
-> > > > >  1 file changed, 4 insertions(+)
-> > > > >
-> > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > > > > index 6fa7208bcd56..741ddb50e7d2 100644
-> > > > > --- a/mm/memory_hotplug.c
-> > > > > +++ b/mm/memory_hotplug.c
-> > > > > @@ -942,6 +942,10 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> > > > >  	if (PageReserved(pfn_to_page(start_pfn)))
-> > > > >  		for (i = 0; i < nr_pages; i++) {
-> > > > >  			page = pfn_to_page(start_pfn + i);
-> > > > > +			if (PageHWPoison(page)) {
-> > > > > +				ClearPageReserved(page);
-> > > >
-> > > > Why do we clear page reserved? Also if the page is marked PageHWPoison, it
-> > > > was never offlined to begin with? Or do you expect this to be set on newly
-> > > > hotplugged memory? Also don't we need to skip the entire pageblock?
-> > > 
-> > > If I read correctly, to "skip HWPoiosned page" in commit b023f46813cd means
-> > > that we skip the page status check for hwpoisoned pages *not* to prevent
-> > > memory offlining for memblocks with hwpoisoned pages. That means that
-> > > hwpoisoned pages can be offlined.
+On Fri 28-04-17 08:07:55, Michal Hocko wrote:
+> On Thu 27-04-17 13:51:23, Andi Kleen wrote:
+> > Michal Hocko <mhocko@kernel.org> writes:
 > > 
-> > Is this patch actually correct? I am trying to wrap my head around it
-> > but it smells like it tries to avoid the problem rather than fix it
-> > properly. I might be wrong here of course but to me it sounds like
-> > poisoned page should simply be offlined and keep its poison state all
-> > the time. If the memory is hot-removed and added again we have lost the
-> > struct page along with the state which is the expected behavior. If it
-> > is still broken we will re-poison it.
+> > > On Tue 25-04-17 16:27:51, Laurent Dufour wrote:
+> > >> When page are poisoned, they should be uncharged from the root memory
+> > >> cgroup.
+> > >> 
+> > >> This is required to avoid a BUG raised when the page is onlined back:
+> > >> BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
+> > >> page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null)
+> > >> index:0x1
+> > >> flags: 0x3ffff800200000(hwpoison)
+> > >
+> > > My knowledge of memory poisoning is very rudimentary but aren't those
+> > > pages supposed to leak and never come back? In other words isn't the
+> > > hoplug code broken because it should leave them alone?
 > > 
-> > Anyway a patch to skip over poisoned pages during online makes perfect
-> > sense to me. The PageReserved fiddling around much less so.
-> > 
-> > Or am I missing something. Let's CC Wen Congyang for the clarification
-> > here.
+> > Yes that would be the right interpretation. If it was really offlined
+> > due to a hardware error the memory will be poisoned and any access
+> > could cause a machine check.
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> OK, thanks for the clarification. Then I am not sure the patch is
+> correct. Why do we need to uncharge that page at all?
 
+Now, I have realized that we actually want to uncharge that page because
+it will pin the memcg and we do not want to have that memcg and its
+whole hierarchy pinned as well. This used to work before the charge
+rework 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API") I guess
+because we used to uncharge on page cache removal.
+
+I do not think the patch is correct, though. memcg_kmem_enabled() will
+check whether kmem accounting is enabled and we are talking about page
+cache pages here. You should be using mem_cgroup_uncharge instead.
 -- 
 Michal Hocko
 SUSE Labs
