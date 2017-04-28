@@ -1,271 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF046B02E1
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:45:30 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b17so42233881pfd.1
-        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 02:45:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q3si5583042pfd.238.2017.04.28.02.45.29
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4586D6B02E1
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 07:48:21 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m13so12504997pgd.12
+        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 04:48:21 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id k62si5867868pge.114.2017.04.28.04.48.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Apr 2017 02:45:29 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v3S9iGiY121801
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:45:28 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2a3j0md8e0-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 05:45:28 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 28 Apr 2017 10:45:25 +0100
-Date: Fri, 28 Apr 2017 12:45:16 +0300
-In-Reply-To: <a95f9ae6-f7db-1ed9-6e25-99ced1fd37a3@gmail.com>
-References: <1493302474-4701-1-git-send-email-rppt@linux.vnet.ibm.com> <1493302474-4701-2-git-send-email-rppt@linux.vnet.ibm.com> <a95f9ae6-f7db-1ed9-6e25-99ced1fd37a3@gmail.com>
+        Fri, 28 Apr 2017 04:48:20 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
+References: <87y3uwrez0.fsf@yhuang-dev.intel.com> <20170420063834.GB3720@bbox>
+	<874lxjim7m.fsf@yhuang-dev.intel.com>
+	<87tw5idjv9.fsf@yhuang-dev.intel.com> <20170424045213.GA11287@bbox>
+	<87y3un2vdp.fsf@yhuang-dev.intel.com> <20170427043545.GA1726@bbox>
+	<87r30dz6am.fsf@yhuang-dev.intel.com> <20170428074257.GA19510@bbox>
+	<871ssdvtx5.fsf@yhuang-dev.intel.com> <20170428090049.GA26460@bbox>
+Date: Fri, 28 Apr 2017 19:48:16 +0800
+In-Reply-To: <20170428090049.GA26460@bbox> (Minchan Kim's message of "Fri, 28
+	Apr 2017 18:00:49 +0900")
+Message-ID: <87h918vjlr.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH man-pages 1/2] userfaultfd.2: start documenting non-cooperative events
-From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Message-Id: <190E3CFC-492F-4672-9385-9C3D8F57F26C@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
 
+Minchan Kim <minchan@kernel.org> writes:
 
-
-On April 27, 2017 8:26:16 PM GMT+03:00, "Michael Kerrisk (man-pages)" <mtk=
-=2Emanpages@gmail=2Ecom> wrote:
->Hi Mike,
+> On Fri, Apr 28, 2017 at 04:05:26PM +0800, Huang, Ying wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> 
+>> > On Fri, Apr 28, 2017 at 09:09:53AM +0800, Huang, Ying wrote:
+>> >> Minchan Kim <minchan@kernel.org> writes:
+>> >> 
+>> >> > On Wed, Apr 26, 2017 at 08:42:10PM +0800, Huang, Ying wrote:
+>> >> >> Minchan Kim <minchan@kernel.org> writes:
+>> >> >> 
+>> >> >> > On Fri, Apr 21, 2017 at 08:29:30PM +0800, Huang, Ying wrote:
+>> >> >> >> "Huang, Ying" <ying.huang@intel.com> writes:
+>> >> >> >> 
+>> >> >> >> > Minchan Kim <minchan@kernel.org> writes:
+>> >> >> >> >
+>> >> >> >> >> On Wed, Apr 19, 2017 at 04:14:43PM +0800, Huang, Ying wrote:
+>> >> >> >> >>> Minchan Kim <minchan@kernel.org> writes:
+>> >> >> >> >>> 
+>> >> >> >> >>> > Hi Huang,
+>> >> >> >> >>> >
+>> >> >> >> >>> > On Fri, Apr 07, 2017 at 02:49:01PM +0800, Huang, Ying wrote:
+>> >> >> >> >>> >> From: Huang Ying <ying.huang@intel.com>
+>> >> >> >> >>> >> 
+>> >> >> >> >>> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+>> >> >> >> >>> >>  {
+>> >> >> >> >>> >>  	struct swap_info_struct *p, *prev;
+>> >> >> >> >>> >> @@ -1075,6 +1083,10 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
+>> >> >> >> >>> >>  
+>> >> >> >> >>> >>  	prev = NULL;
+>> >> >> >> >>> >>  	p = NULL;
+>> >> >> >> >>> >> +
+>> >> >> >> >>> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+>> >> >> >> >>> >> +	if (nr_swapfiles > 1)
+>> >> >> >> >>> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+>> >> >> >> >>> >
+>> >> >> >> >>> > Let's think on other cases.
+>> >> >> >> >>> >
+>> >> >> >> >>> > There are two swaps and they are configured by priority so a swap's usage
+>> >> >> >> >>> > would be zero unless other swap used up. In case of that, this sorting
+>> >> >> >> >>> > is pointless.
+>> >> >> >> >>> >
+>> >> >> >> >>> > As well, nr_swapfiles is never decreased so if we enable multiple
+>> >> >> >> >>> > swaps and then disable until a swap is remained, this sorting is
+>> >> >> >> >>> > pointelss, too.
+>> >> >> >> >>> >
+>> >> >> >> >>> > How about lazy sorting approach? IOW, if we found prev != p and,
+>> >> >> >> >>> > then we can sort it.
+>> >> >> >> >>> 
+>> >> >> >> >>> Yes.  That should be better.  I just don't know whether the added
+>> >> >> >> >>> complexity is necessary, given the array is short and sort is fast.
+>> >> >> >> >>
+>> >> >> >> >> Huh?
+>> >> >> >> >>
+>> >> >> >> >> 1. swapon /dev/XXX1
+>> >> >> >> >> 2. swapon /dev/XXX2
+>> >> >> >> >> 3. swapoff /dev/XXX2
+>> >> >> >> >> 4. use only one swap
+>> >> >> >> >> 5. then, always pointless sort.
+>> >> >> >> >
+>> >> >> >> > Yes.  In this situation we will do unnecessary sorting.  What I don't
+>> >> >> >> > know is whether the unnecessary sorting will hurt performance in real
+>> >> >> >> > life.  I can do some measurement.
+>> >> >> >> 
+>> >> >> >> I tested the patch with 1 swap device and 1 process to eat memory
+>> >> >> >> (remove the "if (nr_swapfiles > 1)" for test).  I think this is the
+>> >> >> >> worse case because there is no lock contention.  The memory freeing time
+>> >> >> >> increased from 1.94s to 2.12s (increase ~9.2%).  So there is some
+>> >> >> >> overhead for some cases.  I change the algorithm to something like
+>> >> >> >> below,
+>> >> >> >> 
+>> >> >> >>  void swapcache_free_entries(swp_entry_t *entries, int n)
+>> >> >> >>  {
+>> >> >> >>  	struct swap_info_struct *p, *prev;
+>> >> >> >>  	int i;
+>> >> >> >> +	swp_entry_t entry;
+>> >> >> >> +	unsigned int prev_swp_type;
+>> >> >> >>  
+>> >> >> >>  	if (n <= 0)
+>> >> >> >>  		return;
+>> >> >> >>  
+>> >> >> >> +	prev_swp_type = swp_type(entries[0]);
+>> >> >> >> +	for (i = n - 1; i > 0; i--) {
+>> >> >> >> +		if (swp_type(entries[i]) != prev_swp_type)
+>> >> >> >> +			break;
+>> >> >> >> +	}
+>> >> >> >
+>> >> >> > That's really what I want to avoid. For many swap usecases,
+>> >> >> > it adds unnecessary overhead.
+>> >> >> >
+>> >> >> >> +
+>> >> >> >> +	/* Sort swap entries by swap device, so each lock is only taken once. */
+>> >> >> >> +	if (i)
+>> >> >> >> +		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
+>> >> >> >>  	prev = NULL;
+>> >> >> >>  	p = NULL;
+>> >> >> >>  	for (i = 0; i < n; ++i) {
+>> >> >> >> -		p = swap_info_get_cont(entries[i], prev);
+>> >> >> >> +		entry = entries[i];
+>> >> >> >> +		p = swap_info_get_cont(entry, prev);
+>> >> >> >>  		if (p)
+>> >> >> >> -			swap_entry_free(p, entries[i]);
+>> >> >> >> +			swap_entry_free(p, entry);
+>> >> >> >>  		prev = p;
+>> >> >> >>  	}
+>> >> >> >>  	if (p)
+>> >> >> >> 
+>> >> >> >> With this patch, the memory freeing time increased from 1.94s to 1.97s.
+>> >> >> >> I think this is good enough.  Do you think so?
+>> >> >> >
+>> >> >> > What I mean is as follows(I didn't test it at all):
+>> >> >> >
+>> >> >> > With this, sort entries if we found multiple entries in current
+>> >> >> > entries. It adds some condition checks for non-multiple swap
+>> >> >> > usecase but it would be more cheaper than the sorting.
+>> >> >> > And it adds a [un]lock overhead for multiple swap usecase but
+>> >> >> > it should be a compromise for single-swap usecase which is more
+>> >> >> > popular.
+>> >> >> >
+>> >> >> 
+>> >> >> How about the following solution?  It can avoid [un]lock overhead and
+>> >> >> double lock issue for multiple swap user case and has good performance
+>> >> >> for one swap user case too.
+>> >> >
+>> >> > How worse with approach I suggested compared to as-is?
+>> >> 
+>> >> The performance difference between your version and my version is small
+>> >> for my testing.
+>> >
+>> > If so, why should we add code to optimize further?
+>> >
+>> >> 
+>> >> > Unless it's too bad, let's not add more complicated thing to just
+>> >> > enhance the minor usecase in such even *slow* path.
+>> >> > It adds code size/maintainance overead.
+>> >> > With your suggestion, it might enhance a bit with speicific benchmark
+>> >> > but not sure it's really worth for real practice.
+>> >> 
+>> >> I don't think the code complexity has much difference between our latest
+>> >> versions.  As for complexity, I think my original version which just
+>> >
+>> > What I suggested is to avoid pointless overhead for *major* usecase
+>> > and the code you are adding now is to optimize further for *minor*
+>> > usecase. And now I dobut the code you are adding is really worth
+>> > unless it makes a meaningful output.
+>> > If it doesn't, it adds just overhead(code size, maintainance, power and
+>> > performance). You might argue it's really *small* so it would be okay
+>> > but think about that you would be not only one in the community so
+>> > kernel bloats day by day with code to handle corner cases.
+>> >
+>> >> uses nr_swapfiles to avoid sort() for single swap device is simple and
+>> >> good enough for this task.  Maybe we can just improve the correctness of
+>> >
+>> > But it hurts *major* usecase.
+>> >
+>> >> swap device counting as Tim suggested.
+>> >
+>> > I don't know what Tim suggested. Anyway, my point is that minor
+>> > usecase doesn't hurt major usecase and justify the benefit
+>> > if you want to put more. So I'm okay with either solution to
+>> > meet it.
+>> 
+>> Tim suggested to add a mechanism to correctly track how many swap
+>> devices are in use in swapon/swapoff.  So we only sort if the number of
+>> the swap device > 1.  This will not cover multiple swap devices with
+>> different priorities, but will cover the major usecases.  The code
+>> should be simpler.
 >
->I've applied this, but have some questions/points I think=20
->further clarification=2E
->
->On 04/27/2017 04:14 PM, Mike Rapoport wrote:
->> Signed-off-by: Mike Rapoport <rppt@linux=2Evnet=2Eibm=2Ecom>
->> ---
->>  man2/userfaultfd=2E2 | 135
->++++++++++++++++++++++++++++++++++++++++++++++++++---
->>  1 file changed, 128 insertions(+), 7 deletions(-)
->>=20
->> diff --git a/man2/userfaultfd=2E2 b/man2/userfaultfd=2E2
->> index cfea5cb=2E=2E44af3e4 100644
->> --- a/man2/userfaultfd=2E2
->> +++ b/man2/userfaultfd=2E2
->> @@ -75,7 +75,7 @@ flag in
->>  =2EPP
->>  When the last file descriptor referring to a userfaultfd object is
->closed,
->>  all memory ranges that were registered with the object are
->unregistered
->> -and unread page-fault events are flushed=2E
->> +and unread events are flushed=2E
->>  =2E\"
->>  =2ESS Usage
->>  The userfaultfd mechanism is designed to allow a thread in a
->multithreaded
->> @@ -99,6 +99,20 @@ In such non-cooperative mode,
->>  the process that monitors userfaultfd and handles page faults
->>  needs to be aware of the changes in the virtual memory layout
->>  of the faulting process to avoid memory corruption=2E
->> +
->> +Starting from Linux 4=2E11,
->> +userfaultfd may notify the fault-handling threads about changes
->> +in the virtual memory layout of the faulting process=2E
->> +In addition, if the faulting process invokes
->> +=2EBR fork (2)
->> +system call,
->> +the userfaultfd objects associated with the parent may be duplicated
->> +into the child process and the userfaultfd monitor will be notified
->> +about the file descriptor associated with the userfault objects
->
->What does "notified about the file descriptor" mean?
+> As you know, it doesn't solve multiple swaps by priority.
 
-Well, seems that I've made this one really awkward :)
-When the monitored process forks, all the userfault objects associated=E2=
-=80=8B with it are duplicated into the child process=2E For each duplicated=
- object, userfault generates event of type UFFD_EVENT_FORK and the uffdio_m=
-sg for this event contains the file descriptor that should be used to manip=
-ulate the duplicated userfault object=2E
-Hope this clarifies=2E
+I don't think this is *major* usecase.
 
->> +created for the child process,
->> +which allows userfaultfd monitor to perform user-space paging
->> +for the child process=2E
->> +
->>  =2E\" FIXME elaborate about non-cooperating mode, describe its
->limitations
->>  =2E\" for kernels before 4=2E11, features added in 4=2E11
->>  =2E\" and limitations remaining in 4=2E11
->> @@ -144,6 +158,10 @@ Details of the various
->>  operations can be found in
->>  =2EBR ioctl_userfaultfd (2)=2E
->> =20
->> +Since Linux 4=2E11, events other than page-fault may enabled during
->> +=2EB UFFDIO_API
->> +operation=2E
->> +
->>  Up to Linux 4=2E11,
->>  userfaultfd can be used only with anonymous private memory mappings=2E
->> =20
->> @@ -156,7 +174,8 @@ Each
->>  =2EBR read (2)
->>  from the userfaultfd file descriptor returns one or more
->>  =2EI uffd_msg
->> -structures, each of which describes a page-fault event:
->> +structures, each of which describes a page-fault event
->> +or an event required for the non-cooperative userfaultfd usage:
->> =20
->>  =2Enf
->>  =2Ein +4n
->> @@ -168,6 +187,23 @@ struct uffd_msg {
->>              __u64 flags;        /* Flags describing fault */
->>              __u64 address;      /* Faulting address */
->>          } pagefault;
->> +        struct {
->> +            __u32 ufd;          /* userfault file descriptor
->> +                                   of the child process */
->> +        } fork;                 /* since Linux 4=2E11 */
->> +        struct {
->> +            __u64 from;         /* old address of the
->> +                                   remapped area */
->> +            __u64 to;           /* new address of the
->> +                                   remapped area */
->> +            __u64 len;          /* original mapping length */
->> +        } remap;                /* since Linux 4=2E11 */
->> +        struct {
->> +            __u64 start;        /* start address of the
->> +                                   removed area */
->> +            __u64 end;          /* end address of the
->> +                                   removed area */
->> +        } remove;               /* since Linux 4=2E11 */
->>          =2E=2E=2E
->>      } arg;
->> =20
->> @@ -194,14 +230,73 @@ structure are as follows:
->>  =2ETP
->>  =2EI event
->>  The type of event=2E
->> -Currently, only one value can appear in this field:
->> -=2EBR UFFD_EVENT_PAGEFAULT ,
->> -which indicates a page-fault event=2E
->> +Depending of the event type,
->> +different fields of the
->> +=2EI arg
->> +union represent details required for the event processing=2E
->> +The non-page-fault events are generated only when appropriate
->feature
->> +is enabled during API handshake with
->> +=2EB UFFDIO_API
->> +=2EBR ioctl (2)=2E
->> +
->> +The following values can appear in the
->> +=2EI event
->> +field:
->> +=2ERS
->> +=2ETP
->> +=2EB UFFD_EVENT_PAGEFAULT
->> +A page-fault event=2E
->> +The page-fault details are available in the
->> +=2EI pagefault
->> +field=2E
->>  =2ETP
->> -=2EI address
->> +=2EB UFFD_EVENT_FORK
->> +Generated when the faulting process invokes
->> +=2EBR fork (2)
->> +system call=2E
->> +The event details are available in the
->> +=2EI fork
->> +field=2E
->> +=2E\" FIXME descirbe duplication of userfault file descriptor during
->fork
->> +=2ETP
->> +=2EB UFFD_EVENT_REMAP
->> +Generated when the faulting process invokes
->> +=2EBR mremap (2)
->> +system call=2E
->> +The event details are available in the
->> +=2EI remap
->> +field=2E
->> +=2ETP
->> +=2EB UFFD_EVENT_REMOVE
->> +Generated when the faulting process invokes
->> +=2EBR madvise (2)
->> +system call with
->> +=2EBR MADV_DONTNEED
->> +or
->> +=2EBR MADV_REMOVE
->> +advice=2E
->> +The event details are available in the
->> +=2EI remove
->> +field=2E
->> +=2ETP
->> +=2EB UFFD_EVENT_UNMAP
->> +Generated when the faulting process unmaps a memory range,
->> +either explicitly using
->> +=2EBR munmap (2)
->> +system call or implicitly during
->> +=2EBR mmap (2)
->> +or
->> +=2EBR mremap (2)
->> +system calls=2E
->> +The event details are available in the
->> +=2EI remove
->> +field=2E
->> +=2ERE
->> +=2ETP
->> +=2EI pagefault=2Eaddress
->>  The address that triggered the page fault=2E
->>  =2ETP
->> -=2EI flags
->> +=2EI pagefault=2Eflags
->>  A bit mask of flags that describe the event=2E
->>  For
->>  =2EBR UFFD_EVENT_PAGEFAULT ,
->> @@ -218,6 +313,32 @@ otherwise it is a read fault=2E
->>  =2E\"
->>  =2E\" UFFD_PAGEFAULT_FLAG_WP is not yet supported=2E
->>  =2ERE
->> +=2ETP
->> +=2EI fork=2Eufd
->> +The file descriptor associated with the userfault object
->> +created for the child process
->> +=2ETP
->> +=2EI remap=2Efrom
->> +The original address of the memory range that was remapped using
->> +=2EBR mremap (2)=2E
->> +=2ETP
->> +=2EI remap=2Eto
->> +The new address of the memory range that was remapped using
->> +=2EBR mremap (2)=2E
->> +=2ETP
->> +=2EI remap=2Elen
->> +The original length of the the memory range that was remapped using
->> +=2EBR mremap (2)=2E
->> +=2ETP
->> +=2EI remove=2Estart
->> +The start address of the memory range that was freed using
->> +=2EBR madvise (2)
->> +or unmapped
->> +=2ETP
->> +=2EI remove=2Eend
->> +The end address of the memory range that was freed using
->> +=2EBR madvise (2)
->> +or unmapped
->>  =2EPP
->>  A
->>  =2EBR read (2)
->
->Cheers,
->
->Michael
+> Even, there are cases full with entries same swap device
+> although multiple swap devices are used.
 
---=20
-Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
+Why, if you have multiple swap device, every time you will allocate from
+different swap device.  Although there are swap alloc slots cache, the
+possibility of full alignment is low.
+
+Even if there are cases all entries come from one swap device, the
+sorting is fast in fact because the array is short and the elements are
+sorted (same swap type) already.  So it is not necessary to worry about
+that too much.
+
+Best Regards,
+Huang, Ying
+
+> So, I think runtime sorting by judging need to be sored is still
+> better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
