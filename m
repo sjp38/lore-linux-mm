@@ -1,106 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 163EE6B0317
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2017 17:56:52 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o68so48990826pfj.20
-        for <linux-mm@kvack.org>; Fri, 28 Apr 2017 14:56:52 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id x3si7261036plb.1.2017.04.28.14.56.51
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B56E86B02E1
+	for <linux-mm@kvack.org>; Sat, 29 Apr 2017 06:17:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u5so4522466wmg.13
+        for <linux-mm@kvack.org>; Sat, 29 Apr 2017 03:17:30 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id f17si10323446wra.256.2017.04.29.03.17.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Apr 2017 14:56:51 -0700 (PDT)
-From: Sean Christopherson <sean.j.christopherson@intel.com>
-Subject: [PATCH 2/2] mm/memcontrol: inc reclaim gen if restarting walk in mem_cgroup_iter()
-Date: Fri, 28 Apr 2017 14:55:47 -0700
-Message-Id: <1493416547-19212-3-git-send-email-sean.j.christopherson@intel.com>
-In-Reply-To: <1493416547-19212-1-git-send-email-sean.j.christopherson@intel.com>
-References: <1493416547-19212-1-git-send-email-sean.j.christopherson@intel.com>
+        Sat, 29 Apr 2017 03:17:29 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id r190so65689234wme.1
+        for <linux-mm@kvack.org>; Sat, 29 Apr 2017 03:17:28 -0700 (PDT)
+Date: Sat, 29 Apr 2017 13:17:26 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm, zone_device: replace {get,
+ put}_zone_device_page() with a single reference
+Message-ID: <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
+References: <20170428063913.iz6xjcxblecofjlq@gmail.com>
+ <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <1743017574.4309811.1493400875692.JavaMail.zimbra@redhat.com>
+ <CAPcyv4jCfMwthPwbE-iuvef1KkMYUtA=qAydgfJzH0_otXoAOg@mail.gmail.com>
+ <1579714997.4315035.1493402406629.JavaMail.zimbra@redhat.com>
+ <CAPcyv4hvBKG8t3e3QvUnmkaopeM8eTniz5JPVkrZ5Puu5eaViw@mail.gmail.com>
+ <1295710462.4327805.1493406971970.JavaMail.zimbra@redhat.com>
+ <CAPcyv4i+iPm=hBviOYABaroz_JJYVy8Qja8Ka=-_uAQNnGjpeg@mail.gmail.com>
+ <20170428193305.GA3912@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170428193305.GA3912@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, sean.j.christopherson@intel.com
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-Increment iter->generation if a reclaimer reaches the end of the tree,
-even if it restarts the hierarchy walk instead of returning NULL, i.e.
-this is the reclaimer's initial call to mem_cgroup_iter().  If we don't
-increment the generation, other threads that are part of the current
-reclaim generation will incorrectly continue to walk the tree since
-iter->generation won't be updated until one of the reclaimers reaches
-the end of the hierarchy a second time.
+On Fri, Apr 28, 2017 at 03:33:07PM -0400, Jerome Glisse wrote:
+> On Fri, Apr 28, 2017 at 12:22:24PM -0700, Dan Williams wrote:
+> > Are you sure about needing to hook the 2 -> 1 transition? Could we
+> > change ZONE_DEVICE pages to not have an elevated reference count when
+> > they are created so you can keep the HMM references out of the mm hot
+> > path?
+> 
+> 100% sure on that :) I need to callback into driver for 2->1 transition
+> no way around that. If we change ZONE_DEVICE to not have an elevated
+> reference count that you need to make a lot more change to mm so that
+> ZONE_DEVICE is never use as fallback for memory allocation. Also need
+> to make change to be sure that ZONE_DEVICE page never endup in one of
+> the path that try to put them back on lru. There is a lot of place that
+> would need to be updated and it would be highly intrusive and add a
+> lot of special cases to other hot code path.
 
-Move the put_css(&pos->css) call below the iter->generation update
-to minimize the window where a thread can see a stale generation but
-consume an updated position, as iter->generation and iter->position
-are not updated atomically.
+Could you explain more on where the requirement comes from or point me to
+where I can read about this.
 
-Signed-off-by: Sean Christopherson <sean.j.christopherson@intel.com>
----
- mm/memcontrol.c | 31 ++++++++++++++++++++++++++-----
- 1 file changed, 26 insertions(+), 5 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6a7ca3c..b858245 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -740,6 +740,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 	struct cgroup_subsys_state *css = NULL;
- 	struct mem_cgroup *memcg = NULL;
- 	struct mem_cgroup *pos = NULL;
-+	bool inc_gen = false;
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -791,6 +792,14 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 		css = css_next_descendant_pre(css, &root->css);
- 		if (!css) {
- 			/*
-+			 * Increment the generation as the next call to
-+			 * css_next_descendant_pre will restart at root.
-+			 * Do not update iter->generation directly as we
-+			 * should only do so if we update iter->position.
-+			 */
-+			inc_gen = true;
-+
-+			/*
- 			 * Reclaimers share the hierarchy walk, and a
- 			 * new one might jump in right at the end of
- 			 * the hierarchy - make sure they see at least
-@@ -838,16 +847,28 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 				css_put(&pos->css);
- 			css = NULL;
- 			memcg = NULL;
-+			inc_gen = false;
- 			goto start;
- 		}
- 
--		if (pos)
--			css_put(&pos->css);
--
--		if (!memcg)
-+		/*
-+		 * Update iter->generation asap to minimize the window where
-+		 * a different thread compares against a stale generation but
-+		 * consumes an updated position.
-+		 */
-+		if (inc_gen)
- 			iter->generation++;
--		else if (!prev)
-+
-+		/*
-+		 * Initialize the reclaimer's generation after the potential
-+		 * update to iter->generation; if we restarted the hierarchy
-+		 * walk then we are part of the new generation.
-+		 */
-+		if (!prev)
- 			reclaim->generation = iter->generation;
-+
-+		if (pos)
-+			css_put(&pos->css);
- 	}
- 
- out_unlock:
 -- 
-2.7.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
