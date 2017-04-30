@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 03D006B0038
-	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 02:03:59 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id m89so60503937pfi.14
-        for <linux-mm@kvack.org>; Sat, 29 Apr 2017 23:03:58 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id r78si11065144pfi.203.2017.04.29.23.03.56
-        for <linux-mm@kvack.org>;
-        Sat, 29 Apr 2017 23:03:57 -0700 (PDT)
-Subject: Re: 4.11.0-rc8+/x86_64 desktop lockup until applications closed
-References: <md5:RQiZYAYNN/yJzTrY48XZ7w==>
- <ccd5aac8-b24a-713a-db54-c35688905595@internode.on.net>
- <20170427092636.GD4706@dhcp22.suse.cz>
-From: Arthur Marsh <arthur.marsh@internode.on.net>
-Message-ID: <99a78105-de58-a5e1-5191-d5f4de7ed5f4@internode.on.net>
-Date: Sun, 30 Apr 2017 15:33:50 +0930
-MIME-Version: 1.0
-In-Reply-To: <20170427092636.GD4706@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C6436B0038
+	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 07:32:01 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s62so1567588pgc.2
+        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 04:32:01 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id i61si11132783plb.196.2017.04.30.04.32.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 30 Apr 2017 04:32:00 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id v1so12199764pgv.3
+        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 04:32:00 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH 0/3] try to save some memory for kmem_cache in some cases
+Date: Sun, 30 Apr 2017 19:31:49 +0800
+Message-Id: <20170430113152.6590-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
+kmem_cache is a frequently used data in kernel. During the code reading, I
+found maybe we could save some space in some cases.
 
+1. On 64bit arch, type int will occupy a word if it doesn't sit well.
+2. cpu_slab->partial is just used when CONFIG_SLUB_CPU_PARTIAL is set
+3. cpu_partial is just used when CONFIG_SLUB_CPU_PARTIAL is set, while just
+save some space on 32bit arch.
 
-Michal Hocko wrote on 27/04/17 18:56:
-> On Thu 27-04-17 18:36:38, Arthur Marsh wrote:
-> [...]
->> [55363.482931] QXcbEventReader: page allocation stalls for 10048ms, order:0,
->> mode:0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null)
->
-> Are there more of these stalls?
+Wei Yang (3):
+  mm/slub: pack red_left_pad with another int to save a word
+  mm/slub: wrap cpu_slab->partial in CONFIG_SLUB_CPU_PARTIAL
+  mm/slub: wrap kmem_cache->cpu_partial in config
+    CONFIG_SLUB_CPU_PARTIAL
 
-I haven't seen the same kinds of logging in dmesg, but a few minutes ago 
-I did see that the desktop had locked up and after remotely logging in 
-and doing a kill -HUP of iceweasel/firefox, saw this:
+ include/linux/slub_def.h |  6 +++-
+ mm/slub.c                | 88 ++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 64 insertions(+), 30 deletions(-)
 
-[92311.944443] swap_info_get: Bad swap offset entry 000ffffd
-[92311.944449] swap_info_get: Bad swap offset entry 000ffffe
-[92311.944451] swap_info_get: Bad swap offset entry 000fffff
-
-I've since restarted that machine, but should it happen again I'd be 
-happy to run further tests.
-
-Arthur.
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
