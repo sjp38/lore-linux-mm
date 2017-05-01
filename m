@@ -1,114 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C018B6B0311
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 14:34:19 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d46so5668008wrd.17
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:34:19 -0700 (PDT)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id f131si9827788wme.164.2017.05.01.11.34.18
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1346B02F2
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 16:19:27 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id h18so60180683ita.9
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 13:19:27 -0700 (PDT)
+Received: from mail-it0-x22c.google.com (mail-it0-x22c.google.com. [2607:f8b0:4001:c0b::22c])
+        by mx.google.com with ESMTPS id 65si15756768itg.51.2017.05.01.13.19.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 11:34:18 -0700 (PDT)
-Received: by mail-wr0-x242.google.com with SMTP id v42so14495663wrc.3
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:34:18 -0700 (PDT)
-Subject: Re: [PATCH man-pages 1/2] userfaultfd.2: start documenting
- non-cooperative events
-References: <1493302474-4701-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1493302474-4701-2-git-send-email-rppt@linux.vnet.ibm.com>
- <a95f9ae6-f7db-1ed9-6e25-99ced1fd37a3@gmail.com>
- <190E3CFC-492F-4672-9385-9C3D8F57F26C@linux.vnet.ibm.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <3cff5638-cb15-50e6-f5a4-d9a0fce643c5@gmail.com>
-Date: Mon, 1 May 2017 20:34:16 +0200
+        Mon, 01 May 2017 13:19:26 -0700 (PDT)
+Received: by mail-it0-x22c.google.com with SMTP id e65so1742797ita.1
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 13:19:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <190E3CFC-492F-4672-9385-9C3D8F57F26C@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170501135545.GA16772@redhat.com>
+References: <1743017574.4309811.1493400875692.JavaMail.zimbra@redhat.com>
+ <CAPcyv4jCfMwthPwbE-iuvef1KkMYUtA=qAydgfJzH0_otXoAOg@mail.gmail.com>
+ <1579714997.4315035.1493402406629.JavaMail.zimbra@redhat.com>
+ <CAPcyv4hvBKG8t3e3QvUnmkaopeM8eTniz5JPVkrZ5Puu5eaViw@mail.gmail.com>
+ <1295710462.4327805.1493406971970.JavaMail.zimbra@redhat.com>
+ <CAPcyv4i+iPm=hBviOYABaroz_JJYVy8Qja8Ka=-_uAQNnGjpeg@mail.gmail.com>
+ <20170428193305.GA3912@redhat.com> <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
+ <20170430231421.GA15163@redhat.com> <20170501102359.abopw7hpd4eb6x2w@node.shutemov.name>
+ <20170501135545.GA16772@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 1 May 2017 13:19:24 -0700
+Message-ID: <CAPcyv4gFMyXhqY9enam5v9nFwjSULLE=PUEqGP0psLMcA9fzDA@mail.gmail.com>
+Subject: Re: [PATCH v2] mm, zone_device: replace {get, put}_zone_device_page()
+ with a single reference
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-Hi Mike,
-
-On 04/28/2017 11:45 AM, Mike Rapoprt wrote:
-> 
-> 
-> On April 27, 2017 8:26:16 PM GMT+03:00, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> wrote:
->> Hi Mike,
+On Mon, May 1, 2017 at 6:55 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> On Mon, May 01, 2017 at 01:23:59PM +0300, Kirill A. Shutemov wrote:
+>> On Sun, Apr 30, 2017 at 07:14:24PM -0400, Jerome Glisse wrote:
+>> > On Sat, Apr 29, 2017 at 01:17:26PM +0300, Kirill A. Shutemov wrote:
+>> > > On Fri, Apr 28, 2017 at 03:33:07PM -0400, Jerome Glisse wrote:
+>> > > > On Fri, Apr 28, 2017 at 12:22:24PM -0700, Dan Williams wrote:
+>> > > > > Are you sure about needing to hook the 2 -> 1 transition? Could we
+>> > > > > change ZONE_DEVICE pages to not have an elevated reference count when
+>> > > > > they are created so you can keep the HMM references out of the mm hot
+>> > > > > path?
+>> > > >
+>> > > > 100% sure on that :) I need to callback into driver for 2->1 transition
+>> > > > no way around that. If we change ZONE_DEVICE to not have an elevated
+>> > > > reference count that you need to make a lot more change to mm so that
+>> > > > ZONE_DEVICE is never use as fallback for memory allocation. Also need
+>> > > > to make change to be sure that ZONE_DEVICE page never endup in one of
+>> > > > the path that try to put them back on lru. There is a lot of place that
+>> > > > would need to be updated and it would be highly intrusive and add a
+>> > > > lot of special cases to other hot code path.
+>> > >
+>> > > Could you explain more on where the requirement comes from or point me to
+>> > > where I can read about this.
+>> > >
+>> >
+>> > HMM ZONE_DEVICE pages are use like other pages (anonymous or file back page)
+>> > in _any_ vma. So i need to know when a page is freed ie either as result of
+>> > unmap, exit or migration or anything that would free the memory. For zone
+>> > device a page is free once its refcount reach 1 so i need to catch refcount
+>> > transition from 2->1
 >>
->> I've applied this, but have some questions/points I think 
->> further clarification.
+>> What if we would rework zone device to have pages with refcount 0 at
+>> start?
+>
+> That is a _lot_ of work from top of my head because it would need changes
+> to a lot of places and likely more hot code path that simply adding some-
+> thing to put_page() note that i only need something in put_page() i do not
+> need anything in the get page path. Is adding a conditional branch for
+> HMM pages in put_page() that much of a problem ?
+>
+>
+>> > This is the only way i can inform the device that the page is now free. See
+>> >
+>> > https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=52da8fe1a088b87b5321319add79e43b8372ed7d
+>> >
+>> > There is _no_ way around that.
 >>
->> On 04/27/2017 04:14 PM, Mike Rapoport wrote:
->>> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
->>> ---
->>>  man2/userfaultfd.2 | 135
->> ++++++++++++++++++++++++++++++++++++++++++++++++++---
->>>  1 file changed, 128 insertions(+), 7 deletions(-)
->>>
->>> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
->>> index cfea5cb..44af3e4 100644
->>> --- a/man2/userfaultfd.2
->>> +++ b/man2/userfaultfd.2
->>> @@ -75,7 +75,7 @@ flag in
->>>  .PP
->>>  When the last file descriptor referring to a userfaultfd object is
->> closed,
->>>  all memory ranges that were registered with the object are
->> unregistered
->>> -and unread page-fault events are flushed.
->>> +and unread events are flushed.
->>>  .\"
->>>  .SS Usage
->>>  The userfaultfd mechanism is designed to allow a thread in a
->> multithreaded
->>> @@ -99,6 +99,20 @@ In such non-cooperative mode,
->>>  the process that monitors userfaultfd and handles page faults
->>>  needs to be aware of the changes in the virtual memory layout
->>>  of the faulting process to avoid memory corruption.
->>> +
->>> +Starting from Linux 4.11,
->>> +userfaultfd may notify the fault-handling threads about changes
->>> +in the virtual memory layout of the faulting process.
->>> +In addition, if the faulting process invokes
->>> +.BR fork (2)
->>> +system call,
->>> +the userfaultfd objects associated with the parent may be duplicated
->>> +into the child process and the userfaultfd monitor will be notified
->>> +about the file descriptor associated with the userfault objects
+>> I'm still not convinced that it's impossible.
 >>
->> What does "notified about the file descriptor" mean?
-> 
-> Well, seems that I've made this one really awkward :)
-> When the monitored process forks, all the userfault objects
-> associateda?? with it are duplicated into the child process. For each
-> duplicated object, userfault generates event of type UFFD_EVENT_FORK
-> and the uffdio_msg for this event contains the file descriptor that
-> should be used to manipulate the duplicated userfault object.
-> Hope this clarifies.
+>> Could you describe lifecycle for pages in case of HMM?
+>
+> Process malloc something, end it over to some function in the program
+> that use the GPU that function call GPU API (OpenCL, CUDA, ...) that
+> trigger a migration to device memory.
+>
+> So in the kernel you get a migration like any existing migration,
+> original page is unmap, if refcount is all ok (no pin) then a device
+> page is allocated and thing are migrated to device memory.
+>
+> What happen after is unknown. Either userspace/kernel driver decide
+> to migrate back to system memory, either there is an munmap, either
+> there is a CPU page fault, ... So from that point on the device page
+> as the exact same life as a regular page.
+>
+> Above i describe the migrate case, but you can also have new memory
+> allocation that directly allocate device memory. For instance if the
+> GPU do a page fault on an address that isn't back by anything then
+> we can directly allocate a device page. No migration involve in that
+> case.
+>
+> HMM pages are like any other pages in most respect. Exception are:
+>   - no GUP
+>   - no KSM
+>   - no lru reclaim
+>   - no NUMA balancing
+>   - no regular migration (existing migrate_page)
+>
+> The fact that minimum refcount for ZONE_DEVICE is 1 already gives
+> us for free most of the above exception. To convert the refcount to
+> be like other pages would mean that all of the above would need to
+> be audited and probably modify to ignore ZONE_DEVICE pages (i am
+> pretty sure Dan do not want any of the above either).
 
-Yes, it's clearer now.
-
-Mostly what was needed here was a forward reference that mentions
-UFFD_EVENT_FORK explicitly. I added that, and also enhanced the
-text on UFFD_EVENT_FORK a little.
-
-Also, it's not just fork(2) for which UFFD_EVENT_FORK is generated,
-right? It can also be a clone(2) cal that does not specify
-CLONE_VM, right?
-
-Could you review my changes in commit 522ab2ff6fc9010432a
-to make sure they are okay.
-
-Cheers,
-
-Michael
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Right, adding HMM references to get_page() and put_page() seems less
+intrusive. Given how uncommon HMM hardware is (insert grumble about no
+visible upstream user of this functionality) I think the 'static
+branch' approach helps mitigate the impact for everything else.
+Looking back, I should have used that mechanism for the pmem use case,
+but it's moot now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
