@@ -1,25 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BDE46B02F4
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 14:33:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d79so7414720wma.0
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:33:59 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id p32si16856646wrb.39.2017.05.01.11.33.58
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 272FA6B02FA
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 14:34:10 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id b28so11875425wrb.2
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:34:10 -0700 (PDT)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id u189si9651722wmg.140.2017.05.01.11.34.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 11:33:58 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id z129so24837966wmb.1
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:33:58 -0700 (PDT)
-Subject: Re: [PATCH man-pages 5/5] userfaultfd.2: update VERSIONS section with
- 4.11 chanegs
+        Mon, 01 May 2017 11:34:08 -0700 (PDT)
+Received: by mail-wr0-x244.google.com with SMTP id w50so14499488wrc.0
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:34:08 -0700 (PDT)
+Subject: Re: [PATCH man-pages 0/5] {ioctl_}userfaultfd.2: yet another update
 References: <1493617399-20897-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1493617399-20897-6-git-send-email-rppt@linux.vnet.ibm.com>
 From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <6ef50ec3-facc-104c-6787-567ece15e817@gmail.com>
-Date: Mon, 1 May 2017 20:33:56 +0200
+Message-ID: <352eee49-d6d1-3e82-a558-2341484c81f3@gmail.com>
+Date: Mon, 1 May 2017 20:34:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <1493617399-20897-6-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <1493617399-20897-1-git-send-email-rppt@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -30,35 +28,34 @@ Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel
 Hi Mike,
 
 On 05/01/2017 07:43 AM, Mike Rapoport wrote:
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Hi Michael,
+> 
+> These updates pretty much complete the coverage of 4.11 additions, IMHO.
 
-Thanks. Applied.
+Thanks for this, but we still await input from Andrea
+on various points.
 
-Cheers,
+> Mike Rapoport (5):
+>   ioctl_userfaultfd.2: update description of shared memory areas
+>   ioctl_userfaultfd.2: UFFDIO_COPY: add ENOENT and ENOSPC description
+>   ioctl_userfaultfd.2: add BUGS section
+>   userfaultfd.2: add note about asynchronios events delivery
+>   userfaultfd.2: update VERSIONS section with 4.11 chanegs
+> 
+>  man2/ioctl_userfaultfd.2 | 35 +++++++++++++++++++++++++++++++++--
+>  man2/userfaultfd.2       | 15 +++++++++++++++
+>  2 files changed, 48 insertions(+), 2 deletions(-)
+
+I've applied all of the above, and done some light editing.
+
+Could you please check my changes in the following commits:
+
+5191c68806c8ac73fdc89586cde434d2766abb5c
+265225c1e2311ae26ead116e6c8d2cedd46144fa
+
+Thanks,
 
 Michael
-
-
-> ---
->  man2/userfaultfd.2 | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
-> index f177bba..07a69f1 100644
-> --- a/man2/userfaultfd.2
-> +++ b/man2/userfaultfd.2
-> @@ -404,6 +404,9 @@ Insufficient kernel memory was available.
->  The
->  .BR userfaultfd ()
->  system call first appeared in Linux 4.3.
-> +
-> +The support for hugetlbfs and shared memory areas and
-> +non-page-fault events was added in Linux 4.11
->  .SH CONFORMING TO
->  .BR userfaultfd ()
->  is Linux-specific and should not be used in programs intended to be
-> 
-
 
 -- 
 Michael Kerrisk
