@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4445F6B0038
-	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 21:42:05 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p62so10501237wrc.13
-        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 18:42:05 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id p108si14309254wrc.128.2017.04.30.18.42.03
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2334D6B0038
+	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 21:54:09 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o4so24411660qkb.5
+        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 18:54:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u127si12622577qkd.249.2017.04.30.18.54.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 30 Apr 2017 18:42:03 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id d79so21502718wmi.2
-        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 18:42:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170430231421.GA15163@redhat.com>
-References: <20170428063913.iz6xjcxblecofjlq@gmail.com> <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
- <1743017574.4309811.1493400875692.JavaMail.zimbra@redhat.com>
+        Sun, 30 Apr 2017 18:54:08 -0700 (PDT)
+Date: Sun, 30 Apr 2017 21:54:03 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v2] mm, zone_device: replace {get,
+ put}_zone_device_page() with a single reference
+Message-ID: <20170501015403.GA16181@redhat.com>
+References: <1743017574.4309811.1493400875692.JavaMail.zimbra@redhat.com>
  <CAPcyv4jCfMwthPwbE-iuvef1KkMYUtA=qAydgfJzH0_otXoAOg@mail.gmail.com>
  <1579714997.4315035.1493402406629.JavaMail.zimbra@redhat.com>
  <CAPcyv4hvBKG8t3e3QvUnmkaopeM8eTniz5JPVkrZ5Puu5eaViw@mail.gmail.com>
  <1295710462.4327805.1493406971970.JavaMail.zimbra@redhat.com>
  <CAPcyv4i+iPm=hBviOYABaroz_JJYVy8Qja8Ka=-_uAQNnGjpeg@mail.gmail.com>
- <20170428193305.GA3912@redhat.com> <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
+ <20170428193305.GA3912@redhat.com>
+ <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
  <20170430231421.GA15163@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 30 Apr 2017 18:42:02 -0700
-Message-ID: <CAA9_cmekmRk3+MN0dTJap=dLgb+uLm9WEFEP+KDvg5uHbmhvCg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm, zone_device: replace {get, put}_zone_device_page()
- with a single reference
-Content-Type: text/plain; charset=UTF-8
+ <CAA9_cmekmRk3+MN0dTJap=dLgb+uLm9WEFEP+KDvg5uHbmhvCg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAA9_cmekmRk3+MN0dTJap=dLgb+uLm9WEFEP+KDvg5uHbmhvCg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
 Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-On Sun, Apr 30, 2017 at 4:14 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Sat, Apr 29, 2017 at 01:17:26PM +0300, Kirill A. Shutemov wrote:
->> On Fri, Apr 28, 2017 at 03:33:07PM -0400, Jerome Glisse wrote:
->> > On Fri, Apr 28, 2017 at 12:22:24PM -0700, Dan Williams wrote:
->> > > Are you sure about needing to hook the 2 -> 1 transition? Could we
->> > > change ZONE_DEVICE pages to not have an elevated reference count when
->> > > they are created so you can keep the HMM references out of the mm hot
->> > > path?
->> >
->> > 100% sure on that :) I need to callback into driver for 2->1 transition
->> > no way around that. If we change ZONE_DEVICE to not have an elevated
->> > reference count that you need to make a lot more change to mm so that
->> > ZONE_DEVICE is never use as fallback for memory allocation. Also need
->> > to make change to be sure that ZONE_DEVICE page never endup in one of
->> > the path that try to put them back on lru. There is a lot of place that
->> > would need to be updated and it would be highly intrusive and add a
->> > lot of special cases to other hot code path.
->>
->> Could you explain more on where the requirement comes from or point me to
->> where I can read about this.
->>
->
-> HMM ZONE_DEVICE pages are use like other pages (anonymous or file back page)
-> in _any_ vma. So i need to know when a page is freed ie either as result of
-> unmap, exit or migration or anything that would free the memory. For zone
-> device a page is free once its refcount reach 1 so i need to catch refcount
-> transition from 2->1
->
-> This is the only way i can inform the device that the page is now free. See
->
-> https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=52da8fe1a088b87b5321319add79e43b8372ed7d
->
-> There is _no_ way around that.
+On Sun, Apr 30, 2017 at 06:42:02PM -0700, Dan Williams wrote:
+> On Sun, Apr 30, 2017 at 4:14 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > On Sat, Apr 29, 2017 at 01:17:26PM +0300, Kirill A. Shutemov wrote:
+> >> On Fri, Apr 28, 2017 at 03:33:07PM -0400, Jerome Glisse wrote:
+> >> > On Fri, Apr 28, 2017 at 12:22:24PM -0700, Dan Williams wrote:
+> >> > > Are you sure about needing to hook the 2 -> 1 transition? Could we
+> >> > > change ZONE_DEVICE pages to not have an elevated reference count when
+> >> > > they are created so you can keep the HMM references out of the mm hot
+> >> > > path?
+> >> >
+> >> > 100% sure on that :) I need to callback into driver for 2->1 transition
+> >> > no way around that. If we change ZONE_DEVICE to not have an elevated
+> >> > reference count that you need to make a lot more change to mm so that
+> >> > ZONE_DEVICE is never use as fallback for memory allocation. Also need
+> >> > to make change to be sure that ZONE_DEVICE page never endup in one of
+> >> > the path that try to put them back on lru. There is a lot of place that
+> >> > would need to be updated and it would be highly intrusive and add a
+> >> > lot of special cases to other hot code path.
+> >>
+> >> Could you explain more on where the requirement comes from or point me to
+> >> where I can read about this.
+> >>
+> >
+> > HMM ZONE_DEVICE pages are use like other pages (anonymous or file back page)
+> > in _any_ vma. So i need to know when a page is freed ie either as result of
+> > unmap, exit or migration or anything that would free the memory. For zone
+> > device a page is free once its refcount reach 1 so i need to catch refcount
+> > transition from 2->1
+> >
+> > This is the only way i can inform the device that the page is now free. See
+> >
+> > https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=52da8fe1a088b87b5321319add79e43b8372ed7d
+> >
+> > There is _no_ way around that.
+> 
+> Ok, but I need to point out that this not a ZONE_DEVICE requirement.
+> This is an HMM-specific need. So, this extra reference counting should
+> be clearly delineated as part of the MEMORY_DEVICE_PRIVATE use case.
 
-Ok, but I need to point out that this not a ZONE_DEVICE requirement.
-This is an HMM-specific need. So, this extra reference counting should
-be clearly delineated as part of the MEMORY_DEVICE_PRIVATE use case.
+And it already is delimited, i think you even gave your review by on
+the patch.
 
-Can we hide the extra reference counting behind a static branch so
-that the common case fast path doesn't get slower until a HMM device
-shows up?
+
+> Can we hide the extra reference counting behind a static branch so
+> that the common case fast path doesn't get slower until a HMM device
+> shows up?
+
+Like i already did With likely()/unlikely() ? Or something else ?
+
+https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=e84778e9db0672e371eb6599dfcb812512118842
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
