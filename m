@@ -1,140 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D6BE46B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 04:20:10 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m22so41870455pgc.4
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 01:20:10 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id t128si13666844pgt.337.2017.05.01.01.20.09
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5486B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 05:33:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id i7so2942945wmf.19
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 02:33:11 -0700 (PDT)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id h82si6994179wmh.131.2017.05.01.02.33.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 01:20:10 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id t7so15177934pgt.1
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 01:20:09 -0700 (PDT)
-Date: Mon, 1 May 2017 16:20:05 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 2/3] mm/slub: wrap cpu_slab->partial in
- CONFIG_SLUB_CPU_PARTIAL
-Message-ID: <20170501082005.GA2006@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170430113152.6590-1-richard.weiyang@gmail.com>
- <20170430113152.6590-3-richard.weiyang@gmail.com>
- <20170501024103.GI27790@bombadil.infradead.org>
+        Mon, 01 May 2017 02:33:10 -0700 (PDT)
+Received: by mail-wm0-x235.google.com with SMTP id u65so84612335wmu.1
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 02:33:10 -0700 (PDT)
+Date: Mon, 1 May 2017 12:33:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm, zone_device: replace {get,
+ put}_zone_device_page() with a single reference
+Message-ID: <20170501093307.cej5kvu7bu6xcu4q@node.shutemov.name>
+References: <20170428063913.iz6xjcxblecofjlq@gmail.com>
+ <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170429141838.tkyfxhldmwypyipz@gmail.com>
+ <CAPcyv4i8WrNPzu_-Lu1uKi8NT-vj1PF0h0SW_Pi=QGn5PPhQfQ@mail.gmail.com>
+ <20170501071259.5vya524wcdddm42b@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="YiEDa0DAkWCtVeE4"
-Content-Disposition: inline
-In-Reply-To: <20170501024103.GI27790@bombadil.infradead.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-
---YiEDa0DAkWCtVeE4
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170501071259.5vya524wcdddm42b@gmail.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-On Sun, Apr 30, 2017 at 07:41:03PM -0700, Matthew Wilcox wrote:
->On Sun, Apr 30, 2017 at 07:31:51PM +0800, Wei Yang wrote:
->> @@ -2302,7 +2302,11 @@ static bool has_cpu_slab(int cpu, void *info)
->>  	struct kmem_cache *s =3D info;
->>  	struct kmem_cache_cpu *c =3D per_cpu_ptr(s->cpu_slab, cpu);
->> =20
->> -	return c->page || c->partial;
->> +	return c->page
->> +#ifdef CONFIG_SLUB_CPU_PARTIAL
->> +		|| c->partial
->> +#endif
->> +		;
->>  }
->
->No.  No way.  This is disgusting.
->
->The right way to do this is to create an accessor like this:
->
->#ifdef CONFIG_SLUB_CPU_PARTIAL
->#define slub_cpu_partial(c)	((c)->partial)
->#else
->#define slub_cpu_partial(c)	0
->#endif
->
->And then the above becomes:
->
->-	return c->page || c->partial;
->+	return c->page || slub_cpu_partial(c);
->
->All the other ifdefs go away, apart from these two:
->
+On Mon, May 01, 2017 at 09:12:59AM +0200, Ingo Molnar wrote:
+> ... is this extension to the changelog correct?
 
-Matthew
+Looks good to me.
 
-I have tried to replace the code with slub_cpu_partial(), it works fine on
-most of cases except two:
-
-1. slub_cpu_partial(c) =3D page->next;
-2. page =3D READ_ONCE(slub_cpu_partial(c));
-
-The sysfs part works fine.
-
-So if you agree, I would leave these two parts as v1.
-
->> @@ -4980,6 +4990,7 @@ static ssize_t objects_partial_show(struct kmem_ca=
-che *s, char *buf)
->>  }
->>  SLAB_ATTR_RO(objects_partial);
->> =20
->> +#ifdef CONFIG_SLUB_CPU_PARTIAL
->>  static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
->>  {
->>  	int objects =3D 0;
->> @@ -5010,6 +5021,7 @@ static ssize_t slabs_cpu_partial_show(struct kmem_=
-cache *s, char *buf)
->>  	return len + sprintf(buf + len, "\n");
->>  }
->>  SLAB_ATTR_RO(slabs_cpu_partial);
->> +#endif
->> =20
->>  static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
->>  {
->> @@ -5364,7 +5376,9 @@ static struct attribute *slab_attrs[] =3D {
->>  	&destroy_by_rcu_attr.attr,
->>  	&shrink_attr.attr,
->>  	&reserved_attr.attr,
->> +#ifdef CONFIG_SLUB_CPU_PARTIAL
->>  	&slabs_cpu_partial_attr.attr,
->> +#endif
->>  #ifdef CONFIG_SLUB_DEBUG
->>  	&total_objects_attr.attr,
->>  	&slabs_attr.attr,
-
---=20
-Wei Yang
-Help you, Help me
-
---YiEDa0DAkWCtVeE4
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJZBu+1AAoJEKcLNpZP5cTdARgP/3yIOm75HKhOAmacWnOwbdnV
-G3fDPx/kpG9P8xhdSfhO3MB3qdzB9Q5n/M/YYdamLmTBPJ4/mWf6tBzVn120PyJ1
-xQpGBziWIFm6EdMb4sEfnf2Ey9B7RZYkou1yHYW61ZlEitJk/Avp90ILPB+b4Iog
-K6gVOLiMTUBkWNRnb7M8krfzPbuQsAXn/rVW1dIBLP5qth2HTKX1yMd6XXvFKVNT
-tGySp9e/a5686hMcK1/MPCZINugAUZjjZIQ0eBgKbLCTmOwQ/HAxnyFqsQdFKmz9
-N82uLRckqru7X6+k/zC/gSFptpeMsDt5aoUX+U8QHQjwUuybHTC1ARGALJny0S74
-4hBwp1aohylm1jaFhUD1efDkDRBbZuB96P3lB+WQz1ZOrmTSl6PJ+POUB0LgXIQR
-ix6h+aoBrmp/6wP7w58k9j8zPl5Kc3qD+zBWMAsW/hrCL9m0g4ABdvYTahP01Pw7
-oszeaV7DHTDhW5EarMi1JEL1wfDI4741DUKdd5Vh5jWPHEBV+2C+fMgwD1AvRhEO
-6GhN00HV569FET5F5Js/Rg25+4Uu7WlcyG3F0I3KhGpSmJcn5YbV1JYdE+Y7oqcy
-Y/UyV7Mw3yRA9yAnFvjBM2c5JHVe2icp8Lkn+7e1GjbYOvCAnQJuf4UnGOmqd+Ag
-PCLp2SEwibxzyhVJp5Ok
-=ZUxy
------END PGP SIGNATURE-----
-
---YiEDa0DAkWCtVeE4--
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
