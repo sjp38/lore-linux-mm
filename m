@@ -1,75 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B2B876B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 17:34:24 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id d127so7671496pga.11
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 14:34:24 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b34sor202621plc.6.2017.05.01.14.34.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8FB6B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 17:56:37 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s89so34526477pfk.11
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 14:56:37 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id z27si15620745pfg.270.2017.05.01.14.56.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 01 May 2017 14:34:23 -0700 (PDT)
-Date: Mon, 1 May 2017 14:34:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file is
- low
-In-Reply-To: <20170420060904.GA3720@bbox>
-Message-ID: <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com> <20170418013659.GD21354@bbox> <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com> <20170419001405.GA13364@bbox> <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
- <20170420060904.GA3720@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 May 2017 14:56:36 -0700 (PDT)
+Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
+References: <20170419075242.29929-1-bsingharora@gmail.com>
+ <91272c14-81df-9529-f0ae-6abb17a694ea@nvidia.com>
+ <20170501210415.aeuvd73auomvdmba@arbab-laptop.localdomain>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <ce589129-d86c-ba43-7e04-55acf08f7f29@nvidia.com>
+Date: Mon, 1 May 2017 14:56:34 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170501210415.aeuvd73auomvdmba@arbab-laptop.localdomain>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, vbabka@suse.cz, cl@linux.com
 
-The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
-not swap anon pages just because free+file is low'") reintroduces is to
-prefer swapping anonymous memory rather than trashing the file lru.
+On 05/01/2017 02:04 PM, Reza Arbab wrote:
+> On Mon, May 01, 2017 at 01:41:55PM -0700, John Hubbard wrote:
+>> 1. A way to move pages between NUMA nodes, both virtual address and phys=
+ical=20
+>> address-based, from kernel mode.
+>=20
+> J=C3=A9r=C3=B4me's migrate_vma() and migrate_dma() should have this cover=
+ed, including=20
+> DMA-accelerated copy.
 
-If the anonymous inactive lru for the set of eligible zones is considered
-low, however, or the length of the list for the given reclaim priority
-does not allow for effective anonymous-only reclaiming, then avoid
-forcing SCAN_ANON.  Forcing SCAN_ANON will end up thrashing the small
-list and leave unreclaimed memory on the file lrus.
+Yes, that's good. I wasn't sure from this discussion here if either or both=
+ of those=20
+would be used, but now I see.
 
-If the inactive list is insufficient, fallback to balanced reclaim so the
-file lru doesn't remain untouched.
+Are those APIs ready for moving pages between NUMA nodes? As there is no NU=
+MA node=20
+id in the API, are we relying on the pages' membership (using each page and=
+ updating=20
+which node it is on)?
 
-Suggested-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- to akpm: this issue has been possible since at least 3.15, so it's
- probably not high priority for 4.12 but applies cleanly if it can sneak
- in
+>=20
+>> 5. Something to handle the story of bringing NUMA nodes online and putti=
+ng them=20
+>> back offline, given that they require a device driver that may not yet h=
+ave been=20
+>> loaded. There are a few minor missing bits there.
+>=20
+> This has been prototyped with the driver doing memory hotplug/hotremove. =
+Could you=20
+> elaborate a little on what you feel is missing?
+>=20
 
- mm/vmscan.c | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+We just worked through how to deal with this in our driver, and I remember =
+feeling=20
+worried about the way NUMA nodes can only be put online via a user space ac=
+tion=20
+(through sysfs). It seemed like you'd want to do that from kernel as well, =
+when a=20
+device driver gets loaded.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2204,8 +2204,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		}
- 
- 		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
--			scan_balance = SCAN_ANON;
--			goto out;
-+			/*
-+			 * Force SCAN_ANON if there are enough inactive
-+			 * anonymous pages on the LRU in eligible zones.
-+			 * Otherwise, the small LRU gets thrashed.
-+			 */
-+			if (!inactive_list_is_low(lruvec, false, sc, false) &&
-+			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
-+					>> sc->priority) {
-+				scan_balance = SCAN_ANON;
-+				goto out;
-+			}
- 		}
- 	}
- 
+I was also uneasy about user space trying to bring a node online before the=
+=20
+associated device driver was loaded, and I think it would be nice to be sur=
+e that=20
+that whole story is looked at.
+
+The theme here is that driver load/unload is, today, independent from the N=
+UMA node=20
+online/offline, and that's a problem. Not a huge one, though, just worth en=
+umerating=20
+here.
+
+thanks
+john h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
