@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E1DCB6B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 06:03:49 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id d11so42553347pgn.9
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 03:03:49 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 1si13902799ply.290.2017.05.01.03.03.48
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A141B6B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 06:31:52 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j16so69892087pfk.4
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 03:31:52 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id x68si2853570pfx.387.2017.05.01.03.31.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 03:03:49 -0700 (PDT)
-Date: Mon, 1 May 2017 18:02:45 +0800
+        Mon, 01 May 2017 03:31:51 -0700 (PDT)
+Date: Mon, 1 May 2017 18:31:15 +0800
 From: kbuild test robot <lkp@intel.com>
 Subject: Re: [PATCH v2 2/3] powerpc/mm/book(e)(3s)/32: Add page table
  accounting
-Message-ID: <201705011752.eKcye0Ye%fengguang.wu@intel.com>
+Message-ID: <201705011829.pgKWNzqt%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="envbJBWh7q8WU6mo"
+Content-Type: multipart/mixed; boundary="pWyiEgJYm5f9v55/"
 Content-Disposition: inline
 In-Reply-To: <20170501063438.25237-3-bsingharora@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,7 +24,7 @@ To: Balbir Singh <bsingharora@gmail.com>
 Cc: kbuild-all@01.org, vdavydov@virtuozzo.com, mpe@ellerman.id.au, oss@buserror.net, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
 
---envbJBWh7q8WU6mo
+--pWyiEgJYm5f9v55/
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -46,57 +46,89 @@ reproduce:
 
 All error/warnings (new ones prefixed by >>):
 
-   In file included from include/linux/mm.h:9:0,
-                    from include/linux/cpuset.h:16,
-                    from kernel//sched/core.c:13:
+   In file included from arch/powerpc/mm/mem.c:25:0:
    arch/powerpc/include/asm/nohash/32/pgalloc.h: In function 'pgd_alloc':
->> include/linux/gfp.h:240:20: warning: passing argument 1 of 'pgtable_gfp_flags' makes pointer from integer without a cast [-Wint-conversion]
+>> include/linux/gfp.h:240:20: error: passing argument 1 of 'pgtable_gfp_flags' makes pointer from integer without a cast [-Werror=int-conversion]
     #define GFP_KERNEL (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
                        ^
->> arch/powerpc/include/asm/nohash/32/pgalloc.h:35:22: note: in expansion of macro 'GFP_KERNEL'
+   arch/powerpc/include/asm/nohash/32/pgalloc.h:35:22: note: in expansion of macro 'GFP_KERNEL'
        pgtable_gfp_flags(GFP_KERNEL));
                          ^~~~~~~~~~
-   In file included from arch/powerpc/include/asm/tlb.h:19:0,
-                    from kernel//sched/core.c:30:
+   In file included from arch/powerpc/mm/mem.c:40:0:
    arch/powerpc/include/asm/pgalloc.h:7:21: note: expected 'struct mm_struct *' but argument is of type 'unsigned int'
     static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
                         ^~~~~~~~~~~~~~~~~
    In file included from arch/powerpc/include/asm/nohash/pgalloc.h:21:0,
                     from arch/powerpc/include/asm/pgalloc.h:23,
-                    from arch/powerpc/include/asm/tlb.h:19,
-                    from kernel//sched/core.c:30:
->> arch/powerpc/include/asm/nohash/32/pgalloc.h:35:4: error: too few arguments to function 'pgtable_gfp_flags'
+                    from arch/powerpc/mm/mem.c:40:
+   arch/powerpc/include/asm/nohash/32/pgalloc.h:35:4: error: too few arguments to function 'pgtable_gfp_flags'
        pgtable_gfp_flags(GFP_KERNEL));
        ^~~~~~~~~~~~~~~~~
-   In file included from arch/powerpc/include/asm/tlb.h:19:0,
-                    from kernel//sched/core.c:30:
+   In file included from arch/powerpc/mm/mem.c:40:0:
    arch/powerpc/include/asm/pgalloc.h:7:21: note: declared here
     static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
                         ^~~~~~~~~~~~~~~~~
+   cc1: all warnings being treated as errors
+--
+   In file included from include/linux/slab.h:14:0,
+                    from kernel/fork.c:14:
+   arch/powerpc/include/asm/nohash/32/pgalloc.h: In function 'pgd_alloc':
+   include/linux/gfp.h:240:20: warning: passing argument 1 of 'pgtable_gfp_flags' makes pointer from integer without a cast [-Wint-conversion]
+    #define GFP_KERNEL (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+                       ^
+   arch/powerpc/include/asm/nohash/32/pgalloc.h:35:22: note: in expansion of macro 'GFP_KERNEL'
+       pgtable_gfp_flags(GFP_KERNEL));
+                         ^~~~~~~~~~
+   In file included from kernel/fork.c:92:0:
+   arch/powerpc/include/asm/pgalloc.h:7:21: note: expected 'struct mm_struct *' but argument is of type 'unsigned int'
+    static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
+                        ^~~~~~~~~~~~~~~~~
+   In file included from arch/powerpc/include/asm/nohash/pgalloc.h:21:0,
+                    from arch/powerpc/include/asm/pgalloc.h:23,
+                    from kernel/fork.c:92:
+   arch/powerpc/include/asm/nohash/32/pgalloc.h:35:4: error: too few arguments to function 'pgtable_gfp_flags'
+       pgtable_gfp_flags(GFP_KERNEL));
+       ^~~~~~~~~~~~~~~~~
+   In file included from kernel/fork.c:92:0:
+   arch/powerpc/include/asm/pgalloc.h:7:21: note: declared here
+    static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
+                        ^~~~~~~~~~~~~~~~~
+   In file included from arch/powerpc/include/asm/nohash/pgalloc.h:21:0,
+                    from arch/powerpc/include/asm/pgalloc.h:23,
+                    from kernel/fork.c:92:
+>> arch/powerpc/include/asm/nohash/32/pgalloc.h:36:1: warning: control reaches end of non-void function [-Wreturn-type]
+    }
+    ^
 
-vim +/pgtable_gfp_flags +35 arch/powerpc/include/asm/nohash/32/pgalloc.h
+vim +/pgtable_gfp_flags +240 include/linux/gfp.h
 
-    29				pgtable_cache[(shift) - 1];	\
-    30			})
-    31	
-    32	static inline pgd_t *pgd_alloc(struct mm_struct *mm)
-    33	{
-    34		return kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
-  > 35				pgtable_gfp_flags(GFP_KERNEL));
-    36	}
-    37	
-    38	static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+251603549 Vlastimil Babka  2016-07-28  234   *   compound allocations that will generally fail quickly if memory is not
+251603549 Vlastimil Babka  2016-07-28  235   *   available and will not wake kswapd/kcompactd on failure. The _LIGHT
+251603549 Vlastimil Babka  2016-07-28  236   *   version does not attempt reclaim/compaction at all and is by default used
+251603549 Vlastimil Babka  2016-07-28  237   *   in page fault path, while the non-light is used by khugepaged.
+d0164adc8 Mel Gorman       2015-11-06  238   */
+d0164adc8 Mel Gorman       2015-11-06  239  #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
+dd56b0464 Mel Gorman       2015-11-06 @240  #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+a9bb7e620 Vladimir Davydov 2016-01-14  241  #define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
+d0164adc8 Mel Gorman       2015-11-06  242  #define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
+71baba4b9 Mel Gorman       2015-11-06  243  #define GFP_NOIO	(__GFP_RECLAIM)
+
+:::::: The code at line 240 was first introduced by commit
+:::::: dd56b046426760aa0c852ad6e4b6b07891222d65 mm: page_alloc: hide some GFP internals and document the bits and flag combinations
+
+:::::: TO: Mel Gorman <mgorman@techsingularity.net>
+:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---envbJBWh7q8WU6mo
+--pWyiEgJYm5f9v55/
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICHoDB1kAAy5jb25maWcAlFxLd9u4kt73r9BJz2JmcTt+xZ3MHC8gEBTRIgkaACU5Gx7H
+H4sICJELB1kAAy5jb25maWcAlFxLd9u4kt73r9BJz2JmcTt+xZ3MHC8gEBTRIgkaACU5Gx7H
 VtI+17FzJblv+v76qQJJCSALipNNLFThQaAeXxWK/PWXXyfsZff89Xb3cHf7+Pj35Mv6ab25
 3a3vJ58fHtf/N0nUpFR2IhJpfwPm/OHp5fvbb8//Xm++3U0ufjs9/e3kH5u788l8vXlaP074
 89Pnhy8vMMLD89Mvv0IPrspUzpqq4pcXk4ft5Ol5N9mud784YrV5vltvt8+byfbl27fnzW7Q
@@ -355,7 +387,7 @@ jvB4nte9bRJRSLH0l5KhhcOytCC9Mr9mGNopQedbOIb0RQldUuBNxyUV0AC13R//Erhk3pN8
 HJ4KBGW7DI1Ickeh3COl5s3405UNkxel9TsQu5+7odbMZG73R/Qmh83dgbK/HV6e3tbH097a
 eXiXhDbiW/bYi2b0E/e5A3C93QAA
 
---envbJBWh7q8WU6mo--
+--pWyiEgJYm5f9v55/--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
