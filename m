@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C5B46B02EE
-	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 22:41:09 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t7so39519065pgt.6
-        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 19:41:09 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g15si13172882pln.293.2017.04.30.19.41.08
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8654B6B0038
+	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 22:45:10 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id c26so48468627itd.16
+        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 19:45:10 -0700 (PDT)
+Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
+        by mx.google.com with ESMTPS id p6si12880934iop.169.2017.04.30.19.45.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 30 Apr 2017 19:41:08 -0700 (PDT)
-Date: Sun, 30 Apr 2017 19:41:03 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 2/3] mm/slub: wrap cpu_slab->partial in
- CONFIG_SLUB_CPU_PARTIAL
-Message-ID: <20170501024103.GI27790@bombadil.infradead.org>
-References: <20170430113152.6590-1-richard.weiyang@gmail.com>
- <20170430113152.6590-3-richard.weiyang@gmail.com>
+        Sun, 30 Apr 2017 19:45:09 -0700 (PDT)
+Received: by mail-io0-x233.google.com with SMTP id a103so102891261ioj.1
+        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 19:45:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170430113152.6590-3-richard.weiyang@gmail.com>
+In-Reply-To: <20170429141838.tkyfxhldmwypyipz@gmail.com>
+References: <20170428063913.iz6xjcxblecofjlq@gmail.com> <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170429141838.tkyfxhldmwypyipz@gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sun, 30 Apr 2017 19:45:08 -0700
+Message-ID: <CAPcyv4i8WrNPzu_-Lu1uKi8NT-vj1PF0h0SW_Pi=QGn5PPhQfQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm, zone_device: replace {get, put}_zone_device_page()
+ with a single reference
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-On Sun, Apr 30, 2017 at 07:31:51PM +0800, Wei Yang wrote:
-> @@ -2302,7 +2302,11 @@ static bool has_cpu_slab(int cpu, void *info)
->  	struct kmem_cache *s = info;
->  	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
->  
-> -	return c->page || c->partial;
-> +	return c->page
-> +#ifdef CONFIG_SLUB_CPU_PARTIAL
-> +		|| c->partial
-> +#endif
-> +		;
->  }
+On Sat, Apr 29, 2017 at 7:18 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Dan Williams <dan.j.williams@intel.com> wrote:
+>
+>> Kirill points out that the calls to {get,put}_dev_pagemap() can be
+>> removed from the mm fast path if we take a single get_dev_pagemap()
+>> reference to signify that the page is alive and use the final put of the
+>> page to drop that reference.
+>>
+>> This does require some care to make sure that any waits for the
+>> percpu_ref to drop to zero occur *after* devm_memremap_page_release(),
+>> since it now maintains its own elevated reference.
+>>
+>> Cc: Ingo Molnar <mingo@redhat.com>
+>> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+>> Suggested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
+>> Tested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>
+> This changelog is lacking an explanation about how this solves the crashe=
+s you
+> were seeing.
+>
 
-No.  No way.  This is disgusting.
-
-The right way to do this is to create an accessor like this:
-
-#ifdef CONFIG_SLUB_CPU_PARTIAL
-#define slub_cpu_partial(c)	((c)->partial)
-#else
-#define slub_cpu_partial(c)	0
-#endif
-
-And then the above becomes:
-
--	return c->page || c->partial;
-+	return c->page || slub_cpu_partial(c);
-
-All the other ifdefs go away, apart from these two:
-
-> @@ -4980,6 +4990,7 @@ static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
->  }
->  SLAB_ATTR_RO(objects_partial);
->  
-> +#ifdef CONFIG_SLUB_CPU_PARTIAL
->  static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
->  {
->  	int objects = 0;
-> @@ -5010,6 +5021,7 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
->  	return len + sprintf(buf + len, "\n");
->  }
->  SLAB_ATTR_RO(slabs_cpu_partial);
-> +#endif
->  
->  static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
->  {
-> @@ -5364,7 +5376,9 @@ static struct attribute *slab_attrs[] = {
->  	&destroy_by_rcu_attr.attr,
->  	&shrink_attr.attr,
->  	&reserved_attr.attr,
-> +#ifdef CONFIG_SLUB_CPU_PARTIAL
->  	&slabs_cpu_partial_attr.attr,
-> +#endif
->  #ifdef CONFIG_SLUB_DEBUG
->  	&total_objects_attr.attr,
->  	&slabs_attr.attr,
+Kirill? It wasn't clear to me why the conversion to generic
+get_user_pages_fast() caused the reference counts to be off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
