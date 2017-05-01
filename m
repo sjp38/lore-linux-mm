@@ -1,102 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 572256B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 03:13:03 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m91so26280359qte.10
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 00:13:03 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id y7si2563091wmg.1.2017.05.01.00.13.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CF2F6B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 03:39:43 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id t23so68523200pfe.17
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 00:39:43 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id y18si13887994pgc.282.2017.05.01.00.39.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 00:13:02 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id u65so22113132wmu.3
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 00:13:02 -0700 (PDT)
-Date: Mon, 1 May 2017 09:12:59 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v2] mm, zone_device: replace {get,
- put}_zone_device_page() with a single reference
-Message-ID: <20170501071259.5vya524wcdddm42b@gmail.com>
-References: <20170428063913.iz6xjcxblecofjlq@gmail.com>
- <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170429141838.tkyfxhldmwypyipz@gmail.com>
- <CAPcyv4i8WrNPzu_-Lu1uKi8NT-vj1PF0h0SW_Pi=QGn5PPhQfQ@mail.gmail.com>
+        Mon, 01 May 2017 00:39:42 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id s62so3412839pgc.0
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 00:39:42 -0700 (PDT)
+Date: Mon, 1 May 2017 15:39:38 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 2/3] mm/slub: wrap cpu_slab->partial in
+ CONFIG_SLUB_CPU_PARTIAL
+Message-ID: <20170501073938.GA868@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170430113152.6590-1-richard.weiyang@gmail.com>
+ <20170430113152.6590-3-richard.weiyang@gmail.com>
+ <20170501024103.GI27790@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="oyUTqETQ0mS9luUI"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4i8WrNPzu_-Lu1uKi8NT-vj1PF0h0SW_Pi=QGn5PPhQfQ@mail.gmail.com>
+In-Reply-To: <20170501024103.GI27790@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-* Dan Williams <dan.j.williams@intel.com> wrote:
+--oyUTqETQ0mS9luUI
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On Sat, Apr 29, 2017 at 7:18 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > * Dan Williams <dan.j.williams@intel.com> wrote:
-> >
-> >> Kirill points out that the calls to {get,put}_dev_pagemap() can be
-> >> removed from the mm fast path if we take a single get_dev_pagemap()
-> >> reference to signify that the page is alive and use the final put of the
-> >> page to drop that reference.
-> >>
-> >> This does require some care to make sure that any waits for the
-> >> percpu_ref to drop to zero occur *after* devm_memremap_page_release(),
-> >> since it now maintains its own elevated reference.
-> >>
-> >> Cc: Ingo Molnar <mingo@redhat.com>
-> >> Cc: Jerome Glisse <jglisse@redhat.com>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
-> >> Suggested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-> >> Tested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-> >> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> >
-> > This changelog is lacking an explanation about how this solves the crashes you
-> > were seeing.
-> 
-> Kirill? It wasn't clear to me why the conversion to generic 
-> get_user_pages_fast() caused the reference counts to be off.
+On Sun, Apr 30, 2017 at 07:41:03PM -0700, Matthew Wilcox wrote:
+>On Sun, Apr 30, 2017 at 07:31:51PM +0800, Wei Yang wrote:
+>> @@ -2302,7 +2302,11 @@ static bool has_cpu_slab(int cpu, void *info)
+>>  	struct kmem_cache *s =3D info;
+>>  	struct kmem_cache_cpu *c =3D per_cpu_ptr(s->cpu_slab, cpu);
+>> =20
+>> -	return c->page || c->partial;
+>> +	return c->page
+>> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>> +		|| c->partial
+>> +#endif
+>> +		;
+>>  }
+>
+>No.  No way.  This is disgusting.
+>
 
-Ok, the merge window is open and we really need this fix for x86/mm, so this is 
-what I've decoded:
+Thanks for your comment. I believe you are right.
 
- The x86 conversion to the generic GUP code included a small change which causes
- crashes and data corruption in the pmem code - not good.
+>The right way to do this is to create an accessor like this:
+>
+>#ifdef CONFIG_SLUB_CPU_PARTIAL
+>#define slub_cpu_partial(c)	((c)->partial)
+>#else
+>#define slub_cpu_partial(c)	0
 
- The root cause is that the /dev/pmem driver code implicitly relies on the x86
- get_user_pages() implementation doing a get_page() on the page refcount, because
- get_page() does a get_zone_device_page() which properly refcounts pmem's separate
- page struct arrays that are not present in the regular page struct structures.
- (The pmem driver does this because it can cover huge memory areas.)
+Since partial is a pointer to a page, would this be more proper?
 
- But the x86 conversion to the generic GUP code changed the get_page() to
- page_cache_get_speculative() which is faster but doesn't do the
- get_zone_device_page() call the pmem code relies on.
+#define slub_cpu_partial(c)	NULL
 
- One way to solve the regression would be to change the generic GUP code to use 
- get_page(), but that would slow things down a bit and punish other generic-GUP 
- using architectures for an x86-ism they did not care about. (Arguably the pmem 
- driver was probably not working reliably for them: but nvdimm is an Intel
- feature, so non-x86 exposure is probably still limited.)
+>#endif
+>
+>And then the above becomes:
+>
+>-	return c->page || c->partial;
+>+	return c->page || slub_cpu_partial(c);
+>
+>All the other ifdefs go away, apart from these two:
 
- So restructure the pmem code's interface with the MM instead: get rid of the 
- get/put_zone_device_page() distinction, integrate put_zone_device_page() into 
- __put_page() and and restructure the pmem completion-wait and teardown machinery.
+Looks most of the ifdefs could be replaced by this format, while not all of
+them. For example, the sysfs entry.
 
- This speeds up things while also making the pmem refcounting more robust going 
- forward.
+I would form another version with your suggestion.
 
-... is this extension to the changelog correct?
+Welcome any other comments :-)
 
-I'll apply this for the time being - but can still amend the text before sending 
-it to Linus later today.
+>
+>> @@ -4980,6 +4990,7 @@ static ssize_t objects_partial_show(struct kmem_ca=
+che *s, char *buf)
+>>  }
+>>  SLAB_ATTR_RO(objects_partial);
+>> =20
+>> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>>  static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
+>>  {
+>>  	int objects =3D 0;
+>> @@ -5010,6 +5021,7 @@ static ssize_t slabs_cpu_partial_show(struct kmem_=
+cache *s, char *buf)
+>>  	return len + sprintf(buf + len, "\n");
+>>  }
+>>  SLAB_ATTR_RO(slabs_cpu_partial);
+>> +#endif
+>> =20
+>>  static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
+>>  {
+>> @@ -5364,7 +5376,9 @@ static struct attribute *slab_attrs[] =3D {
+>>  	&destroy_by_rcu_attr.attr,
+>>  	&shrink_attr.attr,
+>>  	&reserved_attr.attr,
+>> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>>  	&slabs_cpu_partial_attr.attr,
+>> +#endif
+>>  #ifdef CONFIG_SLUB_DEBUG
+>>  	&total_objects_attr.attr,
+>>  	&slabs_attr.attr,
 
-Thanks,
+--=20
+Wei Yang
+Help you, Help me
 
-	Ingo
+--oyUTqETQ0mS9luUI
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZBuY6AAoJEKcLNpZP5cTdGxoP/2P9QPYKFGUuZYc7bbYTdifU
+wGHnruOdo0Jf3DTsTSzRoZNXnqvkqOrZjyJV7nadasj43SB0OkW1YYmUI/XaDNEi
+WW0/AR6vY6GTmzP+BUL5RkYFgxEXUX77yozNUyYJomQiJ8LAW9id0xqC/LcKoXba
+G5PpnPWpXJPscYcrK6F81XwuBVmv93tXMtkzVm+22ZmzDjH8pCjPx6aDxhi9KCKv
+2aOgDyIcF301wsPMJvXHZbUzwAYV4IKZx7fgIpJ+REA6b1hS+ob2PS90HbpgEdpg
+r/6U2Pw9gdwnbpReCVvI15GoTR6GTqqYtFkG5JWSw33i0ENdwHsqsISAIRyhvN+B
+UOTuFaY2tYBErDzDvIc/73bRmy7kqe4MibLixYp+aAx9ferPLuWzdQnuksJBFDuR
+t7o9P2ZZ7iZmmf376ZJ3qBj5HQQrIXk061l1fR/2MRfBllbK/I7aWQ3fLVsmgX7k
+eD8BzkVcw0yFZPg0Sv8LTdPmDHKPAYP1kMm3o9tKXWp5zVkwvKj/CG8rWx/jr6AD
+2hru9BlpkE8s32H0g7s2K+yut+buMOCn0BBjy7ijC16F6sA7I/QVbQY/+XpHMVQ4
+pN8ZAH0KqqtPv1S4M6nq35gxiKrRIUfJyLdfqXFfNfVpgL66sL5WuPavW72BkViG
+0oIi///5/oLD9VQkVOhZ
+=CGj0
+-----END PGP SIGNATURE-----
+
+--oyUTqETQ0mS9luUI--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
