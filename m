@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CF2F6B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 03:39:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t23so68523200pfe.17
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 00:39:43 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id y18si13887994pgc.282.2017.05.01.00.39.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D6BE46B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 04:20:10 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m22so41870455pgc.4
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 01:20:10 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id t128si13666844pgt.337.2017.05.01.01.20.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 00:39:42 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id s62so3412839pgc.0
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 00:39:42 -0700 (PDT)
-Date: Mon, 1 May 2017 15:39:38 +0800
+        Mon, 01 May 2017 01:20:10 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id t7so15177934pgt.1
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 01:20:09 -0700 (PDT)
+Date: Mon, 1 May 2017 16:20:05 +0800
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH 2/3] mm/slub: wrap cpu_slab->partial in
  CONFIG_SLUB_CPU_PARTIAL
-Message-ID: <20170501073938.GA868@WeideMacBook-Pro.local>
+Message-ID: <20170501082005.GA2006@WeideMacBook-Pro.local>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20170430113152.6590-1-richard.weiyang@gmail.com>
  <20170430113152.6590-3-richard.weiyang@gmail.com>
  <20170501024103.GI27790@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="oyUTqETQ0mS9luUI"
+	protocol="application/pgp-signature"; boundary="YiEDa0DAkWCtVeE4"
 Content-Disposition: inline
 In-Reply-To: <20170501024103.GI27790@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -31,7 +31,7 @@ To: Matthew Wilcox <willy@infradead.org>
 Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
---oyUTqETQ0mS9luUI
+--YiEDa0DAkWCtVeE4
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
@@ -52,20 +52,12 @@ On Sun, Apr 30, 2017 at 07:41:03PM -0700, Matthew Wilcox wrote:
 >
 >No.  No way.  This is disgusting.
 >
-
-Thanks for your comment. I believe you are right.
-
 >The right way to do this is to create an accessor like this:
 >
 >#ifdef CONFIG_SLUB_CPU_PARTIAL
 >#define slub_cpu_partial(c)	((c)->partial)
 >#else
 >#define slub_cpu_partial(c)	0
-
-Since partial is a pointer to a page, would this be more proper?
-
-#define slub_cpu_partial(c)	NULL
-
 >#endif
 >
 >And then the above becomes:
@@ -74,15 +66,20 @@ Since partial is a pointer to a page, would this be more proper?
 >+	return c->page || slub_cpu_partial(c);
 >
 >All the other ifdefs go away, apart from these two:
-
-Looks most of the ifdefs could be replaced by this format, while not all of
-them. For example, the sysfs entry.
-
-I would form another version with your suggestion.
-
-Welcome any other comments :-)
-
 >
+
+Matthew
+
+I have tried to replace the code with slub_cpu_partial(), it works fine on
+most of cases except two:
+
+1. slub_cpu_partial(c) =3D page->next;
+2. page =3D READ_ONCE(slub_cpu_partial(c));
+
+The sysfs part works fine.
+
+So if you agree, I would leave these two parts as v1.
+
 >> @@ -4980,6 +4990,7 @@ static ssize_t objects_partial_show(struct kmem_ca=
 che *s, char *buf)
 >>  }
@@ -116,28 +113,28 @@ cache *s, char *buf)
 Wei Yang
 Help you, Help me
 
---oyUTqETQ0mS9luUI
+--YiEDa0DAkWCtVeE4
 Content-Type: application/pgp-signature; name="signature.asc"
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBCAAGBQJZBuY6AAoJEKcLNpZP5cTdGxoP/2P9QPYKFGUuZYc7bbYTdifU
-wGHnruOdo0Jf3DTsTSzRoZNXnqvkqOrZjyJV7nadasj43SB0OkW1YYmUI/XaDNEi
-WW0/AR6vY6GTmzP+BUL5RkYFgxEXUX77yozNUyYJomQiJ8LAW9id0xqC/LcKoXba
-G5PpnPWpXJPscYcrK6F81XwuBVmv93tXMtkzVm+22ZmzDjH8pCjPx6aDxhi9KCKv
-2aOgDyIcF301wsPMJvXHZbUzwAYV4IKZx7fgIpJ+REA6b1hS+ob2PS90HbpgEdpg
-r/6U2Pw9gdwnbpReCVvI15GoTR6GTqqYtFkG5JWSw33i0ENdwHsqsISAIRyhvN+B
-UOTuFaY2tYBErDzDvIc/73bRmy7kqe4MibLixYp+aAx9ferPLuWzdQnuksJBFDuR
-t7o9P2ZZ7iZmmf376ZJ3qBj5HQQrIXk061l1fR/2MRfBllbK/I7aWQ3fLVsmgX7k
-eD8BzkVcw0yFZPg0Sv8LTdPmDHKPAYP1kMm3o9tKXWp5zVkwvKj/CG8rWx/jr6AD
-2hru9BlpkE8s32H0g7s2K+yut+buMOCn0BBjy7ijC16F6sA7I/QVbQY/+XpHMVQ4
-pN8ZAH0KqqtPv1S4M6nq35gxiKrRIUfJyLdfqXFfNfVpgL66sL5WuPavW72BkViG
-0oIi///5/oLD9VQkVOhZ
-=CGj0
+iQIcBAEBCAAGBQJZBu+1AAoJEKcLNpZP5cTdARgP/3yIOm75HKhOAmacWnOwbdnV
+G3fDPx/kpG9P8xhdSfhO3MB3qdzB9Q5n/M/YYdamLmTBPJ4/mWf6tBzVn120PyJ1
+xQpGBziWIFm6EdMb4sEfnf2Ey9B7RZYkou1yHYW61ZlEitJk/Avp90ILPB+b4Iog
+K6gVOLiMTUBkWNRnb7M8krfzPbuQsAXn/rVW1dIBLP5qth2HTKX1yMd6XXvFKVNT
+tGySp9e/a5686hMcK1/MPCZINugAUZjjZIQ0eBgKbLCTmOwQ/HAxnyFqsQdFKmz9
+N82uLRckqru7X6+k/zC/gSFptpeMsDt5aoUX+U8QHQjwUuybHTC1ARGALJny0S74
+4hBwp1aohylm1jaFhUD1efDkDRBbZuB96P3lB+WQz1ZOrmTSl6PJ+POUB0LgXIQR
+ix6h+aoBrmp/6wP7w58k9j8zPl5Kc3qD+zBWMAsW/hrCL9m0g4ABdvYTahP01Pw7
+oszeaV7DHTDhW5EarMi1JEL1wfDI4741DUKdd5Vh5jWPHEBV+2C+fMgwD1AvRhEO
+6GhN00HV569FET5F5Js/Rg25+4Uu7WlcyG3F0I3KhGpSmJcn5YbV1JYdE+Y7oqcy
+Y/UyV7Mw3yRA9yAnFvjBM2c5JHVe2icp8Lkn+7e1GjbYOvCAnQJuf4UnGOmqd+Ag
+PCLp2SEwibxzyhVJp5Ok
+=ZUxy
 -----END PGP SIGNATURE-----
 
---oyUTqETQ0mS9luUI--
+--YiEDa0DAkWCtVeE4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
