@@ -1,60 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8654B6B0038
-	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 22:45:10 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id c26so48468627itd.16
-        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 19:45:10 -0700 (PDT)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id p6si12880934iop.169.2017.04.30.19.45.09
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5515A6B0038
+	for <linux-mm@kvack.org>; Sun, 30 Apr 2017 23:48:31 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id z63so52996427ioz.23
+        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 20:48:31 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id 100si12793874ioj.93.2017.04.30.20.48.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 30 Apr 2017 19:45:09 -0700 (PDT)
-Received: by mail-io0-x233.google.com with SMTP id a103so102891261ioj.1
-        for <linux-mm@kvack.org>; Sun, 30 Apr 2017 19:45:09 -0700 (PDT)
+        Sun, 30 Apr 2017 20:48:30 -0700 (PDT)
+From: Logan Gunthorpe <logang@deltatee.com>
+References: <20170428063913.iz6xjcxblecofjlq@gmail.com>
+ <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <1743017574.4309811.1493400875692.JavaMail.zimbra@redhat.com>
+ <CAPcyv4jCfMwthPwbE-iuvef1KkMYUtA=qAydgfJzH0_otXoAOg@mail.gmail.com>
+ <1579714997.4315035.1493402406629.JavaMail.zimbra@redhat.com>
+ <CAPcyv4hvBKG8t3e3QvUnmkaopeM8eTniz5JPVkrZ5Puu5eaViw@mail.gmail.com>
+ <1295710462.4327805.1493406971970.JavaMail.zimbra@redhat.com>
+ <CAPcyv4i+iPm=hBviOYABaroz_JJYVy8Qja8Ka=-_uAQNnGjpeg@mail.gmail.com>
+ <20170428193305.GA3912@redhat.com>
+ <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
+ <20170430231421.GA15163@redhat.com>
+Message-ID: <6627ee37-9638-0201-c440-9310b46c54d3@deltatee.com>
+Date: Sun, 30 Apr 2017 21:48:20 -0600
 MIME-Version: 1.0
-In-Reply-To: <20170429141838.tkyfxhldmwypyipz@gmail.com>
-References: <20170428063913.iz6xjcxblecofjlq@gmail.com> <149339998297.24933.1129582806028305912.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170429141838.tkyfxhldmwypyipz@gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 30 Apr 2017 19:45:08 -0700
-Message-ID: <CAPcyv4i8WrNPzu_-Lu1uKi8NT-vj1PF0h0SW_Pi=QGn5PPhQfQ@mail.gmail.com>
+In-Reply-To: <20170430231421.GA15163@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Subject: Re: [PATCH v2] mm, zone_device: replace {get, put}_zone_device_page()
  with a single reference
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
+To: Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-On Sat, Apr 29, 2017 at 7:18 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Dan Williams <dan.j.williams@intel.com> wrote:
->
->> Kirill points out that the calls to {get,put}_dev_pagemap() can be
->> removed from the mm fast path if we take a single get_dev_pagemap()
->> reference to signify that the page is alive and use the final put of the
->> page to drop that reference.
->>
->> This does require some care to make sure that any waits for the
->> percpu_ref to drop to zero occur *after* devm_memremap_page_release(),
->> since it now maintains its own elevated reference.
->>
->> Cc: Ingo Molnar <mingo@redhat.com>
->> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
->> Suggested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
->> Tested-by: Kirill Shutemov <kirill.shutemov@linux.intel.com>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->
-> This changelog is lacking an explanation about how this solves the crashe=
-s you
-> were seeing.
->
 
-Kirill? It wasn't clear to me why the conversion to generic
-get_user_pages_fast() caused the reference counts to be off.
+
+On 30/04/17 05:14 PM, Jerome Glisse wrote:
+> HMM ZONE_DEVICE pages are use like other pages (anonymous or file back page)
+> in _any_ vma. So i need to know when a page is freed ie either as result of
+> unmap, exit or migration or anything that would free the memory. For zone
+> device a page is free once its refcount reach 1 so i need to catch refcount
+> transition from 2->1
+> 
+> This is the only way i can inform the device that the page is now free. See
+> 
+> https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=52da8fe1a088b87b5321319add79e43b8372ed7d
+> 
+> There is _no_ way around that.
+
+I had a similar issue in a piece of my p2pmem RFC [1]. I hacked around
+it by tracking the pages separately and freeing them when the vma is
+closed. This is by no means a great solution, it certainly has it's own
+warts. However, maybe it will spark some ideas for some alternate
+choices which avoid the hot path.
+
+Another thing I briefly looked at was hooking the vma close process
+earlier so that it would callback in time that you can loop through the
+pages and do your free process. Of course this all depends on the vma
+not getting closed while the pages have other references. So it may not
+work at all. Again, just ideas.
+
+Logan
+
+
+[1]
+https://github.com/sbates130272/linux-p2pmem/commit/77c631d92cb5c451c9824b3a4cf9b6cddfde6bb7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
