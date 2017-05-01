@@ -1,72 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B90806B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 12:54:55 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p2so45922880pge.7
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 09:54:55 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id v71si3303132pgd.186.2017.05.01.09.54.54
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5836A6B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 14:00:09 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id x86so61726720ioe.5
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 11:00:09 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 98si14929165iot.39.2017.05.01.11.00.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 09:54:54 -0700 (PDT)
-Date: Mon, 1 May 2017 10:54:51 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/2] dax: prevent invalidation of mapped DAX entries
-Message-ID: <20170501165451.GB14837@linux.intel.com>
-References: <20170420191446.GA21694@linux.intel.com>
- <20170421034437.4359-1-ross.zwisler@linux.intel.com>
- <20170425101041.GG2793@quack2.suse.cz>
+        Mon, 01 May 2017 11:00:08 -0700 (PDT)
+Subject: [PATCH RFC] hugetlbfs 'noautofill' mount option
+References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Message-ID: <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
+Date: Mon, 1 May 2017 11:00:09 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170425101041.GG2793@quack2.suse.cz>
+In-Reply-To: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Alexey Kuznetsov <kuznet@virtuozzo.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Anna Schumaker <anna.schumaker@netapp.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Latchesar Ionkov <lucho@ionkov.net>, linux-cifs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-nvdimm@lists.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Ron Minnich <rminnich@sandia.gov>, samba-technical@lists.samba.org, Steve French <sfrench@samba.org>, Trond Myklebust <trond.myklebust@primarydata.com>, v9fs-developer@lists.sourceforge.net
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 25, 2017 at 12:10:41PM +0200, Jan Kara wrote:
-> On Thu 20-04-17 21:44:36, Ross Zwisler wrote:
-> > dax_invalidate_mapping_entry() currently removes DAX exceptional entries
-> > only if they are clean and unlocked.  This is done via:
-> > 
-> > invalidate_mapping_pages()
-> >   invalidate_exceptional_entry()
-> >     dax_invalidate_mapping_entry()
-> > 
-> > However, for page cache pages removed in invalidate_mapping_pages() there
-> > is an additional criteria which is that the page must not be mapped.  This
-> > is noted in the comments above invalidate_mapping_pages() and is checked in
-> > invalidate_inode_page().
-> > 
-> > For DAX entries this means that we can can end up in a situation where a
-> > DAX exceptional entry, either a huge zero page or a regular DAX entry,
-> > could end up mapped but without an associated radix tree entry. This is
-> > inconsistent with the rest of the DAX code and with what happens in the
-> > page cache case.
-> > 
-> > We aren't able to unmap the DAX exceptional entry because according to its
-> > comments invalidate_mapping_pages() isn't allowed to block, and
-> > unmap_mapping_range() takes a write lock on the mapping->i_mmap_rwsem.
-> > 
-> > Since we essentially never have unmapped DAX entries to evict from the
-> > radix tree, just remove dax_invalidate_mapping_entry().
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > Fixes: c6dcf52c23d2 ("mm: Invalidate DAX radix tree entries only if appropriate")
-> > Reported-by: Jan Kara <jack@suse.cz>
-> > Cc: <stable@vger.kernel.org>    [4.10+]
-> 
-> Just as a side note - we wouldn't really have to unmap the mapping range
-> covered by the DAX exceptional entry. It would be enough to find out
-> whether such range is mapped and bail out in that case. But that would
-> still be pretty expensive for DAX - we'd have to do rmap walk similar as in
-> dax_mapping_entry_mkclean() and IMHO it is not worth it. So I agree with
-> what you did. You can add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
+Some applications like a database use hugetblfs for performance
+reasons. Files on hugetlbfs filesystem are created and huge pages
+allocated using fallocate() API. Pages are deallocated/freed using
+fallocate() hole punching support that has been added to hugetlbfs.
+These files are mmapped and accessed by many processes as shared memory.
+Such applications keep track of which offsets in the hugetlbfs file have
+pages allocated.
 
-Yep, that makes sense.  Thanks for the review.
+Any access to mapped address over holes in the file, which can occur due
+to bugs in the application, is considered invalid and expect the process
+to simply receive a SIGBUS.  However, currently when a hole in the file is
+accessed via the mapped address, kernel/mm attempts to automatically
+allocate a page at page fault time, resulting in implicitly filling the hole
+in the file. This may not be the desired behavior for applications like the
+database that want to explicitly manage page allocations of hugetlbfs files.
+
+This patch adds a new hugetlbfs mount option 'noautofill', to indicate that
+pages should not be allocated at page fault time when accessed thru mmapped
+address.
+
+Signed-off-by: Prakash <prakash.sangappa@oracle.com>
+---
+fs/hugetlbfs/inode.c    | 11 ++++++++++-
+  include/linux/hugetlb.h |  1 +
+  mm/hugetlb.c            |  5 +++++
+  3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 8f96461..8342ee9 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -53,6 +53,7 @@ struct hugetlbfs_config {
+      long    nr_inodes;
+      struct hstate *hstate;
+      long    min_hpages;
++    long    noautofill;
+  };
+
+  struct hugetlbfs_inode_info {
+@@ -71,7 +72,7 @@ enum {
+      Opt_size, Opt_nr_inodes,
+      Opt_mode, Opt_uid, Opt_gid,
+      Opt_pagesize, Opt_min_size,
+-    Opt_err,
++    Opt_noautofill, Opt_err,
+  };
+
+  static const match_table_t tokens = {
+@@ -82,6 +83,7 @@ static const match_table_t tokens = {
+      {Opt_gid,    "gid=%u"},
+      {Opt_pagesize,    "pagesize=%s"},
+      {Opt_min_size,    "min_size=%s"},
++    {Opt_noautofill,    "noautofill"},
+      {Opt_err,    NULL},
+  };
+
+@@ -1109,6 +1111,11 @@ hugetlbfs_parse_options(char *options, struct
+hugetlbfs_config *pconfig)
+              break;
+          }
+
++        case Opt_noautofill: {
++            pconfig->noautofill = 1;
++            break;
++        }
++
+          default:
+              pr_err("Bad mount option: \"%s\"\n", p);
+              return -EINVAL;
+@@ -1157,6 +1164,7 @@ hugetlbfs_fill_super(struct super_block *sb, void
+*data, int silent)
+      config.mode = 0755;
+      config.hstate = &default_hstate;
+      config.min_hpages = -1; /* No default minimum size */
++    config.noautofill = 0;
+      ret = hugetlbfs_parse_options(data, &config);
+      if (ret)
+          return ret;
+@@ -1170,6 +1178,7 @@ hugetlbfs_fill_super(struct super_block *sb, void
+*data, int silent)
+      sbinfo->max_inodes = config.nr_inodes;
+      sbinfo->free_inodes = config.nr_inodes;
+      sbinfo->spool = NULL;
++    sbinfo->noautofill = config.noautofill;
+      /*
+       * Allocate and initialize subpool if maximum or minimum size is
+       * specified.  Any needed reservations (for minimim size) are taken
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 503099d..2f37e0c 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -259,6 +259,7 @@ struct hugetlbfs_sb_info {
+      spinlock_t    stat_lock;
+      struct hstate *hstate;
+      struct hugepage_subpool *spool;
++    int    noautofill; /* don't allocate page to fill hole at fault time */
+  };
+
+  static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct
+super_block *sb)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a7aa811..11655ef 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3715,6 +3715,11 @@ static int hugetlb_no_page(struct mm_struct *mm,
+struct vm_area_struct *vma,
+              goto out;
+          }
+
++        if (HUGETLBFS_SB(mapping->host->i_sb)->noautofill) {
++            ret = VM_FAULT_SIGBUS;
++            goto out;
++        }
++
+          page = alloc_huge_page(vma, address, 0);
+          if (IS_ERR(page)) {
+              ret = PTR_ERR(page);
+-- 
+2.7.4
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
