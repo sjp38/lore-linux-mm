@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F25B6B0038
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 17:04:26 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y22so10805698wry.1
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 14:04:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c69si107405wmi.125.2017.05.01.14.04.24
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B2B876B0038
+	for <linux-mm@kvack.org>; Mon,  1 May 2017 17:34:24 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d127so7671496pga.11
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 14:34:24 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b34sor202621plc.6.2017.05.01.14.34.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 14:04:24 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v41KrSjT052736
-	for <linux-mm@kvack.org>; Mon, 1 May 2017 17:04:23 -0400
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2a6awvbwgc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 01 May 2017 17:04:23 -0400
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 1 May 2017 15:04:22 -0600
-Date: Mon, 1 May 2017 16:04:15 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
-References: <20170419075242.29929-1-bsingharora@gmail.com>
- <91272c14-81df-9529-f0ae-6abb17a694ea@nvidia.com>
+        (Google Transport Security);
+        Mon, 01 May 2017 14:34:23 -0700 (PDT)
+Date: Mon, 1 May 2017 14:34:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file is
+ low
+In-Reply-To: <20170420060904.GA3720@bbox>
+Message-ID: <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com> <20170418013659.GD21354@bbox> <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com> <20170419001405.GA13364@bbox> <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+ <20170420060904.GA3720@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <91272c14-81df-9529-f0ae-6abb17a694ea@nvidia.com>
-Message-Id: <20170501210415.aeuvd73auomvdmba@arbab-laptop.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, vbabka@suse.cz, cl@linux.com
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, May 01, 2017 at 01:41:55PM -0700, John Hubbard wrote:
->1. A way to move pages between NUMA nodes, both virtual address and 
->physical address-based, from kernel mode.
+The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
+not swap anon pages just because free+file is low'") reintroduces is to
+prefer swapping anonymous memory rather than trashing the file lru.
 
-Jerome's migrate_vma() and migrate_dma() should have this covered, 
-including DMA-accelerated copy.
+If the anonymous inactive lru for the set of eligible zones is considered
+low, however, or the length of the list for the given reclaim priority
+does not allow for effective anonymous-only reclaiming, then avoid
+forcing SCAN_ANON.  Forcing SCAN_ANON will end up thrashing the small
+list and leave unreclaimed memory on the file lrus.
 
->5. Something to handle the story of bringing NUMA nodes online and 
->putting them back offline, given that they require a device driver that 
->may not yet have been loaded. There are a few minor missing bits there.
+If the inactive list is insufficient, fallback to balanced reclaim so the
+file lru doesn't remain untouched.
 
-This has been prototyped with the driver doing memory hotplug/hotremove.  
-Could you elaborate a little on what you feel is missing?
+Suggested-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ to akpm: this issue has been possible since at least 3.15, so it's
+ probably not high priority for 4.12 but applies cleanly if it can sneak
+ in
 
--- 
-Reza Arbab
+ mm/vmscan.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2204,8 +2204,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 		}
+ 
+ 		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
+-			scan_balance = SCAN_ANON;
+-			goto out;
++			/*
++			 * Force SCAN_ANON if there are enough inactive
++			 * anonymous pages on the LRU in eligible zones.
++			 * Otherwise, the small LRU gets thrashed.
++			 */
++			if (!inactive_list_is_low(lruvec, false, sc, false) &&
++			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
++					>> sc->priority) {
++				scan_balance = SCAN_ANON;
++				goto out;
++			}
+ 		}
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
