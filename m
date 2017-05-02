@@ -1,127 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C470D6B02C4
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 10:59:39 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s62so27959878pgc.2
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:59:39 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id v21si5102757pgb.116.2017.05.02.07.59.38
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A91186B0038
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 11:14:40 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 6so14448917wrb.23
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 08:14:40 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d13si21248434wrd.332.2017.05.02.08.14.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 07:59:38 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v42Eri37037628
-	for <linux-mm@kvack.org>; Tue, 2 May 2017 10:59:38 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2a68vwy74s-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 May 2017 10:59:38 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 2 May 2017 15:59:35 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170427143721.GK4706@dhcp22.suse.cz> <87pofxk20k.fsf@firstfloor.org>
- <20170428060755.GA8143@dhcp22.suse.cz> <20170428073136.GE8143@dhcp22.suse.cz>
- <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
- <20170428134831.GB26705@dhcp22.suse.cz>
-Date: Tue, 2 May 2017 16:59:30 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 May 2017 08:14:39 -0700 (PDT)
+Date: Tue, 2 May 2017 17:14:36 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] vmscan: scan pages until it founds eligible pages
+Message-ID: <20170502151436.GN14593@dhcp22.suse.cz>
+References: <1493700038-27091-1-git-send-email-minchan@kernel.org>
+ <20170502051452.GA27264@bbox>
+ <20170502075432.GC14593@dhcp22.suse.cz>
+ <20170502145150.GA19011@bgram>
 MIME-Version: 1.0
-In-Reply-To: <20170428134831.GB26705@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170502145150.GA19011@bgram>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 28/04/2017 15:48, Michal Hocko wrote:
-> On Fri 28-04-17 11:17:34, Laurent Dufour wrote:
->> On 28/04/2017 09:31, Michal Hocko wrote:
->>> [CC Johannes and Vladimir - the patch is
->>> http://lkml.kernel.org/r/1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com]
->>>
->>> On Fri 28-04-17 08:07:55, Michal Hocko wrote:
->>>> On Thu 27-04-17 13:51:23, Andi Kleen wrote:
->>>>> Michal Hocko <mhocko@kernel.org> writes:
->>>>>
->>>>>> On Tue 25-04-17 16:27:51, Laurent Dufour wrote:
->>>>>>> When page are poisoned, they should be uncharged from the root memory
->>>>>>> cgroup.
->>>>>>>
->>>>>>> This is required to avoid a BUG raised when the page is onlined back:
->>>>>>> BUG: Bad page state in process mem-on-off-test  pfn:7ae3b
->>>>>>> page:f000000001eb8ec0 count:0 mapcount:0 mapping:          (null)
->>>>>>> index:0x1
->>>>>>> flags: 0x3ffff800200000(hwpoison)
->>>>>>
->>>>>> My knowledge of memory poisoning is very rudimentary but aren't those
->>>>>> pages supposed to leak and never come back? In other words isn't the
->>>>>> hoplug code broken because it should leave them alone?
->>>>>
->>>>> Yes that would be the right interpretation. If it was really offlined
->>>>> due to a hardware error the memory will be poisoned and any access
->>>>> could cause a machine check.
->>>>
->>>> OK, thanks for the clarification. Then I am not sure the patch is
->>>> correct. Why do we need to uncharge that page at all?
->>>
->>> Now, I have realized that we actually want to uncharge that page because
->>> it will pin the memcg and we do not want to have that memcg and its
->>> whole hierarchy pinned as well. This used to work before the charge
->>> rework 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API") I guess
->>> because we used to uncharge on page cache removal.
->>>
->>> I do not think the patch is correct, though. memcg_kmem_enabled() will
->>> check whether kmem accounting is enabled and we are talking about page
->>> cache pages here. You should be using mem_cgroup_uncharge instead.
->>
->> Thanks for the review Michal.
->>
->> I was not comfortable either with this patch.
->>
->> I did some tests calling mem_cgroup_uncharge() when isolate_lru_page()
->> succeeds only, so not calling it if isolate_lru_page() failed.
+On Tue 02-05-17 23:51:50, Minchan Kim wrote:
+> Hi Michal,
 > 
-> Wait a moment. This cannot possibly work. isolate_lru_page asumes page
-> count > 0 and increments the counter so the resulting page count is > 1
-> I have only now realized that we have VM_BUG_ON_PAGE(page_count(page), page)
-> in uncharge_list().
-
-My mistake, my kernel was not build with CONFIG_DEBUG_VM set.
-You're right this cannot work this way.
-
-> This is getting quite hairy. What is the expected page count of the
-> hwpoison page? I guess we would need to update the VM_BUG_ON in the
-> memcg uncharge code to ignore the page count of hwpoison pages if it can
-> be arbitrary.
-
-Based on the experiment I did, page count == 2 when isolate_lru_page()
-succeeds, even in the case of a poisoned page. In my case I think this
-is because the page is still used by the process which is calling madvise().
-
-I'm wondering if I'm looking at the right place. May be the poisoned
-page should remain attach to the memory_cgroup until no one is using it.
-In that case this means that something should be done when the page is
-off-lined... I've to dig further here.
-
+> On Tue, May 02, 2017 at 09:54:32AM +0200, Michal Hocko wrote:
+> > On Tue 02-05-17 14:14:52, Minchan Kim wrote:
+> > > Oops, forgot to add lkml and linux-mm.
+> > > Sorry for that.
+> > > Send it again.
+> > > 
+> > > >From 8ddf1c8aa15baf085bc6e8c62ce705459d57ea4c Mon Sep 17 00:00:00 2001
+> > > From: Minchan Kim <minchan@kernel.org>
+> > > Date: Tue, 2 May 2017 12:34:05 +0900
+> > > Subject: [PATCH] vmscan: scan pages until it founds eligible pages
+> > > 
+> > > On Tue, May 02, 2017 at 01:40:38PM +0900, Minchan Kim wrote:
+> > > There are premature OOM happening. Although there are a ton of free
+> > > swap and anonymous LRU list of elgible zones, OOM happened.
+> > > 
+> > > With investigation, skipping page of isolate_lru_pages makes reclaim
+> > > void because it returns zero nr_taken easily so LRU shrinking is
+> > > effectively nothing and just increases priority aggressively.
+> > > Finally, OOM happens.
+> > 
+> > I am not really sure I understand the problem you are facing. Could you
+> > be more specific please? What is your configuration etc...
 > 
-> Before we go any further, is there any documentation about the expected
-> behavior and the state of the hwpoison pages? I have a very bad feeling
-> that the current behavior is quite arbitrary and "testing driven"
-> holes plugging will make it only more messy. So let's start with the
-> clear description of what should happen with the hwpoison pages.
+> Sure, KVM guest on x86_64, It has 2G memory and 1G swap and configured
+> movablecore=1G to simulate highmem zone.
+> Workload is a process consumes 2.2G memory and then random touch the
+> address space so it makes lots of swap in/out.
+> 
+> > 
+> > > balloon invoked oom-killer: gfp_mask=0x17080c0(GFP_KERNEL_ACCOUNT|__GFP_ZERO|__GFP_NOTRACK), nodemask=(null),  order=0, oom_score_adj=0
+> > [...]
+> > > Node 0 active_anon:1698864kB inactive_anon:261256kB active_file:208kB inactive_file:184kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:532kB dirty:108kB writeback:0kB shmem:172kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+> > > DMA free:7316kB min:32kB low:44kB high:56kB active_anon:8064kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:464kB slab_unreclaimable:40kB kernel_stack:0kB pagetables:24kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> > > lowmem_reserve[]: 0 992 992 1952
+> > > DMA32 free:9088kB min:2048kB low:3064kB high:4080kB active_anon:952176kB inactive_anon:0kB active_file:36kB inactive_file:0kB unevictable:0kB writepending:88kB present:1032192kB managed:1019388kB mlocked:0kB slab_reclaimable:13532kB slab_unreclaimable:16460kB kernel_stack:3552kB pagetables:6672kB bounce:0kB free_pcp:56kB local_pcp:24kB free_cma:0kB
+> > > lowmem_reserve[]: 0 0 0 959
+> > 
+> > Hmm DMA32 has sufficient free memory to allow this order-0 request.
+> > Inactive anon lru is basically empty. Why do not we rotate a really
+> > large active anon list? Isn't this the primary problem?
+> 
+> It's a side effect by skipping page logic in isolate_lru_pages
+> I mentioned above in changelog.
+> 
+> The problem is a lot of anonymous memory in movable zone(ie, highmem)
+> and non-small memory in DMA32 zone.
 
-I didn't find any documentation about that. The root cause is that a bug
-message is displayed when a poisoned page is off-lined, may be this is
-in that path that something is missing.
+Such a configuration is questionable on its own. But let't keep this
+part alone.
 
-Cheers,
-Laurent.
+> In heavy memory pressure,
+> requesting a page in GFP_KERNEL triggers reclaim. VM knows inactive list
+> is low so it tries to deactivate pages. For it, first of all, it tries
+> to isolate pages from active list but there are lots of anonymous pages
+> from movable zone so skipping logic in isolate_lru_pages works. With
+> the result, isolate_lru_pages cannot isolate any eligible pages so
+> reclaim trial is effectively void. It continues to meet OOM.
+
+But skipped pages should be rotated and we should eventually hit pages
+from the right zone(s). Moreover we should scan the full LRU at priority
+0 so why exactly we hit the OOM killer?
+
+Anyway [1] has changed this behavior. Are you seeing the issue with this
+patch dropped?
+
+[1] http://www.ozlabs.org/~akpm/mmotm/broken-out/revert-mm-vmscan-account-for-skipped-pages-as-a-partial-scan.patch
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
