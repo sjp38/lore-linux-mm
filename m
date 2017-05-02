@@ -1,110 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA2886B02E1
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 04:04:53 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 44so9433897wry.5
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 01:04:53 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AB8E6B02E1
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 04:06:06 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id d46so6712888wrd.17
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 01:06:06 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v50si16925426wrc.22.2017.05.02.01.04.52
+        by mx.google.com with ESMTPS id n126si1793703wmd.33.2017.05.02.01.06.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 01:04:52 -0700 (PDT)
-Date: Tue, 2 May 2017 10:04:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
-Message-ID: <20170502080450.GE14593@dhcp22.suse.cz>
-References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
- <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
- <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
- <20170426201126.GA32407@dhcp22.suse.cz>
+        Tue, 02 May 2017 01:06:04 -0700 (PDT)
+Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
+References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170411181519.GC21171@dhcp22.suse.cz>
+ <20170412013503.GA8448@js1304-desktop>
+ <20170413115615.GB11795@dhcp22.suse.cz>
+ <20170417020210.GA1351@js1304-desktop> <20170424130936.GB1746@dhcp22.suse.cz>
+ <20170425034255.GB32583@js1304-desktop>
+ <20170427150636.GM4706@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <32ac1107-14a3-fdff-ad48-0e246fec704f@suse.cz>
+Date: Tue, 2 May 2017 10:06:01 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170426201126.GA32407@dhcp22.suse.cz>
+In-Reply-To: <20170427150636.GM4706@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
+To: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-Ping on this. Andrew, are you going to fold this or should I post a
-separate patch?
-
-[...]
-> I cannot say I would be really happy about the chosen approach,
-> though. Why HASH_ADAPT is not implicit? Which hash table would need
-> gigabytes of memory and still benefit from it? Even if there is such an
-> example then it should use the explicit high_limit. I do not like this
-> opt-in because it is just too easy to miss that and hit the same issue
-> again. And in fact only few users of alloc_large_system_hash are using
-> the flag. E.g. why {dcache,inode}_init_early do not have the flag? I
-> am pretty sure that having a physically contiguous hash table would be
-> better over vmalloc from the TLB point of view.
+On 04/27/2017 05:06 PM, Michal Hocko wrote:
+> On Tue 25-04-17 12:42:57, Joonsoo Kim wrote:
+>> On Mon, Apr 24, 2017 at 03:09:36PM +0200, Michal Hocko wrote:
+>>> On Mon 17-04-17 11:02:12, Joonsoo Kim wrote:
+>>>> On Thu, Apr 13, 2017 at 01:56:15PM +0200, Michal Hocko wrote:
+>>>>> On Wed 12-04-17 10:35:06, Joonsoo Kim wrote:
+> [...]
+>>> not for free. For most common configurations where we have ZONE_DMA,
+>>> ZONE_DMA32, ZONE_NORMAL and ZONE_MOVABLE all the 3 bits are already
+>>> consumed so a new zone will need a new one AFAICS.
+>>
+>> Yes, it requires one more bit for a new zone and it's handled by the patch.
 > 
-> mount_hashtable resp. mountpoint_hashtable are another example. Other
-> users just have a reasonable max value. So can we do the following
-> on top of your commit? I think that we should rethink the scaling as
-> well but I do not have a good answer for the maximum size so let's just
-> start with a more reasonable API first.
-> ---
-> diff --git a/fs/dcache.c b/fs/dcache.c
-> index 808ea99062c2..363502faa328 100644
-> --- a/fs/dcache.c
-> +++ b/fs/dcache.c
-> @@ -3585,7 +3585,7 @@ static void __init dcache_init(void)
->  					sizeof(struct hlist_bl_head),
->  					dhash_entries,
->  					13,
-> -					HASH_ZERO | HASH_ADAPT,
-> +					HASH_ZERO,
->  					&d_hash_shift,
->  					&d_hash_mask,
->  					0,
-> diff --git a/fs/inode.c b/fs/inode.c
-> index a9caf53df446..b3c0731ec1fe 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -1950,7 +1950,7 @@ void __init inode_init(void)
->  					sizeof(struct hlist_head),
->  					ihash_entries,
->  					14,
-> -					HASH_ZERO | HASH_ADAPT,
-> +					HASH_ZERO,
->  					&i_hash_shift,
->  					&i_hash_mask,
->  					0,
-> diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-> index dbaf312b3317..e223d91b6439 100644
-> --- a/include/linux/bootmem.h
-> +++ b/include/linux/bootmem.h
-> @@ -359,7 +359,6 @@ extern void *alloc_large_system_hash(const char *tablename,
->  #define HASH_SMALL	0x00000002	/* sub-page allocation allowed, min
->  					 * shift passed via *_hash_shift */
->  #define HASH_ZERO	0x00000004	/* Zero allocated hash table */
-> -#define	HASH_ADAPT	0x00000008	/* Adaptive scale for large memory */
->  
->  /* Only NUMA needs hash distribution. 64bit NUMA architectures have
->   * sufficient vmalloc space.
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index fa752de84eef..3bf60669d200 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7226,7 +7226,7 @@ void *__init alloc_large_system_hash(const char *tablename,
->  		if (PAGE_SHIFT < 20)
->  			numentries = round_up(numentries, (1<<20)/PAGE_SIZE);
->  
-> -		if (flags & HASH_ADAPT) {
-> +		if (!high_limit) {
->  			unsigned long adapt;
->  
->  			for (adapt = ADAPT_SCALE_NPAGES; adapt < numentries;
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> I am pretty sure that you are aware that consuming new page flag bits
+> is usually a no-go and something we try to avoid as much as possible
+> because we are in a great shortage there. So there really have to be a
+> _strong_ reason if we go that way. My current understanding that the
+> whole zone concept is more about a more convenient implementation rather
+> than a fundamental change which will solve unsolvable problems with the
+> current approach. More on that below.
 
--- 
-Michal Hocko
-SUSE Labs
+I don't see it as such a big issue. It's behind a CONFIG option (so we
+also don't need the jump labels you suggest later) and enabling it
+reduces the number of possible NUMA nodes (not page flags). So either
+you are building a kernel for android phone that needs CMA but will have
+a single NUMA node, or for a large server with many nodes that won't
+have CMA. As long as there won't be large servers that need CMA, we
+should be fine (yes, I know some HW vendors can be very creative, but
+then it's their problem?).
+
+> [...]
+>> MOVABLE allocation will fallback as following sequence.
+>>
+>> ZONE_CMA -> ZONE_MOVABLE -> ZONE_HIGHMEM -> ZONE_NORMAL -> ...
+
+Hmm, so this in effect resembles some of the aggressive CMA utilization
+efforts that were never merged due to issues. Joonsoo, could you
+summarize/expand the cover letter part on what were the issues with
+aggressive CMA utilization, and why they no longer apply with ZONE_CMA,
+especially given the current node-lru reclaim? Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
