@@ -1,81 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 304E86B0388
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 05:48:49 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y106so13139519wrb.14
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 02:48:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y51si19324551wry.96.2017.05.02.02.48.47
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ED88C6B02EE
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 06:44:59 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j127so50035704pgc.10
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 03:44:59 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id m80si162819pfa.28.2017.05.02.03.44.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 02:48:47 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v429i7Ma018064
-	for <linux-mm@kvack.org>; Tue, 2 May 2017 05:48:46 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2a6qn38hy2-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 May 2017 05:48:46 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 2 May 2017 10:48:43 +0100
-Date: Tue, 2 May 2017 12:48:37 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH man-pages 0/5] {ioctl_}userfaultfd.2: yet another update
-References: <1493617399-20897-1-git-send-email-rppt@linux.vnet.ibm.com>
- <352eee49-d6d1-3e82-a558-2341484c81f3@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 May 2017 03:44:59 -0700 (PDT)
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+References: <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+ <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+ <20161123063410.GB2864@dhcp22.suse.cz>
+ <20161128072315.GC14788@dhcp22.suse.cz>
+ <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
+ <20161129160751.GC9796@dhcp22.suse.cz>
+ <20161129163406.treuewaqgt4fy4kh@merlins.org>
+ <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
+ <20161129174019.fywddwo5h4pyix7r@merlins.org>
+ <20161129230135.GM7179@merlins.org>
+ <20170502041235.zqmywvj5tiiom3jk@merlins.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <29c02986-f065-d3be-f176-0c190a72bc58@I-love.SAKURA.ne.jp>
+Date: Tue, 2 May 2017 19:44:47 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <352eee49-d6d1-3e82-a558-2341484c81f3@gmail.com>
-Message-Id: <20170502094836.GD5910@rapoport-lnx>
+In-Reply-To: <20170502041235.zqmywvj5tiiom3jk@merlins.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Marc MERLIN <marc@merlins.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Mon, May 01, 2017 at 08:34:07PM +0200, Michael Kerrisk (man-pages) wrote:
-> Hi Mike,
-> 
-> On 05/01/2017 07:43 AM, Mike Rapoport wrote:
-> > Hi Michael,
-> > 
-> > These updates pretty much complete the coverage of 4.11 additions, IMHO.
-> 
-> Thanks for this, but we still await input from Andrea
-> on various points.
-> 
-> > Mike Rapoport (5):
-> >   ioctl_userfaultfd.2: update description of shared memory areas
-> >   ioctl_userfaultfd.2: UFFDIO_COPY: add ENOENT and ENOSPC description
-> >   ioctl_userfaultfd.2: add BUGS section
-> >   userfaultfd.2: add note about asynchronios events delivery
-> >   userfaultfd.2: update VERSIONS section with 4.11 chanegs
-> > 
-> >  man2/ioctl_userfaultfd.2 | 35 +++++++++++++++++++++++++++++++++--
-> >  man2/userfaultfd.2       | 15 +++++++++++++++
-> >  2 files changed, 48 insertions(+), 2 deletions(-)
-> 
-> I've applied all of the above, and done some light editing.
-> 
-> Could you please check my changes in the following commits:
-> 
-> 5191c68806c8ac73fdc89586cde434d2766abb5c
-> 265225c1e2311ae26ead116e6c8d2cedd46144fa
+On 2017/05/02 13:12, Marc MERLIN wrote:
+> Well, sadly, the problem is more or less back is 4.11.0. The system doesn't really 
+> crash but it goes into an infinite loop with
+> [34776.826800] BUG: workqueue lockup - pool cpus=6 node=0 flags=0x0 nice=0 stuck for 33s!
 
-Both are Ok
-Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
- 
-> Thanks,
-> 
-> Michael
-> 
-> -- 
-> Michael Kerrisk
-> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-> Linux/UNIX System Programming Training: http://man7.org/training/
-> 
+Wow, two of workqueues are reaching max active.
+
+[34777.202267] workqueue btrfs-endio-write: flags=0xe
+[34777.218313]   pwq 16: cpus=0-7 flags=0x4 nice=0 active=8/8
+[34777.236548]     in-flight: 15168:btrfs_endio_write_helper, 13855:btrfs_endio_write_helper, 3360:btrfs_endio_write_helper, 14241:btrfs_endio_write_helper, 27092:btrfs_endio_write_helper, 15194:btrfs_endio_write_helper, 15169:btrfs_endio_write_helper, 27093:btrfs_endio_write_helper
+[34777.316225]     delayed: btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper
+
+[34777.450684] workqueue bcache: flags=0x8
+[34779.956462]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=256/256
+[34779.978283]     in-flight: 15320:cached_dev_read_done [bcache], 23385:cached_dev_read_done [bcache], 23371:cached_dev_read_done [bcache], 15321:cached_dev_read_done [bcache], 15395:cached_dev_read_done [bcache], 11101:cached_dev_read_done [bcache], 15300:cached_dev_read_done [bcache], 23349:cached_dev_read_done [bcache], 23425:cached_dev_read_done [bcache], 23399:cached_dev_read_done [bcache], 15293:cached_dev_read_done [bcache], 20529:cached_dev_read_done [bcache], 15402:cached_dev_read_done [bcache], 23422:cached_dev_read_done [bcache], 23417:cached_dev_read_done [bcache], 23409:cached_dev_read_done [bcache], 20539:cached_dev_read_done [bcache], 23431:cached_dev_read_done [bcache], 20544:cached_dev_read_done [bcache], 15355:cached_dev_read_done [bcache], 11085:cached_dev_read_done [bcache], 6511:cached_dev_read_done [bcache]   
+
+Googling with btrfs_endio_write_helper shows a stuck report with 4.8-rc5, but
+seems no response ( https://www.spinics.net/lists/linux-btrfs/msg58633.html ).
+
+> Any idea what I should do next?
+
+Maybe you can try collecting list of all in-flight allocations with backtraces
+using kmallocwd patches at
+http://lkml.kernel.org/r/1489578541-81526-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+and http://lkml.kernel.org/r/201704272019.JEH26057.SHFOtMLJOOVFQF@I-love.SAKURA.ne.jp
+which also tracks mempool allocations.
+(Well, the
+
+-	cond_resched();
++	//cond_resched();
+
+change in the latter patch would not be preferable.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
