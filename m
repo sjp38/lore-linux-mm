@@ -1,80 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BD18A6B02C4
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 12:07:04 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id t130so60759603pgc.18
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 09:07:04 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id y20si18498513pfj.343.2017.05.02.09.07.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC9186B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 12:47:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b87so2692657wmi.14
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 09:47:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y204si3109279wmg.139.2017.05.02.09.47.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 09:07:03 -0700 (PDT)
-Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
-References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
- <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
- <06c4eb97-1545-7958-7694-3645d317666b@linux.vnet.ibm.com>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <07f3fde3-b296-f205-377d-1b4c3bbedb70@oracle.com>
-Date: Tue, 2 May 2017 09:07:00 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 May 2017 09:47:51 -0700 (PDT)
+Date: Tue, 2 May 2017 18:47:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: RFC: post-init-read-only protection for data allocated
+ dynamically
+Message-ID: <20170502164748.GA19165@dhcp22.suse.cz>
+References: <3eba3df7-6694-5c47-48f4-30088845035b@huawei.com>
+ <20170428074540.GB9399@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <06c4eb97-1545-7958-7694-3645d317666b@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170428074540.GB9399@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: linux-mm@kvack.org
 
+[You have already started new thread with the way how to introduce a new
+zone and that might turn out to be useful but I think it is much more
+important to understand requirements for the usecase you have in mind as
+first]
 
+On Fri 28-04-17 09:45:40, Michal Hocko wrote:
+> On Fri 21-04-17 11:30:04, Igor Stoppa wrote:
+> > Hello,
+> > 
+> > I am looking for a mechanism to protect the kernel data which is allocated
+> > dynamically during system initialization and is later-on accessed only for
+> > reads.
+> > 
+> > The functionality would be, in spirit, like the __read_only modifier, which
+> > can be used to mark static data as read-only, in the post-init phase. Only,
+> > it would apply to dynamically allocated data.
+> > 
+> > I couldn't find any such feature (did I miss it?), so I started looking at
+> > what could be the best way to introduce it.
+> > 
+> > The static post-init write protection is achieved by placing all the data
+> > into a page-aligned segment and then protecting the page from writes, using
+> > the MMU, once the data is in its final state.
+> > 
+> > In my case, as example, I want to protect the SE Linux policy database,
+> > after the set of policy has been loaded from file.
+> > SE Linux uses fairly complex data structures, which are allocated
+> > dynamically, depending on what rules/policy are loaded into it.
+> > 
+> > If I knew upfront, roughly, which sizes will be requested and how many
+> > requests will happen, for each size, I could use multiple pools of objects.
+> > However, I cannot assume upfront to know these parameters, because it's very
+> > likely that the set of policies & rules will evolve.
+> > 
+> > I would also like to extend the write protection to other data structures,
+> > which means I would probably end up writing another memory allocator, if I
+> > started to generate on-demand object pools.
+> 
+> What is the expected life time of those objects? Are they ever freed? If
+> yes are they freed at once or some might outlive others?
+> 
+> > The alternative I'm considering is that, if I were to add a new memory zone
+> > (let's call it LOCKABLE), I could piggy back on the existing infrastructure
+> > for memory allocation.
+> 
+> No, please no new memory zones! This doesn't look like a good fit
+> anyway. I believe you need an allocator on top of the page allocator
+> which manages kernel page tables on top of pools of pages. You really do
+> not care about where the page is placed physically. I am not sure how
+> much you can reuse from the SL.B object management because that highly
+> depends on the life time of objects.
 
-On 5/2/17 3:53 AM, Anshuman Khandual wrote:
-> On 05/01/2017 11:30 PM, Prakash Sangappa wrote:
->> Some applications like a database use hugetblfs for performance
->> reasons. Files on hugetlbfs filesystem are created and huge pages
->> allocated using fallocate() API. Pages are deallocated/freed using
->> fallocate() hole punching support that has been added to hugetlbfs.
->> These files are mmapped and accessed by many processes as shared memory.
->> Such applications keep track of which offsets in the hugetlbfs file have
->> pages allocated.
->>
->> Any access to mapped address over holes in the file, which can occur due
-> s/mapped/unmapped/ ^ ?
-
-It is 'mapped' address.
-
->
->> to bugs in the application, is considered invalid and expect the process
->> to simply receive a SIGBUS.  However, currently when a hole in the file is
->> accessed via the mapped address, kernel/mm attempts to automatically
->> allocate a page at page fault time, resulting in implicitly filling the
->> hole
-> But this is expected when you try to control the file allocation from
-> a mapped address. Any changes while walking past or writing the range
-> in the memory mapped should reflect exactly in the file on the disk.
-> Why its not a valid behavior ?
-Sure, that is a valid behavior. However, hugetlbfs is a pesudo filesystem
-and the purpose is for applications to use hugepage memory. The contents
-of these filesystem are not backed by disk nor are they swapped out.
-
-The proposed new behavior is only applicable for hugetlbfs filesystem 
-mounted
-with the new 'noautofill' mount option. The file's page allocation/free 
-are managed
-using the 'fallocate()' API.
-
-For hugetlbfs filesystems mounted without this option, there is no 
-change in behavior.
-
->> in the file. This may not be the desired behavior for applications like the
->> database that want to explicitly manage page allocations of hugetlbfs
->> files.
->>
->> This patch adds a new hugetlbfs mount option 'noautofill', to indicate that
->> pages should not be allocated at page fault time when accessed thru mmapped
->> address.
-> When the page should be allocated for mapping ?
-The application would allocate/free file pages using the fallocate() API.
-
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
