@@ -1,61 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 806766B02C4
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 16:13:23 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o4so35267596qkb.5
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:13:23 -0700 (PDT)
-Received: from scorn.kernelslacker.org (scorn.kernelslacker.org. [2600:3c03::f03c:91ff:fe59:ec69])
-        by mx.google.com with ESMTPS id a41si18282993qte.176.2017.05.02.13.13.22
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 58DB96B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 16:19:42 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m73so3341681wmi.22
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:19:42 -0700 (PDT)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id 90si21906574wra.235.2017.05.02.13.19.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 13:13:22 -0700 (PDT)
-Date: Tue, 2 May 2017 16:13:21 -0400
-From: Dave Jones <davej@codemonkey.org.uk>
-Subject: WARNING: CPU: 2 PID: 23409 at mm/filemap.c:260
- __delete_from_page_cache+0x5fc/0x610
-Message-ID: <20170502201321.vfqmsb5ncsxaypoe@codemonkey.org.uk>
+        Tue, 02 May 2017 13:19:41 -0700 (PDT)
+Received: by mail-wr0-x244.google.com with SMTP id w50so19470222wrc.0
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:19:40 -0700 (PDT)
+Subject: Re: [PATCH man-pages 1/2] userfaultfd.2: start documenting
+ non-cooperative events
+References: <1493302474-4701-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1493302474-4701-2-git-send-email-rppt@linux.vnet.ibm.com>
+ <a95f9ae6-f7db-1ed9-6e25-99ced1fd37a3@gmail.com>
+ <190E3CFC-492F-4672-9385-9C3D8F57F26C@linux.vnet.ibm.com>
+ <3cff5638-cb15-50e6-f5a4-d9a0fce643c5@gmail.com>
+ <20170502092255.GA3022@rapoport-lnx>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <ce63cd99-43a9-9fa9-db53-20ddbee67385@gmail.com>
+Date: Tue, 2 May 2017 22:19:36 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20170502092255.GA3022@rapoport-lnx>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-Just hit this on Linus tree pulled this afternoon.
+On 05/02/2017 11:22 AM, Mike Rapoport wrote:
+> On Mon, May 01, 2017 at 08:34:16PM +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Mike,
+>>
+>> On 04/28/2017 11:45 AM, Mike Rapoprt wrote:
+>>>
+>>>
+>>> On April 27, 2017 8:26:16 PM GMT+03:00, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> wrote:
+>>>> Hi Mike,
+>>>>
+>>>> I've applied this, but have some questions/points I think 
+>>>> further clarification.
+>>>>
+>>>> On 04/27/2017 04:14 PM, Mike Rapoport wrote:
+>>>>> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+>>>>> ---
+>>>>>  man2/userfaultfd.2 | 135
+>>>> ++++++++++++++++++++++++++++++++++++++++++++++++++---
+>>>>>  1 file changed, 128 insertions(+), 7 deletions(-)
+>>>>>
+>>>>> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+>>>>> index cfea5cb..44af3e4 100644
+>>>>> --- a/man2/userfaultfd.2
+>>>>> +++ b/man2/userfaultfd.2
+>>>>> @@ -75,7 +75,7 @@ flag in
+>>>>>  .PP
+>>>>>  When the last file descriptor referring to a userfaultfd object is
+>>>> closed,
+>>>>>  all memory ranges that were registered with the object are
+>>>> unregistered
+>>>>> -and unread page-fault events are flushed.
+>>>>> +and unread events are flushed.
+>>>>>  .\"
+>>>>>  .SS Usage
+>>>>>  The userfaultfd mechanism is designed to allow a thread in a
+>>>> multithreaded
+>>>>> @@ -99,6 +99,20 @@ In such non-cooperative mode,
+>>>>>  the process that monitors userfaultfd and handles page faults
+>>>>>  needs to be aware of the changes in the virtual memory layout
+>>>>>  of the faulting process to avoid memory corruption.
+>>>>> +
+>>>>> +Starting from Linux 4.11,
+>>>>> +userfaultfd may notify the fault-handling threads about changes
+>>>>> +in the virtual memory layout of the faulting process.
+>>>>> +In addition, if the faulting process invokes
+>>>>> +.BR fork (2)
+>>>>> +system call,
+>>>>> +the userfaultfd objects associated with the parent may be duplicated
+>>>>> +into the child process and the userfaultfd monitor will be notified
+>>>>> +about the file descriptor associated with the userfault objects
+>>>>
+>>>> What does "notified about the file descriptor" mean?
+>>>
+>>> Well, seems that I've made this one really awkward :)
+>>> When the monitored process forks, all the userfault objects
+>>> associateda?? with it are duplicated into the child process. For each
+>>> duplicated object, userfault generates event of type UFFD_EVENT_FORK
+>>> and the uffdio_msg for this event contains the file descriptor that
+>>> should be used to manipulate the duplicated userfault object.
+>>> Hope this clarifies.
+>>
+>> Yes, it's clearer now.
+>>
+>> Mostly what was needed here was a forward reference that mentions
+>> UFFD_EVENT_FORK explicitly. I added that, and also enhanced the
+>> text on UFFD_EVENT_FORK a little.
+>>
+>> Also, it's not just fork(2) for which UFFD_EVENT_FORK is generated,
+>> right? It can also be a clone(2) cal that does not specify
+>> CLONE_VM, right?
+> 
+> Yes.
+>  
+>> Could you review my changes in commit 522ab2ff6fc9010432a
+>> to make sure they are okay.
+> 
+> Yes, thats correct and with your updates the text is much clearer. Thanks.
 
-WARNING: CPU: 2 PID: 23409 at mm/filemap.c:260 __delete_from_page_cache+0x5fc/0x610
-CPU: 2 PID: 23409 Comm: trinity-c1 Not tainted 4.11.0-think+ #4 
-Call Trace:
- dump_stack+0x68/0x93
- __warn+0xcb/0xf0
- warn_slowpath_null+0x1d/0x20
- __delete_from_page_cache+0x5fc/0x610
- delete_from_page_cache+0x57/0x150
- truncate_inode_page+0x9f/0x140
- shmem_undo_range+0x4c5/0xcd0
- shmem_truncate_range+0x16/0x40
- shmem_fallocate+0x22a/0x610
- vfs_fallocate+0x135/0x250
- SyS_madvise+0x211/0xa90
- ? get_lock_stats+0x19/0x50
- do_syscall_64+0x66/0x1d0
- ? do_syscall_64+0x66/0x1d0
- entry_SYSCALL64_slow_path+0x25/0x25
-RIP: 0033:0x7f596e520099
-RSP: 002b:00007fff1b76d928 EFLAGS: 00000246
- ORIG_RAX: 000000000000001c
-RAX: ffffffffffffffda RBX: 000000000000001c RCX: 00007f596e520099
-RDX: 0000000000000009 RSI: 00000000000fc000 RDI: 00007f596c88b000
-RBP: 00007fff1b76d9d0 R08: 0000000000001d1d R09: 0000c1c1c1c1c1c1
-R10: 759e2c3076d8be38 R11: 0000000000000246 R12: 0000000000000002
-R13: 00007f596ebe8048 R14: 00007f596ebf6ad8 R15: 00007f596ebe8000
+Thanks for checking!
+
+Cheers,
+
+Michael
 
 
-
- 260         if (WARN_ON_ONCE(PageDirty(page)))
- 261                 account_page_cleaned(page, mapping, inode_to_wb(mapping->host));
-
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
