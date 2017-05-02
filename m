@@ -1,66 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A706B0350
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 05:34:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id z129so1003960wmb.23
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 02:34:18 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id j16si19529732wrb.230.2017.05.02.02.34.16
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 97EC86B0374
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 05:47:07 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w50so13137064wrc.4
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 02:47:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d65si2035633wmd.105.2017.05.02.02.47.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 02:34:17 -0700 (PDT)
-Message-ID: <590851CC.2070402@huawei.com>
-Date: Tue, 2 May 2017 17:30:52 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 May 2017 02:47:06 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v429iANN143104
+	for <linux-mm@kvack.org>; Tue, 2 May 2017 05:47:04 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a6frwxv22-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 02 May 2017 05:47:04 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 2 May 2017 10:47:02 +0100
+Date: Tue, 2 May 2017 12:46:55 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH man-pages 4/5] userfaultfd.2: add note about asynchronios
+ events delivery
+References: <1493617399-20897-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1493617399-20897-5-git-send-email-rppt@linux.vnet.ibm.com>
+ <5fb9e169-5d92-2fe8-cc59-5c68cfb6be72@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] dev/mem: "memtester -p 0x6c80000000000 10G" cause crash
-References: <59083C5B.5080204@huawei.com> <20170502084323.GG14593@dhcp22.suse.cz> <590848B0.2000801@huawei.com> <20170502091630.GH14593@dhcp22.suse.cz>
-In-Reply-To: <20170502091630.GH14593@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5fb9e169-5d92-2fe8-cc59-5c68cfb6be72@gmail.com>
+Message-Id: <20170502094654.GC5910@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Johannes
- Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shakeel Butt <shakeelb@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On 2017/5/2 17:16, Michal Hocko wrote:
-
-> On Tue 02-05-17 16:52:00, Xishi Qiu wrote:
->> On 2017/5/2 16:43, Michal Hocko wrote:
->>
->>> On Tue 02-05-17 15:59:23, Xishi Qiu wrote:
->>>> Hi, I use "memtester -p 0x6c80000000000 10G" to test physical address 0x6c80000000000
->>>> Because this physical address is invalid, and valid_mmap_phys_addr_range()
->>>> always return 1, so it causes crash.
->>>>
->>>> My question is that should the user assure the physical address is valid?
->>>
->>> We already seem to be checking range_is_allowed(). What is your
->>> CONFIG_STRICT_DEVMEM setting? The code seems to be rather confusing but
->>> my assumption is that you better know what you are doing when mapping
->>> this file.
->>>
->>
->> HI Michal,
->>
->> CONFIG_STRICT_DEVMEM=y, and range_is_allowed() will skip memory, but
->> 0x6c80000000000 is not memory, it is just a invalid address, so it cause
->> crash. 
+On Mon, May 01, 2017 at 08:33:45PM +0200, Michael Kerrisk (man-pages) wrote:
+> Hi Mike,
 > 
-> OK, I only now looked at the value. It is beyond addressable limit
-> (for 47b address space). None of the checks seems to stop this because
-> range_is_allowed() resp. its devmem_is_allowed() will allow it as a
-> non RAM (!page_is_ram check). I am not really sure how to fix this or
-> whether even we should try to fix this particular problem. As I've said
-> /dev/mem is dangerous and you should better know what you are doing when
-> accessing it.
+> On 05/01/2017 07:43 AM, Mike Rapoport wrote:
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 > 
+> Thanks. Applied. One question below.
+> 
+> > ---
+> >  man2/userfaultfd.2 | 12 ++++++++++++
+> >  1 file changed, 12 insertions(+)
+> > 
+> > diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+> > index 8b89162..f177bba 100644
+> > --- a/man2/userfaultfd.2
+> > +++ b/man2/userfaultfd.2
+> > @@ -112,6 +112,18 @@ created for the child process,
+> >  which allows userfaultfd monitor to perform user-space paging
+> >  for the child process.
+> >  
+> > +Unlike page faults which have to be synchronous and require
+> > +explicit or implicit wakeup,
+> > +all other events are delivered asynchronously and
+> > +the non-cooperative process resumes execution as
+> > +soon as manager executes
+> > +.BR read(2).
+> > +The userfaultfd manager should carefully synchronize calls
+> > +to UFFDIO_COPY with the events processing.
+> > +
+> > +The current asynchronous model of the event delivery is optimal for
+> > +single threaded non-cooperative userfaultfd manager implementations.
+> 
+> The preceding paragraph feels incomplete. It seems like you want to make
+> a point with that last sentence, but the point is not explicit. What's
+> missing?
 
-OK, I know, thank you!
-
-Thanks,
-Xishi Qiu
+I've copied both from Documentation/vm/userfaulftfd.txt, and there we also
+talk about possibility of addition of synchronous events delivery and
+that makes the paragraph above to seem crippled :)
+The major point here is that current events delivery model could be
+problematic for multi-threaded monitor. I even suspect that it would be
+impossible to ensure synchronization between page faults and non-page
+fault events in multi-threaded monitor.
+ 
+> > +
+> >  .\" FIXME elaborate about non-cooperating mode, describe its limitations
+> >  .\" for kernels before 4.11, features added in 4.11
+> >  .\" and limitations remaining in 4.11
+> > 
+> 
+> Cheers,
+> 
+> Michael
+> 
+> 
+> 
+> -- 
+> Michael Kerrisk
+> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+> Linux/UNIX System Programming Training: http://man7.org/training/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
