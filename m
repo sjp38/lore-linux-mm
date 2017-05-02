@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D79686B0317
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 05:31:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i7so1004348wmf.19
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 02:31:28 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1881E6B0343
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 05:33:09 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l50so10672128wrc.18
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 02:33:09 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t190si505665wme.72.2017.05.02.02.31.27
+        by mx.google.com with ESMTPS id p111si18935854wrc.315.2017.05.02.02.33.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 02:31:27 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4294Jqp125322
-	for <linux-mm@kvack.org>; Tue, 2 May 2017 05:31:26 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2a6g76d8fk-1
+        Tue, 02 May 2017 02:33:07 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v42943oV098132
+	for <linux-mm@kvack.org>; Tue, 2 May 2017 05:33:06 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2a6jut6sfs-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 May 2017 05:31:26 -0400
+	for <linux-mm@kvack.org>; Tue, 02 May 2017 05:33:06 -0400
 Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 2 May 2017 10:31:23 +0100
-Date: Tue, 2 May 2017 12:31:11 +0300
+	Tue, 2 May 2017 10:33:04 +0100
+Date: Tue, 2 May 2017 12:32:59 +0300
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH man-pages 1/5] ioctl_userfaultfd.2: update description of
- shared memory areas
+Subject: Re: [PATCH man-pages 3/5] ioctl_userfaultfd.2: add BUGS section
 References: <1493617399-20897-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1493617399-20897-2-git-send-email-rppt@linux.vnet.ibm.com>
- <7ec5dfc0-9d84-e142-bfaa-d96383acbee9@gmail.com>
+ <1493617399-20897-4-git-send-email-rppt@linux.vnet.ibm.com>
+ <345c064d-83fe-3e40-c5cb-5d4b6e5cdff4@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7ec5dfc0-9d84-e142-bfaa-d96383acbee9@gmail.com>
-Message-Id: <20170502093110.GA5910@rapoport-lnx>
+In-Reply-To: <345c064d-83fe-3e40-c5cb-5d4b6e5cdff4@gmail.com>
+Message-Id: <20170502093252.GB5910@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Mon, May 01, 2017 at 08:33:31PM +0200, Michael Kerrisk (man-pages) wrote:
-> Hello Mike,
+On Mon, May 01, 2017 at 08:33:50PM +0200, Michael Kerrisk (man-pages) wrote:
+> Hi Mike,
 > 
-> I've applied this patch, but  have a question.
+> I've applied this, but have a question.
 > 
 > On 05/01/2017 07:43 AM, Mike Rapoport wrote:
+> > The features handshake is not quite convenient.
+> > Elaborate about it in the BUGS section.
+> > 
 > > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 > > ---
-> >  man2/ioctl_userfaultfd.2 | 13 +++++++++++--
-> >  1 file changed, 11 insertions(+), 2 deletions(-)
+> >  man2/ioctl_userfaultfd.2 | 9 +++++++++
+> >  1 file changed, 9 insertions(+)
 > > 
 > > diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
-> > index 889feb9..6edd396 100644
+> > index e12b9de..50316de 100644
 > > --- a/man2/ioctl_userfaultfd.2
 > > +++ b/man2/ioctl_userfaultfd.2
-> > @@ -181,8 +181,17 @@ virtual memory areas
-> >  .TP
-> >  .B UFFD_FEATURE_MISSING_SHMEM
-> >  If this feature bit is set,
-> > -the kernel supports registering userfaultfd ranges on tmpfs
-> > -virtual memory areas
-> > +the kernel supports registering userfaultfd ranges on shared memory areas.
-> > +This includes all kernel shared memory APIs:
-> > +System V shared memory,
-> > +tmpfs,
-> > +/dev/zero,
-> > +.BR mmap(2)
-> > +with
-> > +.I MAP_SHARED
-> > +flag set,
-> > +.BR memfd_create (2),
-> > +etc.
-> >  
-> >  The returned
-> >  .I ioctls
+> > @@ -650,6 +650,15 @@ operations are Linux-specific.
+> >  .SH EXAMPLE
+> >  See
+> >  .BR userfaultfd (2).
+> > +.SH BUGS
+> > +In order to detect available userfault features and
+> > +enable certain subset of those features
 > 
-> Does the change in this patch represent a change that occurred in
-> Linux 4.11? If so, I think this needs to be said explicitly in the text.
-
-The patch only extends the description of UFFD_FEATURE_MISSING_SHMEM. The
-feature is indeed available from 4.11, but that is said a few lives above
-(line 136 in ioctl_userfaultfd.2)
+> I changed "certain" to "some". ("certain subset" here also
+> would sound like "some particular subset" of those features.)
+> Okay?
  
+Yes, sure.
+
+> > +the usefault file descriptor must be closed after the first
+> > +.BR UFFDIO_API
+> > +operation that queries features availability and re-opened before
+> > +the second
+> > +.BR UFFDIO_API
+> > +call that actually enables the desired features.
+> >  .SH SEE ALSO
+> >  .BR ioctl (2),
+> >  .BR mmap (2),
+> 
 > Cheers,
 > 
 > Michael
