@@ -1,44 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 75AA46B02E1
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 04:02:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p9so79853326pfj.8
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 01:02:10 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id p12si6136254pli.219.2017.05.02.01.02.08
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 34FBA6B02EE
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 04:02:50 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p18so12858966wrb.22
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 01:02:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w185si1726823wma.80.2017.05.02.01.02.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 01:02:09 -0700 (PDT)
-Message-ID: <59083C5B.5080204@huawei.com>
-Date: Tue, 2 May 2017 15:59:23 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Tue, 02 May 2017 01:02:48 -0700 (PDT)
+Date: Tue, 2 May 2017 10:02:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file
+ is low
+Message-ID: <20170502080246.GD14593@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
+ <20170418013659.GD21354@bbox>
+ <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
+ <20170419001405.GA13364@bbox>
+ <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+ <20170420060904.GA3720@bbox>
+ <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: [RFC] dev/mem: "memtester -p 0x6c80000000000 10G" cause crash
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Michal
- Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shakeel Butt <shakeelb@google.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi, I use "memtester -p 0x6c80000000000 10G" to test physical address 0x6c80000000000
-Because this physical address is invalid, and valid_mmap_phys_addr_range()
-always return 1, so it causes crash.
+On Mon 01-05-17 14:34:21, David Rientjes wrote:
+[...]
+> @@ -2204,8 +2204,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  		}
+>  
+>  		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
+> -			scan_balance = SCAN_ANON;
+> -			goto out;
+> +			/*
+> +			 * Force SCAN_ANON if there are enough inactive
+> +			 * anonymous pages on the LRU in eligible zones.
+> +			 * Otherwise, the small LRU gets thrashed.
+> +			 */
+> +			if (!inactive_list_is_low(lruvec, false, sc, false) &&
+> +			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+> +					>> sc->priority) {
+> +				scan_balance = SCAN_ANON;
+> +				goto out;
+> +			}
 
-My question is that should the user assure the physical address is valid?
+I have already asked and my questions were ignored. So let me ask again
+and hopefuly not get ignored this time. So Why do we need a different
+criterion on anon pages than file pages? I do agree that blindly
+scanning anon pages when file pages are low is very suboptimal but this
+adds yet another heuristic without _any_ numbers. Why cannot we simply
+treat anon and file pages equally? Something like the following
 
-...
-[ 169.147578] ? panic+0x1f1/0x239
-[ 169.150789] oops_end+0xb8/0xd0
-[ 169.153910] pgtable_bad+0x8a/0x95
-[ 169.157294] __do_page_fault+0x3aa/0x4a0
-[ 169.161194] do_page_fault+0x30/0x80
-[ 169.164750] ? do_syscall_64+0x175/0x180
-[ 169.168649] page_fault+0x28/0x30
+	if (pgdatfile + pgdatanon + pgdatfree > 2*total_high_wmark) {
+		scan_balance = SCAN_FILE;
+		if (pgdatfile < pgdatanon)
+			scan_balance = SCAN_ANON;
+		goto out;
+	}
 
-Thanks,
-Xishi Qiu
+Also it would help to describe the workload which can trigger this
+behavior so that we can compare numbers before and after this patch.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
