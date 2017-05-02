@@ -1,130 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B39526B02F2
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:23:00 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o36so33857792qtb.2
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:23:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 26si19165912qkt.215.2017.05.02.06.22.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 848FA6B02E1
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:32:34 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id n198so1873264wmg.9
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:32:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s110si15613992wrc.179.2017.05.02.06.32.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 06:22:59 -0700 (PDT)
-Date: Tue, 2 May 2017 09:22:53 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v2] mm, zone_device: replace {get,
- put}_zone_device_page() with a single reference
-Message-ID: <20170502132252.GB20927@redhat.com>
-References: <1579714997.4315035.1493402406629.JavaMail.zimbra@redhat.com>
- <CAPcyv4hvBKG8t3e3QvUnmkaopeM8eTniz5JPVkrZ5Puu5eaViw@mail.gmail.com>
- <1295710462.4327805.1493406971970.JavaMail.zimbra@redhat.com>
- <CAPcyv4i+iPm=hBviOYABaroz_JJYVy8Qja8Ka=-_uAQNnGjpeg@mail.gmail.com>
- <20170428193305.GA3912@redhat.com>
- <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
- <20170430231421.GA15163@redhat.com>
- <20170501102359.abopw7hpd4eb6x2w@node.shutemov.name>
- <20170501135545.GA16772@redhat.com>
- <20170502113746.5ybuix3lnvlk7kxt@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 May 2017 06:32:33 -0700 (PDT)
+Date: Tue, 2 May 2017 15:32:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
+Message-ID: <20170502133229.GK14593@dhcp22.suse.cz>
+References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170411181519.GC21171@dhcp22.suse.cz>
+ <20170412013503.GA8448@js1304-desktop>
+ <20170413115615.GB11795@dhcp22.suse.cz>
+ <20170417020210.GA1351@js1304-desktop>
+ <20170424130936.GB1746@dhcp22.suse.cz>
+ <20170425034255.GB32583@js1304-desktop>
+ <20170427150636.GM4706@dhcp22.suse.cz>
+ <20170502040129.GA27335@js1304-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170502113746.5ybuix3lnvlk7kxt@node.shutemov.name>
+In-Reply-To: <20170502040129.GA27335@js1304-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-On Tue, May 02, 2017 at 02:37:46PM +0300, Kirill A. Shutemov wrote:
-> On Mon, May 01, 2017 at 09:55:48AM -0400, Jerome Glisse wrote:
-> > On Mon, May 01, 2017 at 01:23:59PM +0300, Kirill A. Shutemov wrote:
-> > > On Sun, Apr 30, 2017 at 07:14:24PM -0400, Jerome Glisse wrote:
-> > > > On Sat, Apr 29, 2017 at 01:17:26PM +0300, Kirill A. Shutemov wrote:
-> > > > > On Fri, Apr 28, 2017 at 03:33:07PM -0400, Jerome Glisse wrote:
-> > > > > > On Fri, Apr 28, 2017 at 12:22:24PM -0700, Dan Williams wrote:
-> > > > > > > Are you sure about needing to hook the 2 -> 1 transition? Could we
-> > > > > > > change ZONE_DEVICE pages to not have an elevated reference count when
-> > > > > > > they are created so you can keep the HMM references out of the mm hot
-> > > > > > > path?
-> > > > > > 
-> > > > > > 100% sure on that :) I need to callback into driver for 2->1 transition
-> > > > > > no way around that. If we change ZONE_DEVICE to not have an elevated
-> > > > > > reference count that you need to make a lot more change to mm so that
-> > > > > > ZONE_DEVICE is never use as fallback for memory allocation. Also need
-> > > > > > to make change to be sure that ZONE_DEVICE page never endup in one of
-> > > > > > the path that try to put them back on lru. There is a lot of place that
-> > > > > > would need to be updated and it would be highly intrusive and add a
-> > > > > > lot of special cases to other hot code path.
-> > > > > 
-> > > > > Could you explain more on where the requirement comes from or point me to
-> > > > > where I can read about this.
-> > > > > 
-> > > > 
-> > > > HMM ZONE_DEVICE pages are use like other pages (anonymous or file back page)
-> > > > in _any_ vma. So i need to know when a page is freed ie either as result of
-> > > > unmap, exit or migration or anything that would free the memory. For zone
-> > > > device a page is free once its refcount reach 1 so i need to catch refcount
-> > > > transition from 2->1
+On Tue 02-05-17 13:01:32, Joonsoo Kim wrote:
+> On Thu, Apr 27, 2017 at 05:06:36PM +0200, Michal Hocko wrote:
+[...]
+> > I see this point and I agree that using a specific zone might be a
+> > _nicer_ solution in the end but you have to consider another aspects as
+> > well. The main one I am worried about is a long term maintainability.
+> > We are really out of page flags and consuming one for a rather specific
+> > usecase is not good. Look at ZONE_DMA. I am pretty sure that almost
+> > no sane HW needs 16MB zone anymore, yet we have hard time to get rid
+> > of it and so we have that memory laying around unused all the time
+> > and blocking one page flag bit. CMA falls into a similar category
+> > AFAIU. I wouldn't be all that surprised if a future HW will not need CMA
+> > allocations in few years, yet we will have to fight to get rid of it
+> > like we do with ZONE_DMA. And not only that. We will also have to fight
+> > finding page flags for other more general usecases in the meantime.
+> 
+> This maintenance problem is inherent. This problem exists even if we
+> uses MIGRATETYPE approach. We cannot remove many hooks for CMA if a
+> future HW will not need CMA allocation in few years. The only
+> difference is that one takes single zone bit only for CMA user and the
+> other approach takes many hooks that we need to take care about it all
+> the time.
+
+And I consider this a big difference. Because while hooks are not nice
+they will affect CMA users (in a sense of bugs/performance etc.). While
+an additional bit consumed will affect potential future and more generic
+features.
+
+[...]
+> > I believe that the overhead in the hot path is not such a big deal. We
+> > have means to make it 0 when CMA is not used by jumplabels. I assume
+> > that the vast majority of systems will not use CMA. Those systems which
+> > use CMA should be able to cope with some slight overhead IMHO.
+> 
+> Please don't underestimate number of CMA user. Most of android device
+> uses CMA. So, there would be more devices using CMA than the server
+> not using CMA. They also have a right to experience the best performance.
+
+This is not a fair comparison, though. Android development model is much
+more faster and tend to not care about future maintainability at all. I
+do not know about any android device that would run on a clean vanilla
+kernel because vendors simply do not care enough (or have time) to put
+the code into a proper shape to upstream it. I understand that this
+model might work quite well for rapidly changing and moving mobile or
+IoT segment but it is not the greatest fit to motivate the core kernel
+subsystem development. We are not in the drivers space!
+
+[...]
+> > This looks like a nice clean up. Those ifdefs are ugly as hell. One
+> > could argue that some of that could be cleaned up by simply adding some
+> > helpers (with a jump label to reduce the overhead), though. But is this
+> > really strong enough reason to bring the whole zone in? I am not really
+> > convinced to be honest.
+> 
+> Please don't underestimate the benefit of this patchset.
+> I have said that we need *more* hooks to fix all the problems.
+> 
+> And, please think that this code removal is not only code removal but
+> also concept removal. With this removing, we don't need to consider
+> ALLOC_CMA for alloc_flags when calling zone_watermark_ok(). There are
+> many bugs on it and it still remains. We don't need to consider
+> pageblock migratetype when handling pageblock migratetype. We don't
+> need to take a great care about calculating the number of CMA
+> freepages.
+
+And all this can be isolated to CMA specific hooks with mostly minimum
+impact to most users. I hear you saying that zone approach is more natural
+and I would agree if we wouldn't have to care about the number of zones.
+
+> > [...]
+> > 
+> > > > Please do _not_ take this as a NAK from me. At least not at this time. I
+> > > > am still trying to understand all the consequences but my intuition
+> > > > tells me that building on top of highmem like approach will turn out to
+> > > > be problematic in future (as we have already seen with the highmem and
+> > > > movable zones) so this needs a very prudent consideration.
 > > > 
-> > > What if we would rework zone device to have pages with refcount 0 at
-> > > start?
+> > > I can understand that you are prudent to this issue. However, it takes more
+> > > than two years and many people already expressed that ZONE approach is the
+> > > way to go.
 > > 
-> > That is a _lot_ of work from top of my head because it would need changes
-> > to a lot of places and likely more hot code path that simply adding some-
-> > thing to put_page() note that i only need something in put_page() i do not
-> > need anything in the get page path. Is adding a conditional branch for
-> > HMM pages in put_page() that much of a problem ?
+> > I can see a single Acked-by and one Reviewed-by. It would be much more
+> > convincing to see much larger support. Do not take me wrong I am not
+> > trying to undermine the feedback so far but we should be clear about one
+> > thing. CMA is mostly motivated by the industry which tries to overcome
+> > HW limitations which can change in future very easily. I would rather
+> > see good enough solution for something like that than a nicer solution
+> > which is pushing additional burden on more general usecases.
 > 
-> Well, it gets inlined everywhere. Removing zone_device code from
-> get_page() and put_page() saved non-trivial ~140k in vmlinux for
-> allyesconfig.
+> First of all, current MIGRATETYPE approach isn't good enough to me.
+> They caused too many problems and there are many remanining problems.
+> It will causes maintenance issue for a long time.
 > 
-> Re-introducing part this bloat would be unfortunate.
+> And, although good enough solution can be better than nicer solution
+> in some cases, it looks like current situation isn't that case.
+> There is a single reason, saving page flag bit, to support good enough
+> solution.
 > 
-> > > > This is the only way i can inform the device that the page is now free. See
-> > > > 
-> > > > https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=52da8fe1a088b87b5321319add79e43b8372ed7d
-> > > > 
-> > > > There is _no_ way around that.
-> > > 
-> > > I'm still not convinced that it's impossible.
-> > > 
-> > > Could you describe lifecycle for pages in case of HMM?
-> > 
-> > Process malloc something, end it over to some function in the program
-> > that use the GPU that function call GPU API (OpenCL, CUDA, ...) that
-> > trigger a migration to device memory.
-> > 
-> > So in the kernel you get a migration like any existing migration,
-> > original page is unmap, if refcount is all ok (no pin) then a device
-> > page is allocated and thing are migrated to device memory.
-> > 
-> > What happen after is unknown. Either userspace/kernel driver decide
-> > to migrate back to system memory, either there is an munmap, either
-> > there is a CPU page fault, ... So from that point on the device page
-> > as the exact same life as a regular page.
-> > 
-> > Above i describe the migrate case, but you can also have new memory
-> > allocation that directly allocate device memory. For instance if the
-> > GPU do a page fault on an address that isn't back by anything then
-> > we can directly allocate a device page. No migration involve in that
-> > case.
-> > 
-> > HMM pages are like any other pages in most respect. Exception are:
-> >   - no GUP
-> 
-> Hm. How do you exclude GUP? And why is it required?
+> I'd like to ask reversly. Is this a enough reason to make CMA user to
+> suffer from bugs?
 
-Well it is not forbiden it just can not happen simply because as device
-memory is not accessible by CPU then the corresponding CPU page table
-entry is a special entry and thus GUP trigger a page fault that migrate
-thing back to regular memory.
+No, but I haven't heard any single argument that those bugs are
+impossible to fix with the current approach. They might be harder to fix
+but if I can chose between harder for CMA and harder for other more
+generic HW independent features I will go for the first one. And do not
+take me wrong, I have nothing against CMA as such. It solves a real life
+problem. I just believe it doesn't deserve to consume a new bit in page
+flags because that is just too scarce resource.
 
-The why is simply because we need to always be able to migrate back to
-regular memory as device memory is not accessible by the CPU. So we can
-not allow anyone to pin it.
-
-Cheers,
-Jerome
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
