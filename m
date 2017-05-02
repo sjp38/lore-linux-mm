@@ -1,171 +1,425 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 528B46B02F2
-	for <linux-mm@kvack.org>; Mon,  1 May 2017 21:52:39 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id h41so67290959ioi.1
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 18:52:39 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id 198si14514540ioc.80.2017.05.01.18.52.36
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 38B106B02E1
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 00:01:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t130so52019742pgc.18
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 21:01:45 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id a5si15525943pgk.242.2017.05.01.21.01.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 01 May 2017 18:52:38 -0700 (PDT)
-Message-ID: <5907E524.2030003@huawei.com>
-Date: Tue, 2 May 2017 09:47:16 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 May 2017 21:01:43 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id t7so18953430pgt.1
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 21:01:43 -0700 (PDT)
+Date: Tue, 2 May 2017 13:01:32 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
+Message-ID: <20170502040129.GA27335@js1304-desktop>
+References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170411181519.GC21171@dhcp22.suse.cz>
+ <20170412013503.GA8448@js1304-desktop>
+ <20170413115615.GB11795@dhcp22.suse.cz>
+ <20170417020210.GA1351@js1304-desktop>
+ <20170424130936.GB1746@dhcp22.suse.cz>
+ <20170425034255.GB32583@js1304-desktop>
+ <20170427150636.GM4706@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RESENT PATCH] x86/mem: fix the offset overflow when read/write
- mem
-References: <1493293775-57176-1-git-send-email-zhongjiang@huawei.com>
-In-Reply-To: <1493293775-57176-1-git-send-email-zhongjiang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170427150636.GM4706@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: arnd@arndb.de, hannes@cmpxchg.org, kirill@shutemov.name, rientjes@google.com, mgorman@techsingularity.net, hughd@google.com, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-ping ....
+On Thu, Apr 27, 2017 at 05:06:36PM +0200, Michal Hocko wrote:
+> On Tue 25-04-17 12:42:57, Joonsoo Kim wrote:
+> > On Mon, Apr 24, 2017 at 03:09:36PM +0200, Michal Hocko wrote:
+> > > On Mon 17-04-17 11:02:12, Joonsoo Kim wrote:
+> > > > On Thu, Apr 13, 2017 at 01:56:15PM +0200, Michal Hocko wrote:
+> > > > > On Wed 12-04-17 10:35:06, Joonsoo Kim wrote:
+> [...]
+> > > not for free. For most common configurations where we have ZONE_DMA,
+> > > ZONE_DMA32, ZONE_NORMAL and ZONE_MOVABLE all the 3 bits are already
+> > > consumed so a new zone will need a new one AFAICS.
+> > 
+> > Yes, it requires one more bit for a new zone and it's handled by the patch.
+> 
+> I am pretty sure that you are aware that consuming new page flag bits
+> is usually a no-go and something we try to avoid as much as possible
+> because we are in a great shortage there. So there really have to be a
+> _strong_ reason if we go that way. My current understanding that the
+> whole zone concept is more about a more convenient implementation rather
+> than a fundamental change which will solve unsolvable problems with the
+> current approach. More on that below.
 
-anyone has any objections.
-On 2017/4/27 19:49, zhongjiang wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
->
-> Recently, I found the following issue, it will result in the panic.
->
-> [  168.739152] mmap1: Corrupted page table at address 7f3e6275a002
-> [  168.745039] PGD 61f4a1067
-> [  168.745040] PUD 61ab19067
-> [  168.747730] PMD 61fb8b067
-> [  168.750418] PTE 8000100000000225
-> [  168.753109]
-> [  168.757795] Bad pagetable: 000d [#1] SMP
-> [  168.761696] Modules linked in: intel_powerclamp coretemp kvm_intel kvm irqbypass crct10dif_pclmul crc32_pclmul ghash_clmulni_intel pcbc aesni_intel crypto_simd iTCO_wdt glue_helper cryptd sg iTCO_vendor_support i7core_edac edac_core shpchp lpc_ich i2c_i801 pcspkr mfd_core acpi_cpufreq ip_tables xfs libcrc32c sd_mod igb ata_generic ptp pata_acpi pps_core mptsas ata_piix scsi_transport_sas i2c_algo_bit libata mptscsih i2c_core serio_raw crc32c_intel bnx2 mptbase dca dm_mirror dm_region_hash dm_log dm_mod
-> [  168.805983] CPU: 15 PID: 10369 Comm: mmap1 Not tainted 4.11.0-rc2-327.28.3.53.x86_64+ #345
-> [  168.814202] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285          /BC11BTSA              , BIOS CTSAV036 04/27/2011
-> [  168.825704] task: ffff8806207d5200 task.stack: ffffc9000c340000
-> [  168.831592] RIP: 0033:0x7f3e622c5360
-> [  168.835147] RSP: 002b:00007ffe2bb7a098 EFLAGS: 00010203
-> [  168.840344] RAX: 00007ffe2bb7a0c0 RBX: 0000000000000000 RCX: 00007f3e6275a000
-> [  168.847439] RDX: 00007f3e622c5360 RSI: 00007f3e6275a000 RDI: 00007ffe2bb7a0c0
-> [  168.854535] RBP: 00007ffe2bb7a4e0 R08: 00007f3e621c3d58 R09: 000000000000002d
-> [  168.861632] R10: 00007ffe2bb79e20 R11: 00007f3e622fbcb0 R12: 00000000004005d0
-> [  168.868728] R13: 00007ffe2bb7a5c0 R14: 0000000000000000 R15: 0000000000000000
-> [  168.875825] FS:  00007f3e62752740(0000) GS:ffff880627bc0000(0000) knlGS:0000000000000000
-> [  168.883870] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  168.889583] CR2: 00007f3e6275a002 CR3: 0000000622845000 CR4: 00000000000006e0
-> [  168.896680] RIP: 0x7f3e622c5360 RSP: 00007ffe2bb7a098
-> [  168.901713] ---[ end trace ef98fa9f2a01cbc6 ]---
-> [  168.90630 arch/x86/kernel/smp.c:127 native_smp_send_reschedule+0x3f/0x50
-> [  168.935410] Modules linked in: intel_powerclamp coretemp kvm_intel kvm irqbypass crct10dif_pclmul crc32_pclmul ghash_clmulni_intel pcbc aesni_intel crypto_simd iTCO_wdt glue_helper cryptd sg iTCO_vendor_support i7core_edac edac_core shpchp lpc_ich i2c_i801 pcspkr mfd_core acpi_cpufreq ip_tables xfs libcrc32c sd_mod igb ata_generic ptp pata_acpi pps_core mptsas ata_piix scsi_transport_sas i2c_algo_bit libata mptscsih i2c_core serio_raw crc32c_intel bnx2 mptbase dca dm_mirror dm_region_hash dm_log dm_mod
-> [  168.979686] CPU: 15 PID: 10369 Comm: mmap1 Tainted: G      D         4.11.0-rc2-327.28.3.53.x86_64+ #345
-> [  168.989114] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285          /BC11BTSA              , BIOS CTSAV036 04/27/2011
-> [  169.000616] Call Trace:
-> [  169.003049]  <IRQ>
-> [  169.005050]  dump_stack+0x63/0x84
-> [  169.008348]  __warn+0xd1/0xf0
-> [  169.011297]  warn_slowpath_null+0x1d/0x20
-> [  169.015282]  native_smp_send_reschedule+0x3f/0x50
-> [  169.019961]  resched_curr+0xa1/0xc0
-> [  169.023428]  check_preempt_curr+0x70/0x90
-> [  169.027415]  ttwu_do_wakeup+0x1e/0x160
-> [  169.031142]  ttwu_do_activate+0x77/0x80
-> [  169.034956]  try_to_wake_up+0x1c3/0x430
-> [  169.038771]  default_wake_function+0x12/0x20
-> [  169.043019]  __wake_up_common+0x55/0x90
-> [  169.046833]  __wake_up_locked+0x13/0x20
-> [  169.050649]  ep_poll_callback+0xbb/0x240
-> [  169.054550]  __wake_up_common+0x55/0x90
-> [  169.058363]  __wake_up+0x39/0x50
-> [  169.061574]  wake_up_klogd_work_func+0x40/0x60
-> [  169.065994]  irq_work_run_list+0x4d/0x70
-> [  169.069895]  irq_work_tick+0x40/0x50
-> [  169.073452]  update_process_times+0x42/0x60
-> [  169.077612]  tick_periodic+0x2b/0x80
-> [  169.081166]  tick_handle_periodic+0x25/0x70
-> [  169.085326]  local_apic_timer_interrupt+0x35/0x60
-> [  169.090004]  smp_apic_timer_interrupt+0x38/0x50
-> [  169.094507]  apic_timer_interrupt+0x93/0xa0
-> [  169.098667] RIP: 0010:panic+0x1f5/0x239
-> [  169.102480] RSP: 0000:ffffc9000c343dd8 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff10
-> [  169.110010] RAX: 0000000000000034 RBX: 0000000000000000 RCX: 0000000000000006
-> [  169.117106] RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffff880627bcdfe0
-> [  169.124201] RBP: ffffc9000c343e48 R08: 00000000fffffffe R09: 0000000000000395
-> [  169.131298] R10: 0000000000000005 R11: 0000000000000394 R12: ffffffff81a0c475
-> [  169.138395] R13: 0000000000000000 R14: 0000000000000000 R15: 000000000000000d
-> [  169.145491]  </IRQ>
-> [  169.147578]  ? panic+0x1f1/0x239
-> [  169.150789]  oops_end+0xb8/0xd0
-> [  169.153910]  pgtable_bad+0x8a/0x95
-> [  169.157294]  __do_page_fault+0x3aa/0x4a0
-> [  169.161194]  do_page_fault+0x30/0x80
-> [  169.164750]  ? do_syscall_64+0x175/0x180
-> [  169.168649]  page_fault+0x28/0x30
->
-> the following case can reproduce the issue.
->
-> 	int  mem_fd = 0;
-> 	char rw_buf[1024];
-> 	unsigned char * map_base_s;
-> 	unsigned long show_addr = 0x100000000000;
-> 	unsigned long show_len  = 0x10;
->
-> 	if(argc !=2 )
-> 	{
-> 		printf( "%s show_addr\n", argv[0] );
-> 		return 0;
-> 	}
-> 	else
-> 	{
-> 		char *stop;
-> 		show_addr = strtoul( argv[1], &stop, 0 );
-> 		printf("show_addr= 0x%lu\n", show_addr );
-> 	}
->
-> 	mem_fd = open(DEV_NAME, O_RDONLY);
->     if (mem_fd == -1)
->     {
->         printf("open %s failed.", DEV_NAME);
->         return 0;
->     }
->
-> 	map_base_s = mmap(NULL, show_len, PROT_READ, MAP_SHARED, mem_fd, show_addr);
-> 	if ((long)map_base_s == -1)
-> 	{
-> 		printf("input address map to user space fail!\n");
-> 		return 0;
-> 	}
-> 	else
->     {
->         printf("mmap successfull!\n");
->     }
->
-> 	memcpy( rw_buf,  map_base_s, show_len );
->
-> The pgoff is enough large, it exceed the size of the real memory.
-> and the mmap can return the success.
->
-> I fix it by checking the conditions. it can make it suitable for
-> the mapped and use.
->
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  drivers/char/mem.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/drivers/char/mem.c b/drivers/char/mem.c
-> index 7e4a9d1..3a765e02 100644
-> --- a/drivers/char/mem.c
-> +++ b/drivers/char/mem.c
-> @@ -55,7 +55,7 @@ static inline int valid_phys_addr_range(phys_addr_t addr, size_t count)
+If there is a consensus that adding a new zone and one more bit in
+page flags bits seems to be unreasonable, I try to find a way to use
+ZONE_MOVABLE. As mentioned before, that's not fundamental issue to me.
+However, it will have many potential problems as I mentioned so I
+*really* don't prefer that way.
+
+> 
+> [...]
+> > MOVABLE allocation will fallback as following sequence.
+> > 
+> > ZONE_CMA -> ZONE_MOVABLE -> ZONE_HIGHMEM -> ZONE_NORMAL -> ...
+> > 
+> > I don't understand what you mean CMA allocation. In MM's context,
+> > there is no CMA allocation. That is just MOVABLE allocation.
+> > 
+> > For device's context, there is CMA allocation. It is range specific
+> > allocation so it should be succeed for requested range. No fallback is
+> > allowed in this case.
+> 
+> OK. that answers my question. I guess... My main confusion comes from
+> __alloc_gigantic_page which shares alloc_contig_range with the cma
+> allocation. But from what you wrote above and my quick glance over the
+> code __alloc_gigantic_page simply changes the migrate type of the pfn
+> range and it doesn't move it to the zone CMA. Right?
+
+Yes, it doesn't move it to the zone CMA.
+
+> 
+> [...]
+> > > > At a glance, special migratetype sound natural. I also did. However,
+> > > > it's not natural in implementation POV. Zone consists of the same type
+> > > > of memory (by definition ?) and MM subsystem is implemented with that
+> > > > assumption. If difference type of memory shares the same zone, it easily
+> > > > causes the problem and CMA problems are the such case.
+> > > 
+> > > But this is not any different from the highmem vs. lowmem problems we
+> > > already have, no? I have looked at your example in the cover where you
+> > > mention utilization and the reclaim problems. With the node reclaim we
+> > > will have pages from all zones on the same LRU(s). isolate_lru_pages
+> > > will skip those from ZONE_CMA because their zone_idx is higher than
+> > > gfp_idx(GFP_KERNEL). The same could be achieved by an explicit check for
+> > > the pageblock migrate type. So the zone doesn't really help much. Or is
+> > > there some aspect that I am missing?
+> > 
+> > Your understanding is correct. It can archieved by an explict check
+> > for migratetype. And, this is the main reason that we should avoid
+> > such approach.
+> > 
+> > With ZONE approach, all these things are done naturally. We don't need
+> > any explicit check to anywhere. We already have a code to skip to
+> > reclaim such pages by checking zone_idx.
+> 
+> Yes, and as we have to filter pages anyway doing so for cma blocks
+> doesn't sound overly burdensome from the maintenance point of view.
 >  
->  static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
->  {
-> -	return 1;
-> +	return (pfn << PAGE_SHIFT) + size <= __pa(high_memory);
->  }
+> > However, with MIGRATETYPE approach, all these things *cannot* be done
+> > naturally. We need extra checks to all the places (allocator fast
+> > path, reclaim path, compaction, etc...). It is really error-prone and
+> > it already causes many problems due to this aspect. For the
+> > performance wise, this approach is also bad since it requires to check
+> > migratetype for each pages.
+> > 
+> > Moreover, even if we adds extra checks, things cannot be easily
+> > perfect.
+> 
+> I see this point and I agree that using a specific zone might be a
+> _nicer_ solution in the end but you have to consider another aspects as
+> well. The main one I am worried about is a long term maintainability.
+> We are really out of page flags and consuming one for a rather specific
+> usecase is not good. Look at ZONE_DMA. I am pretty sure that almost
+> no sane HW needs 16MB zone anymore, yet we have hard time to get rid
+> of it and so we have that memory laying around unused all the time
+> and blocking one page flag bit. CMA falls into a similar category
+> AFAIU. I wouldn't be all that surprised if a future HW will not need CMA
+> allocations in few years, yet we will have to fight to get rid of it
+> like we do with ZONE_DMA. And not only that. We will also have to fight
+> finding page flags for other more general usecases in the meantime.
+
+This maintenance problem is inherent. This problem exists even if we
+uses MIGRATETYPE approach. We cannot remove many hooks for CMA if a
+future HW will not need CMA allocation in few years. The only
+difference is that one takes single zone bit only for CMA user and the
+other approach takes many hooks that we need to take care about it all
+the time.
+
+> 
+> > See 3) Atomic allocation failure problem. It's inherent
+> > problem if we have different types of memory in a single zone.
+> > We possibly can make things perfect even with MIGRATETYPE approach,
+> > however, it requires additional checks in hotpath than current. It's
+> > expensive and undesirable. It will make future maintenance of MM code
+> > much difficult.
+> 
+> I believe that the overhead in the hot path is not such a big deal. We
+> have means to make it 0 when CMA is not used by jumplabels. I assume
+> that the vast majority of systems will not use CMA. Those systems which
+> use CMA should be able to cope with some slight overhead IMHO.
+
+Please don't underestimate number of CMA user. Most of android device
+uses CMA. So, there would be more devices using CMA than the server
+not using CMA. They also have a right to experience the best performance.
+
+> 
+> I agree that the code maintenance cost is not free. And that is a valid
+> concern. CMA maintenance will not be for free in either case, though (if
+> for nothing else the page flags space mentioned above). Let's see what
+> what this means for mm/page_alloc.c
+> 
+>  mm/page_alloc.c | 220 ++++++++++++++++++++++++++++----------------------------
+>  1 file changed, 109 insertions(+), 111 deletions(-)
+> 
+> Not very convincing at first glance but this can be quite misleading as
+> you have already mentioned because you have moved a lot of code to to
+> init path. So let's just focus on the allocator hot paths
+> 
+> @@ -800,7 +805,7 @@ static inline void __free_one_page(struct page *page,
+>  
+>  	VM_BUG_ON(migratetype == -1);
+>  	if (likely(!is_migrate_isolate(migratetype)))
+> -		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+> +		__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
+>  
+>  	VM_BUG_ON_PAGE(pfn & ((1 << order) - 1), page);
+>  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
+> @@ -1804,25 +1831,11 @@ static int fallbacks[MIGRATE_TYPES][4] = {
+>  	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_TYPES },
+>  	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_TYPES },
+>  	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_TYPES },
+> -#ifdef CONFIG_CMA
+> -	[MIGRATE_CMA]         = { MIGRATE_TYPES }, /* Never used */
+> -#endif
+>  #ifdef CONFIG_MEMORY_ISOLATION
+>  	[MIGRATE_ISOLATE]     = { MIGRATE_TYPES }, /* Never used */
 >  #endif
+>  };
 >  
+> -#ifdef CONFIG_CMA
+> -static struct page *__rmqueue_cma_fallback(struct zone *zone,
+> -					unsigned int order)
+> -{
+> -	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
+> -}
+> -#else
+> -static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
+> -					unsigned int order) { return NULL; }
+> -#endif
+> -
+>  /*
+>   * Move the free pages in a range to the free lists of the requested type.
+>   * Note that start_page and end_pages are not aligned on a pageblock
+> @@ -2090,8 +2103,7 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+>  
+>  	/* Yoink! */
+>  	mt = get_pageblock_migratetype(page);
+> -	if (!is_migrate_highatomic(mt) && !is_migrate_isolate(mt)
+> -	    && !is_migrate_cma(mt)) {
+> +	if (!is_migrate_highatomic(mt) && !is_migrate_isolate(mt)) {
+>  		zone->nr_reserved_highatomic += pageblock_nr_pages;
+>  		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+>  		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC, NULL);
+> @@ -2235,13 +2247,8 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+>  
+>  retry:
+>  	page = __rmqueue_smallest(zone, order, migratetype);
+> -	if (unlikely(!page)) {
+> -		if (migratetype == MIGRATE_MOVABLE)
+> -			page = __rmqueue_cma_fallback(zone, order);
+> -
+> -		if (!page && __rmqueue_fallback(zone, order, migratetype))
+> -			goto retry;
+> -	}
+> +	if (unlikely(!page) && __rmqueue_fallback(zone, order, migratetype))
+> +		goto retry;
+>  
+>  	trace_mm_page_alloc_zone_locked(page, order, migratetype);
+>  	return page;
+> @@ -2283,9 +2290,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  			list_add_tail(&page->lru, list);
+>  		list = &page->lru;
+>  		alloced++;
+> -		if (is_migrate_cma(get_pcppage_migratetype(page)))
+> -			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+> -					      -(1 << order));
+>  	}
+>  
+>  	/*
+> @@ -2636,10 +2640,10 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>  		 * exists.
+>  		 */
+>  		watermark = min_wmark_pages(zone) + (1UL << order);
+> -		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
+> +		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+>  			return 0;
+>  
+> -		__mod_zone_freepage_state(zone, -(1UL << order), mt);
+> +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+>  	}
+>  
+>  	/* Remove page from free list */
+> @@ -2655,8 +2659,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>  		struct page *endpage = page + (1 << order) - 1;
+>  		for (; page < endpage; page += pageblock_nr_pages) {
+>  			int mt = get_pageblock_migratetype(page);
+> -			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
+> -			    && !is_migrate_highatomic(mt))
+> +			if (!is_migrate_isolate(mt) &&
+> +				!is_migrate_highatomic(mt))
+>  				set_pageblock_migratetype(page,
+>  							  MIGRATE_MOVABLE);
+>  		}
+> @@ -2783,8 +2787,7 @@ struct page *rmqueue(struct zone *preferred_zone,
+>  	spin_unlock(&zone->lock);
+>  	if (!page)
+>  		goto failed;
+> -	__mod_zone_freepage_state(zone, -(1 << order),
+> -				  get_pcppage_migratetype(page));
+> +	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+>  
+>  	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+>  	zone_statistics(preferred_zone, zone);
+> @@ -2907,12 +2910,6 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+>  	else
+>  		min -= min / 4;
+>  
+> -#ifdef CONFIG_CMA
+> -	/* If allocation can't use CMA areas don't use free CMA pages */
+> -	if (!(alloc_flags & ALLOC_CMA))
+> -		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+> -#endif
+> -
+>  	/*
+>  	 * Check watermarks for an order-0 allocation request. If these
+>  	 * are not met, then a high-order request also cannot go ahead
+> @@ -2940,13 +2937,6 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+>  			if (!list_empty(&area->free_list[mt]))
+>  				return true;
+>  		}
+> -
+> -#ifdef CONFIG_CMA
+> -		if ((alloc_flags & ALLOC_CMA) &&
+> -		    !list_empty(&area->free_list[MIGRATE_CMA])) {
+> -			return true;
+> -		}
+> -#endif
+>  	}
+>  	return false;
+>  }
+> @@ -2962,13 +2952,6 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
+>  		unsigned long mark, int classzone_idx, unsigned int alloc_flags)
+>  {
+>  	long free_pages = zone_page_state(z, NR_FREE_PAGES);
+> -	long cma_pages = 0;
+> -
+> -#ifdef CONFIG_CMA
+> -	/* If allocation can't use CMA areas don't use free CMA pages */
+> -	if (!(alloc_flags & ALLOC_CMA))
+> -		cma_pages = zone_page_state(z, NR_FREE_CMA_PAGES);
+> -#endif
+>  
+>  	/*
+>  	 * Fast check for order-0 only. If this fails then the reserves
+> @@ -2977,7 +2960,7 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
+>  	 * the caller is !atomic then it'll uselessly search the free
+>  	 * list. That corner case is then slower but it is harmless.
+>  	 */
+> -	if (!order && (free_pages - cma_pages) > mark + z->lowmem_reserve[classzone_idx])
+> +	if (!order && free_pages > mark + z->lowmem_reserve[classzone_idx])
+>  		return true;
+>  
+>  	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+> @@ -3547,10 +3530,6 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+>  	} else if (unlikely(rt_task(current)) && !in_interrupt())
+>  		alloc_flags |= ALLOC_HARDER;
+>  
+> -#ifdef CONFIG_CMA
+> -	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+> -		alloc_flags |= ALLOC_CMA;
+> -#endif
+>  	return alloc_flags;
+>  }
+>  
+> @@ -3972,9 +3951,6 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+>  	if (should_fail_alloc_page(gfp_mask, order))
+>  		return false;
+>  
+> -	if (IS_ENABLED(CONFIG_CMA) && ac->migratetype == MIGRATE_MOVABLE)
+> -		*alloc_flags |= ALLOC_CMA;
+> -
+>  	return true;
+>  }
+>  
+> This looks like a nice clean up. Those ifdefs are ugly as hell. One
+> could argue that some of that could be cleaned up by simply adding some
+> helpers (with a jump label to reduce the overhead), though. But is this
+> really strong enough reason to bring the whole zone in? I am not really
+> convinced to be honest.
 
+Please don't underestimate the benefit of this patchset.
+I have said that we need *more* hooks to fix all the problems.
+
+And, please think that this code removal is not only code removal but
+also concept removal. With this removing, we don't need to consider
+ALLOC_CMA for alloc_flags when calling zone_watermark_ok(). There are
+many bugs on it and it still remains. We don't need to consider
+pageblock migratetype when handling pageblock migratetype. We don't
+need to take a great care about calculating the number of CMA
+freepages.
+
+>  
+> [...]
+> 
+> > > Please do _not_ take this as a NAK from me. At least not at this time. I
+> > > am still trying to understand all the consequences but my intuition
+> > > tells me that building on top of highmem like approach will turn out to
+> > > be problematic in future (as we have already seen with the highmem and
+> > > movable zones) so this needs a very prudent consideration.
+> > 
+> > I can understand that you are prudent to this issue. However, it takes more
+> > than two years and many people already expressed that ZONE approach is the
+> > way to go.
+> 
+> I can see a single Acked-by and one Reviewed-by. It would be much more
+> convincing to see much larger support. Do not take me wrong I am not
+> trying to undermine the feedback so far but we should be clear about one
+> thing. CMA is mostly motivated by the industry which tries to overcome
+> HW limitations which can change in future very easily. I would rather
+> see good enough solution for something like that than a nicer solution
+> which is pushing additional burden on more general usecases.
+
+First of all, current MIGRATETYPE approach isn't good enough to me.
+They caused too many problems and there are many remanining problems.
+It will causes maintenance issue for a long time.
+
+And, although good enough solution can be better than nicer solution
+in some cases, it looks like current situation isn't that case.
+There is a single reason, saving page flag bit, to support good enough
+solution.
+
+I'd like to ask reversly. Is this a enough reason to make CMA user to
+suffer from bugs? Is it a enough reason to maintain such dirty and
+hard maintainable code, and to hurt other MM devepoler's development
+performance? We need a great care on handling pageblock migratetype,
+accounting freepage, reclaiming the allocated page. It would affect
+many developers.
+
+> 
+> That being said, I would like to see a much larger consensus in the MM
+> community before a new zone is merged. I am staying very skeptical this
+> is the right direction though.
+
+As you know, CMA is actively used in industry and they don't review
+the patch in public mailing list. Moreover, there is no interest on
+CMA by core MM developers. So, I think that 1 acked-by and 1
+reviewed-by is a great agreement. I and they are most of developers
+who have interest on CMA in MM community.
+
+Anyway, AFAIK, following people are in favor of this patchset.
+If I am wrong, please let me know.
+
+Minchan Kim <minchan@kernel.org>
+Laura Abbot <lauraa@codeaurora.org>
+Bob Liu <liubo95@huawei.com>
+
+As you know (?), Minchan and Laura are also the core developers to CMA
+topic.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
