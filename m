@@ -1,66 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D4826B02C4
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 16:41:25 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 123so46636118pge.14
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:41:25 -0700 (PDT)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id x130si447124pfd.326.2017.05.02.13.41.24
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 088226B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 16:54:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id t82so2966143pfj.7
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:54:21 -0700 (PDT)
+Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
+        by mx.google.com with ESMTPS id d17si2654020pgn.11.2017.05.02.13.54.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 13:41:24 -0700 (PDT)
-Received: by mail-pf0-x232.google.com with SMTP id e64so2509822pfd.1
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:41:24 -0700 (PDT)
-Date: Tue, 2 May 2017 13:41:23 -0700 (PDT)
+        Tue, 02 May 2017 13:54:20 -0700 (PDT)
+Received: by mail-pg0-x22a.google.com with SMTP id y4so61870811pge.0
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:54:20 -0700 (PDT)
+Date: Tue, 2 May 2017 13:54:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file
- is low
-In-Reply-To: <20170502080246.GD14593@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1705021331450.116499@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com> <20170418013659.GD21354@bbox> <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com> <20170419001405.GA13364@bbox> <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
- <20170420060904.GA3720@bbox> <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com> <20170502080246.GD14593@dhcp22.suse.cz>
+Subject: Re: [RESENT PATCH] x86/mem: fix the offset overflow when read/write
+ mem
+In-Reply-To: <1493293775-57176-1-git-send-email-zhongjiang@huawei.com>
+Message-ID: <alpine.DEB.2.10.1705021350510.116499@chino.kir.corp.google.com>
+References: <1493293775-57176-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: zhongjiang <zhongjiang@huawei.com>, Bjorn Helgaas <bhelgaas@google.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: Rich Felker <dalias@libc.org>, Andrew Morton <akpm@linux-foundation.org>, arnd@arndb.de, hannes@cmpxchg.org, kirill@shutemov.name, mgorman@techsingularity.net, hughd@google.com, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2 May 2017, Michal Hocko wrote:
+On Thu, 27 Apr 2017, zhongjiang wrote:
 
-> I have already asked and my questions were ignored. So let me ask again
-> and hopefuly not get ignored this time. So Why do we need a different
-> criterion on anon pages than file pages?
-
-The preference in get_scan_count() as already implemented is to reclaim 
-from file pages if there is enough memory on the inactive list to reclaim.  
-That is unchanged with this patch.
-
-> I do agree that blindly
-> scanning anon pages when file pages are low is very suboptimal but this
-> adds yet another heuristic without _any_ numbers. Why cannot we simply
-> treat anon and file pages equally? Something like the following
+> From: zhong jiang <zhongjiang@huawei.com>
 > 
-> 	if (pgdatfile + pgdatanon + pgdatfree > 2*total_high_wmark) {
-> 		scan_balance = SCAN_FILE;
-> 		if (pgdatfile < pgdatanon)
-> 			scan_balance = SCAN_ANON;
-> 		goto out;
+> Recently, I found the following issue, it will result in the panic.
+> 
+> [  168.739152] mmap1: Corrupted page table at address 7f3e6275a002
+> [  168.745039] PGD 61f4a1067
+> [  168.745040] PUD 61ab19067
+> [  168.747730] PMD 61fb8b067
+> [  168.750418] PTE 8000100000000225
+> [  168.753109]
+> [  168.757795] Bad pagetable: 000d [#1] SMP
+> [  168.761696] Modules linked in: intel_powerclamp coretemp kvm_intel kvm irqbypass crct10dif_pclmul crc32_pclmul ghash_clmulni_intel pcbc aesni_intel crypto_simd iTCO_wdt glue_helper cryptd sg iTCO_vendor_support i7core_edac edac_core shpchp lpc_ich i2c_i801 pcspkr mfd_core acpi_cpufreq ip_tables xfs libcrc32c sd_mod igb ata_generic ptp pata_acpi pps_core mptsas ata_piix scsi_transport_sas i2c_algo_bit libata mptscsih i2c_core serio_raw crc32c_intel bnx2 mptbase dca dm_mirror dm_region_hash dm_log dm_mod
+> [  168.805983] CPU: 15 PID: 10369 Comm: mmap1 Not tainted 4.11.0-rc2-327.28.3.53.x86_64+ #345
+> [  168.814202] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285          /BC11BTSA              , BIOS CTSAV036 04/27/2011
+> [  168.825704] task: ffff8806207d5200 task.stack: ffffc9000c340000
+> [  168.831592] RIP: 0033:0x7f3e622c5360
+> [  168.835147] RSP: 002b:00007ffe2bb7a098 EFLAGS: 00010203
+> [  168.840344] RAX: 00007ffe2bb7a0c0 RBX: 0000000000000000 RCX: 00007f3e6275a000
+> [  168.847439] RDX: 00007f3e622c5360 RSI: 00007f3e6275a000 RDI: 00007ffe2bb7a0c0
+> [  168.854535] RBP: 00007ffe2bb7a4e0 R08: 00007f3e621c3d58 R09: 000000000000002d
+> [  168.861632] R10: 00007ffe2bb79e20 R11: 00007f3e622fbcb0 R12: 00000000004005d0
+> [  168.868728] R13: 00007ffe2bb7a5c0 R14: 0000000000000000 R15: 0000000000000000
+> [  168.875825] FS:  00007f3e62752740(0000) GS:ffff880627bc0000(0000) knlGS:0000000000000000
+> [  168.883870] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  168.889583] CR2: 00007f3e6275a002 CR3: 0000000622845000 CR4: 00000000000006e0
+> [  168.896680] RIP: 0x7f3e622c5360 RSP: 00007ffe2bb7a098
+> [  168.901713] ---[ end trace ef98fa9f2a01cbc6 ]---
+> [  168.90630 arch/x86/kernel/smp.c:127 native_smp_send_reschedule+0x3f/0x50
+> [  168.935410] Modules linked in: intel_powerclamp coretemp kvm_intel kvm irqbypass crct10dif_pclmul crc32_pclmul ghash_clmulni_intel pcbc aesni_intel crypto_simd iTCO_wdt glue_helper cryptd sg iTCO_vendor_support i7core_edac edac_core shpchp lpc_ich i2c_i801 pcspkr mfd_core acpi_cpufreq ip_tables xfs libcrc32c sd_mod igb ata_generic ptp pata_acpi pps_core mptsas ata_piix scsi_transport_sas i2c_algo_bit libata mptscsih i2c_core serio_raw crc32c_intel bnx2 mptbase dca dm_mirror dm_region_hash dm_log dm_mod
+> [  168.979686] CPU: 15 PID: 10369 Comm: mmap1 Tainted: G      D         4.11.0-rc2-327.28.3.53.x86_64+ #345
+> [  168.989114] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285          /BC11BTSA              , BIOS CTSAV036 04/27/2011
+> [  169.000616] Call Trace:
+> [  169.003049]  <IRQ>
+> [  169.005050]  dump_stack+0x63/0x84
+> [  169.008348]  __warn+0xd1/0xf0
+> [  169.011297]  warn_slowpath_null+0x1d/0x20
+> [  169.015282]  native_smp_send_reschedule+0x3f/0x50
+> [  169.019961]  resched_curr+0xa1/0xc0
+> [  169.023428]  check_preempt_curr+0x70/0x90
+> [  169.027415]  ttwu_do_wakeup+0x1e/0x160
+> [  169.031142]  ttwu_do_activate+0x77/0x80
+> [  169.034956]  try_to_wake_up+0x1c3/0x430
+> [  169.038771]  default_wake_function+0x12/0x20
+> [  169.043019]  __wake_up_common+0x55/0x90
+> [  169.046833]  __wake_up_locked+0x13/0x20
+> [  169.050649]  ep_poll_callback+0xbb/0x240
+> [  169.054550]  __wake_up_common+0x55/0x90
+> [  169.058363]  __wake_up+0x39/0x50
+> [  169.061574]  wake_up_klogd_work_func+0x40/0x60
+> [  169.065994]  irq_work_run_list+0x4d/0x70
+> [  169.069895]  irq_work_tick+0x40/0x50
+> [  169.073452]  update_process_times+0x42/0x60
+> [  169.077612]  tick_periodic+0x2b/0x80
+> [  169.081166]  tick_handle_periodic+0x25/0x70
+> [  169.085326]  local_apic_timer_interrupt+0x35/0x60
+> [  169.090004]  smp_apic_timer_interrupt+0x38/0x50
+> [  169.094507]  apic_timer_interrupt+0x93/0xa0
+> [  169.098667] RIP: 0010:panic+0x1f5/0x239
+> [  169.102480] RSP: 0000:ffffc9000c343dd8 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff10
+> [  169.110010] RAX: 0000000000000034 RBX: 0000000000000000 RCX: 0000000000000006
+> [  169.117106] RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffff880627bcdfe0
+> [  169.124201] RBP: ffffc9000c343e48 R08: 00000000fffffffe R09: 0000000000000395
+> [  169.131298] R10: 0000000000000005 R11: 0000000000000394 R12: ffffffff81a0c475
+> [  169.138395] R13: 0000000000000000 R14: 0000000000000000 R15: 000000000000000d
+> [  169.145491]  </IRQ>
+> [  169.147578]  ? panic+0x1f1/0x239
+> [  169.150789]  oops_end+0xb8/0xd0
+> [  169.153910]  pgtable_bad+0x8a/0x95
+> [  169.157294]  __do_page_fault+0x3aa/0x4a0
+> [  169.161194]  do_page_fault+0x30/0x80
+> [  169.164750]  ? do_syscall_64+0x175/0x180
+> [  169.168649]  page_fault+0x28/0x30
+> 
+> the following case can reproduce the issue.
+> 
+> 	int  mem_fd = 0;
+> 	char rw_buf[1024];
+> 	unsigned char * map_base_s;
+> 	unsigned long show_addr = 0x100000000000;
+> 	unsigned long show_len  = 0x10;
+> 
+> 	if(argc !=2 )
+> 	{
+> 		printf( "%s show_addr\n", argv[0] );
+> 		return 0;
+> 	}
+> 	else
+> 	{
+> 		char *stop;
+> 		show_addr = strtoul( argv[1], &stop, 0 );
+> 		printf("show_addr= 0x%lu\n", show_addr );
 > 	}
 > 
+> 	mem_fd = open(DEV_NAME, O_RDONLY);
+>     if (mem_fd == -1)
+>     {
+>         printf("open %s failed.", DEV_NAME);
+>         return 0;
+>     }
+> 
+> 	map_base_s = mmap(NULL, show_len, PROT_READ, MAP_SHARED, mem_fd, show_addr);
+> 	if ((long)map_base_s == -1)
+> 	{
+> 		printf("input address map to user space fail!\n");
+> 		return 0;
+> 	}
+> 	else
+>     {
+>         printf("mmap successfull!\n");
+>     }
+> 
+> 	memcpy( rw_buf,  map_base_s, show_len );
+> 
+> The pgoff is enough large, it exceed the size of the real memory.
+> and the mmap can return the success.
+> 
+> I fix it by checking the conditions. it can make it suitable for
+> the mapped and use.
+> 
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  drivers/char/mem.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+> index 7e4a9d1..3a765e02 100644
+> --- a/drivers/char/mem.c
+> +++ b/drivers/char/mem.c
+> @@ -55,7 +55,7 @@ static inline int valid_phys_addr_range(phys_addr_t addr, size_t count)
+>  
+>  static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
+>  {
+> -	return 1;
+> +	return (pfn << PAGE_SHIFT) + size <= __pa(high_memory);
+>  }
+>  #endif
+>  
 
-This would be substantially worse than the current code because it 
-thrashes the anon lru when anon out numbers file pages rather than at the 
-point we fall under the high watermarks for all eligible zones.  If you 
-tested your suggestion, you could see gigabytes of memory left untouched 
-on the file lru.  Anonymous memory is more probable to be part of the 
-working set.
+I suppose you are correct that there should be some sanity checking on the 
+size used for the mmap().  Are you using the default size in your test 
+program or are you passing it a different size to induce the panic?
 
-> Also it would help to describe the workload which can trigger this
-> behavior so that we can compare numbers before and after this patch.
+There's also the issue of architectures that override this function, such 
+as on sh that simply returns 1, so I think that would need to be addressed 
+as well.
 
-Any workload that fills system RAM with anonymous memory that cannot be 
-reclaimed will thrash the anon lru without this patch.
+Let's add a few people to the cc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
