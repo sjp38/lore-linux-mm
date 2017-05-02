@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4146B02EE
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 03:31:43 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p134so796858wmg.3
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 00:31:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1FF336B02EE
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 03:44:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p133so806077wmd.17
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 00:44:38 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u11si20341775wru.73.2017.05.02.00.31.42
+        by mx.google.com with ESMTPS id k6si14427264wre.202.2017.05.02.00.44.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 00:31:42 -0700 (PDT)
-Date: Tue, 2 May 2017 09:31:39 +0200
+        Tue, 02 May 2017 00:44:37 -0700 (PDT)
+Date: Tue, 2 May 2017 09:44:33 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: 4.11.0-rc8+/x86_64 desktop lockup until applications closed
-Message-ID: <20170502073138.GA14593@dhcp22.suse.cz>
-References: <md5:RQiZYAYNN/yJzTrY48XZ7w==>
- <ccd5aac8-b24a-713a-db54-c35688905595@internode.on.net>
- <20170427092636.GD4706@dhcp22.suse.cz>
- <99a78105-de58-a5e1-5191-d5f4de7ed5f4@internode.on.net>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+Message-ID: <20170502074432.GB14593@dhcp22.suse.cz>
+References: <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+ <20161123063410.GB2864@dhcp22.suse.cz>
+ <20161128072315.GC14788@dhcp22.suse.cz>
+ <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
+ <20161129160751.GC9796@dhcp22.suse.cz>
+ <20161129163406.treuewaqgt4fy4kh@merlins.org>
+ <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
+ <20161129174019.fywddwo5h4pyix7r@merlins.org>
+ <20161129230135.GM7179@merlins.org>
+ <20170502041235.zqmywvj5tiiom3jk@merlins.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <99a78105-de58-a5e1-5191-d5f4de7ed5f4@internode.on.net>
+In-Reply-To: <20170502041235.zqmywvj5tiiom3jk@merlins.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arthur Marsh <arthur.marsh@internode.on.net>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Marc MERLIN <marc@merlins.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Sun 30-04-17 15:33:50, Arthur Marsh wrote:
+On Mon 01-05-17 21:12:35, Marc MERLIN wrote:
+> Howdy,
 > 
-> 
-> Michal Hocko wrote on 27/04/17 18:56:
-> >On Thu 27-04-17 18:36:38, Arthur Marsh wrote:
-> >[...]
-> >>[55363.482931] QXcbEventReader: page allocation stalls for 10048ms, order:0,
-> >>mode:0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null)
-> >
-> >Are there more of these stalls?
-> 
-> I haven't seen the same kinds of logging in dmesg, but a few minutes ago I
-> did see that the desktop had locked up and after remotely logging in and
-> doing a kill -HUP of iceweasel/firefox, saw this:
-> 
-> [92311.944443] swap_info_get: Bad swap offset entry 000ffffd
-> [92311.944449] swap_info_get: Bad swap offset entry 000ffffe
-> [92311.944451] swap_info_get: Bad swap offset entry 000fffff
+> Well, sadly, the problem is more or less back is 4.11.0. The system doesn't really 
+> crash but it goes into an infinite loop with
+> [34776.826800] BUG: workqueue lockup - pool cpus=6 node=0 flags=0x0 nice=0 stuck for 33s!
+> More logs: https://pastebin.com/YqE4riw0
 
-Pte swap entry seem to be clobbered. That suggests a deeper problem and
-a memory corruption.
+I am seeing a lot of traces where tasks is waiting for an IO. I do not
+see any OOM report there. Why do you believe this is an OOM killer
+issue?
 -- 
 Michal Hocko
 SUSE Labs
