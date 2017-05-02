@@ -1,50 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D6656B02F2
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:16:25 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q4so4285372pga.4
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:16:25 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id n11si14647337pgd.201.2017.05.02.06.16.24
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B39526B02F2
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:23:00 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o36so33857792qtb.2
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:23:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 26si19165912qkt.215.2017.05.02.06.22.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 06:16:24 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id b23so17226263pfc.0
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:16:24 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm/nobootmem: return 0 when start_pfn equals end_pfn
-Date: Tue,  2 May 2017 21:11:15 +0800
-Message-Id: <20170502131115.6650-1-richard.weiyang@gmail.com>
+        Tue, 02 May 2017 06:22:59 -0700 (PDT)
+Date: Tue, 2 May 2017 09:22:53 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v2] mm, zone_device: replace {get,
+ put}_zone_device_page() with a single reference
+Message-ID: <20170502132252.GB20927@redhat.com>
+References: <1579714997.4315035.1493402406629.JavaMail.zimbra@redhat.com>
+ <CAPcyv4hvBKG8t3e3QvUnmkaopeM8eTniz5JPVkrZ5Puu5eaViw@mail.gmail.com>
+ <1295710462.4327805.1493406971970.JavaMail.zimbra@redhat.com>
+ <CAPcyv4i+iPm=hBviOYABaroz_JJYVy8Qja8Ka=-_uAQNnGjpeg@mail.gmail.com>
+ <20170428193305.GA3912@redhat.com>
+ <20170429101726.cdczojcjjupb7myy@node.shutemov.name>
+ <20170430231421.GA15163@redhat.com>
+ <20170501102359.abopw7hpd4eb6x2w@node.shutemov.name>
+ <20170501135545.GA16772@redhat.com>
+ <20170502113746.5ybuix3lnvlk7kxt@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170502113746.5ybuix3lnvlk7kxt@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-When start_pfn equals end_pfn, __free_pages_memory() takes no effect and
-__free_memory_core() will finally return (end_pfn - start_pfn) = 0.
+On Tue, May 02, 2017 at 02:37:46PM +0300, Kirill A. Shutemov wrote:
+> On Mon, May 01, 2017 at 09:55:48AM -0400, Jerome Glisse wrote:
+> > On Mon, May 01, 2017 at 01:23:59PM +0300, Kirill A. Shutemov wrote:
+> > > On Sun, Apr 30, 2017 at 07:14:24PM -0400, Jerome Glisse wrote:
+> > > > On Sat, Apr 29, 2017 at 01:17:26PM +0300, Kirill A. Shutemov wrote:
+> > > > > On Fri, Apr 28, 2017 at 03:33:07PM -0400, Jerome Glisse wrote:
+> > > > > > On Fri, Apr 28, 2017 at 12:22:24PM -0700, Dan Williams wrote:
+> > > > > > > Are you sure about needing to hook the 2 -> 1 transition? Could we
+> > > > > > > change ZONE_DEVICE pages to not have an elevated reference count when
+> > > > > > > they are created so you can keep the HMM references out of the mm hot
+> > > > > > > path?
+> > > > > > 
+> > > > > > 100% sure on that :) I need to callback into driver for 2->1 transition
+> > > > > > no way around that. If we change ZONE_DEVICE to not have an elevated
+> > > > > > reference count that you need to make a lot more change to mm so that
+> > > > > > ZONE_DEVICE is never use as fallback for memory allocation. Also need
+> > > > > > to make change to be sure that ZONE_DEVICE page never endup in one of
+> > > > > > the path that try to put them back on lru. There is a lot of place that
+> > > > > > would need to be updated and it would be highly intrusive and add a
+> > > > > > lot of special cases to other hot code path.
+> > > > > 
+> > > > > Could you explain more on where the requirement comes from or point me to
+> > > > > where I can read about this.
+> > > > > 
+> > > > 
+> > > > HMM ZONE_DEVICE pages are use like other pages (anonymous or file back page)
+> > > > in _any_ vma. So i need to know when a page is freed ie either as result of
+> > > > unmap, exit or migration or anything that would free the memory. For zone
+> > > > device a page is free once its refcount reach 1 so i need to catch refcount
+> > > > transition from 2->1
+> > > 
+> > > What if we would rework zone device to have pages with refcount 0 at
+> > > start?
+> > 
+> > That is a _lot_ of work from top of my head because it would need changes
+> > to a lot of places and likely more hot code path that simply adding some-
+> > thing to put_page() note that i only need something in put_page() i do not
+> > need anything in the get page path. Is adding a conditional branch for
+> > HMM pages in put_page() that much of a problem ?
+> 
+> Well, it gets inlined everywhere. Removing zone_device code from
+> get_page() and put_page() saved non-trivial ~140k in vmlinux for
+> allyesconfig.
+> 
+> Re-introducing part this bloat would be unfortunate.
+> 
+> > > > This is the only way i can inform the device that the page is now free. See
+> > > > 
+> > > > https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-v21&id=52da8fe1a088b87b5321319add79e43b8372ed7d
+> > > > 
+> > > > There is _no_ way around that.
+> > > 
+> > > I'm still not convinced that it's impossible.
+> > > 
+> > > Could you describe lifecycle for pages in case of HMM?
+> > 
+> > Process malloc something, end it over to some function in the program
+> > that use the GPU that function call GPU API (OpenCL, CUDA, ...) that
+> > trigger a migration to device memory.
+> > 
+> > So in the kernel you get a migration like any existing migration,
+> > original page is unmap, if refcount is all ok (no pin) then a device
+> > page is allocated and thing are migrated to device memory.
+> > 
+> > What happen after is unknown. Either userspace/kernel driver decide
+> > to migrate back to system memory, either there is an munmap, either
+> > there is a CPU page fault, ... So from that point on the device page
+> > as the exact same life as a regular page.
+> > 
+> > Above i describe the migrate case, but you can also have new memory
+> > allocation that directly allocate device memory. For instance if the
+> > GPU do a page fault on an address that isn't back by anything then
+> > we can directly allocate a device page. No migration involve in that
+> > case.
+> > 
+> > HMM pages are like any other pages in most respect. Exception are:
+> >   - no GUP
+> 
+> Hm. How do you exclude GUP? And why is it required?
 
-This patch returns 0 directly when start_pfn equals end_pfn.
+Well it is not forbiden it just can not happen simply because as device
+memory is not accessible by CPU then the corresponding CPU page table
+entry is a special entry and thus GUP trigger a page fault that migrate
+thing back to regular memory.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/nobootmem.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+The why is simply because we need to always be able to migrate back to
+regular memory as device memory is not accessible by the CPU. So we can
+not allow anyone to pin it.
 
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 487dad610731..36454d0f96ee 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -118,7 +118,7 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
- 	unsigned long end_pfn = min_t(unsigned long,
- 				      PFN_DOWN(end), max_low_pfn);
- 
--	if (start_pfn > end_pfn)
-+	if (start_pfn >= end_pfn)
- 		return 0;
- 
- 	__free_pages_memory(start_pfn, end_pfn);
--- 
-2.11.0
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
