@@ -1,72 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ED88C6B02EE
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 06:44:59 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j127so50035704pgc.10
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 03:44:59 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m80si162819pfa.28.2017.05.02.03.44.58
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C68D6B02EE
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 06:54:44 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p9so81568710pfj.8
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 03:54:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 188si17563945pgj.71.2017.05.02.03.54.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 03:44:59 -0700 (PDT)
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
-References: <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
- <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
- <20161123063410.GB2864@dhcp22.suse.cz>
- <20161128072315.GC14788@dhcp22.suse.cz>
- <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
- <20161129160751.GC9796@dhcp22.suse.cz>
- <20161129163406.treuewaqgt4fy4kh@merlins.org>
- <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
- <20161129174019.fywddwo5h4pyix7r@merlins.org>
- <20161129230135.GM7179@merlins.org>
- <20170502041235.zqmywvj5tiiom3jk@merlins.org>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <29c02986-f065-d3be-f176-0c190a72bc58@I-love.SAKURA.ne.jp>
-Date: Tue, 2 May 2017 19:44:47 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 May 2017 03:54:43 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v42As7b5054476
+	for <linux-mm@kvack.org>; Tue, 2 May 2017 06:54:42 -0400
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a6np1hycm-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 02 May 2017 06:54:42 -0400
+Received: from localhost
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 2 May 2017 20:54:39 +1000
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v42AsUBm49545442
+	for <linux-mm@kvack.org>; Tue, 2 May 2017 20:54:38 +1000
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v42As66V007694
+	for <linux-mm@kvack.org>; Tue, 2 May 2017 20:54:06 +1000
+Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
+References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
+ <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 2 May 2017 16:23:48 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170502041235.zqmywvj5tiiom3jk@merlins.org>
+In-Reply-To: <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Message-Id: <06c4eb97-1545-7958-7694-3645d317666b@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc MERLIN <marc@merlins.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Prakash Sangappa <prakash.sangappa@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2017/05/02 13:12, Marc MERLIN wrote:
-> Well, sadly, the problem is more or less back is 4.11.0. The system doesn't really 
-> crash but it goes into an infinite loop with
-> [34776.826800] BUG: workqueue lockup - pool cpus=6 node=0 flags=0x0 nice=0 stuck for 33s!
+On 05/01/2017 11:30 PM, Prakash Sangappa wrote:
+> Some applications like a database use hugetblfs for performance
+> reasons. Files on hugetlbfs filesystem are created and huge pages
+> allocated using fallocate() API. Pages are deallocated/freed using
+> fallocate() hole punching support that has been added to hugetlbfs.
+> These files are mmapped and accessed by many processes as shared memory.
+> Such applications keep track of which offsets in the hugetlbfs file have
+> pages allocated.
+> 
+> Any access to mapped address over holes in the file, which can occur due
 
-Wow, two of workqueues are reaching max active.
+s/mapped/unmapped/ ^ ?
 
-[34777.202267] workqueue btrfs-endio-write: flags=0xe
-[34777.218313]   pwq 16: cpus=0-7 flags=0x4 nice=0 active=8/8
-[34777.236548]     in-flight: 15168:btrfs_endio_write_helper, 13855:btrfs_endio_write_helper, 3360:btrfs_endio_write_helper, 14241:btrfs_endio_write_helper, 27092:btrfs_endio_write_helper, 15194:btrfs_endio_write_helper, 15169:btrfs_endio_write_helper, 27093:btrfs_endio_write_helper
-[34777.316225]     delayed: btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper, btrfs_endio_write_helper
+> to bugs in the application, is considered invalid and expect the process
+> to simply receive a SIGBUS.  However, currently when a hole in the file is
+> accessed via the mapped address, kernel/mm attempts to automatically
+> allocate a page at page fault time, resulting in implicitly filling the
+> hole
 
-[34777.450684] workqueue bcache: flags=0x8
-[34779.956462]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=256/256
-[34779.978283]     in-flight: 15320:cached_dev_read_done [bcache], 23385:cached_dev_read_done [bcache], 23371:cached_dev_read_done [bcache], 15321:cached_dev_read_done [bcache], 15395:cached_dev_read_done [bcache], 11101:cached_dev_read_done [bcache], 15300:cached_dev_read_done [bcache], 23349:cached_dev_read_done [bcache], 23425:cached_dev_read_done [bcache], 23399:cached_dev_read_done [bcache], 15293:cached_dev_read_done [bcache], 20529:cached_dev_read_done [bcache], 15402:cached_dev_read_done [bcache], 23422:cached_dev_read_done [bcache], 23417:cached_dev_read_done [bcache], 23409:cached_dev_read_done [bcache], 20539:cached_dev_read_done [bcache], 23431:cached_dev_read_done [bcache], 20544:cached_dev_read_done [bcache], 15355:cached_dev_read_done [bcache], 11085:cached_dev_read_done [bcache], 6511:cached_dev_read_done [bcache]   
+But this is expected when you try to control the file allocation from
+a mapped address. Any changes while walking past or writing the range
+in the memory mapped should reflect exactly in the file on the disk.
+Why its not a valid behavior ?
 
-Googling with btrfs_endio_write_helper shows a stuck report with 4.8-rc5, but
-seems no response ( https://www.spinics.net/lists/linux-btrfs/msg58633.html ).
+> in the file. This may not be the desired behavior for applications like the
+> database that want to explicitly manage page allocations of hugetlbfs
+> files.
+> 
+> This patch adds a new hugetlbfs mount option 'noautofill', to indicate that
+> pages should not be allocated at page fault time when accessed thru mmapped
+> address.
 
-> Any idea what I should do next?
-
-Maybe you can try collecting list of all in-flight allocations with backtraces
-using kmallocwd patches at
-http://lkml.kernel.org/r/1489578541-81526-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-and http://lkml.kernel.org/r/201704272019.JEH26057.SHFOtMLJOOVFQF@I-love.SAKURA.ne.jp
-which also tracks mempool allocations.
-(Well, the
-
--	cond_resched();
-+	//cond_resched();
-
-change in the latter patch would not be preferable.)
+When the page should be allocated for mapping ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
