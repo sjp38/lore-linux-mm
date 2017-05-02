@@ -1,192 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 162CE6B02F2
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 10:45:49 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e64so50647577pfd.3
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:45:49 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id m19si12144005pgk.353.2017.05.02.07.45.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D72D86B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 10:52:02 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s72so49977864pfi.19
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:52:02 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id s11si18268812pgc.140.2017.05.02.07.52.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 07:45:48 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id v14so33553049pfd.3
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:45:48 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH V2 3/3] mm/slub: wrap kmem_cache->cpu_partial in config CONFIG_SLUB_CPU_PARTIAL
-Date: Tue,  2 May 2017 22:45:33 +0800
-Message-Id: <20170502144533.10729-4-richard.weiyang@gmail.com>
-In-Reply-To: <20170502144533.10729-1-richard.weiyang@gmail.com>
-References: <20170502144533.10729-1-richard.weiyang@gmail.com>
+        Tue, 02 May 2017 07:52:01 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id i63so3325083pgd.2
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:52:01 -0700 (PDT)
+Date: Tue, 2 May 2017 23:51:50 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] vmscan: scan pages until it founds eligible pages
+Message-ID: <20170502145150.GA19011@bgram>
+References: <1493700038-27091-1-git-send-email-minchan@kernel.org>
+ <20170502051452.GA27264@bbox>
+ <20170502075432.GC14593@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170502075432.GC14593@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-kmem_cache->cpu_partial is just used when CONFIG_SLUB_CPU_PARTIAL is set,
-so wrap it with config CONFIG_SLUB_CPU_PARTIAL will save some space
-on 32bit arch.
+Hi Michal,
 
-This patch wrap kmem_cache->cpu_partial in config CONFIG_SLUB_CPU_PARTIAL
-and wrap its sysfs too.
+On Tue, May 02, 2017 at 09:54:32AM +0200, Michal Hocko wrote:
+> On Tue 02-05-17 14:14:52, Minchan Kim wrote:
+> > Oops, forgot to add lkml and linux-mm.
+> > Sorry for that.
+> > Send it again.
+> > 
+> > >From 8ddf1c8aa15baf085bc6e8c62ce705459d57ea4c Mon Sep 17 00:00:00 2001
+> > From: Minchan Kim <minchan@kernel.org>
+> > Date: Tue, 2 May 2017 12:34:05 +0900
+> > Subject: [PATCH] vmscan: scan pages until it founds eligible pages
+> > 
+> > On Tue, May 02, 2017 at 01:40:38PM +0900, Minchan Kim wrote:
+> > There are premature OOM happening. Although there are a ton of free
+> > swap and anonymous LRU list of elgible zones, OOM happened.
+> > 
+> > With investigation, skipping page of isolate_lru_pages makes reclaim
+> > void because it returns zero nr_taken easily so LRU shrinking is
+> > effectively nothing and just increases priority aggressively.
+> > Finally, OOM happens.
+> 
+> I am not really sure I understand the problem you are facing. Could you
+> be more specific please? What is your configuration etc...
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+Sure, KVM guest on x86_64, It has 2G memory and 1G swap and configured
+movablecore=1G to simulate highmem zone.
+Workload is a process consumes 2.2G memory and then random touch the
+address space so it makes lots of swap in/out.
 
----
-v2: define slub_cpu_partial() to make code more elegant
----
- include/linux/slub_def.h | 13 +++++++++
- mm/slub.c                | 69 ++++++++++++++++++++++++++----------------------
- 2 files changed, 51 insertions(+), 31 deletions(-)
+> 
+> > balloon invoked oom-killer: gfp_mask=0x17080c0(GFP_KERNEL_ACCOUNT|__GFP_ZERO|__GFP_NOTRACK), nodemask=(null),  order=0, oom_score_adj=0
+> [...]
+> > Node 0 active_anon:1698864kB inactive_anon:261256kB active_file:208kB inactive_file:184kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:532kB dirty:108kB writeback:0kB shmem:172kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+> > DMA free:7316kB min:32kB low:44kB high:56kB active_anon:8064kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:464kB slab_unreclaimable:40kB kernel_stack:0kB pagetables:24kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> > lowmem_reserve[]: 0 992 992 1952
+> > DMA32 free:9088kB min:2048kB low:3064kB high:4080kB active_anon:952176kB inactive_anon:0kB active_file:36kB inactive_file:0kB unevictable:0kB writepending:88kB present:1032192kB managed:1019388kB mlocked:0kB slab_reclaimable:13532kB slab_unreclaimable:16460kB kernel_stack:3552kB pagetables:6672kB bounce:0kB free_pcp:56kB local_pcp:24kB free_cma:0kB
+> > lowmem_reserve[]: 0 0 0 959
+> 
+> Hmm DMA32 has sufficient free memory to allow this order-0 request.
+> Inactive anon lru is basically empty. Why do not we rotate a really
+> large active anon list? Isn't this the primary problem?
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index f882a34bb9aa..d808e8e6293b 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -86,7 +86,9 @@ struct kmem_cache {
- 	int size;		/* The size of an object including meta data */
- 	int object_size;	/* The size of an object without meta data */
- 	int offset;		/* Free pointer offset. */
-+#ifdef CONFIG_SLUB_CPU_PARTIAL
- 	int cpu_partial;	/* Number of per cpu partial objects to keep around */
-+#endif
- 	struct kmem_cache_order_objects oo;
- 
- 	/* Allocation and freeing of slabs */
-@@ -130,6 +132,17 @@ struct kmem_cache {
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- };
- 
-+#ifdef CONFIG_SLUB_CPU_PARTIAL
-+#define slub_cpu_partial(s)		((s)->cpu_partial)
-+#define slub_set_cpu_partial(s, n)		\
-+({						\
-+	slub_cpu_partial(s) = (n);		\
-+})
-+#else
-+#define slub_cpu_partial(s)		(0)
-+#define slub_set_cpu_partial(s, n)
-+#endif // CONFIG_SLUB_CPU_PARTIAL
-+
- #ifdef CONFIG_SYSFS
- #define SLAB_SUPPORTS_SYSFS
- void sysfs_slab_release(struct kmem_cache *);
-diff --git a/mm/slub.c b/mm/slub.c
-index ae6166533261..795112b65c61 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1829,7 +1829,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
- 			stat(s, CPU_PARTIAL_NODE);
- 		}
- 		if (!kmem_cache_has_cpu_partial(s)
--			|| available > s->cpu_partial / 2)
-+			|| available > slub_cpu_partial(s) / 2)
- 			break;
- 
- 	}
-@@ -3410,6 +3410,39 @@ static void set_min_partial(struct kmem_cache *s, unsigned long min)
- 	s->min_partial = min;
- }
- 
-+static void set_cpu_partial(struct kmem_cache *s)
-+{
-+#ifdef CONFIG_SLUB_CPU_PARTIAL
-+	/*
-+	 * cpu_partial determined the maximum number of objects kept in the
-+	 * per cpu partial lists of a processor.
-+	 *
-+	 * Per cpu partial lists mainly contain slabs that just have one
-+	 * object freed. If they are used for allocation then they can be
-+	 * filled up again with minimal effort. The slab will never hit the
-+	 * per node partial lists and therefore no locking will be required.
-+	 *
-+	 * This setting also determines
-+	 *
-+	 * A) The number of objects from per cpu partial slabs dumped to the
-+	 *    per node list when we reach the limit.
-+	 * B) The number of objects in cpu partial slabs to extract from the
-+	 *    per node list when we run out of per cpu objects. We only fetch
-+	 *    50% to keep some capacity around for frees.
-+	 */
-+	if (!kmem_cache_has_cpu_partial(s))
-+		s->cpu_partial = 0;
-+	else if (s->size >= PAGE_SIZE)
-+		s->cpu_partial = 2;
-+	else if (s->size >= 1024)
-+		s->cpu_partial = 6;
-+	else if (s->size >= 256)
-+		s->cpu_partial = 13;
-+	else
-+		s->cpu_partial = 30;
-+#endif
-+}
-+
- /*
-  * calculate_sizes() determines the order and the distribution of data within
-  * a slab object.
-@@ -3568,33 +3601,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
- 	 */
- 	set_min_partial(s, ilog2(s->size) / 2);
- 
--	/*
--	 * cpu_partial determined the maximum number of objects kept in the
--	 * per cpu partial lists of a processor.
--	 *
--	 * Per cpu partial lists mainly contain slabs that just have one
--	 * object freed. If they are used for allocation then they can be
--	 * filled up again with minimal effort. The slab will never hit the
--	 * per node partial lists and therefore no locking will be required.
--	 *
--	 * This setting also determines
--	 *
--	 * A) The number of objects from per cpu partial slabs dumped to the
--	 *    per node list when we reach the limit.
--	 * B) The number of objects in cpu partial slabs to extract from the
--	 *    per node list when we run out of per cpu objects. We only fetch
--	 *    50% to keep some capacity around for frees.
--	 */
--	if (!kmem_cache_has_cpu_partial(s))
--		s->cpu_partial = 0;
--	else if (s->size >= PAGE_SIZE)
--		s->cpu_partial = 2;
--	else if (s->size >= 1024)
--		s->cpu_partial = 6;
--	else if (s->size >= 256)
--		s->cpu_partial = 13;
--	else
--		s->cpu_partial = 30;
-+	set_cpu_partial(s);
- 
- #ifdef CONFIG_NUMA
- 	s->remote_node_defrag_ratio = 1000;
-@@ -3981,7 +3988,7 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
- 	 * Disable empty slabs caching. Used to avoid pinning offline
- 	 * memory cgroups by kmem pages that can be freed.
- 	 */
--	s->cpu_partial = 0;
-+	slub_set_cpu_partial(s, 0);
- 	s->min_partial = 0;
- 
- 	/*
-@@ -4921,7 +4928,7 @@ SLAB_ATTR(min_partial);
- 
- static ssize_t cpu_partial_show(struct kmem_cache *s, char *buf)
- {
--	return sprintf(buf, "%u\n", s->cpu_partial);
-+	return sprintf(buf, "%u\n", slub_cpu_partial(s));
- }
- 
- static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
-@@ -4936,7 +4943,7 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
- 	if (objects && !kmem_cache_has_cpu_partial(s))
- 		return -EINVAL;
- 
--	s->cpu_partial = objects;
-+	slub_set_cpu_partial(s, objects);
- 	flush_all(s);
- 	return length;
- }
--- 
-2.11.0
+It's a side effect by skipping page logic in isolate_lru_pages
+I mentioned above in changelog.
+
+The problem is a lot of anonymous memory in movable zone(ie, highmem)
+and non-small memory in DMA32 zone. In heavy memory pressure,
+requesting a page in GFP_KERNEL triggers reclaim. VM knows inactive list
+is low so it tries to deactivate pages. For it, first of all, it tries
+to isolate pages from active list but there are lots of anonymous pages
+from movable zone so skipping logic in isolate_lru_pages works. With
+the result, isolate_lru_pages cannot isolate any eligible pages so
+reclaim trial is effectively void. It continues to meet OOM.
+
+I'm on long vacation from today so understand if my response is slow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
