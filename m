@@ -1,108 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 583E76B02E1
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:03:32 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g67so13887933wrd.0
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:03:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z57si20256283wrz.83.2017.05.02.06.03.30
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D6656B02F2
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:16:25 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q4so4285372pga.4
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:16:25 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id n11si14647337pgd.201.2017.05.02.06.16.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 06:03:30 -0700 (PDT)
-Date: Tue, 2 May 2017 15:03:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
-Message-ID: <20170502130326.GJ14593@dhcp22.suse.cz>
-References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170411181519.GC21171@dhcp22.suse.cz>
- <20170412013503.GA8448@js1304-desktop>
- <20170413115615.GB11795@dhcp22.suse.cz>
- <20170417020210.GA1351@js1304-desktop>
- <20170424130936.GB1746@dhcp22.suse.cz>
- <20170425034255.GB32583@js1304-desktop>
- <20170427150636.GM4706@dhcp22.suse.cz>
- <32ac1107-14a3-fdff-ad48-0e246fec704f@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <32ac1107-14a3-fdff-ad48-0e246fec704f@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 May 2017 06:16:24 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id b23so17226263pfc.0
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:16:24 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm/nobootmem: return 0 when start_pfn equals end_pfn
+Date: Tue,  2 May 2017 21:11:15 +0800
+Message-Id: <20170502131115.6650-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Tue 02-05-17 10:06:01, Vlastimil Babka wrote:
-> On 04/27/2017 05:06 PM, Michal Hocko wrote:
-> > On Tue 25-04-17 12:42:57, Joonsoo Kim wrote:
-> >> On Mon, Apr 24, 2017 at 03:09:36PM +0200, Michal Hocko wrote:
-> >>> On Mon 17-04-17 11:02:12, Joonsoo Kim wrote:
-> >>>> On Thu, Apr 13, 2017 at 01:56:15PM +0200, Michal Hocko wrote:
-> >>>>> On Wed 12-04-17 10:35:06, Joonsoo Kim wrote:
-> > [...]
-> >>> not for free. For most common configurations where we have ZONE_DMA,
-> >>> ZONE_DMA32, ZONE_NORMAL and ZONE_MOVABLE all the 3 bits are already
-> >>> consumed so a new zone will need a new one AFAICS.
-> >>
-> >> Yes, it requires one more bit for a new zone and it's handled by the patch.
-> > 
-> > I am pretty sure that you are aware that consuming new page flag bits
-> > is usually a no-go and something we try to avoid as much as possible
-> > because we are in a great shortage there. So there really have to be a
-> > _strong_ reason if we go that way. My current understanding that the
-> > whole zone concept is more about a more convenient implementation rather
-> > than a fundamental change which will solve unsolvable problems with the
-> > current approach. More on that below.
-> 
-> I don't see it as such a big issue. It's behind a CONFIG option (so we
-> also don't need the jump labels you suggest later) and enabling it
-> reduces the number of possible NUMA nodes (not page flags). So either
-> you are building a kernel for android phone that needs CMA but will have
-> a single NUMA node, or for a large server with many nodes that won't
-> have CMA. As long as there won't be large servers that need CMA, we
-> should be fine (yes, I know some HW vendors can be very creative, but
-> then it's their problem?).
+When start_pfn equals end_pfn, __free_pages_memory() takes no effect and
+__free_memory_core() will finally return (end_pfn - start_pfn) = 0.
 
-Is this really about Android/UMA systems only? My quick grep seems to disagree
-$ git grep CONFIG_CMA=y
-arch/arm/configs/exynos_defconfig:CONFIG_CMA=y
-arch/arm/configs/imx_v6_v7_defconfig:CONFIG_CMA=y
-arch/arm/configs/keystone_defconfig:CONFIG_CMA=y
-arch/arm/configs/multi_v7_defconfig:CONFIG_CMA=y
-arch/arm/configs/omap2plus_defconfig:CONFIG_CMA=y
-arch/arm/configs/tegra_defconfig:CONFIG_CMA=y
-arch/arm/configs/vexpress_defconfig:CONFIG_CMA=y
-arch/arm64/configs/defconfig:CONFIG_CMA=y
-arch/mips/configs/ci20_defconfig:CONFIG_CMA=y
-arch/mips/configs/db1xxx_defconfig:CONFIG_CMA=y
-arch/s390/configs/default_defconfig:CONFIG_CMA=y
-arch/s390/configs/gcov_defconfig:CONFIG_CMA=y
-arch/s390/configs/performance_defconfig:CONFIG_CMA=y
-arch/s390/defconfig:CONFIG_CMA=y
+This patch returns 0 directly when start_pfn equals end_pfn.
 
-I am pretty sure s390 and ppc support NUMA and aim at supporting really
-large systems. 
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/nobootmem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I can imagine that we could make ZONE_CMA configurable in a way that
-only very well defined use cases would be supported so that we can save
-page flags space. But this alone sounds like a maintainability nightmare
-to me. Especially when I consider ZONE_DMA situation. There is simply
-not an easy way to find out whether my HW really needs DMA zone or
-not. Most probably not but it still is configured and hidden behind
-config ZONE_DMA
-        bool "DMA memory allocation support" if EXPERT
-        default y
-        help
-          DMA memory allocation support allows devices with less than 32-bit
-          addressing to allocate within the first 16MB of address space.
-          Disable if no such devices will be used.
-
-          If unsure, say Y.
-
-Are we really ready to add another thing like that? How are distribution
-kernels going to handle that?
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 487dad610731..36454d0f96ee 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -118,7 +118,7 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
+ 	unsigned long end_pfn = min_t(unsigned long,
+ 				      PFN_DOWN(end), max_low_pfn);
+ 
+-	if (start_pfn > end_pfn)
++	if (start_pfn >= end_pfn)
+ 		return 0;
+ 
+ 	__free_pages_memory(start_pfn, end_pfn);
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
