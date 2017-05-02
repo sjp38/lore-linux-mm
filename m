@@ -1,133 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E44E26B02EE
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 13:51:29 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id k13so62176180pgp.23
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 10:51:29 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id w10si4221218pls.154.2017.05.02.10.51.28
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 80A9A6B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 14:55:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b20so3071377wma.11
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 11:55:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 39si21057502wry.53.2017.05.02.11.55.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 10:51:29 -0700 (PDT)
-Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
-References: <20170419075242.29929-1-bsingharora@gmail.com>
- <91272c14-81df-9529-f0ae-6abb17a694ea@nvidia.com>
- <1493688548.15044.1.camel@gmail.com>
- <9e3b8b57-abd3-67cf-7c5c-a5cccc93f4b7@nvidia.com>
- <1493709804.15044.9.camel@gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <a68aa946-21c7-0945-56bc-be789b5447eb@nvidia.com>
-Date: Tue, 2 May 2017 10:50:42 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 May 2017 11:55:11 -0700 (PDT)
+Date: Tue, 2 May 2017 20:55:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
+Message-ID: <20170502185507.GB19165@dhcp22.suse.cz>
+References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170427143721.GK4706@dhcp22.suse.cz>
+ <87pofxk20k.fsf@firstfloor.org>
+ <20170428060755.GA8143@dhcp22.suse.cz>
+ <20170428073136.GE8143@dhcp22.suse.cz>
+ <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
+ <20170428134831.GB26705@dhcp22.suse.cz>
+ <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1493709804.15044.9.camel@gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
+To: Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On 05/02/2017 12:23 AM, Balbir Singh wrote:
-> On Mon, 2017-05-01 at 22:47 -0700, John Hubbard wrote:
->>
->> On 05/01/2017 06:29 PM, Balbir Singh wrote:
->>> On Mon, 2017-05-01 at 13:41 -0700, John Hubbard wrote:
->>>> On 04/19/2017 12:52 AM, Balbir Singh wrote:
+On Tue 02-05-17 16:59:30, Laurent Dufour wrote:
+> On 28/04/2017 15:48, Michal Hocko wrote:
 [...]
->>> 1. Enable hotplug of CDM nodes
->>> 2. Isolation of CDM memory
->>> 3. Migration to/from CDM memory
->>> 4. Performance enhancements for migration
->>>
->>
->> So, there is a little more than the above required, which is why I made that short
->> list. I'm in particular concerned about the various system calls that userspace can
->> make to control NUMA memory, and the device drivers will need notification (probably
->> mmu_notifiers, I guess), and once they get notification, in many cases they'll need
->> some way to deal with reverse mapping.
+> > This is getting quite hairy. What is the expected page count of the
+> > hwpoison page?
+
+OK, so from the quick check of the hwpoison code it seems that the ref
+count will be > 1 (from get_hwpoison_page).
+
+> > I guess we would need to update the VM_BUG_ON in the
+> > memcg uncharge code to ignore the page count of hwpoison pages if it can
+> > be arbitrary.
 > 
-> Are you suggesting that the system calls user space should be audited to
-> check if they should be used with a CDM device? I would
-> think a whole lot of this should be transparent to user space, unless it opts
-> in to using CDM and explictly wants to allocate and free memory -- the whole
-> isolation premise. w.r.t device drivers are you suggesting that the device
-> driver needs to know the state of each page -- free/in-use? Reverse mapping
-> for migration?
+> Based on the experiment I did, page count == 2 when isolate_lru_page()
+> succeeds, even in the case of a poisoned page.
+
+that would make some sense to me. The page should have been already
+unmapped therefore but memory_failure increases the ref count and 1 is
+for isolate_lru_page().
+
+> In my case I think this
+> is because the page is still used by the process which is calling madvise().
 > 
+> I'm wondering if I'm looking at the right place. May be the poisoned
+> page should remain attach to the memory_cgroup until no one is using it.
+> In that case this means that something should be done when the page is
+> off-lined... I've to dig further here.
 
-Interesting question. No, I was not going that direction (auditing the various system calls...) at 
-all, actually. Rather, I was expecting that this system to interact as normally as possible with all 
-of the system calls, and that is what led me to expect that some combination of "device driver + 
-enhanced NUMA subsystem" would need to do rmap lookups.
-
-Going through and special-casing CDM for various system calls would probably not be well-received, 
-because it would be an indication of force-fitting this into the NUMA model before it's ready, right?
-
->>
->> HMM provides all of that support, so it needs to happen here, too.
->>
->>
->>
->>> The RFC here is for (2) above. (3) is handled by HMM and (4) is being discussed
->>> in the community. I think the larger goals are same as HMM, except that we
->>> don't need unaddressable memory, since the memory is cache coherent.
->>>
->>>>
->>>> So, I'd suggest putting together something more complete, so that it can be fairly
->>>> compared against the HMM-for-hardware-coherent-nodes approach.
->>>>
->>>
->>> Since I intend to reuse bits of HMM, I am not sure if I want to repost those
->>> patches as a part of my RFC. I hope my answers make sense, the goal is to
->>> reuse as much of what is available. From a user perspective
->>
->> It's hard to keep track of what the plan is, so explaining exactly what you're doing
->> helps.
->>
-> 
-> Fair enough, I hope I answered the questions?
-
-Yes, thanks.
-
->>>
->>> 1. We see no new interface being added in either case, the programming model
->>> would differ though
->>> 2. We expect the programming model to be abstracted behind a user space
->>> framework, potentially like CUDA or CXL
->>>
->>>    
->>>>
->>>>> Jerome posted HMM-CDM at https://lwn.net/Articles/713035/.
->>>>> The patches do a great deal to enable CDM with HMM, but we
->>>>> still believe that HMM with CDM is not a natural way to
->>>>> represent coherent device memory and the mm will need
->>>>> to be audited and enhanced for it to even work.
->>>>
->>>> That is also true for the CDM approach. Specifically, in order for this to be of any
->>>> use to device drivers, we'll need the following:
->>>>
->>>
->>> Since Reza answered these questions, I'll skip them in this email
->>
->> Yes, but he skipped over the rmap question, which I think is an important one.
->>
-> 
-> If it is for migration, then we are going to rely on changes from HMM-CDM.
-> How does HMM deal with the rmap case? I presume it is not required for
-> unaddressable memory?
-> 
-> Balbir Singh.
-> 
-
-That's correct, we don't need rmap access for device drivers in the "pure HMM" case, because the HMM 
-core handles it.
-
-thanks
-john h
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+No, AFAIU the page will not drop the reference count down to 0 in most
+cases. Maybe there are some scenarios where this can happen but I would
+expect that the poisoned page will be mapped and in use most of the time
+and won't drop down 0. And then we should really uncharge it because it
+will pin the memcg and make it unfreeable which doesn't seem to be what
+we want.  So does the following work reasonable? Andi, Johannes, what do
+you think? I cannot say I would be really comfortable touching hwpoison
+code as I really do not understand the workflow. Maybe we want to move
+this uncharge down to memory_failure() right before we report success?
+---
