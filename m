@@ -1,205 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AF6B6B02C4
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 13:21:54 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id n4so34999633qte.18
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 10:21:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m63si17021055qkc.305.2017.05.02.10.21.52
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E44E26B02EE
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 13:51:29 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id k13so62176180pgp.23
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 10:51:29 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id w10si4221218pls.154.2017.05.02.10.51.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 10:21:53 -0700 (PDT)
-Date: Tue, 2 May 2017 14:21:23 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
- configuration
-Message-ID: <20170502172120.GB5457@amt.cnet>
-References: <20170425135717.375295031@redhat.com>
- <20170425135846.203663532@redhat.com>
- <20170502102836.4a4d34ba@redhat.com>
- <20170502165159.GA5457@amt.cnet>
- <20170502131527.7532fc2e@redhat.com>
+        Tue, 02 May 2017 10:51:29 -0700 (PDT)
+Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
+References: <20170419075242.29929-1-bsingharora@gmail.com>
+ <91272c14-81df-9529-f0ae-6abb17a694ea@nvidia.com>
+ <1493688548.15044.1.camel@gmail.com>
+ <9e3b8b57-abd3-67cf-7c5c-a5cccc93f4b7@nvidia.com>
+ <1493709804.15044.9.camel@gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <a68aa946-21c7-0945-56bc-be789b5447eb@nvidia.com>
+Date: Tue, 2 May 2017 10:50:42 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170502131527.7532fc2e@redhat.com>
+In-Reply-To: <1493709804.15044.9.camel@gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>, Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
+To: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
 
-On Tue, May 02, 2017 at 01:15:27PM -0400, Luiz Capitulino wrote:
-> On Tue, 2 May 2017 13:52:00 -0300
-> Marcelo Tosatti <mtosatti@redhat.com> wrote:
+On 05/02/2017 12:23 AM, Balbir Singh wrote:
+> On Mon, 2017-05-01 at 22:47 -0700, John Hubbard wrote:
+>>
+>> On 05/01/2017 06:29 PM, Balbir Singh wrote:
+>>> On Mon, 2017-05-01 at 13:41 -0700, John Hubbard wrote:
+>>>> On 04/19/2017 12:52 AM, Balbir Singh wrote:
+[...]
+>>> 1. Enable hotplug of CDM nodes
+>>> 2. Isolation of CDM memory
+>>> 3. Migration to/from CDM memory
+>>> 4. Performance enhancements for migration
+>>>
+>>
+>> So, there is a little more than the above required, which is why I made that short
+>> list. I'm in particular concerned about the various system calls that userspace can
+>> make to control NUMA memory, and the device drivers will need notification (probably
+>> mmu_notifiers, I guess), and once they get notification, in many cases they'll need
+>> some way to deal with reverse mapping.
 > 
-> > > I have several questions about the tunables:
-> > > 
-> > >  - What does the vmstat_threshold value mean? What are the implications
-> > >    of changing this value? What's the difference in choosing 1, 2, 3
-> > >    or 500?  
-> > 
-> > Its the maximum value for a vmstat statistics counter to hold. After
-> > that value, the statistics are transferred to the global counter:
-> > 
-> > void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
-> >                                 long delta)
-> > {
-> >         struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-> >         s8 __percpu *p = pcp->vm_node_stat_diff + item;
-> >         long x;
-> >         long t;
-> > 
-> >         x = delta + __this_cpu_read(*p);
-> > 
-> >         t = __this_cpu_read(pcp->stat_threshold);
-> > 
-> >         if (unlikely(x > t || x < -t)) {
-> >                 node_page_state_add(x, pgdat, item);
-> >                 x = 0;
-> >         }
-> >         __this_cpu_write(*p, x);
-> > }
-> > EXPORT_SYMBOL(__mod_node_page_state);
-> > 
-> > BTW, there is a bug there, should change that to:
-> > 
-> >         if (unlikely(x >= t || x <= -t)) {
-> > 
-> > Increasing the threshold value does two things:
-> > 	1) It decreases the number of inter-processor accesses.
-> > 	2) It increases how much the global counters stay out of
-> > 	   sync relative to actual current values.
+> Are you suggesting that the system calls user space should be audited to
+> check if they should be used with a CDM device? I would
+> think a whole lot of this should be transparent to user space, unless it opts
+> in to using CDM and explictly wants to allocate and free memory -- the whole
+> isolation premise. w.r.t device drivers are you suggesting that the device
+> driver needs to know the state of each page -- free/in-use? Reverse mapping
+> for migration?
 > 
-> OK, but I'm mostly concerned with the sysadmin who will have
-> to change the tunable. So, I think it's a good idea to improve
-> the doc to contain that information.
 
-Yes, how is that:
+Interesting question. No, I was not going that direction (auditing the various system calls...) at 
+all, actually. Rather, I was expecting that this system to interact as normally as possible with all 
+of the system calls, and that is what led me to expect that some combination of "device driver + 
+enhanced NUMA subsystem" would need to do rmap lookups.
 
-Index: linux-2.6-git-disable-vmstat-worker/Documentation/vm/vmstat_thresholds.txt
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6-git-disable-vmstat-worker/Documentation/vm/vmstat_thresholds.txt	2017-05-02 13:48:45.946840708 -0300
-@@ -0,0 +1,78 @@
-+Userspace configurable vmstat thresholds
-+========================================
-+
-+This document describes the tunables to control
-+per-CPU vmstat threshold and per-CPU vmstat worker
-+thread.
-+
-+/sys/devices/system/cpu/cpuN/vmstat/vmstat_threshold:
-+
-+This file contains the per-CPU vmstat threshold.
-+This value is the maximum that a single per-CPU vmstat statistic
-+can accumulate before transferring to the global counters.
-+
-+A value of 0 indicates that the value is set
-+by the in kernel algorithm.
-+
-+A value different than 0 indicates that particular
-+value is used for vmstat_threshold.
-+
-+/sys/devices/system/cpu/cpuN/vmstat/vmstat_worker:
-+
-+Enable/disable the per-CPU vmstat worker.
-+
-+What does the vmstat_threshold value mean? What are the implications
-+of changing this value? What's the difference in choosing 1, 2, 3
-+or 500?
-+====================================================================
-+
-+Its the maximum value for a vmstat statistics counter to hold. After
-+that value, the statistics are transferred to the global counter:
-+
-+void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
-+                                long delta)
-+{
-+        struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-+        s8 __percpu *p = pcp->vm_node_stat_diff + item;
-+        long x;
-+        long t;
-+
-+        x = delta + __this_cpu_read(*p);
-+
-+        t = __this_cpu_read(pcp->stat_threshold);
-+
-+        if (unlikely(x > t || x < -t)) {
-+                node_page_state_add(x, pgdat, item);
-+                x = 0;
-+        }
-+        __this_cpu_write(*p, x);
-+}
-+
-+Increasing the threshold value does two things:
-+        1) It decreases the number of inter-processor accesses.
-+        2) It increases how much the global counters stay out of
-+           sync relative to actual current values.
-+
-+
-+Usage example:
-+=============
-+
-+In a realtime system, the worker thread waking up and executing
-+vmstat_update can be an undesired source of latencies.
-+
-+To avoid the worker thread from waking up, executing vmstat_update
-+on cpu 1, for example, perform the following steps:
-+
-+
-+cd /sys/devices/system/cpu/cpu0/vmstat/
-+
-+# Set vmstat threshold to 1 for cpu1, so that no
-+# vmstat statistics are collected in cpu1's per-cpu
-+# stats, instead they are immediately transferred
-+# to the global counter.
-+
-+$ echo 1 > vmstat_threshold
-+
-+# Disable vmstat_update worker for cpu1:
-+$ echo 0 > vmstat_worker
-+
+Going through and special-casing CDM for various system calls would probably not be well-received, 
+because it would be an indication of force-fitting this into the NUMA model before it's ready, right?
 
-
-> > >  - If the purpose of having vmstat_threshold is to allow disabling
-> > >    the vmstat kworker, why can't the kernel pick a value automatically?  
-> > 
-> > Because it might be acceptable for the user to accept a small 
-> > out of syncedness of the global counters in favour of performance
-> > (one would have to analyze the situation).
-> > 
-> > Setting vmstat_threshold == 1 means the global counter is always
-> > in sync with the page counter state of the pCPU.
+>>
+>> HMM provides all of that support, so it needs to happen here, too.
+>>
+>>
+>>
+>>> The RFC here is for (2) above. (3) is handled by HMM and (4) is being discussed
+>>> in the community. I think the larger goals are same as HMM, except that we
+>>> don't need unaddressable memory, since the memory is cache coherent.
+>>>
+>>>>
+>>>> So, I'd suggest putting together something more complete, so that it can be fairly
+>>>> compared against the HMM-for-hardware-coherent-nodes approach.
+>>>>
+>>>
+>>> Since I intend to reuse bits of HMM, I am not sure if I want to repost those
+>>> patches as a part of my RFC. I hope my answers make sense, the goal is to
+>>> reuse as much of what is available. From a user perspective
+>>
+>> It's hard to keep track of what the plan is, so explaining exactly what you're doing
+>> helps.
+>>
 > 
-> IMHO, if vmstat_threshold == 1 is the required setting for
-> disabling the vmstat kworker then I'd go with only one tunable
-> for now. But that's just a suggestion.
+> Fair enough, I hope I answered the questions?
 
-I didnt want to force that on the user because allowing different 
-tunables covers more cases.
+Yes, thanks.
 
-> > >  - What are the implications of disabling the vmstat kworker? Will vm
-> > >    stats still be collected someway or will it be completely off for
-> > >    the CPU?  
-> > 
-> > It will not be necessary to collect vmstats because at every modification
-> > of the vm statistics, pCPUs with vmstat_threshold=1 transfer their 
-> > values to the global counters (that is, there is no queueing of statistics
-> > locally to improve performance).
+>>>
+>>> 1. We see no new interface being added in either case, the programming model
+>>> would differ though
+>>> 2. We expect the programming model to be abstracted behind a user space
+>>> framework, potentially like CUDA or CXL
+>>>
+>>>    
+>>>>
+>>>>> Jerome posted HMM-CDM at https://lwn.net/Articles/713035/.
+>>>>> The patches do a great deal to enable CDM with HMM, but we
+>>>>> still believe that HMM with CDM is not a natural way to
+>>>>> represent coherent device memory and the mm will need
+>>>>> to be audited and enhanced for it to even work.
+>>>>
+>>>> That is also true for the CDM approach. Specifically, in order for this to be of any
+>>>> use to device drivers, we'll need the following:
+>>>>
+>>>
+>>> Since Reza answered these questions, I'll skip them in this email
+>>
+>> Yes, but he skipped over the rmap question, which I think is an important one.
+>>
 > 
-> Ah, OK. Got this now. I'll give this patch a try. But I think we want
-> to hear from Christoph (who worked on reducing the vmstat interruptions
-> in the past).
-
-Christoph?
-
-> > > Also, shouldn't this patch be split into two?  
-> > 
-> > First add one sysfs file, then add another sysfs file, you mean?
+> If it is for migration, then we are going to rely on changes from HMM-CDM.
+> How does HMM deal with the rmap case? I presume it is not required for
+> unaddressable memory?
 > 
-> Yes, one tunable per patch.
+> Balbir Singh.
+> 
 
-Sure.
+That's correct, we don't need rmap access for device drivers in the "pure HMM" case, because the HMM 
+core handles it.
+
+thanks
+john h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
