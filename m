@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 80A9A6B02C4
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 14:55:12 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b20so3071377wma.11
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 11:55:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 39si21057502wry.53.2017.05.02.11.55.10
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 806766B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 16:13:23 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id o4so35267596qkb.5
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 13:13:23 -0700 (PDT)
+Received: from scorn.kernelslacker.org (scorn.kernelslacker.org. [2600:3c03::f03c:91ff:fe59:ec69])
+        by mx.google.com with ESMTPS id a41si18282993qte.176.2017.05.02.13.13.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 11:55:11 -0700 (PDT)
-Date: Tue, 2 May 2017 20:55:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-Message-ID: <20170502185507.GB19165@dhcp22.suse.cz>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170427143721.GK4706@dhcp22.suse.cz>
- <87pofxk20k.fsf@firstfloor.org>
- <20170428060755.GA8143@dhcp22.suse.cz>
- <20170428073136.GE8143@dhcp22.suse.cz>
- <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
- <20170428134831.GB26705@dhcp22.suse.cz>
- <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 May 2017 13:13:22 -0700 (PDT)
+Date: Tue, 2 May 2017 16:13:21 -0400
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: WARNING: CPU: 2 PID: 23409 at mm/filemap.c:260
+ __delete_from_page_cache+0x5fc/0x610
+Message-ID: <20170502201321.vfqmsb5ncsxaypoe@codemonkey.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: linux-mm@kvack.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue 02-05-17 16:59:30, Laurent Dufour wrote:
-> On 28/04/2017 15:48, Michal Hocko wrote:
-[...]
-> > This is getting quite hairy. What is the expected page count of the
-> > hwpoison page?
+Just hit this on Linus tree pulled this afternoon.
 
-OK, so from the quick check of the hwpoison code it seems that the ref
-count will be > 1 (from get_hwpoison_page).
+WARNING: CPU: 2 PID: 23409 at mm/filemap.c:260 __delete_from_page_cache+0x5fc/0x610
+CPU: 2 PID: 23409 Comm: trinity-c1 Not tainted 4.11.0-think+ #4 
+Call Trace:
+ dump_stack+0x68/0x93
+ __warn+0xcb/0xf0
+ warn_slowpath_null+0x1d/0x20
+ __delete_from_page_cache+0x5fc/0x610
+ delete_from_page_cache+0x57/0x150
+ truncate_inode_page+0x9f/0x140
+ shmem_undo_range+0x4c5/0xcd0
+ shmem_truncate_range+0x16/0x40
+ shmem_fallocate+0x22a/0x610
+ vfs_fallocate+0x135/0x250
+ SyS_madvise+0x211/0xa90
+ ? get_lock_stats+0x19/0x50
+ do_syscall_64+0x66/0x1d0
+ ? do_syscall_64+0x66/0x1d0
+ entry_SYSCALL64_slow_path+0x25/0x25
+RIP: 0033:0x7f596e520099
+RSP: 002b:00007fff1b76d928 EFLAGS: 00000246
+ ORIG_RAX: 000000000000001c
+RAX: ffffffffffffffda RBX: 000000000000001c RCX: 00007f596e520099
+RDX: 0000000000000009 RSI: 00000000000fc000 RDI: 00007f596c88b000
+RBP: 00007fff1b76d9d0 R08: 0000000000001d1d R09: 0000c1c1c1c1c1c1
+R10: 759e2c3076d8be38 R11: 0000000000000246 R12: 0000000000000002
+R13: 00007f596ebe8048 R14: 00007f596ebf6ad8 R15: 00007f596ebe8000
 
-> > I guess we would need to update the VM_BUG_ON in the
-> > memcg uncharge code to ignore the page count of hwpoison pages if it can
-> > be arbitrary.
-> 
-> Based on the experiment I did, page count == 2 when isolate_lru_page()
-> succeeds, even in the case of a poisoned page.
 
-that would make some sense to me. The page should have been already
-unmapped therefore but memory_failure increases the ref count and 1 is
-for isolate_lru_page().
 
-> In my case I think this
-> is because the page is still used by the process which is calling madvise().
-> 
-> I'm wondering if I'm looking at the right place. May be the poisoned
-> page should remain attach to the memory_cgroup until no one is using it.
-> In that case this means that something should be done when the page is
-> off-lined... I've to dig further here.
+ 260         if (WARN_ON_ONCE(PageDirty(page)))
+ 261                 account_page_cleaned(page, mapping, inode_to_wb(mapping->host));
 
-No, AFAIU the page will not drop the reference count down to 0 in most
-cases. Maybe there are some scenarios where this can happen but I would
-expect that the poisoned page will be mapped and in use most of the time
-and won't drop down 0. And then we should really uncharge it because it
-will pin the memcg and make it unfreeable which doesn't seem to be what
-we want.  So does the following work reasonable? Andi, Johannes, what do
-you think? I cannot say I would be really comfortable touching hwpoison
-code as I really do not understand the workflow. Maybe we want to move
-this uncharge down to memory_failure() right before we report success?
----
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
