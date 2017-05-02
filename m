@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A946B02EE
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 10:45:45 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id o3so60047989pgn.13
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:45:45 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 162CE6B02F2
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 10:45:49 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e64so50647577pfd.3
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:45:49 -0700 (PDT)
 Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id h10si18030074pgc.45.2017.05.02.07.45.45
+        by mx.google.com with ESMTPS id m19si12144005pgk.353.2017.05.02.07.45.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 May 2017 07:45:45 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id b23so17689678pfc.0
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:45:45 -0700 (PDT)
+        Tue, 02 May 2017 07:45:48 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id v14so33553049pfd.3
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 07:45:48 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH V2 2/3] mm/slub: wrap cpu_slab->partial in CONFIG_SLUB_CPU_PARTIAL
-Date: Tue,  2 May 2017 22:45:32 +0800
-Message-Id: <20170502144533.10729-3-richard.weiyang@gmail.com>
+Subject: [PATCH V2 3/3] mm/slub: wrap kmem_cache->cpu_partial in config CONFIG_SLUB_CPU_PARTIAL
+Date: Tue,  2 May 2017 22:45:33 +0800
+Message-Id: <20170502144533.10729-4-richard.weiyang@gmail.com>
 In-Reply-To: <20170502144533.10729-1-richard.weiyang@gmail.com>
 References: <20170502144533.10729-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,112 +22,169 @@ List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-cpu_slab's field partial is used when CONFIG_SLUB_CPU_PARTIAL is set, which
-means we can save a pointer's space on each cpu for every slub item.
+kmem_cache->cpu_partial is just used when CONFIG_SLUB_CPU_PARTIAL is set,
+so wrap it with config CONFIG_SLUB_CPU_PARTIAL will save some space
+on 32bit arch.
 
-This patch wrap cpu_slab->partial in CONFIG_SLUB_CPU_PARTIAL and wrap its
-sysfs too.
+This patch wrap kmem_cache->cpu_partial in config CONFIG_SLUB_CPU_PARTIAL
+and wrap its sysfs too.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 
 ---
-v2: define slub_percpu_partial() to make code more elegant
+v2: define slub_cpu_partial() to make code more elegant
 ---
- include/linux/slub_def.h | 19 +++++++++++++++++++
- mm/slub.c                | 16 +++++++++-------
- 2 files changed, 28 insertions(+), 7 deletions(-)
+ include/linux/slub_def.h | 13 +++++++++
+ mm/slub.c                | 69 ++++++++++++++++++++++++++----------------------
+ 2 files changed, 51 insertions(+), 31 deletions(-)
 
 diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index ec13aab32647..f882a34bb9aa 100644
+index f882a34bb9aa..d808e8e6293b 100644
 --- a/include/linux/slub_def.h
 +++ b/include/linux/slub_def.h
-@@ -41,12 +41,31 @@ struct kmem_cache_cpu {
- 	void **freelist;	/* Pointer to next available object */
- 	unsigned long tid;	/* Globally unique transaction id */
- 	struct page *page;	/* The slab from which we are allocating */
+@@ -86,7 +86,9 @@ struct kmem_cache {
+ 	int size;		/* The size of an object including meta data */
+ 	int object_size;	/* The size of an object without meta data */
+ 	int offset;		/* Free pointer offset. */
 +#ifdef CONFIG_SLUB_CPU_PARTIAL
- 	struct page *partial;	/* Partially allocated frozen slabs */
+ 	int cpu_partial;	/* Number of per cpu partial objects to keep around */
 +#endif
- #ifdef CONFIG_SLUB_STATS
- 	unsigned stat[NR_SLUB_STAT_ITEMS];
- #endif
+ 	struct kmem_cache_order_objects oo;
+ 
+ 	/* Allocation and freeing of slabs */
+@@ -130,6 +132,17 @@ struct kmem_cache {
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
  };
  
 +#ifdef CONFIG_SLUB_CPU_PARTIAL
-+#define slub_percpu_partial(c)		((c)->partial)
-+
-+#define slub_set_percpu_partial(c, p)		\
++#define slub_cpu_partial(s)		((s)->cpu_partial)
++#define slub_set_cpu_partial(s, n)		\
 +({						\
-+	slub_percpu_partial(c) = (p)->next;	\
++	slub_cpu_partial(s) = (n);		\
 +})
-+
-+#define slub_percpu_partial_read_once(c)     READ_ONCE(slub_percpu_partial(c))
 +#else
-+#define slub_percpu_partial(c)			NULL
-+
-+#define slub_set_percpu_partial(c, p)
-+
-+#define slub_percpu_partial_read_once(c)	NULL
++#define slub_cpu_partial(s)		(0)
++#define slub_set_cpu_partial(s, n)
 +#endif // CONFIG_SLUB_CPU_PARTIAL
 +
- /*
-  * Word size structure that can be atomically updated or read and that
-  * contains both the order and the number of objects that a slab of the
+ #ifdef CONFIG_SYSFS
+ #define SLAB_SUPPORTS_SYSFS
+ void sysfs_slab_release(struct kmem_cache *);
 diff --git a/mm/slub.c b/mm/slub.c
-index 7f4bc7027ed5..ae6166533261 100644
+index ae6166533261..795112b65c61 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -2302,7 +2302,7 @@ static bool has_cpu_slab(int cpu, void *info)
- 	struct kmem_cache *s = info;
- 	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
+@@ -1829,7 +1829,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+ 			stat(s, CPU_PARTIAL_NODE);
+ 		}
+ 		if (!kmem_cache_has_cpu_partial(s)
+-			|| available > s->cpu_partial / 2)
++			|| available > slub_cpu_partial(s) / 2)
+ 			break;
  
--	return c->page || c->partial;
-+	return c->page || slub_percpu_partial(c);
+ 	}
+@@ -3410,6 +3410,39 @@ static void set_min_partial(struct kmem_cache *s, unsigned long min)
+ 	s->min_partial = min;
  }
  
- static void flush_all(struct kmem_cache *s)
-@@ -2568,9 +2568,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
++static void set_cpu_partial(struct kmem_cache *s)
++{
++#ifdef CONFIG_SLUB_CPU_PARTIAL
++	/*
++	 * cpu_partial determined the maximum number of objects kept in the
++	 * per cpu partial lists of a processor.
++	 *
++	 * Per cpu partial lists mainly contain slabs that just have one
++	 * object freed. If they are used for allocation then they can be
++	 * filled up again with minimal effort. The slab will never hit the
++	 * per node partial lists and therefore no locking will be required.
++	 *
++	 * This setting also determines
++	 *
++	 * A) The number of objects from per cpu partial slabs dumped to the
++	 *    per node list when we reach the limit.
++	 * B) The number of objects in cpu partial slabs to extract from the
++	 *    per node list when we run out of per cpu objects. We only fetch
++	 *    50% to keep some capacity around for frees.
++	 */
++	if (!kmem_cache_has_cpu_partial(s))
++		s->cpu_partial = 0;
++	else if (s->size >= PAGE_SIZE)
++		s->cpu_partial = 2;
++	else if (s->size >= 1024)
++		s->cpu_partial = 6;
++	else if (s->size >= 256)
++		s->cpu_partial = 13;
++	else
++		s->cpu_partial = 30;
++#endif
++}
++
+ /*
+  * calculate_sizes() determines the order and the distribution of data within
+  * a slab object.
+@@ -3568,33 +3601,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ 	 */
+ 	set_min_partial(s, ilog2(s->size) / 2);
  
- new_slab:
+-	/*
+-	 * cpu_partial determined the maximum number of objects kept in the
+-	 * per cpu partial lists of a processor.
+-	 *
+-	 * Per cpu partial lists mainly contain slabs that just have one
+-	 * object freed. If they are used for allocation then they can be
+-	 * filled up again with minimal effort. The slab will never hit the
+-	 * per node partial lists and therefore no locking will be required.
+-	 *
+-	 * This setting also determines
+-	 *
+-	 * A) The number of objects from per cpu partial slabs dumped to the
+-	 *    per node list when we reach the limit.
+-	 * B) The number of objects in cpu partial slabs to extract from the
+-	 *    per node list when we run out of per cpu objects. We only fetch
+-	 *    50% to keep some capacity around for frees.
+-	 */
+-	if (!kmem_cache_has_cpu_partial(s))
+-		s->cpu_partial = 0;
+-	else if (s->size >= PAGE_SIZE)
+-		s->cpu_partial = 2;
+-	else if (s->size >= 1024)
+-		s->cpu_partial = 6;
+-	else if (s->size >= 256)
+-		s->cpu_partial = 13;
+-	else
+-		s->cpu_partial = 30;
++	set_cpu_partial(s);
  
--	if (c->partial) {
--		page = c->page = c->partial;
--		c->partial = page->next;
-+	if (slub_percpu_partial(c)) {
-+		page = c->page = slub_percpu_partial(c);
-+		slub_set_percpu_partial(c, page);
- 		stat(s, CPU_PARTIAL_ALLOC);
- 		c->freelist = NULL;
- 		goto redo;
-@@ -4760,7 +4760,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
- 			total += x;
- 			nodes[node] += x;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 1000;
+@@ -3981,7 +3988,7 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
+ 	 * Disable empty slabs caching. Used to avoid pinning offline
+ 	 * memory cgroups by kmem pages that can be freed.
+ 	 */
+-	s->cpu_partial = 0;
++	slub_set_cpu_partial(s, 0);
+ 	s->min_partial = 0;
  
--			page = READ_ONCE(c->partial);
-+			page = slub_percpu_partial_read_once(c);
- 			if (page) {
- 				node = page_to_nid(page);
- 				if (flags & SO_TOTAL)
-@@ -4988,7 +4988,8 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
- 	int len;
+ 	/*
+@@ -4921,7 +4928,7 @@ SLAB_ATTR(min_partial);
  
- 	for_each_online_cpu(cpu) {
--		struct page *page = per_cpu_ptr(s->cpu_slab, cpu)->partial;
-+		struct page *page =
-+			slub_percpu_partial(per_cpu_ptr(s->cpu_slab, cpu));
+ static ssize_t cpu_partial_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%u\n", s->cpu_partial);
++	return sprintf(buf, "%u\n", slub_cpu_partial(s));
+ }
  
- 		if (page) {
- 			pages += page->pages;
-@@ -5000,7 +5001,8 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
+ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
+@@ -4936,7 +4943,7 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
+ 	if (objects && !kmem_cache_has_cpu_partial(s))
+ 		return -EINVAL;
  
- #ifdef CONFIG_SMP
- 	for_each_online_cpu(cpu) {
--		struct page *page = per_cpu_ptr(s->cpu_slab, cpu) ->partial;
-+		struct page *page =
-+			slub_percpu_partial(per_cpu_ptr(s->cpu_slab, cpu));
- 
- 		if (page && len < PAGE_SIZE - 20)
- 			len += sprintf(buf + len, " C%d=%d(%d)", cpu,
+-	s->cpu_partial = objects;
++	slub_set_cpu_partial(s, objects);
+ 	flush_all(s);
+ 	return length;
+ }
 -- 
 2.11.0
 
