@@ -1,78 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F4DB6B033C
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 01:35:28 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m13so52896633pgd.12
-        for <linux-mm@kvack.org>; Mon, 01 May 2017 22:35:28 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 71si16281303pfk.131.2017.05.01.22.35.27
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 780676B0350
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 01:47:41 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s62so21121854pgc.2
+        for <linux-mm@kvack.org>; Mon, 01 May 2017 22:47:41 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id p20si5056542pgd.413.2017.05.01.22.47.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 May 2017 22:35:27 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v3] mm, swap: Sort swap entries before free
-References: <87tw5idjv9.fsf@yhuang-dev.intel.com>
-	<20170424045213.GA11287@bbox> <87y3un2vdp.fsf@yhuang-dev.intel.com>
-	<20170427043545.GA1726@bbox> <87r30dz6am.fsf@yhuang-dev.intel.com>
-	<20170428074257.GA19510@bbox> <871ssdvtx5.fsf@yhuang-dev.intel.com>
-	<20170428090049.GA26460@bbox> <87h918vjlr.fsf@yhuang-dev.intel.com>
-	<878tmkvemu.fsf@yhuang-dev.intel.com> <20170502050228.GA27176@bbox>
-Date: Tue, 02 May 2017 13:35:24 +0800
-In-Reply-To: <20170502050228.GA27176@bbox> (Minchan Kim's message of "Tue, 2
-	May 2017 14:02:28 +0900")
-Message-ID: <87fugng6sj.fsf@yhuang-dev.intel.com>
+        Mon, 01 May 2017 22:47:40 -0700 (PDT)
+Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
+References: <20170419075242.29929-1-bsingharora@gmail.com>
+ <91272c14-81df-9529-f0ae-6abb17a694ea@nvidia.com>
+ <1493688548.15044.1.camel@gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <9e3b8b57-abd3-67cf-7c5c-a5cccc93f4b7@nvidia.com>
+Date: Mon, 1 May 2017 22:47:37 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <1493688548.15044.1.camel@gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, mhocko@kernel.org, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
 
-Hi, Minchan,
 
-Minchan Kim <minchan@kernel.org> writes:
 
-> On Fri, Apr 28, 2017 at 09:35:37PM +0800, Huang, Ying wrote:
->> In fact, during the test, I found the overhead of sort() is comparable
->> with the performance difference of adding likely()/unlikely() to the
->> "if" in the function.
->
-> Huang,
->
-> This discussion is started from your optimization code:
->
->         if (nr_swapfiles > 1)
->                 sort();
->
-> I don't have such fast machine so cannot test it. However, you added
-> such optimization code in there so I guess it's *worth* to review so
-> with spending my time, I pointed out what you are missing and
-> suggested a idea to find a compromise.
+On 05/01/2017 06:29 PM, Balbir Singh wrote:
+> On Mon, 2017-05-01 at 13:41 -0700, John Hubbard wrote:
+>> On 04/19/2017 12:52 AM, Balbir Singh wrote:
+>>> This is a request for comments on the discussed approaches
+>>> for coherent memory at mm-summit (some of the details are at
+>>> https://lwn.net/Articles/717601/). The latest posted patch
+>>> series is at https://lwn.net/Articles/713035/. I am reposting
+>>> this as RFC, Michal Hocko suggested using HMM for CDM, but
+>>> we believe there are stronger reasons to use the NUMA approach.
+>>> The earlier patches for Coherent Device memory were implemented
+>>> and designed by Anshuman Khandual.
+>>>
+>>
+>> Hi Balbir,
+>>
+>> Although I think everyone agrees that in the [very] long term, these
+>> hardware-coherent nodes probably want to be NUMA nodes, in order to decide what to
+>> code up over the next few years, we need to get a clear idea of what has to be done
+>> for each possible approach.
+>>
+>> Here, the CDM discussion is falling just a bit short, because it does not yet
+>> include the whole story of what we would need to do. Earlier threads pointed this
+>> out: the idea started as a large patchset RFC, but then, "for ease of review", it
+>> got turned into a smaller RFC, which loses too much context.
+> 
+> Hi, John
+> 
+> I thought I explained the context, but I'll try again. I see the whole solution
+> as a composite of the following primitives:
+> 
+> 1. Enable hotplug of CDM nodes
+> 2. Isolation of CDM memory
+> 3. Migration to/from CDM memory
+> 4. Performance enhancements for migration
+> 
 
-Sorry for wasting your time and Thanks a lot for your review and
-suggestion!
+So, there is a little more than the above required, which is why I made that short 
+list. I'm in particular concerned about the various system calls that userspace can 
+make to control NUMA memory, and the device drivers will need notification (probably 
+mmu_notifiers, I guess), and once they get notification, in many cases they'll need 
+some way to deal with reverse mapping.
 
-When I started talking this with you, I found there is some measurable
-overhead of sort().  But later when I done more tests, I found the
-measurable overhead is at the same level of likely()/unlikely() compiler
-notation.  So you help me to find that, Thanks again!
+HMM provides all of that support, so it needs to happen here, too.
 
-> Now you are saying sort is so fast so no worth to add more logics
-> to avoid the overhead?
-> Then, please just drop that if condition part and instead, sort
-> it unconditionally.
 
-Now, because we found the overhead of sort() is low, I suggest to put
-minimal effort to avoid it.  Like the original implementation,
 
-         if (nr_swapfiles > 1)
-                 sort();
+> The RFC here is for (2) above. (3) is handled by HMM and (4) is being discussed
+> in the community. I think the larger goals are same as HMM, except that we
+> don't need unaddressable memory, since the memory is cache coherent.
+> 
+>>
+>> So, I'd suggest putting together something more complete, so that it can be fairly
+>> compared against the HMM-for-hardware-coherent-nodes approach.
+>>
+> 
+> Since I intend to reuse bits of HMM, I am not sure if I want to repost those
+> patches as a part of my RFC. I hope my answers make sense, the goal is to
+> reuse as much of what is available. From a user perspective
 
-Or, we can make nr_swapfiles more correct as Tim suggested (tracking
-the number of the swap devices during swap on/off).
+It's hard to keep track of what the plan is, so explaining exactly what you're doing 
+helps.
 
-Best Regards,
-Huang, Ying
+> 
+> 1. We see no new interface being added in either case, the programming model
+> would differ though
+> 2. We expect the programming model to be abstracted behind a user space
+> framework, potentially like CUDA or CXL
+> 
+>   
+>>
+>>> Jerome posted HMM-CDM at https://lwn.net/Articles/713035/.
+>>> The patches do a great deal to enable CDM with HMM, but we
+>>> still believe that HMM with CDM is not a natural way to
+>>> represent coherent device memory and the mm will need
+>>> to be audited and enhanced for it to even work.
+>>
+>> That is also true for the CDM approach. Specifically, in order for this to be of any
+>> use to device drivers, we'll need the following:
+>>
+> 
+> Since Reza answered these questions, I'll skip them in this email
+
+Yes, but he skipped over the rmap question, which I think is an important one.
+
+thanks
+john h
+
+> 
+> Thanks for the review!
+> Balbir Singh
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
