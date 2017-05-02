@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A91186B0038
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 11:14:40 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 6so14448917wrb.23
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 08:14:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d13si21248434wrd.332.2017.05.02.08.14.38
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BD18A6B02C4
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 12:07:04 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id t130so60759603pgc.18
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 09:07:04 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id y20si18498513pfj.343.2017.05.02.09.07.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 08:14:39 -0700 (PDT)
-Date: Tue, 2 May 2017 17:14:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] vmscan: scan pages until it founds eligible pages
-Message-ID: <20170502151436.GN14593@dhcp22.suse.cz>
-References: <1493700038-27091-1-git-send-email-minchan@kernel.org>
- <20170502051452.GA27264@bbox>
- <20170502075432.GC14593@dhcp22.suse.cz>
- <20170502145150.GA19011@bgram>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 May 2017 09:07:03 -0700 (PDT)
+Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
+References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
+ <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
+ <06c4eb97-1545-7958-7694-3645d317666b@linux.vnet.ibm.com>
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Message-ID: <07f3fde3-b296-f205-377d-1b4c3bbedb70@oracle.com>
+Date: Tue, 2 May 2017 09:07:00 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170502145150.GA19011@bgram>
+In-Reply-To: <06c4eb97-1545-7958-7694-3645d317666b@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 02-05-17 23:51:50, Minchan Kim wrote:
-> Hi Michal,
-> 
-> On Tue, May 02, 2017 at 09:54:32AM +0200, Michal Hocko wrote:
-> > On Tue 02-05-17 14:14:52, Minchan Kim wrote:
-> > > Oops, forgot to add lkml and linux-mm.
-> > > Sorry for that.
-> > > Send it again.
-> > > 
-> > > >From 8ddf1c8aa15baf085bc6e8c62ce705459d57ea4c Mon Sep 17 00:00:00 2001
-> > > From: Minchan Kim <minchan@kernel.org>
-> > > Date: Tue, 2 May 2017 12:34:05 +0900
-> > > Subject: [PATCH] vmscan: scan pages until it founds eligible pages
-> > > 
-> > > On Tue, May 02, 2017 at 01:40:38PM +0900, Minchan Kim wrote:
-> > > There are premature OOM happening. Although there are a ton of free
-> > > swap and anonymous LRU list of elgible zones, OOM happened.
-> > > 
-> > > With investigation, skipping page of isolate_lru_pages makes reclaim
-> > > void because it returns zero nr_taken easily so LRU shrinking is
-> > > effectively nothing and just increases priority aggressively.
-> > > Finally, OOM happens.
-> > 
-> > I am not really sure I understand the problem you are facing. Could you
-> > be more specific please? What is your configuration etc...
-> 
-> Sure, KVM guest on x86_64, It has 2G memory and 1G swap and configured
-> movablecore=1G to simulate highmem zone.
-> Workload is a process consumes 2.2G memory and then random touch the
-> address space so it makes lots of swap in/out.
-> 
-> > 
-> > > balloon invoked oom-killer: gfp_mask=0x17080c0(GFP_KERNEL_ACCOUNT|__GFP_ZERO|__GFP_NOTRACK), nodemask=(null),  order=0, oom_score_adj=0
-> > [...]
-> > > Node 0 active_anon:1698864kB inactive_anon:261256kB active_file:208kB inactive_file:184kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:532kB dirty:108kB writeback:0kB shmem:172kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
-> > > DMA free:7316kB min:32kB low:44kB high:56kB active_anon:8064kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:464kB slab_unreclaimable:40kB kernel_stack:0kB pagetables:24kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> > > lowmem_reserve[]: 0 992 992 1952
-> > > DMA32 free:9088kB min:2048kB low:3064kB high:4080kB active_anon:952176kB inactive_anon:0kB active_file:36kB inactive_file:0kB unevictable:0kB writepending:88kB present:1032192kB managed:1019388kB mlocked:0kB slab_reclaimable:13532kB slab_unreclaimable:16460kB kernel_stack:3552kB pagetables:6672kB bounce:0kB free_pcp:56kB local_pcp:24kB free_cma:0kB
-> > > lowmem_reserve[]: 0 0 0 959
-> > 
-> > Hmm DMA32 has sufficient free memory to allow this order-0 request.
-> > Inactive anon lru is basically empty. Why do not we rotate a really
-> > large active anon list? Isn't this the primary problem?
-> 
-> It's a side effect by skipping page logic in isolate_lru_pages
-> I mentioned above in changelog.
-> 
-> The problem is a lot of anonymous memory in movable zone(ie, highmem)
-> and non-small memory in DMA32 zone.
 
-Such a configuration is questionable on its own. But let't keep this
-part alone.
 
-> In heavy memory pressure,
-> requesting a page in GFP_KERNEL triggers reclaim. VM knows inactive list
-> is low so it tries to deactivate pages. For it, first of all, it tries
-> to isolate pages from active list but there are lots of anonymous pages
-> from movable zone so skipping logic in isolate_lru_pages works. With
-> the result, isolate_lru_pages cannot isolate any eligible pages so
-> reclaim trial is effectively void. It continues to meet OOM.
+On 5/2/17 3:53 AM, Anshuman Khandual wrote:
+> On 05/01/2017 11:30 PM, Prakash Sangappa wrote:
+>> Some applications like a database use hugetblfs for performance
+>> reasons. Files on hugetlbfs filesystem are created and huge pages
+>> allocated using fallocate() API. Pages are deallocated/freed using
+>> fallocate() hole punching support that has been added to hugetlbfs.
+>> These files are mmapped and accessed by many processes as shared memory.
+>> Such applications keep track of which offsets in the hugetlbfs file have
+>> pages allocated.
+>>
+>> Any access to mapped address over holes in the file, which can occur due
+> s/mapped/unmapped/ ^ ?
 
-But skipped pages should be rotated and we should eventually hit pages
-from the right zone(s). Moreover we should scan the full LRU at priority
-0 so why exactly we hit the OOM killer?
+It is 'mapped' address.
 
-Anyway [1] has changed this behavior. Are you seeing the issue with this
-patch dropped?
+>
+>> to bugs in the application, is considered invalid and expect the process
+>> to simply receive a SIGBUS.  However, currently when a hole in the file is
+>> accessed via the mapped address, kernel/mm attempts to automatically
+>> allocate a page at page fault time, resulting in implicitly filling the
+>> hole
+> But this is expected when you try to control the file allocation from
+> a mapped address. Any changes while walking past or writing the range
+> in the memory mapped should reflect exactly in the file on the disk.
+> Why its not a valid behavior ?
+Sure, that is a valid behavior. However, hugetlbfs is a pesudo filesystem
+and the purpose is for applications to use hugepage memory. The contents
+of these filesystem are not backed by disk nor are they swapped out.
 
-[1] http://www.ozlabs.org/~akpm/mmotm/broken-out/revert-mm-vmscan-account-for-skipped-pages-as-a-partial-scan.patch
--- 
-Michal Hocko
-SUSE Labs
+The proposed new behavior is only applicable for hugetlbfs filesystem 
+mounted
+with the new 'noautofill' mount option. The file's page allocation/free 
+are managed
+using the 'fallocate()' API.
+
+For hugetlbfs filesystems mounted without this option, there is no 
+change in behavior.
+
+>> in the file. This may not be the desired behavior for applications like the
+>> database that want to explicitly manage page allocations of hugetlbfs
+>> files.
+>>
+>> This patch adds a new hugetlbfs mount option 'noautofill', to indicate that
+>> pages should not be allocated at page fault time when accessed thru mmapped
+>> address.
+> When the page should be allocated for mapping ?
+The application would allocate/free file pages using the fallocate() API.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
