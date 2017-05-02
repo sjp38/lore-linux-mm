@@ -1,88 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E6626B02F2
-	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:43:23 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id h19so1909370wmi.10
-        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:43:23 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id y26si15108137wrd.301.2017.05.02.06.43.21
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C7CCC6B02F2
+	for <linux-mm@kvack.org>; Tue,  2 May 2017 09:47:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p62so14087875wrc.13
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:47:04 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id 12si19797292wrt.64.2017.05.02.06.47.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 May 2017 06:43:22 -0700 (PDT)
-Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
-References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170411181519.GC21171@dhcp22.suse.cz>
- <20170412013503.GA8448@js1304-desktop>
- <20170413115615.GB11795@dhcp22.suse.cz>
- <20170417020210.GA1351@js1304-desktop> <20170424130936.GB1746@dhcp22.suse.cz>
- <20170425034255.GB32583@js1304-desktop>
- <20170427150636.GM4706@dhcp22.suse.cz>
- <32ac1107-14a3-fdff-ad48-0e246fec704f@suse.cz>
- <20170502130326.GJ14593@dhcp22.suse.cz>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <2cd6a2c5-6e78-1d34-69b5-97a7de740b06@huawei.com>
-Date: Tue, 2 May 2017 16:41:55 +0300
-MIME-Version: 1.0
-In-Reply-To: <20170502130326.GJ14593@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 May 2017 06:47:03 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id u65so4664548wmu.3
+        for <linux-mm@kvack.org>; Tue, 02 May 2017 06:47:03 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm, vmalloc: properly track vmalloc users
+Date: Tue,  2 May 2017 15:46:57 +0200
+Message-Id: <20170502134657.12381-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh
- Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 02/05/17 16:03, Michal Hocko wrote:
+From: Michal Hocko <mhocko@suse.com>
 
-> I can imagine that we could make ZONE_CMA configurable in a way that
-> only very well defined use cases would be supported so that we can save
-> page flags space. But this alone sounds like a maintainability nightmare
-> to me. Especially when I consider ZONE_DMA situation. There is simply
-> not an easy way to find out whether my HW really needs DMA zone or
-> not. Most probably not but it still is configured and hidden behind
-> config ZONE_DMA
->         bool "DMA memory allocation support" if EXPERT
->         default y
->         help
->           DMA memory allocation support allows devices with less than 32-bit
->           addressing to allocate within the first 16MB of address space.
->           Disable if no such devices will be used.
-> 
->           If unsure, say Y.
-> 
-> Are we really ready to add another thing like that? How are distribution
-> kernels going to handle that?
+__vmalloc_node_flags used to be static inline but this has changed by
+"mm: introduce kv[mz]alloc helpers" because kvmalloc_node needs to use
+it as well and the code is outside of the vmalloc proper. I haven't
+realized that changing this will lead to a subtle bug though. The
+function is responsible to track the caller as well. This caller is
+then printed by /proc/vmallocinfo. If __vmalloc_node_flags is not inline
+then we would get only direct users of __vmalloc_node_flags as callers
+(e.g. v[mz]alloc) which reduces usefulness of this debugging feature
+considerably. It simply doesn't help to see that the given range belongs
+to vmalloc as a caller:
+0xffffc90002c79000-0xffffc90002c7d000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N0=3
+0xffffc90002c81000-0xffffc90002c85000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N1=3
+0xffffc90002c8d000-0xffffc90002c91000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N1=3
+0xffffc90002c95000-0xffffc90002c99000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N1=3
 
-In practice there are 2 quite opposite scenarios:
+We really want to catch the _caller_ of the vmalloc function. Fix this
+issue by making __vmalloc_node_flags static inline again.
 
-- distros that try to cater to (almost) everyone and are constrained in
-what they can leave out
-
-- ad-hoc builds (like Android, but also IoT) where the HW is *very* well
-known upfront, because it's probably even impossible to make any change
-that doesn't involved a rework station.
-
-So maybe the answer is to not have only EXPERT, but rather DISTRO/CUSTOM
-with the implications these can bring.
-
-A generic build would assume to be a DISTRO type, but something else, of
-more embedded persuasion, could do otherwise.
-
-ZONE_DMA / ZONE_DMA32 actually seem to be perfect candidates for being
-replaced by something else, when unused, as I proposed on Friday:
-
-http://marc.info/?l=linux-mm&m=149337033630993&w=2
-
-
-It might still be that only some cases would be upstreamable, even after
-these changes.
-
-But at least some of those might be useful also for non-Android/ non-IoT
-scenarios.
-
-
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
-igor
+Hi Andrew,
+this is a follow up fix for mm-introduce-kvalloc-helpers.patch currently
+sitting in your mmotm tree. You can either fold this into it or just
+keep it on its own which I would consider slightly better for the
+reference.  Anyway it would be great if it could hit the Linus' tree
+along with the original patch.
+
+I am sorry, I should have noticed this earlier.
+
+ include/linux/vmalloc.h | 19 +++++++++++++++++++
+ mm/vmalloc.c            | 12 +-----------
+ 2 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 46991ad3ddd5..0328ce003992 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -6,6 +6,7 @@
+ #include <linux/list.h>
+ #include <linux/llist.h>
+ #include <asm/page.h>		/* pgprot_t */
++#include <asm/pgtable.h>	/* PAGE_KERNEL */
+ #include <linux/rbtree.h>
+ 
+ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+@@ -80,7 +81,25 @@ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 			unsigned long start, unsigned long end, gfp_t gfp_mask,
+ 			pgprot_t prot, unsigned long vm_flags, int node,
+ 			const void *caller);
++#ifndef CONFIG_MMU
+ extern void *__vmalloc_node_flags(unsigned long size, int node, gfp_t flags);
++#else
++extern void *__vmalloc_node(unsigned long size, unsigned long align,
++			    gfp_t gfp_mask, pgprot_t prot,
++			    int node, const void *caller);
++
++/*
++ * We really want to have this inlined due to caller tracking. This
++ * function is used by the highlevel vmalloc apis and so we want to track
++ * their callers and inlining will achieve that.
++ */
++static inline void *__vmalloc_node_flags(unsigned long size,
++					int node, gfp_t flags)
++{
++	return __vmalloc_node(size, 1, flags, PAGE_KERNEL,
++					node, __builtin_return_address(0));
++}
++#endif
+ 
+ extern void vfree(const void *addr);
+ extern void vfree_atomic(const void *addr);
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 65912eb93a2c..201eb20ba96a 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1649,9 +1649,6 @@ void *vmap(struct page **pages, unsigned int count,
+ }
+ EXPORT_SYMBOL(vmap);
+ 
+-static void *__vmalloc_node(unsigned long size, unsigned long align,
+-			    gfp_t gfp_mask, pgprot_t prot,
+-			    int node, const void *caller);
+ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 				 pgprot_t prot, int node)
+ {
+@@ -1794,7 +1791,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+  *	with mm people.
+  *
+  */
+-static void *__vmalloc_node(unsigned long size, unsigned long align,
++void *__vmalloc_node(unsigned long size, unsigned long align,
+ 			    gfp_t gfp_mask, pgprot_t prot,
+ 			    int node, const void *caller)
+ {
+@@ -1809,13 +1806,6 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
+ }
+ EXPORT_SYMBOL(__vmalloc);
+ 
+-void *__vmalloc_node_flags(unsigned long size,
+-					int node, gfp_t flags)
+-{
+-	return __vmalloc_node(size, 1, flags, PAGE_KERNEL,
+-					node, __builtin_return_address(0));
+-}
+-
+ /**
+  *	vmalloc  -  allocate virtually contiguous memory
+  *	@size:		allocation size
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
