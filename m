@@ -1,94 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 852626B0038
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 03:06:59 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u65so4645154wmu.12
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 00:06:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y1si22658888wra.133.2017.05.03.00.06.57
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD0E46B0038
+	for <linux-mm@kvack.org>; Wed,  3 May 2017 03:23:41 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id i25so8110635pfa.23
+        for <linux-mm@kvack.org>; Wed, 03 May 2017 00:23:41 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id g6si19939517pgc.36.2017.05.03.00.23.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 03 May 2017 00:06:58 -0700 (PDT)
-Date: Wed, 3 May 2017 09:06:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file
- is low
-Message-ID: <20170503070656.GA8836@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
- <20170418013659.GD21354@bbox>
- <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
- <20170419001405.GA13364@bbox>
- <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
- <20170420060904.GA3720@bbox>
- <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
- <20170502080246.GD14593@dhcp22.suse.cz>
- <alpine.DEB.2.10.1705021331450.116499@chino.kir.corp.google.com>
- <20170503061528.GB1236@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 May 2017 00:23:41 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v437IhU1134374
+	for <linux-mm@kvack.org>; Wed, 3 May 2017 03:23:40 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a7aass276-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 03 May 2017 03:23:40 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 3 May 2017 08:23:37 +0100
+Subject: Re: [RFC v3 05/17] RCU free VMAs
+References: <1493308376-23851-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493308376-23851-6-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170430050529.GH27790@bombadil.infradead.org>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 3 May 2017 09:23:31 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170503061528.GB1236@dhcp22.suse.cz>
+In-Reply-To: <20170430050529.GH27790@bombadil.infradead.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <be153da3-fc43-a70e-ff15-8c57d727f2f3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com
 
-On Wed 03-05-17 08:15:28, Michal Hocko wrote:
-> On Tue 02-05-17 13:41:23, David Rientjes wrote:
-> > On Tue, 2 May 2017, Michal Hocko wrote:
-[...]
-> > > I do agree that blindly
-> > > scanning anon pages when file pages are low is very suboptimal but this
-> > > adds yet another heuristic without _any_ numbers. Why cannot we simply
-> > > treat anon and file pages equally? Something like the following
-> > > 
-> > > 	if (pgdatfile + pgdatanon + pgdatfree > 2*total_high_wmark) {
-> > > 		scan_balance = SCAN_FILE;
-> > > 		if (pgdatfile < pgdatanon)
-> > > 			scan_balance = SCAN_ANON;
-> > > 		goto out;
-> > > 	}
-> > > 
-> > 
-> > This would be substantially worse than the current code because it 
-> > thrashes the anon lru when anon out numbers file pages rather than at the 
-> > point we fall under the high watermarks for all eligible zones.  If you 
-> > tested your suggestion, you could see gigabytes of memory left untouched 
-> > on the file lru.  Anonymous memory is more probable to be part of the 
-> > working set.
+On 30/04/2017 07:05, Matthew Wilcox wrote:
+> On Thu, Apr 27, 2017 at 05:52:44PM +0200, Laurent Dufour wrote:
+>> +static inline bool vma_is_dead(struct vm_area_struct *vma, unsigned int sequence)
+>> +{
+>> +	int ret = RB_EMPTY_NODE(&vma->vm_rb);
+>> +	unsigned seq = ACCESS_ONCE(vma->vm_sequence.sequence);
+>> +
+>> +	/*
+>> +	 * Matches both the wmb in write_seqlock_{begin,end}() and
+>> +	 * the wmb in vma_rb_erase().
+>> +	 */
+>> +	smp_rmb();
+>> +
+>> +	return ret || seq != sequence;
+>> +}
 > 
-> This was supposed to be more an example of a direction I was thinking,
-> definitely not a final patch. I will think more to come up with a
-> more complete proposal.
+> Hang on, this isn't vma_is_dead().  This is vma_has_changed() (possibly
+> from live to dead, but also possibly grown or shrunk; see your earlier
+> patch).
 
-This is still untested but should be much closer to what I've had in
-mind.
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 24efcc20af91..bcdad30f942d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2174,8 +2174,14 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		}
- 
- 		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
--			scan_balance = SCAN_ANON;
--			goto out;
-+			unsigned long pgdatanon;
-+
-+			pgdatanon = node_page_state(pgdat, NR_ACTIVE_ANON) +
-+				node_page_state(pgdat, NR_INACTIVE_ANON);
-+			if (pgdatanon + pgdatfree > total_high_wmark) {
-+				scan_balance = SCAN_ANON;
-+				goto out;
-+			}
- 		}
- 	}
- 
+This makes sense.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Laurent
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
