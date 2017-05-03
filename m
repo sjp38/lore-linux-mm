@@ -1,99 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F0E36B02EE
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 07:32:42 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p18so17954216wrb.22
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 04:32:42 -0700 (PDT)
-Received: from rrzmta1.uni-regensburg.de (rrzmta1.uni-regensburg.de. [194.94.155.51])
-        by mx.google.com with ESMTPS id l37si20952827wrl.237.2017.05.03.04.32.40
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 77BD66B02EE
+	for <linux-mm@kvack.org>; Wed,  3 May 2017 07:34:58 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id r62so3565134qkh.19
+        for <linux-mm@kvack.org>; Wed, 03 May 2017 04:34:58 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f35si19014352qtd.304.2017.05.03.04.34.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 03 May 2017 04:32:41 -0700 (PDT)
-Received: from rrzmta1.uni-regensburg.de (localhost [127.0.0.1])
-	by localhost (Postfix) with SMTP id 54AD55B2E0
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 13:32:40 +0200 (CEST)
-Received: from gwsmtp1.uni-regensburg.de (gwsmtp1.uni-regensburg.de [132.199.5.51])
-	by rrzmta1.uni-regensburg.de (Postfix) with ESMTP id 3409E5B2CD
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 13:32:40 +0200 (CEST)
-Message-Id: <5909BFD6020000A100025CBF@gwsmtp1.uni-regensburg.de>
-Date: Wed, 03 May 2017 13:32:38 +0200
-From: "Ulrich Windl" <Ulrich.Windl@rz.uni-regensburg.de>
-Subject: Improve documentation request for /proc/meminfo (proc.txt)
-References: <5909BFD6020000A100025CBF@gwsmtp1.uni-regensburg.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 May 2017 04:34:57 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v43BYLKn146499
+	for <linux-mm@kvack.org>; Wed, 3 May 2017 07:34:57 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2a7duq9hkq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 03 May 2017 07:34:57 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 3 May 2017 12:34:54 +0100
+Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
+References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170427143721.GK4706@dhcp22.suse.cz> <87pofxk20k.fsf@firstfloor.org>
+ <20170428060755.GA8143@dhcp22.suse.cz> <20170428073136.GE8143@dhcp22.suse.cz>
+ <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
+ <20170428134831.GB26705@dhcp22.suse.cz>
+ <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
+ <20170502185507.GB19165@dhcp22.suse.cz>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 3 May 2017 13:34:48 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170502185507.GB19165@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <20041995-0b68-7471-6439-ef327329c9f8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Hi!
+On 02/05/2017 20:55, Michal Hocko wrote:
+> On Tue 02-05-17 16:59:30, Laurent Dufour wrote:
+>> On 28/04/2017 15:48, Michal Hocko wrote:
+> [...]
+>>> This is getting quite hairy. What is the expected page count of the
+>>> hwpoison page?
+> 
+> OK, so from the quick check of the hwpoison code it seems that the ref
+> count will be > 1 (from get_hwpoison_page).
+> 
+>>> I guess we would need to update the VM_BUG_ON in the
+>>> memcg uncharge code to ignore the page count of hwpoison pages if it can
+>>> be arbitrary.
+>>
+>> Based on the experiment I did, page count == 2 when isolate_lru_page()
+>> succeeds, even in the case of a poisoned page.
+> 
+> that would make some sense to me. The page should have been already
+> unmapped therefore but memory_failure increases the ref count and 1 is
+> for isolate_lru_page().
+> 
+>> In my case I think this
+>> is because the page is still used by the process which is calling madvise().
+>>
+>> I'm wondering if I'm looking at the right place. May be the poisoned
+>> page should remain attach to the memory_cgroup until no one is using it.
+>> In that case this means that something should be done when the page is
+>> off-lined... I've to dig further here.
+> 
+> No, AFAIU the page will not drop the reference count down to 0 in most
+> cases. Maybe there are some scenarios where this can happen but I would
+> expect that the poisoned page will be mapped and in use most of the time
+> and won't drop down 0. And then we should really uncharge it because it
+> will pin the memcg and make it unfreeable which doesn't seem to be what
+> we want.  So does the following work reasonable? Andi, Johannes, what do
+> you think? I cannot say I would be really comfortable touching hwpoison
+> code as I really do not understand the workflow. Maybe we want to move
+> this uncharge down to memory_failure() right before we report success?
+> ---
+> From 8bf0791bcf35996a859b6d33fb5494e5b53de49d Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 2 May 2017 20:32:24 +0200
+> Subject: [PATCH] hwpoison, memcg: forcibly uncharge LRU pages
+> 
+> Laurent Dufour has noticed that hwpoinsoned pages are kept charged. In
+> his particular case he has hit a bad_page("page still charged to cgroup")
+> when onlining a hwpoison page. While this looks like something that shouldn't
+> happen in the first place because onlining hwpages and returning them to
+> the page allocator makes only little sense it shows a real problem.
+> 
+> hwpoison pages do not get freed usually so we do not uncharge them (at
+> least not since 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API")).
+> Each charge pins memcg (since e8ea14cc6ead ("mm: memcontrol: take a css
+> reference for each charged page")) as well and so the mem_cgroup and the
+> associated state will never go away. Fix this leak by forcibly
+> uncharging a LRU hwpoisoned page in delete_from_lru_cache(). We also
+> have to tweak uncharge_list because it cannot rely on zero ref count
+> for these pages.
+> 
+> Fixes: 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API")
+> Reported-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-Reading /usr/src/linux/Documentation/filesystems/proc.txt leaves some =
-questions open. For example some values are break-downs of others. I'd =
-like to see documentation on how these relate. For example (3.0.101):
+FWIW:
+Tested-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-MemTotal:       132156332 kB
-MemFree:        22448480 kB
-Buffers:         1484072 kB
-Cached:         81252832 kB
-SwapCached:            0 kB
-Active:         24216920 kB
-Inactive:       65789500 kB
-Active(anon):   20268724 kB
-Inactive(anon):  4617808 kB
-Active(file):    3948196 kB
-Inactive(file): 61171692 kB
-Unevictable:       48840 kB
-Mlocked:           30444 kB
-SwapTotal:      20964788 kB
-SwapFree:       20964788 kB
-Dirty:               496 kB
-Writeback:             0 kB
-AnonPages:       7317972 kB
-Mapped:         15927688 kB
-Shmem:          17602008 kB
-Slab:            1162160 kB
-SReclaimable:     907496 kB
-SUnreclaim:       254664 kB
-KernelStack:        8864 kB
-PageTables:      1361780 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:    79158152 kB
-Committed_AS:   66056192 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:      305164 kB
-VmallocChunk:   34292267888 kB
-HardwareCorrupted:     0 kB
-AnonHugePages:   4997120 kB
-HugePages_Total:    7700
-HugePages_Free:       62
-HugePages_Rsvd:       44
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-DirectMap4k:      301296 kB
-DirectMap2M:    19611648 kB
-DirectMap1G:    114294784 kB
-
-Which numbers sum up to MemTotal? It seems Active(anon) + Active(file) =
-=3D=3D Active (and similar for inactive).
-What is the relation between Unevictable and Mlocked? Is "Unevictable >=3D =
-Mlocked" all the time?
-It would give some insight how things work if you document the relations =
-between some of these numbers.
-
-(I'm hunting for a condition for very bad disk response times, suspecting =
-some memory pressure. I suspect too many dirty pages for some reason...)
-
-Regards,
-Ulrich
-
-
-
-
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/memcontrol.c     | 2 +-
+>  mm/memory-failure.c | 7 +++++++
+>  2 files changed, 8 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 16c556ac103d..4cf26059adb1 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5527,7 +5527,7 @@ static void uncharge_list(struct list_head *page_list)
+>  		next = page->lru.next;
+> 
+>  		VM_BUG_ON_PAGE(PageLRU(page), page);
+> -		VM_BUG_ON_PAGE(page_count(page), page);
+> +		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> 
+>  		if (!page->mem_cgroup)
+>  			continue;
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 8a6bd3a9eb1e..4497d9619bb4 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -541,6 +541,13 @@ static int delete_from_lru_cache(struct page *p)
+>  		 */
+>  		ClearPageActive(p);
+>  		ClearPageUnevictable(p);
+> +
+> +		/*
+> +		 * Poisoned page might never drop its ref count to 0 so we have to
+> +		 * uncharge it manually from its memcg.
+> +		 */
+> +		mem_cgroup_uncharge(p);
+> +
+>  		/*
+>  		 * drop the page count elevated by isolate_lru_page()
+>  		 */
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
