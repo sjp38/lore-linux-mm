@@ -1,100 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C3DAA6B0038
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 15:03:04 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id g74so100988694ioi.4
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 12:03:04 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h126si12337655ioa.170.2017.05.03.12.03.03
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED866B0038
+	for <linux-mm@kvack.org>; Wed,  3 May 2017 15:20:18 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f96so8101534qki.14
+        for <linux-mm@kvack.org>; Wed, 03 May 2017 12:20:18 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d201si2788217qka.36.2017.05.03.12.20.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 May 2017 12:03:03 -0700 (PDT)
-Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
-References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
- <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
- <7ff6fb32-7d16-af4f-d9d5-698ab7e9e14b@intel.com>
- <03127895-3c5a-5182-82de-3baa3116749e@oracle.com>
- <22557bf3-14bb-de02-7b1b-a79873c583f1@intel.com>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
-Date: Wed, 3 May 2017 12:02:59 -0700
-MIME-Version: 1.0
-In-Reply-To: <22557bf3-14bb-de02-7b1b-a79873c583f1@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        Wed, 03 May 2017 12:20:17 -0700 (PDT)
+Message-ID: <1493839213.20270.17.camel@redhat.com>
+Subject: Re: [PATCH][RFC] mm: make kswapd try harder to keep active pages in
+ cache
+From: Rik van Riel <riel@redhat.com>
+Date: Wed, 03 May 2017 15:20:13 -0400
+In-Reply-To: <20170503183814.GA11572@destiny>
+References: <1493760444-18250-1-git-send-email-jbacik@fb.com>
+	 <1493835888.20270.4.camel@redhat.com> <20170503183814.GA11572@destiny>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-ZCBBCbpD/RK/nOU0KYWD"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-
-On 5/2/17 4:43 PM, Dave Hansen wrote:
-
-> On 05/02/2017 04:34 PM, Prakash Sangappa wrote:
->> Similarly, a madvise() option also requires additional system call by every
->> process mapping the file, this is considered a overhead for the database.
-> How long-lived are these processes?  For a database, I'd assume that
-> this would happen a single time, or a single time per mmap() at process
-> startup time.  Such a syscall would be doing something on the order of
-> taking mmap_sem, walking the VMA tree, setting a bit per VMA, and
-> unlocking.  That's a pretty cheap one-time cost...
-Plus a call into the filesystem (a_ops?) to check if the underlying 
-filesystem
-supports not filling holes to mapped access before setting the bit per vma.
-Although the overhead may not be that bad.
-
-Database processes can exit and new once started, for instance, depending on
-database activity.
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, kernel-team@fb.com
 
 
->> If we do consider a new madvise() option, will it be acceptable
->> since this will be specifically for hugetlbfs file mappings?
-> Ideally, it would be something that is *not* specifically for hugetlbfs.
->   MADV_NOAUTOFILL, for instance, could be defined to SIGSEGV whenever
-> memory is touched that was not populated with MADV_WILLNEED, mlock(), etc...
+--=-ZCBBCbpD/RK/nOU0KYWD
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-If this is a generic advice type, necessary support will have to be 
-implemented
-in various filesystems which can support this.
+On Wed, 2017-05-03 at 14:38 -0400, Josef Bacik wrote:
+>=20
+>=20
+> > > +	if (nr_inactive > total_high_wmark && nr_inactive >
+> > > nr_slab)
+> > > +		skip_slab =3D true;
+> >=20
+> > I worry that this may be a little too aggressive,
+> > and result in the slab cache growing much larger
+> > than it should be on some systems.
+> >=20
+> > I wonder if it may make more sense to have the
+> > aggressiveness of slab scanning depend on the
+> > ratio of inactive to reclaimable slab pages, rather
+> > than having a hard cut-off like this?
+> > =C2=A0
+>=20
+> So I originally had a thing that kept track of the rate of change of
+> inactive vs
+> slab between kswapd runs, but this worked fine so I figured simpler
+> was better.
+> Keep in mind that we only skip slab the first loop through, so if we
+> fail to
+> free enough on the inactive list the first time through then we start
+> evicting
+> slab as well.=C2=A0=C2=A0The idea is (and my testing bore this out) that =
+with
+> the new size
+> ratio way of shrinking slab we would sometimes be over zealous and
+> evict slab
+> that we were actively using, even though we had reclaimed plenty of
+> pages from
+> our inactive list to satisfy our sc->nr_to_reclaim.
 
-The proposed behavior for 'noautofill' was to not fill holes in 
-files(like sparse files).
-In the page fault path, mm would not know if the mmapped address on which
-the fault occurred, is over a hole in the file or just that the page is 
-not available
-in the page cache. The underlying filesystem would be called and it 
-determines
-if it is a hole and that is where it would fail and not fill the hole, 
-if this support is added.
-Normally, filesystem which support sparse files(holes in file) 
-automatically fill the hole
-when accessed. Then there is the issue of file system block size and 
-page size. If the
-block sizes are smaller then page size, it could mean the noautofill 
-would only work
-if the hole size is equal to  or a multiple of, page size?
+My worry is that, since we try to keep the active to
+inactive ratio about equal for file pages, many systems
+could end up with equal amounts of active file pages,
+inactive file pages, and reclaimable slab.
 
-In case of hugetlbfs it is much straight forward. Since this filesystem 
-is not like a normal
-filesystems and and the file sizes are multiple of huge pages. The hole 
-will be a multiple
-of the huge page size. For this reason then should the advise be 
-specific to hugetlbfs?
+That could not be a gigantic waste of memory for many
+workloads, but it could also exacerbate the "reclaim
+slab objects forever without freeing any memory" problem
+once we do need the memory for something else later on.
 
+> I could probably change the ratio in the sc->inactive_only case to be
+> based on
+> the slab to inactive ratio and see how that turns out, I'll get that
+> wired up
+> and let you know how it goes.=C2=A0=C2=A0Thanks,
 
->
->> If so,
->> would a new flag to mmap() call itself be acceptable, which would
->> define the proposed behavior?. That way no additional system calls
->> need to be made.
-> I don't feel super strongly about it, but I guess an mmap() flag could
-> work too.
->
+Looking forward to it.
 
-Same goes with the mmap call, if it is a generic flag.
+I am glad to see this problem being attacked :)
 
--Prakash.
+--=20
+All rights reversed
+--=-ZCBBCbpD/RK/nOU0KYWD
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
+iQEcBAABCAAGBQJZCi1tAAoJEM553pKExN6DyaYH/jCGWkK0Vd8ow3281lOUk1rB
+1jlFshHX1DJjujVcYrem67spS9X752W+7d7YkbCt16kAQ3EVZOP7G+LzQn+ZpkLv
+1RVfp3cDHUaoM7S8aosNNviBHJqFoq3suM4vO8dy27gekMPyhH4mj5hwAuZQav84
+PpOfibuhJ60prEeKYd/rL+xdgQd2Xc42Iw0cT7Vk2D4KzVCdqXGz1xx63mnl9IrG
+dGk48tcukiOuAncCNbobZfQKOlYdcIyIqD1r57PF+8pN7iV5R+0AR+529SYhbGDm
+myLK9OV0yHMHdfH2VAGEI42s3vXEZ4Iww/iFvowWkPF4MkeDEmyK2nr31JTWe2s=
+=ijpN
+-----END PGP SIGNATURE-----
 
+--=-ZCBBCbpD/RK/nOU0KYWD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
