@@ -1,83 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B15476B02F4
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 14:45:07 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id z142so7639704qkz.8
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 11:45:07 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8FA6B0311
+	for <linux-mm@kvack.org>; Wed,  3 May 2017 14:46:14 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id i81so7693429qke.6
+        for <linux-mm@kvack.org>; Wed, 03 May 2017 11:46:14 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p70si2413107qka.105.2017.05.03.11.45.06
+        by mx.google.com with ESMTPS id k129si2337938qkb.259.2017.05.03.11.46.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 May 2017 11:45:07 -0700 (PDT)
-Message-Id: <20170503184039.737799631@redhat.com>
-Date: Wed, 03 May 2017 15:40:08 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: [patch 1/3] MM: remove unused quiet_vmstat function
-References: <20170503184007.174707977@redhat.com>
-Content-Disposition: inline; filename=remove-vmstat-quiet
+        Wed, 03 May 2017 11:46:13 -0700 (PDT)
+Message-ID: <1493837167.20270.8.camel@redhat.com>
+Subject: Re: [RESENT PATCH] x86/mem: fix the offset overflow when read/write
+ mem
+From: Rik van Riel <riel@redhat.com>
+Date: Wed, 03 May 2017 14:46:07 -0400
+In-Reply-To: <alpine.DEB.2.10.1705021350510.116499@chino.kir.corp.google.com>
+References: <1493293775-57176-1-git-send-email-zhongjiang@huawei.com>
+	 <alpine.DEB.2.10.1705021350510.116499@chino.kir.corp.google.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-hoXnknDxDS92K+dTIJiC"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, Marcelo Tosatti <mtosatti@redhat.com>
+To: David Rientjes <rientjes@google.com>, zhongjiang <zhongjiang@huawei.com>, Bjorn Helgaas <bhelgaas@google.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: Rich Felker <dalias@libc.org>, Andrew Morton <akpm@linux-foundation.org>, arnd@arndb.de, hannes@cmpxchg.org, kirill@shutemov.name, mgorman@techsingularity.net, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Remove unused quiet_vmstat function.
 
-Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+--=-hoXnknDxDS92K+dTIJiC
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
----
- include/linux/vmstat.h |    1 -
- mm/vmstat.c            |   25 -------------------------
- 2 files changed, 26 deletions(-)
+On Tue, 2017-05-02 at 13:54 -0700, David Rientjes wrote:
 
-Index: linux-2.6-git-disable-vmstat-worker/include/linux/vmstat.h
-===================================================================
---- linux-2.6-git-disable-vmstat-worker.orig/include/linux/vmstat.h	2017-04-24 18:52:42.957724687 -0300
-+++ linux-2.6-git-disable-vmstat-worker/include/linux/vmstat.h	2017-04-24 18:53:15.086793496 -0300
-@@ -233,7 +233,6 @@
- extern void __dec_zone_state(struct zone *, enum zone_stat_item);
- extern void __dec_node_state(struct pglist_data *, enum node_stat_item);
- 
--void quiet_vmstat(void);
- void cpu_vm_stats_fold(int cpu);
- void refresh_zone_stat_thresholds(void);
- 
-Index: linux-2.6-git-disable-vmstat-worker/mm/vmstat.c
-===================================================================
---- linux-2.6-git-disable-vmstat-worker.orig/mm/vmstat.c	2017-04-24 18:52:42.957724687 -0300
-+++ linux-2.6-git-disable-vmstat-worker/mm/vmstat.c	2017-04-24 18:53:53.075874785 -0300
-@@ -1657,31 +1657,6 @@
- }
- 
- /*
-- * Switch off vmstat processing and then fold all the remaining differentials
-- * until the diffs stay at zero. The function is used by NOHZ and can only be
-- * invoked when tick processing is not active.
-- */
--void quiet_vmstat(void)
--{
--	if (system_state != SYSTEM_RUNNING)
--		return;
--
--	if (!delayed_work_pending(this_cpu_ptr(&vmstat_work)))
--		return;
--
--	if (!need_update(smp_processor_id()))
--		return;
--
--	/*
--	 * Just refresh counters and do not care about the pending delayed
--	 * vmstat_update. It doesn't fire that often to matter and canceling
--	 * it would be too expensive from this path.
--	 * vmstat_shepherd will take care about that for us.
--	 */
--	refresh_cpu_vm_stats(false);
--}
--
--/*
-  * Shepherd worker thread that checks the
-  * differentials of processors that have their worker
-  * threads for vm statistics updates disabled because of
+> > diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+> > index 7e4a9d1..3a765e02 100644
+> > --- a/drivers/char/mem.c
+> > +++ b/drivers/char/mem.c
+> > @@ -55,7 +55,7 @@ static inline int
+> valid_phys_addr_range(phys_addr_t addr, size_t count)
+> >=C2=A0=C2=A0
+> >=C2=A0 static inline int valid_mmap_phys_addr_range(unsigned long pfn,
+> size_t size)
+> >=C2=A0 {
+> > -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0return 1;
+> > +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0return (pfn << PAGE_SHIFT) + size <=3D _=
+_pa(high_memory);
+> >=C2=A0 }
+> >=C2=A0 #endif
+> >=C2=A0=C2=A0
+>=20
+> I suppose you are correct that there should be some sanity checking
+> on the=C2=A0
+> size used for the mmap().
 
+My apologies for not responding earlier. It may
+indeed make sense to have a sanity check here.
+
+However, it is not as easy as simply checking the
+end against __pa(high_memory). Some systems have
+non-contiguous physical memory ranges, with gaps
+of invalid addresses in-between.
+
+You would have to make sure that both the beginning
+and the end are valid, and that there are no gaps of
+invalid pfns in the middle...
+
+At that point, is the complexity so much that it no
+longer makes sense to try to protect against root
+crashing the system?
+
+--=20
+All rights reversed
+--=-hoXnknDxDS92K+dTIJiC
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJZCiVvAAoJEM553pKExN6DYH8H/0WhU6+eB1BnSdM1Lz8d0VLc
+NV1qp0758ix0rrG+EbIBfR8QjpcCaIyjtKv2tu/dnvsk2ugP724HAVjDR1AVvFyA
+3nw1O2rXnPxbWMkQn40fEqOIFOmguLGbExzCay28lH4gDIUjmFI1ArxlcMBtHSch
+gnWAke3kDSXmat9jswj493a0WG8w1lJwKdBIe3eqYwRL17ErhiDAqD8YBRSZiZAH
+3FqAobI3mlopSFM8rMohRB6MTFy0T1g2vZgzj1SFLdOFaOsYrcfy2QEUm5hgj7oE
+PFDuzr/06Yv8jzu/yuCZNoz+BSZ3YHXjcbxfameuY7OEIFrlonl05oAUDvKKa6g=
+=2Cy0
+-----END PGP SIGNATURE-----
+
+--=-hoXnknDxDS92K+dTIJiC--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
