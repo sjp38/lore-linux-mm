@@ -1,350 +1,369 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BF2756B0038
-	for <linux-mm@kvack.org>; Wed,  3 May 2017 17:46:18 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 39so1007814qts.5
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 14:46:18 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k43si222556qta.19.2017.05.03.14.46.16
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9AE6B0038
+	for <linux-mm@kvack.org>; Wed,  3 May 2017 18:17:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h87so2686706pfh.2
+        for <linux-mm@kvack.org>; Wed, 03 May 2017 15:17:19 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o4si286494plb.28.2017.05.03.15.17.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 May 2017 14:46:17 -0700 (PDT)
-Date: Wed, 3 May 2017 23:46:13 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Review request: draft ioctl_userfaultfd(2) manual page
-Message-ID: <20170503214613.GB30692@redhat.com>
-References: <487b2c79-f99b-6d0f-2412-aa75cde65569@gmail.com>
- <9af29fc6-dce2-f729-0f07-a0bfcc6c3587@gmail.com>
- <20170322135423.GB27789@rapoport-lnx>
- <e8c5ca4a-0710-7206-b96e-10d171bda218@gmail.com>
+        Wed, 03 May 2017 15:17:18 -0700 (PDT)
+Date: Wed, 03 May 2017 15:17:15 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2017-05-03-15-16 uploaded
+Message-ID: <590a56eb.l+Eu7L7Jdv9KEqSs%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e8c5ca4a-0710-7206-b96e-10d171bda218@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-man <linux-man@vger.kernel.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On Fri, Apr 21, 2017 at 11:11:18AM +0200, Michael Kerrisk (man-pages) wrote:
-> Hello Mike,
-> Hello Andrea (we need your help!),
+The mm-of-the-moment snapshot 2017-05-03-15-16 has been uploaded to
 
-Sorry for not answering sooner! (I had a vacation last week)
+   http://www.ozlabs.org/~akpm/mmotm/
 
-> 
-> On 03/22/2017 02:54 PM, Mike Rapoport wrote:
-> >>        The  various  ioctl(2) operations are described below.  The UFFDIO_API,
-> >>        UFFDIO_REGISTER, and UFFDIO_UNREGISTER operations are used to configure
-> >>        userfaultfd behavior.  These operations allow the caller to choose what
-> >>        features will be enabled and what kinds of events will be delivered  to
-> >>        the application.  The remaining operations are range operations.  These
-> >>        operations enable the calling application to resolve page-fault  events
-> >>        in a consistent way.
-> >>
-> >>
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??FIXME                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??Above: What does "consistent" mean?                  a??
-> >>        a??                                                     a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> > 
-> > Andrea, can you please help with this one?
-> 
-> Let's see what Andrea has to say.
+mmotm-readme.txt says
 
-I think it doesn't mean anything and I see you already removed it, fine!
+README for mm-of-the-moment:
 
-> So, the thing that was not clear, but now I think I understand:
-> 'features' is an input field where one can ask about supported features
-> (but none are supported, before Linux 4.11). Is that correct? I've changed
-> the text here to read:
-> 
->        Before the call, the features field must be  initialized
->        to  zero.  In the future, it is intended that this field can be
->        used to ask whether particular features are supported.
-> 
-> Seem okay?
+http://www.ozlabs.org/~akpm/mmotm/
 
-Yes, but in reality nothing has changed. Simply the kernels before
-4.11 had no feature support at all.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-===
-       Starting from Linux 4.11, the features field can be used to ask
-       whether particular features are supported and explicitly enable
-       userfaultfd features that are disabled by default.  The kernel
-       always reports all the available features in the features
-       field.
-=====	      
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-I would prefer if we removed this 4.11 difference here.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-We should be able to describe it simply as:
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-"The features field can be used to ask whether particular features are
-supported and explicitly enable userfaultfd features that are disabled
-by default. The kernel always reports all the available features in
-the features field."
-
-The whole point of this feature flag thing, is so the app at runtime
-can check if the feature is available and ask for it. The fact kernels
-before 4.11 don't support any feature is a detail.
-
-> > There's a check in uffdio_api call that the user is not trying to enable
-> > any other functionality and it asserts that uffdio_api.featurs is zero [1].
-> > Starting from 4.11 the features negotiation is different. Now uffdio_call
-> > verifies that it can support features the application requested [2].
-> 
-> Okay.
-
-I don't like the differentiation here between 4.11 and before, because
-from user point of view nothing has changed.
-
-I think this description is enough "       Since Linux 4.11, the
-following feature bits may be set: " and no other mention of 4.11 is
-needed in the manpage. It looks an unnecessary complication to the reader.
-
-> 
-> >>        The  kernel verifies that it can support the requested API version, and
-> >>        sets the features and ioctls fields to bit masks representing  all  the
-> >>        available features and the generic ioctl(2) operations available.  Cura??
-> >>        rently, zero (i.e., no feature bits) is placed in the  features  field.
-> >>        The returned ioctls field can contain the following bits:
-> >>
-> >>
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??FIXME                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??This  user-space  API  seems not fully polished. Why a??
-> >>        a??are there not constants defined for each of the bit- a??
-> >>        a??mask values listed below?                            a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>
-> >>        1 << _UFFDIO_API
-> >>               The UFFDIO_API operation is supported.
-> >>
-> >>        1 << _UFFDIO_REGISTER
-> >>               The UFFDIO_REGISTER operation is supported.
-> >>
-> >>        1 << _UFFDIO_UNREGISTER
-> >>               The UFFDIO_UNREGISTER operation is supported.
-> > 
-> > Well, I tend to agree. I believe the original intention was to use the
-> > OR'ed mask, like UFFD_API_IOCTLS.
-> > Andrea, can you add somthing?
-> 
-> Yes, Andrea, please!
-
-I agree it can be polished, but that's not something the manpage can
-fix... For now the above is correct.
-
-So about the error retvals I reviewed the final manpage from git which
-is the latest version.
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
-> >>
-> >>        EINVAL The userfaultfd has already been  enabled  by  a  previous  UFFa??
-> >>               DIO_API operation.
-> >>
-> >>        EINVAL The  API  version requested in the api field is not supported by
-> >>               this kernel, or the features field was not zero.
-> >>
-> >>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>               a??FIXME                                                a??
-> >>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>               a??In the above error case, the  returned  'uffdio_api' a??
-> >>               a??structure  zeroed out. Why is this done? This should a??
-> >>               a??be explained in the manual page.                     a??
-> >>               a??                                                     a??
-> >>               a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >  
-> > In my understanding the uffdio_api structure is zeroed to allow the caller
-> > to distinguish the reasons for -EINVAL.
-> 
-> Andrea, can you please help here?
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-It is zeroed out just for robustness, it's a slow path. If userland by
-mistake won't check -EINVAL but it checks uffdio_api.features to be
-set or uffdio_api.ioctls or uffdio_api.api after the UFFDIO_API ioctl
-returns, it will have a chance to catch the failure (it won't risk to
-parse random uninitialized values at least).
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-I don't think it should be documented the uffdio_api is zeroed out or
-if it is documented, we should say userland shouldn't depend on it and
-it's done just for robustness.
+To develop on top of mmotm git:
 
-The normal correct way to catch an error is to check -EINVAL, after
-getting -EINVAL the contents of uffdio_api should be ignored by
-userland.
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-> >>    UFFDIO_REGISTER
-> >>        (Since Linux 4.3.)  Register a memory  address  range  with  the  usera??
-> >>        faultfd  object.   The  argp argument is a pointer to a uffdio_register
-> >>        structure, defined as:
-> >>
-> >>            struct uffdio_range {
-> >>                __u64 start;    /* Start of range */
-> >>                __u64 len;      /* Length of rnage (bytes) */
-> >>            };
-> >>
-> >>            struct uffdio_register {
-> >>                struct uffdio_range range;
-> >>                __u64 mode;     /* Desired mode of operation (input) */
-> >>                __u64 ioctls;   /* Available ioctl() operations (output) */
-> >>            };
-> >>
-> >>
-> >>        The range field defines a memory range starting at start and continuing
-> >>        for len bytes that should be handled by the userfaultfd.
-> >>
-> >>        The  mode  field  defines the mode of operation desired for this memory
-> >>        region.  The following values may be bitwise  ORed  to  set  the  usera??
-> >>        faultfd mode for the specified range:
-> >>
-> >>        UFFDIO_REGISTER_MODE_MISSING
-> >>               Track page faults on missing pages.
-> >>
-> >>        UFFDIO_REGISTER_MODE_WP
-> >>               Track page faults on write-protected pages.
-> >>
-> >>        Currently, the only supported mode is UFFDIO_REGISTER_MODE_MISSING.
-> >>
-> >>        If the operation is successful, the kernel modifies the ioctls bit-mask
-> >>        field to indicate which ioctl(2) operations are available for the speca??
-> >>        ified range.  This returned bit mask is as for UFFDIO_API.
-> >>
-> >>        This ioctl(2) operation returns 0 on success.  On error, -1 is returned
-> >>        and errno is set to indicate the cause of the error.   Possible  errors
-> >>        include:
-> >>
-> >>
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??FIXME                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??Is the following error list correct?                 a??
-> >>        a??                                                     a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> > 
-> > Here again it maybe -EFAULT to indicate copy_{from,to}_user failure.
-> > And, UFFDIO_REGISTER may return -ENOMEM if the process is exiting and the
-> > mm_struct has gone by the time userfault grabs it. 
-> 
-> Okay -- added EFAULT. I think I'll skip ENOMEM for the moment, but
-> will note the possibility in the page source.
+To rebase a branch with older patches to a new mmotm release:
 
-There is also ENOMEM as result of split_vma failing, and it isn't the
-cleanest thing that it means both real OOM or out of vmas
-(mm->map_count >= sysctl_max_map_count, not real OOM) and that the
-process is exiting or there isn't a single vma in the mm.
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
-If there's one vma but it isn't in the range we return -EINVAL so we
-could return probably -EINVAL if it's exiting or if there isn't a
-single vma in the mm. And leave -ENOMEM for split_vma only.
 
-In general -EINVAL is programmer error of some kind, -ENOMEM is
-returned in memory related cases that trigger at runtime, however if
-the process is exiting it's debatable if it's programmer error too
-which is why I think we could return -EINVAL there.
 
-I'd expect userland to threat -ENOMEM and -EINVAL about the same way.
 
-> >>        EINVAL There was no mapping in the specified address range.
-> >>
-> >>    UFFDIO_COPY
-> >>        (Since  Linux 4.3.)  Atomically copy a continuous memory chunk into the
-> >>        userfault registered range and optionally wake up the  blocked  thread.
-> >>        The  source  and  destination addresses and the number of bytes to copy
-> >>        are specified by the src, dst, and len fields of the uffdio_copy struca??
-> >>        ture pointed to by argp:
-> >>
-> >>            struct uffdio_copy {
-> >>                __u64 dst;    /* Source of copy */
-> >>                __u64 src;    /* Destinate of copy */
-> >>                __u64 len;    /* Number of bytes to copy */
-> >>                __u64 mode;   /* Flags controlling behavior of copy */
-> >>                __s64 copy;   /* Number of bytes copied, or negated error */
-> >>            };
-> >>
-> >>        The  following value may be bitwise ORed in mode to change the behavior
-> >>        of the UFFDIO_COPY operation:
-> >>
-> >>        UFFDIO_COPY_MODE_DONTWAKE
-> >>               Do not wake up the thread that waits for page-fault resolution
-> >>
-> >>        The copy field is used by the kernel to return the number of bytes that
-> >>        was actually copied, or an error (a negated errno-style value).
-> >>
-> >>
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??FIXME                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??Above:  Why is the 'copy' field used to return error a??
-> >>        a??values?  This should  be  explained  in  the  manual a??
-> >>        a??page.                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> > 
-> > Andrea, can you help with this one, please?
-> 
-> Yes, Andrea, please.
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
 
-Well not just for error values. copy also tells how much did it copy
-if a signal made it return short with -EINTR or some other error
-happened in the middle of the copy after we already did some
-copying-progress.
+A git copy of this tree is available at
 
-Writing any other error into .copy (and not only writing positive
-values there) is for robustness in case userland won't check the ioctl
-retval but nobody should depend on it. After the ioctl returns an
-error userland should not check the uffdio_copy structure at all.
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
 
-The thing to document is the amount of bytes successfully copied in
-uffdio_copy.copy (which may be a short copy and in turn must be
-checked... unless one knows the len matches the arch PAGE_SIZE but
-it's still safer to check the uffdio_copy.copy field and be
-consistent).
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
 
-One more relevant retvals for UFFDIO_COPY and UFFDIO_ZEROPAGE that I
-noticed is missing in the current manpage, is
--EEXIST. UFFDIO_COPY/ZEROPAGE don't behave like mmap/mremap,
-UFFDIO_COPY/ZEROPAGE will never teardown any existing established
-mapping to guarantee even if the user has race condition in its code,
-there's no risk of silent memory corruption, instead a meaningful
-error is returned by UFFDIO_COPY/ZEROPAGE. For example if two
-UFFDIO_COPY run concurrently on the same page, only the first one will
-succeed, the second will return -EEXIST and only the first page will
-be copied and no memory corruption can happen this way (furthermore
-the programmer can be notified of the race condition in the code which
-might even be intentional, but more likely is not).
 
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??FIXME                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> >>        a??Why  is  the  'zeropage'  field used to return error a??
-> >>        a??values?  This should  be  explained  in  the  manual a??
-> >>        a??page.                                                a??
-> >>        a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??a??
-> 
-> Help is still needed for this FIXME!
+This mmotm tree contains the following patches against 4.11:
+(patches marked "*" will be included in linux-next)
 
-Same as uffdio_copy.copy: because we've to return the number of pages
-that have been zeroed out in case we run into an error (signal -EINTR
-or -EEXIST etc..) after we already succeeded partially on a couple of
-pages. So we may as well write the error in the same field if no pages
-were zeroed out. This way the program will misbehave more than if that
-field is left untouched (and it could even be random in such case as
-it can be left uninitialized by userland). Clearly it only makes a
-difference if the programmer forgets to check the UFFDIO_ZEROPAGE
-ioctl retval and the retval must always be checked, so again, this is
-only for robustness.
-
-Awesome manpage! Super useful, it's fundamental to have a manpage
-especially when the syscall is not simple and strightforward in
-functionality.
-
-Thanks!
-Andrea
+  origin.patch
+  i-need-old-gcc.patch
+* dma-debug-make-locking-to-work-for-rt.patch
+* scripts-spellingtxt-add-several-more-common-spelling-mistakes.patch
+* blackfin-bf609-let-clk_disable-return-immediately-if-clk-is-null.patch
+* fs-ocfs2-cluster-use-setup_timer.patch
+* ocfs2-o2hb-revert-hb-threshold-to-keep-compatible.patch
+* fs-ocfs2-cluster-use-offset_in_page-macro.patch
+* slab-avoid-ipis-when-creating-kmem-caches.patch
+* mm-fix-100%-cpu-kswapd-busyloop-on-unreclaimable-nodes.patch
+* mm-fix-check-for-reclaimable-pages-in-pf_memalloc-reclaim-throttling.patch
+* mm-remove-seemingly-spurious-reclaimability-check-from-laptop_mode-gating.patch
+* mm-remove-unnecessary-reclaimability-check-from-numa-balancing-target.patch
+* mm-dont-avoid-high-priority-reclaim-on-unreclaimable-nodes.patch
+* mm-dont-avoid-high-priority-reclaim-on-memcg-limit-reclaim.patch
+* mm-delete-nr_pages_scanned-and-pgdat_reclaimable.patch
+* revert-mm-vmscan-account-for-skipped-pages-as-a-partial-scan.patch
+* mm-remove-unnecessary-back-off-function-when-retrying-page-reclaim.patch
+* writeback-use-setup_deferrable_timer.patch
+* mm-delete-unnecessary-ttu_-flags.patch
+* mm-dont-assume-anonymous-pages-have-swapbacked-flag.patch
+* mm-move-madv_free-pages-into-lru_inactive_file-list.patch
+* mm-reclaim-madv_free-pages.patch
+* mm-fix-lazyfree-bug-on-check-in-try_to_unmap_one.patch
+* mm-enable-madv_free-for-swapless-system.patch
+* proc-show-madv_free-pages-info-in-smaps.patch
+* mm-memcontrol-provide-shmem-statistics.patch
+* mm-swap-fix-a-race-in-free_swap_and_cache.patch
+* mm-use-is_migrate_highatomic-to-simplify-the-code.patch
+* mm-use-is_migrate_isolate_page-to-simplify-the-code.patch
+* mm-vmstat-print-non-populated-zones-in-zoneinfo.patch
+* mm-vmstat-suppress-pcp-stats-for-unpopulated-zones-in-zoneinfo.patch
+* lockdep-teach-lockdep-about-memalloc_noio_save.patch
+* lockdep-allow-to-disable-reclaim-lockup-detection.patch
+* xfs-abstract-pf_fstrans-to-pf_memalloc_nofs.patch
+* mm-introduce-memalloc_nofs_saverestore-api.patch
+* xfs-use-memalloc_nofs_saverestore-instead-of-memalloc_noio.patch
+* jbd2-mark-the-transaction-context-with-the-scope-gfp_nofs-context.patch
+* jbd2-make-the-whole-kjournald2-kthread-nofs-safe.patch
+* mm-tighten-up-the-fault-path-a-little.patch
+* mm-remove-rodata_test_data-export-add-pr_fmt.patch
+* mm-do-not-use-double-negation-for-testing-page-flags.patch
+* mm-vmscan-fix-zone-balance-check-in-prepare_kswapd_sleep.patch
+* mm-vmscan-only-clear-pgdat-congested-dirty-writeback-state-when-balanced.patch
+* mm-vmscan-prevent-kswapd-sleeping-prematurely-due-to-mismatched-classzone_idx.patch
+* mm-page_alloc-__gfp_nowarn-shouldnt-suppress-stall-warnings.patch
+* mm-sparse-refine-usemap_size-a-little.patch
+* mm-compaction-ignore-block-suitable-after-check-large-free-page.patch
+* mm-vmscan-more-restrictive-condition-for-retry-in-do_try_to_free_pages.patch
+* mm-remove-unncessary-ret-in-page_referenced.patch
+* mm-remove-swap_dirty-in-ttu.patch
+* mm-remove-swap_mlock-check-for-swap_success-in-ttu.patch
+* mm-make-the-try_to_munlock-void-function.patch
+* mm-remove-swap_mlock-in-ttu.patch
+* mm-remove-swap_again-in-ttu.patch
+* mm-make-ttus-return-boolean.patch
+* mm-make-rmap_walk-void-function.patch
+* mm-make-rmap_one-boolean-function.patch
+* mm-remove-swap_.patch
+* mm-swap-fix-comment-in-__read_swap_cache_async.patch
+* mm-swap-improve-readability-via-make-spin_lock-unlock-balanced.patch
+* mm-swap-avoid-lock-swap_avail_lock-when-held-cluster-lock.patch
+* mm-enable-page-poisoning-early-at-boot.patch
+* mm-include-linux-migrateh-fixing-checkpatch-warning-regarding-function-definition.patch
+* swap-add-warning-if-swap-slots-cache-failed-to-initialize.patch
+* mm-fix-spelling-error.patch
+* userfaultfd-selftest-combine-all-cases-into-the-single-executable.patch
+* oom-improve-oom-disable-handling.patch
+* mm-mmap-replace-shm_huge_mask-with-map_huge_mask-inside-mmap_pgoff.patch
+* mm-vmscan-fix-io-refault-regression-in-cache-workingset-transition.patch
+* mm-memcontrol-clean-up-memoryevents-counting-function.patch
+* mm-memcontrol-re-use-global-vm-event-enum.patch
+* mm-memcontrol-re-use-node-vm-page-state-enum.patch
+* mm-memcontrol-use-node-page-state-naming-scheme-for-memcg.patch
+* mm-swap-remove-unused-function-prototype.patch
+* documentation-vm-add-hugetlbfs-reservation-overview.patch
+* mm-madvise-clean-up-madv_soft_offline-and-madv_hwpoison.patch
+* mm-madvise-move-up-the-behavior-parameter-validation.patch
+* mm-softoffline-add-page-flag-description-in-error-paths.patch
+* mm-page_alloc-remove-debug_guardpage_minorder-test-in-warn_alloc.patch
+* zram-handle-multiple-pages-attached-bios-bvec.patch
+* zram-partial-io-refactoring.patch
+* zram-use-zram_slot_lock-instead-of-raw-bit_spin_lock-op.patch
+* zram-remove-zram_meta-structure.patch
+* zram-introduce-zram-data-accessor.patch
+* zram-use-zram_free_page-instead-of-open-coded.patch
+* zram-reduce-load-operation-in-page_same_filled.patch
+* fs-fix-data-invalidation-in-the-cleancache-during-direct-io.patch
+* fs-block_dev-always-invalidate-cleancache-in-invalidate_bdev.patch
+* mm-truncate-bail-out-early-from-invalidate_inode_pages2_range-if-mapping-is-empty.patch
+* mm-truncate-avoid-pointless-cleancache_invalidate_inode-calls.patch
+* mm-gup-fix-access_ok-argument-type.patch
+* mm-swap-fix-swap-space-leak-in-error-path-of-swap_free_entries.patch
+* mm-hwpoison-call-shake_page-unconditionally.patch
+* mm-hwpoison-call-shake_page-after-try_to_unmap-for-mlocked-page.patch
+* kasan-introduce-helper-functions-for-determining-bug-type.patch
+* kasan-unify-report-headers.patch
+* kasan-change-allocation-and-freeing-stack-traces-headers.patch
+* kasan-simplify-address-description-logic.patch
+* kasan-change-report-header.patch
+* kasan-improve-slab-object-description.patch
+* kasan-print-page-description-after-stacks.patch
+* kasan-improve-double-free-report-format.patch
+* kasan-separate-report-parts-by-empty-lines.patch
+* mm-uncharge-poisoned-pages.patch
+* mm-skip-hwpoisoned-pages-when-onlining-pages.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
+* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks.patch
+* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks-checkpatch-fixes.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+  mm.patch
+* mm-compaction-reorder-fields-in-struct-compact_control.patch
+* mm-compaction-remove-redundant-watermark-check-in-compact_finished.patch
+* mm-page_alloc-split-smallest-stolen-page-in-fallback.patch
+* mm-page_alloc-split-smallest-stolen-page-in-fallback-fix.patch
+* mm-page_alloc-count-movable-pages-when-stealing-from-pageblock.patch
+* mm-page_alloc-count-movable-pages-when-stealing-from-pageblock-fix.patch
+* mm-compaction-change-migrate_async_suitable-to-suitable_migration_source.patch
+* mm-compaction-add-migratetype-to-compact_control.patch
+* mm-compaction-restrict-async-compaction-to-pageblocks-of-same-migratetype.patch
+* mm-compaction-finish-whole-pageblock-to-reduce-fragmentation.patch
+* mm-page_alloc-return-0-in-case-this-node-has-no-page-within-the-zone.patch
+* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* proc-remove-cast-from-memory-allocation.patch
+* proc-sysctl-fix-the-int-overflow-for-jiffies-conversion.patch
+* drivers-virt-use-get_user_pages_unlocked.patch
+* jiffiesh-declare-jiffies-and-jiffies_64-with-____cacheline_aligned_in_smp.patch
+* make-help-add-tools-help-target.patch
+* locking-hung_task-defer-showing-held-locks.patch
+* vmci-fix-a-couple-integer-overflow-tests.patch
+* c2port-checking-for-null-instead-of-is_err.patch
+* revert-lib-test_sortc-make-it-explicitly-non-modular.patch
+* lib-add-module-support-to-array-based-sort-tests.patch
+* lib-add-module-support-to-linked-list-sorting-tests.patch
+* firmware-makefile-force-recompilation-if-makefile-changes.patch
+* checkpatch-remove-obsolete-config_experimental-checks.patch
+* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions.patch
+* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions-fix.patch
+* checkpatch-add-ability-to-find-bad-uses-of-vsprintf-%pfoo-extensions-fix-fix.patch
+* checkpatch-improve-embedded_function_name-test.patch
+* checkpatch-allow-space-leading-blank-lines-in-email-headers.patch
+* checkpatch-avoid-suggesting-struct-definitions-should-be-const.patch
+* checkpatch-improve-multistatement_macro_use_do_while-test.patch
+* checkpatch-clarify-the-embedded_function_name-message.patch
+* checkpatch-special-audit-for-revert-commit-line.patch
+* checkpatch-improve-kalloc-with-multiplication-and-sizeof-test.patch
+* checkpatch-add-typedefsfile.patch
+* checkpatch-improve-the-embedded-function-name-test-for-patch-contexts.patch
+* checkpatch-improve-the-suspect_code_indent-test.patch
+* reiserfs-use-designated-initializers.patch
+* fork-free-vmapped-stacks-in-cache-when-cpus-are-offline.patch
+* cpumask-make-nr_cpumask_bits-unsigned.patch
+* crash-move-crashkernel-parsing-and-vmcore-related-code-under-config_crash_core.patch
+* ia64-reuse-append_elf_note-and-final_note-functions.patch
+* powerpc-fadump-remove-dependency-with-config_kexec.patch
+* powerpc-fadump-reuse-crashkernel-parameter-for-fadump-memory-reservation.patch
+* powerpc-fadump-update-documentation-about-crashkernel-parameter-reuse.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
+* pidns-disable-pid-allocation-if-pid_ns_prepare_proc-is-failed-in-alloc_pid.patch
+* ns-allow-ns_entries-to-have-custom-symlink-content.patch
+* pidns-expose-task-pid_ns_for_children-to-userspace.patch
+* taskstats-add-e-u-stime-for-tgid-command.patch
+* taskstats-add-e-u-stime-for-tgid-command-fix.patch
+* taskstats-add-e-u-stime-for-tgid-command-fix-fix.patch
+* kcov-simplify-interrupt-check.patch
+* scripts-gdb-add-lx-fdtdump-command.patch
+* kernel-reboot-add-devm_register_reboot_notifier.patch
+* kernel-reboot-add-devm_register_reboot_notifier-fix.patch
+* fault-inject-use-correct-check-for-interrupts.patch
+* fault-inject-support-systematic-fault-injection.patch
+* fault-inject-support-systematic-fault-injection-fix.patch
+* fault-inject-automatically-detect-the-number-base-for-fail-nth-write-interface.patch
+* fault-inject-parse-as-natural-1-based-value-for-fail-nth-write-interface.patch
+* fault-inject-make-fail-nth-read-write-interface-symmetric.patch
+* fault-inject-simplify-access-check-for-fail-nth.patch
+* fault-inject-simplify-access-check-for-fail-nth-fix.patch
+* fault-inject-add-proc-pid-fail-nth.patch
+* zlib-inflate-fix-potential-buffer-overflow.patch
+* initramfs-provide-a-way-to-ignore-image-provided-by-bootloader.patch
+* initramfs-use-vfs_stat-lstat-directly.patch
+* ipc-shm-some-shmat-cleanups.patch
+* sysvipc-cacheline-align-kern_ipc_perm.patch
+  linux-next.patch
+  linux-next-git-rejects.patch
+* imx7-fix-kconfig-warning-and-build-errors.patch
+* sparc64-ng4-memset-32-bits-overflow.patch
+* mm-zeroing-hash-tables-in-allocator.patch
+* mm-updated-callers-to-use-hash_zero-flag.patch
+* mm-adaptive-hash-table-scaling.patch
+* mm-introduce-kvalloc-helpers.patch
+* mm-introduce-kvalloc-helpers-fix.patch
+* mm-vmalloc-properly-track-vmalloc-users.patch
+* mm-support-__gfp_repeat-in-kvmalloc_node-for-32kb.patch
+* rhashtable-simplify-a-strange-allocation-pattern.patch
+* ila-simplify-a-strange-allocation-pattern.patch
+* xattr-zero-out-memory-copied-to-userspace-in-getxattr.patch
+* treewide-use-kvalloc-rather-than-opencoded-variants.patch
+* net-use-kvmalloc-with-__gfp_repeat-rather-than-open-coded-variant.patch
+* md-use-kvmalloc-rather-than-opencoded-variant.patch
+* bcache-use-kvmalloc.patch
+* mm-swap-use-kvzalloc-to-allocate-some-swap-data-structure.patch
+* mm-vmalloc-use-__gfp_highmem-implicitly.patch
+* scripts-spellingtxt-add-memory-pattern-and-fix-typos.patch
+* scripts-spellingtxt-add-regsiter-register-spelling-mistake.patch
+* scripts-spellingtxt-add-intialised-pattern-and-fix-typo-instances.patch
+* treewide-correct-diffrent-and-banlance-typos.patch
+* treewide-move-set_memory_-functions-away-from-cacheflushh.patch
+* arm-use-set_memoryh-header.patch
+* arm64-use-set_memoryh-header.patch
+* s390-use-set_memoryh-header.patch
+* x86-use-set_memoryh-header.patch
+* agp-use-set_memoryh-header.patch
+* drm-use-set_memoryh-header.patch
+* drm-use-set_memoryh-header-fix.patch
+* intel_th-use-set_memoryh-header.patch
+* watchdog-hpwdt-use-set_memoryh-header.patch
+* bpf-use-set_memoryh-header.patch
+* module-use-set_memoryh-header.patch
+* pm-hibernate-use-set_memoryh-header.patch
+* alsa-use-set_memoryh-header.patch
+* misc-sram-use-set_memoryh-header.patch
+* video-vermilion-use-set_memoryh-header.patch
+* drivers-staging-media-atomisp-pci-atomisp2-use-set_memoryh.patch
+* treewide-decouple-cacheflushh-and-set_memoryh.patch
+* treewide-decouple-cacheflushh-and-set_memoryh-fix.patch
+* kref-remove-warn_on-for-null-release-functions.patch
+* megasas-remove-expensive-inline-from-megasas_return_cmd.patch
+* remove-expensive-warn_on-in-pagefault_disabled_dec.patch
+* fs-remove-set-but-not-checked-aop_flag_uninterruptible-flag.patch
+* docs-vm-transhuge-fix-few-trivial-typos.patch
+* docs-vm-transhuge-fix-few-trivial-typos-fix.patch
+* format-security-move-static-strings-to-const.patch
+* fs-f2fs-use-ktime_get_real_seconds-for-sit_info-times.patch
+* trace-make-trace_hwlat-timestamp-y2038-safe.patch
+* fs-cifs-replace-current_time-by-other-appropriate-apis.patch
+* fs-ceph-current_time-with-ktime_get_real_ts.patch
+* fs-ufs-use-ktime_get_real_ts64-for-birthtime.patch
+* fs-ubifs-replace-current_time_sec-with-current_time.patch
+* lustre-replace-current_time-macro.patch
+* apparmorfs-replace-current_time-with-current_time.patch
+* gfs2-replace-current_time-with-current_time.patch
+* time-delete-current_time_sec-and-current_time.patch
+* time-delete-current_fs_time-function.patch
+* mm-huge_memory-use-zap_deposited_table-more.patch
+* mm-huge_memory-deposit-a-pgtable-for-dax-pmd-faults-when-required.patch
+* mm-prevent-potential-recursive-reclaim-due-to-clearing-pf_memalloc.patch
+* mm-introduce-memalloc_noreclaim_saverestore.patch
+* treewide-convert-pf_memalloc-manipulations-to-new-helpers.patch
+* treewide-convert-pf_memalloc-manipulations-to-new-helpers-fix.patch
+* mtd-nand-nandsim-convert-to-memalloc_noreclaim_.patch
+* dax-add-tracepoints-to-dax_iomap_pte_fault.patch
+* dax-add-tracepoints-to-dax_pfn_mkwrite.patch
+* dax-add-tracepoints-to-dax_load_hole.patch
+* dax-add-tracepoints-to-dax_writeback_mapping_range.patch
+* dax-add-tracepoints-to-dax_writeback_mapping_range-fix.patch
+* dax-add-tracepoint-to-dax_writeback_one.patch
+* dax-add-tracepoint-to-dax_writeback_one-fix.patch
+* dax-add-tracepoint-to-dax_insert_mapping.patch
+* selftests-vm-add-a-test-for-virtual-address-range-mapping.patch
+* lib-crc-ccitt-add-ccitt-false-crc16-variant.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
