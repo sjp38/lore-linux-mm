@@ -1,142 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D5D6B0038
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 01:27:05 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f5so2648451pff.13
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 22:27:05 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id m22si1058110pgd.223.2017.05.03.22.27.04
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 81D386B0038
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 02:12:59 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d79so521707wmi.8
+        for <linux-mm@kvack.org>; Wed, 03 May 2017 23:12:59 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o4si1110971wrb.208.2017.05.03.23.12.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 May 2017 22:27:04 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id s62so714385pgc.0
-        for <linux-mm@kvack.org>; Wed, 03 May 2017 22:27:04 -0700 (PDT)
-Message-ID: <1493875615.7934.1.camel@gmail.com>
-Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 04 May 2017 15:26:55 +1000
-In-Reply-To: <20170502143608.GM14593@dhcp22.suse.cz>
-References: <20170419075242.29929-1-bsingharora@gmail.com>
-	 <20170502143608.GM14593@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 03 May 2017 23:12:58 -0700 (PDT)
+Subject: Re: [PATCH v3 7/8] mm, compaction: restrict async compaction to
+ pageblocks of same migratetype
+References: <20170307131545.28577-1-vbabka@suse.cz>
+ <20170307131545.28577-8-vbabka@suse.cz>
+ <20170316021403.GC14063@js1304-P5Q-DELUXE>
+ <a7dd63a2-edd2-2699-91c4-d48960d34a3d@suse.cz>
+ <20170407003851.GA17231@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <45323114-97d7-f34a-8336-51efff26bc8b@suse.cz>
+Date: Thu, 4 May 2017 08:12:56 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170407003851.GA17231@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, kernel-team@lge.com
 
-On Tue, 2017-05-02 at 16:36 +0200, Michal Hocko wrote:
-> On Wed 19-04-17 17:52:38, Balbir Singh wrote:
-> > This is a request for comments on the discussed approaches
-> > for coherent memory at mm-summit (some of the details are at
-> > https://lwn.net/Articles/717601/). The latest posted patch
-> > series is at https://lwn.net/Articles/713035/. I am reposting
-> > this as RFC, Michal Hocko suggested using HMM for CDM, but
-> > we believe there are stronger reasons to use the NUMA approach.
-> > The earlier patches for Coherent Device memory were implemented
-> > and designed by Anshuman Khandual.
-> > 
-> > Jerome posted HMM-CDM at https://lwn.net/Articles/713035/.
-> > The patches do a great deal to enable CDM with HMM, but we
-> > still believe that HMM with CDM is not a natural way to
-> > represent coherent device memory and the mm will need
-> > to be audited and enhanced for it to even work.
-> > 
-> > With HMM we'll see ZONE_DEVICE pages mapped into
-> > user space and that would mean a thorough audit of all code
-> > paths to make sure we are ready for such a use case and enabling
-> > those use cases, like with HMM CDM patch 1, which changes
-> > move_pages() and migration paths. I've done a quick
-> > evaluation to check for features and found limitationd around
-> > features like migration (page cache
-> > migration), fault handling to the right location
-> > (direct page cache allocation in the coherent memory), mlock
-> > handling, RSS accounting, memcg enforcement for pages not on LRU, etc.
+On 04/07/2017 02:38 AM, Joonsoo Kim wrote:
+> On Wed, Mar 29, 2017 at 06:06:41PM +0200, Vlastimil Babka wrote:
+>> On 03/16/2017 03:14 AM, Joonsoo Kim wrote:
+>>> On Tue, Mar 07, 2017 at 02:15:44PM +0100, Vlastimil Babka wrote:
+>>>> The migrate scanner in async compaction is currently limited to MIGRATE_MOVABLE
+>>>> pageblocks. This is a heuristic intended to reduce latency, based on the
+>>>> assumption that non-MOVABLE pageblocks are unlikely to contain movable pages.
+>>>>
+>>>> However, with the exception of THP's, most high-order allocations are not
+>>>> movable. Should the async compaction succeed, this increases the chance that
+>>>> the non-MOVABLE allocations will fallback to a MOVABLE pageblock, making the
+>>>> long-term fragmentation worse.
+>>>
+>>> I agree with this idea but have some concerns on this change.
+>>>
+>>> *ASYNC* compaction is designed for reducing latency and this change
+>>> doesn't fit it. If everything works fine, there is a few movable pages
+>>> in non-MOVABLE pageblocks as you noted above. Moreover, there is quite
+>>> less the number of non-MOVABLE pageblock than MOVABLE one so finding
+>>> non-MOVABLE pageblock takes long time. These two factors will increase
+>>> the latency of *ASYNC* compaction.
+>>
+>> Right. I lately started to doubt the whole idea of async compaction (for
+>> non-movable allocations). Seems it's one of the compaction heuristics tuned
+>> towards the THP usecase. But for non-movable allocations, we just can't have
+>> both the low latency and long-term fragmentation avoidance. I see now even my
+>> own skip_on_failure mode in isolate_migratepages_block() as a mistake for
+>> non-movable allocations.
 > 
-> Are those problems not viable to solve?
+> Why do you think that skip_on_failure mode is a mistake? I think that
+> it would lead to reduce the latency and it fits the goal of async
+> compaction.
 
-Yes, except IIUC the direct page cache allocation one. The reason for calling
-them out is to make aware that HMM CDM would require new mm changes/audit
-to support ZONE_DEVICE pages across several parts of the mm subsystem.
+Yes, but the downside is that compaction will create just the single
+high-order page that is requested, while previously it would also
+migrate away some more lower-order pages. When compacting for
+MIGRATE_UNMOVABLE allocation, we then can't steal extra pages, so next
+allocation might pollute a different pageblock. It's not a good tradeoff.
 
+>>
+>> Ideally I'd like to make async compaction redundant by kcompactd, and direct
+>> compaction would mean a serious situation which should warrant sync compaction.
+>> Meanwhile I see several options to modify this patch
+>> - async compaction for non-movable allocations will stop doing the
+>> skip_on_failure mode, and won't restrict the pageblock at all. patch 8/8 will
+>> make sure that also this kind of compaction finishes the whole pageblock
+>> - non-movable allocations will skip async compaction completely and go for sync
+>> compaction immediately
 > 
-> [...]
-> > Introduction
-> > 
-> > CDM device memory is cache coherent with system memory and we would like
-> > this to show up as a NUMA node, however there are certain algorithms
-> > that might not be currently suitable for N_COHERENT_MEMORY
-> > 
-> > 1. AutoNUMA balancing
+> IMO, concept of async compaction is also important for non-movable allocation.
+> Non-movable allocation is essential for some workload and they hope
+> the low latency.
+
+The low latency should not be at the expense of making long-term
+fragmentation worse.
+
+> Thanks.
 > 
-> OK, I can see a reason for that but theoretically the same applies to
-> cpu less numa nodes in general, no?
-
-
-That is correct. Christoph has shown some interest in isolating some
-algorithms as well. I have some ideas that I can send out later.
-
-> 
-> > 2. kswapd reclaim
-> 
-> How is the memory reclaim handled then? How are users expected to handle
-> OOM situation?
-> 
-
-1. The fallback node list for coherent memory includes regular memory
-   nodes
-2. Direct reclaim works, I've tested it
-
-> > The reason for exposing this device memory as NUMA is to simplify
-> > the programming model, where memory allocation via malloc() or
-> > mmap() for example would seamlessly work across both kinds of
-> > memory. Since we expect the size of device memory to be smaller
-> > than system RAM, we would like to control the allocation of such
-> > memory. The proposed mechanism reuses nodemasks and explicit
-> > specification of the coherent node in the nodemask for allocation
-> > from device memory. This implementation also allows for kernel
-> > level allocation via __GFP_THISNODE and existing techniques
-> > such as page migration to work.
-> 
-> so it basically resembles isol_cpus except for memory, right. I believe
-> scheduler people are more than unhappy about this interface...
->
-
-isol_cpus were for an era when timer/interrupts and other scheduler
-infrastructure present today was not around, but I don't mean to digress.
- 
-> Anyway, I consider CPUless nodes a dirty hack (especially when I see
-> them mostly used with poorly configured LPARs where no CPUs are left for
-> a particular memory).  Now this is trying to extend this concept even
-> further to a memory which is not reclaimable by the kernel and requires
-
-Direct reclaim still works
-
-> an explicit and cooperative memory reclaim from userspace. How is this
-> going to work? The memory also has a different reliability properties
-> from RAM which user space doesn't have any clue about from the NUMA
-> properties exported. Or am I misunderstanding it? That all sounds quite
-> scary to me.
-> 
-> I very much agree with the last email from Mel and I would really like
-> to see how would a real application benefit from these nodes.
->
-
-I see two use cases
-
-1. Aware application/library - allocates from this node and uses this memory
-2. Unaware application/library - allocates memory anywhere, but does not use
-CDM memory by default, since it is isolated.
-
-Both 1 and 2 can work together and an aware application can use an unaware
-library and if required migrate pages between the two. Both 1 and 2
-can access each others memory due to coherency, so the final application
-level use case is similar to HMM. That is why HMM-CDM and NUMA-CDM are
-both equivalent from an application programming model perspective,
-except for the limitations mentioned above.
-
-Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
