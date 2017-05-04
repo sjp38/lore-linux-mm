@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BEF831F4
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 13:01:19 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p134so2236941wmg.3
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 10:01:18 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id 31si3239528wrz.258.2017.05.04.10.01.17
-        for <linux-mm@kvack.org>;
-        Thu, 04 May 2017 10:01:17 -0700 (PDT)
-Date: Thu, 4 May 2017 19:01:06 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 09/32] x86/mm: Provide general kernel support for
- memory encryption
-Message-ID: <20170504170106.mocn2y6onm7eax3g@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211754.10190.25082.stgit@tlendack-t1.amdoffice.net>
- <20170427161227.c57dkvghz63pvmu2@pd.tnic>
- <0b6e4055-8e07-3a71-3d52-12b0395c8f04@amd.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 682BB6B0038
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 13:24:44 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id f5so14359156pff.13
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 10:24:44 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i9si2590808pgn.205.2017.05.04.10.24.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 May 2017 10:24:43 -0700 (PDT)
+Subject: Re: RFC v2: post-init-read-only protection for data allocated
+ dynamically
+References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
+ <20170504112159.GC31540@dhcp22.suse.cz>
+ <83d4556c-b21c-7ae5-6e83-4621a74f9fd5@huawei.com>
+ <20170504131131.GI31540@dhcp22.suse.cz>
+ <df1b34fb-f90b-da9e-6723-49e8f1cb1757@huawei.com>
+ <20170504140126.GJ31540@dhcp22.suse.cz>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <361e39e9-517a-2fc2-016c-23f9359fef0a@intel.com>
+Date: Thu, 4 May 2017 10:24:42 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <0b6e4055-8e07-3a71-3d52-12b0395c8f04@amd.com>
+In-Reply-To: <20170504140126.GJ31540@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Michal Hocko <mhocko@kernel.org>, Igor Stoppa <igor.stoppa@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 04, 2017 at 09:34:09AM -0500, Tom Lendacky wrote:
-> I masked it out here based on a previous comment from Dave Hansen:
+On 05/04/2017 07:01 AM, Michal Hocko wrote:
+> Just to make my proposal more clear. I suggest the following workflow
 > 
->   http://marc.info/?l=linux-kernel&m=148778719826905&w=2
+> cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
 > 
-> I could move the __sme_clr into the individual defines of:
+> obj = kmem_cache_alloc(cache, gfp_mask);
+> init_obj(obj)
+> [more allocations]
+> kmem_cache_seal(cache);
+> 
+> All slab pages belonging to the cache would get write protection. All
+> new allocations from this cache would go to new slab pages. Later
+> kmem_cache_seal will write protect only those new pages.
 
-Nah, it is fine as it is. I was just wondering...
+Igor, what sizes of objects are you after here, mostly?
 
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+I ask because slub, at least, doesn't work at all for objects
+>PAGE_SIZE.  It just punts those to the page allocator.  But, you
+_could_ still use vmalloc() for those.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
