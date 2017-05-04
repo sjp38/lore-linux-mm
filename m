@@ -1,129 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A351831F4
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 07:22:09 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id h19so1202466wmi.10
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 04:22:09 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C162C831F4
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 07:44:12 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g67so1341155wrd.0
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 04:44:12 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l19si1250581wma.159.2017.05.04.04.22.07
+        by mx.google.com with ESMTPS id t3si2251346wra.71.2017.05.04.04.44.10
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 May 2017 04:22:07 -0700 (PDT)
-Date: Thu, 4 May 2017 13:21:59 +0200
+        Thu, 04 May 2017 04:44:11 -0700 (PDT)
+Date: Thu, 4 May 2017 13:43:58 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-Message-ID: <20170504112159.GC31540@dhcp22.suse.cz>
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
+Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file
+ is low
+Message-ID: <20170504114358.GD31540@dhcp22.suse.cz>
+References: <20170419001405.GA13364@bbox>
+ <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+ <20170420060904.GA3720@bbox>
+ <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
+ <20170502080246.GD14593@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1705021331450.116499@chino.kir.corp.google.com>
+ <20170503061528.GB1236@dhcp22.suse.cz>
+ <20170503070656.GA8836@dhcp22.suse.cz>
+ <20170503084952.GD8836@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1705031547360.50439@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
+In-Reply-To: <alpine.DEB.2.10.1705031547360.50439@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 03-05-17 15:06:36, Igor Stoppa wrote:
-> Hello,
+On Wed 03-05-17 15:52:04, David Rientjes wrote:
+> On Wed, 3 May 2017, Michal Hocko wrote:
+[...]
+> >  	/*
+> > -	 * If there is enough inactive page cache, i.e. if the size of the
+> > -	 * inactive list is greater than that of the active list *and* the
+> > -	 * inactive list actually has some pages to scan on this priority, we
+> > -	 * do not reclaim anything from the anonymous working set right now.
+> > -	 * Without the second condition we could end up never scanning an
+> > -	 * lruvec even if it has plenty of old anonymous pages unless the
+> > -	 * system is under heavy pressure.
+> > +	 * Make sure there are enough pages on the biased LRU before we go
+> > +	 * and do an exclusive reclaim from that list, i.e. if the
+> > +	 * size of the inactive list is greater than that of the active list
+> > +	 * *and* the inactive list actually has some pages to scan on this
+> > +	 * priority.
+> > +	 * Without the second condition we could end up never scanning other
+> > +	 * lruvecs even if they have plenty of old pages unless the system is
+> > +	 * under heavy pressure.
+> >  	 */
+> > -	if (!inactive_list_is_low(lruvec, true, memcg, sc, false) &&
+> > -	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+> > -		scan_balance = SCAN_FILE;
+> > +	lru = LRU_INACTIVE_ANON + LRU_FILE * (scan_balance == SCAN_FILE);
 > 
-> please review my (longish) line of thoughts, below.
-> 
-> I've restructured them so that they should be easier to follow.
-> 
-> 
-> Observations
-> ------------
-> 
-> * it is currently possible, by using prefix "__read_only", to have the
-> linker place a static variable into a special memory region, which will
-> become write-protected at the end of the init phase.
-> 
-> * the purpose is to write-protect data which is not expected to change,
-> ever, after it has been initialized.
-> 
-> * The mechanism used for locking down the memory region is to program
-> the MMU to trap writes to said region. It is fairly efficient and
-> HW-backed, so it doesn't introduce any major overhead, but the MMU deals
-> only with pages or supersets of pages, hence the need to collect all the
-> soon-to-be-read-only data - and only that - into the "special region".
-> The "__read_only" modifier is the admission ticket.
-> 
-> * the write-protecting feature helps supporting memory integrity in
-> general and can also help spotting rogue writes, whatever their origin
-> might be: uninitialized or expired pointers, wrong pointer arithmetic, etc.
+> This part seems to complicate the logic since it determines the lru under 
+> test based on the current setting of scan_balance.  I think I prefer 
+> individual heuristics with well written comments, but others may feel 
+> differently about this.
 
-I agree that such a feature can be really useful.
-
-> Problem
-> -------
-> 
-> The feature is available only for *static* data - it will not work with
-> something like a linked list that is put together during init, for example.
-> 
-> 
-> 
-> Wish
-> ----
-> 
-> My starting point are the policy DB of SE Linux and the LSM Hooks, but
-> eventually I would like to extend the protection also to other
-> subsystems, in a way that can be merged into mainline.
-> 
-> 
-> 
-> Analysis
-> --------
-> 
-> * the solution I come up with has to be as little invasive as possible,
-> at least for what concerns the various subsystems whose integrity I want
-> to enhance.
-> 
-> * In most, if not all, the cases that could be enhanced, the code will
-> be calling kmalloc/vmalloc, indicating GFP_KERNEL as the desired type of
-> memory.
-
-How do you tell that the seal is active? I have also asked about the
-life time of these objects in the previous email thread. Do you expect
-those objects get freed one by one or mostly at once? Is this supposed
-to be boot time only or such allocations might happen anytime?
-
-> * I suspect/hope that the various maintainer won't object too much if my
-> changes are limited to replacing GFP_KERNEL with some other macro, for
-> example what I previously called GFP_LOCKABLE, provided I can ensure that:
-> 
->   -1) no penalty is introduced, at least when the extra protection
->       feature is not enabled, iow nobody has to suffer from my changes.
->       This means that GFP_LOCKABLE should fall back to GFP_KERNEL, when
->       it's not enabled.
-> 
->   -2) when the extra protection feature is enabled, the code still
->       works as expected, as long as the data identified for this
->       enhancement is really unmodified after init.
-> 
-> * In my quest for improved memory integrity, I will deal with very
-> different memory size being allocated, so if I start writing my own
-> memory allocator, starting from a page-aligned chunk of normal memory,
-> at best I will end up with a replica of kmalloc, at worst with something
-> buggy. Either way, it will be extremely harder to push other subsystems
-> to use it.
-> I probably wouldn't like it either, if I was a maintainer.
-
-The most immediate suggestion would be to extend SLAB caches with a new
-sealing feature. Roughly it would mean that once kmem_cache_seal() is
-called on a cache it would changed page tables to used slab pages to RO
-state. This would obviously need some fiddling to make those pages not
-usable for new allocations from sealed pages. It would also mean some
-changes to kfree path but I guess this is doable.
-
-> * While I do not strictly need a new memory zone, memory zones are what
-> kmalloc understands at the moment: AFAIK, it is not possible to tell
-> kmalloc from which memory pool it should fish out the memory, other than
-> having a reference to a memory zone.
-
-As I've said already. I think that a zone is a completely wrong
-approach. How would it help anyway. It is the allocator on top of the
-page allocator which has to do clever things to support sealing.
+I do not claim the code would more obvious than before but it gets rid
+of the duplication which is usually a good thing. This size check has
+the same reasoning regardless of the type of the LRU. But I am not going
+to insist...
+ 
+> > +	if (!inactive_list_is_low(lruvec, is_file_lru(lru), memcg, sc, false) &&
+> > +	    lruvec_lru_size(lruvec, lru, sc->reclaim_idx) >> sc->priority)
+> >  		goto out;
+> > -	}
+> >  
+> >  	scan_balance = SCAN_FRACT;
+> >  
 
 -- 
 Michal Hocko
