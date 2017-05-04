@@ -1,105 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 21CEC831F4
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 04:18:42 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id c90so1421144uac.15
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 01:18:42 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id c131si618758vkf.218.2017.05.04.01.18.39
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D2BC2831F4
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 04:55:49 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id i63so5890360pgd.15
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 01:55:49 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id t188si1518031pgt.331.2017.05.04.01.55.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 May 2017 01:18:40 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <70a9d4db-f374-de45-413b-65b74c59edcb@intel.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <b7bb1884-3125-5c98-f1fe-53b974454ce2@huawei.com>
-Date: Thu, 4 May 2017 11:17:25 +0300
-MIME-Version: 1.0
-In-Reply-To: <70a9d4db-f374-de45-413b-65b74c59edcb@intel.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 May 2017 01:55:48 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v10 0/6] Extend virtio-balloon for fast (de)inflating & fast live migration
+Date: Thu,  4 May 2017 16:50:09 +0800
+Message-Id: <1493887815-6070-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com
 
-Hi,
-I suspect this was accidentally a Reply-To instead of a Reply-All,
-so I'm putting back the CCs that were dropped.
+This patch series implements the follow two things:
+1) Optimization of balloon page transfer: instead of transferring balloon pages
+to host one by one, the new mechanism transfers them in chunks.
+2) A mechanism to report info of guest unused pages: the pages have been unused
+at some time between when host sent command and when guest reported them.  Host
+uses that by tracking memory changes and then discarding changes made to the
+pages that it gets from guest before it sent the command.
 
-On 03/05/17 21:41, Dave Hansen wrote:
-> On 05/03/2017 05:06 AM, Igor Stoppa wrote:
->> My starting point are the policy DB of SE Linux and the LSM Hooks, but
->> eventually I would like to extend the protection also to other
->> subsystems, in a way that can be merged into mainline.
-> 
-> Have you given any thought to just having a set of specialized slabs?
+Changes:
+v9->v10:
+1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
+2) virtio-balloon: add virtballoon_validate();
+3) virtio-balloon: msg format change;
+4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
+5) virtio-balloon: code cleanup.
 
-No, the idea of the RFC was to get this sort of comments about options I
-might have missed :-)
+v8->v9:
+1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
+VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
+implementation;
+2) Simpler function to get the free page block.
 
-> Today, for instance, we have a separate set of kmalloc() slabs for DMA:
-> dma-kmalloc-{4096,2048,...}.  It should be quite possible to have
-> another set for your post-init-read-only protected data.
+v7->v8:
+1) Use only one chunk format, instead of two.
+2) re-write the virtio-balloon implementation patch.
+3) commit changes
+4) patch re-org
 
-I will definitely investigate it and report back, thanks.
-But In the meanwhile I'd appreciate further clarifications.
-Please see below ...
+Liang Li (1):
+  virtio-balloon: deflate via a page list
 
-> This doesn't take care of vmalloc(), but I have the feeling that
-> implementing this for vmalloc() isn't going to be horribly difficult.
+Wei Wang (5):
+  virtio-balloon: coding format cleanup
+  virtio-balloon: VIRTIO_BALLOON_F_PAGE_CHUNKS
+  mm: function to offer a page block on the free list
+  mm: export symbol of next_zone and first_online_pgdat
+  virtio-balloon: VIRTIO_BALLOON_F_MISC_VQ
 
-ok
+ drivers/virtio/virtio_balloon.c     | 696 +++++++++++++++++++++++++++++++++---
+ include/linux/mm.h                  |   5 +
+ include/uapi/linux/virtio_balloon.h |  26 ++
+ mm/mmzone.c                         |   2 +
+ mm/page_alloc.c                     |  91 +++++
+ 5 files changed, 761 insertions(+), 59 deletions(-)
 
->> * The mechanism used for locking down the memory region is to program
->> the MMU to trap writes to said region. It is fairly efficient and
->> HW-backed, so it doesn't introduce any major overhead,
-> 
-> I'd take a bit of an issue with this statement.  It *will* fracture
-> large pages unless you manage to pack all of these allocations entirely
-> within a large page.  This is problematic because we use the largest
-> size available, and that's 1GB on x86.
-
-I am not sure I fully understand this part.
-I am probably missing some point about the way kmalloc works.
-
-I get the problem you describe, but I do not understand why it should
-happen.
-Going back for a moment to my original idea of the zone, as a physical
-address range, why wouldn't it be possible to define it as one large page?
-
-Btw, I do not expect to have much memory occupation, in terms of sheer
-size, although there might be many small "variables" scattered across
-the code. That's where I hope using kmalloc, instead of a custom made
-allocator can make a difference, in terms of optimal occupation.
-
-> IOW, if you scatter these things throughout the address space, you may
-> end up fracturing/demoting enough large pages to cause major overhead
-> refilling the TLB.
-
-But why would I?
-Or, better, what would cause it, unless I take special care?
-
-Or, let me put it differently: my goal is to not fracture more pages
-than needed.
-It will probably require some profiling to figure out what is the
-ballpark of the memory footprint.
-
-I might have overlooked some aspect of this, but the overall goal
-is to have a memory range (I won't call it zone, to avoid referring to a
-specific implementation) which is as tightly packed as possible, stuffed
-with all the data that is expected to become read-only.
-
-> Note that this only applies for kmalloc() allocations, *not* vmalloc()
-> since kmalloc() uses the kernel linear map and vmalloc() uses it own,
-> separate mappings.
-
-Yes.
-
----
-thanks, igor
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
