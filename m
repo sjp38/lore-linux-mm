@@ -1,187 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 817FE6B0038
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 12:50:00 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id q71so6757940qkl.2
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 09:50:00 -0700 (PDT)
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com. [209.85.220.172])
-        by mx.google.com with ESMTPS id t195si2227995qke.27.2017.05.04.09.49.59
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C5AC06B0038
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 12:53:48 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id n67so11023588ywf.8
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 09:53:48 -0700 (PDT)
+Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
+        by mx.google.com with ESMTPS id l28si1015048ybe.7.2017.05.04.09.53.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 May 2017 09:49:59 -0700 (PDT)
-Received: by mail-qk0-f172.google.com with SMTP id n4so15979431qkc.0
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 09:49:59 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
-Date: Thu, 4 May 2017 09:49:55 -0700
+        Thu, 04 May 2017 09:53:47 -0700 (PDT)
+Received: by mail-yw0-x244.google.com with SMTP id 203so1408550ywe.0
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 09:53:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+From: roxie bray <roxie.bray.usa@gmail.com>
+Date: Thu, 4 May 2017 09:53:46 -0700
+Message-ID: <CAHf0Mfwo1UYz6sT-7Dnm5hAnStE-rWnMhm5Uct_mxZDG3AWzZQ@mail.gmail.com>
+Subject: OpenStack Application Users List
+Content-Type: multipart/alternative; boundary=001a114faab4d1fae9054eb59d7c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: laurence.ameur@infotel.com
 
-[adding kernel-hardening since I think there would be interest]
+--001a114faab4d1fae9054eb59d7c
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-On 05/03/2017 05:06 AM, Igor Stoppa wrote:
-> Hello,
-> 
-> please review my (longish) line of thoughts, below.
-> 
-> I've restructured them so that they should be easier to follow.
-> 
-> 
-> Observations
-> ------------
-> 
-> * it is currently possible, by using prefix "__read_only", to have the
-> linker place a static variable into a special memory region, which will
-> become write-protected at the end of the init phase.
-> 
-> * the purpose is to write-protect data which is not expected to change,
-> ever, after it has been initialized.
-> 
-> * The mechanism used for locking down the memory region is to program
-> the MMU to trap writes to said region. It is fairly efficient and
-> HW-backed, so it doesn't introduce any major overhead, but the MMU deals
-> only with pages or supersets of pages, hence the need to collect all the
-> soon-to-be-read-only data - and only that - into the "special region".
-> The "__read_only" modifier is the admission ticket.
-> 
-> * the write-protecting feature helps supporting memory integrity in
-> general and can also help spotting rogue writes, whatever their origin
-> might be: uninitialized or expired pointers, wrong pointer arithmetic, etc.
-> 
-> 
-> 
-> Problem
-> -------
-> 
-> The feature is available only for *static* data - it will not work with
-> something like a linked list that is put together during init, for example.
-> 
-> 
-> 
-> Wish
-> ----
-> 
-> My starting point are the policy DB of SE Linux and the LSM Hooks, but
-> eventually I would like to extend the protection also to other
-> subsystems, in a way that can be merged into mainline.
-> 
-> 
-> 
-> Analysis
-> --------
-> 
-> * the solution I come up with has to be as little invasive as possible,
-> at least for what concerns the various subsystems whose integrity I want
-> to enhance.
-> 
-> * In most, if not all, the cases that could be enhanced, the code will
-> be calling kmalloc/vmalloc, indicating GFP_KERNEL as the desired type of
-> memory.
-> 
-> * I suspect/hope that the various maintainer won't object too much if my
-> changes are limited to replacing GFP_KERNEL with some other macro, for
-> example what I previously called GFP_LOCKABLE, provided I can ensure that:
-> 
->   -1) no penalty is introduced, at least when the extra protection
->       feature is not enabled, iow nobody has to suffer from my changes.
->       This means that GFP_LOCKABLE should fall back to GFP_KERNEL, when
->       it's not enabled.
-> 
->   -2) when the extra protection feature is enabled, the code still
->       works as expected, as long as the data identified for this
->       enhancement is really unmodified after init.
-> 
-> * In my quest for improved memory integrity, I will deal with very
-> different memory size being allocated, so if I start writing my own
-> memory allocator, starting from a page-aligned chunk of normal memory,
-> at best I will end up with a replica of kmalloc, at worst with something
-> buggy. Either way, it will be extremely harder to push other subsystems
-> to use it.
-> I probably wouldn't like it either, if I was a maintainer.
-> 
-> * While I do not strictly need a new memory zone, memory zones are what
-> kmalloc understands at the moment: AFAIK, it is not possible to tell
-> kmalloc from which memory pool it should fish out the memory, other than
-> having a reference to a memory zone.
-> If it was possible to aim kmalloc at arbitrary memory pools, probably we
-> would not be having this exchange right now. And probably there would
-> not be so many other folks trying to have their memory zone of interest
-> being merged. However I suspect this solution would be sub-optimal for
-> the normal use cases, because there would be the extra overhead of
-> passing the reference to the memory pool, instead of encoding it into
-> bitfields, together with other information.
-> 
-> * there are very slim chances (to be optimistic :) that I can get away
-> with having my custom zone merged, because others are trying with
-> similar proposals and they get rejected, so maybe I can have better luck
-> if I propose something that can also work for others.
-> 
-> * currently memory zones are mapped 1:1 to bits in crowded a bitmask,
-> but not all these zones are really needed in a typical real system, some
-> are kept for backward compatibility and supporting distros, which cannot
-> know upfront the quirks of the HW they will be running on.
-> 
-> 
-> Conclusions
-> -----------
-> 
-> * the solution that seems to be more likely to succeed is to remove the
-> 1:1 mapping between optional zones and their respective bits.
-> 
-> * the bits previously assigned to the optional zones would become
-> available for mapping whatever zone a system integrator wants to support.
-> 
-> 
-> Cons:
-> There would be still a hard constraint on the maximum number of zones
-> available simultaneously, so one will have to choose which of the
-> optional zones to enable, and be ready to deal with own zone
-> disappearing (ex: fall back to normal memory and give up some/all
-> functionality)
-> 
-> Pros:
-> * No bit would go to waste: those who want to have own custom zone could
-> make a better use of the allocated-but-not-necessary-to-them bits.
-> * There would be a standard way for people to add non-standard zones.
-> * It doesn't alter the hot paths that are critical to efficient memory
-> handling.
-> 
-> So it seems a win-win scenario, apart from the fact that I will probably
-> have to reshuffle a certain amount of macros :-)
-> 
-> 
-> P.S.
-> There was an early advice of creating and using a custom-made memory
-> allocator, I hope it's now clear why I don't think it's viable: it might
-> work if I use it only for further code that I will write, but it really
-> doesn't seem the best way to convince other subsystem maintainers to
-> take in my changes, if I suggest them to give up the super optimized
-> kmalloc (and friends) in favor of some homebrew allocator I wrote :-/
-> 
-> 
+Hi,
 
-BPF takes the approach of calling set_memory_ro to mark regions as
-read only. I'm certainly over simplifying but it sounds like this
-is mostly a mechanism to have this happen mostly automatically.
-Can you provide any more details about tradeoffs of the two approaches?
 
-arm and arm64 have the added complexity of using larger
-page sizes on the linear map so dynamic mapping/unmapping generally
-doesn't work. arm64 supports DEBUG_PAGEALLOC by mapping with only
-pages but this is generally only wanted as a debug mechanism.
-I don't know if you've given this any thought at all.
 
-Thanks,
-Laura
+Hope everything is fine, and I trust this email finds you well!
+
+
+
+ We are one of the Leading B2B Email List Service Provider. I was wondering
+if you would be interested in *OpenStack.*
+
+
+
+Titles: C-Level, VP-Level, Managers, Directors and many more=E2=80=A6
+
+
+
+Information Fields: Name, Title, Email, Phone, & Company Details.
+
+
+
+We also provide contact Users List for*- VMware, Amazon Web Services,
+Oracle, and Salesforce *depending on the criteria you=E2=80=99re opting for=
+.
+
+
+
+We provide contacts across all Industries and from all departments/titles.
+
+
+
+Please let me know your thoughts or pass on the message to the right person
+in your company.
+
+
+
+Thanks & Regards,
+
+
+
+
+* Change* <https://profiles.google.com/?hl=3Den&tab=3DmX>
+
+*Roxie bray*
+
+
+
+To opt out please reply =E2=80=9CRemove=E2=80=9D in subject line
+
+--001a114faab4d1fae9054eb59d7c
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;lin=
+e-height:normal"><span style=3D"color:rgb(31,78,121)">Hi,<span></span></spa=
+n></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">Hope everything is fine, and I trust t=
+his email finds you well!<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0We are one of the Leading
+B2B Email List Service Provider. I was wondering if you would be interested=
+ in <b>OpenStack.</b> <span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">Titles: C-Level, VP-Level, Managers, D=
+irectors and many more=E2=80=A6<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">Information Fields: Name, Title, Email=
+, Phone, &amp; Company
+Details.<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">We also provide contact Users List for=
+<b>- VMware, Amazon Web Services, Oracle, and Salesforce </b>depending on
+the criteria you=E2=80=99re opting for.<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">We provide contacts across all Industr=
+ies and from all
+departments/titles. <span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">Please let me know your thoughts or pa=
+ss on the message to the
+right person in your company.<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">Thanks &amp; Regards,<span></span></sp=
+an></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"color:rgb(31,78,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:12pt;font-family:&quot;times new roman&quot;,serif=
+"><a href=3D"https://profiles.google.com/?hl=3Den&amp;tab=3DmX" target=3D"_=
+blank"><b><span style=3D"font-size:7pt;font-family:arial,sans-serif;color:w=
+hite;background-image:initial;background-position:initial;background-size:i=
+nitial;background-repeat:initial;background-origin:initial;background-clip:=
+initial"><br>
+Change</span></b></a><span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<b><span style=3D"font-size:10pt;font-family:arial,sans-serif;color:rgb(31,=
+78,121);background-image:initial;background-position:initial;background-siz=
+e:initial;background-repeat:initial;background-origin:initial;background-cl=
+ip:initial">Roxie bray</span><span></span></b></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:10pt;font-family:verdana,sans-serif;color:gray"><s=
+pan>=C2=A0</span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:8pt;font-family:verdana,sans-serif;color:gray">To =
+opt out please
+reply =E2=80=9CRemove=E2=80=9D in subject line<span></span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:10pt;font-family:verdana,sans-serif;color:rgb(31,7=
+8,121)"><span>=C2=A0</span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:10pt;font-family:verdana,sans-serif;color:rgb(31,7=
+8,121)"><span>=C2=A0</span></span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:9pt;font-family:verdana,sans-serif;color:rgb(31,78=
+,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:9pt;font-family:verdana,sans-serif;color:rgb(31,78=
+,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal" style=3D"margin-bottom:0.0001pt;line-height:normal">=
+<span style=3D"font-size:9pt;font-family:verdana,sans-serif;color:rgb(31,78=
+,121)">=C2=A0</span></p>
+
+<p class=3D"MsoNormal"><span style=3D"font-size:9pt;line-height:107%;color:=
+rgb(31,78,121)"><span>=C2=A0</span></span></p>
+
+<p class=3D"MsoNormal"><span style=3D"font-size:9pt;line-height:107%;color:=
+rgb(31,78,121)"><span>=C2=A0</span></span></p></div>
+
+--001a114faab4d1fae9054eb59d7c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
