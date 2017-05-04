@@ -1,116 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 631E7831F4
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 08:46:56 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 44so1531320wry.5
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 05:46:56 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB0F3831F4
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 08:52:58 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id h65so1451787wmd.7
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 05:52:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v2si2271404wrd.243.2017.05.04.05.46.54
+        by mx.google.com with ESMTPS id e48si2319429wre.324.2017.05.04.05.52.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 May 2017 05:46:55 -0700 (PDT)
-Date: Thu, 4 May 2017 14:46:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
-Message-ID: <20170504124648.GG31540@dhcp22.suse.cz>
-References: <20170411181519.GC21171@dhcp22.suse.cz>
- <20170412013503.GA8448@js1304-desktop>
- <20170413115615.GB11795@dhcp22.suse.cz>
- <20170417020210.GA1351@js1304-desktop>
- <20170424130936.GB1746@dhcp22.suse.cz>
- <20170425034255.GB32583@js1304-desktop>
- <20170427150636.GM4706@dhcp22.suse.cz>
- <32ac1107-14a3-fdff-ad48-0e246fec704f@suse.cz>
- <20170502130326.GJ14593@dhcp22.suse.cz>
- <398b341c-5fa7-1ad7-0840-752fa1908921@suse.cz>
+        Thu, 04 May 2017 05:52:57 -0700 (PDT)
+Date: Thu, 4 May 2017 14:52:50 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
+Message-ID: <20170504125250.GH31540@dhcp22.suse.cz>
+References: <20170419075242.29929-1-bsingharora@gmail.com>
+ <20170502143608.GM14593@dhcp22.suse.cz>
+ <1493875615.7934.1.camel@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <398b341c-5fa7-1ad7-0840-752fa1908921@suse.cz>
+In-Reply-To: <1493875615.7934.1.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
 
-On Thu 04-05-17 14:33:24, Vlastimil Babka wrote:
-> On 05/02/2017 03:03 PM, Michal Hocko wrote:
-> > On Tue 02-05-17 10:06:01, Vlastimil Babka wrote:
-> >> On 04/27/2017 05:06 PM, Michal Hocko wrote:
-> >>> On Tue 25-04-17 12:42:57, Joonsoo Kim wrote:
-> >>>> On Mon, Apr 24, 2017 at 03:09:36PM +0200, Michal Hocko wrote:
-> >>>>> On Mon 17-04-17 11:02:12, Joonsoo Kim wrote:
-> >>>>>> On Thu, Apr 13, 2017 at 01:56:15PM +0200, Michal Hocko wrote:
-> >>>>>>> On Wed 12-04-17 10:35:06, Joonsoo Kim wrote:
-> >>> [...]
-> >>>>> not for free. For most common configurations where we have ZONE_DMA,
-> >>>>> ZONE_DMA32, ZONE_NORMAL and ZONE_MOVABLE all the 3 bits are already
-> >>>>> consumed so a new zone will need a new one AFAICS.
-> >>>>
-> >>>> Yes, it requires one more bit for a new zone and it's handled by the patch.
-> >>>
-> >>> I am pretty sure that you are aware that consuming new page flag bits
-> >>> is usually a no-go and something we try to avoid as much as possible
-> >>> because we are in a great shortage there. So there really have to be a
-> >>> _strong_ reason if we go that way. My current understanding that the
-> >>> whole zone concept is more about a more convenient implementation rather
-> >>> than a fundamental change which will solve unsolvable problems with the
-> >>> current approach. More on that below.
-> >>
-> >> I don't see it as such a big issue. It's behind a CONFIG option (so we
-> >> also don't need the jump labels you suggest later) and enabling it
-> >> reduces the number of possible NUMA nodes (not page flags). So either
-> >> you are building a kernel for android phone that needs CMA but will have
-> >> a single NUMA node, or for a large server with many nodes that won't
-> >> have CMA. As long as there won't be large servers that need CMA, we
-> >> should be fine (yes, I know some HW vendors can be very creative, but
-> >> then it's their problem?).
-> > 
-> > Is this really about Android/UMA systems only? My quick grep seems to disagree
-> > $ git grep CONFIG_CMA=y
-> > arch/arm/configs/exynos_defconfig:CONFIG_CMA=y
-> > arch/arm/configs/imx_v6_v7_defconfig:CONFIG_CMA=y
-> > arch/arm/configs/keystone_defconfig:CONFIG_CMA=y
-> > arch/arm/configs/multi_v7_defconfig:CONFIG_CMA=y
-> > arch/arm/configs/omap2plus_defconfig:CONFIG_CMA=y
-> > arch/arm/configs/tegra_defconfig:CONFIG_CMA=y
-> > arch/arm/configs/vexpress_defconfig:CONFIG_CMA=y
-> > arch/arm64/configs/defconfig:CONFIG_CMA=y
-> > arch/mips/configs/ci20_defconfig:CONFIG_CMA=y
-> > arch/mips/configs/db1xxx_defconfig:CONFIG_CMA=y
-> > arch/s390/configs/default_defconfig:CONFIG_CMA=y
-> > arch/s390/configs/gcov_defconfig:CONFIG_CMA=y
-> > arch/s390/configs/performance_defconfig:CONFIG_CMA=y
-> > arch/s390/defconfig:CONFIG_CMA=y
-> > 
-> > I am pretty sure s390 and ppc support NUMA and aim at supporting really
-> > large systems. 
-> 
-> I don't see ppc there,
-
-config KVM_BOOK3S_64_HV
-        tristate "KVM for POWER7 and later using hypervisor mode in host"
-        depends on KVM_BOOK3S_64 && PPC_POWERNV
-        select KVM_BOOK3S_HV_POSSIBLE
-        select MMU_NOTIFIER
-        select CMA
-
-fa61a4e376d21 tries to explain some more
-
+On Thu 04-05-17 15:26:55, Balbir Singh wrote:
+> On Tue, 2017-05-02 at 16:36 +0200, Michal Hocko wrote:
+> > On Wed 19-04-17 17:52:38, Balbir Singh wrote:
 [...]
-> > Are we really ready to add another thing like that? How are distribution
-> > kernels going to handle that?
+> > > 2. kswapd reclaim
+> > 
+> > How is the memory reclaim handled then? How are users expected to handle
+> > OOM situation?
+> > 
 > 
-> I still hope that generic enterprise/desktop distributions can disable
-> it, and it's only used for small devices with custom kernels.
-> 
-> The config burden is already there in any case, it just translates to
-> extra migratetype and fastpath hooks, not extra zone and potentially
-> less nodes.
+> 1. The fallback node list for coherent memory includes regular memory
+>    nodes
+> 2. Direct reclaim works, I've tested it
 
-AFAIU the extra migrate type costs nothing when there are no cma
-reservations. And those hooks can be made noop behind static branch
-as well. So distribution kernels do not really have to be afraid of
-enabling CMA currently.
+But the direct reclaim would be effective only _after_ all other nodes
+are full.
+
+I thought that kswapd reclaim is a problem because the HW doesn't
+support aging properly but as the direct reclaim works then what is the
+actual problem?
+ 
+> > > The reason for exposing this device memory as NUMA is to simplify
+> > > the programming model, where memory allocation via malloc() or
+> > > mmap() for example would seamlessly work across both kinds of
+> > > memory. Since we expect the size of device memory to be smaller
+> > > than system RAM, we would like to control the allocation of such
+> > > memory. The proposed mechanism reuses nodemasks and explicit
+> > > specification of the coherent node in the nodemask for allocation
+> > > from device memory. This implementation also allows for kernel
+> > > level allocation via __GFP_THISNODE and existing techniques
+> > > such as page migration to work.
+> > 
+> > so it basically resembles isol_cpus except for memory, right. I believe
+> > scheduler people are more than unhappy about this interface...
+> >
+> 
+> isol_cpus were for an era when timer/interrupts and other scheduler
+> infrastructure present today was not around, but I don't mean to digress.
+
+AFAIU, it has been added to _isolate_ some cpus from the scheduling domain
+and have them available for the explicit affinity usage. You are
+effectivelly proposing the same thing.
 
 -- 
 Michal Hocko
