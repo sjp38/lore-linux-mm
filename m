@@ -1,145 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 72FBA831F4
-	for <linux-mm@kvack.org>; Thu,  4 May 2017 08:15:20 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u65so1351548wmu.12
-        for <linux-mm@kvack.org>; Thu, 04 May 2017 05:15:20 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id i207si1280469wmf.3.2017.05.04.05.15.18
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C0B30831F4
+	for <linux-mm@kvack.org>; Thu,  4 May 2017 08:33:30 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id y22so1497731wry.1
+        for <linux-mm@kvack.org>; Thu, 04 May 2017 05:33:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y39si1936063wrd.240.2017.05.04.05.33.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 May 2017 05:15:18 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <20170504112159.GC31540@dhcp22.suse.cz>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <83d4556c-b21c-7ae5-6e83-4621a74f9fd5@huawei.com>
-Date: Thu, 4 May 2017 15:14:10 +0300
+        Thu, 04 May 2017 05:33:29 -0700 (PDT)
+Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
+References: <1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170411181519.GC21171@dhcp22.suse.cz>
+ <20170412013503.GA8448@js1304-desktop>
+ <20170413115615.GB11795@dhcp22.suse.cz>
+ <20170417020210.GA1351@js1304-desktop> <20170424130936.GB1746@dhcp22.suse.cz>
+ <20170425034255.GB32583@js1304-desktop>
+ <20170427150636.GM4706@dhcp22.suse.cz>
+ <32ac1107-14a3-fdff-ad48-0e246fec704f@suse.cz>
+ <20170502130326.GJ14593@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <398b341c-5fa7-1ad7-0840-752fa1908921@suse.cz>
+Date: Thu, 4 May 2017 14:33:24 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170504112159.GC31540@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <20170502130326.GJ14593@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On 04/05/17 14:21, Michal Hocko wrote:
-> On Wed 03-05-17 15:06:36, Igor Stoppa wrote:
-
-[...]
-
->> * In most, if not all, the cases that could be enhanced, the code will
->> be calling kmalloc/vmalloc, indicating GFP_KERNEL as the desired type of
->> memory.
+On 05/02/2017 03:03 PM, Michal Hocko wrote:
+> On Tue 02-05-17 10:06:01, Vlastimil Babka wrote:
+>> On 04/27/2017 05:06 PM, Michal Hocko wrote:
+>>> On Tue 25-04-17 12:42:57, Joonsoo Kim wrote:
+>>>> On Mon, Apr 24, 2017 at 03:09:36PM +0200, Michal Hocko wrote:
+>>>>> On Mon 17-04-17 11:02:12, Joonsoo Kim wrote:
+>>>>>> On Thu, Apr 13, 2017 at 01:56:15PM +0200, Michal Hocko wrote:
+>>>>>>> On Wed 12-04-17 10:35:06, Joonsoo Kim wrote:
+>>> [...]
+>>>>> not for free. For most common configurations where we have ZONE_DMA,
+>>>>> ZONE_DMA32, ZONE_NORMAL and ZONE_MOVABLE all the 3 bits are already
+>>>>> consumed so a new zone will need a new one AFAICS.
+>>>>
+>>>> Yes, it requires one more bit for a new zone and it's handled by the patch.
+>>>
+>>> I am pretty sure that you are aware that consuming new page flag bits
+>>> is usually a no-go and something we try to avoid as much as possible
+>>> because we are in a great shortage there. So there really have to be a
+>>> _strong_ reason if we go that way. My current understanding that the
+>>> whole zone concept is more about a more convenient implementation rather
+>>> than a fundamental change which will solve unsolvable problems with the
+>>> current approach. More on that below.
+>>
+>> I don't see it as such a big issue. It's behind a CONFIG option (so we
+>> also don't need the jump labels you suggest later) and enabling it
+>> reduces the number of possible NUMA nodes (not page flags). So either
+>> you are building a kernel for android phone that needs CMA but will have
+>> a single NUMA node, or for a large server with many nodes that won't
+>> have CMA. As long as there won't be large servers that need CMA, we
+>> should be fine (yes, I know some HW vendors can be very creative, but
+>> then it's their problem?).
 > 
-> How do you tell that the seal is active?
-
-The simpler way would be to define the seal as something that is applied
-only after late init has concluded.
-
-IOW, if the kernel has already started user-space, the seal is in place.
-
-I do acknowledge that this conflicts with the current implementation of
-SE Linux, but it might be possible to extend SE Linux to have a
-predefined configuration file that is loaded during kernel init.
-
-In general this is not acceptable, but OTOH IMA does it, so there could
-be ground also for advocating similar (optional) behavior for SE Linux.
-
-Should that not be possible,then yes, I should provide some way (ioctl,
-sysfs/something else) that can be used to apply the seal.
-
-In such case there should be also some helper function which allows to
-confirm that the seal is absent/present.
-
-> I have also asked about the
-> life time of these objects in the previous email thread. Do you expect
-> those objects get freed one by one or mostly at once? Is this supposed
-> to be boot time only or such allocations might happen anytime?
-
-Yes, you did. I didn't mean to ignore the question.
-I thought this question would be answered by the current RFC :-(
-
-Alright, here's one more attempt at explaining what I have in mind.
-And I might be wrong, so that would explain why it's not clear.
-
-Once the seal is in place, the objects are effectively read-only, so the
-lifetime is basically the same as the kernel text.
-Since I am after providing the same functionality of
-post-init-read-only, but for dynamically allocated data, I would stick
-to the same behavior: once the data is read-only, it stays so forever,
-or till reset/poweroff, whichever comes first.
-
-I wonder if you are thinking about loadable modules or maybe livepatch.
-My proposal, in its current form, is only about what is done when the
-kernel initialization is performed. So it would not take those cases
-under its umbrella. Actually it might be incompatible with livepatch, if
-any of the read-only data is supposed to be updated.
-
-Since it's meant to improve the current level of integrity, I would
-prefer to have a progressive approach and address modules/livepatch in a
-later phase, if this is not seen as a show stopper.
-
-[...]
-
-> The most immediate suggestion would be to extend SLAB caches with a new
-> sealing feature.
-
-Yes, I got few hours ago the same advice also from Dave Hansen (thanks,
-btw) [1].
-
-I had just not considered the option.
-
-> Roughly it would mean that once kmem_cache_seal() is
-> called on a cache it would changed page tables to used slab pages to RO
-> state. This would obviously need some fiddling to make those pages not
-> usable for new allocations from sealed pages. It would also mean some
-> changes to kfree path but I guess this is doable.
-
-Ok, as it probably has already become evident, I have just started
-peeking into the memory subsystem, so this is the sort of guidance I was
-hoping I could receive =) - thank you
-
-Question: I see that some pages can be moved around. Would this apply to
-the slab-based solution, or can I assume that once I have certain
-physical pages sealed, they will not be altered anymore?
-
->> * While I do not strictly need a new memory zone, memory zones are what
->> kmalloc understands at the moment: AFAIK, it is not possible to tell
->> kmalloc from which memory pool it should fish out the memory, other than
->> having a reference to a memory zone.
+> Is this really about Android/UMA systems only? My quick grep seems to disagree
+> $ git grep CONFIG_CMA=y
+> arch/arm/configs/exynos_defconfig:CONFIG_CMA=y
+> arch/arm/configs/imx_v6_v7_defconfig:CONFIG_CMA=y
+> arch/arm/configs/keystone_defconfig:CONFIG_CMA=y
+> arch/arm/configs/multi_v7_defconfig:CONFIG_CMA=y
+> arch/arm/configs/omap2plus_defconfig:CONFIG_CMA=y
+> arch/arm/configs/tegra_defconfig:CONFIG_CMA=y
+> arch/arm/configs/vexpress_defconfig:CONFIG_CMA=y
+> arch/arm64/configs/defconfig:CONFIG_CMA=y
+> arch/mips/configs/ci20_defconfig:CONFIG_CMA=y
+> arch/mips/configs/db1xxx_defconfig:CONFIG_CMA=y
+> arch/s390/configs/default_defconfig:CONFIG_CMA=y
+> arch/s390/configs/gcov_defconfig:CONFIG_CMA=y
+> arch/s390/configs/performance_defconfig:CONFIG_CMA=y
+> arch/s390/defconfig:CONFIG_CMA=y
 > 
-> As I've said already. I think that a zone is a completely wrong
-> approach. How would it help anyway. It is the allocator on top of the
-> page allocator which has to do clever things to support sealing.
+> I am pretty sure s390 and ppc support NUMA and aim at supporting really
+> large systems. 
 
+I don't see ppc there, and s390 commit adding CMA as default provides no
+info. Heiko/Martin, could you share what does s390 use CMA for? Thanks.
 
-Ok, as long as there is a way forward that fits my needs and has the
-possibility to be merged upstream, I'm fine with it.
+> I can imagine that we could make ZONE_CMA configurable in a way that
+> only very well defined use cases would be supported so that we can save
+> page flags space. But this alone sounds like a maintainability nightmare
+> to me. Especially when I consider ZONE_DMA situation. There is simply
+> not an easy way to find out whether my HW really needs DMA zone or
+> not. Most probably not but it still is configured and hidden behind
+> config ZONE_DMA
+>         bool "DMA memory allocation support" if EXPERT
+>         default y
+>         help
+>           DMA memory allocation support allows devices with less than 32-bit
+>           addressing to allocate within the first 16MB of address space.
+>           Disable if no such devices will be used.
+> 
+>           If unsure, say Y.
+> 
+> Are we really ready to add another thing like that? How are distribution
+> kernels going to handle that?
 
-I suppose zones are the first thing one meets when reading the code, so
-they are probably the first target that comes to mind.
-That's what happened to me.
+I still hope that generic enterprise/desktop distributions can disable
+it, and it's only used for small devices with custom kernels.
 
-I will probably come back with further questions, but I can then start
-putting together some prototype of what you described.
-
-I am fine with providing a generic solution, but I must make sure that
-it works with slub. I suppose what you proposed will do it, right?
-
-TBH, from what little I have been reading so far, I find a bit confusing
-the fact that there are some header files referring separately to slab,
-slub and slob, but then common code still refers to slab (slab.h slab.c
-and slab_common.c, for example)
-
-
-[1] https://marc.info/?l=linux-kernel&m=149388596106305&w=2
-
-
----
-thanks, igor
+The config burden is already there in any case, it just translates to
+extra migratetype and fastpath hooks, not extra zone and potentially
+less nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
