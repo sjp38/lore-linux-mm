@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 97CFB6B0038
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 08:09:40 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id f102so4212346ioi.7
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 05:09:40 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D106A6B0038
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 08:20:33 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id b28so570678wrb.2
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 05:20:33 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id l45si1843179ote.188.2017.05.05.05.09.39
+        by mx.google.com with ESMTPS id n46si6180098wrn.248.2017.05.05.05.20.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 May 2017 05:09:39 -0700 (PDT)
+        Fri, 05 May 2017 05:20:32 -0700 (PDT)
 Subject: Re: RFC v2: post-init-read-only protection for data allocated
  dynamically
 References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
@@ -17,65 +17,73 @@ References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
  <20170504131131.GI31540@dhcp22.suse.cz>
  <df1b34fb-f90b-da9e-6723-49e8f1cb1757@huawei.com>
  <20170504140126.GJ31540@dhcp22.suse.cz>
- <361e39e9-517a-2fc2-016c-23f9359fef0a@intel.com>
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <bfc487a0-0e3e-efb5-8790-bbe052a62362@huawei.com>
-Date: Fri, 5 May 2017 15:08:31 +0300
+Message-ID: <3e798c43-1726-ee7d-add5-762c7e17cb88@huawei.com>
+Date: Fri, 5 May 2017 15:19:19 +0300
 MIME-Version: 1.0
-In-Reply-To: <361e39e9-517a-2fc2-016c-23f9359fef0a@intel.com>
+In-Reply-To: <20170504140126.GJ31540@dhcp22.suse.cz>
 Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
 
-On 04/05/17 20:24, Dave Hansen wrote:
-> On 05/04/2017 07:01 AM, Michal Hocko wrote:
->> Just to make my proposal more clear. I suggest the following workflow
->>
->> cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
->>
->> obj = kmem_cache_alloc(cache, gfp_mask);
->> init_obj(obj)
->> [more allocations]
->> kmem_cache_seal(cache);
->>
->> All slab pages belonging to the cache would get write protection. All
->> new allocations from this cache would go to new slab pages. Later
->> kmem_cache_seal will write protect only those new pages.
+
+
+On 04/05/17 17:01, Michal Hocko wrote:
+> On Thu 04-05-17 16:37:55, Igor Stoppa wrote:
+
+[...]
+
+>> The disadvantage is that anything can happen, undetected, while the seal
+>> is lifted.
 > 
-> Igor, what sizes of objects are you after here, mostly?
+> Yes and I think this makes it basically pointless
 
-Theoretically, anything, since I have not really looked in details into
-all the various subsystems, however, taking a more pragmatical approach
-and referring to SE Linux and LSM Hooks, which were my initial target,
+ok, this goes a bit beyond what I had in mind initially, but I see your
+point
 
-For SE Linux, I'm taking as example the policy db [1]:
-The sizes are mostly small-ish: from 4-6 bytes to 16-32, overall.
-There are some exceptions: the main policydb structure is way larger,
-but it's not supposed to be instantiated repeatedly.
+[...]
+
+> Just to make my proposal more clear. I suggest the following workflow
+> 
+> cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
+>
+> obj = kmem_cache_alloc(cache, gfp_mask);
+> init_obj(obj)
+> [more allocations]
+> kmem_cache_seal(cache);
+
+In case one doesn't want the feature, at which point would it be disabled?
+
+* not creating the slab
+* not sealing it
+* something else?
+
+> All slab pages belonging to the cache would get write protection. All
+> new allocations from this cache would go to new slab pages. Later
+> kmem_cache_seal will write protect only those new pages.
+
+ok
+
+> The main discomfort with this approach is that you have to create those
+> caches in advance, obviously. We could help by creating some general
+> purpose caches for common sizes but this sound like an overkill to me.
+> The caller will know which objects will need the protection so the
+> appropriate cache can be created on demand. But this reall depends on
+> potential users...
+
+Yes, I provided a more detailed answer in another branch of this thread.
+Right now I can answer only for what I have already looked into: SE
+Linux policy DB and LSM Hooks, and they do not seem very large.
+
+I do not expect a large footprint, overall, although there might be some
+exception.
 
 
-For LSM Hooks, the sublists in that hydra which goes under the name of
-struct security_hook_heads, which are of type struct security_hook_list,
-so a handful of bytes for the generic element [2].
-
-
-> I ask because slub, at least, doesn't work at all for objects
->> PAGE_SIZE.  It just punts those to the page allocator.  But, you
-> _could_ still use vmalloc() for those.
-
-
-I would be surprised to find many objects that are larger than PAGE_SIZE
-and qqualify for post-init-read-only protection,  even if the page size
-was only 4kB.
-
->From that perspective, I'm more concerned about avoiding taking a lot of
-pages and leaving them mostly unused.
-
-[1] security/selinux/ss/policydb.h
-[2] include/linux/lsm_hooks.h
+--
+igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
