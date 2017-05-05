@@ -1,79 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B6D36B0311
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 85CF86B02F4
 	for <linux-mm@kvack.org>; Fri,  5 May 2017 13:03:32 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id o15so13202719ito.14
+Received: by mail-pg0-f69.google.com with SMTP id m13so9403602pgd.12
         for <linux-mm@kvack.org>; Fri, 05 May 2017 10:03:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id j2si3279621itc.76.2017.05.05.10.03.31
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id j28si2397428pga.46.2017.05.05.10.03.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 05 May 2017 10:03:31 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v3 0/9] parallelized "struct page" zeroing
-Date: Fri,  5 May 2017 13:03:07 -0400
-Message-Id: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v3 7/9] x86: teach x86 not to zero struct pages memory
+Date: Fri,  5 May 2017 13:03:14 -0400
+Message-Id: <1494003796-748672-8-git-send-email-pasha.tatashin@oracle.com>
+In-Reply-To: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-Changelog:
-	v2 - v3
-	- Addressed David's comments about one change per patch:
-		* Splited changes to platforms into 4 patches
-		* Made "do not zero vmemmap_buf" as a separate patch
-	v1 - v2
-	- Per request, added s390 to deferred "struct page" zeroing
-	- Collected performance data on x86 which proofs the importance to
-	  keep memset() as prefetch (see below).
+If we are using deferred struct page initialization feature, most of
+"struct page"es are getting initialized after other CPUs are started, and
+hence we are benefiting from doing this job in parallel. However, we are
+still zeroing all the memory that is allocated for "struct pages" using the
+boot CPU.  This patch solves this problem, by deferring zeroing "struct
+pages" to only when they are initialized on x86 platforms.
 
-When deferred struct page initialization feature is enabled, we get a
-performance gain of initializing vmemmap in parallel after other CPUs are
-started. However, we still zero the memory for vmemmap using one boot CPU.
-This patch-set fixes the memset-zeroing limitation by deferring it as well.
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
+---
+ arch/x86/mm/init_64.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Performance gain on SPARC with 32T:
-base:	https://hastebin.com/ozanelatat.go
-fix:	https://hastebin.com/utonawukof.go
-
-As you can see without the fix it takes: 97.89s to boot
-With the fix it takes: 46.91 to boot.
-
-Performance gain on x86 with 1T:
-base:	https://hastebin.com/uvifasohon.pas
-fix:	https://hastebin.com/anodiqaguj.pas
-
-On Intel we save 10.66s/T while on SPARC we save 1.59s/T. Intel has
-twice as many pages, and also fewer nodes than SPARC (sparc 32 nodes, vs.
-intel 8 nodes).
-
-It takes one thread 11.25s to zero vmemmap on Intel for 1T, so it should
-take additional 11.25 / 8 = 1.4s  (this machine has 8 nodes) per node to
-initialize the memory, but it takes only additional 0.456s per node, which
-means on Intel we also benefit from having memset() and initializing all
-other fields in one place.
-
-Pavel Tatashin (9):
-  sparc64: simplify vmemmap_populate
-  mm: defining memblock_virt_alloc_try_nid_raw
-  mm: add "zero" argument to vmemmap allocators
-  mm: do not zero vmemmap_buf
-  mm: zero struct pages during initialization
-  sparc64: teach sparc not to zero struct pages memory
-  x86: teach x86 not to zero struct pages memory
-  powerpc: teach platforms not to zero struct pages memory
-  s390: teach platforms not to zero struct pages memory
-
- arch/powerpc/mm/init_64.c |    4 +-
- arch/s390/mm/vmem.c       |    5 ++-
- arch/sparc/mm/init_64.c   |   26 +++++++----------------
- arch/x86/mm/init_64.c     |    3 +-
- include/linux/bootmem.h   |    3 ++
- include/linux/mm.h        |   15 +++++++++++--
- mm/memblock.c             |   46 ++++++++++++++++++++++++++++++++++++------
- mm/page_alloc.c           |    3 ++
- mm/sparse-vmemmap.c       |   48 +++++++++++++++++++++++++++++---------------
- 9 files changed, 103 insertions(+), 50 deletions(-)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 839e5d4..332a21e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1276,7 +1276,7 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
+ 			void *p;
+ 
+ 			p = __vmemmap_alloc_block_buf(PMD_SIZE, node, altmap,
+-						      true);
++						      VMEMMAP_ZERO);
+ 			if (p) {
+ 				pte_t entry;
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
