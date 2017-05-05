@@ -1,281 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C35536B02F4
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 13:03:31 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m13so9403391pgd.12
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 10:03:31 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id j68si2400239pgc.101.2017.05.05.10.03.30
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 365C16B02F4
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 13:03:32 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 67so13212905itx.11
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 10:03:32 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id a138si26862733ioe.4.2017.05.05.10.03.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 May 2017 10:03:30 -0700 (PDT)
+        Fri, 05 May 2017 10:03:31 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v3 3/9] mm: add "zero" argument to vmemmap allocators
-Date: Fri,  5 May 2017 13:03:10 -0400
-Message-Id: <1494003796-748672-4-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v3 2/9] mm: defining memblock_virt_alloc_try_nid_raw
+Date: Fri,  5 May 2017 13:03:09 -0400
+Message-Id: <1494003796-748672-3-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-Allow clients to request non-zeroed memory from vmemmap allocator.
-The following two public function have a new boolean argument called zero:
-
-__vmemmap_alloc_block_buf()
-vmemmap_alloc_block()
-
-When zero is true, memory that is allocated by memblock allocator is zeroed
-(the current behavior), when argument is false, the memory is not zeroed.
-
-This change allows for optimizations where client knows when it is better
-to zero memory: may be later when other CPUs are started, or may be client
-is going to set every byte in the allocated memory, so no need to zero
-memory beforehand.
+A new version of memblock_virt_alloc_* allocations:
+- Does not zero the allocated memory
+- Does not panic if request cannot be satisfied
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
 ---
- arch/powerpc/mm/init_64.c |    4 +-
- arch/s390/mm/vmem.c       |    5 ++-
- arch/sparc/mm/init_64.c   |    3 +-
- arch/x86/mm/init_64.c     |    3 +-
- include/linux/mm.h        |    6 ++--
- mm/sparse-vmemmap.c       |   48 +++++++++++++++++++++++++++++---------------
- 6 files changed, 43 insertions(+), 26 deletions(-)
+ include/linux/bootmem.h |    3 +++
+ mm/memblock.c           |   46 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 42 insertions(+), 7 deletions(-)
 
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index c22f207..d42c6b3 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -133,7 +133,7 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index 962164d..4e0f08b 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -160,6 +160,9 @@ extern int reserve_bootmem_node(pg_data_t *pgdat,
+ #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
  
- 	/* allocate a page when required and hand out chunks */
- 	if (!num_left) {
--		next = vmemmap_alloc_block(PAGE_SIZE, node);
-+		next = vmemmap_alloc_block(PAGE_SIZE, node, true);
- 		if (unlikely(!next)) {
- 			WARN_ON(1);
- 			return NULL;
-@@ -181,7 +181,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- 		if (vmemmap_populated(start, page_size))
- 			continue;
- 
--		p = vmemmap_alloc_block(page_size, node);
-+		p = vmemmap_alloc_block(page_size, node, true);
- 		if (!p)
- 			return -ENOMEM;
- 
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 60d3899..9c75214 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -251,7 +251,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- 			if (MACHINE_HAS_EDAT1) {
- 				void *new_page;
- 
--				new_page = vmemmap_alloc_block(PMD_SIZE, node);
-+				new_page = vmemmap_alloc_block(PMD_SIZE, node,
-+							       true);
- 				if (!new_page)
- 					goto out;
- 				pmd_val(*pm_dir) = __pa(new_page) | sgt_prot;
-@@ -271,7 +272,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- 		if (pte_none(*pt_dir)) {
- 			void *new_page;
- 
--			new_page = vmemmap_alloc_block(PAGE_SIZE, node);
-+			new_page = vmemmap_alloc_block(PAGE_SIZE, node, true);
- 			if (!new_page)
- 				goto out;
- 			pte_val(*pt_dir) = __pa(new_page) | pgt_prot;
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 14cc1fc..c72d070 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2545,7 +2545,8 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
- 		pmd = pmd_offset(pud, vstart);
- 		pte = pmd_val(*pmd);
- 		if (!(pte & _PAGE_VALID)) {
--			void *block = vmemmap_alloc_block(PMD_SIZE, node);
-+			void *block = vmemmap_alloc_block(PMD_SIZE, node,
-+							  true);
- 
- 			if (!block)
- 				return -ENOMEM;
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 745e5e1..839e5d4 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1275,7 +1275,8 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
- 		if (pmd_none(*pmd)) {
- 			void *p;
- 
--			p = __vmemmap_alloc_block_buf(PMD_SIZE, node, altmap);
-+			p = __vmemmap_alloc_block_buf(PMD_SIZE, node, altmap,
-+						      true);
- 			if (p) {
- 				pte_t entry;
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5d22e69..4375015 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2402,13 +2402,13 @@ void sparse_mem_maps_populate_node(struct page **map_map,
- pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
- pmd_t *vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node);
- pte_t *vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node);
--void *vmemmap_alloc_block(unsigned long size, int node);
-+void *vmemmap_alloc_block(unsigned long size, int node, bool zero);
- struct vmem_altmap;
- void *__vmemmap_alloc_block_buf(unsigned long size, int node,
--		struct vmem_altmap *altmap);
-+		struct vmem_altmap *altmap, bool zero);
- static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
+ /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
++void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
++				      phys_addr_t min_addr,
++				      phys_addr_t max_addr, int nid);
+ void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
+ 		phys_addr_t align, phys_addr_t min_addr,
+ 		phys_addr_t max_addr, int nid);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 696f06d..7fdc555 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1271,7 +1271,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ static void * __init memblock_virt_alloc_internal(
+ 				phys_addr_t size, phys_addr_t align,
+ 				phys_addr_t min_addr, phys_addr_t max_addr,
+-				int nid)
++				int nid, bool zero)
  {
--	return __vmemmap_alloc_block_buf(size, node, NULL);
-+	return __vmemmap_alloc_block_buf(size, node, NULL, true);
- }
- 
- void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index a56c398..5d255b0 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -39,16 +39,27 @@
- static void * __ref __earlyonly_bootmem_alloc(int node,
- 				unsigned long size,
- 				unsigned long align,
--				unsigned long goal)
-+				unsigned long goal,
-+				bool zero)
- {
--	return memblock_virt_alloc_try_nid(size, align, goal,
--					    BOOTMEM_ALLOC_ACCESSIBLE, node);
-+	void *mem = memblock_virt_alloc_try_nid_raw(size, align, goal,
-+						    BOOTMEM_ALLOC_ACCESSIBLE,
-+						    node);
-+	if (!mem) {
-+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=0x%lx\n",
-+		      __func__, size, align, node, goal);
-+		return NULL;
-+	}
-+
-+	if (zero)
-+		memset(mem, 0, size);
-+	return mem;
- }
- 
- static void *vmemmap_buf;
- static void *vmemmap_buf_end;
- 
--void * __meminit vmemmap_alloc_block(unsigned long size, int node)
-+void * __meminit vmemmap_alloc_block(unsigned long size, int node, bool zero)
- {
- 	/* If the main allocator is up use that, fallback to bootmem. */
- 	if (slab_is_available()) {
-@@ -67,24 +78,27 @@
- 		return NULL;
- 	} else
- 		return __earlyonly_bootmem_alloc(node, size, size,
--				__pa(MAX_DMA_ADDRESS));
-+				__pa(MAX_DMA_ADDRESS), zero);
- }
- 
- /* need to make sure size is all the same during early stage */
--static void * __meminit alloc_block_buf(unsigned long size, int node)
-+static void * __meminit alloc_block_buf(unsigned long size, int node, bool zero)
- {
+ 	phys_addr_t alloc;
  	void *ptr;
- 
- 	if (!vmemmap_buf)
--		return vmemmap_alloc_block(size, node);
-+		return vmemmap_alloc_block(size, node, zero);
- 
- 	/* take the from buf */
- 	ptr = (void *)ALIGN((unsigned long)vmemmap_buf, size);
- 	if (ptr + size > vmemmap_buf_end)
--		return vmemmap_alloc_block(size, node);
-+		return vmemmap_alloc_block(size, node, zero);
- 
- 	vmemmap_buf = ptr + size;
- 
+@@ -1322,7 +1322,8 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ 	return NULL;
+ done:
+ 	ptr = phys_to_virt(alloc);
+-	memset(ptr, 0, size);
 +	if (zero)
 +		memset(ptr, 0, size);
+ 
+ 	/*
+ 	 * The min_count is set to 0 so that bootmem allocated blocks
+@@ -1336,6 +1337,37 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ }
+ 
+ /**
++ * memblock_virt_alloc_try_nid_raw - allocate boot memory block without zeroing
++ * memory and without panicking
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region from where the allocation
++ *	  is preferred (phys address)
++ * @max_addr: the upper bound of the memory region from where the allocation
++ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
++ *	      allocate only from memory limited by memblock.current_limit value
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * Public function, provides additional debug information (including caller
++ * info), if enabled. Does not zero allocated memory, does not panic if request
++ * cannot be satisfied.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++void * __init memblock_virt_alloc_try_nid_raw(
++			phys_addr_t size, phys_addr_t align,
++			phys_addr_t min_addr, phys_addr_t max_addr,
++			int nid)
++{
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++		     (u64)max_addr, (void *)_RET_IP_);
++	return memblock_virt_alloc_internal(size, align,
++					   min_addr, max_addr, nid, false);
++}
 +
- 	return ptr;
++/**
+  * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
+@@ -1346,8 +1378,8 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public version of _memblock_virt_alloc_try_nid_nopanic() which provides
+- * additional debug information (including caller info), if enabled.
++ * Public function, provides additional debug information (including caller
++ * info), if enabled. This function zeroes the allocated memory.
+  *
+  * RETURNS:
+  * Virtual address of allocated memory block on success, NULL on failure.
+@@ -1361,7 +1393,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+ 		     (u64)max_addr, (void *)_RET_IP_);
+ 	return memblock_virt_alloc_internal(size, align, min_addr,
+-					     max_addr, nid);
++					     max_addr, nid, true);
  }
  
-@@ -152,11 +166,11 @@ static unsigned long __meminit vmem_altmap_alloc(struct vmem_altmap *altmap,
+ /**
+@@ -1375,7 +1407,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public panicking version of _memblock_virt_alloc_try_nid_nopanic()
++ * Public panicking version of memblock_virt_alloc_try_nid_nopanic()
+  * which provides debug information (including caller info), if enabled,
+  * and panics if the request can not be satisfied.
+  *
+@@ -1393,7 +1425,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+ 		     (u64)max_addr, (void *)_RET_IP_);
+ 	ptr = memblock_virt_alloc_internal(size, align,
+-					   min_addr, max_addr, nid);
++					   min_addr, max_addr, nid, true);
+ 	if (ptr)
+ 		return ptr;
  
- /* need to make sure size is all the same during early stage */
- void * __meminit __vmemmap_alloc_block_buf(unsigned long size, int node,
--		struct vmem_altmap *altmap)
-+		struct vmem_altmap *altmap, bool zero)
- {
- 	if (altmap)
- 		return altmap_alloc_block_buf(size, altmap);
--	return alloc_block_buf(size, node);
-+	return alloc_block_buf(size, node, zero);
- }
- 
- void __meminit vmemmap_verify(pte_t *pte, int node,
-@@ -175,7 +189,7 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
- 	pte_t *pte = pte_offset_kernel(pmd, addr);
- 	if (pte_none(*pte)) {
- 		pte_t entry;
--		void *p = alloc_block_buf(PAGE_SIZE, node);
-+		void *p = alloc_block_buf(PAGE_SIZE, node, true);
- 		if (!p)
- 			return NULL;
- 		entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
-@@ -188,7 +202,7 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
- {
- 	pmd_t *pmd = pmd_offset(pud, addr);
- 	if (pmd_none(*pmd)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block(PAGE_SIZE, node, true);
- 		if (!p)
- 			return NULL;
- 		pmd_populate_kernel(&init_mm, pmd, p);
-@@ -200,7 +214,7 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
- {
- 	pud_t *pud = pud_offset(p4d, addr);
- 	if (pud_none(*pud)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block(PAGE_SIZE, node, true);
- 		if (!p)
- 			return NULL;
- 		pud_populate(&init_mm, pud, p);
-@@ -212,7 +226,7 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
- {
- 	p4d_t *p4d = p4d_offset(pgd, addr);
- 	if (p4d_none(*p4d)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block(PAGE_SIZE, node, true);
- 		if (!p)
- 			return NULL;
- 		p4d_populate(&init_mm, p4d, p);
-@@ -224,7 +238,7 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
- {
- 	pgd_t *pgd = pgd_offset_k(addr);
- 	if (pgd_none(*pgd)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block(PAGE_SIZE, node, true);
- 		if (!p)
- 			return NULL;
- 		pgd_populate(&init_mm, pgd, p);
-@@ -290,8 +304,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 	void *vmemmap_buf_start;
- 
- 	size = ALIGN(size, PMD_SIZE);
--	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
--			 PMD_SIZE, __pa(MAX_DMA_ADDRESS));
-+	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size
-+			* map_count, PMD_SIZE, __pa(MAX_DMA_ADDRESS), true);
- 
- 	if (vmemmap_buf_start) {
- 		vmemmap_buf = vmemmap_buf_start;
 -- 
 1.7.1
 
