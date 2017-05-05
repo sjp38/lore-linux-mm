@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E7396B02C4
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 09:30:31 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p62so762897wrc.13
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 06:30:31 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 2si5870742wrh.283.2017.05.05.06.30.30
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B03926B0038
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 09:47:39 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id f37so3298041ybj.8
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 06:47:39 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id k1si2510747ybj.283.2017.05.05.06.47.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 May 2017 06:30:30 -0700 (PDT)
-Date: Fri, 5 May 2017 15:30:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
-Message-ID: <20170505133029.GC31461@dhcp22.suse.cz>
-References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
- <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
- <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
- <20170426201126.GA32407@dhcp22.suse.cz>
- <40f72efa-3928-b3c6-acca-0740f1a15ba4@oracle.com>
- <429c8506-c498-0599-4258-7bac947fe29c@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 May 2017 06:47:38 -0700 (PDT)
+Subject: Re: [PATCH] swap: add block io poll in swapin path
+References: <7dd0349ba5d321af557d7a09e08610f2486ea29e.1493930299.git.shli@fb.com>
+ <87shkk0zn9.fsf@yhuang-dev.intel.com>
+ <20170505051218.GA50755@dhcp-172-20-191-107.dhcp.thefacebook.com>
+ <878tmb265d.fsf@yhuang-dev.intel.com>
+From: Jens Axboe <axboe@fb.com>
+Message-ID: <a260882d-3247-8410-b4fe-bc5f19c90beb@fb.com>
+Date: Fri, 5 May 2017 07:47:27 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <429c8506-c498-0599-4258-7bac947fe29c@oracle.com>
+In-Reply-To: <878tmb265d.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
+To: "Huang, Ying" <ying.huang@intel.com>, Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Kernel-team@fb.com, Tim Chen <tim.c.chen@intel.com>
 
-On Thu 04-05-17 14:28:51, Pasha Tatashin wrote:
-> BTW, I am OK with your patch on top of this "Adaptive hash table" patch, but
-> I do not know what high_limit should be from where HASH_ADAPT will kick in.
-> 128M sound reasonable to you?
+On 05/05/2017 12:02 AM, Huang, Ying wrote:
+>> The hybrid polling could help. The default hybrid polling poll half
+>> the average IO latency. But it will not work very well if the latency
+>> becomes very big. The hybrid polling has an interface to allow
+>> userspace to configure the poll threshold, but since the latency
+>> varies from time to time, it would be very hard to set a single
+>> threshold for all workloads.
+> 
+> If my understanding were correct, the hybrid polling will insert some
+> sleep before the polling, but will not restrict the duration of the
+> polling itself.  This helps CPU usage, but may not help much for very
+> long latency.  How about add another threshold to restrict the max
+> polling time?  For example, the sleep time + max polling time could be
+> 1.5 * mean latency.  So that most IO requests could be serviced by
+> polling, and for very long latency, polling could be restricted to
+> reduce CPU usage.
 
-For simplicity I would just use it unconditionally when no high_limit is
-set. What would be the problem with that? If you look at current users
-(and there no new users emerging too often) then most of them just want
-_some_ scaling. The original one obviously doesn't scale with large
-machines. Are you OK to fold my change to your patch or you want me to
-send a separate patch? AFAIK Andrew hasn't posted this patch to Linus
-yet.
+I don't think that's a bad idea at all, there's definitely room for
+improvement on how long to sleep and when to completely stop. The stats
+track min/avg/max for a given window of time, so it would not be too
+hard to implement an appropriate backoff as well.
+
 -- 
-Michal Hocko
-SUSE Labs
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
