@@ -1,89 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D106A6B0038
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 08:20:33 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b28so570678wrb.2
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 05:20:33 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id n46si6180098wrn.248.2017.05.05.05.20.32
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 189A66B0038
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 09:16:54 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p134so629905wmg.3
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 06:16:54 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id y39si5929056wrd.240.2017.05.05.06.16.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 May 2017 05:20:32 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <20170504112159.GC31540@dhcp22.suse.cz>
- <83d4556c-b21c-7ae5-6e83-4621a74f9fd5@huawei.com>
- <20170504131131.GI31540@dhcp22.suse.cz>
- <df1b34fb-f90b-da9e-6723-49e8f1cb1757@huawei.com>
- <20170504140126.GJ31540@dhcp22.suse.cz>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <3e798c43-1726-ee7d-add5-762c7e17cb88@huawei.com>
-Date: Fri, 5 May 2017 15:19:19 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 May 2017 06:16:52 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id u65so23607648wmu.1
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 06:16:52 -0700 (PDT)
+Date: Fri, 5 May 2017 16:16:49 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm, sparsemem: break out of loops early
+Message-ID: <20170505131649.t5ffmg7xspndtrc4@node.shutemov.name>
+References: <20170504174434.C45A4735@viggo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170504140126.GJ31540@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170504174434.C45A4735@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-
-
-On 04/05/17 17:01, Michal Hocko wrote:
-> On Thu 04-05-17 16:37:55, Igor Stoppa wrote:
-
-[...]
-
->> The disadvantage is that anything can happen, undetected, while the seal
->> is lifted.
+On Thu, May 04, 2017 at 10:44:34AM -0700, Dave Hansen wrote:
 > 
-> Yes and I think this makes it basically pointless
-
-ok, this goes a bit beyond what I had in mind initially, but I see your
-point
-
-[...]
-
-> Just to make my proposal more clear. I suggest the following workflow
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
->
-> obj = kmem_cache_alloc(cache, gfp_mask);
-> init_obj(obj)
-> [more allocations]
-> kmem_cache_seal(cache);
+> There are a number of times that we loop over NR_MEM_SECTIONS,
+> looking for section_present() on each section.  But, when we have
+> very large physical address spaces (large MAX_PHYSMEM_BITS),
+> NR_MEM_SECTIONS becomes very large, making the loops quite long.
+> 
+> With MAX_PHYSMEM_BITS=46 and a section size of 128MB, the current
+> loops are 512k iterations, which we barely notice on modern
+> hardware.  But, raising MAX_PHYSMEM_BITS higher (like we will see
+> on systems that support 5-level paging) makes this 64x longer and
+> we start to notice, especially on slower systems like simulators.
+> A 10-second delay for 512k iterations is annoying.  But, a 640-
+> second delay is crippling.
+> 
+> This does not help if we have extremely sparse physical address
+> spaces, but those are quite rare.  We expect that most of the
+> "slow" systems where this matters will also be quite small and
+> non-sparse.
+> 
+> To fix this, we track the highest section we've ever encountered.
+> This lets us know when we will *never* see another
+> section_present(), and lets us break out of the loops earlier.
+> 
+> Doing the whole for_each_present_section_nr() macro is probably
+> overkill, but it will ensure that any future loop iterations that
+> we grow are more likely to be correct.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-In case one doesn't want the feature, at which point would it be disabled?
+Tested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-* not creating the slab
-* not sealing it
-* something else?
+It shaved almost 40 seconds from boot time in qemu with 5-level paging
+enabled for me :)
 
-> All slab pages belonging to the cache would get write protection. All
-> new allocations from this cache would go to new slab pages. Later
-> kmem_cache_seal will write protect only those new pages.
-
-ok
-
-> The main discomfort with this approach is that you have to create those
-> caches in advance, obviously. We could help by creating some general
-> purpose caches for common sizes but this sound like an overkill to me.
-> The caller will know which objects will need the protection so the
-> appropriate cache can be created on demand. But this reall depends on
-> potential users...
-
-Yes, I provided a more detailed answer in another branch of this thread.
-Right now I can answer only for what I have already looked into: SE
-Linux policy DB and LSM Hooks, and they do not seem very large.
-
-I do not expect a large footprint, overall, although there might be some
-exception.
-
-
---
-igor
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
