@@ -1,81 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4680F6B0038
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 06:43:46 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g67so298247wrd.0
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 03:43:46 -0700 (PDT)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CFB6B0038
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 08:09:40 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f102so4212346ioi.7
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 05:09:40 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id q78si1983481wme.139.2017.05.05.03.43.44
+        by mx.google.com with ESMTPS id l45si1843179ote.188.2017.05.05.05.09.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 May 2017 03:43:44 -0700 (PDT)
+        Fri, 05 May 2017 05:09:39 -0700 (PDT)
 Subject: Re: RFC v2: post-init-read-only protection for data allocated
  dynamically
 References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
+ <20170504112159.GC31540@dhcp22.suse.cz>
+ <83d4556c-b21c-7ae5-6e83-4621a74f9fd5@huawei.com>
+ <20170504131131.GI31540@dhcp22.suse.cz>
+ <df1b34fb-f90b-da9e-6723-49e8f1cb1757@huawei.com>
+ <20170504140126.GJ31540@dhcp22.suse.cz>
+ <361e39e9-517a-2fc2-016c-23f9359fef0a@intel.com>
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
-Date: Fri, 5 May 2017 13:42:27 +0300
+Message-ID: <bfc487a0-0e3e-efb5-8790-bbe052a62362@huawei.com>
+Date: Fri, 5 May 2017 15:08:31 +0300
 MIME-Version: 1.0
-In-Reply-To: <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <361e39e9-517a-2fc2-016c-23f9359fef0a@intel.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/05/17 19:49, Laura Abbott wrote:
-> [adding kernel-hardening since I think there would be interest]
+On 04/05/17 20:24, Dave Hansen wrote:
+> On 05/04/2017 07:01 AM, Michal Hocko wrote:
+>> Just to make my proposal more clear. I suggest the following workflow
+>>
+>> cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
+>>
+>> obj = kmem_cache_alloc(cache, gfp_mask);
+>> init_obj(obj)
+>> [more allocations]
+>> kmem_cache_seal(cache);
+>>
+>> All slab pages belonging to the cache would get write protection. All
+>> new allocations from this cache would go to new slab pages. Later
+>> kmem_cache_seal will write protect only those new pages.
+> 
+> Igor, what sizes of objects are you after here, mostly?
 
-thank you, I overlooked this
+Theoretically, anything, since I have not really looked in details into
+all the various subsystems, however, taking a more pragmatical approach
+and referring to SE Linux and LSM Hooks, which were my initial target,
+
+For SE Linux, I'm taking as example the policy db [1]:
+The sizes are mostly small-ish: from 4-6 bytes to 16-32, overall.
+There are some exceptions: the main policydb structure is way larger,
+but it's not supposed to be instantiated repeatedly.
 
 
-> BPF takes the approach of calling set_memory_ro to mark regions as
-> read only. I'm certainly over simplifying but it sounds like this
-> is mostly a mechanism to have this happen mostly automatically.
-> Can you provide any more details about tradeoffs of the two approaches?
+For LSM Hooks, the sublists in that hydra which goes under the name of
+struct security_hook_heads, which are of type struct security_hook_list,
+so a handful of bytes for the generic element [2].
 
-I am not sure I understand the question ...
-For what I can understand, the bpf is marking as read only something
-that spans across various pages, which is fine.
-The payload to be protected is already organized in such pages.
 
-But in the case I have in mind, I have various, heterogeneous chunks of
-data, coming from various subsystems, not necessarily page aligned.
-And, even if they were page aligned, most likely they would be far
-smaller than a page, even a 4k page.
+> I ask because slub, at least, doesn't work at all for objects
+>> PAGE_SIZE.  It just punts those to the page allocator.  But, you
+> _could_ still use vmalloc() for those.
 
-The first problem I see, is how to compact them into pages, ensuring
-that no rwdata manages to infiltrate the range.
 
-The actual mechanism for marking pages as read only is not relevant at
-this point, if I understand your question correctly, since set_memory_ro
-is walking the pages it receives as parameter.
+I would be surprised to find many objects that are larger than PAGE_SIZE
+and qqualify for post-init-read-only protection,  even if the page size
+was only 4kB.
 
-> arm and arm64 have the added complexity of using larger
-> page sizes on the linear map so dynamic mapping/unmapping generally
-> doesn't work. 
+>From that perspective, I'm more concerned about avoiding taking a lot of
+pages and leaving them mostly unused.
 
-Do you mean that a page could be 16MB and therefore it would not be
-possible to get a smaller chunk?
-
-> arm64 supports DEBUG_PAGEALLOC by mapping with only
-> pages but this is generally only wanted as a debug mechanism.
-> I don't know if you've given this any thought at all.
-
-Since the beginning I have thought about this feature as an opt-in
-feature. I am aware that it can have drawbacks, but I think it would be
-valuable as debugging tool even where it's not feasible to keep it
-always-on.
-
-OTOH on certain systems it can be sufficiently appealing to be kept on,
-even if it eats up some more memory.
-
-If this doesn't answer your question, could you please detail it more?
-
----
-thanks, igor
+[1] security/selinux/ss/policydb.h
+[2] include/linux/lsm_hooks.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
