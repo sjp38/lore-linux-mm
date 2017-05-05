@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB426B02EE
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 10:52:41 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y106so1019644wrb.14
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 07:52:41 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 68si6742063wra.23.2017.05.05.07.52.39
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC0C6B0038
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 11:33:46 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id p8so2670078uaa.4
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 08:33:46 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id q132si2623080vkd.146.2017.05.05.08.33.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 May 2017 07:52:40 -0700 (PDT)
-Date: Fri, 5 May 2017 16:52:38 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
-Message-ID: <20170505145238.GE31461@dhcp22.suse.cz>
-References: <20170419075242.29929-1-bsingharora@gmail.com>
- <20170502143608.GM14593@dhcp22.suse.cz>
- <1493875615.7934.1.camel@gmail.com>
- <20170504125250.GH31540@dhcp22.suse.cz>
- <1493912961.25766.379.camel@kernel.crashing.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 May 2017 08:33:45 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
+References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
+ <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
+ <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
+ <20170426201126.GA32407@dhcp22.suse.cz>
+ <40f72efa-3928-b3c6-acca-0740f1a15ba4@oracle.com>
+ <429c8506-c498-0599-4258-7bac947fe29c@oracle.com>
+ <20170505133029.GC31461@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <e7c61dec-9d57-957b-7ff5-8247fa51eafb@oracle.com>
+Date: Fri, 5 May 2017 11:33:36 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1493912961.25766.379.camel@kernel.crashing.org>
+In-Reply-To: <20170505133029.GC31461@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On Thu 04-05-17 17:49:21, Benjamin Herrenschmidt wrote:
-> On Thu, 2017-05-04 at 14:52 +0200, Michal Hocko wrote:
-> > But the direct reclaim would be effective only _after_ all other nodes
-> > are full.
-> > 
-> > I thought that kswapd reclaim is a problem because the HW doesn't
-> > support aging properly but as the direct reclaim works then what is the
-> > actual problem?
+
+
+On 05/05/2017 09:30 AM, Michal Hocko wrote:
+> On Thu 04-05-17 14:28:51, Pasha Tatashin wrote:
+>> BTW, I am OK with your patch on top of this "Adaptive hash table" patch, but
+>> I do not know what high_limit should be from where HASH_ADAPT will kick in.
+>> 128M sound reasonable to you?
 > 
-> Ageing isn't isn't completely broken. The ATS MMU supports
-> dirty/accessed just fine.
+> For simplicity I would just use it unconditionally when no high_limit is
+> set. What would be the problem with that?
+
+Sure, that sounds good.
+
+  If you look at current users
+> (and there no new users emerging too often) then most of them just want
+> _some_ scaling. The original one obviously doesn't scale with large
+> machines. Are you OK to fold my change to your patch or you want me to
+> send a separate patch? AFAIK Andrew hasn't posted this patch to Linus
+> yet.
 > 
-> However the TLB invalidations are quite expensive with a GPU so too
-> much harvesting is detrimental, and the GPU tends to check pages out
-> using a special "read with intend to write" mode, which means it almost
-> always set the dirty bit if the page is writable to begin with.
 
-This sounds pretty much like a HW specific details which is not the
-right criterion to design general CDM around.
+I would like a separate patch because mine has soaked in mm tree for a 
+while now.
 
-So let me repeat the fundamental question. Is the only difference from
-cpuless nodes the fact that the node should be invisible to processes
-unless they specify an explicit node mask? If yes then we are talking
-about policy in the kernel and that sounds like a big no-no to me.
-Moreover cpusets already support exclusive numa nodes AFAIR.
-
-I am either missing something important here, and the discussion so far
-hasn't helped to be honest, or this whole CDM effort tries to build a
-generic interface around a _specific_ piece of HW. The matter is worse
-by the fact that the described usecases are so vague that it is hard to
-build a good picture whether this is generic enough that a new/different
-HW will still fit into this picture.
--- 
-Michal Hocko
-SUSE Labs
+Thank you,
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
