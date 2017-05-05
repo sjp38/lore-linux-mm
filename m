@@ -1,68 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CB21C6B0038
-	for <linux-mm@kvack.org>; Fri,  5 May 2017 14:52:45 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s62so11815332pgc.2
-        for <linux-mm@kvack.org>; Fri, 05 May 2017 11:52:45 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id d6si6515855plj.167.2017.05.05.11.52.44
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9157C6B02C4
+	for <linux-mm@kvack.org>; Fri,  5 May 2017 17:07:33 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id c28so6314259qta.8
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 14:07:33 -0700 (PDT)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id n124si5568960qkd.170.2017.05.05.14.07.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 May 2017 11:52:44 -0700 (PDT)
-Subject: asm/mmu.h using NR_CPUS (was Re: kisskb: FAILED
- linux-next/axs101_defconfig/arcompact Thu May 04, 18:53)
-References: <20170504085336.1.21586@5b4f83badeef>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <6aa3877c-9118-88d1-b662-49a455a66258@synopsys.com>
-Date: Fri, 5 May 2017 11:52:32 -0700
+        Fri, 05 May 2017 14:07:32 -0700 (PDT)
+Received: by mail-qt0-x244.google.com with SMTP id l39so2421787qtb.1
+        for <linux-mm@kvack.org>; Fri, 05 May 2017 14:07:32 -0700 (PDT)
+Subject: Re: [PATCH v3 3/3] arm64: Silence first allocation with
+ CONFIG_ARM64_MODULE_PLTS=y
+References: <20170427181902.28829-1-f.fainelli@gmail.com>
+ <20170427181902.28829-4-f.fainelli@gmail.com> <20170503111814.GF8233@arm.com>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Message-ID: <3af577ca-8f01-7a1c-997c-4c04914b4633@gmail.com>
+Date: Fri, 5 May 2017 14:07:28 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170504085336.1.21586@5b4f83badeef>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <20170503111814.GF8233@arm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-snps-arc@lists.infradead.org
-Cc: noreply@ellerman.id.au, lkml <linux-kernel@vger.kernel.org>, Alexey.Brodkin@synopsys.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Anton Kolesov <Anton.Kolesov@synopsys.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-+CC Michal, linux-arch as it potentially affects other arches !
-
-Hi,
-
-On 05/04/2017 01:53 AM, noreply@ellerman.id.au wrote:
-> FAILED linux-next/axs101_defconfig/arcompact Thu May 04, 18:53
+On 05/03/2017 04:18 AM, Will Deacon wrote:
+> On Thu, Apr 27, 2017 at 11:19:02AM -0700, Florian Fainelli wrote:
+>> When CONFIG_ARM64_MODULE_PLTS is enabled, the first allocation using the
+>> module space fails, because the module is too big, and then the module
+>> allocation is attempted from vmalloc space. Silence the first allocation
+>> failure in that case by setting __GFP_NOWARN.
+>>
+>> Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+>> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
+>> ---
+>>  arch/arm64/kernel/module.c | 7 ++++++-
+>>  1 file changed, 6 insertions(+), 1 deletion(-)
 > 
-> http://kisskb.ellerman.id.au/kisskb/buildresult/13022475/
+> I'm not sure what the merge plan is for these, but the arm64 bit here
+> looks fine to me:
 > 
-> Commit:   Add linux-next specific files for 20170504
->           ef57eb19c96fa099a578aeaed9b9d0dbcc4fe069
-> Compiler: arc-buildroot-linux-uclibc-gcc (Buildroot 2015.08.1) 4.8.4
+> Acked-by: Will Deacon <will.deacon@arm.com>
+
+Thanks, not sure either, would you or Catalin want to pick this series?
+
 > 
-> Possible errors
-> ---------------
+> Will
 > 
-> arch/arc/include/asm/mmu.h:75:21: error: 'NR_CPUS' undeclared here (not in a function)
-> make[3]: *** [arch/arc/mm/ioremap.o] Error 1
-> make[2]: *** [arch/arc/mm] Error 2
-> make[1]: *** [arch/arc] Error 2
-> arch/arc/include/asm/mmu.h:75:21: error: 'NR_CPUS' undeclared here (not in a function)
-> make[3]: *** [kernel/irq/generic-chip.o] Error 1
-> make[2]: *** [kernel/irq] Error 2
-> make[1]: *** [kernel] Error 2
-> arch/arc/include/asm/mmu.h:75:21: error: 'NR_CPUS' undeclared here (not in a function)
-> make[2]: *** [mm/vmalloc.o] Error 1
-> make[1]: *** [mm] Error 2
-> make: *** [sub-make] Error 2
+>> diff --git a/arch/arm64/kernel/module.c b/arch/arm64/kernel/module.c
+>> index 7f316982ce00..093c13541efb 100644
+>> --- a/arch/arm64/kernel/module.c
+>> +++ b/arch/arm64/kernel/module.c
+>> @@ -32,11 +32,16 @@
+>>  
+>>  void *module_alloc(unsigned long size)
+>>  {
+>> +	gfp_t gfp_mask = GFP_KERNEL;
+>>  	void *p;
+>>  
+>> +	/* Silence the initial allocation */
+>> +	if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS))
+>> +		gfp_mask |= __GFP_NOWARN;
+>> +
+>>  	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+>>  				module_alloc_base + MODULES_VSIZE,
+>> -				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
+>> +				gfp_mask, PAGE_KERNEL_EXEC, 0,
+>>  				NUMA_NO_NODE, __builtin_return_address(0));
+>>  
+>>  	if (!p && IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
+>> -- 
+>> 2.9.3
+>>
 
-I bisected the linux-next ARC build failure (!SMP only) to a subtle side effect of
-a950a30220657d ("mm, vmalloc: properly track vmalloc users") which includes
-asm/pgtable.h causing the final include chain (for ARC ioremap.c) to have
-asm/mmu.h (using NR_CPUS) before linux/threads.h (defining it)
 
-The quick fix is to include linux/threads.h and this is just a heads up other
-arches might run into same - although xtensa and mips with similar mm_context_t
-seem to build just fine !
-
--Vineet
+-- 
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
