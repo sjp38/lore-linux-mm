@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7BA6B0311
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C02DD6B0317
 	for <linux-mm@kvack.org>; Fri,  5 May 2017 13:03:34 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id z125so13423582itc.12
+Received: by mail-io0-f198.google.com with SMTP id e79so12941085ioi.6
         for <linux-mm@kvack.org>; Fri, 05 May 2017 10:03:34 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id a78si27080336ioa.51.2017.05.05.10.03.32
+        by mx.google.com with ESMTPS id m188si5236473itd.54.2017.05.05.10.03.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 05 May 2017 10:03:33 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v3 6/9] sparc64: teach sparc not to zero struct pages memory
-Date: Fri,  5 May 2017 13:03:13 -0400
-Message-Id: <1494003796-748672-7-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v3 8/9] powerpc: teach platforms not to zero struct pages memory
+Date: Fri,  5 May 2017 13:03:15 -0400
+Message-Id: <1494003796-748672-9-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,27 +24,27 @@ If we are using deferred struct page initialization feature, most of
 hence we are benefiting from doing this job in parallel. However, we are
 still zeroing all the memory that is allocated for "struct pages" using the
 boot CPU.  This patch solves this problem, by deferring zeroing "struct
-pages" to only when they are initialized on SPARC.
+pages" to only when they are initialized on PowerPC platforms.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
 ---
- arch/sparc/mm/init_64.c |    2 +-
+ arch/powerpc/mm/init_64.c |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index c72d070..dae040c 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2546,7 +2546,7 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
- 		pte = pmd_val(*pmd);
- 		if (!(pte & _PAGE_VALID)) {
- 			void *block = vmemmap_alloc_block(PMD_SIZE, node,
--							  true);
-+							  VMEMMAP_ZERO);
+diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+index d42c6b3..c381bd7 100644
+--- a/arch/powerpc/mm/init_64.c
++++ b/arch/powerpc/mm/init_64.c
+@@ -181,7 +181,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+ 		if (vmemmap_populated(start, page_size))
+ 			continue;
  
- 			if (!block)
- 				return -ENOMEM;
+-		p = vmemmap_alloc_block(page_size, node, true);
++		p = vmemmap_alloc_block(page_size, node, VMEMMAP_ZERO);
+ 		if (!p)
+ 			return -ENOMEM;
+ 
 -- 
 1.7.1
 
