@@ -1,74 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 788826B02C4
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BFAD6B02EE
 	for <linux-mm@kvack.org>; Fri,  5 May 2017 13:03:31 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m13so9403306pgd.12
+Received: by mail-pf0-f199.google.com with SMTP id a66so8575700pfl.6
         for <linux-mm@kvack.org>; Fri, 05 May 2017 10:03:31 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id u13si2734090plm.229.2017.05.05.10.03.30
+        by mx.google.com with ESMTPS id f4si5596255plb.175.2017.05.05.10.03.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 05 May 2017 10:03:30 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v3 1/9] sparc64: simplify vmemmap_populate
-Date: Fri,  5 May 2017 13:03:08 -0400
-Message-Id: <1494003796-748672-2-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v3 5/9] mm: zero struct pages during initialization
+Date: Fri,  5 May 2017 13:03:12 -0400
+Message-Id: <1494003796-748672-6-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-Remove duplicating code, by using common functions
-vmemmap_pud_populate and vmemmap_pgd_populate functions.
+When deferred struct page initialization is enabled, do not expect that
+the memory that was allocated for struct pages was zeroed by the
+allocator. Zero it when "struct pages" are initialized.
+
+Also, a defined boolean VMEMMAP_ZERO is provided to tell platforms whether
+they should zero memory or can deffer it.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
 ---
- arch/sparc/mm/init_64.c |   23 ++++++-----------------
- 1 files changed, 6 insertions(+), 17 deletions(-)
+ include/linux/mm.h |    9 +++++++++
+ mm/page_alloc.c    |    3 +++
+ 2 files changed, 12 insertions(+), 0 deletions(-)
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 0cda653..14cc1fc 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2530,30 +2530,19 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
- 	vstart = vstart & PMD_MASK;
- 	vend = ALIGN(vend, PMD_SIZE);
- 	for (; vstart < vend; vstart += PMD_SIZE) {
--		pgd_t *pgd = pgd_offset_k(vstart);
-+		pgd_t *pgd = vmemmap_pgd_populate(vstart, node);
- 		unsigned long pte;
- 		pud_t *pud;
- 		pmd_t *pmd;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4375015..1c481fc 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2419,6 +2419,15 @@ int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ void vmemmap_free(unsigned long start, unsigned long end);
+ #endif
++/*
++ * Don't zero "struct page"es during early boot, and zero only when they are
++ * initialized in parallel.
++ */
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++#define VMEMMAP_ZERO	false
++#else
++#define VMEMMAP_ZERO	true
++#endif
+ void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+ 				  unsigned long size);
  
--		if (pgd_none(*pgd)) {
--			pud_t *new = vmemmap_alloc_block(PAGE_SIZE, node);
-+		if (!pgd)
-+			return -ENOMEM;
- 
--			if (!new)
--				return -ENOMEM;
--			pgd_populate(&init_mm, pgd, new);
--		}
--
--		pud = pud_offset(pgd, vstart);
--		if (pud_none(*pud)) {
--			pmd_t *new = vmemmap_alloc_block(PAGE_SIZE, node);
--
--			if (!new)
--				return -ENOMEM;
--			pud_populate(&init_mm, pud, new);
--		}
-+		pud = vmemmap_pud_populate(pgd, vstart, node);
-+		if (!pud)
-+			return -ENOMEM;
- 
- 		pmd = pmd_offset(pud, vstart);
--
- 		pte = pmd_val(*pmd);
- 		if (!(pte & _PAGE_VALID)) {
- 			void *block = vmemmap_alloc_block(PMD_SIZE, node);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2c25de4..e736c6a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1159,6 +1159,9 @@ static void free_one_page(struct zone *zone,
+ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 				unsigned long zone, int nid)
+ {
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++	memset(page, 0, sizeof(struct page));
++#endif
+ 	set_page_links(page, zone, nid, pfn);
+ 	init_page_count(page);
+ 	page_mapcount_reset(page);
 -- 
 1.7.1
 
