@@ -1,27 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7F16B02F3
-	for <linux-mm@kvack.org>; Sun,  7 May 2017 00:19:34 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id i63so41356585pgd.15
-        for <linux-mm@kvack.org>; Sat, 06 May 2017 21:19:34 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id u79si6051889pgb.192.2017.05.06.21.19.33
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E8BA6B02FA
+	for <linux-mm@kvack.org>; Sun,  7 May 2017 00:20:56 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id o25so41643721pgc.1
+        for <linux-mm@kvack.org>; Sat, 06 May 2017 21:20:56 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y64si10027975plh.78.2017.05.06.21.20.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 06 May 2017 21:19:33 -0700 (PDT)
+        Sat, 06 May 2017 21:20:55 -0700 (PDT)
 From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [virtio-dev] Re: [PATCH v9 2/5] virtio-balloon:
- VIRTIO_BALLOON_F_BALLOON_CHUNKS
-Date: Sun, 7 May 2017 04:19:28 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F7391FFBB0@shsmsx102.ccr.corp.intel.com>
+Subject: RE: [PATCH v9 5/5] virtio-balloon: VIRTIO_BALLOON_F_MISC_VQ
+Date: Sun, 7 May 2017 04:20:51 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F7391FFBCB@shsmsx102.ccr.corp.intel.com>
 References: <1492076108-117229-1-git-send-email-wei.w.wang@intel.com>
- <1492076108-117229-3-git-send-email-wei.w.wang@intel.com>
- <20170413184040-mutt-send-email-mst@kernel.org> <58F08A60.2020407@intel.com>
- <20170415000934-mutt-send-email-mst@kernel.org> <58F43801.7060004@intel.com>
- <286AC319A985734F985F78AFA26841F7391F6DCD@shsmsx102.ccr.corp.intel.com>
- <20170426192753-mutt-send-email-mst@kernel.org> <59019055.3040708@intel.com>
- <20170506012322-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170506012322-mutt-send-email-mst@kernel.org>
+ <1492076108-117229-6-git-send-email-wei.w.wang@intel.com>
+ <20170413194732-mutt-send-email-mst@kernel.org> <590190C8.6030609@intel.com>
+ <20170506011928-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170506011928-mutt-send-email-mst@kernel.org>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -31,60 +27,65 @@ List-ID: <linux-mm.kvack.org>
 To: "Michael S. Tsirkin" <mst@redhat.com>
 Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
 
-On 05/06/2017 06:26 AM, Michael S. Tsirkin wrote:
-> On Thu, Apr 27, 2017 at 02:31:49PM +0800, Wei Wang wrote:
-> > On 04/27/2017 07:20 AM, Michael S. Tsirkin wrote:
-> > > On Wed, Apr 26, 2017 at 11:03:34AM +0000, Wang, Wei W wrote:
-> > > > Hi Michael, could you please give some feedback?
-> > > I'm sorry, I'm not sure feedback on what you are requesting.
-> > Oh, just some trivial things (e.g. use a field in the header,
-> > hdr->chunks to indicate the number of chunks in the payload) that
-> > wasn't confirmed.
-> >
-> > I will prepare the new version with fixing the agreed issues, and we
-> > can continue to discuss those parts if you still find them improper.
-> >
-> >
+On 05/06/2017 06:21 AM, Michael S. Tsirkin wrote:
+> On Thu, Apr 27, 2017 at 02:33:44PM +0800, Wei Wang wrote:
+> > On 04/14/2017 01:08 AM, Michael S. Tsirkin wrote:
+> > > On Thu, Apr 13, 2017 at 05:35:08PM +0800, Wei Wang wrote:
+> > > > Add a new vq, miscq, to handle miscellaneous requests between the
+> > > > device and the driver.
+> > > >
+> > > > This patch implemnts the
+> VIRTIO_BALLOON_MISCQ_INQUIRE_UNUSED_PAGES
+> > > implements
 > > >
-> > > The interface looks reasonable now, even though there's a way to
-> > > make it even simpler if we can limit chunk size to 2G (in fact 4G -
-> > > 1). Do you think we can live with this limitation?
-> > Yes, I think we can. So, is it good to change to use the previous
-> > 64-bit chunk format (52-bit base + 12-bit size)?
+> > > > request sent from the device.
+> > > Commands are sent from host and handled on guest.
+> > > In fact how is this so different from stats?
+> > > How about reusing the stats vq then? You can use one buffer for
+> > > stats and one buffer for commands.
+> > >
+> >
+> > The meaning of the two vqs is a little different. statq is used for
+> > reporting statistics, while miscq is intended to be used to handle
+> > miscellaneous requests from the guest or host
 >=20
-> This isn't what I meant. virtio ring has descriptors with a 64 bit addres=
-s and 32 bit
-> size.
+> misc just means "anything goes". If you want it to mean "commands" name i=
+t so.
+
+Ok, will change it.
+
+> > (I think it can
+> > also be used the other way around in the future when other new
+> > features are added which need the guest to send requests and the host
+> > to provide responses).
+> >
+> > I would prefer to have them separate, because:
+> > If we plan to combine them, we need to put the previous statq related
+> > implementation under miscq with a new command (I think we can't
+> > combine them without using commands to distinguish the two features).
 >=20
-> If size < 4g is not a significant limitation, why not just use that to pa=
-ss
-> address/size in a standard s/g list, possibly using INDIRECT?
+> Right.
 
-OK, I see your point, thanks. Post the two options here for an analysis:
-Option1 (what we have now):
-struct virtio_balloon_page_chunk {
-        __le64 chunk_num;
-        struct virtio_balloon_page_chunk_entry entry[];
-};
-Option2:
-struct virtio_balloon_page_chunk {
-        __le64 chunk_num;
-        struct scatterlist entry[];
-};
+> > In this way, an old driver won't work with a new QEMU or a new driver
+> > won't work with an old QEMU. Would this be considered as an issue
+> > here?
+>=20
+> Compatibility is and should always be handled using feature flags.  There=
+'s a
+> feature flag for this, isn't it?
 
-I don't have an issue to change it to Option2, but I would prefer Option1,
-because I think there is no be obvious difference between the two options,
-while Option1 appears to have little advantages here:
-1) "struct virtio_balloon_page_chunk_entry" has smaller size than
-"struct scatterlist", so the same size of allocated page chunk buffer
-can hold more entry[] using Option1;
-2) INDIRECT needs on demand kmalloc();
-3) no 4G size limit;
+The negotiation of the existing feature flag, VIRTIO_BALLOON_F_STATS_VQ
+only indicates the support of the old statq implementation. To move the sta=
+tq
+implementation under cmdq, I think we would need a new feature flag for the
+new statq implementation:
+#define VIRTIO_BALLOON_F_CMDQ_STATS      5
 
 What do you think?
 
 Best,
 Wei
+
 
 
 
