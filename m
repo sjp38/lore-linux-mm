@@ -1,92 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A22F6B0372
-	for <linux-mm@kvack.org>; Sun,  7 May 2017 08:38:47 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f5so42722208pff.13
-        for <linux-mm@kvack.org>; Sun, 07 May 2017 05:38:47 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1278D6B037E
+	for <linux-mm@kvack.org>; Sun,  7 May 2017 08:38:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id o3so47224632pgn.13
+        for <linux-mm@kvack.org>; Sun, 07 May 2017 05:38:51 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id q14si7164338pgn.416.2017.05.07.05.38.46
+        by mx.google.com with ESMTPS id s62si506423pgb.247.2017.05.07.05.38.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 May 2017 05:38:46 -0700 (PDT)
+        Sun, 07 May 2017 05:38:50 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [RFC 00/10] x86 TLB flush cleanups, moving toward PCID support
-Date: Sun,  7 May 2017 05:38:29 -0700
-Message-Id: <cover.1494160201.git.luto@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [RFC 01/10] x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range()
+Date: Sun,  7 May 2017 05:38:30 -0700
+Message-Id: <dbe03b624fb5e785d33ca71c98f113f05d7b12df.1494160201.git.luto@kernel.org>
+In-Reply-To: <cover.1494160201.git.luto@kernel.org>
+References: <cover.1494160201.git.luto@kernel.org>
+In-Reply-To: <cover.1494160201.git.luto@kernel.org>
+References: <cover.1494160201.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: X86 ML <x86@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>
 
-As I've been working on polishing my PCID code, a major problem I've
-encountered is that there are too many x86 TLB flushing code paths and
-that they have too many inconsequential differences.  The result was
-that earlier versions of the PCID code were a colossal mess and very
-difficult to understand.
+flush_tlb_page() was very similar to flush_tlb_mm_range() except that
+it had a couple of issues:
 
-This series goes a long way toward cleaning up the mess.  With all the
-patches applied, there is a single function that contains the meat of
-the code to flush the TLB on a given CPU, and all the tlb flushing
-APIs call it for both local and remote CPUs.
+ - It was missing an smp_mb() in the case where
+   current->active_mm != mm.  (This is a longstanding bug reported by
+   Nadav Amit.)
 
-This series should only adversely affect the kernel in a couple of
-minor ways:
+ - It was missing tracepoints and vm counter updates.
 
- - It makes smp_mb() unconditional when flushing TLBs.  We used to
-   use the TLB flush itself to mostly avoid smp_mb() on the initiating
-   CPU.
+The only reason that I can see for keeping it at as a separate
+function is that it could avoid a few branches that
+flush_tlb_mm_range() needs to decide to flush just one page.  This
+hardly seems worthwhile.  If we decide we want to get rid of those
+branches again, a better way would be to introduce an
+__flush_tlb_mm_range() helper and make both flush_tlb_page() and
+flush_tlb_mm_range() use it.
 
- - On UP kernels, we lose the dubious optimization of inlining nerfed
-   variants of all the TLB flush APIs.  This bloats the kernel a tiny
-   bit, although it should increase performance, since the SMP
-   versions were better.
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Nadav Amit <namit@vmware.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+---
+ arch/x86/include/asm/tlbflush.h |  6 +++++-
+ arch/x86/mm/tlb.c               | 27 ---------------------------
+ 2 files changed, 5 insertions(+), 28 deletions(-)
 
-Patch 10 in here is a little bit off topic.  It's a cleanup that's
-also needed before PCID can go in, but it's not directly about
-TLB flushing.
-
-Thoughts?
-
-This applies to tip:x86/mm.  You can see it fully applied here:
-
-https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/commit/?h=x86/tlbflush_cleanup&id=59ea83a0a78025439e3d15e09b693846fa1f4770
-
-Andy Lutomirski (10):
-  x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range()
-  x86/mm: Reduce indentation in flush_tlb_func()
-  x86/mm: Make the batched unmap TLB flush API more generic
-  x86/mm: Pass flush_tlb_info to flush_tlb_others() etc
-  x86/mm: Change the leave_mm() condition for local TLB flushes
-  x86/mm: Refactor flush_tlb_mm_range() to merge local and remote cases
-  x86/mm: Use new merged flush logic in arch_tlbbatch_flush()
-  x86/mm: Remove the UP tlbflush code; always use the formerly SMP code
-  x86/mm: Rework lazy TLB to track the actual loaded mm
-  x86,kvm: Teach KVM's VMX code that CR3 isn't a constant
-
- arch/x86/Kconfig                      |   2 +-
- arch/x86/events/core.c                |   3 +-
- arch/x86/include/asm/hardirq.h        |   2 +-
- arch/x86/include/asm/mmu.h            |   6 -
- arch/x86/include/asm/mmu_context.h    |  21 +-
- arch/x86/include/asm/paravirt.h       |   6 +-
- arch/x86/include/asm/paravirt_types.h |   5 +-
- arch/x86/include/asm/tlbbatch.h       |  14 ++
- arch/x86/include/asm/tlbflush.h       | 116 +++------
- arch/x86/include/asm/uv/uv.h          |   9 +-
- arch/x86/kernel/ldt.c                 |   5 +-
- arch/x86/kvm/vmx.c                    |  21 +-
- arch/x86/mm/init.c                    |   4 +-
- arch/x86/mm/tlb.c                     | 429 +++++++++++++++-------------------
- arch/x86/platform/uv/tlb_uv.c         |   8 +-
- arch/x86/xen/mmu.c                    |  61 +++--
- include/linux/mm_types_task.h         |  15 +-
- mm/rmap.c                             |  15 +-
- 18 files changed, 334 insertions(+), 408 deletions(-)
- create mode 100644 arch/x86/include/asm/tlbbatch.h
-
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 6ed9ea469b48..5ed64cdaf536 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -307,11 +307,15 @@ static inline void flush_tlb_kernel_range(unsigned long start,
+ 		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
+ 
+ extern void flush_tlb_all(void);
+-extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
+ extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag);
+ extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+ 
++static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
++{
++	flush_tlb_mm_range(vma->vm_mm, a, a + PAGE_SIZE, 0);
++}
++
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 				struct mm_struct *mm,
+ 				unsigned long start, unsigned long end);
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 6e7bedf69af7..fe6471132ea3 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -354,33 +354,6 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	preempt_enable();
+ }
+ 
+-void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+-{
+-	struct mm_struct *mm = vma->vm_mm;
+-
+-	preempt_disable();
+-
+-	if (current->active_mm == mm) {
+-		if (current->mm) {
+-			/*
+-			 * Implicit full barrier (INVLPG) that synchronizes
+-			 * with switch_mm.
+-			 */
+-			__flush_tlb_one(start);
+-		} else {
+-			leave_mm(smp_processor_id());
+-
+-			/* Synchronize with switch_mm. */
+-			smp_mb();
+-		}
+-	}
+-
+-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), mm, start, start + PAGE_SIZE);
+-
+-	preempt_enable();
+-}
+-
+ static void do_flush_tlb_all(void *info)
+ {
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 -- 
 2.9.3
 
