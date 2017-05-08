@@ -1,83 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CDC4D6B03BF
-	for <linux-mm@kvack.org>; Mon,  8 May 2017 06:42:44 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id t26so21536525qtg.12
-        for <linux-mm@kvack.org>; Mon, 08 May 2017 03:42:44 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k3si12193793qkf.75.2017.05.08.03.42.43
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8D96B03BF
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 07:36:33 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q125so67111514pgq.8
+        for <linux-mm@kvack.org>; Mon, 08 May 2017 04:36:33 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b21si9631288pgn.66.2017.05.08.04.36.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 May 2017 03:42:44 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v48Ae0m8005077
-	for <linux-mm@kvack.org>; Mon, 8 May 2017 06:42:43 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2aab4u58tv-1
+        Mon, 08 May 2017 04:36:33 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v48BTv7s030156
+	for <linux-mm@kvack.org>; Mon, 8 May 2017 07:36:32 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2aadbcty0k-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 08 May 2017 06:42:43 -0400
+	for <linux-mm@kvack.org>; Mon, 08 May 2017 07:36:32 -0400
 Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 8 May 2017 11:42:39 +0100
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170427143721.GK4706@dhcp22.suse.cz> <87pofxk20k.fsf@firstfloor.org>
- <20170428060755.GA8143@dhcp22.suse.cz> <20170428073136.GE8143@dhcp22.suse.cz>
- <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
- <20170428134831.GB26705@dhcp22.suse.cz>
- <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
- <20170502185507.GB19165@dhcp22.suse.cz> <1493860869.8082.1.camel@gmail.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Mon, 8 May 2017 12:42:28 +0200
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Mon, 8 May 2017 12:36:29 +0100
+Date: Mon, 8 May 2017 13:36:24 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [v3 9/9] s390: teach platforms not to zero struct pages memory
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+ <1494003796-748672-10-git-send-email-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <1493860869.8082.1.camel@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <03a7ec34-106e-3eb6-0b05-f77a40a2d6b9@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1494003796-748672-10-git-send-email-pasha.tatashin@oracle.com>
+Message-Id: <20170508113624.GA4876@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, davem@davemloft.net
 
-On 04/05/2017 03:21, Balbir Singh wrote:
->> @@ -5527,7 +5527,7 @@ static void uncharge_list(struct list_head *page_list)
->>  		next = page->lru.next;
->>  
->>  		VM_BUG_ON_PAGE(PageLRU(page), page);
->> -		VM_BUG_ON_PAGE(page_count(page), page);
->> +		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
->>  
->>  		if (!page->mem_cgroup)
->>  			continue;
->> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> index 8a6bd3a9eb1e..4497d9619bb4 100644
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -541,6 +541,13 @@ static int delete_from_lru_cache(struct page *p)
->>  		 */
->>  		ClearPageActive(p);
->>  		ClearPageUnevictable(p);
->> +
->> +		/*
->> +		 * Poisoned page might never drop its ref count to 0 so we have to
->> +		 * uncharge it manually from its memcg.
->> +		 */
->> +		mem_cgroup_uncharge(p);
->> +
+On Fri, May 05, 2017 at 01:03:16PM -0400, Pavel Tatashin wrote:
+> If we are using deferred struct page initialization feature, most of
+> "struct page"es are getting initialized after other CPUs are started, and
+> hence we are benefiting from doing this job in parallel. However, we are
+> still zeroing all the memory that is allocated for "struct pages" using the
+> boot CPU.  This patch solves this problem, by deferring zeroing "struct
+> pages" to only when they are initialized on s390 platforms.
 > 
-> Yep, that is the right fix
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Shannon Nelson <shannon.nelson@oracle.com>
+> ---
+>  arch/s390/mm/vmem.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> https://lkml.org/lkml/2017/4/26/133
+> diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+> index 9c75214..ffe9ba1 100644
+> --- a/arch/s390/mm/vmem.c
+> +++ b/arch/s390/mm/vmem.c
+> @@ -252,7 +252,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+>  				void *new_page;
+>  
+>  				new_page = vmemmap_alloc_block(PMD_SIZE, node,
+> -							       true);
+> +							       VMEMMAP_ZERO);
+>  				if (!new_page)
+>  					goto out;
+>  				pmd_val(*pm_dir) = __pa(new_page) | sgt_prot;
 
-Sorry Balbir,
+If you add the hunk below then this is
 
-You pointed this out since the beginning but I missed your comment.
-My mistake.
+Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Thanks,
-Laurent.
+diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+index ffe9ba1aec8b..bf88a8b9c24d 100644
+--- a/arch/s390/mm/vmem.c
++++ b/arch/s390/mm/vmem.c
+@@ -272,7 +272,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+ 		if (pte_none(*pt_dir)) {
+ 			void *new_page;
+ 
+-			new_page = vmemmap_alloc_block(PAGE_SIZE, node, true);
++			new_page = vmemmap_alloc_block(PAGE_SIZE, node, VMEMMAP_ZERO);
+ 			if (!new_page)
+ 				goto out;
+ 			pte_val(*pt_dir) = __pa(new_page) | pgt_prot;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
