@@ -1,165 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 84EFE6B03B5
-	for <linux-mm@kvack.org>; Sun,  7 May 2017 22:59:49 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id z125so54333126itc.4
-        for <linux-mm@kvack.org>; Sun, 07 May 2017 19:59:49 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id m187si9172295itb.2.2017.05.07.19.59.47
+	by kanga.kvack.org (Postfix) with ESMTP id 245B46B03B7
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 01:57:31 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id a20so55885842itb.1
+        for <linux-mm@kvack.org>; Sun, 07 May 2017 22:57:31 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id l74si12214826iod.94.2017.05.07.22.57.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 May 2017 19:59:48 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-Date: Mon, 8 May 2017 02:58:36 +0000
-Message-ID: <20170508025827.GA4913@hori1.linux.bs1.fc.nec.co.jp>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170427143721.GK4706@dhcp22.suse.cz> <87pofxk20k.fsf@firstfloor.org>
- <20170428060755.GA8143@dhcp22.suse.cz>
- <20170428073136.GE8143@dhcp22.suse.cz>
- <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
- <20170428134831.GB26705@dhcp22.suse.cz>
- <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
- <20170502185507.GB19165@dhcp22.suse.cz>
-In-Reply-To: <20170502185507.GB19165@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <E9693BC9B8093D419D88C2482F5A05C5@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Sun, 07 May 2017 22:57:30 -0700 (PDT)
+Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
+References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
+ <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
+ <7ff6fb32-7d16-af4f-d9d5-698ab7e9e14b@intel.com>
+ <03127895-3c5a-5182-82de-3baa3116749e@oracle.com>
+ <22557bf3-14bb-de02-7b1b-a79873c583f1@intel.com>
+ <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Message-ID: <c395f4ce-0f18-5550-6344-67ac9a152e9f@oracle.com>
+Date: Sun, 7 May 2017 22:57:19 -0700
 MIME-Version: 1.0
+In-Reply-To: <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 02, 2017 at 08:55:07PM +0200, Michal Hocko wrote:
-> On Tue 02-05-17 16:59:30, Laurent Dufour wrote:
-> > On 28/04/2017 15:48, Michal Hocko wrote:
-> [...]
-> > > This is getting quite hairy. What is the expected page count of the
-> > > hwpoison page?
->=20
-> OK, so from the quick check of the hwpoison code it seems that the ref
-> count will be > 1 (from get_hwpoison_page).
->=20
-> > > I guess we would need to update the VM_BUG_ON in the
-> > > memcg uncharge code to ignore the page count of hwpoison pages if it =
-can
-> > > be arbitrary.
-> >=20
-> > Based on the experiment I did, page count =3D=3D 2 when isolate_lru_pag=
-e()
-> > succeeds, even in the case of a poisoned page.
->=20
-> that would make some sense to me. The page should have been already
-> unmapped therefore but memory_failure increases the ref count and 1 is
-> for isolate_lru_page().
 
-# sorry for late reply, I was on holidays last week...
 
-Right, and the refcount taken for memory_failure is not freed after
-memory_failure() returns. unpoison_memory() does free the refcount.
+On 5/3/17 12:02 PM, Prakash Sangappa wrote:
+> On 5/2/17 4:43 PM, Dave Hansen wrote:
+>
+>> Ideally, it would be something that is *not* specifically for hugetlbfs.
+>>   MADV_NOAUTOFILL, for instance, could be defined to SIGSEGV whenever
+>> memory is touched that was not populated with MADV_WILLNEED, mlock(), 
+>> etc...
+>
+> If this is a generic advice type, necessary support will have to be 
+> implemented
+> in various filesystems which can support this.
+>
+> The proposed behavior for 'noautofill' was to not fill holes in 
+> files(like sparse files).
+> In the page fault path, mm would not know if the mmapped address on which
+> the fault occurred, is over a hole in the file or just that the page 
+> is not available
+> in the page cache. The underlying filesystem would be called and it 
+> determines
+> if it is a hole and that is where it would fail and not fill the hole, 
+> if this support is added.
+> Normally, filesystem which support sparse files(holes in file) 
+> automatically fill the hole
+> when accessed. Then there is the issue of file system block size and 
+> page size. If the
+> block sizes are smaller then page size, it could mean the noautofill 
+> would only work
+> if the hole size is equal to  or a multiple of, page size?
+>
+> In case of hugetlbfs it is much straight forward. Since this 
+> filesystem is not like a normal
+> filesystems and and the file sizes are multiple of huge pages. The 
+> hole will be a multiple
+> of the huge page size. For this reason then should the advise be 
+> specific to hugetlbfs?
+>
+>
 
->=20
-> > In my case I think this
-> > is because the page is still used by the process which is calling madvi=
-se().
-> >=20
-> > I'm wondering if I'm looking at the right place. May be the poisoned
-> > page should remain attach to the memory_cgroup until no one is using it=
-.
-> > In that case this means that something should be done when the page is
-> > off-lined... I've to dig further here.
->=20
-> No, AFAIU the page will not drop the reference count down to 0 in most
-> cases. Maybe there are some scenarios where this can happen but I would
-> expect that the poisoned page will be mapped and in use most of the time
-> and won't drop down 0. And then we should really uncharge it because it
-> will pin the memcg and make it unfreeable which doesn't seem to be what
-> we want.  So does the following work reasonable? Andi, Johannes, what do
-> you think? I cannot say I would be really comfortable touching hwpoison
-> code as I really do not understand the workflow. Maybe we want to move
-> this uncharge down to memory_failure() right before we report success?
 
-memory_failure() can be called for any types of page (including slab or
-any kernel/driver pages), and the reported problem seems happen only on
-in-use user pages, so uncharging in delete_from_lru_cache() as done below
-looks better to me.
+Any further comments? I think introducing a general madvise option or a 
+mmap flag applicable to all filesystems, may not be required. The 
+'noautofill' behavior would be specifically useful in hugetlbfs filesystem.
 
-> ---
-> From 8bf0791bcf35996a859b6d33fb5494e5b53de49d Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Tue, 2 May 2017 20:32:24 +0200
-> Subject: [PATCH] hwpoison, memcg: forcibly uncharge LRU pages
->=20
-> Laurent Dufour has noticed that hwpoinsoned pages are kept charged. In
-> his particular case he has hit a bad_page("page still charged to cgroup")
-> when onlining a hwpoison page.
-
-> While this looks like something that shouldn't
-> happen in the first place because onlining hwpages and returning them to
-> the page allocator makes only little sense it shows a real problem.
->=20
-> hwpoison pages do not get freed usually so we do not uncharge them (at
-> least not since 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API")).
-> Each charge pins memcg (since e8ea14cc6ead ("mm: memcontrol: take a css
-> reference for each charged page")) as well and so the mem_cgroup and the
-> associated state will never go away. Fix this leak by forcibly
-> uncharging a LRU hwpoisoned page in delete_from_lru_cache(). We also
-> have to tweak uncharge_list because it cannot rely on zero ref count
-> for these pages.
->=20
-> Fixes: 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API")
-> Reported-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-> ---
->  mm/memcontrol.c     | 2 +-
->  mm/memory-failure.c | 7 +++++++
->  2 files changed, 8 insertions(+), 1 deletion(-)
->=20
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 16c556ac103d..4cf26059adb1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5527,7 +5527,7 @@ static void uncharge_list(struct list_head *page_li=
-st)
->  		next =3D page->lru.next;
-> =20
->  		VM_BUG_ON_PAGE(PageLRU(page), page);
-> -		VM_BUG_ON_PAGE(page_count(page), page);
-> +		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
-> =20
->  		if (!page->mem_cgroup)
->  			continue;
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 8a6bd3a9eb1e..4497d9619bb4 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -541,6 +541,13 @@ static int delete_from_lru_cache(struct page *p)
->  		 */
->  		ClearPageActive(p);
->  		ClearPageUnevictable(p);
-> +
-> +		/*
-> +		 * Poisoned page might never drop its ref count to 0 so we have to
-> +		 * uncharge it manually from its memcg.
-> +		 */
-> +		mem_cgroup_uncharge(p);
-> +
->  		/*
->  		 * drop the page count elevated by isolate_lru_page()
->  		 */
-> --=20
-> 2.11.0
->=20
-> --=20
-> Michal Hocko
-> SUSE Labs
-> =
+So, if it is specific to hugetlbfs, will the mount option be ok? 
+Otherwise adding a madvise / mmap option specific to hugetlbfs, be 
+preferred?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
