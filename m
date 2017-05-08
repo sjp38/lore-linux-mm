@@ -1,158 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CC9BB6B03C7
-	for <linux-mm@kvack.org>; Mon,  8 May 2017 09:22:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id d127so5117384wmf.15
-        for <linux-mm@kvack.org>; Mon, 08 May 2017 06:22:10 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id z71si15213088wrb.48.2017.05.08.06.22.09
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 333526B03BE
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 11:25:37 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id l39so30426634qtb.9
+        for <linux-mm@kvack.org>; Mon, 08 May 2017 08:25:37 -0700 (PDT)
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com. [209.85.220.179])
+        by mx.google.com with ESMTPS id m131si12686525qke.65.2017.05.08.08.25.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 May 2017 06:22:09 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 1/1] mm: Rework slab bitmasks
-Date: Mon, 8 May 2017 16:20:22 +0300
-Message-ID: <20170508132022.15488-2-igor.stoppa@huawei.com>
-In-Reply-To: <20170508132022.15488-1-igor.stoppa@huawei.com>
-References: <20170508132022.15488-1-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 May 2017 08:25:34 -0700 (PDT)
+Received: by mail-qk0-f179.google.com with SMTP id k74so54975496qke.1
+        for <linux-mm@kvack.org>; Mon, 08 May 2017 08:25:34 -0700 (PDT)
+Subject: Re: RFC v2: post-init-read-only protection for data allocated
+ dynamically
+References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
+ <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
+ <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <b3fab9c3-fa35-eb7b-204c-f85a0d392e12@redhat.com>
+Date: Mon, 8 May 2017 08:25:31 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, Igor Stoppa <igor.stoppa@huawei.com>
+To: Igor Stoppa <igor.stoppa@huawei.com>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-The bitmasks defined in the slab header can be made more readable by
-using the BIT() macro.
+On 05/05/2017 03:42 AM, Igor Stoppa wrote:
+> On 04/05/17 19:49, Laura Abbott wrote:
+>> [adding kernel-hardening since I think there would be interest]
+> 
+> thank you, I overlooked this
+> 
+> 
+>> BPF takes the approach of calling set_memory_ro to mark regions as
+>> read only. I'm certainly over simplifying but it sounds like this
+>> is mostly a mechanism to have this happen mostly automatically.
+>> Can you provide any more details about tradeoffs of the two approaches?
+> 
+> I am not sure I understand the question ...
+> For what I can understand, the bpf is marking as read only something
+> that spans across various pages, which is fine.
+> The payload to be protected is already organized in such pages.
+> 
+> But in the case I have in mind, I have various, heterogeneous chunks of
+> data, coming from various subsystems, not necessarily page aligned.
+> And, even if they were page aligned, most likely they would be far
+> smaller than a page, even a 4k page.
+> 
+> The first problem I see, is how to compact them into pages, ensuring
+> that no rwdata manages to infiltrate the range.
+> 
+> The actual mechanism for marking pages as read only is not relevant at
+> this point, if I understand your question correctly, since set_memory_ro
+> is walking the pages it receives as parameter.
+> 
 
-Furthermore, several conditional definitions can be collapsed, by
-expressing their value as a function of the configuration paramter that
-controles them, using the macro IS_ENABLED().
+Thanks for clarifying, this makes sense. I also saw some replies up
+thread that also answered some my questions.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- include/linux/slab.h | 71 +++++++++++++++++++++++-----------------------------
- 1 file changed, 31 insertions(+), 40 deletions(-)
+>> arm and arm64 have the added complexity of using larger
+>> page sizes on the linear map so dynamic mapping/unmapping generally
+>> doesn't work. 
+> 
+> Do you mean that a page could be 16MB and therefore it would not be
+> possible to get a smaller chunk?
+> 
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 3c37a8c..f7e55f0 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -15,18 +15,24 @@
- #include <linux/types.h>
- #include <linux/workqueue.h>
- 
-+#define __BIT_VAL(val, shift) (((unsigned long)(val != 0)) << (shift))
-+#define BIT_VAL(val, shift) __BIT_VAL(val, shift)
-+#define BIT_CFG(cfg, shift) __BIT_VAL(IS_ENABLED(CONFIG_##cfg), shift)
-+#define BIT_DBG(dbg, shift) BIT_CFG(DEBUG_##dbg, shift)
-+#define BIT_DBG_SLAB(shift)  BIT_DBG(SLAB, shift)
- 
- /*
-  * Flags to pass to kmem_cache_create().
-  * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
-  */
--#define SLAB_CONSISTENCY_CHECKS	0x00000100UL	/* DEBUG: Perform (expensive) checks on alloc/free */
--#define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
--#define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
--#define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
--#define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
--#define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
--#define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
-+
-+#define SLAB_CONSISTENCY_CHECKS	BIT_DBG_SLAB(8)   /* Perform (expensive) checks on alloc/free */
-+#define SLAB_RED_ZONE		BIT_DBG_SLAB(10)  /* Red zone objs in a cache */
-+#define SLAB_POISON		BIT_DBG_SLAB(11)  /* Poison objects */
-+#define SLAB_HWCACHE_ALIGN	BIT(13)           /* Align objs on cache lines */
-+#define SLAB_CACHE_DMA		BIT(14)           /* Use GFP_DMA memory */
-+#define SLAB_STORE_USER		BIT_DBG_SLAB(16)  /* Store the last owner for bug hunting */
-+#define SLAB_PANIC		BIT(18)           /* Panic if kmem_cache_create() fails */
- /*
-  * SLAB_DESTROY_BY_RCU - **WARNING** READ THIS!
-  *
-@@ -62,44 +68,29 @@
-  * rcu_read_lock before reading the address, then rcu_read_unlock after
-  * taking the spinlock within the structure expected at that address.
-  */
--#define SLAB_DESTROY_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
--#define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
--#define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
-+#define SLAB_DESTROY_BY_RCU	BIT(19)         /* Defer freeing slabs to RCU */
-+#define SLAB_MEM_SPREAD		BIT(20)         /* Spread some memory over cpuset */
-+#define SLAB_TRACE		BIT(21)         /* Trace allocations and frees */
- 
- /* Flag to prevent checks on free */
--#ifdef CONFIG_DEBUG_OBJECTS
--# define SLAB_DEBUG_OBJECTS	0x00400000UL
--#else
--# define SLAB_DEBUG_OBJECTS	0x00000000UL
--#endif
-+# define SLAB_DEBUG_OBJECTS	BIT_DBG(OBJECTS, 22)
- 
--#define SLAB_NOLEAKTRACE	0x00800000UL	/* Avoid kmemleak tracing */
-+#define SLAB_NOLEAKTRACE	BIT(23)         /* Avoid kmemleak tracing */
- 
- /* Don't track use of uninitialized memory */
--#ifdef CONFIG_KMEMCHECK
--# define SLAB_NOTRACK		0x01000000UL
--#else
--# define SLAB_NOTRACK		0x00000000UL
--#endif
--#ifdef CONFIG_FAILSLAB
--# define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
--#else
--# define SLAB_FAILSLAB		0x00000000UL
--#endif
--#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
--# define SLAB_ACCOUNT		0x04000000UL	/* Account to memcg */
--#else
--# define SLAB_ACCOUNT		0x00000000UL
--#endif
-+# define SLAB_NOTRACK		BIT_CFG(KMEMCHECK, 24)
- 
--#ifdef CONFIG_KASAN
--#define SLAB_KASAN		0x08000000UL
--#else
--#define SLAB_KASAN		0x00000000UL
--#endif
-+/* Fault injection mark */
-+# define SLAB_FAILSLAB		BIT_CFG(FAILSLAB, 25)
-+
-+/* Account to memcg */
-+# define SLAB_ACCOUNT		BIT_VAL(IS_ENABLED(CONFIG_MEMCG) && \
-+				        !IS_ENABLED(CONFIG_SLOB), 26)
-+
-+#define SLAB_KASAN		BIT_CFG(KASAN, 27)
- 
- /* The following flags affect the page allocator grouping pages by mobility */
--#define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
-+#define SLAB_RECLAIM_ACCOUNT	BIT(17)                 /* Objects are reclaimable */
- #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
- /*
-  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
-@@ -246,9 +237,9 @@ static inline const char *__check_heap_object(const void *ptr,
- #endif
- 
- /* Maximum allocatable size */
--#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_MAX)
-+#define KMALLOC_MAX_SIZE	BIT(KMALLOC_SHIFT_MAX)
- /* Maximum size for which we actually use a slab cache */
--#define KMALLOC_MAX_CACHE_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
-+#define KMALLOC_MAX_CACHE_SIZE	BIT(KMALLOC_SHIFT_HIGH)
- /* Maximum order allocatable via the slab allocagtor */
- #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_MAX - PAGE_SHIFT)
- 
-@@ -256,7 +247,7 @@ static inline const char *__check_heap_object(const void *ptr,
-  * Kmalloc subsystem.
-  */
- #ifndef KMALLOC_MIN_SIZE
--#define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
-+#define KMALLOC_MIN_SIZE        BIT(KMALLOC_SHIFT_LOW)
- #endif
- 
- /*
--- 
-2.9.3
+Roughly yes.
+
+PAGE_SIZE is still 4K/16K/64K but the underlying page table mappings
+may use larger mappings (2MB, 32M, 512M, etc.). The ARM architecture
+has a break-before-make requirement which requires old mappings be
+fully torn down and invalidated to avoid TLB conflicts. This is nearly
+impossible to do correctly on live page tables so the current policy
+is to not break down larger mappings.
+
+>> arm64 supports DEBUG_PAGEALLOC by mapping with only
+>> pages but this is generally only wanted as a debug mechanism.
+>> I don't know if you've given this any thought at all.
+> 
+> Since the beginning I have thought about this feature as an opt-in
+> feature. I am aware that it can have drawbacks, but I think it would be
+> valuable as debugging tool even where it's not feasible to keep it
+> always-on.
+> 
+> OTOH on certain systems it can be sufficiently appealing to be kept on,
+> even if it eats up some more memory.
+
+I'd rather see this designed as being mandatory from the start and then
+provide a mechanism to turn it off if necessary. The uptake and
+coverage from opt-in features tends to be very low based on past experience.
+
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
