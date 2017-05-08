@@ -1,80 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 245B46B03B7
-	for <linux-mm@kvack.org>; Mon,  8 May 2017 01:57:31 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id a20so55885842itb.1
-        for <linux-mm@kvack.org>; Sun, 07 May 2017 22:57:31 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l74si12214826iod.94.2017.05.07.22.57.29
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BFA836B03B9
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 05:27:41 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m68so8297368wmg.4
+        for <linux-mm@kvack.org>; Mon, 08 May 2017 02:27:41 -0700 (PDT)
+Received: from rrzmta2.uni-regensburg.de (rrzmta2.uni-regensburg.de. [194.94.155.52])
+        by mx.google.com with ESMTPS id p18si14893924wrc.79.2017.05.08.02.27.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 May 2017 22:57:30 -0700 (PDT)
-Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
-References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
- <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
- <7ff6fb32-7d16-af4f-d9d5-698ab7e9e14b@intel.com>
- <03127895-3c5a-5182-82de-3baa3116749e@oracle.com>
- <22557bf3-14bb-de02-7b1b-a79873c583f1@intel.com>
- <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <c395f4ce-0f18-5550-6344-67ac9a152e9f@oracle.com>
-Date: Sun, 7 May 2017 22:57:19 -0700
-MIME-Version: 1.0
-In-Reply-To: <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 08 May 2017 02:27:40 -0700 (PDT)
+Received: from rrzmta2.uni-regensburg.de (localhost [127.0.0.1])
+	by localhost (Postfix) with SMTP id 97AC47331E
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 11:27:39 +0200 (CEST)
+Received: from gwsmtp1.uni-regensburg.de (gwsmtp1.uni-regensburg.de [132.199.5.51])
+	by rrzmta2.uni-regensburg.de (Postfix) with ESMTP id 7CAE5732A1
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 11:27:39 +0200 (CEST)
+Message-Id: <59103A09020000D3000127FA@gwsmtp1.uni-regensburg.de>
+Date: Mon, 08 May 2017 11:27:37 +0200
+From: "Stoermeldung Infrastruktur-Ukr"
+ <Stoermeldung.Infrastruktur-Ukr@rz.uni-regensburg.de>
+Subject: Q: si_code for SIGBUS caused by mmap() write error
+References: <59103A09020000D3000127FA@gwsmtp1.uni-regensburg.de>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="=__Part023A4619.0__="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>, linux-kernel@vger.kernel.org
 
+This is a MIME message. If you are reading this text, you may want to 
+consider changing to a mail reader or gateway that understands how to 
+properly handle MIME multipart messages.
 
+--=__Part023A4619.0__=
+Content-Type: multipart/alternative; boundary="=__Part023A4619.1__="
 
-On 5/3/17 12:02 PM, Prakash Sangappa wrote:
-> On 5/2/17 4:43 PM, Dave Hansen wrote:
->
->> Ideally, it would be something that is *not* specifically for hugetlbfs.
->>   MADV_NOAUTOFILL, for instance, could be defined to SIGSEGV whenever
->> memory is touched that was not populated with MADV_WILLNEED, mlock(), 
->> etc...
->
-> If this is a generic advice type, necessary support will have to be 
-> implemented
-> in various filesystems which can support this.
->
-> The proposed behavior for 'noautofill' was to not fill holes in 
-> files(like sparse files).
-> In the page fault path, mm would not know if the mmapped address on which
-> the fault occurred, is over a hole in the file or just that the page 
-> is not available
-> in the page cache. The underlying filesystem would be called and it 
-> determines
-> if it is a hole and that is where it would fail and not fill the hole, 
-> if this support is added.
-> Normally, filesystem which support sparse files(holes in file) 
-> automatically fill the hole
-> when accessed. Then there is the issue of file system block size and 
-> page size. If the
-> block sizes are smaller then page size, it could mean the noautofill 
-> would only work
-> if the hole size is equal to  or a multiple of, page size?
->
-> In case of hugetlbfs it is much straight forward. Since this 
-> filesystem is not like a normal
-> filesystems and and the file sizes are multiple of huge pages. The 
-> hole will be a multiple
-> of the huge page size. For this reason then should the advise be 
-> specific to hugetlbfs?
->
->
+--=__Part023A4619.1__=
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
+Hi!
 
-Any further comments? I think introducing a general madvise option or a 
-mmap flag applicable to all filesystems, may not be required. The 
-'noautofill' behavior would be specifically useful in hugetlbfs filesystem.
+I observed this for 3.0.101-97 kernel (SLES11 SP4, x86_64): When a =
+mmap()ed file has a write error (e.g. bad sector), the program is =
+terminated with SIGBUS. Trying to handle the situation, I noticed that the =
+error code in siginfo is 2 (BUS_ADRERR, nonexistent physical address). My =
+expectation was that the error would be 3 (BUS_OBJERR, object-specific =
+hardware error).
 
-So, if it is specific to hugetlbfs, will the mount option be ok? 
-Otherwise adding a madvise / mmap option specific to hugetlbfs, be 
-preferred?
+For debugging I created this dummy device with a bad block:
+DEV=3Dbad_disk
+dmsetup create "$DEV" <<EOF
+0 8 zero
+8 1 error
+9 255 zero
+EOF
+
+The kernel error logged is " kernel: [2932614.419355] Buffer I/O error on =
+device dm-8, logical block 1"
+
+Is my expectation on the si_code wrong, or is the implementation wrong?
+
+At a quick glance at do_sigbus() of /usr/src/linux/arch/x86/mm/fault.c I =
+see that only codes BUS_ADRERR (default) and BUS_MCEERR_AR are used. =
+However I don't know whether I looked at the correct source.
+(The code in 4.4.62 still looks similar)
+
+Regards,
+Ulrich Windl
+P.S: Keep me on CC: in your replies, please!
+
+--=__Part023A4619.1__=
+Content-Type: text/html; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Description: HTML
+
+<html><head>=0A=0A<meta name=3D"Generator" content=3D"Novell Groupwise =
+Client (Version 14.2.1  Build: 125229)">=0A<meta http-equiv=3D"Content-Type=
+" content=3D"text/html; charset=3Dutf-8"></head>=0A<body style=3D"font: =
+10pt/normal Segoe UI; font-size-adjust: none; font-stretch: normal;"><div =
+class=3D"GroupWiseMessageBody" id=3D"GroupWiseSection_1494234757000_Ulrich.=
+Windl@rz.uni-regensburg.de_DE2C7590129600009A2986C8FF4E000A_"><div>Hi!</div=
+><div><br></div><div>I observed this for  3.0.101-97 kernel (SLES11 SP4, =
+x86_64): When a mmap()ed file has a write error (e.g. bad sector), the =
+program is terminated with SIGBUS. Trying to handle the situation, I =
+noticed that the error code in siginfo is 2 (BUS_ADRERR, nonexistent =
+physical address). My expectation was that the error would be 3 (BUS_OBJERR=
+, object-specific hardware error).</div><div><br></div><div>For debugging =
+I created this dummy device with a bad block:</div><div>DEV=3Dbad_disk<br>d=
+msetup create "$DEV" &lt;&lt;EOF<br>0 8 zero<br>8 1 error<br>9 255 =
+zero<br>EOF</div><div><br></div><div>The kernel error logged is " kernel: =
+[2932614.419355] Buffer I/O error on device dm-8, logical block 1"</div><di=
+v><br></div><div>Is my expectation on the si_code wrong, or is the =
+implementation wrong?</div><div><br></div><div>At a quick glance at =
+do_sigbus() of /usr/src/linux/arch/x86/mm/fault.c I see that only codes =
+BUS_ADRERR (default) and BUS_MCEERR_AR are used. However I don't know =
+whether I looked at the correct source.</div><div>(The code in 4.4.62 =
+still looks similar)</div><div><br></div><div>Regards,</div><div>Ulrich =
+Windl</div><div>P.S: Keep me on CC: in your replies, please!<br></div></div=
+></body></html>
+
+--=__Part023A4619.1__=--
+
+--=__Part023A4619.0__=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
