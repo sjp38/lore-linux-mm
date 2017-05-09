@@ -1,158 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65032831F4
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 07:07:33 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 14so32214453uar.7
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 04:07:33 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 7si6633827vkq.37.2017.05.09.04.07.31
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71EFE6B0374
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 07:19:37 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l9so18822621wre.12
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 04:19:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h8si15344wmf.101.2017.05.09.04.19.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 May 2017 04:07:32 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 1/1 v2] Rework slab bitmasks
-Date: Tue, 9 May 2017 14:04:48 +0300
-Message-ID: <20170509110448.7872-2-igor.stoppa@huawei.com>
-In-Reply-To: <20170509110448.7872-1-igor.stoppa@huawei.com>
-References: <20170509110448.7872-1-igor.stoppa@huawei.com>
+        Tue, 09 May 2017 04:19:36 -0700 (PDT)
+Date: Tue, 9 May 2017 13:19:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, vmalloc: properly track vmalloc users
+Message-ID: <20170509111934.GI6481@dhcp22.suse.cz>
+References: <20170502134657.12381-1-mhocko@kernel.org>
+ <201705030806.pzzQRBiN%fengguang.wu@intel.com>
+ <20170503063750.GC1236@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170503063750.GC1236@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, Igor Stoppa <igor.stoppa@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, kbuild test robot <lkp@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-The bitmasks defined in the slab header can be made more readable by
-using the BIT() macro.
+On Wed 03-05-17 08:37:50, Michal Hocko wrote:
+> From 33a6239135cb444654f48d5e942e7f34898e24ea Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 2 May 2017 11:18:29 +0200
+> Subject: [PATCH] mm, vmalloc: properly track vmalloc users
+> 
+> __vmalloc_node_flags used to be static inline but this has changed by
+> "mm: introduce kv[mz]alloc helpers" because kvmalloc_node needs to use
+> it as well and the code is outside of the vmalloc proper. I haven't
+> realized that changing this will lead to a subtle bug though. The
+> function is responsible to track the caller as well. This caller is
+> then printed by /proc/vmallocinfo. If __vmalloc_node_flags is not inline
+> then we would get only direct users of __vmalloc_node_flags as callers
+> (e.g. v[mz]alloc) which reduces usefulness of this debugging feature
+> considerably. It simply doesn't help to see that the given range belongs
+> to vmalloc as a caller:
+> 0xffffc90002c79000-0xffffc90002c7d000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N0=3
+> 0xffffc90002c81000-0xffffc90002c85000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N1=3
+> 0xffffc90002c8d000-0xffffc90002c91000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N1=3
+> 0xffffc90002c95000-0xffffc90002c99000   16384 vmalloc+0x16/0x18 pages=3 vmalloc N1=3
+> 
+> We really want to catch the _caller_ of the vmalloc function. Fix this
+> issue by making __vmalloc_node_flags static inline again and export
+> __vmalloc_node_flags_caller for kvmalloc_node().
+> 
 
-Furthermore, several conditional definitions can be collapsed, by
-expressing their value as a function of the configuration parameter that
-controles them, using the macro IS_ENABLED().
+The "mm: introduce kv[mz]alloc helpers" got merged in the mean time so I
+believe the patch should mention
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- include/linux/slab.h | 71 +++++++++++++++++++++++-----------------------------
- 1 file changed, 31 insertions(+), 40 deletions(-)
+Fixes: a7c3e901a46f ("mm: introduce kv[mz]alloc helpers")
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 3c37a8c..6103bc4 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -15,18 +15,24 @@
- #include <linux/types.h>
- #include <linux/workqueue.h>
- 
-+#define __BIT_VL(vl, shift)  (((unsigned long)(vl != 0)) << (shift))
-+#define BIT_VL(vl, shift)    __BIT_VL(vl, shift)
-+#define BIT_CFG(cfg, shift)  __BIT_VL(IS_ENABLED(CONFIG_##cfg), shift)
-+#define BIT_DBG(dbg, shift)  BIT_CFG(DEBUG_##dbg, shift)
-+#define BIT_DBG_SLAB(shift)  BIT_DBG(SLAB, shift)
- 
- /*
-  * Flags to pass to kmem_cache_create().
-  * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
-  */
--#define SLAB_CONSISTENCY_CHECKS	0x00000100UL	/* DEBUG: Perform (expensive) checks on alloc/free */
--#define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
--#define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
--#define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
--#define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
--#define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
--#define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
-+
-+#define SLAB_CONSISTENCY_CHECKS	BIT_DBG_SLAB(8)   /* Perform (expensive) checks on alloc/free */
-+#define SLAB_RED_ZONE		BIT_DBG_SLAB(10)  /* Red zone objs in a cache */
-+#define SLAB_POISON		BIT_DBG_SLAB(11)  /* Poison objects */
-+#define SLAB_HWCACHE_ALIGN	BIT(13)           /* Align objs on cache lines */
-+#define SLAB_CACHE_DMA		BIT(14)           /* Use GFP_DMA memory */
-+#define SLAB_STORE_USER		BIT_DBG_SLAB(16)  /* Store the last owner for bug hunting */
-+#define SLAB_PANIC		BIT(18)           /* Panic if kmem_cache_create() fails */
- /*
-  * SLAB_DESTROY_BY_RCU - **WARNING** READ THIS!
-  *
-@@ -62,44 +68,29 @@
-  * rcu_read_lock before reading the address, then rcu_read_unlock after
-  * taking the spinlock within the structure expected at that address.
-  */
--#define SLAB_DESTROY_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
--#define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
--#define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
-+#define SLAB_DESTROY_BY_RCU	BIT(19)         /* Defer freeing slabs to RCU */
-+#define SLAB_MEM_SPREAD		BIT(20)         /* Spread some memory over cpuset */
-+#define SLAB_TRACE		BIT(21)         /* Trace allocations and frees */
- 
- /* Flag to prevent checks on free */
--#ifdef CONFIG_DEBUG_OBJECTS
--# define SLAB_DEBUG_OBJECTS	0x00400000UL
--#else
--# define SLAB_DEBUG_OBJECTS	0x00000000UL
--#endif
-+# define SLAB_DEBUG_OBJECTS	BIT_DBG(OBJECTS, 22)
- 
--#define SLAB_NOLEAKTRACE	0x00800000UL	/* Avoid kmemleak tracing */
-+#define SLAB_NOLEAKTRACE	BIT(23)         /* Avoid kmemleak tracing */
- 
- /* Don't track use of uninitialized memory */
--#ifdef CONFIG_KMEMCHECK
--# define SLAB_NOTRACK		0x01000000UL
--#else
--# define SLAB_NOTRACK		0x00000000UL
--#endif
--#ifdef CONFIG_FAILSLAB
--# define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
--#else
--# define SLAB_FAILSLAB		0x00000000UL
--#endif
--#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
--# define SLAB_ACCOUNT		0x04000000UL	/* Account to memcg */
--#else
--# define SLAB_ACCOUNT		0x00000000UL
--#endif
-+# define SLAB_NOTRACK		BIT_CFG(KMEMCHECK, 24)
- 
--#ifdef CONFIG_KASAN
--#define SLAB_KASAN		0x08000000UL
--#else
--#define SLAB_KASAN		0x00000000UL
--#endif
-+/* Fault injection mark */
-+# define SLAB_FAILSLAB		BIT_CFG(FAILSLAB, 25)
-+
-+/* Account to memcg */
-+# define SLAB_ACCOUNT		BIT_VL(IS_ENABLED(CONFIG_MEMCG) && \
-+				       !IS_ENABLED(CONFIG_SLOB), 26)
-+
-+#define SLAB_KASAN		BIT_CFG(KASAN, 27)
- 
- /* The following flags affect the page allocator grouping pages by mobility */
--#define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
-+#define SLAB_RECLAIM_ACCOUNT	BIT(17)                 /* Objects are reclaimable */
- #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
- /*
-  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
-@@ -246,9 +237,9 @@ static inline const char *__check_heap_object(const void *ptr,
- #endif
- 
- /* Maximum allocatable size */
--#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_MAX)
-+#define KMALLOC_MAX_SIZE	BIT(KMALLOC_SHIFT_MAX)
- /* Maximum size for which we actually use a slab cache */
--#define KMALLOC_MAX_CACHE_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
-+#define KMALLOC_MAX_CACHE_SIZE	BIT(KMALLOC_SHIFT_HIGH)
- /* Maximum order allocatable via the slab allocagtor */
- #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_MAX - PAGE_SHIFT)
- 
-@@ -256,7 +247,7 @@ static inline const char *__check_heap_object(const void *ptr,
-  * Kmalloc subsystem.
-  */
- #ifndef KMALLOC_MIN_SIZE
--#define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
-+#define KMALLOC_MIN_SIZE        BIT(KMALLOC_SHIFT_LOW)
- #endif
- 
- /*
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/linux/vmalloc.h | 16 +++++++++++++++-
+>  mm/util.c               |  3 ++-
+>  mm/vmalloc.c            |  8 +++++++-
+>  3 files changed, 24 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 46991ad3ddd5..4a0fabeb1e92 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -80,7 +80,21 @@ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  			unsigned long start, unsigned long end, gfp_t gfp_mask,
+>  			pgprot_t prot, unsigned long vm_flags, int node,
+>  			const void *caller);
+> -extern void *__vmalloc_node_flags(unsigned long size, int node, gfp_t flags);
+> +#ifndef CONFIG_MMU
+> +extern void *__vmalloc_node_flags_caller(unsigned long size, int node, gfp_t flags);
+> +static inline void *__vmalloc_node_flags_caller(unsigned long size, int node, gfp_t flags, void* caller)
+> +{
+> +	return __vmalloc_node_flags(size, node, flags);
+> +}
+> +#else
+> +/*
+> + * We really want to have this inlined due to caller tracking. This
+> + * function is used by the highlevel vmalloc apis and so we want to track
+> + * their callers and inlining will achieve that.
+> + */
+> +extern void *__vmalloc_node_flags_caller(unsigned long size,
+> +					int node, gfp_t flags, void* caller);
+> +#endif
+>  
+>  extern void vfree(const void *addr);
+>  extern void vfree_atomic(const void *addr);
+> diff --git a/mm/util.c b/mm/util.c
+> index 3022051da938..c35e5870921d 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -380,7 +380,8 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  	if (ret || size <= PAGE_SIZE)
+>  		return ret;
+>  
+> -	return __vmalloc_node_flags(size, node, flags);
+> +	return __vmalloc_node_flags_caller(size, node, flags,
+> +			__builtin_return_address(0));
+>  }
+>  EXPORT_SYMBOL(kvmalloc_node);
+>  
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 65912eb93a2c..1a97d4a31406 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1809,13 +1809,19 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
+>  }
+>  EXPORT_SYMBOL(__vmalloc);
+>  
+> -void *__vmalloc_node_flags(unsigned long size,
+> +static inline void *__vmalloc_node_flags(unsigned long size,
+>  					int node, gfp_t flags)
+>  {
+>  	return __vmalloc_node(size, 1, flags, PAGE_KERNEL,
+>  					node, __builtin_return_address(0));
+>  }
+>  
+> +
+> +void *__vmalloc_node_flags_caller(unsigned long size, int node, gfp_t flags, void *caller)
+> +{
+> +	return __vmalloc_node(size, 1, flags, PAGE_KERNEL, node, caller);
+> +}
+> +
+>  /**
+>   *	vmalloc  -  allocate virtually contiguous memory
+>   *	@size:		allocation size
+> -- 
+> 2.11.0
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+
 -- 
-2.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
