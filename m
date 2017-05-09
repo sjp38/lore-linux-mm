@@ -1,101 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 032116B03E1
-	for <linux-mm@kvack.org>; Mon,  8 May 2017 22:44:06 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id d127so84666365pga.11
-        for <linux-mm@kvack.org>; Mon, 08 May 2017 19:44:05 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id x8si15198386pls.286.2017.05.08.19.44.04
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EC5CB6B03E3
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 03:51:38 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l64so52063397pfb.14
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 00:51:38 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id l16si12195353pgn.17.2017.05.09.00.51.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 May 2017 19:44:05 -0700 (PDT)
-Message-ID: <59112D67.9080405@intel.com>
-Date: Tue, 09 May 2017 10:45:59 +0800
-From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [virtio-dev] Re: [PATCH v9 2/5] virtio-balloon: VIRTIO_BALLOON_F_BALLOON_CHUNKS
-References: <1492076108-117229-3-git-send-email-wei.w.wang@intel.com> <20170413184040-mutt-send-email-mst@kernel.org> <58F08A60.2020407@intel.com> <20170415000934-mutt-send-email-mst@kernel.org> <58F43801.7060004@intel.com> <286AC319A985734F985F78AFA26841F7391F6DCD@shsmsx102.ccr.corp.intel.com> <20170426192753-mutt-send-email-mst@kernel.org> <59019055.3040708@intel.com> <20170506012322-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F7391FFBB0@shsmsx102.ccr.corp.intel.com> <20170508203533-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170508203533-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+        Tue, 09 May 2017 00:51:37 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id i63so14057208pgd.2
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 00:51:37 -0700 (PDT)
+Message-ID: <1494316289.14525.1.camel@gmail.com>
+Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Tue, 09 May 2017 17:51:29 +1000
+In-Reply-To: <20170505145238.GE31461@dhcp22.suse.cz>
+References: <20170419075242.29929-1-bsingharora@gmail.com>
+	 <20170502143608.GM14593@dhcp22.suse.cz> <1493875615.7934.1.camel@gmail.com>
+	 <20170504125250.GH31540@dhcp22.suse.cz>
+	 <1493912961.25766.379.camel@kernel.crashing.org>
+	 <20170505145238.GE31461@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
+To: Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz, cl@linux.com
 
-On 05/09/2017 01:40 AM, Michael S. Tsirkin wrote:
-> On Sun, May 07, 2017 at 04:19:28AM +0000, Wang, Wei W wrote:
->> On 05/06/2017 06:26 AM, Michael S. Tsirkin wrote:
->>> On Thu, Apr 27, 2017 at 02:31:49PM +0800, Wei Wang wrote:
->>>> On 04/27/2017 07:20 AM, Michael S. Tsirkin wrote:
->>>>> On Wed, Apr 26, 2017 at 11:03:34AM +0000, Wang, Wei W wrote:
->>>>>> Hi Michael, could you please give some feedback?
->>>>> I'm sorry, I'm not sure feedback on what you are requesting.
->>>> Oh, just some trivial things (e.g. use a field in the header,
->>>> hdr->chunks to indicate the number of chunks in the payload) that
->>>> wasn't confirmed.
->>>>
->>>> I will prepare the new version with fixing the agreed issues, and we
->>>> can continue to discuss those parts if you still find them improper.
->>>>
->>>>
->>>>> The interface looks reasonable now, even though there's a way to
->>>>> make it even simpler if we can limit chunk size to 2G (in fact 4G -
->>>>> 1). Do you think we can live with this limitation?
->>>> Yes, I think we can. So, is it good to change to use the previous
->>>> 64-bit chunk format (52-bit base + 12-bit size)?
->>> This isn't what I meant. virtio ring has descriptors with a 64 bit address and 32 bit
->>> size.
->>>
->>> If size < 4g is not a significant limitation, why not just use that to pass
->>> address/size in a standard s/g list, possibly using INDIRECT?
->> OK, I see your point, thanks. Post the two options here for an analysis:
->> Option1 (what we have now):
->> struct virtio_balloon_page_chunk {
->>          __le64 chunk_num;
->>          struct virtio_balloon_page_chunk_entry entry[];
->> };
->> Option2:
->> struct virtio_balloon_page_chunk {
->>          __le64 chunk_num;
->>          struct scatterlist entry[];
->> };
-> This isn't what I meant really :) I meant vring_desc.
+On Fri, 2017-05-05 at 16:52 +0200, Michal Hocko wrote:
+> On Thu 04-05-17 17:49:21, Benjamin Herrenschmidt wrote:
+> > On Thu, 2017-05-04 at 14:52 +0200, Michal Hocko wrote:
+> > > But the direct reclaim would be effective only _after_ all other nodes
+> > > are full.
+> > > 
+> > > I thought that kswapd reclaim is a problem because the HW doesn't
+> > > support aging properly but as the direct reclaim works then what is the
+> > > actual problem?
+> > 
+> > Ageing isn't isn't completely broken. The ATS MMU supports
+> > dirty/accessed just fine.
+> > 
+> > However the TLB invalidations are quite expensive with a GPU so too
+> > much harvesting is detrimental, and the GPU tends to check pages out
+> > using a special "read with intend to write" mode, which means it almost
+> > always set the dirty bit if the page is writable to begin with.
+> 
+> This sounds pretty much like a HW specific details which is not the
+> right criterion to design general CDM around.
 
-OK. Repost the code change:
+I think Ben answered several of these questions. NUMA we felt was the best
+representation of such memory, but it has limitations in that we'd like
+to isolate some default algorithms that run on all nodes marked N_MEMORY.
+Do you see that as a concern? Would you like to see a generic policy
+like Ben said to handle node attributes like reclaim, autonuma, etc?
 
-Option2:
-struct virtio_balloon_page_chunk {
-         __le64 chunk_num;
-         struct ving_desc entry[];
-};
+> 
+> So let me repeat the fundamental question. Is the only difference from
+> cpuless nodes the fact that the node should be invisible to processes
+> unless they specify an explicit node mask? If yes then we are talking
+> about policy in the kernel and that sounds like a big no-no to me.
+> Moreover cpusets already support exclusive numa nodes AFAIR.
 
-We pre-allocate a table of desc, and each desc is used to hold a chunk.
+Why do you see this as a policy, it's a mechanism of isolating nodes,
+the nodes themselves are then used using mempolicy.
 
-In that case, the virtqueue_add() function, which deals with sg, is not
-usable for us. We may need to add a new one,
-virtqueue_add_indirect_desc(),
-to add a pre-allocated indirect descriptor table to vring.
+> 
+> I am either missing something important here, and the discussion so far
+> hasn't helped to be honest, or this whole CDM effort tries to build a
+> generic interface around a _specific_ piece of HW. The matter is worse
+> by the fact that the described usecases are so vague that it is hard to
+> build a good picture whether this is generic enough that a new/different
+> HW will still fit into this picture.
 
+The use case is similar to HMM, except that we've got coherent memory.
+We treat is as important and want to isolate normal allocations, unless
+the allocation is explicitly specified. CPUsets provide an isolation
+mechanism, but we see autonuma for example moving pages away when there
+is an access from the system side. With reclaim, it would be better to
+use the fallback list first then swap. Again the use case is:
 
->
->> I don't have an issue to change it to Option2, but I would prefer Option1,
->> because I think there is no be obvious difference between the two options,
->> while Option1 appears to have little advantages here:
->> 1) "struct virtio_balloon_page_chunk_entry" has smaller size than
->> "struct scatterlist", so the same size of allocated page chunk buffer
->> can hold more entry[] using Option1;
->> 2) INDIRECT needs on demand kmalloc();
-> Within alloc_indirect?  We can fix that with a separate patch.
->
->
->> 3) no 4G size limit;
-> Do you see lots of >=4g chunks in practice?
-It wouldn't be much in practice, but we still need the extra code to
-handle the case - break larger chunks into less-than 4g ones.
+I'm trying to do a FAQ version here
 
-Best,
-Wei
+Isolate memory - why?
+ - CDM memory is not meant for normal usage, applications can request for it
+   explictly. Oflload their compute to the device where the memory is
+   (the offload is via a user space API like CUDA/openCL/...)
+How do we isolate - NUMA or HMM?
+ - Since the memory is coherent, NUMA provides the mechanism to isolate to
+   a large extent via mempolicy. With NUMA we also get autonuma/kswapd/etc
+   running. Something we would like to avoid. NUMA gives the application
+   a transparent view of memory, in the sense that all mm features work,
+   like direct page cache allocation in coherent device memory, limiting
+   memory via cgroups if required, etc. With CPUSets, its
+   possible for us to isolate allocation. One challenge is that the
+   admin on the system may use them differently and applications need to
+   be aware of running in the right cpuset to allocate memory from the
+   CDM node. Putting all applications in the cpuset with the CDM node is
+   not the right thing to do, which means the application needs to move itself
+   to the right cpuset before requesting for CDM memory. It's not impossible
+   to use CPUsets, just hard to configure correctly.
+  - With HMM, we would need a HMM variant HMM-CDM, so that we are not marking
+   the pages as unavailable, page cache cannot do directly to coherent memory.
+   Audit of mm paths is required. Most of the other things should work.
+   User access to HMM-CDM memory behind ZONE_DEVICE is via a device driver.
+Why do we need migration?
+ - Depending on where the memory is being accessed from, we would like to
+   migrate pages between system and coherent device memory. HMM provides
+   DMA offload capability that is useful in both cases.
+What is the larger picture - end to end?
+ - Applications can allocate memory on the device or in system memory,
+   offload the compute via user space API. Migration can be used for performance
+   if required since it helps to keep the memory local to the compute.
+
+Ben/Jerome/John/others did I get the FAQ right?
+
+>From my side, I want to ensure that the decision HMM-CDM or NUMA-CDM is based
+on our design and understanding, as opposed to the reason that the
+use case is not clear or in sufficient. I'd be happy if we said, we understand
+the use case and believe that HMM-CDM is better from the mm's perspective as
+its better because... as opposed to isolating NUMA attributes because .... 
+or vice-versa.
+
+Thanks for the review,
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
