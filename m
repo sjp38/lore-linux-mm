@@ -1,49 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A0C0D6B03DF
-	for <linux-mm@kvack.org>; Mon,  8 May 2017 21:41:55 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t12so27133183pgo.7
-        for <linux-mm@kvack.org>; Mon, 08 May 2017 18:41:55 -0700 (PDT)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id y70si4100020pfj.169.2017.05.08.18.41.54
+	by kanga.kvack.org (Postfix) with ESMTP id 032116B03E1
+	for <linux-mm@kvack.org>; Mon,  8 May 2017 22:44:06 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d127so84666365pga.11
+        for <linux-mm@kvack.org>; Mon, 08 May 2017 19:44:05 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id x8si15198386pls.286.2017.05.08.19.44.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 May 2017 18:41:54 -0700 (PDT)
-Received: by mail-pg0-x244.google.com with SMTP id u187so12895733pgb.1
-        for <linux-mm@kvack.org>; Mon, 08 May 2017 18:41:54 -0700 (PDT)
-Message-ID: <1494294107.15016.3.camel@gmail.com>
-Subject: Re: [PATCH v2 1/2] mm: Uncharge poisoned pages
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Tue, 09 May 2017 11:41:47 +1000
-In-Reply-To: <03a7ec34-106e-3eb6-0b05-f77a40a2d6b9@linux.vnet.ibm.com>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
-	 <1493130472-22843-2-git-send-email-ldufour@linux.vnet.ibm.com>
-	 <20170427143721.GK4706@dhcp22.suse.cz> <87pofxk20k.fsf@firstfloor.org>
-	 <20170428060755.GA8143@dhcp22.suse.cz>
-	 <20170428073136.GE8143@dhcp22.suse.cz>
-	 <3eb86373-dafc-6db9-82cd-84eb9e8b0d37@linux.vnet.ibm.com>
-	 <20170428134831.GB26705@dhcp22.suse.cz>
-	 <c8ce6056-e89b-7470-c37a-85ab5bc7a5b2@linux.vnet.ibm.com>
-	 <20170502185507.GB19165@dhcp22.suse.cz> <1493860869.8082.1.camel@gmail.com>
-	 <03a7ec34-106e-3eb6-0b05-f77a40a2d6b9@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Mon, 08 May 2017 19:44:05 -0700 (PDT)
+Message-ID: <59112D67.9080405@intel.com>
+Date: Tue, 09 May 2017 10:45:59 +0800
+From: Wei Wang <wei.w.wang@intel.com>
+MIME-Version: 1.0
+Subject: Re: [virtio-dev] Re: [PATCH v9 2/5] virtio-balloon: VIRTIO_BALLOON_F_BALLOON_CHUNKS
+References: <1492076108-117229-3-git-send-email-wei.w.wang@intel.com> <20170413184040-mutt-send-email-mst@kernel.org> <58F08A60.2020407@intel.com> <20170415000934-mutt-send-email-mst@kernel.org> <58F43801.7060004@intel.com> <286AC319A985734F985F78AFA26841F7391F6DCD@shsmsx102.ccr.corp.intel.com> <20170426192753-mutt-send-email-mst@kernel.org> <59019055.3040708@intel.com> <20170506012322-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F7391FFBB0@shsmsx102.ccr.corp.intel.com> <20170508203533-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170508203533-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
 
-On Mon, 2017-05-08 at 12:42 +0200, Laurent Dufour wrote:
-> Sorry Balbir,
-> 
-> You pointed this out since the beginning but I missed your comment.
-> My mistake.
+On 05/09/2017 01:40 AM, Michael S. Tsirkin wrote:
+> On Sun, May 07, 2017 at 04:19:28AM +0000, Wang, Wei W wrote:
+>> On 05/06/2017 06:26 AM, Michael S. Tsirkin wrote:
+>>> On Thu, Apr 27, 2017 at 02:31:49PM +0800, Wei Wang wrote:
+>>>> On 04/27/2017 07:20 AM, Michael S. Tsirkin wrote:
+>>>>> On Wed, Apr 26, 2017 at 11:03:34AM +0000, Wang, Wei W wrote:
+>>>>>> Hi Michael, could you please give some feedback?
+>>>>> I'm sorry, I'm not sure feedback on what you are requesting.
+>>>> Oh, just some trivial things (e.g. use a field in the header,
+>>>> hdr->chunks to indicate the number of chunks in the payload) that
+>>>> wasn't confirmed.
+>>>>
+>>>> I will prepare the new version with fixing the agreed issues, and we
+>>>> can continue to discuss those parts if you still find them improper.
+>>>>
+>>>>
+>>>>> The interface looks reasonable now, even though there's a way to
+>>>>> make it even simpler if we can limit chunk size to 2G (in fact 4G -
+>>>>> 1). Do you think we can live with this limitation?
+>>>> Yes, I think we can. So, is it good to change to use the previous
+>>>> 64-bit chunk format (52-bit base + 12-bit size)?
+>>> This isn't what I meant. virtio ring has descriptors with a 64 bit address and 32 bit
+>>> size.
+>>>
+>>> If size < 4g is not a significant limitation, why not just use that to pass
+>>> address/size in a standard s/g list, possibly using INDIRECT?
+>> OK, I see your point, thanks. Post the two options here for an analysis:
+>> Option1 (what we have now):
+>> struct virtio_balloon_page_chunk {
+>>          __le64 chunk_num;
+>>          struct virtio_balloon_page_chunk_entry entry[];
+>> };
+>> Option2:
+>> struct virtio_balloon_page_chunk {
+>>          __le64 chunk_num;
+>>          struct scatterlist entry[];
+>> };
+> This isn't what I meant really :) I meant vring_desc.
+
+OK. Repost the code change:
+
+Option2:
+struct virtio_balloon_page_chunk {
+         __le64 chunk_num;
+         struct ving_desc entry[];
+};
+
+We pre-allocate a table of desc, and each desc is used to hold a chunk.
+
+In that case, the virtqueue_add() function, which deals with sg, is not
+usable for us. We may need to add a new one,
+virtqueue_add_indirect_desc(),
+to add a pre-allocated indirect descriptor table to vring.
+
+
 >
+>> I don't have an issue to change it to Option2, but I would prefer Option1,
+>> because I think there is no be obvious difference between the two options,
+>> while Option1 appears to have little advantages here:
+>> 1) "struct virtio_balloon_page_chunk_entry" has smaller size than
+>> "struct scatterlist", so the same size of allocated page chunk buffer
+>> can hold more entry[] using Option1;
+>> 2) INDIRECT needs on demand kmalloc();
+> Within alloc_indirect?  We can fix that with a separate patch.
+>
+>
+>> 3) no 4G size limit;
+> Do you see lots of >=4g chunks in practice?
+It wouldn't be much in practice, but we still need the extra code to
+handle the case - break larger chunks into less-than 4g ones.
 
-No worries, as long as the right thing gets in
-
-Balbir Singh 
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
