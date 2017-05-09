@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 727BA280724
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 11:50:54 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f53so1431115qte.15
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 08:50:54 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DB803280724
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 11:50:56 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u75so1507219qka.13
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 08:50:56 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n7si401255qkl.43.2017.05.09.08.50.53
+        by mx.google.com with ESMTPS id k28si279331qtf.298.2017.05.09.08.50.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 May 2017 08:50:53 -0700 (PDT)
+        Tue, 09 May 2017 08:50:55 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v4 23/27] gfs2: clean up some filemap_* calls
-Date: Tue,  9 May 2017 11:49:26 -0400
-Message-Id: <20170509154930.29524-24-jlayton@redhat.com>
+Subject: [PATCH v4 24/27][RFC] nfs: convert to new errseq_t based error tracking for writeback errors
+Date: Tue,  9 May 2017 11:49:27 -0400
+Message-Id: <20170509154930.29524-25-jlayton@redhat.com>
 In-Reply-To: <20170509154930.29524-1-jlayton@redhat.com>
 References: <20170509154930.29524-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,100 +20,111 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org
 Cc: dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com, bo.li.liu@oracle.com
 
-In some places, it's trying to reset the mapping error after calling
-filemap_fdatawait. That's no longer required. Also, turn several
-filemap_fdatawrite+filemap_fdatawait calls into filemap_write_and_wait.
-That will at least return writeback errors that occur during the write
-phase.
+Drop the ERROR_WRITE flag and convert the error field in the context to
+a errseq_t. Add a new wb_err_cursor to track the reporting of the
+errseq_t. In principle, we could use the f_wb_err field in struct file
+for that, but that's problematic with the stock reporting in call_fsync.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- fs/gfs2/glops.c | 17 ++++-------------
- fs/gfs2/lops.c  |  4 +---
- fs/gfs2/super.c |  6 ++----
- 3 files changed, 7 insertions(+), 20 deletions(-)
 
-diff --git a/fs/gfs2/glops.c b/fs/gfs2/glops.c
-index 5db59d444838..18ab54e351d6 100644
---- a/fs/gfs2/glops.c
-+++ b/fs/gfs2/glops.c
-@@ -145,7 +145,6 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
- 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
- 	struct address_space *mapping = &sdp->sd_aspace;
- 	struct gfs2_rgrpd *rgd;
--	int error;
- 
- 	spin_lock(&gl->gl_lockref.lock);
- 	rgd = gl->gl_object;
-@@ -158,9 +157,7 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
- 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
- 
- 	gfs2_log_flush(sdp, gl, NORMAL_FLUSH);
--	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
--	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
--	mapping_set_error(mapping, error);
-+	filemap_write_and_wait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
- 	gfs2_ail_empty_gl(gl);
- 
- 	spin_lock(&gl->gl_lockref.lock);
-@@ -207,7 +204,6 @@ static void inode_go_sync(struct gfs2_glock *gl)
+---
+ fs/nfs/file.c          | 19 +++++++++++--------
+ fs/nfs/inode.c         |  5 +++--
+ fs/nfs/write.c         |  2 +-
+ include/linux/nfs_fs.h |  3 ++-
+ 4 files changed, 17 insertions(+), 12 deletions(-)
+
+I did this on a lark to see how it would be, but I don't think this is
+really better than what's there already. There may be a better way to
+provide the right semantics without using an errseq_t here.
+
+diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+index 668213984d68..fd4d2b381d4b 100644
+--- a/fs/nfs/file.c
++++ b/fs/nfs/file.c
+@@ -212,21 +212,24 @@ nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
  {
- 	struct gfs2_inode *ip = gl->gl_object;
- 	struct address_space *metamapping = gfs2_glock2aspace(gl);
--	int error;
+ 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+ 	struct inode *inode = file_inode(file);
+-	int have_error, do_resend, status;
+-	int ret = 0;
++	int do_resend, status;
++	int ret;
  
- 	if (ip && !S_ISREG(ip->i_inode.i_mode))
- 		ip = NULL;
-@@ -223,14 +219,9 @@ static void inode_go_sync(struct gfs2_glock *gl)
+ 	dprintk("NFS: fsync file(%pD2) datasync %d\n", file, datasync);
  
- 	gfs2_log_flush(gl->gl_name.ln_sbd, gl, NORMAL_FLUSH);
- 	filemap_fdatawrite(metamapping);
--	if (ip) {
--		struct address_space *mapping = ip->i_inode.i_mapping;
--		filemap_fdatawrite(mapping);
--		error = filemap_fdatawait(mapping);
--		mapping_set_error(mapping, error);
--	}
--	error = filemap_fdatawait(metamapping);
--	mapping_set_error(metamapping, error);
-+	if (ip)
-+		filemap_write_and_wait(ip->i_inode.i_mapping);
-+	filemap_fdatawait(metamapping);
- 	gfs2_ail_empty_gl(gl);
- 	/*
- 	 * Writeback of the data mapping may cause the dirty flag to be set
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index cd7857ab1a6a..614bb974b927 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -586,9 +586,7 @@ static void gfs2_meta_sync(struct gfs2_glock *gl)
- 	if (mapping == NULL)
- 		mapping = &sdp->sd_aspace;
+ 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
+ 	do_resend = test_and_clear_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags);
+-	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
++	clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+ 	status = nfs_commit_inode(inode, FLUSH_SYNC);
+-	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+-	if (have_error) {
+-		ret = xchg(&ctx->error, 0);
+-		if (ret)
+-			goto out;
++	ret = errseq_check(&ctx->wb_err, READ_ONCE(ctx->wb_err_cursor));
++	if (ret) {
++		/* Use f_lock to serialize changes to wb_err_cursor */
++		spin_lock(&file->f_lock);
++		ret = errseq_check_and_advance(&ctx->wb_err, &ctx->wb_err_cursor);
++		spin_unlock(&file->f_lock);
+ 	}
++	if (ret)
++		goto out;
+ 	if (status < 0) {
+ 		ret = status;
+ 		goto out;
+diff --git a/fs/nfs/inode.c b/fs/nfs/inode.c
+index f489a5a71bd5..ca85f6b39e3b 100644
+--- a/fs/nfs/inode.c
++++ b/fs/nfs/inode.c
+@@ -869,7 +869,8 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry,
+ 	ctx->state = NULL;
+ 	ctx->mode = f_mode;
+ 	ctx->flags = 0;
+-	ctx->error = 0;
++	ctx->wb_err = 0;
++	ctx->wb_err_cursor = 0;
+ 	ctx->flock_owner = (fl_owner_t)filp;
+ 	nfs_init_lock_context(&ctx->lock_context);
+ 	ctx->lock_context.open_context = ctx;
+@@ -978,7 +979,7 @@ void nfs_file_clear_open_context(struct file *filp)
+ 		 * We fatal error on write before. Try to writeback
+ 		 * every page again.
+ 		 */
+-		if (ctx->error < 0)
++		if (errseq_check(&ctx->wb_err, ctx->wb_err_cursor))
+ 			invalidate_inode_pages2(inode->i_mapping);
+ 		filp->private_data = NULL;
+ 		spin_lock(&inode->i_lock);
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index abb2c8a3be42..95a5b4ac6714 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -94,7 +94,7 @@ static void nfs_writehdr_free(struct nfs_pgio_header *hdr)
  
--	filemap_fdatawrite(mapping);
--	error = filemap_fdatawait(mapping);
--
-+	error = filemap_write_and_wait(mapping);
- 	if (error)
- 		gfs2_io_error(gl->gl_name.ln_sbd);
+ static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
+ {
+-	ctx->error = error;
++	errseq_set(&ctx->wb_err, error);
+ 	smp_wmb();
+ 	set_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
  }
-diff --git a/fs/gfs2/super.c b/fs/gfs2/super.c
-index 361796a84fce..675c39566ea1 100644
---- a/fs/gfs2/super.c
-+++ b/fs/gfs2/super.c
-@@ -1593,10 +1593,8 @@ static void gfs2_evict_inode(struct inode *inode)
- out_truncate:
- 	gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
- 	metamapping = gfs2_glock2aspace(ip->i_gl);
--	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
--		filemap_fdatawrite(metamapping);
--		filemap_fdatawait(metamapping);
--	}
-+	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags))
-+		filemap_write_and_wait(metamapping);
- 	write_inode_now(inode, 1);
- 	gfs2_ail_flush(ip->i_gl, 0);
+diff --git a/include/linux/nfs_fs.h b/include/linux/nfs_fs.h
+index 287f34161086..336adf1a38f7 100644
+--- a/include/linux/nfs_fs.h
++++ b/include/linux/nfs_fs.h
+@@ -76,7 +76,8 @@ struct nfs_open_context {
+ #define NFS_CONTEXT_ERROR_WRITE		(0)
+ #define NFS_CONTEXT_RESEND_WRITES	(1)
+ #define NFS_CONTEXT_BAD			(2)
+-	int error;
++	errseq_t wb_err;		/* where wb errors are tracked */
++	errseq_t wb_err_cursor;		/* reporting cursor */
  
+ 	struct list_head list;
+ 	struct nfs4_threshold	*mdsthreshold;
 -- 
 2.9.3
 
