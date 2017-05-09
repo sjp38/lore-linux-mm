@@ -1,134 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 14B06280730
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 12:24:21 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d14so2018525qkb.0
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 09:24:21 -0700 (PDT)
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com. [209.85.220.182])
-        by mx.google.com with ESMTPS id f123si488091qkd.196.2017.05.09.09.24.19
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FE3828073C
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 13:13:28 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id i63so4430757pgd.15
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 10:13:28 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id g7si461255plk.325.2017.05.09.10.13.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 May 2017 09:24:20 -0700 (PDT)
-Received: by mail-qk0-f182.google.com with SMTP id u75so5414133qka.3
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 09:24:19 -0700 (PDT)
-Message-ID: <1494347057.2659.10.camel@redhat.com>
-Subject: Re: [PATCH v4 25/27] Documentation: flesh out the section in
- vfs.txt on storing and reporting writeback errors
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 09 May 2017 12:24:17 -0400
-In-Reply-To: <20170509154930.29524-26-jlayton@redhat.com>
-References: <20170509154930.29524-1-jlayton@redhat.com>
-	 <20170509154930.29524-26-jlayton@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Tue, 09 May 2017 10:13:27 -0700 (PDT)
+Subject: Re: [RFC 03/10] x86/mm: Make the batched unmap TLB flush API more
+ generic
+References: <cover.1494160201.git.luto@kernel.org>
+ <983c5ee661d8fe8a70c596c4e77076d11ce3f80a.1494160201.git.luto@kernel.org>
+ <d36207ef-a4b3-24ef-40e4-9e6a22b092cb@intel.com>
+ <CALCETrXO2etzB55ZYk9xy4=8bWQC1+mv877tJHg-tOUpWGk6qw@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <cf830e99-10a0-1013-4ea2-e184b2017854@intel.com>
+Date: Tue, 9 May 2017 10:13:26 -0700
+MIME-Version: 1.0
+In-Reply-To: <CALCETrXO2etzB55ZYk9xy4=8bWQC1+mv877tJHg-tOUpWGk6qw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org
-Cc: dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com, bo.li.liu@oracle.com, Michael Kerrisk <mtk.manpages@gmail.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Tue, 2017-05-09 at 11:49 -0400, Jeff Layton wrote:
-> I waxed a little loquacious here, but I figured that more detail was
-> better, and writeback error handling is so hard to get right.
+On 05/09/2017 06:02 AM, Andy Lutomirski wrote:
+> On Mon, May 8, 2017 at 8:34 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+>> On 05/07/2017 05:38 AM, Andy Lutomirski wrote:
+>>> diff --git a/mm/rmap.c b/mm/rmap.c
+>>> index f6838015810f..2e568c82f477 100644
+>>> --- a/mm/rmap.c
+>>> +++ b/mm/rmap.c
+>>> @@ -579,25 +579,12 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
+>>>  void try_to_unmap_flush(void)
+>>>  {
+>>>       struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
+>>> -     int cpu;
+>>>
+>>>       if (!tlb_ubc->flush_required)
+>>>               return;
+>>>
+>>> -     cpu = get_cpu();
+>>> -
+>>> -     if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask)) {
+>>> -             count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+>>> -             local_flush_tlb();
+>>> -             trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+>>> -     }
+>>> -
+>>> -     if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids)
+>>> -             flush_tlb_others(&tlb_ubc->cpumask, NULL, 0, TLB_FLUSH_ALL);
+>>> -     cpumask_clear(&tlb_ubc->cpumask);
+>>>       tlb_ubc->flush_required = false;
+>>>       tlb_ubc->writable = false;
+>>> -     put_cpu();
+>>>  }
+>>>
+>>>  /* Flush iff there are potentially writable TLB entries that can race with IO */
+>>> @@ -613,7 +600,7 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
+>>>  {
+>>>       struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
+>>>
+>>> -     cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
+>>> +     arch_tlbbatch_add_mm(&tlb_ubc->arch, mm);
+>>>       tlb_ubc->flush_required = true;
+>>>
+>>>       /*
+>>
+>> Looking at this patch in isolation, how can this be safe?  It removes
+>> TLB flushes from the generic code.  Do other patches in the series fix
+>> this up?
 > 
-> Cc: Jan Kara <jack@suse.cz>
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> ---
->  Documentation/filesystems/vfs.txt | 54 ++++++++++++++++++++++++++++++++-------
->  1 file changed, 45 insertions(+), 9 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
-> index f201a77873f7..382190a872e5 100644
-> --- a/Documentation/filesystems/vfs.txt
-> +++ b/Documentation/filesystems/vfs.txt
-> @@ -576,12 +576,46 @@ should clear PG_Dirty and set PG_Writeback.  It can be actually
->  written at any point after PG_Dirty is clear.  Once it is known to be
->  safe, PG_Writeback is cleared.
->  
-> -If there is an error during writeback, then the address_space should be
-> -marked with an error (typically using mapping_set_error), in order to
-> -ensure that the error can later be reported to the application when an
-> -fsync is issued.
-> -
-> -Writeback makes use of a writeback_control structure...
-> +Writeback makes use of a writeback_control structure to direct the
-> +operations.  This gives the the writepage and writepages operations some
-> +information about the nature of and reason for the writeback request,
-> +and the constraints under which it is being done.  It is also used to
-> +return information back to the caller about the result of a writepage or
-> +writepages request.
-> +
-> +Handling errors during writeback
-> +--------------------------------
-> +Most applications that utilize the pagecache will periodically call
-> +fsync to ensure that data written has made it to the backing store.
-> +When there is an error during writeback, that error should be reported
-> +when fsync is called.  After an error has been reported to fsync,
-> +subsequent fsync calls on the same file descriptor should return 0,
-> +unless further writeback errors have occurred since the previous fsync.
-> +
-> +Ideally, the kernel would report it only on file descriptions on which
-> +writes were done that subsequently failed to be written back.  The
-> +generic pagecache infrastructure does not track the file descriptions
-> +that have dirtied each individual page however, so determining which
-> +file descriptors should get back an error is not possible.
-> +
-> +Instead, the generic writeback error tracking infrastructure in the
-> +kernel settles for reporting errors to fsync on all file descriptions
-> +that were open at the time that the error occurred.  In a situation with
-> +multiple writers, all of them will get back an error on a subsequent fsync,
-> +even if all of the writes done through that particular file descriptor
-> +succeeded (or even if there were no writes on that file descriptor at all).
-> +
+> Hmm?  Unless I totally screwed this up, this patch just moves the
+> flushes around -- it shouldn't remove any flushes.
 
-(cc'ing Michael Kerrisk)
+This takes a flush out of try_to_unmap_flush().  It adds code for
+arch_tlbbatch_flush(), but not *calls* to arch_tlbbatch_flush() that I
+can see.
 
-Once this is closer to merge, I think we'll also want to update the
-fsync(2) manpage with something similar to the 3 paragraphs above, and
-also with an explanation of the behavior that applications can expect
-from earlier kernels.
-
-> +Filesystems that wish to use this infrastructure should call
-> +mapping_set_error to record the error in the address_space when it
-> +occurs.  The generic vfs code will then handle reporting the error when
-> +fsync is called, even if the fsync file operation returned 0.
-> +
-> +Filesystems are free to track errors internally if they choose (i.e. if
-> +they do keep track of how the pages were dirtied), but they should aim
-> +to provide the same (or better) error reporting semantics for when there
-> +are multiple writers.  Those filesystems should avoid calling
-> +mapping_set_error in order to ensure that errors stored in the mapping
-> +aren't improperly reported by the generic filesystem code.
->  
->  struct address_space_operations
->  -------------------------------
-> @@ -810,7 +844,8 @@ struct address_space_operations {
->  The File Object
->  ===============
->  
-> -A file object represents a file opened by a process.
-> +A file object represents a file opened by a process. This is also known
-> +as an "open file description" in POSIX parlance.
->  
->  
->  struct file_operations
-> @@ -893,9 +928,10 @@ otherwise noted.
->  
->    release: called when the last reference to an open file is closed
->  
-> -  fsync: called by the fsync(2) system call. Errors that were previously
-> +  fsync: called by the fsync(2) system call.  Errors that were previously
->  	 recorded using mapping_set_error will automatically be returned to
-> -	 the application and the file's error sequence advanced.
-> +	 the application and the struct file's error sequence advanced.
-> +	 See the section above on handling writeback errors.
->  
->    fasync: called by the fcntl(2) system call when asynchronous
->  	(non-blocking) mode is enabled for a file
-
-
--- 
-Jeff Layton <jlayton@redhat.com>
+I actually don't see _any_ in the whole series in a quick grepping.  Am
+I just missing them?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
