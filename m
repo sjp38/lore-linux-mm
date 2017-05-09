@@ -1,76 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 82D25831FD
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 19:16:15 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id f96so5983019qki.14
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 16:16:15 -0700 (PDT)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id k66si1381914qkf.319.2017.05.09.16.16.14
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0012831FD
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 19:24:51 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z88so3890425wrc.9
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 16:24:51 -0700 (PDT)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id i186si2469026wme.133.2017.05.09.16.24.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 May 2017 16:16:14 -0700 (PDT)
-Received: by mail-qk0-x242.google.com with SMTP id u75so2295867qka.1
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 16:16:14 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 09 May 2017 16:24:50 -0700 (PDT)
+Date: Wed, 10 May 2017 00:24:34 +0100
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
 Subject: Re: [PATCH v3 2/3] ARM: Silence first allocation with
  CONFIG_ARM_MODULE_PLTS=y
+Message-ID: <20170509232433.GM22219@n2100.armlinux.org.uk>
 References: <20170427181902.28829-1-f.fainelli@gmail.com>
  <20170427181902.28829-3-f.fainelli@gmail.com>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Message-ID: <fccefcb2-b711-0589-168a-714e55064279@gmail.com>
-Date: Tue, 9 May 2017 16:16:09 -0700
+ <fccefcb2-b711-0589-168a-714e55064279@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170427181902.28829-3-f.fainelli@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fccefcb2-b711-0589-168a-714e55064279@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@armlinux.org.uk>
+To: Florian Fainelli <f.fainelli@gmail.com>
 Cc: linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Chris Wilson <chris@chris-wilson.co.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, angus@angusclark.org
 
-On 04/27/2017 11:19 AM, Florian Fainelli wrote:
-> When CONFIG_ARM_MODULE_PLTS is enabled, the first allocation using the
-> module space fails, because the module is too big, and then the module
-> allocation is attempted from vmalloc space. Silence the first allocation
-> failure in that case by setting __GFP_NOWARN.
-
-Russell, are you okay with this change? Do you have a preference as
-which tree should carry this patch series?
-
-Thanks
-
+On Tue, May 09, 2017 at 04:16:09PM -0700, Florian Fainelli wrote:
+> On 04/27/2017 11:19 AM, Florian Fainelli wrote:
+> > When CONFIG_ARM_MODULE_PLTS is enabled, the first allocation using the
+> > module space fails, because the module is too big, and then the module
+> > allocation is attempted from vmalloc space. Silence the first allocation
+> > failure in that case by setting __GFP_NOWARN.
 > 
-> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
-> ---
->  arch/arm/kernel/module.c | 11 +++++++++--
->  1 file changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm/kernel/module.c b/arch/arm/kernel/module.c
-> index 80254b47dc34..3ff571c2c71c 100644
-> --- a/arch/arm/kernel/module.c
-> +++ b/arch/arm/kernel/module.c
-> @@ -40,8 +40,15 @@
->  #ifdef CONFIG_MMU
->  void *module_alloc(unsigned long size)
->  {
-> -	void *p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-> -				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
-> +	gfp_t gfp_mask = GFP_KERNEL;
-> +	void *p;
-> +
-> +	/* Silence the initial allocation */
-> +	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS))
-> +		gfp_mask |= __GFP_NOWARN;
-> +
-> +	p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-> +				gfp_mask, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
->  				__builtin_return_address(0));
->  	if (!IS_ENABLED(CONFIG_ARM_MODULE_PLTS) || p)
->  		return p;
-> 
+> Russell, are you okay with this change? Do you have a preference as
+> which tree should carry this patch series?
 
+It looks sensible.
+
+Acked-by: Russell King <rmk+kernel@armlinux.org.uk>
+
+No preference which tree it goes through...
 
 -- 
-Florian
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
