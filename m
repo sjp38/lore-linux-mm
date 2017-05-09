@@ -1,96 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 084F36B03EF
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 05:40:34 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id h65so14358849wmd.7
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 02:40:33 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id g48si17334987wrg.239.2017.05.09.02.40.32
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF4E6B03F1
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 05:46:10 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p134so14406362wmg.3
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 02:46:10 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u197si337033wmf.141.2017.05.09.02.46.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 May 2017 02:40:32 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
- <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
- <b3fab9c3-fa35-eb7b-204c-f85a0d392e12@redhat.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <72cc9d16-305e-1856-0bbb-59010b067589@huawei.com>
-Date: Tue, 9 May 2017 12:38:58 +0300
+        Tue, 09 May 2017 02:46:09 -0700 (PDT)
+Date: Tue, 9 May 2017 11:46:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
+Message-ID: <20170509094607.GG6481@dhcp22.suse.cz>
+References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
+ <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
+ <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
+ <20170426201126.GA32407@dhcp22.suse.cz>
+ <40f72efa-3928-b3c6-acca-0740f1a15ba4@oracle.com>
+ <429c8506-c498-0599-4258-7bac947fe29c@oracle.com>
+ <20170505133029.GC31461@dhcp22.suse.cz>
+ <e7c61dec-9d57-957b-7ff5-8247fa51eafb@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <b3fab9c3-fa35-eb7b-204c-f85a0d392e12@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e7c61dec-9d57-957b-7ff5-8247fa51eafb@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Pasha Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On 08/05/17 18:25, Laura Abbott wrote:
-> On 05/05/2017 03:42 AM, Igor Stoppa wrote:
->> On 04/05/17 19:49, Laura Abbott wrote:
+On Fri 05-05-17 11:33:36, Pasha Tatashin wrote:
+> 
+> 
+> On 05/05/2017 09:30 AM, Michal Hocko wrote:
+> >On Thu 04-05-17 14:28:51, Pasha Tatashin wrote:
+> >>BTW, I am OK with your patch on top of this "Adaptive hash table" patch, but
+> >>I do not know what high_limit should be from where HASH_ADAPT will kick in.
+> >>128M sound reasonable to you?
+> >
+> >For simplicity I would just use it unconditionally when no high_limit is
+> >set. What would be the problem with that?
+> 
+> Sure, that sounds good.
+> 
+>  If you look at current users
+> >(and there no new users emerging too often) then most of them just want
+> >_some_ scaling. The original one obviously doesn't scale with large
+> >machines. Are you OK to fold my change to your patch or you want me to
+> >send a separate patch? AFAIK Andrew hasn't posted this patch to Linus
+> >yet.
+> >
+> 
+> I would like a separate patch because mine has soaked in mm tree for a while
+> now.
 
-[...]
-
-> PAGE_SIZE is still 4K/16K/64K but the underlying page table mappings
-> may use larger mappings (2MB, 32M, 512M, etc.). The ARM architecture
-> has a break-before-make requirement which requires old mappings be
-> fully torn down and invalidated to avoid TLB conflicts. This is nearly
-> impossible to do correctly on live page tables so the current policy
-> is to not break down larger mappings.
-
-ok, but if a system integrator chooses to have the mapping set to 512M
-(let's consider a case that is definitely unoptimized), this granularity
-will apply to anything that needs to be marked as R/O and is allocated
-through linear mapping.
-
-If the issue inherently sits with linear allocation, then maybe the
-correct approach is to confirm if linear allocation is really needed, in
-the first place.
-Maybe not, at least for the type of data I have in mind.
-
-However, that would require changes in the users of the interface,
-rather than the interface itself.
-
-I don't see this change as a problem, in general, but OTOH I do not know
-yet if there are legitimate reasons to use kmalloc for any
-post-init-read-only data.
-
-Of course, if you have any proposal that would solve this problem with
-large pages, I'd be interested to know.
-
-Also, for me to better understand the magnitude of the problem, do you
-know if there is any specific scenario where larger mappings would be
-used/recommended?
-
-The major reason for using larger mapping that I can think of, is to
-improve the efficiency of the TLB when under pressure, however I
-wouldn't be able to judge how much this can affect the overall
-performance a big iron or in a small device.
-
-Do you know if there is any similar case that has to deal with locking
-down large pages?
-Doesn't the kernel text have potentially a similar risks of leaving
-large amount of memory unused?
-Is rodata only virtual?
-
-> I'd rather see this designed as being mandatory from the start and then
-> provide a mechanism to turn it off if necessary. The uptake and
-> coverage from opt-in features tends to be very low based on past experience.
-
-I have nothing against such wish, actually I'd love it, but I'm not sure
-I have the answer for it.
-
-Yet, a partial solution is better than nothing, if there is no truly
-flexible one.
-
---
-igor
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+OK, Andrew tends to fold follow up fixes in his mm tree. But anyway, as
+you prefer to have this in a separate patch. Could you add this on top
+Andrew? I believe mnt hash tables need a _reasonable_ upper bound but
+that is for a separate patch I believe.
+--- 
