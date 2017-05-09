@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6017A2806E8
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 11:50:37 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id p33so1472737qte.6
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 08:50:37 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AC302806E8
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 11:50:46 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id m91so1458680qte.10
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 08:50:46 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s5si385975qkf.111.2017.05.09.08.50.36
+        by mx.google.com with ESMTPS id v128si389658qki.3.2017.05.09.08.50.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 May 2017 08:50:36 -0700 (PDT)
+        Tue, 09 May 2017 08:50:45 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v4 19/27] buffer: set errors in mapping at the time that the error occurs
-Date: Tue,  9 May 2017 11:49:22 -0400
-Message-Id: <20170509154930.29524-20-jlayton@redhat.com>
+Subject: [PATCH v4 20/27] cifs: cleanup writeback handling errors and comments
+Date: Tue,  9 May 2017 11:49:23 -0400
+Message-Id: <20170509154930.29524-21-jlayton@redhat.com>
 In-Reply-To: <20170509154930.29524-1-jlayton@redhat.com>
 References: <20170509154930.29524-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,115 +20,114 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org
 Cc: dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com, bo.li.liu@oracle.com
 
-I noticed on xfs that I could still sometimes get back an error on fsync
-on a fd that was opened after the error condition had been cleared.
+Now that writeback errors are handled on a per-file basis using the new
+sequence counter method at the vfs layer, we no longer need to re-set
+errors in the mapping after doing writeback in non-fsync codepaths.
 
-The problem is that the buffer code sets the write_io_error flag and
-then later checks that flag to set the error in the mapping. That flag
-perisists for quite a while however. If the file is later opened with
-O_TRUNC, the buffers will then be invalidated and the mapping's error
-set such that a subsequent fsync will return error. I think this is
-incorrect, as there was no writeback between the open and fsync.
-
-Add a new mark_buffer_write_io_error operation that sets the flag and
-the error in the mapping at the same time. Replace all calls to
-set_buffer_write_io_error with mark_buffer_write_io_error, and remove
-the places that check this flag in order to set the error in the
-mapping.
-
-This sets the error in the mapping earlier, at the time that it's first
-detected.
+Also, fix up some bogus comments.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- fs/buffer.c                 | 19 +++++++++++++------
- fs/gfs2/lops.c              |  2 +-
- include/linux/buffer_head.h |  1 +
- 3 files changed, 15 insertions(+), 7 deletions(-)
+ fs/cifs/cifsfs.c |  4 +---
+ fs/cifs/file.c   |  7 ++-----
+ fs/cifs/inode.c  | 22 +++++++---------------
+ 3 files changed, 10 insertions(+), 23 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 70638941066d..1b566cf3f4e4 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -179,7 +179,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
- 		set_buffer_uptodate(bh);
- 	} else {
- 		buffer_io_error(bh, ", lost sync page write");
--		set_buffer_write_io_error(bh);
-+		mark_buffer_write_io_error(bh);
- 		clear_buffer_uptodate(bh);
+diff --git a/fs/cifs/cifsfs.c b/fs/cifs/cifsfs.c
+index dd3f5fabfdf6..017a2d1d02c7 100644
+--- a/fs/cifs/cifsfs.c
++++ b/fs/cifs/cifsfs.c
+@@ -829,10 +829,8 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
+ 		if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
+ 		    inode->i_mapping->nrpages != 0) {
+ 			rc = filemap_fdatawait(inode->i_mapping);
+-			if (rc) {
+-				mapping_set_error(inode->i_mapping, rc);
++			if (rc)
+ 				return rc;
+-			}
+ 		}
+ 		/*
+ 		 * Some applications poll for the file length in this strange
+diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+index 0bee7f8d91ad..9825d892716e 100644
+--- a/fs/cifs/file.c
++++ b/fs/cifs/file.c
+@@ -722,9 +722,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
+ 	cinode = CIFS_I(inode);
+ 
+ 	if (can_flush) {
+-		rc = filemap_write_and_wait(inode->i_mapping);
+-		mapping_set_error(inode->i_mapping, rc);
+-
++		filemap_write_and_wait(inode->i_mapping);
+ 		if (tcon->unix_ext)
+ 			rc = cifs_get_inode_info_unix(&inode, full_path,
+ 						      inode->i_sb, xid);
+@@ -3906,8 +3904,7 @@ void cifs_oplock_break(struct work_struct *work)
+ 			break_lease(inode, O_WRONLY);
+ 		rc = filemap_fdatawrite(inode->i_mapping);
+ 		if (!CIFS_CACHE_READ(cinode)) {
+-			rc = filemap_fdatawait(inode->i_mapping);
+-			mapping_set_error(inode->i_mapping, rc);
++			filemap_fdatawait(inode->i_mapping);
+ 			cifs_zap_mapping(inode);
+ 		}
+ 		cifs_dbg(FYI, "Oplock flush inode %p rc %d\n", inode, rc);
+diff --git a/fs/cifs/inode.c b/fs/cifs/inode.c
+index b261db34103c..a58e605240fc 100644
+--- a/fs/cifs/inode.c
++++ b/fs/cifs/inode.c
+@@ -2008,10 +2008,8 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
+ 	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
+ 	    inode->i_mapping->nrpages != 0) {
+ 		rc = filemap_fdatawait(inode->i_mapping);
+-		if (rc) {
+-			mapping_set_error(inode->i_mapping, rc);
++		if (rc)
+ 			return rc;
+-		}
  	}
- 	unlock_buffer(bh);
-@@ -354,7 +354,7 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
- 	} else {
- 		buffer_io_error(bh, ", lost async page write");
- 		mapping_set_error(page->mapping, -EIO);
--		set_buffer_write_io_error(bh);
-+		mark_buffer_write_io_error(bh);
- 		clear_buffer_uptodate(bh);
- 		SetPageError(page);
- 	}
-@@ -482,8 +482,6 @@ static void __remove_assoc_queue(struct buffer_head *bh)
- {
- 	list_del_init(&bh->b_assoc_buffers);
- 	WARN_ON(!bh->b_assoc_map);
--	if (buffer_write_io_error(bh))
--		mapping_set_error(bh->b_assoc_map, -EIO);
- 	bh->b_assoc_map = NULL;
- }
  
-@@ -1182,6 +1180,17 @@ void mark_buffer_dirty(struct buffer_head *bh)
- }
- EXPORT_SYMBOL(mark_buffer_dirty);
+ 	rc = cifs_revalidate_dentry_attr(dentry);
+@@ -2171,15 +2169,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
+ 	 * Attempt to flush data before changing attributes. We need to do
+ 	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+ 	 * ownership or mode then we may also need to do this. Here, we take
+-	 * the safe way out and just do the flush on all setattr requests. If
+-	 * the flush returns error, store it to report later and continue.
++	 * the safe way out and just do the flush on all setattr requests.
+ 	 *
+ 	 * BB: This should be smarter. Why bother flushing pages that
+-	 * will be truncated anyway? Also, should we error out here if
+-	 * the flush returns error?
++	 * will be truncated anyway?
+ 	 */
+-	rc = filemap_write_and_wait(inode->i_mapping);
+-	mapping_set_error(inode->i_mapping, rc);
++	filemap_write_and_wait(inode->i_mapping);
+ 	rc = 0;
  
-+void mark_buffer_write_io_error(struct buffer_head *bh)
-+{
-+	set_buffer_write_io_error(bh);
-+	/* FIXME: do we need to set this in both places? */
-+	if (bh->b_page && bh->b_page->mapping)
-+		mapping_set_error(bh->b_page->mapping, -EIO);
-+	if (bh->b_assoc_map)
-+		mapping_set_error(bh->b_assoc_map, -EIO);
-+}
-+EXPORT_SYMBOL(mark_buffer_write_io_error);
-+
- /*
-  * Decrement a buffer_head's reference count.  If all buffers against a page
-  * have zero reference count, are clean and unlocked, and if the page is clean
-@@ -3291,8 +3300,6 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
+ 	if (attrs->ia_valid & ATTR_SIZE) {
+@@ -2314,15 +2309,12 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
+ 	 * Attempt to flush data before changing attributes. We need to do
+ 	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+ 	 * ownership or mode then we may also need to do this. Here, we take
+-	 * the safe way out and just do the flush on all setattr requests. If
+-	 * the flush returns error, store it to report later and continue.
++	 * the safe way out and just do the flush on all setattr requests.
+ 	 *
+ 	 * BB: This should be smarter. Why bother flushing pages that
+-	 * will be truncated anyway? Also, should we error out here if
+-	 * the flush returns error?
++	 * will be truncated anyway?
+ 	 */
+-	rc = filemap_write_and_wait(inode->i_mapping);
+-	mapping_set_error(inode->i_mapping, rc);
++	filemap_write_and_wait(inode->i_mapping);
+ 	rc = 0;
  
- 	bh = head;
- 	do {
--		if (buffer_write_io_error(bh) && page->mapping)
--			mapping_set_error(page->mapping, -EIO);
- 		if (buffer_busy(bh))
- 			goto failed;
- 		bh = bh->b_this_page;
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index b1f9144b42c7..cd7857ab1a6a 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -182,7 +182,7 @@ static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
- 		bh = bh->b_this_page;
- 	do {
- 		if (error)
--			set_buffer_write_io_error(bh);
-+			mark_buffer_write_io_error(bh);
- 		unlock_buffer(bh);
- 		next = bh->b_this_page;
- 		size -= bh->b_size;
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index 79591c3660cc..db6256fb1692 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -149,6 +149,7 @@ void buffer_check_dirty_writeback(struct page *page,
-  */
- 
- void mark_buffer_dirty(struct buffer_head *bh);
-+void mark_buffer_write_io_error(struct buffer_head *bh);
- void init_buffer(struct buffer_head *, bh_end_io_t *, void *);
- void touch_buffer(struct buffer_head *bh);
- void set_bh_page(struct buffer_head *bh,
+ 	if (attrs->ia_valid & ATTR_SIZE) {
 -- 
 2.9.3
 
