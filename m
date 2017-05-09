@@ -1,99 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8325A6B02F4
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 10:18:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b5so1241117pfe.0
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 07:18:38 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTP id z62si43046pgd.93.2017.05.09.07.11.06
-        for <linux-mm@kvack.org>;
-        Tue, 09 May 2017 07:18:37 -0700 (PDT)
-Message-ID: <5911C9F9.3020802@huawei.com>
-Date: Tue, 9 May 2017 21:54:01 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B376E2806D7
+	for <linux-mm@kvack.org>; Tue,  9 May 2017 10:40:04 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k57so646410wrk.6
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 07:40:04 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z185si1173430wmz.73.2017.05.09.07.40.02
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 09 May 2017 07:40:03 -0700 (PDT)
+Date: Tue, 9 May 2017 15:39:59 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC 03/10] x86/mm: Make the batched unmap TLB flush API more
+ generic
+Message-ID: <20170509143959.u5e5vryzo26pdse4@suse.de>
+References: <cover.1494160201.git.luto@kernel.org>
+ <983c5ee661d8fe8a70c596c4e77076d11ce3f80a.1494160201.git.luto@kernel.org>
+ <d36207ef-a4b3-24ef-40e4-9e6a22b092cb@intel.com>
+ <CALCETrXO2etzB55ZYk9xy4=8bWQC1+mv877tJHg-tOUpWGk6qw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: fix the memory leak after collapsing the huge
- page fails
-References: <1494327305-835-1-git-send-email-zhongjiang@huawei.com> <442638e9-d6db-2f1c-e260-9290d7524f1d@suse.cz> <5911B40D.2020007@huawei.com> <0bca4592-efa5-deba-0369-19beacfd2a63@suse.cz>
-In-Reply-To: <0bca4592-efa5-deba-0369-19beacfd2a63@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CALCETrXO2etzB55ZYk9xy4=8bWQC1+mv877tJHg-tOUpWGk6qw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, mgorman@techsingularity.net, linux-mm@kvack.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Sasha Levin <sasha.levin@oracle.com>
 
-Hi, Vlastimil
+On Tue, May 09, 2017 at 06:02:49AM -0700, Andrew Lutomirski wrote:
+> On Mon, May 8, 2017 at 8:34 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+> > On 05/07/2017 05:38 AM, Andy Lutomirski wrote:
+> >> diff --git a/mm/rmap.c b/mm/rmap.c
+> >> index f6838015810f..2e568c82f477 100644
+> >> --- a/mm/rmap.c
+> >> +++ b/mm/rmap.c
+> >> @@ -579,25 +579,12 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
+> >>  void try_to_unmap_flush(void)
+> >>  {
+> >>       struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
+> >> -     int cpu;
+> >>
+> >>       if (!tlb_ubc->flush_required)
+> >>               return;
+> >>
+> >> -     cpu = get_cpu();
+> >> -
+> >> -     if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask)) {
+> >> -             count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+> >> -             local_flush_tlb();
+> >> -             trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+> >> -     }
+> >> -
+> >> -     if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids)
+> >> -             flush_tlb_others(&tlb_ubc->cpumask, NULL, 0, TLB_FLUSH_ALL);
+> >> -     cpumask_clear(&tlb_ubc->cpumask);
+> >>       tlb_ubc->flush_required = false;
+> >>       tlb_ubc->writable = false;
+> >> -     put_cpu();
+> >>  }
+> >>
+> >>  /* Flush iff there are potentially writable TLB entries that can race with IO */
+> >> @@ -613,7 +600,7 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
+> >>  {
+> >>       struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
+> >>
+> >> -     cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
+> >> +     arch_tlbbatch_add_mm(&tlb_ubc->arch, mm);
+> >>       tlb_ubc->flush_required = true;
+> >>
+> >>       /*
+> >
+> > Looking at this patch in isolation, how can this be safe?  It removes
+> > TLB flushes from the generic code.  Do other patches in the series fix
+> > this up?
+> 
+> Hmm?  Unless I totally screwed this up, this patch just moves the
+> flushes around -- it shouldn't remove any flushes.
 
-I review the code again. it works well for NUMA. because
-khugepaged_prealloc_page will put_page when *hpage is true.
+I think he's asking when or how arch_tlbbatch_flush gets called because
+it doesn't happen in try_to_unmap_flush().
 
-the memory leak will still exist in !NUMA. because it ingore
-the put_page. is it right? I miss something.
-
-Thanks
-zhongjiang
-
-On 2017/5/9 20:41, Vlastimil Babka wrote:
-> On 05/09/2017 02:20 PM, zhong jiang wrote:
->> On 2017/5/9 19:34, Vlastimil Babka wrote:
->>> On 05/09/2017 12:55 PM, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> Current, when we prepare a huge page to collapse, due to some
->>>> reasons, it can fail to collapse. At the moment, we should
->>>> release the preallocate huge page.
->>>>
->>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>> Hmm, scratch that, there's no memory leak. The pointer to new_page is
->>> stored in *hpage, and put_page() is called all the way up in
->>> khugepaged_do_scan().
->>  I see. I miss it. but why the new_page need to be release all the way.
-> AFAIK to support preallocation and reusal of preallocated page for
-> collapse attempt in different pmd. It only works for !NUMA so it's
-> likely not worth all the trouble and complicated code, so I wouldn't be
-> opposed to simplifying this.
->
->>  I do not see the count increment when scan success. it save the memory,
->>  only when page fault happen.
-> I don't understand what you mean here?
->
->>  Thanks
->>  zhongjiang
->>>> ---
->>>>  mm/khugepaged.c | 4 ++++
->>>>  1 file changed, 4 insertions(+)
->>>>
->>>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
->>>> index 7cb9c88..586b1f1 100644
->>>> --- a/mm/khugepaged.c
->>>> +++ b/mm/khugepaged.c
->>>> @@ -1082,6 +1082,8 @@ static void collapse_huge_page(struct mm_struct *mm,
->>>>  	up_write(&mm->mmap_sem);
->>>>  out_nolock:
->>>>  	trace_mm_collapse_huge_page(mm, isolated, result);
->>>> +	if (page != NULL && result != SCAN_SUCCEED)
->>>> +		put_page(new_page);
->>>>  	return;
->>>>  out:
->>>>  	mem_cgroup_cancel_charge(new_page, memcg, true);
->>>> @@ -1555,6 +1557,8 @@ static void collapse_shmem(struct mm_struct *mm,
->>>>  	}
->>>>  out:
->>>>  	VM_BUG_ON(!list_empty(&pagelist));
->>>> +	if (page != NULL && result != SCAN_SUCCEED)
->>>> +		put_page(new_page);
->>>>  	/* TODO: tracepoints */
->>>>  }
->>>>  
->>>>
->>> .
->>>
->>
->
-> .
->
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
