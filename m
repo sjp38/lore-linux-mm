@@ -1,73 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 262C7280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:05:46 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z88so5927523wrc.9
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:05:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v67si3429634wmv.2.2017.05.10.01.05.44
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B7BD280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:10:17 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id t9so25397779oih.13
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:10:17 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id 81si973937otj.203.2017.05.10.01.10.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 May 2017 01:05:44 -0700 (PDT)
-Date: Wed, 10 May 2017 10:05:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-Message-ID: <20170510080542.GF31466@dhcp22.suse.cz>
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
- <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
+        Wed, 10 May 2017 01:10:16 -0700 (PDT)
+Message-ID: <5912C845.1080008@huawei.com>
+Date: Wed, 10 May 2017 15:59:01 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
+Subject: Re: [PATCH v2] mm: fix the memory leak after collapsing the huge
+ page fails
+References: <1494327305-835-1-git-send-email-zhongjiang@huawei.com> <442638e9-d6db-2f1c-e260-9290d7524f1d@suse.cz> <5911B40D.2020007@huawei.com> <0bca4592-efa5-deba-0369-19beacfd2a63@suse.cz> <5911C9F9.3020802@huawei.com> <6810ea54-faed-fcc1-7751-ff91fa3f9d8e@suse.cz>
+In-Reply-To: <6810ea54-faed-fcc1-7751-ff91fa3f9d8e@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
-On Fri 05-05-17 13:42:27, Igor Stoppa wrote:
-> On 04/05/17 19:49, Laura Abbott wrote:
-> > [adding kernel-hardening since I think there would be interest]
-> 
-> thank you, I overlooked this
-> 
-> 
-> > BPF takes the approach of calling set_memory_ro to mark regions as
-> > read only. I'm certainly over simplifying but it sounds like this
-> > is mostly a mechanism to have this happen mostly automatically.
-> > Can you provide any more details about tradeoffs of the two approaches?
-> 
-> I am not sure I understand the question ...
-> For what I can understand, the bpf is marking as read only something
-> that spans across various pages, which is fine.
-> The payload to be protected is already organized in such pages.
-> 
-> But in the case I have in mind, I have various, heterogeneous chunks of
-> data, coming from various subsystems, not necessarily page aligned.
-> And, even if they were page aligned, most likely they would be far
-> smaller than a page, even a 4k page.
+On 2017/5/10 14:51, Vlastimil Babka wrote:
+> On 05/09/2017 03:54 PM, zhong jiang wrote:
+>> Hi, Vlastimil
+>>
+>> I review the code again. it works well for NUMA. because
+>> khugepaged_prealloc_page will put_page when *hpage is true.
+>>
+>> the memory leak will still exist in !NUMA. because it ingore
+>> the put_page. is it right? I miss something.
+> No, on !NUMA the preallocated and unused new_page is freed by put_page()
+> at the very end of khugepaged_do_scan().
+ Thank you for clarification. I should consider more before sending the patch.
+ 
+ Thanks
+ zhongjiang
+>> Thanks
+>> zhongjiang
+>>
+>> On 2017/5/9 20:41, Vlastimil Babka wrote:
+>>> On 05/09/2017 02:20 PM, zhong jiang wrote:
+>>>> On 2017/5/9 19:34, Vlastimil Babka wrote:
+>>>>> On 05/09/2017 12:55 PM, zhongjiang wrote:
+>>>>>> From: zhong jiang <zhongjiang@huawei.com>
+>>>>>>
+>>>>>> Current, when we prepare a huge page to collapse, due to some
+>>>>>> reasons, it can fail to collapse. At the moment, we should
+>>>>>> release the preallocate huge page.
+>>>>>>
+>>>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>>>>> Hmm, scratch that, there's no memory leak. The pointer to new_page is
+>>>>> stored in *hpage, and put_page() is called all the way up in
+>>>>> khugepaged_do_scan().
+>>>>  I see. I miss it. but why the new_page need to be release all the way.
+>>> AFAIK to support preallocation and reusal of preallocated page for
+>>> collapse attempt in different pmd. It only works for !NUMA so it's
+>>> likely not worth all the trouble and complicated code, so I wouldn't be
+>>> opposed to simplifying this.
+>>>
+>>>>  I do not see the count increment when scan success. it save the memory,
+>>>>  only when page fault happen.
+>>> I don't understand what you mean here?
+>>>
+>>>>  Thanks
+>>>>  zhongjiang
+>>>>>> ---
+>>>>>>  mm/khugepaged.c | 4 ++++
+>>>>>>  1 file changed, 4 insertions(+)
+>>>>>>
+>>>>>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+>>>>>> index 7cb9c88..586b1f1 100644
+>>>>>> --- a/mm/khugepaged.c
+>>>>>> +++ b/mm/khugepaged.c
+>>>>>> @@ -1082,6 +1082,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+>>>>>>  	up_write(&mm->mmap_sem);
+>>>>>>  out_nolock:
+>>>>>>  	trace_mm_collapse_huge_page(mm, isolated, result);
+>>>>>> +	if (page != NULL && result != SCAN_SUCCEED)
+>>>>>> +		put_page(new_page);
+>>>>>>  	return;
+>>>>>>  out:
+>>>>>>  	mem_cgroup_cancel_charge(new_page, memcg, true);
+>>>>>> @@ -1555,6 +1557,8 @@ static void collapse_shmem(struct mm_struct *mm,
+>>>>>>  	}
+>>>>>>  out:
+>>>>>>  	VM_BUG_ON(!list_empty(&pagelist));
+>>>>>> +	if (page != NULL && result != SCAN_SUCCEED)
+>>>>>> +		put_page(new_page);
+>>>>>>  	/* TODO: tracepoints */
+>>>>>>  }
+>>>>>>  
+>>>>>>
+>>>>> .
+>>>>>
+>>> .
+>>>
+>>
+>
+> .
+>
 
-This aspect of various sizes makes the SLAB allocator not optimal
-because it operates on caches (pools of pages) which manage objects of
-the same size. You could use the maximum size of all objects and waste
-some memory but you would have to know this max in advance which would
-make this approach less practical. You could create more caches of
-course but that still requires to know those sizes in advance.
-
-So it smells like a dedicated allocator which operates on a pool of
-pages might be a better option in the end. This depends on what you
-expect from the allocator. NUMA awareness? Very effective hotpath? Very
-good fragmentation avoidance? CPU cache awareness? Special alignment
-requirements? Reasonable free()? Etc...
-
-To me it seems that this being an initialization mostly thingy a simple
-allocator which manages a pool of pages (one set of sealed and one for
-allocations) and which only appends new objects as they fit to unsealed
-pages would be sufficient for starter.
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
