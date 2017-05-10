@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 96CDB280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:46:07 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id t12so20022777pgo.7
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:46:07 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id k20si2469676pfg.41.2017.05.10.01.46.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 47D3E280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:54:26 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o52so6300252wrb.10
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:54:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 7si2788215wmv.52.2017.05.10.01.54.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 01:46:06 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id 64so3265371pgb.3
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:46:06 -0700 (PDT)
-Date: Wed, 10 May 2017 01:46:03 -0700
-From: Nick Desaulniers <nick.desaulniers@gmail.com>
-Subject: Re: [PATCH] mm/vmscan: fix unsequenced modification and access
- warning
-Message-ID: <20170510084602.qchu4psnughxrmsz@lostoracle.net>
-References: <20170510065328.9215-1-nick.desaulniers@gmail.com>
- <20170510071511.GA31466@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170510071511.GA31466@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 10 May 2017 01:54:25 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/4 v4] mm,dax: Fix data corruption due to mmap inconsistency
+Date: Wed, 10 May 2017 10:54:15 +0200
+Message-Id: <20170510085419.27601-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-> You can add
+Hello,
 
-Something that's not clear to me when advised to add, should I be
-uploading a v3 with your acked by? I think I got that wrong the last
-time I asked (which was my first patch to Linux).
+this series fixes data corruption that can happen for DAX mounts when
+page faults race with write(2) and as a result page tables get out of sync
+with block mappings in the filesystem and thus data seen through mmap is
+different from data seen through read(2).
 
-> But I still do not understand which part of the code is undefined and
-> why.
+The series passes testing with t_mmap_stale test program from Ross and also
+other mmap related tests on DAX filesystem.
 
-It's not immediately clear to me either, but it's super later here...
+Andrew, can you please merge these patches? Thanks!
 
->  is this a bug in -Wunsequenced in Clang
+Changes since v3:
+* Rebased on top of current Linus' tree due to non-trivial conflicts with
+  added tracepoint
 
-Possibly, I think I already found one earlier tonight.
+Changes since v2:
+* Added reviewed-by tag from Ross
 
-https://bugs.llvm.org/show_bug.cgi?id=32985
+Changes since v1:
+* Improved performance of unmapping pages
+* Changed fault locking to fix another write vs fault race
 
-Tomorrow, I'll try to cut down a test case to see if this is indeed a
-compiler bug.  Would you like me to change the commit message to call
-this just a simple clean up, in the meantime?
-
-Thanks,
-~Nick
+								Honza
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
