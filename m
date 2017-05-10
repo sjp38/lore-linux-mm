@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D166B02FA
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 13:27:57 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id i63so1691981pgd.15
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 10:27:57 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y21si3624251pff.44.2017.05.10.10.27.56
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 55BB56B02F3
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 13:44:57 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 67so5352640itx.11
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 10:44:57 -0700 (PDT)
+Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
+        by mx.google.com with ESMTPS id l197si4276775itl.119.2017.05.10.10.44.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 10:27:56 -0700 (PDT)
-Date: Wed, 10 May 2017 11:27:55 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 0/4 v4] mm,dax: Fix data corruption due to mmap
- inconsistency
-Message-ID: <20170510172755.GA18283@linux.intel.com>
-References: <20170510085419.27601-1-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170510085419.27601-1-jack@suse.cz>
+        Wed, 10 May 2017 10:44:56 -0700 (PDT)
+Received: by mail-io0-x242.google.com with SMTP id 12so826855iol.1
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 10:44:56 -0700 (PDT)
+From: Daniel Micay <danielmicay@gmail.com>
+Subject: [PATCH] mark protection_map as __ro_after_init
+Date: Wed, 10 May 2017 13:44:41 -0400
+Message-Id: <20170510174441.26163-1-danielmicay@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com, Daniel Micay <danielmicay@gmail.com>
 
-On Wed, May 10, 2017 at 10:54:15AM +0200, Jan Kara wrote:
-> Hello,
-> 
-> this series fixes data corruption that can happen for DAX mounts when
-> page faults race with write(2) and as a result page tables get out of sync
-> with block mappings in the filesystem and thus data seen through mmap is
-> different from data seen through read(2).
-> 
-> The series passes testing with t_mmap_stale test program from Ross and also
-> other mmap related tests on DAX filesystem.
-> 
-> Andrew, can you please merge these patches? Thanks!
-> 
-> Changes since v3:
-> * Rebased on top of current Linus' tree due to non-trivial conflicts with
->   added tracepoint
+The protection map is only modified by per-arch init code so it can be
+protected from writes after the init code runs.
 
-Cool, the merge update looks correct to me.
+This change was extracted from PaX where it's part of KERNEXEC.
+
+Signed-off-by: Daniel Micay <danielmicay@gmail.com>
+---
+ mm/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f82741e199c0..3bd5ecd20d4d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -94,7 +94,7 @@ static void unmap_region(struct mm_struct *mm,
+  *								w: (no) no
+  *								x: (yes) yes
+  */
+-pgprot_t protection_map[16] = {
++pgprot_t protection_map[16] __ro_after_init = {
+ 	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
+ 	__S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111
+ };
+-- 
+2.12.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
