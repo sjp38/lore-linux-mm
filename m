@@ -1,126 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7582808A3
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 10:56:20 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id j58so11948159qtc.2
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 07:56:20 -0700 (PDT)
-Received: from mail-qt0-f177.google.com (mail-qt0-f177.google.com. [209.85.216.177])
-        by mx.google.com with ESMTPS id a2si3401958qkd.237.2017.05.10.07.56.19
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 28A3F2808A3
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 10:57:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g12so9738549wrg.15
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 07:57:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z12si3734941wmh.135.2017.05.10.07.57.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 07:56:19 -0700 (PDT)
-Received: by mail-qt0-f177.google.com with SMTP id j29so31680738qtj.1
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 07:56:19 -0700 (PDT)
-Message-ID: <1494428176.2688.25.camel@redhat.com>
-Subject: Re: [PATCH v4 13/27] lib: add errseq_t type and infrastructure for
- handling it
-From: Jeff Layton <jlayton@redhat.com>
-Date: Wed, 10 May 2017 10:56:16 -0400
-In-Reply-To: <20170510141821.GB1590@bombadil.infradead.org>
-References: <20170509154930.29524-1-jlayton@redhat.com>
-	 <20170509154930.29524-14-jlayton@redhat.com>
-	 <20170510141821.GB1590@bombadil.infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 10 May 2017 07:57:30 -0700 (PDT)
+Date: Wed, 10 May 2017 16:57:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v3 0/9] parallelized "struct page" zeroing
+Message-ID: <20170510145726.GM31466@dhcp22.suse.cz>
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+ <20170509181234.GA4397@dhcp22.suse.cz>
+ <fae4a92c-e78c-32cb-606a-8e5087acb13f@oracle.com>
+ <20170510072419.GC31466@dhcp22.suse.cz>
+ <3f5f1416-aa91-a2ff-cc89-b97fcaa3e4db@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3f5f1416-aa91-a2ff-cc89-b97fcaa3e4db@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com, bo.li.liu@oracle.com
+To: Pasha Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-On Wed, 2017-05-10 at 07:18 -0700, Matthew Wilcox wrote:
-> On Tue, May 09, 2017 at 11:49:16AM -0400, Jeff Layton wrote:
-> > +++ b/lib/errseq.c
-> > @@ -0,0 +1,199 @@
-> > +#include <linux/err.h>
-> > +#include <linux/bug.h>
-> > +#include <linux/atomic.h>
-> > +#include <linux/errseq.h>
-> > +
-> > +/*
-> > + * An errseq_t is a way of recording errors in one place, and allowing any
-> > + * number of "subscribers" to tell whether it has changed since an arbitrary
-> > + * time of their choosing.
+On Wed 10-05-17 09:42:22, Pasha Tatashin wrote:
+> >
+> >Well, I didn't object to this particular part. I was mostly concerned
+> >about
+> >http://lkml.kernel.org/r/1494003796-748672-4-git-send-email-pasha.tatashin@oracle.com
+> >and the "zero" argument for other functions. I guess we can do without
+> >that. I _think_ that we should simply _always_ initialize the page at the
+> >__init_single_page time rather than during the allocation. That would
+> >require dropping __GFP_ZERO for non-memblock allocations. Or do you
+> >think we could regress for single threaded initialization?
+> >
 > 
-> You use the word "time" in several places in the documentation, but I think
-> it's clearer to say "sampling point" or "sample", since you're not using jiffies
-> or nanoseconds.  For example, I'd phrase this paragraph this way:
+> Hi Michal,
 > 
->  * An errseq_t is a way of recording errors in one place, and allowing any
->  * number of "subscribers" to tell whether it has changed since they last
->  * sampled it.
-> 
-> > + * The general idea is for consumers to sample an errseq_t value at a
-> > + * particular point in time. Later, that value can be used to tell whether any
-> > + * new errors have occurred since that time.
-> 
->  * The general idea is for consumers to sample an errseq_t value.  That
->  * value can be used to tell whether any new errors have occurred since
->  * the last time it was sampled.
-> 
-> > +/* The "ones" bit for the counter */
-> 
-> Maybe "The lowest bit of the counter"?
-> 
-> > +/**
-> > + * errseq_check - has an error occurred since a particular point in time?
-> 
-> "has an error occurred since the last time it was sampled"
-> 
-> > +/**
-> > + * errseq_check_and_advance - check an errseq_t and advance it to the current value
-> > + * @eseq: pointer to value being checked reported
-> 
-> "value being checked reported"?
-> 
+> Thats exactly right, I am worried that we will regress when there is no
+> parallelized initialization of "struct pages" if we force unconditionally do
+> memset() in __init_single_page(). The overhead of calling memset() on a
+> smaller chunks (64-bytes) may cause the regression, this is why I opted only
+> for parallelized case to zero this metadata. This way, we are guaranteed to
+> see great improvements from this change without having regressions on
+> platforms and builds that do not support parallelized initialization of
+> "struct pages".
 
-Thanks. I'm cleaning up the comments like you suggest.
-
-> > +int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
-> > +{
-> > +	int err = 0;
-> > +	errseq_t old, new;
-> > +
-> > +	/*
-> > +	 * Most callers will want to use the inline wrapper to check this,
-> > +	 * so that the common case of no error is handled without needing
-> > +	 * to lock.
-> > +	 */
-> > +	old = READ_ONCE(*eseq);
-> > +	if (old != *since) {
-> > +		/*
-> > +		 * Set the flag and try to swap it into place if it has
-> > +		 * changed.
-> > +		 *
-> > +		 * We don't care about the outcome of the swap here. If the
-> > +		 * swap doesn't occur, then it has either been updated by a
-> > +		 * writer who is bumping the seq count anyway, or another
-> > +		 * reader who is just setting the "seen" flag. Either outcome
-> > +		 * is OK, and we can advance "since" and return an error based
-> > +		 * on what we have.
-> > +		 */
-> > +		new = old | ERRSEQ_SEEN;
-> > +		if (new != old)
-> > +			cmpxchg(eseq, old, new);
-> > +		*since = new;
-> > +		err = -(new & MAX_ERRNO);
-> > +	}
-> 
-> I probably need to read through the patchset some more to understand this.
-> Naively, surely "since" should be updated to the current value of 'eseq'
-> if we failed the cmpxchg()?
-
-I don't think so. If we want to do that, then we'll need to redrive the
-cmpxchg to set the SEEN flag if it's now clear. Storing the value in
-"since" is effectively sampling it, so you do have to mark it seen.
-
-The good news is that I think that "new" is just as valid a value to
-store here as *eseq would be. It ends up representing an errseq_t value
-that never actually got stored in eseq, but that's OK with the way this
-works.
+Have you measured that? I do not think it would be super hard to
+measure. I would be quite surprised if this added much if anything at
+all as the whole struct page should be in the cache line already. We do
+set reference count and other struct members. Almost nobody should be
+looking at our page at this time and stealing the cache line. On the
+other hand a large memcpy will basically wipe everything away from the
+cpu cache. Or am I missing something?
 
 -- 
-Jeff Layton <jlayton@redhat.com>
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
