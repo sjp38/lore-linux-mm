@@ -1,89 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E82280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 03:42:02 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u96so5798207wrc.7
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 00:42:02 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C98A1280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 03:45:21 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id o52so5777154wrb.10
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 00:45:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q81si2516233wrb.280.2017.05.10.00.42.00
+        by mx.google.com with ESMTPS id p184si2658659wmg.123.2017.05.10.00.45.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 May 2017 00:42:00 -0700 (PDT)
-Date: Wed, 10 May 2017 09:41:59 +0200
+        Wed, 10 May 2017 00:45:20 -0700 (PDT)
+Date: Wed, 10 May 2017 09:45:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 2/2] mm: skip HWPoisoned pages when onlining pages
-Message-ID: <20170510074159.GD31466@dhcp22.suse.cz>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com>
- <1493172615.4828.3.camel@gmail.com>
- <20170426031255.GB11619@hori1.linux.bs1.fc.nec.co.jp>
- <20170428063048.GA9399@dhcp22.suse.cz>
- <20170428065050.GC8143@dhcp22.suse.cz>
- <20170428065131.GD8143@dhcp22.suse.cz>
+Subject: Re: RFC v2: post-init-read-only protection for data allocated
+ dynamically
+Message-ID: <20170510074518.GE31466@dhcp22.suse.cz>
+References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
+ <20170504112159.GC31540@dhcp22.suse.cz>
+ <83d4556c-b21c-7ae5-6e83-4621a74f9fd5@huawei.com>
+ <20170504131131.GI31540@dhcp22.suse.cz>
+ <df1b34fb-f90b-da9e-6723-49e8f1cb1757@huawei.com>
+ <20170504140126.GJ31540@dhcp22.suse.cz>
+ <3e798c43-1726-ee7d-add5-762c7e17cb88@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170428065131.GD8143@dhcp22.suse.cz>
+In-Reply-To: <3e798c43-1726-ee7d-add5-762c7e17cb88@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
 
-On Fri 28-04-17 08:51:31, Michal Hocko wrote:
-> On Fri 28-04-17 08:50:50, Michal Hocko wrote:
-> > [Drop Wen Congyang because his address bounces - we will have to find
-> > out ourselves...]
-> > On Fri 28-04-17 08:30:48, Michal Hocko wrote:
-> > > On Wed 26-04-17 03:13:04, Naoya Horiguchi wrote:
-> > > > On Wed, Apr 26, 2017 at 12:10:15PM +1000, Balbir Singh wrote:
-> > > > > On Tue, 2017-04-25 at 16:27 +0200, Laurent Dufour wrote:
-> > > > > > The commit b023f46813cd ("memory-hotplug: skip HWPoisoned page when
-> > > > > > offlining pages") skip the HWPoisoned pages when offlining pages, but
-> > > > > > this should be skipped when onlining the pages too.
-> > > > > >
-> > > > > > Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> > > > > > ---
-> > > > > >  mm/memory_hotplug.c | 4 ++++
-> > > > > >  1 file changed, 4 insertions(+)
-> > > > > >
-> > > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > > > > > index 6fa7208bcd56..741ddb50e7d2 100644
-> > > > > > --- a/mm/memory_hotplug.c
-> > > > > > +++ b/mm/memory_hotplug.c
-> > > > > > @@ -942,6 +942,10 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> > > > > >  	if (PageReserved(pfn_to_page(start_pfn)))
-> > > > > >  		for (i = 0; i < nr_pages; i++) {
-> > > > > >  			page = pfn_to_page(start_pfn + i);
-> > > > > > +			if (PageHWPoison(page)) {
-> > > > > > +				ClearPageReserved(page);
-> > > > >
-> > > > > Why do we clear page reserved? Also if the page is marked PageHWPoison, it
-> > > > > was never offlined to begin with? Or do you expect this to be set on newly
-> > > > > hotplugged memory? Also don't we need to skip the entire pageblock?
-> > > > 
-> > > > If I read correctly, to "skip HWPoiosned page" in commit b023f46813cd means
-> > > > that we skip the page status check for hwpoisoned pages *not* to prevent
-> > > > memory offlining for memblocks with hwpoisoned pages. That means that
-> > > > hwpoisoned pages can be offlined.
-> > > 
-> > > Is this patch actually correct? I am trying to wrap my head around it
-> > > but it smells like it tries to avoid the problem rather than fix it
-> > > properly. I might be wrong here of course but to me it sounds like
-> > > poisoned page should simply be offlined and keep its poison state all
-> > > the time. If the memory is hot-removed and added again we have lost the
-> > > struct page along with the state which is the expected behavior. If it
-> > > is still broken we will re-poison it.
-> > > 
-> > > Anyway a patch to skip over poisoned pages during online makes perfect
-> > > sense to me. The PageReserved fiddling around much less so.
-> > > 
-> > > Or am I missing something. Let's CC Wen Congyang for the clarification
-> > > here.
+On Fri 05-05-17 15:19:19, Igor Stoppa wrote:
+> 
+> 
+> On 04/05/17 17:01, Michal Hocko wrote:
+> > On Thu 04-05-17 16:37:55, Igor Stoppa wrote:
+> 
+> [...]
+> 
+> >> The disadvantage is that anything can happen, undetected, while the seal
+> >> is lifted.
+> > 
+> > Yes and I think this makes it basically pointless
+> 
+> ok, this goes a bit beyond what I had in mind initially, but I see your
+> point
+> 
+> [...]
+> 
+> > Just to make my proposal more clear. I suggest the following workflow
+> > 
+> > cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
+> >
+> > obj = kmem_cache_alloc(cache, gfp_mask);
+> > init_obj(obj)
+> > [more allocations]
+> > kmem_cache_seal(cache);
+> 
+> In case one doesn't want the feature, at which point would it be disabled?
+> 
+> * not creating the slab
+> * not sealing it
+> * something else?
 
-Can we revisit this please? The PageReserved() logic for poisoned pages
-is completely unclear to me. I would rather not rely on the previous
-changelogs and rather build the picture from what is the expected
-behavior instead.
+If the sealing would be disabled then sealing would be a noop.
+
 -- 
 Michal Hocko
 SUSE Labs
