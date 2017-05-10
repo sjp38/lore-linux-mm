@@ -1,40 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 123DE2808A3
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 11:34:43 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k74so13499248qke.4
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 08:34:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 22si3419893qty.279.2017.05.10.08.34.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C80F2808A3
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 11:40:43 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b5so26144718pfe.0
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 08:40:43 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id c2si3202381plb.236.2017.05.10.08.40.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 08:34:42 -0700 (PDT)
-Message-ID: <1494430466.29205.17.camel@redhat.com>
-Subject: Re: [patch 3/3] MM: allow per-cpu vmstat_worker configuration
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 10 May 2017 11:34:26 -0400
-In-Reply-To: <20170503184039.901336380@redhat.com>
-References: <20170503184007.174707977@redhat.com>
-	 <20170503184039.901336380@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 10 May 2017 08:40:42 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id a23so4181889pfe.0
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 08:40:42 -0700 (PDT)
+From: Nick Desaulniers <nick.desaulniers@gmail.com>
+Subject: [Patch v3] mm/vmscan: fix unsequenced modification and access warning
+Date: Wed, 10 May 2017 08:40:30 -0700
+Message-Id: <20170510154030.10720-1-nick.desaulniers@gmail.com>
+In-Reply-To: <20170510092505.GH31466@dhcp22.suse.cz>
+References: <20170510092505.GH31466@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Desaulniers <nick.desaulniers@gmail.com>
 
-On Wed, 2017-05-03 at 15:40 -0300, Marcelo Tosatti wrote:
-> Following the reasoning on the last patch in the series,
-> this patch allows configuration of the per-CPU vmstat worker:
-> it allows the user to disable the per-CPU vmstat worker.
-> 
-> Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+Clang and its -Wunsequenced emits a warning
 
-Is there ever a case where you would want to configure
-this separately from the vmstat_threshold parameter?
+mm/vmscan.c:2961:25: error: unsequenced modification and access to
+'gfp_mask' [-Wunsequenced]
+                .gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
+                                      ^
 
-What use cases are you trying to address?
+While it is not clear to me whether the initialization code violates the
+specification (6.7.8 par 19 (ISO/IEC 9899) looks like it disagrees) the
+code is quite confusing and worth cleaning up anyway. Fix this by
+reusing sc.gfp_mask rather than the updated input gfp_mask parameter.
+
+Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+Changes in v3:
+- changed commit message
+- added previous ack
+
+Will file a bug with llvm later today
+
+ mm/vmscan.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4e7ed65842af..d32c42d17935 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2958,7 +2958,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
++		.gfp_mask = current_gfp_context(gfp_mask),
+ 		.reclaim_idx = gfp_zone(gfp_mask),
+ 		.order = order,
+ 		.nodemask = nodemask,
+@@ -2973,12 +2973,12 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	 * 1 is returned so that the page allocator does not OOM kill at this
+ 	 * point.
+ 	 */
+-	if (throttle_direct_reclaim(gfp_mask, zonelist, nodemask))
++	if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+ 		return 1;
+ 
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
+ 				sc.may_writepage,
+-				gfp_mask,
++				sc.gfp_mask,
+ 				sc.reclaim_idx);
+ 
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+@@ -3763,16 +3763,15 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	const unsigned long nr_pages = 1 << order;
+ 	struct task_struct *p = current;
+ 	struct reclaim_state reclaim_state;
+-	int classzone_idx = gfp_zone(gfp_mask);
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+-		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
++		.gfp_mask = current_gfp_context(gfp_mask),
+ 		.order = order,
+ 		.priority = NODE_RECLAIM_PRIORITY,
+ 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
+ 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
+ 		.may_swap = 1,
+-		.reclaim_idx = classzone_idx,
++		.reclaim_idx = gfp_zone(gfp_mask),
+ 	};
+ 
+ 	cond_resched();
+@@ -3782,7 +3781,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	 * and RECLAIM_UNMAP.
+ 	 */
+ 	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
+-	lockdep_set_current_reclaim_state(gfp_mask);
++	lockdep_set_current_reclaim_state(sc.gfp_mask);
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
