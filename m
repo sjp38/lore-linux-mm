@@ -1,116 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D1BDA2808A3
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 09:57:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b84so7630wmh.0
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 06:57:07 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id z12si3227271edc.188.2017.05.10.06.57.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 744C62808A3
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 10:18:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b5so24525332pfe.0
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 07:18:25 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id t61si2943352plb.258.2017.05.10.07.18.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 06:57:06 -0700 (PDT)
-Date: Wed, 10 May 2017 09:56:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm -v10 1/3] mm, THP, swap: Delay splitting THP during
- swap out
-Message-ID: <20170510135654.GD17121@cmpxchg.org>
-References: <20170425125658.28684-1-ying.huang@intel.com>
- <20170425125658.28684-2-ying.huang@intel.com>
- <20170427053141.GA1925@bbox>
- <87mvb21fz1.fsf@yhuang-dev.intel.com>
- <20170428084044.GB19510@bbox>
- <20170501104430.GA16306@cmpxchg.org>
- <20170501235332.GA4411@bbox>
+        Wed, 10 May 2017 07:18:24 -0700 (PDT)
+Date: Wed, 10 May 2017 07:18:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 13/27] lib: add errseq_t type and infrastructure for
+ handling it
+Message-ID: <20170510141821.GB1590@bombadil.infradead.org>
+References: <20170509154930.29524-1-jlayton@redhat.com>
+ <20170509154930.29524-14-jlayton@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170501235332.GA4411@bbox>
+In-Reply-To: <20170509154930.29524-14-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
+To: Jeff Layton <jlayton@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com, bo.li.liu@oracle.com
 
-Hi Michan,
+On Tue, May 09, 2017 at 11:49:16AM -0400, Jeff Layton wrote:
+> +++ b/lib/errseq.c
+> @@ -0,0 +1,199 @@
+> +#include <linux/err.h>
+> +#include <linux/bug.h>
+> +#include <linux/atomic.h>
+> +#include <linux/errseq.h>
+> +
+> +/*
+> + * An errseq_t is a way of recording errors in one place, and allowing any
+> + * number of "subscribers" to tell whether it has changed since an arbitrary
+> + * time of their choosing.
 
-On Tue, May 02, 2017 at 08:53:32AM +0900, Minchan Kim wrote:
-> @@ -1144,7 +1144,7 @@ void swap_free(swp_entry_t entry)
->  /*
->   * Called after dropping swapcache to decrease refcnt to swap entries.
->   */
-> -void swapcache_free(swp_entry_t entry)
-> +void __swapcache_free(swp_entry_t entry)
->  {
->  	struct swap_info_struct *p;
->  
-> @@ -1156,7 +1156,7 @@ void swapcache_free(swp_entry_t entry)
->  }
->  
->  #ifdef CONFIG_THP_SWAP
-> -void swapcache_free_cluster(swp_entry_t entry)
-> +void __swapcache_free_cluster(swp_entry_t entry)
->  {
->  	unsigned long offset = swp_offset(entry);
->  	unsigned long idx = offset / SWAPFILE_CLUSTER;
-> @@ -1182,6 +1182,14 @@ void swapcache_free_cluster(swp_entry_t entry)
->  }
->  #endif /* CONFIG_THP_SWAP */
->  
-> +void swapcache_free(struct page *page, swp_entry_t entry)
+You use the word "time" in several places in the documentation, but I think
+it's clearer to say "sampling point" or "sample", since you're not using jiffies
+or nanoseconds.  For example, I'd phrase this paragraph this way:
+
+ * An errseq_t is a way of recording errors in one place, and allowing any
+ * number of "subscribers" to tell whether it has changed since they last
+ * sampled it.
+
+> + * The general idea is for consumers to sample an errseq_t value at a
+> + * particular point in time. Later, that value can be used to tell whether any
+> + * new errors have occurred since that time.
+
+ * The general idea is for consumers to sample an errseq_t value.  That
+ * value can be used to tell whether any new errors have occurred since
+ * the last time it was sampled.
+
+> +/* The "ones" bit for the counter */
+
+Maybe "The lowest bit of the counter"?
+
+> +/**
+> + * errseq_check - has an error occurred since a particular point in time?
+
+"has an error occurred since the last time it was sampled"
+
+> +/**
+> + * errseq_check_and_advance - check an errseq_t and advance it to the current value
+> + * @eseq: pointer to value being checked reported
+
+"value being checked reported"?
+
+> +int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
 > +{
-> +	if (!PageTransHuge(page))
-> +		__swapcache_free(entry);
-> +	else
-> +		__swapcache_free_cluster(entry);
-> +}
+> +	int err = 0;
+> +	errseq_t old, new;
+> +
+> +	/*
+> +	 * Most callers will want to use the inline wrapper to check this,
+> +	 * so that the common case of no error is handled without needing
+> +	 * to lock.
+> +	 */
+> +	old = READ_ONCE(*eseq);
+> +	if (old != *since) {
+> +		/*
+> +		 * Set the flag and try to swap it into place if it has
+> +		 * changed.
+> +		 *
+> +		 * We don't care about the outcome of the swap here. If the
+> +		 * swap doesn't occur, then it has either been updated by a
+> +		 * writer who is bumping the seq count anyway, or another
+> +		 * reader who is just setting the "seen" flag. Either outcome
+> +		 * is OK, and we can advance "since" and return an error based
+> +		 * on what we have.
+> +		 */
+> +		new = old | ERRSEQ_SEEN;
+> +		if (new != old)
+> +			cmpxchg(eseq, old, new);
+> +		*since = new;
+> +		err = -(new & MAX_ERRNO);
+> +	}
 
-I don't think this is cleaner :/
-
-On your second patch:
-
-> @@ -1125,8 +1125,28 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		    !PageSwapCache(page)) {
->  			if (!(sc->gfp_mask & __GFP_IO))
->  				goto keep_locked;
-> -			if (!add_to_swap(page, page_list))
-> +swap_retry:
-> +			/*
-> +			 * Retry after split if we fail to allocate
-> +			 * swap space of a THP.
-> +			 */
-> +			if (!add_to_swap(page)) {
-> +				if (!PageTransHuge(page) ||
-> +				    split_huge_page_to_list(page, page_list))
-> +					goto activate_locked;
-> +				goto swap_retry;
-> +			}
-
-This is definitely better.
-
-However, I think it'd be cleaner without the label here:
-
-			if (!add_to_swap(page)) {
-				if (!PageTransHuge(page))
-					goto activate_locked;
-				/* Split THP and swap individual base pages */
-				if (split_huge_page_to_list(page, page_list))
-					goto activate_locked;
-				if (!add_to_swap(page))
-					goto activate_locked;
-			}
-
-> +			/*
-> +			 * Got swap space successfully. But unfortunately,
-> +			 * we don't support a THP page writeout so split it.
-> +			 */
-> +			if (PageTransHuge(page) &&
-> +				  split_huge_page_to_list(page, page_list)) {
-> +				delete_from_swap_cache(page);
->  				goto activate_locked;
-> +			}
-
-Pulling this out of add_to_swap() is an improvement for sure. Add an
-XXX: before that "we don't support THP writes" comment for good
-measure :)
+I probably need to read through the patchset some more to understand this.
+Naively, surely "since" should be updated to the current value of 'eseq'
+if we failed the cmpxchg()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
