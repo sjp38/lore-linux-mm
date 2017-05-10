@@ -1,89 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5CF280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:24:30 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id q91so6023734wrb.8
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:24:30 -0700 (PDT)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id 3si2612022wrk.214.2017.05.10.01.24.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 73EF4280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:27:47 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a66so18592005pfl.6
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:27:47 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id r87si2413831pfd.218.2017.05.10.01.27.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 01:24:29 -0700 (PDT)
-Received: by mail-wr0-x242.google.com with SMTP id v42so6189578wrc.3
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:24:29 -0700 (PDT)
-Date: Wed, 10 May 2017 10:24:25 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC 09/10] x86/mm: Rework lazy TLB to track the actual loaded mm
-Message-ID: <20170510082425.5ks5okbjne7xgjtv@gmail.com>
-References: <cover.1494160201.git.luto@kernel.org>
- <1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org>
- <alpine.DEB.2.20.1705092236290.2295@nanos>
- <20170510055727.g6wojjiis36a6nvm@gmail.com>
- <alpine.DEB.2.20.1705101017590.1979@nanos>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1705101017590.1979@nanos>
+        Wed, 10 May 2017 01:27:46 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id s62so3231032pgc.0
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:27:46 -0700 (PDT)
+From: Nick Desaulniers <nick.desaulniers@gmail.com>
+Subject: [Patch v2] mm/vmscan: fix unsequenced modification and access warning
+Date: Wed, 10 May 2017 01:27:34 -0700
+Message-Id: <20170510082734.2055-1-nick.desaulniers@gmail.com>
+In-Reply-To: <20170510071511.GA31466@dhcp22.suse.cz>
+References: <20170510071511.GA31466@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Desaulniers <nick.desaulniers@gmail.com>
 
+Clang flags this file with the -Wunsequenced error that GCC does not
+have.
 
-* Thomas Gleixner <tglx@linutronix.de> wrote:
+unsequenced modification and access to 'gfp_mask'
 
-> On Wed, 10 May 2017, Ingo Molnar wrote:
-> > 
-> > * Thomas Gleixner <tglx@linutronix.de> wrote:
-> > 
-> > > On Sun, 7 May 2017, Andy Lutomirski wrote:
-> > > >  /* context.lock is held for us, so we don't need any locking. */
-> > > >  static void flush_ldt(void *current_mm)
-> > > >  {
-> > > > +	struct mm_struct *mm = current_mm;
-> > > >  	mm_context_t *pc;
-> > > >  
-> > > > -	if (current->active_mm != current_mm)
-> > > > +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
-> > > 
-> > > While functional correct, this really should compare against 'mm'.
-> > > 
-> > > >  		return;
-> > > >  
-> > > > -	pc = &current->active_mm->context;
-> > > > +	pc = &mm->context;
-> > 
-> > So this appears to be the function:
-> > 
-> >  static void flush_ldt(void *current_mm)
-> >  {
-> >         struct mm_struct *mm = current_mm;
-> >         mm_context_t *pc;
-> > 
-> >         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
-> >                 return;
-> > 
-> >         pc = &mm->context;
-> >         set_ldt(pc->ldt->entries, pc->ldt->size);
-> >  }
-> > 
-> > why not rename 'current_mm' to 'mm' and remove the 'mm' local variable?
-> 
-> Because you cannot dereference a void pointer, i.e. &mm->context ....
+It seems that gfp_mask is both read and written without a sequence point
+in between, which is undefined behavior.
 
-Indeed, doh! The naming totally confused me. The way I'd write it is the canonical 
-form for such callbacks:
+Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
+---
+Changes in v2:
+- don't assign back to gfp_mask, reuse sc.gfp_mask
+- initialize reclaim_idx directly, without classzone_idx
 
-	static void flush_ldt(void *data)
-	{
-		struct mm_struct *mm = data;
+ mm/vmscan.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-... which beyond unconfusing me would probably also have prevented any accidental 
-use of the 'current_mm' callback argument.
-
-Thanks,
-
-	Ingo
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4e7ed65842af..d32c42d17935 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2958,7 +2958,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
++		.gfp_mask = current_gfp_context(gfp_mask),
+ 		.reclaim_idx = gfp_zone(gfp_mask),
+ 		.order = order,
+ 		.nodemask = nodemask,
+@@ -2973,12 +2973,12 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	 * 1 is returned so that the page allocator does not OOM kill at this
+ 	 * point.
+ 	 */
+-	if (throttle_direct_reclaim(gfp_mask, zonelist, nodemask))
++	if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+ 		return 1;
+ 
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
+ 				sc.may_writepage,
+-				gfp_mask,
++				sc.gfp_mask,
+ 				sc.reclaim_idx);
+ 
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+@@ -3763,16 +3763,15 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	const unsigned long nr_pages = 1 << order;
+ 	struct task_struct *p = current;
+ 	struct reclaim_state reclaim_state;
+-	int classzone_idx = gfp_zone(gfp_mask);
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+-		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
++		.gfp_mask = current_gfp_context(gfp_mask),
+ 		.order = order,
+ 		.priority = NODE_RECLAIM_PRIORITY,
+ 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
+ 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
+ 		.may_swap = 1,
+-		.reclaim_idx = classzone_idx,
++		.reclaim_idx = gfp_zone(gfp_mask),
+ 	};
+ 
+ 	cond_resched();
+@@ -3782,7 +3781,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	 * and RECLAIM_UNMAP.
+ 	 */
+ 	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
+-	lockdep_set_current_reclaim_state(gfp_mask);
++	lockdep_set_current_reclaim_state(sc.gfp_mask);
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
