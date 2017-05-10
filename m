@@ -1,109 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B7BD280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:10:17 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t9so25397779oih.13
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:10:17 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id 81si973937otj.203.2017.05.10.01.10.14
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6244A280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:19:13 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w50so5995936wrc.4
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:19:13 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id x142si3651723wme.58.2017.05.10.01.19.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 May 2017 01:10:16 -0700 (PDT)
-Message-ID: <5912C845.1080008@huawei.com>
-Date: Wed, 10 May 2017 15:59:01 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 10 May 2017 01:19:12 -0700 (PDT)
+Date: Wed, 10 May 2017 10:19:02 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [RFC 09/10] x86/mm: Rework lazy TLB to track the actual loaded
+ mm
+In-Reply-To: <20170510055727.g6wojjiis36a6nvm@gmail.com>
+Message-ID: <alpine.DEB.2.20.1705101017590.1979@nanos>
+References: <cover.1494160201.git.luto@kernel.org> <1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org> <alpine.DEB.2.20.1705092236290.2295@nanos> <20170510055727.g6wojjiis36a6nvm@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: fix the memory leak after collapsing the huge
- page fails
-References: <1494327305-835-1-git-send-email-zhongjiang@huawei.com> <442638e9-d6db-2f1c-e260-9290d7524f1d@suse.cz> <5911B40D.2020007@huawei.com> <0bca4592-efa5-deba-0369-19beacfd2a63@suse.cz> <5911C9F9.3020802@huawei.com> <6810ea54-faed-fcc1-7751-ff91fa3f9d8e@suse.cz>
-In-Reply-To: <6810ea54-faed-fcc1-7751-ff91fa3f9d8e@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, mgorman@techsingularity.net, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On 2017/5/10 14:51, Vlastimil Babka wrote:
-> On 05/09/2017 03:54 PM, zhong jiang wrote:
->> Hi, Vlastimil
->>
->> I review the code again. it works well for NUMA. because
->> khugepaged_prealloc_page will put_page when *hpage is true.
->>
->> the memory leak will still exist in !NUMA. because it ingore
->> the put_page. is it right? I miss something.
-> No, on !NUMA the preallocated and unused new_page is freed by put_page()
-> at the very end of khugepaged_do_scan().
- Thank you for clarification. I should consider more before sending the patch.
- 
- Thanks
- zhongjiang
->> Thanks
->> zhongjiang
->>
->> On 2017/5/9 20:41, Vlastimil Babka wrote:
->>> On 05/09/2017 02:20 PM, zhong jiang wrote:
->>>> On 2017/5/9 19:34, Vlastimil Babka wrote:
->>>>> On 05/09/2017 12:55 PM, zhongjiang wrote:
->>>>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>>>
->>>>>> Current, when we prepare a huge page to collapse, due to some
->>>>>> reasons, it can fail to collapse. At the moment, we should
->>>>>> release the preallocate huge page.
->>>>>>
->>>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>>>> Hmm, scratch that, there's no memory leak. The pointer to new_page is
->>>>> stored in *hpage, and put_page() is called all the way up in
->>>>> khugepaged_do_scan().
->>>>  I see. I miss it. but why the new_page need to be release all the way.
->>> AFAIK to support preallocation and reusal of preallocated page for
->>> collapse attempt in different pmd. It only works for !NUMA so it's
->>> likely not worth all the trouble and complicated code, so I wouldn't be
->>> opposed to simplifying this.
->>>
->>>>  I do not see the count increment when scan success. it save the memory,
->>>>  only when page fault happen.
->>> I don't understand what you mean here?
->>>
->>>>  Thanks
->>>>  zhongjiang
->>>>>> ---
->>>>>>  mm/khugepaged.c | 4 ++++
->>>>>>  1 file changed, 4 insertions(+)
->>>>>>
->>>>>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
->>>>>> index 7cb9c88..586b1f1 100644
->>>>>> --- a/mm/khugepaged.c
->>>>>> +++ b/mm/khugepaged.c
->>>>>> @@ -1082,6 +1082,8 @@ static void collapse_huge_page(struct mm_struct *mm,
->>>>>>  	up_write(&mm->mmap_sem);
->>>>>>  out_nolock:
->>>>>>  	trace_mm_collapse_huge_page(mm, isolated, result);
->>>>>> +	if (page != NULL && result != SCAN_SUCCEED)
->>>>>> +		put_page(new_page);
->>>>>>  	return;
->>>>>>  out:
->>>>>>  	mem_cgroup_cancel_charge(new_page, memcg, true);
->>>>>> @@ -1555,6 +1557,8 @@ static void collapse_shmem(struct mm_struct *mm,
->>>>>>  	}
->>>>>>  out:
->>>>>>  	VM_BUG_ON(!list_empty(&pagelist));
->>>>>> +	if (page != NULL && result != SCAN_SUCCEED)
->>>>>> +		put_page(new_page);
->>>>>>  	/* TODO: tracepoints */
->>>>>>  }
->>>>>>  
->>>>>>
->>>>> .
->>>>>
->>> .
->>>
->>
->
-> .
->
+On Wed, 10 May 2017, Ingo Molnar wrote:
+> 
+> * Thomas Gleixner <tglx@linutronix.de> wrote:
+> 
+> > On Sun, 7 May 2017, Andy Lutomirski wrote:
+> > >  /* context.lock is held for us, so we don't need any locking. */
+> > >  static void flush_ldt(void *current_mm)
+> > >  {
+> > > +	struct mm_struct *mm = current_mm;
+> > >  	mm_context_t *pc;
+> > >  
+> > > -	if (current->active_mm != current_mm)
+> > > +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
+> > 
+> > While functional correct, this really should compare against 'mm'.
+> > 
+> > >  		return;
+> > >  
+> > > -	pc = &current->active_mm->context;
+> > > +	pc = &mm->context;
+> 
+> So this appears to be the function:
+> 
+>  static void flush_ldt(void *current_mm)
+>  {
+>         struct mm_struct *mm = current_mm;
+>         mm_context_t *pc;
+> 
+>         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
+>                 return;
+> 
+>         pc = &mm->context;
+>         set_ldt(pc->ldt->entries, pc->ldt->size);
+>  }
+> 
+> why not rename 'current_mm' to 'mm' and remove the 'mm' local variable?
 
+Because you cannot dereference a void pointer, i.e. &mm->context ....
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
