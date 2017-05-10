@@ -1,80 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 95296280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 03:24:22 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g67so5735464wrd.0
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 00:24:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 17E82280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 03:42:02 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u96so5798207wrc.7
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 00:42:02 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p187si2653395wmd.93.2017.05.10.00.24.21
+        by mx.google.com with ESMTPS id q81si2516233wrb.280.2017.05.10.00.42.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 May 2017 00:24:21 -0700 (PDT)
-Date: Wed, 10 May 2017 09:24:19 +0200
+        Wed, 10 May 2017 00:42:00 -0700 (PDT)
+Date: Wed, 10 May 2017 09:41:59 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v3 0/9] parallelized "struct page" zeroing
-Message-ID: <20170510072419.GC31466@dhcp22.suse.cz>
-References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
- <20170509181234.GA4397@dhcp22.suse.cz>
- <fae4a92c-e78c-32cb-606a-8e5087acb13f@oracle.com>
+Subject: Re: [PATCH v2 2/2] mm: skip HWPoisoned pages when onlining pages
+Message-ID: <20170510074159.GD31466@dhcp22.suse.cz>
+References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1493172615.4828.3.camel@gmail.com>
+ <20170426031255.GB11619@hori1.linux.bs1.fc.nec.co.jp>
+ <20170428063048.GA9399@dhcp22.suse.cz>
+ <20170428065050.GC8143@dhcp22.suse.cz>
+ <20170428065131.GD8143@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fae4a92c-e78c-32cb-606a-8e5087acb13f@oracle.com>
+In-Reply-To: <20170428065131.GD8143@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Tue 09-05-17 14:54:50, Pasha Tatashin wrote:
-[...]
-> >The implementation just looks too large to what I would expect. E.g. do
-> >we really need to add zero argument to the large part of the memblock
-> >API? Wouldn't it be easier to simply export memblock_virt_alloc_internal
-> >(or its tiny wrapper memblock_virt_alloc_core) and move the zeroing
-> >outside to its 2 callers? A completely untested scratched version at the
-> >end of the email.
-> 
-> I am OK, with this change. But, I do not really see a difference between:
-> 
-> memblock_virt_alloc_raw()
-> and
-> memblock_virt_alloc_core()
-> 
-> In both cases we use memblock_virt_alloc_internal(), but the only difference
-> is that in my case we tell memblock_virt_alloc_internal() to zero the pages
-> if needed, and in your case the other two callers are zeroing it. I like
-> moving memblock_dbg() inside memblock_virt_alloc_internal()
+On Fri 28-04-17 08:51:31, Michal Hocko wrote:
+> On Fri 28-04-17 08:50:50, Michal Hocko wrote:
+> > [Drop Wen Congyang because his address bounces - we will have to find
+> > out ourselves...]
+> > On Fri 28-04-17 08:30:48, Michal Hocko wrote:
+> > > On Wed 26-04-17 03:13:04, Naoya Horiguchi wrote:
+> > > > On Wed, Apr 26, 2017 at 12:10:15PM +1000, Balbir Singh wrote:
+> > > > > On Tue, 2017-04-25 at 16:27 +0200, Laurent Dufour wrote:
+> > > > > > The commit b023f46813cd ("memory-hotplug: skip HWPoisoned page when
+> > > > > > offlining pages") skip the HWPoisoned pages when offlining pages, but
+> > > > > > this should be skipped when onlining the pages too.
+> > > > > >
+> > > > > > Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> > > > > > ---
+> > > > > >  mm/memory_hotplug.c | 4 ++++
+> > > > > >  1 file changed, 4 insertions(+)
+> > > > > >
+> > > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > > > > > index 6fa7208bcd56..741ddb50e7d2 100644
+> > > > > > --- a/mm/memory_hotplug.c
+> > > > > > +++ b/mm/memory_hotplug.c
+> > > > > > @@ -942,6 +942,10 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+> > > > > >  	if (PageReserved(pfn_to_page(start_pfn)))
+> > > > > >  		for (i = 0; i < nr_pages; i++) {
+> > > > > >  			page = pfn_to_page(start_pfn + i);
+> > > > > > +			if (PageHWPoison(page)) {
+> > > > > > +				ClearPageReserved(page);
+> > > > >
+> > > > > Why do we clear page reserved? Also if the page is marked PageHWPoison, it
+> > > > > was never offlined to begin with? Or do you expect this to be set on newly
+> > > > > hotplugged memory? Also don't we need to skip the entire pageblock?
+> > > > 
+> > > > If I read correctly, to "skip HWPoiosned page" in commit b023f46813cd means
+> > > > that we skip the page status check for hwpoisoned pages *not* to prevent
+> > > > memory offlining for memblocks with hwpoisoned pages. That means that
+> > > > hwpoisoned pages can be offlined.
+> > > 
+> > > Is this patch actually correct? I am trying to wrap my head around it
+> > > but it smells like it tries to avoid the problem rather than fix it
+> > > properly. I might be wrong here of course but to me it sounds like
+> > > poisoned page should simply be offlined and keep its poison state all
+> > > the time. If the memory is hot-removed and added again we have lost the
+> > > struct page along with the state which is the expected behavior. If it
+> > > is still broken we will re-poison it.
+> > > 
+> > > Anyway a patch to skip over poisoned pages during online makes perfect
+> > > sense to me. The PageReserved fiddling around much less so.
+> > > 
+> > > Or am I missing something. Let's CC Wen Congyang for the clarification
+> > > here.
 
-Well, I didn't object to this particular part. I was mostly concerned
-about
-http://lkml.kernel.org/r/1494003796-748672-4-git-send-email-pasha.tatashin@oracle.com
-and the "zero" argument for other functions. I guess we can do without
-that. I _think_ that we should simply _always_ initialize the page at the
-__init_single_page time rather than during the allocation. That would
-require dropping __GFP_ZERO for non-memblock allocations. Or do you
-think we could regress for single threaded initialization?
-
-> >Also it seems that this is not 100% correct either as it only cares
-> >about VMEMMAP while DEFERRED_STRUCT_PAGE_INIT might be enabled also for
-> >SPARSEMEM. This would suggest that we would zero out pages twice,
-> >right?
-> 
-> Thank you, I will check this combination before sending out the next patch.
-> 
-> >
-> >A similar concern would go to the memory hotplug patch which will
-> >fall back to the slab/page allocator IIRC. On the other hand
-> >__init_single_page is shared with the hotplug code so again we would
-> >initialize 2 times.
-> 
-> Correct, when memory it hotplugged, to gain the benefit of this fix, and
-> also not to regress by actually double zeroing "struct pages" we should not
-> zero it out. However, I do not really have means to test it.
-
-It should be pretty easy to test with kvm, but I can help with testing
-on the real HW as well.
-
-Thanks!
+Can we revisit this please? The PageReserved() logic for poisoned pages
+is completely unclear to me. I would rather not rely on the previous
+changelogs and rather build the picture from what is the expected
+behavior instead.
 -- 
 Michal Hocko
 SUSE Labs
