@@ -1,96 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 182F683207
-	for <linux-mm@kvack.org>; Tue,  9 May 2017 22:57:22 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l64so14296777pfb.14
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 19:57:22 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id h67si208223pgc.393.2017.05.09.19.57.21
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B06783204
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 00:43:19 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g12so4969271wrg.15
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 21:43:19 -0700 (PDT)
+Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
+        by mx.google.com with ESMTPS id 130si2993868wmq.94.2017.05.09.21.43.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 May 2017 19:57:21 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id w69so2148350pfk.1
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 19:57:21 -0700 (PDT)
-Date: Wed, 10 May 2017 10:57:21 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH -mm] mm, swap: Remove unused function prototype
-Message-ID: <20170510025721.GC8480@WeideMBP.lan>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170405071017.23677-1-ying.huang@intel.com>
+        Tue, 09 May 2017 21:43:17 -0700 (PDT)
+Received: by mail-wr0-x243.google.com with SMTP id g12so4967830wrg.2
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 21:43:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="UFHRwCdBEJvubb2X"
-Content-Disposition: inline
-In-Reply-To: <20170405071017.23677-1-ying.huang@intel.com>
+In-Reply-To: <20170421120512.23960-1-mhocko@kernel.org>
+References: <20170421120512.23960-1-mhocko@kernel.org>
+From: Dan Williams <dan.j.williams@gmail.com>
+Date: Tue, 9 May 2017 21:43:16 -0700
+Message-ID: <CAA9_cmexLPT4m_TEh69fC_OqBD4n4bND-vz33qoKSgXm_Q72Cw@mail.gmail.com>
+Subject: Re: [PATCH -v3 0/13] mm: make movable onlining suck less
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michal Hocko <mhocko@suse.com>, Tobias Regnery <tobias.regnery@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-
---UFHRwCdBEJvubb2X
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, Apr 05, 2017 at 03:10:17PM +0800, Huang, Ying wrote:
->From: Huang Ying <ying.huang@intel.com>
+On Fri, Apr 21, 2017 at 5:05 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> Hi,
+> The last version of this series has been posted here [1]. It has seen
+> some more testing (thanks to Reza Arbab and Igor Mammedov[2]), Jerome's
+> and Vlastimil's review resulted in few fixes mostly folded in their
+> respected patches.
+> There are 4 more patches (patch 6+ in this series).  I have checked the
+> most prominent pfn walkers to skip over offline holes and now and I feel
+> more comfortable to have this merged. All the reported issues should be
+> fixed
 >
->This is a code cleanup patch, no functionality changes.  There are 2
->unused function prototype in swap.h, they are removed.
+> There is still a lot of work on top - namely this implementation doesn't
+> support reonlining to a different zone on the zones boundaries but I
+> will do that in a separate series because this one is getting quite
+> large already and it should work reasonably well now.
 >
->Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->Cc: Tim Chen <tim.c.chen@linux.intel.com>
->---
-> include/linux/swap.h | 3 ---
-> 1 file changed, 3 deletions(-)
+> Joonsoo had some worries about pfn_valid and suggested to change its
+> semantic to return false on offline holes but I would be rally worried
+> to change a established semantic used by a lot of code and so I have
+> introuduced pfn_to_online_page helper instead. If this is seen as a
+> controversial point I would rather drop pfn_to_online_page and related
+> patches as they are not stictly necessary because the code would be
+> similarly broken as now wrt. offline holes.
 >
->diff --git a/include/linux/swap.h b/include/linux/swap.h
->index 486494e6b2fc..ba5882419a7d 100644
->--- a/include/linux/swap.h
->+++ b/include/linux/swap.h
->@@ -411,9 +411,6 @@ struct backing_dev_info;
-> extern int init_swap_address_space(unsigned int type, unsigned long nr_pa=
-ges);
-> extern void exit_swap_address_space(unsigned int type);
->=20
->-extern int get_swap_slots(int n, swp_entry_t *slots);
->-extern void swapcache_free_batch(swp_entry_t *entries, int n);
->-
-> #else /* CONFIG_SWAP */
->=20
-> #define swap_address_space(entry)		(NULL)
->--=20
->2.11.0
+> This is a rebase on top of linux-next (next-20170418) and the full
+> series is in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> try attempts/rewrite-mem_hotplug branch.
+>
+[..]
+> Any thoughts, complains, suggestions?
+>
+> As a bonus we will get a nice cleanup in the memory hotplug codebase.
+>  arch/ia64/mm/init.c            |  11 +-
+>  arch/powerpc/mm/mem.c          |  12 +-
+>  arch/s390/mm/init.c            |  32 +--
+>  arch/sh/mm/init.c              |  10 +-
+>  arch/x86/mm/init_32.c          |   7 +-
+>  arch/x86/mm/init_64.c          |  11 +-
+>  drivers/base/memory.c          |  79 +++----
+>  drivers/base/node.c            |  58 ++----
+>  include/linux/memory_hotplug.h |  40 +++-
+>  include/linux/mmzone.h         |  44 +++-
+>  include/linux/node.h           |  35 +++-
+>  kernel/memremap.c              |   6 +-
+>  mm/compaction.c                |   5 +-
+>  mm/memory_hotplug.c            | 455 ++++++++++++++---------------------------
+>  mm/page_alloc.c                |  13 +-
+>  mm/page_isolation.c            |  26 ++-
+>  mm/sparse.c                    |  48 ++++-
+>  17 files changed, 407 insertions(+), 485 deletions(-)
+>
+> Shortlog says:
+> Michal Hocko (13):
+>       mm: remove return value from init_currently_empty_zone
+>       mm, memory_hotplug: use node instead of zone in can_online_high_movable
+>       mm: drop page_initialized check from get_nid_for_pfn
+>       mm, memory_hotplug: get rid of is_zone_device_section
+>       mm, memory_hotplug: split up register_one_node
+>       mm, memory_hotplug: consider offline memblocks removable
+>       mm: consider zone which is not fully populated to have holes
+>       mm, compaction: skip over holes in __reset_isolation_suitable
+>       mm: __first_valid_page skip over offline pages
+>       mm, memory_hotplug: do not associate hotadded memory to zones until online
+>       mm, memory_hotplug: replace for_device by want_memblock in arch_add_memory
+>       mm, memory_hotplug: fix the section mismatch warning
+>       mm, memory_hotplug: remove unused cruft after memory hotplug rework
+>
+> [1] http://lkml.kernel.org/r/20170410110351.12215-1-mhocko@kernel.org
+> [2] http://lkml.kernel.org/r/20170410162749.7d7f31c1@nial.brq.redhat.com
+>
+>
 
-Reviewed-by: Wei Yang <richard.weiyang@gmail.com>
+The latest "attempts/rewrite-mem_hotplug" branch passes my regression
+testing if I cherry-pick the following x86/mm fixes from mainline:
 
---=20
-Wei Yang
-Help you, Help me
+e6ab9c4d4377 x86/mm/64: Fix crash in remove_pagetable()
+71389703839e mm, zone_device: Replace {get, put}_zone_device_page()
+with a single reference to fix pmem crash
 
---UFHRwCdBEJvubb2X
-Content-Type: application/pgp-signature; name="signature.asc"
+You can add:
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJZEoGRAAoJEKcLNpZP5cTd1osP/RZx40fMM10UAxyL4PvMCuAE
-+gBeZ7y+eykytlE9jrF7eyVnJlYI1er1Qpd40Q8x0xr/Z+1p4xY8ReRIQNRZB9iW
-7XaxfTwIvTncyyrBXhUibrAAhH4WQsPhnCikcnXB3fUVoyy9uI9boOMaTV+JT7eh
-o4cymLzI/Aych2We3PzrAnJHqgE9XWeuGSQdCgJamHQyrI3SPIsW0fTMXjgZSdvt
-pK1c+6obMfte+OgT6pu/11VPM+f8DHCVZonGJcCDEkTcCSDyVovt9rG7PT/6B5gu
-hGvortGly0LluUQhaWeEWL0DK1xauv/Q+/Hh3wP0XzH8tj45mbqfhAkW26wSPJ/m
-pNLQQI5LwrnJrC9MwCSdXOq5kiLcS3xONyJ72hsk73+bZVUNHWAL8CG2VHyrWxY5
-+mCC4CL4KRPIhGLUwcHS9dkqwsUVpE1mjZE4OlZVNeNZjeQv475/oSW5CSVY0fSP
-i0pAXj+nMcIzJsnPB7g63e2IzDFr8gt0tmI9jdVuF0hZYYCpxHwxkEMiwXPfMF7L
-F/0qrbU0M80ySxun5Aa1N1BxvcyJVcKwQwJpFDrRh8/igbKlq/WMi3DtWbY5AzGG
-J8jEvyvmZfFdQRHDkQFbgwTOK7TpvQ853vyXilwhuiNds7BHS57CmvPa0Iqum6p+
-DrL+X5G47nx0aAIabUhS
-=9y1G
------END PGP SIGNATURE-----
-
---UFHRwCdBEJvubb2X--
+Tested-by: Dan Williams <dan.j.williams@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
