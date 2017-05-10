@@ -1,63 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 412696B0038
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 17:11:37 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id o25so6685916pgc.1
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 14:11:37 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x5si118835pfk.191.2017.05.10.14.11.36
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 835206B02E1
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 17:27:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c2so5899587pfd.9
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 14:27:25 -0700 (PDT)
+Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
+        by mx.google.com with ESMTPS id x6si147184plm.296.2017.05.10.14.27.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 14:11:36 -0700 (PDT)
-Date: Wed, 10 May 2017 14:11:31 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [v3 0/9] parallelized "struct page" zeroing
-Message-ID: <20170510211131.GD1590@bombadil.infradead.org>
-References: <20170510145726.GM31466@dhcp22.suse.cz>
- <20170510.111943.1940354761418085760.davem@davemloft.net>
- <20170510171703.GC1590@bombadil.infradead.org>
- <20170510.140026.1367439672848112283.davem@davemloft.net>
+        Wed, 10 May 2017 14:27:24 -0700 (PDT)
+Received: by mail-pg0-x22c.google.com with SMTP id o3so3892198pgn.2
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 14:27:24 -0700 (PDT)
+Date: Wed, 10 May 2017 14:27:23 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, thp: copying user pages must schedule on collapse
+Message-ID: <alpine.DEB.2.10.1705101426380.109808@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170510.140026.1367439672848112283.davem@davemloft.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: mhocko@kernel.org, pasha.tatashin@oracle.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 10, 2017 at 02:00:26PM -0400, David Miller wrote:
-> From: Matthew Wilcox <willy@infradead.org>
-> Date: Wed, 10 May 2017 10:17:03 -0700
-> > On Wed, May 10, 2017 at 11:19:43AM -0400, David Miller wrote:
-> >> I guess it might be clearer if you understand what the block
-> >> initializing stores do on sparc64.  There are no memory accesses at
-> >> all.
-> >> 
-> >> The cpu just zeros out the cache line, that's it.
-> >> 
-> >> No L3 cache line is allocated.  So this "wipe everything" behavior
-> >> will not happen in the L3.
-> > 
-> > There's either something wrong with your explanation or my reading
-> > skills :-)
-> > 
-> > "There are no memory accesses"
-> > "No L3 cache line is allocated"
-> > 
-> > You can have one or the other ... either the CPU sends a cacheline-sized
-> > write of zeroes to memory without allocating an L3 cache line (maybe
-> > using the store buffer?), or the CPU allocates an L3 cache line and sets
-> > its contents to zeroes, probably putting it in the last way of the set
-> > so it's the first thing to be evicted if not touched.
-> 
-> There is no conflict in what I said.
-> 
-> Only an L2 cache line is allocated and cleared.  L3 is left alone.
+We have encountered need_resched warnings in __collapse_huge_page_copy()
+while doing {clear,copy}_user_highpage() over HPAGE_PMD_NR source pages.
 
-I thought SPARC had inclusive caches.  So allocating an L2 cacheline
-would necessitate allocating an L3 cacheline.  Or is this an exception
-to the normal order of things?
+mm->mmap_sem is held for write, but the iteration is well bounded.
+
+Reschedule as needed.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/khugepaged.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -612,7 +612,8 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
+ 				      spinlock_t *ptl)
+ {
+ 	pte_t *_pte;
+-	for (_pte = pte; _pte < pte+HPAGE_PMD_NR; _pte++) {
++	for (_pte = pte; _pte < pte + HPAGE_PMD_NR;
++				_pte++, page++, address += PAGE_SIZE) {
+ 		pte_t pteval = *_pte;
+ 		struct page *src_page;
+ 
+@@ -651,9 +652,7 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
+ 			spin_unlock(ptl);
+ 			free_page_and_swap_cache(src_page);
+ 		}
+-
+-		address += PAGE_SIZE;
+-		page++;
++		cond_resched();
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
