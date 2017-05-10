@@ -1,47 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 47D3E280842
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CCE6280858
 	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:54:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id o52so6300252wrb.10
+Received: by mail-wr0-f200.google.com with SMTP id b28so6323497wrb.2
         for <linux-mm@kvack.org>; Wed, 10 May 2017 01:54:26 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 7si2788215wmv.52.2017.05.10.01.54.24
+        by mx.google.com with ESMTPS id 79si2878926wmo.18.2017.05.10.01.54.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 10 May 2017 01:54:25 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/4 v4] mm,dax: Fix data corruption due to mmap inconsistency
-Date: Wed, 10 May 2017 10:54:15 +0200
-Message-Id: <20170510085419.27601-1-jack@suse.cz>
+Subject: [PATCH 3/4] ext4: Return back to starting transaction in ext4_dax_huge_fault()
+Date: Wed, 10 May 2017 10:54:18 +0200
+Message-Id: <20170510085419.27601-4-jack@suse.cz>
+In-Reply-To: <20170510085419.27601-1-jack@suse.cz>
+References: <20170510085419.27601-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, stable@vger.kernel.org
 
-Hello,
+DAX will return to locking exceptional entry before mapping blocks
+for a page fault to fix possible races with concurrent writes. To avoid
+lock inversion between exceptional entry lock and transaction start,
+start the transaction already in ext4_dax_huge_fault().
 
-this series fixes data corruption that can happen for DAX mounts when
-page faults race with write(2) and as a result page tables get out of sync
-with block mappings in the filesystem and thus data seen through mmap is
-different from data seen through read(2).
+Fixes: 9f141d6ef6258a3a37a045842d9ba7e68f368956
+CC: stable@vger.kernel.org
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/ext4/file.c | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)
 
-The series passes testing with t_mmap_stale test program from Ross and also
-other mmap related tests on DAX filesystem.
-
-Andrew, can you please merge these patches? Thanks!
-
-Changes since v3:
-* Rebased on top of current Linus' tree due to non-trivial conflicts with
-  added tracepoint
-
-Changes since v2:
-* Added reviewed-by tag from Ross
-
-Changes since v1:
-* Improved performance of unmapping pages
-* Changed fault locking to fix another write vs fault race
-
-								Honza
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index cefa9835f275..831fd6beebf0 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -257,6 +257,7 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
+ 		enum page_entry_size pe_size)
+ {
+ 	int result;
++	handle_t *handle = NULL;
+ 	struct inode *inode = file_inode(vmf->vma->vm_file);
+ 	struct super_block *sb = inode->i_sb;
+ 	bool write = vmf->flags & FAULT_FLAG_WRITE;
+@@ -264,12 +265,24 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
+ 	if (write) {
+ 		sb_start_pagefault(sb);
+ 		file_update_time(vmf->vma->vm_file);
++		down_read(&EXT4_I(inode)->i_mmap_sem);
++		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
++					       EXT4_DATA_TRANS_BLOCKS(sb));
++	} else {
++		down_read(&EXT4_I(inode)->i_mmap_sem);
+ 	}
+-	down_read(&EXT4_I(inode)->i_mmap_sem);
+-	result = dax_iomap_fault(vmf, pe_size, &ext4_iomap_ops);
+-	up_read(&EXT4_I(inode)->i_mmap_sem);
+-	if (write)
++	if (!IS_ERR(handle))
++		result = dax_iomap_fault(vmf, pe_size, &ext4_iomap_ops);
++	else
++		result = VM_FAULT_SIGBUS;
++	if (write) {
++		if (!IS_ERR(handle))
++			ext4_journal_stop(handle);
++		up_read(&EXT4_I(inode)->i_mmap_sem);
+ 		sb_end_pagefault(sb);
++	} else {
++		up_read(&EXT4_I(inode)->i_mmap_sem);
++	}
+ 
+ 	return result;
+ }
+-- 
+2.12.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
