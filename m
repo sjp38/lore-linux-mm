@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DC742808A3
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 11:45:30 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e64so26080768pfd.3
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 08:45:30 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id d62si3361816pga.183.2017.05.10.08.45.29
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FF676B03A4
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 12:18:58 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 25so78979qtx.11
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 09:18:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q34si3501639qte.281.2017.05.10.09.18.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 May 2017 08:45:29 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
- <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
- <20170510080542.GF31466@dhcp22.suse.cz>
- <885311a2-5b9f-4402-0a71-5a3be7870aa0@huawei.com>
- <20170510114319.GK31466@dhcp22.suse.cz>
- <1a8cc1f4-0b72-34ea-43ad-5ece22a8d5cf@huawei.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b780ac13-4fc3-ac07-f0c0-7a6cc8dae694@intel.com>
-Date: Wed, 10 May 2017 08:45:28 -0700
+        Wed, 10 May 2017 09:18:57 -0700 (PDT)
+Date: Wed, 10 May 2017 12:18:51 -0400 (EDT)
+From: Bob Peterson <rpeterso@redhat.com>
+Message-ID: <1840580824.6421109.1494433131277.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20170509154930.29524-24-jlayton@redhat.com>
+References: <20170509154930.29524-1-jlayton@redhat.com> <20170509154930.29524-24-jlayton@redhat.com>
+Subject: Re: [PATCH v4 23/27] gfs2: clean up some filemap_* calls
 MIME-Version: 1.0
-In-Reply-To: <1a8cc1f4-0b72-34ea-43ad-5ece22a8d5cf@huawei.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross zwisler <ross.zwisler@linux.intel.com>, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, bo li liu <bo.li.liu@oracle.com>
 
-On 05/10/2017 08:19 AM, Igor Stoppa wrote:
-> So I'd like to play a little what-if scenario:
-> what if I was to support exclusively virtual memory and convert to it
-> everything that might need sealing?
+----- Original Message -----
+| In some places, it's trying to reset the mapping error after calling
+| filemap_fdatawait. That's no longer required. Also, turn several
+| filemap_fdatawrite+filemap_fdatawait calls into filemap_write_and_wait.
+| That will at least return writeback errors that occur during the write
+| phase.
+| 
+| Signed-off-by: Jeff Layton <jlayton@redhat.com>
+| ---
 
-Because of the issues related to fracturing large pages, you might have
-had to go this route eventually anyway.  Changing the kernel linear map
-isn't nice.
+Hi Jeff,
 
-FWIW, you could test this scheme by just converting all the users to
-vmalloc() and seeing what breaks.  They'd all end up rounding up all
-their allocations to PAGE_SIZE, but that'd be fine for testing.
+This version looks better. ACK.
 
-Could you point out 5 or 10 places in the kernel that you want to convert?
+Regards,
+
+Bob Peterson
+Red Hat File Systems
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
