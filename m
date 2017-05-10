@@ -1,70 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C98A1280842
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 03:45:21 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id o52so5777154wrb.10
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 00:45:21 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 262C7280842
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 04:05:46 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z88so5927523wrc.9
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 01:05:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p184si2658659wmg.123.2017.05.10.00.45.20
+        by mx.google.com with ESMTPS id v67si3429634wmv.2.2017.05.10.01.05.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 May 2017 00:45:20 -0700 (PDT)
-Date: Wed, 10 May 2017 09:45:19 +0200
+        Wed, 10 May 2017 01:05:44 -0700 (PDT)
+Date: Wed, 10 May 2017 10:05:43 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: RFC v2: post-init-read-only protection for data allocated
  dynamically
-Message-ID: <20170510074518.GE31466@dhcp22.suse.cz>
+Message-ID: <20170510080542.GF31466@dhcp22.suse.cz>
 References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <20170504112159.GC31540@dhcp22.suse.cz>
- <83d4556c-b21c-7ae5-6e83-4621a74f9fd5@huawei.com>
- <20170504131131.GI31540@dhcp22.suse.cz>
- <df1b34fb-f90b-da9e-6723-49e8f1cb1757@huawei.com>
- <20170504140126.GJ31540@dhcp22.suse.cz>
- <3e798c43-1726-ee7d-add5-762c7e17cb88@huawei.com>
+ <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
+ <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3e798c43-1726-ee7d-add5-762c7e17cb88@huawei.com>
+In-Reply-To: <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
+Cc: Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Fri 05-05-17 15:19:19, Igor Stoppa wrote:
+On Fri 05-05-17 13:42:27, Igor Stoppa wrote:
+> On 04/05/17 19:49, Laura Abbott wrote:
+> > [adding kernel-hardening since I think there would be interest]
+> 
+> thank you, I overlooked this
 > 
 > 
-> On 04/05/17 17:01, Michal Hocko wrote:
-> > On Thu 04-05-17 16:37:55, Igor Stoppa wrote:
+> > BPF takes the approach of calling set_memory_ro to mark regions as
+> > read only. I'm certainly over simplifying but it sounds like this
+> > is mostly a mechanism to have this happen mostly automatically.
+> > Can you provide any more details about tradeoffs of the two approaches?
 > 
-> [...]
+> I am not sure I understand the question ...
+> For what I can understand, the bpf is marking as read only something
+> that spans across various pages, which is fine.
+> The payload to be protected is already organized in such pages.
 > 
-> >> The disadvantage is that anything can happen, undetected, while the seal
-> >> is lifted.
-> > 
-> > Yes and I think this makes it basically pointless
-> 
-> ok, this goes a bit beyond what I had in mind initially, but I see your
-> point
-> 
-> [...]
-> 
-> > Just to make my proposal more clear. I suggest the following workflow
-> > 
-> > cache = kmem_cache_create(foo, object_size, ..., SLAB_SEAL);
-> >
-> > obj = kmem_cache_alloc(cache, gfp_mask);
-> > init_obj(obj)
-> > [more allocations]
-> > kmem_cache_seal(cache);
-> 
-> In case one doesn't want the feature, at which point would it be disabled?
-> 
-> * not creating the slab
-> * not sealing it
-> * something else?
+> But in the case I have in mind, I have various, heterogeneous chunks of
+> data, coming from various subsystems, not necessarily page aligned.
+> And, even if they were page aligned, most likely they would be far
+> smaller than a page, even a 4k page.
 
-If the sealing would be disabled then sealing would be a noop.
+This aspect of various sizes makes the SLAB allocator not optimal
+because it operates on caches (pools of pages) which manage objects of
+the same size. You could use the maximum size of all objects and waste
+some memory but you would have to know this max in advance which would
+make this approach less practical. You could create more caches of
+course but that still requires to know those sizes in advance.
 
+So it smells like a dedicated allocator which operates on a pool of
+pages might be a better option in the end. This depends on what you
+expect from the allocator. NUMA awareness? Very effective hotpath? Very
+good fragmentation avoidance? CPU cache awareness? Special alignment
+requirements? Reasonable free()? Etc...
+
+To me it seems that this being an initialization mostly thingy a simple
+allocator which manages a pool of pages (one set of sealed and one for
+allocations) and which only appends new objects as they fit to unsealed
+pages would be sufficient for starter.
 -- 
 Michal Hocko
 SUSE Labs
