@@ -1,129 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1477E831F8
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 01:53:24 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g67so5307175wrd.0
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 22:53:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q201si2398307wmg.20.2017.05.09.22.53.21
+	by kanga.kvack.org (Postfix) with ESMTP id 46085831F8
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 01:57:32 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w50so5291721wrc.4
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 22:57:32 -0700 (PDT)
+Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
+        by mx.google.com with ESMTPS id s18si2196420wra.167.2017.05.09.22.57.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 May 2017 22:53:22 -0700 (PDT)
-Date: Wed, 10 May 2017 07:53:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -v3 0/13] mm: make movable onlining suck less
-Message-ID: <20170510055317.GA26158@dhcp22.suse.cz>
-References: <20170421120512.23960-1-mhocko@kernel.org>
- <CAA9_cmexLPT4m_TEh69fC_OqBD4n4bND-vz33qoKSgXm_Q72Cw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 May 2017 22:57:30 -0700 (PDT)
+Received: by mail-wr0-x243.google.com with SMTP id g12so5276652wrg.2
+        for <linux-mm@kvack.org>; Tue, 09 May 2017 22:57:30 -0700 (PDT)
+Date: Wed, 10 May 2017 07:57:27 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC 09/10] x86/mm: Rework lazy TLB to track the actual loaded mm
+Message-ID: <20170510055727.g6wojjiis36a6nvm@gmail.com>
+References: <cover.1494160201.git.luto@kernel.org>
+ <1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org>
+ <alpine.DEB.2.20.1705092236290.2295@nanos>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA9_cmexLPT4m_TEh69fC_OqBD4n4bND-vz33qoKSgXm_Q72Cw@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1705092236290.2295@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On Tue 09-05-17 21:43:16, Dan Williams wrote:
-> On Fri, Apr 21, 2017 at 5:05 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > Hi,
-> > The last version of this series has been posted here [1]. It has seen
-> > some more testing (thanks to Reza Arbab and Igor Mammedov[2]), Jerome's
-> > and Vlastimil's review resulted in few fixes mostly folded in their
-> > respected patches.
-> > There are 4 more patches (patch 6+ in this series).  I have checked the
-> > most prominent pfn walkers to skip over offline holes and now and I feel
-> > more comfortable to have this merged. All the reported issues should be
-> > fixed
-> >
-> > There is still a lot of work on top - namely this implementation doesn't
-> > support reonlining to a different zone on the zones boundaries but I
-> > will do that in a separate series because this one is getting quite
-> > large already and it should work reasonably well now.
-> >
-> > Joonsoo had some worries about pfn_valid and suggested to change its
-> > semantic to return false on offline holes but I would be rally worried
-> > to change a established semantic used by a lot of code and so I have
-> > introuduced pfn_to_online_page helper instead. If this is seen as a
-> > controversial point I would rather drop pfn_to_online_page and related
-> > patches as they are not stictly necessary because the code would be
-> > similarly broken as now wrt. offline holes.
-> >
-> > This is a rebase on top of linux-next (next-20170418) and the full
-> > series is in git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> > try attempts/rewrite-mem_hotplug branch.
-> >
-> [..]
-> > Any thoughts, complains, suggestions?
-> >
-> > As a bonus we will get a nice cleanup in the memory hotplug codebase.
-> >  arch/ia64/mm/init.c            |  11 +-
-> >  arch/powerpc/mm/mem.c          |  12 +-
-> >  arch/s390/mm/init.c            |  32 +--
-> >  arch/sh/mm/init.c              |  10 +-
-> >  arch/x86/mm/init_32.c          |   7 +-
-> >  arch/x86/mm/init_64.c          |  11 +-
-> >  drivers/base/memory.c          |  79 +++----
-> >  drivers/base/node.c            |  58 ++----
-> >  include/linux/memory_hotplug.h |  40 +++-
-> >  include/linux/mmzone.h         |  44 +++-
-> >  include/linux/node.h           |  35 +++-
-> >  kernel/memremap.c              |   6 +-
-> >  mm/compaction.c                |   5 +-
-> >  mm/memory_hotplug.c            | 455 ++++++++++++++---------------------------
-> >  mm/page_alloc.c                |  13 +-
-> >  mm/page_isolation.c            |  26 ++-
-> >  mm/sparse.c                    |  48 ++++-
-> >  17 files changed, 407 insertions(+), 485 deletions(-)
-> >
-> > Shortlog says:
-> > Michal Hocko (13):
-> >       mm: remove return value from init_currently_empty_zone
-> >       mm, memory_hotplug: use node instead of zone in can_online_high_movable
-> >       mm: drop page_initialized check from get_nid_for_pfn
-> >       mm, memory_hotplug: get rid of is_zone_device_section
-> >       mm, memory_hotplug: split up register_one_node
-> >       mm, memory_hotplug: consider offline memblocks removable
-> >       mm: consider zone which is not fully populated to have holes
-> >       mm, compaction: skip over holes in __reset_isolation_suitable
-> >       mm: __first_valid_page skip over offline pages
-> >       mm, memory_hotplug: do not associate hotadded memory to zones until online
-> >       mm, memory_hotplug: replace for_device by want_memblock in arch_add_memory
-> >       mm, memory_hotplug: fix the section mismatch warning
-> >       mm, memory_hotplug: remove unused cruft after memory hotplug rework
-> >
-> > [1] http://lkml.kernel.org/r/20170410110351.12215-1-mhocko@kernel.org
-> > [2] http://lkml.kernel.org/r/20170410162749.7d7f31c1@nial.brq.redhat.com
-> >
-> >
+
+* Thomas Gleixner <tglx@linutronix.de> wrote:
+
+> On Sun, 7 May 2017, Andy Lutomirski wrote:
+> >  /* context.lock is held for us, so we don't need any locking. */
+> >  static void flush_ldt(void *current_mm)
+> >  {
+> > +	struct mm_struct *mm = current_mm;
+> >  	mm_context_t *pc;
+> >  
+> > -	if (current->active_mm != current_mm)
+> > +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
 > 
-> The latest "attempts/rewrite-mem_hotplug" branch passes my regression
-> testing if I cherry-pick the following x86/mm fixes from mainline:
+> While functional correct, this really should compare against 'mm'.
 > 
-> e6ab9c4d4377 x86/mm/64: Fix crash in remove_pagetable()
-> 71389703839e mm, zone_device: Replace {get, put}_zone_device_page()
-> with a single reference to fix pmem crash
+> >  		return;
+> >  
+> > -	pc = &current->active_mm->context;
+> > +	pc = &mm->context;
 
-I will make sure those will appear in the mmotm git tree (I will
-probably pull the whole tip/x86-mm-for-linus.
- 
-> You can add:
-> 
-> Tested-by: Dan Williams <dan.j.williams@intel.com>
+So this appears to be the function:
 
-Thanks a lot for your testing! I will put your tested-by to patches
-where you were on the CC explicitly (and which might affect zone device)
-- mm, memory_hotplug: get rid of is_zone_device_section
-- mm, memory_hotplug: do not associate hotadded memory to zones until
-  online
-- mm, memory_hotplug: replace for_device by want_memblock in
-  arch_add_memory
+ static void flush_ldt(void *current_mm)
+ {
+        struct mm_struct *mm = current_mm;
+        mm_context_t *pc;
 
-Let me know if you want other patches as well.
+        if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
+                return;
 
--- 
-Michal Hocko
-SUSE Labs
+        pc = &mm->context;
+        set_ldt(pc->ldt->entries, pc->ldt->size);
+ }
+
+why not rename 'current_mm' to 'mm' and remove the 'mm' local variable?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
