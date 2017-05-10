@@ -1,61 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F672803C7
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 02:54:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b5so17359149pfe.0
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 23:54:03 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id u22si1245774plk.91.2017.05.09.23.54.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 May 2017 23:54:02 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id w69so2754525pfk.1
-        for <linux-mm@kvack.org>; Tue, 09 May 2017 23:54:02 -0700 (PDT)
-From: Nick Desaulniers <nick.desaulniers@gmail.com>
-Subject: [PATCH] mm/vmscan: fix unsequenced modification and access warning
-Date: Tue,  9 May 2017 23:53:28 -0700
-Message-Id: <20170510065328.9215-1-nick.desaulniers@gmail.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A4AF2280730
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 03:03:14 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s89so17379782pfk.11
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 00:03:14 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d92si1501200pld.304.2017.05.10.00.03.13
+        for <linux-mm@kvack.org>;
+        Wed, 10 May 2017 00:03:13 -0700 (PDT)
+Date: Wed, 10 May 2017 16:03:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] vmscan: scan pages until it founds eligible pages
+Message-ID: <20170510070311.GA24772@bbox>
+References: <1493700038-27091-1-git-send-email-minchan@kernel.org>
+ <20170502051452.GA27264@bbox>
+ <20170502075432.GC14593@dhcp22.suse.cz>
+ <20170502145150.GA19011@bgram>
+ <20170502151436.GN14593@dhcp22.suse.cz>
+ <20170503044809.GA21619@bgram>
+ <20170503060044.GA1236@dhcp22.suse.cz>
+ <20170510014654.GA23584@bbox>
+ <20170510061312.GB26158@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170510061312.GB26158@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Desaulniers <nick.desaulniers@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Clang flags this file with the -Wunsequenced error that GCC does not
-have.
+On Wed, May 10, 2017 at 08:13:12AM +0200, Michal Hocko wrote:
+> On Wed 10-05-17 10:46:54, Minchan Kim wrote:
+> > On Wed, May 03, 2017 at 08:00:44AM +0200, Michal Hocko wrote:
+> [...]
+> > > @@ -1486,6 +1486,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+> > >  			continue;
+> > >  		}
+> > >  
+> > > +		/*
+> > > +		 * Do not count skipped pages because we do want to isolate
+> > > +		 * some pages even when the LRU mostly contains ineligible
+> > > +		 * pages
+> > > +		 */
+> > 
+> > How about adding comment about "why"?
+> > 
+> > /*
+> >  * Do not count skipped pages because it makes the function to return with
+> >  * none isolated pages if the LRU mostly contains inelgible pages so that
+> >  * VM cannot reclaim any pages and trigger premature OOM.
+> >  */
+> 
+> I am not sure this is necessarily any better. Mentioning a pre-mature
+> OOM would require a much better explanation because a first immediate
+> question would be "why don't we scan those pages at priority 0". Also
+> decision about the OOM is at a different layer and it might change in
+> future when this doesn't apply any more. But it is not like I would
+> insist...
+> 
+> > > +		scan++;
+> > >  		switch (__isolate_lru_page(page, mode)) {
+> > >  		case 0:
+> > >  			nr_pages = hpage_nr_pages(page);
+> > 
+> > Confirmed.
+> 
+> Hmm. I can clearly see how we could skip over too many pages and hit
+> small reclaim priorities too quickly but I am still scratching my head
+> about how we could hit the OOM killer as a result. The amount of pages
+> on the active anonymous list suggests that we are not able to rotate
+> pages quickly enough. I have to keep thinking about that.
 
-unsequenced modification and access to 'gfp_mask'
+I explained it but seems to be not enouggh. Let me try again.
 
-It seems that gfp_mask is both read and written without a sequence point
-in between, which is undefined behavior.
+The problem is that get_scan_count determines nr_to_scan with
+eligible zones.
 
-Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
----
- mm/vmscan.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+        size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+        size = size >> sc->priority;
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4e7ed65842af..74785908822c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2958,7 +2958,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 	unsigned long nr_reclaimed;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
--		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
-+		.gfp_mask = current_gfp_context(gfp_mask),
- 		.reclaim_idx = gfp_zone(gfp_mask),
- 		.order = order,
- 		.nodemask = nodemask,
-@@ -2968,6 +2968,8 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.may_swap = 1,
- 	};
- 
-+	gfp_mask = sc.gfp_mask;
-+
- 	/*
- 	 * Do not enter reclaim if fatal signal was delivered while throttled.
- 	 * 1 is returned so that the page allocator does not OOM kill at this
--- 
-2.11.0
+Assumes sc->priority is 0 and LRU list is as follows.
+
+        N-N-N-N-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H
+
+(Ie, small eligible pages are in the head of LRU but others are
+almost ineligible pages)
+
+In that case, size becomes 4 so VM want to scan 4 pages but 4 pages
+from tail of the LRU are not eligible pages.
+If get_scan_count counts skipped pages, it doesn't reclaim remained
+pages after scanning 4 pages.
+
+If it's more helpful to understand the problem, I will add it to
+the description.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
