@@ -1,75 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A15DC280858
-	for <linux-mm@kvack.org>; Wed, 10 May 2017 05:25:09 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id o52so6599885wrb.10
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 02:25:09 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 138si2132762wmm.26.2017.05.10.02.25.06
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DFAFE280858
+	for <linux-mm@kvack.org>; Wed, 10 May 2017 05:37:28 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id l10so9745821ioi.5
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 02:37:28 -0700 (PDT)
+Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
+        by mx.google.com with ESMTPS id z69si1657948iod.184.2017.05.10.02.37.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 May 2017 02:25:07 -0700 (PDT)
-Date: Wed, 10 May 2017 11:25:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/vmscan: fix unsequenced modification and access
- warning
-Message-ID: <20170510092505.GH31466@dhcp22.suse.cz>
-References: <20170510065328.9215-1-nick.desaulniers@gmail.com>
- <20170510071511.GA31466@dhcp22.suse.cz>
- <20170510084602.qchu4psnughxrmsz@lostoracle.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 May 2017 02:37:28 -0700 (PDT)
+Received: by mail-io0-x243.google.com with SMTP id 12so1572151iol.1
+        for <linux-mm@kvack.org>; Wed, 10 May 2017 02:37:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170510084602.qchu4psnughxrmsz@lostoracle.net>
+In-Reply-To: <20170509153702.GR6481@dhcp22.suse.cz>
+References: <20170509144108.31910-1-mhocko@kernel.org> <20170509153702.GR6481@dhcp22.suse.cz>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Wed, 10 May 2017 11:37:26 +0200
+Message-ID: <CAMuHMdWOVh573Q5Bg2_oVhxqxAWRny9XizHxeC-WK8oaygpo6Q@mail.gmail.com>
+Subject: Re: [PATCH] mm, vmalloc: fix vmalloc users tracking properly
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <nick.desaulniers@gmail.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tobias Klauser <tklauser@distanz.ch>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 10-05-17 01:46:03, Nick Desaulniers wrote:
-> > You can add
-> 
-> Something that's not clear to me when advised to add, should I be
-> uploading a v3 with your acked by? I think I got that wrong the last
-> time I asked (which was my first patch to Linux).
+On Tue, May 9, 2017 at 5:37 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> Sigh. I've apparently managed to screw up again. This should address the
+> nommu breakage reported by 0-day.
+> ---
+> From 95d49bf93ae4467f3f918520ec03b3596e5b36cc Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 9 May 2017 16:27:39 +0200
+> Subject: [PATCH] mm, vmalloc: fix vmalloc users tracking properly
+>
+> 1f5307b1e094 ("mm, vmalloc: properly track vmalloc users") has pulled
+> asm/pgtable.h include dependency to linux/vmalloc.h and that turned out
+> to be a bad idea for some architectures. E.g. m68k fails with
+>    In file included from arch/m68k/include/asm/pgtable_mm.h:145:0,
+>                     from arch/m68k/include/asm/pgtable.h:4,
+>                     from include/linux/vmalloc.h:9,
+>                     from arch/m68k/kernel/module.c:9:
+>    arch/m68k/include/asm/mcf_pgtable.h: In function 'nocache_page':
+>>> arch/m68k/include/asm/mcf_pgtable.h:339:43: error: 'init_mm' undeclared (first use in this function)
+>     #define pgd_offset_k(address) pgd_offset(&init_mm, address)
+>
+> as spotted by kernel build bot. nios2 fails for other reason
+> In file included from ./include/asm-generic/io.h:767:0,
+>                  from ./arch/nios2/include/asm/io.h:61,
+>                  from ./include/linux/io.h:25,
+>                  from ./arch/nios2/include/asm/pgtable.h:18,
+>                  from ./include/linux/mm.h:70,
+>                  from ./include/linux/pid_namespace.h:6,
+>                  from ./include/linux/ptrace.h:9,
+>                  from ./arch/nios2/include/uapi/asm/elf.h:23,
+>                  from ./arch/nios2/include/asm/elf.h:22,
+>                  from ./include/linux/elf.h:4,
+>                  from ./include/linux/module.h:15,
+>                  from init/main.c:16:
+> ./include/linux/vmalloc.h: In function '__vmalloc_node_flags':
+> ./include/linux/vmalloc.h:99:40: error: 'PAGE_KERNEL' undeclared (first use in this function); did you mean 'GFP_KERNEL'?
+>
+> which is due to the newly added #include <asm/pgtable.h>, which on nios2
+> includes <linux/io.h> and thus <asm/io.h> and <asm-generic/io.h> which
+> again includes <linux/vmalloc.h>.
+>
+> Tweaking that around just turns out a bigger headache than
+> necessary. This patch reverts 1f5307b1e094 and reimplements the original
+> fix in a different way. __vmalloc_node_flags can stay static inline
+> which will cover vmalloc* functions. We only have one external user
+> (kvmalloc_node) and we can export __vmalloc_node_flags_caller and
+> provide the caller directly. This is much simpler and it doesn't really
+> need any games with header files.
+>
+> Fixes: 1f5307b1e094 ("mm, vmalloc: properly track vmalloc users")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-If there are no further changes to the patch/changelog then it is not
-necessary. The maintainer usually just grabs ackes and reviewed-bys
-from the list.
+Tested-by: Geert Uytterhoeven <geert@linux-m68k.org>
 
-> > But I still do not understand which part of the code is undefined and
-> > why.
-> 
-> It's not immediately clear to me either, but it's super later here...
+Gr{oetje,eeting}s,
 
-I would really like to understand that...
- 
-> >  is this a bug in -Wunsequenced in Clang
-> 
-> Possibly, I think I already found one earlier tonight.
-> 
-> https://bugs.llvm.org/show_bug.cgi?id=32985
+                        Geert
 
-this seems unrelated. I would try to report this and clarify in the llvm
-bugzilla.
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-> Tomorrow, I'll try to cut down a test case to see if this is indeed a
-> compiler bug.  Would you like me to change the commit message to call
-> this just a simple clean up, in the meantime?
-
-I would go with the following wording.
-"
-Clang and its -Wunsequenced emits a warning
-(PUT THE FULL WARNING HERE).
-
-While it is not clear to me whether the initialization code violates the
-specification (6.7.8 par 19 (ISO/IEC 9899) looks it disagrees) the code
-is quite confusing and worth cleaning up anyway. Fix this by reusing
-sc.gfp_mask rather than the updated input gfp_mask parameter.
-"
--- 
-Michal Hocko
-SUSE Labs
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
