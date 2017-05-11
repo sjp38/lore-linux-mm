@@ -1,142 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AADA96B0038
-	for <linux-mm@kvack.org>; Thu, 11 May 2017 03:13:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id n198so4320736wmg.9
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 00:13:53 -0700 (PDT)
-Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
-        by mx.google.com with ESMTPS id h128si6610203wmh.135.2017.05.11.00.13.51
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 568316B02E1
+	for <linux-mm@kvack.org>; Thu, 11 May 2017 03:20:19 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id b28so4006872wrb.2
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 00:20:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p91si1096933edp.291.2017.05.11.00.20.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 May 2017 00:13:51 -0700 (PDT)
-Received: by mail-wr0-x243.google.com with SMTP id g12so2164738wrg.2
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 00:13:51 -0700 (PDT)
-Date: Thu, 11 May 2017 09:13:48 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC 09/10] x86/mm: Rework lazy TLB to track the actual loaded mm
-Message-ID: <20170511071348.jhgzdgi7blhgenqj@gmail.com>
-References: <cover.1494160201.git.luto@kernel.org>
- <1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org>
- <alpine.DEB.2.20.1705092236290.2295@nanos>
- <20170510055727.g6wojjiis36a6nvm@gmail.com>
- <alpine.DEB.2.20.1705101017590.1979@nanos>
- <20170510082425.5ks5okbjne7xgjtv@gmail.com>
- <CALCETrV-c8n92v040HVw=6OdnNrLvN7ZAcAJ45Xs4wx-7H5r=g@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 11 May 2017 00:20:18 -0700 (PDT)
+Date: Thu, 11 May 2017 09:20:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: vmscan: scan until it founds eligible pages
+Message-ID: <20170511072015.GA26782@dhcp22.suse.cz>
+References: <1494457232-27401-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrV-c8n92v040HVw=6OdnNrLvN7ZAcAJ45Xs4wx-7H5r=g@mail.gmail.com>
+In-Reply-To: <1494457232-27401-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team <kernel-team@lge.com>
 
-
-* Andy Lutomirski <luto@kernel.org> wrote:
-
-> On Wed, May 10, 2017 at 1:24 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > * Thomas Gleixner <tglx@linutronix.de> wrote:
-> >
-> >> On Wed, 10 May 2017, Ingo Molnar wrote:
-> >> >
-> >> > * Thomas Gleixner <tglx@linutronix.de> wrote:
-> >> >
-> >> > > On Sun, 7 May 2017, Andy Lutomirski wrote:
-> >> > > >  /* context.lock is held for us, so we don't need any locking. */
-> >> > > >  static void flush_ldt(void *current_mm)
-> >> > > >  {
-> >> > > > +       struct mm_struct *mm = current_mm;
-> >> > > >         mm_context_t *pc;
-> >> > > >
-> >> > > > -       if (current->active_mm != current_mm)
-> >> > > > +       if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
-> >> > >
-> >> > > While functional correct, this really should compare against 'mm'.
-> >> > >
-> >> > > >                 return;
-> >> > > >
-> >> > > > -       pc = &current->active_mm->context;
-> >> > > > +       pc = &mm->context;
-> >> >
-> >> > So this appears to be the function:
-> >> >
-> >> >  static void flush_ldt(void *current_mm)
-> >> >  {
-> >> >         struct mm_struct *mm = current_mm;
-> >> >         mm_context_t *pc;
-> >> >
-> >> >         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
-> >> >                 return;
-> >> >
-> >> >         pc = &mm->context;
-> >> >         set_ldt(pc->ldt->entries, pc->ldt->size);
-> >> >  }
-> >> >
-> >> > why not rename 'current_mm' to 'mm' and remove the 'mm' local variable?
-> >>
-> >> Because you cannot dereference a void pointer, i.e. &mm->context ....
-> >
-> > Indeed, doh! The naming totally confused me. The way I'd write it is the canonical
-> > form for such callbacks:
-> >
-> >         static void flush_ldt(void *data)
-> >         {
-> >                 struct mm_struct *mm = data;
-> >
-> > ... which beyond unconfusing me would probably also have prevented any accidental
-> > use of the 'current_mm' callback argument.
-> >
-> >
+On Thu 11-05-17 08:00:32, Minchan Kim wrote:
+> Although there are a ton of free swap and anonymous LRU page
+> in elgible zones, OOM happened.
 > 
-> void *data and void *info both seem fairly common in the kernel.
+> balloon invoked oom-killer: gfp_mask=0x17080c0(GFP_KERNEL_ACCOUNT|__GFP_ZERO|__GFP_NOTRACK), nodemask=(null),  order=0, oom_score_adj=0
+> CPU: 7 PID: 1138 Comm: balloon Not tainted 4.11.0-rc6-mm1-zram-00289-ge228d67e9677-dirty #17
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+> Call Trace:
+>  dump_stack+0x65/0x87
+>  dump_header.isra.19+0x8f/0x20f
+>  ? preempt_count_add+0x9e/0xb0
+>  ? _raw_spin_unlock_irqrestore+0x24/0x40
+>  oom_kill_process+0x21d/0x3f0
+>  ? has_capability_noaudit+0x17/0x20
+>  out_of_memory+0xd8/0x390
+>  __alloc_pages_slowpath+0xbc1/0xc50
+>  ? anon_vma_interval_tree_insert+0x84/0x90
+>  __alloc_pages_nodemask+0x1a5/0x1c0
+>  pte_alloc_one+0x20/0x50
+>  __pte_alloc+0x1e/0x110
+>  __handle_mm_fault+0x919/0x960
+>  handle_mm_fault+0x77/0x120
+>  __do_page_fault+0x27a/0x550
+>  trace_do_page_fault+0x43/0x150
+>  do_async_page_fault+0x2c/0x90
+>  async_page_fault+0x28/0x30
+> RIP: 0033:0x7fc4636bacb8
+> RSP: 002b:00007fff97c9c4c0 EFLAGS: 00010202
+> RAX: 00007fc3e818d000 RBX: 00007fc4639f8760 RCX: 00007fc46372e9ca
+> RDX: 0000000000101002 RSI: 0000000000101000 RDI: 0000000000000000
+> RBP: 0000000000100010 R08: 00000000ffffffff R09: 0000000000000000
+> R10: 0000000000000022 R11: 00000000000a3901 R12: 00007fc3e818d010
+> R13: 0000000000101000 R14: 00007fc4639f87b8 R15: 00007fc4639f87b8
+> Mem-Info:
+> active_anon:424716 inactive_anon:65314 isolated_anon:0
+>  active_file:52 inactive_file:46 isolated_file:0
+>  unevictable:0 dirty:27 writeback:0 unstable:0
+>  slab_reclaimable:3967 slab_unreclaimable:4125
+>  mapped:133 shmem:43 pagetables:1674 bounce:0
+>  free:4637 free_pcp:225 free_cma:0
+> Node 0 active_anon:1698864kB inactive_anon:261256kB active_file:208kB inactive_file:184kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:532kB dirty:108kB writeback:0kB shmem:172kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+> DMA free:7316kB min:32kB low:44kB high:56kB active_anon:8064kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:464kB slab_unreclaimable:40kB kernel_stack:0kB pagetables:24kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> lowmem_reserve[]: 0 992 992 1952
+> DMA32 free:9088kB min:2048kB low:3064kB high:4080kB active_anon:952176kB inactive_anon:0kB active_file:36kB inactive_file:0kB unevictable:0kB writepending:88kB present:1032192kB managed:1019388kB mlocked:0kB slab_reclaimable:13532kB slab_unreclaimable:16460kB kernel_stack:3552kB pagetables:6672kB bounce:0kB free_pcp:56kB local_pcp:24kB free_cma:0kB
+> lowmem_reserve[]: 0 0 0 959
+> Movable free:3644kB min:1980kB low:2960kB high:3940kB active_anon:738560kB inactive_anon:261340kB active_file:188kB inactive_file:640kB unevictable:0kB writepending:20kB present:1048444kB managed:1010816kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:832kB local_pcp:60kB free_cma:0kB
+> lowmem_reserve[]: 0 0 0 0
+> DMA: 1*4kB (E) 0*8kB 18*16kB (E) 10*32kB (E) 10*64kB (E) 9*128kB (ME) 8*256kB (E) 2*512kB (E) 2*1024kB (E) 0*2048kB 0*4096kB = 7524kB
+> DMA32: 417*4kB (UMEH) 181*8kB (UMEH) 68*16kB (UMEH) 48*32kB (UMEH) 14*64kB (MH) 3*128kB (M) 1*256kB (H) 1*512kB (M) 2*1024kB (M) 0*2048kB 0*4096kB = 9836kB
+> Movable: 1*4kB (M) 1*8kB (M) 1*16kB (M) 1*32kB (M) 0*64kB 1*128kB (M) 2*256kB (M) 4*512kB (M) 1*1024kB (M) 0*2048kB 0*4096kB = 3772kB
+> 378 total pagecache pages
+> 17 pages in swap cache
+> Swap cache stats: add 17325, delete 17302, find 0/27
+> Free swap  = 978940kB
+> Total swap = 1048572kB
+> 524157 pages RAM
+> 0 pages HighMem/MovableOnly
+> 12629 pages reserved
+> 0 pages cma reserved
+> 0 pages hwpoisoned
+> [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+> [  433]     0   433     4904        5      14       3       82             0 upstart-udev-br
+> [  438]     0   438    12371        5      27       3      191         -1000 systemd-udevd
+> 
+> With investigation, skipping page of isolate_lru_pages makes reclaim
+> void because it returns zero nr_taken easily so LRU shrinking is
+> effectively nothing and just increases priority aggressively.
+> Finally, OOM happens.
+> 
+> The problem is that get_scan_count determines nr_to_scan with
+> eligible zones so although priority drops to zero, it couldn't
+> reclaim any pages if the LRU contains mostly ineligible pages.
+> 
+> get_scan_count:
+> 
+>         size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+> 	size = size >> sc->priority;
+> 
+> Assumes sc->priority is 0 and LRU list is as follows.
+> 
+> 	N-N-N-N-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H
+> 
+> (Ie, small eligible pages are in the head of LRU but others are
+>  almost ineligible pages)
+> 
+> In that case, size becomes 4 so VM want to scan 4 pages but 4 pages
+> from tail of the LRU are not eligible pages.
+> If get_scan_count counts skipped pages, it doesn't reclaim any pages
+> remained after scanning 4 pages so it ends up OOM happening.
+> 
+> This patch makes isolate_lru_pages try to scan pages until it
+> encounters eligible zones's pages.
+> 
 
-Yes, the most common variants are:
+Fixes: 3db65812d688 ("Revert "mm, vmscan: account for skipped pages as a partial scan"")
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-  triton:~/tip> git grep -E 'void.*\(.*void \*.*' | grep -vE ',|\*\*|;' | cut -d\( -f2- | cut -d\) -f1 | sort | uniq -c | sort -n | tail -10
-     38 void *args
-     38 void *p
-     39 void *ptr
-     42 void *foo
-     46 void *context
-     55 void *addr
-     69 void *priv
-     95 void *info
-    235 void *arg
-    292 void *data
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> How about my personal favorite for non-kernel work, though: void *mm_void? It 
-> documents what the parameter means and avoids the confusion.
+> ---
+> * from v1
+>   * put more words in description and code
+>   * drop unncessary pages_skipped list flushing
+> 
+>  mm/vmscan.c | 21 +++++++++++++++------
+>  1 file changed, 15 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 5ebf468c5429..e051bf4a1144 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1449,7 +1449,7 @@ static __always_inline void update_lru_sizes(struct lruvec *lruvec,
+>   *
+>   * Appropriate locks must be held before calling this function.
+>   *
+> - * @nr_to_scan:	The number of pages to look through on the list.
+> + * @nr_to_scan:	The number of eligible pages to look through on the list.
+>   * @lruvec:	The LRU vector to pull pages from.
+>   * @dst:	The temp list to put pages on to.
+>   * @nr_scanned:	The number of pages that were scanned.
+> @@ -1469,11 +1469,13 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
+>  	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
+>  	unsigned long skipped = 0;
+> -	unsigned long scan, nr_pages;
+> +	unsigned long scan, total_scan, nr_pages;
+>  	LIST_HEAD(pages_skipped);
+>  
+> -	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
+> -					!list_empty(src); scan++) {
+> +	for (total_scan = scan = 0; scan < nr_to_scan &&
+> +					nr_taken < nr_to_scan &&
+> +					!list_empty(src);
+> +					total_scan++) {
+>  		struct page *page;
+>  
+>  		page = lru_to_page(src);
+> @@ -1487,6 +1489,13 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			continue;
+>  		}
+>  
+> +		/*
+> +		 * Do not count skipped pages because it makes the function to
+> +		 * return with none isolated pages if the LRU mostly contains
+> +		 * ineligible pages so that VM cannot reclaim any pages and
+> +		 * trigger premature OOM.
+> +		 */
+> +		scan++;
+>  		switch (__isolate_lru_page(page, mode)) {
+>  		case 0:
+>  			nr_pages = hpage_nr_pages(page);
+> @@ -1524,9 +1533,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			skipped += nr_skipped[zid];
+>  		}
+>  	}
+> -	*nr_scanned = scan;
+> +	*nr_scanned = total_scan;
+>  	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan,
+> -				    scan, skipped, nr_taken, mode, lru);
+> +				    total_scan, skipped, nr_taken, mode, lru);
+>  	update_lru_sizes(lruvec, lru, nr_zone_taken);
+>  	return nr_taken;
+>  }
+> -- 
+> 2.7.4
+> 
 
-Dunno, and at the risk of painting that shed bright red it reads a bit weird to 
-me: void pointers are fine and are often primary parameters - the _real_ quality 
-here is not that it's void, but that's it's an opaque value passed in from a 
-common callback. Note that sometimes opaque data is 'unsigned long' (such as in 
-the case of timers), so it's really not the 'void' that matters.
-
-In that sense 'data', 'arg' or 'info' seem the most readable names, as they 
-clearly express the type opaqueness.
-
-My personal favorite is double underscores prefix, i.e. 'void *__mm', which would 
-clearly signal that this is something special. But this does not appear to have 
-been picked up overly widely:
-
-  triton:~/tip> git grep -E 'void.*\(.*void \*.*' | grep -vE ',|\*\*|;' | cut -d\( -f2- | cut -d\) -f1 | sort | uniq -c | sort -n | grep __
-      1 void *__data
-      1 void *__info
-      2 void *__dev
-      2 void *__tdata
-      2 void *__tve
-      3 void *__lock
-      3 void * __user *
-      3 volatile void *__p
-      4 void *__map
-
-... but either of these variants is fine to me.
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
