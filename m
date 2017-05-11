@@ -1,106 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 421C76B0038
-	for <linux-mm@kvack.org>; Thu, 11 May 2017 00:31:20 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u21so13294193pgn.5
-        for <linux-mm@kvack.org>; Wed, 10 May 2017 21:31:20 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id u126si671963pgc.287.2017.05.10.21.31.18
-        for <linux-mm@kvack.org>;
-        Wed, 10 May 2017 21:31:19 -0700 (PDT)
-Date: Thu, 11 May 2017 13:31:11 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm -v10 1/3] mm, THP, swap: Delay splitting THP during
- swap out
-Message-ID: <20170511043111.GA6351@bbox>
-References: <20170425125658.28684-1-ying.huang@intel.com>
- <20170425125658.28684-2-ying.huang@intel.com>
- <20170427053141.GA1925@bbox>
- <87mvb21fz1.fsf@yhuang-dev.intel.com>
- <20170428084044.GB19510@bbox>
- <20170501104430.GA16306@cmpxchg.org>
- <20170501235332.GA4411@bbox>
- <20170510135654.GD17121@cmpxchg.org>
- <20170510232556.GA26521@bbox>
- <87h90sb4jq.fsf@yhuang-dev.intel.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AADA96B0038
+	for <linux-mm@kvack.org>; Thu, 11 May 2017 03:13:53 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id n198so4320736wmg.9
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 00:13:53 -0700 (PDT)
+Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
+        by mx.google.com with ESMTPS id h128si6610203wmh.135.2017.05.11.00.13.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 May 2017 00:13:51 -0700 (PDT)
+Received: by mail-wr0-x243.google.com with SMTP id g12so2164738wrg.2
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 00:13:51 -0700 (PDT)
+Date: Thu, 11 May 2017 09:13:48 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC 09/10] x86/mm: Rework lazy TLB to track the actual loaded mm
+Message-ID: <20170511071348.jhgzdgi7blhgenqj@gmail.com>
+References: <cover.1494160201.git.luto@kernel.org>
+ <1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org>
+ <alpine.DEB.2.20.1705092236290.2295@nanos>
+ <20170510055727.g6wojjiis36a6nvm@gmail.com>
+ <alpine.DEB.2.20.1705101017590.1979@nanos>
+ <20170510082425.5ks5okbjne7xgjtv@gmail.com>
+ <CALCETrV-c8n92v040HVw=6OdnNrLvN7ZAcAJ45Xs4wx-7H5r=g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87h90sb4jq.fsf@yhuang-dev.intel.com>
+In-Reply-To: <CALCETrV-c8n92v040HVw=6OdnNrLvN7ZAcAJ45Xs4wx-7H5r=g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On Thu, May 11, 2017 at 08:50:01AM +0800, Huang, Ying wrote:
-< snip >
 
-> >> > @@ -1125,8 +1125,28 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >> >  		    !PageSwapCache(page)) {
-> >> >  			if (!(sc->gfp_mask & __GFP_IO))
-> >> >  				goto keep_locked;
-> >> > -			if (!add_to_swap(page, page_list))
-> >> > +swap_retry:
-> >> > +			/*
-> >> > +			 * Retry after split if we fail to allocate
-> >> > +			 * swap space of a THP.
-> >> > +			 */
-> >> > +			if (!add_to_swap(page)) {
-> >> > +				if (!PageTransHuge(page) ||
-> >> > +				    split_huge_page_to_list(page, page_list))
-> >> > +					goto activate_locked;
-> >> > +				goto swap_retry;
-> >> > +			}
-> >> 
-> >> This is definitely better.
+* Andy Lutomirski <luto@kernel.org> wrote:
+
+> On Wed, May 10, 2017 at 1:24 AM, Ingo Molnar <mingo@kernel.org> wrote:
 > >
-> > Thanks.
+> > * Thomas Gleixner <tglx@linutronix.de> wrote:
 > >
-> >> 
-> >> However, I think it'd be cleaner without the label here:
-> >> 
-> >> 			if (!add_to_swap(page)) {
-> >> 				if (!PageTransHuge(page))
-> >> 					goto activate_locked;
-> >> 				/* Split THP and swap individual base pages */
-> >> 				if (split_huge_page_to_list(page, page_list))
-> >> 					goto activate_locked;
-> >> 				if (!add_to_swap(page))
-> >> 					goto activate_locked;
+> >> On Wed, 10 May 2017, Ingo Molnar wrote:
+> >> >
+> >> > * Thomas Gleixner <tglx@linutronix.de> wrote:
+> >> >
+> >> > > On Sun, 7 May 2017, Andy Lutomirski wrote:
+> >> > > >  /* context.lock is held for us, so we don't need any locking. */
+> >> > > >  static void flush_ldt(void *current_mm)
+> >> > > >  {
+> >> > > > +       struct mm_struct *mm = current_mm;
+> >> > > >         mm_context_t *pc;
+> >> > > >
+> >> > > > -       if (current->active_mm != current_mm)
+> >> > > > +       if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
+> >> > >
+> >> > > While functional correct, this really should compare against 'mm'.
+> >> > >
+> >> > > >                 return;
+> >> > > >
+> >> > > > -       pc = &current->active_mm->context;
+> >> > > > +       pc = &mm->context;
+> >> >
+> >> > So this appears to be the function:
+> >> >
+> >> >  static void flush_ldt(void *current_mm)
+> >> >  {
+> >> >         struct mm_struct *mm = current_mm;
+> >> >         mm_context_t *pc;
+> >> >
+> >> >         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
+> >> >                 return;
+> >> >
+> >> >         pc = &mm->context;
+> >> >         set_ldt(pc->ldt->entries, pc->ldt->size);
+> >> >  }
+> >> >
+> >> > why not rename 'current_mm' to 'mm' and remove the 'mm' local variable?
+> >>
+> >> Because you cannot dereference a void pointer, i.e. &mm->context ....
 > >
-> > Yes.
+> > Indeed, doh! The naming totally confused me. The way I'd write it is the canonical
+> > form for such callbacks:
 > >
-> >> 			}
-> >> 
-> >> > +			/*
-> >> > +			 * Got swap space successfully. But unfortunately,
-> >> > +			 * we don't support a THP page writeout so split it.
-> >> > +			 */
-> >> > +			if (PageTransHuge(page) &&
-> >> > +				  split_huge_page_to_list(page, page_list)) {
-> >> > +				delete_from_swap_cache(page);
-> >> >  				goto activate_locked;
-> >> > +			}
-> >> 
-> >> Pulling this out of add_to_swap() is an improvement for sure. Add an
-> >> XXX: before that "we don't support THP writes" comment for good
-> >> measure :)
+> >         static void flush_ldt(void *data)
+> >         {
+> >                 struct mm_struct *mm = data;
 > >
-> > Sure.
+> > ... which beyond unconfusing me would probably also have prevented any accidental
+> > use of the 'current_mm' callback argument.
 > >
-> > It could be a separate patch which makes add_to_swap clean via
-> > removing page_list argument but I hope Huang take/fold it when he
-> > resend it because it would be more important with THP swap.
+> >
 > 
-> Sure.  I will take this patch as one patch of the THP swap series.
-> Because the first patch of the THP swap series is a little big, I don't
-> think it is a good idea to fold this patch into it.  Could you update
-> the patch according to Johannes' comments and resend it?
+> void *data and void *info both seem fairly common in the kernel.
 
-Okay, I will resend this clean-up patch against on yours patch
-after finishing this discussion.
+Yes, the most common variants are:
 
-Thanks.
+  triton:~/tip> git grep -E 'void.*\(.*void \*.*' | grep -vE ',|\*\*|;' | cut -d\( -f2- | cut -d\) -f1 | sort | uniq -c | sort -n | tail -10
+     38 void *args
+     38 void *p
+     39 void *ptr
+     42 void *foo
+     46 void *context
+     55 void *addr
+     69 void *priv
+     95 void *info
+    235 void *arg
+    292 void *data
+
+> How about my personal favorite for non-kernel work, though: void *mm_void? It 
+> documents what the parameter means and avoids the confusion.
+
+Dunno, and at the risk of painting that shed bright red it reads a bit weird to 
+me: void pointers are fine and are often primary parameters - the _real_ quality 
+here is not that it's void, but that's it's an opaque value passed in from a 
+common callback. Note that sometimes opaque data is 'unsigned long' (such as in 
+the case of timers), so it's really not the 'void' that matters.
+
+In that sense 'data', 'arg' or 'info' seem the most readable names, as they 
+clearly express the type opaqueness.
+
+My personal favorite is double underscores prefix, i.e. 'void *__mm', which would 
+clearly signal that this is something special. But this does not appear to have 
+been picked up overly widely:
+
+  triton:~/tip> git grep -E 'void.*\(.*void \*.*' | grep -vE ',|\*\*|;' | cut -d\( -f2- | cut -d\) -f1 | sort | uniq -c | sort -n | grep __
+      1 void *__data
+      1 void *__info
+      2 void *__dev
+      2 void *__tdata
+      2 void *__tve
+      3 void *__lock
+      3 void * __user *
+      3 volatile void *__p
+      4 void *__map
+
+... but either of these variants is fine to me.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
