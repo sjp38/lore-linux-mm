@@ -1,70 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D3956B0038
-	for <linux-mm@kvack.org>; Thu, 11 May 2017 05:51:42 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d127so5129693wmf.15
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 02:51:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 42si1571670wrm.49.2017.05.11.02.51.39
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A83826B0038
+	for <linux-mm@kvack.org>; Thu, 11 May 2017 06:36:08 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y43so5009778wrc.11
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 03:36:08 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id x26si156604edi.166.2017.05.11.03.36.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 May 2017 02:51:40 -0700 (PDT)
-Subject: Re: [patch] mm, thp: copying user pages must schedule on collapse
-References: <alpine.DEB.2.10.1705101426380.109808@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <b139f4cc-50b5-dc5d-76c5-1dffe658cd16@suse.cz>
-Date: Thu, 11 May 2017 11:51:37 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 May 2017 03:36:07 -0700 (PDT)
+Date: Thu, 11 May 2017 06:35:55 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] mm: vmscan: scan until it founds eligible pages
+Message-ID: <20170511103555.GC6244@cmpxchg.org>
+References: <1494457232-27401-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1705101426380.109808@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1494457232-27401-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, kernel-team <kernel-team@lge.com>
 
-On 05/10/2017 11:27 PM, David Rientjes wrote:
-> We have encountered need_resched warnings in __collapse_huge_page_copy()
-> while doing {clear,copy}_user_highpage() over HPAGE_PMD_NR source pages.
+On Thu, May 11, 2017 at 08:00:32AM +0900, Minchan Kim wrote:
+> Although there are a ton of free swap and anonymous LRU page
+> in elgible zones, OOM happened.
 > 
-> mm->mmap_sem is held for write, but the iteration is well bounded.
+> balloon invoked oom-killer: gfp_mask=0x17080c0(GFP_KERNEL_ACCOUNT|__GFP_ZERO|__GFP_NOTRACK), nodemask=(null),  order=0, oom_score_adj=0
+> CPU: 7 PID: 1138 Comm: balloon Not tainted 4.11.0-rc6-mm1-zram-00289-ge228d67e9677-dirty #17
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+> Call Trace:
+>  dump_stack+0x65/0x87
+>  dump_header.isra.19+0x8f/0x20f
+>  ? preempt_count_add+0x9e/0xb0
+>  ? _raw_spin_unlock_irqrestore+0x24/0x40
+>  oom_kill_process+0x21d/0x3f0
+>  ? has_capability_noaudit+0x17/0x20
+>  out_of_memory+0xd8/0x390
+>  __alloc_pages_slowpath+0xbc1/0xc50
+>  ? anon_vma_interval_tree_insert+0x84/0x90
+>  __alloc_pages_nodemask+0x1a5/0x1c0
+>  pte_alloc_one+0x20/0x50
+>  __pte_alloc+0x1e/0x110
+>  __handle_mm_fault+0x919/0x960
+>  handle_mm_fault+0x77/0x120
+>  __do_page_fault+0x27a/0x550
+>  trace_do_page_fault+0x43/0x150
+>  do_async_page_fault+0x2c/0x90
+>  async_page_fault+0x28/0x30
+> RIP: 0033:0x7fc4636bacb8
+> RSP: 002b:00007fff97c9c4c0 EFLAGS: 00010202
+> RAX: 00007fc3e818d000 RBX: 00007fc4639f8760 RCX: 00007fc46372e9ca
+> RDX: 0000000000101002 RSI: 0000000000101000 RDI: 0000000000000000
+> RBP: 0000000000100010 R08: 00000000ffffffff R09: 0000000000000000
+> R10: 0000000000000022 R11: 00000000000a3901 R12: 00007fc3e818d010
+> R13: 0000000000101000 R14: 00007fc4639f87b8 R15: 00007fc4639f87b8
+> Mem-Info:
+> active_anon:424716 inactive_anon:65314 isolated_anon:0
+>  active_file:52 inactive_file:46 isolated_file:0
+>  unevictable:0 dirty:27 writeback:0 unstable:0
+>  slab_reclaimable:3967 slab_unreclaimable:4125
+>  mapped:133 shmem:43 pagetables:1674 bounce:0
+>  free:4637 free_pcp:225 free_cma:0
+> Node 0 active_anon:1698864kB inactive_anon:261256kB active_file:208kB inactive_file:184kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:532kB dirty:108kB writeback:0kB shmem:172kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+> DMA free:7316kB min:32kB low:44kB high:56kB active_anon:8064kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:464kB slab_unreclaimable:40kB kernel_stack:0kB pagetables:24kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> lowmem_reserve[]: 0 992 992 1952
+> DMA32 free:9088kB min:2048kB low:3064kB high:4080kB active_anon:952176kB inactive_anon:0kB active_file:36kB inactive_file:0kB unevictable:0kB writepending:88kB present:1032192kB managed:1019388kB mlocked:0kB slab_reclaimable:13532kB slab_unreclaimable:16460kB kernel_stack:3552kB pagetables:6672kB bounce:0kB free_pcp:56kB local_pcp:24kB free_cma:0kB
+> lowmem_reserve[]: 0 0 0 959
+> Movable free:3644kB min:1980kB low:2960kB high:3940kB active_anon:738560kB inactive_anon:261340kB active_file:188kB inactive_file:640kB unevictable:0kB writepending:20kB present:1048444kB managed:1010816kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:832kB local_pcp:60kB free_cma:0kB
+> lowmem_reserve[]: 0 0 0 0
+> DMA: 1*4kB (E) 0*8kB 18*16kB (E) 10*32kB (E) 10*64kB (E) 9*128kB (ME) 8*256kB (E) 2*512kB (E) 2*1024kB (E) 0*2048kB 0*4096kB = 7524kB
+> DMA32: 417*4kB (UMEH) 181*8kB (UMEH) 68*16kB (UMEH) 48*32kB (UMEH) 14*64kB (MH) 3*128kB (M) 1*256kB (H) 1*512kB (M) 2*1024kB (M) 0*2048kB 0*4096kB = 9836kB
+> Movable: 1*4kB (M) 1*8kB (M) 1*16kB (M) 1*32kB (M) 0*64kB 1*128kB (M) 2*256kB (M) 4*512kB (M) 1*1024kB (M) 0*2048kB 0*4096kB = 3772kB
+> 378 total pagecache pages
+> 17 pages in swap cache
+> Swap cache stats: add 17325, delete 17302, find 0/27
+> Free swap  = 978940kB
+> Total swap = 1048572kB
+> 524157 pages RAM
+> 0 pages HighMem/MovableOnly
+> 12629 pages reserved
+> 0 pages cma reserved
+> 0 pages hwpoisoned
+> [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+> [  433]     0   433     4904        5      14       3       82             0 upstart-udev-br
+> [  438]     0   438    12371        5      27       3      191         -1000 systemd-udevd
 > 
-> Reschedule as needed.
+> With investigation, skipping page of isolate_lru_pages makes reclaim
+> void because it returns zero nr_taken easily so LRU shrinking is
+> effectively nothing and just increases priority aggressively.
+> Finally, OOM happens.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> The problem is that get_scan_count determines nr_to_scan with
+> eligible zones so although priority drops to zero, it couldn't
+> reclaim any pages if the LRU contains mostly ineligible pages.
+> 
+> get_scan_count:
+> 
+>         size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+> 	size = size >> sc->priority;
+> 
+> Assumes sc->priority is 0 and LRU list is as follows.
+> 
+> 	N-N-N-N-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H
+> 
+> (Ie, small eligible pages are in the head of LRU but others are
+>  almost ineligible pages)
+> 
+> In that case, size becomes 4 so VM want to scan 4 pages but 4 pages
+> from tail of the LRU are not eligible pages.
+> If get_scan_count counts skipped pages, it doesn't reclaim any pages
+> remained after scanning 4 pages so it ends up OOM happening.
+> 
+> This patch makes isolate_lru_pages try to scan pages until it
+> encounters eligible zones's pages.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/khugepaged.c | 7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -612,7 +612,8 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
->  				      spinlock_t *ptl)
->  {
->  	pte_t *_pte;
-> -	for (_pte = pte; _pte < pte+HPAGE_PMD_NR; _pte++) {
-> +	for (_pte = pte; _pte < pte + HPAGE_PMD_NR;
-> +				_pte++, page++, address += PAGE_SIZE) {
->  		pte_t pteval = *_pte;
->  		struct page *src_page;
->  
-> @@ -651,9 +652,7 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
->  			spin_unlock(ptl);
->  			free_page_and_swap_cache(src_page);
->  		}
-> -
-> -		address += PAGE_SIZE;
-> -		page++;
-> +		cond_resched();
->  	}
->  }
->  
-> 
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
