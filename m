@@ -1,101 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E93856B02E1
-	for <linux-mm@kvack.org>; Thu, 11 May 2017 06:41:12 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b84so5390756wmh.0
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 03:41:12 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y10si143517edi.305.2017.05.11.03.41.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 May 2017 03:41:11 -0700 (PDT)
-Date: Thu, 11 May 2017 06:40:58 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm -v10 1/3] mm, THP, swap: Delay splitting THP during
- swap out
-Message-ID: <20170511104058.GD6244@cmpxchg.org>
-References: <20170425125658.28684-1-ying.huang@intel.com>
- <20170425125658.28684-2-ying.huang@intel.com>
- <20170427053141.GA1925@bbox>
- <87mvb21fz1.fsf@yhuang-dev.intel.com>
- <20170428084044.GB19510@bbox>
- <20170501104430.GA16306@cmpxchg.org>
- <20170501235332.GA4411@bbox>
- <20170510135654.GD17121@cmpxchg.org>
- <20170510232556.GA26521@bbox>
- <20170511012213.GA27659@bbox>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D31066B02C4
+	for <linux-mm@kvack.org>; Thu, 11 May 2017 09:53:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e131so20225311pfh.7
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 06:53:19 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a1si205375pld.147.2017.05.11.06.53.17
+        for <linux-mm@kvack.org>;
+        Thu, 11 May 2017 06:53:17 -0700 (PDT)
+Date: Thu, 11 May 2017 14:53:11 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v3 3/3] arm64: Silence first allocation with
+ CONFIG_ARM64_MODULE_PLTS=y
+Message-ID: <20170511135310.GA28576@e104818-lin.cambridge.arm.com>
+References: <20170427181902.28829-1-f.fainelli@gmail.com>
+ <20170427181902.28829-4-f.fainelli@gmail.com>
+ <20170503111814.GF8233@arm.com>
+ <3af577ca-8f01-7a1c-997c-4c04914b4633@gmail.com>
+ <20170508100723.GF8526@arm.com>
+ <20170510083803.ur44myyb35lqcuw7@localhost>
+ <20170510115511.GB15307@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170511012213.GA27659@bbox>
+In-Reply-To: <20170510115511.GB15307@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, Florian Fainelli <f.fainelli@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Russell King <linux@armlinux.org.uk>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, zijun_hu <zijun_hu@htc.com>, angus@angusclark.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, May 11, 2017 at 10:22:13AM +0900, Minchan Kim wrote:
-> On Thu, May 11, 2017 at 08:25:56AM +0900, Minchan Kim wrote:
-> > On Wed, May 10, 2017 at 09:56:54AM -0400, Johannes Weiner wrote:
-> > > Hi Michan,
+On Wed, May 10, 2017 at 12:55:12PM +0100, Will Deacon wrote:
+> On Wed, May 10, 2017 at 09:38:03AM +0100, Catalin Marinas wrote:
+> > On Mon, May 08, 2017 at 11:07:24AM +0100, Will Deacon wrote:
+> > > On Fri, May 05, 2017 at 02:07:28PM -0700, Florian Fainelli wrote:
+> > > > On 05/03/2017 04:18 AM, Will Deacon wrote:
+> > > > > On Thu, Apr 27, 2017 at 11:19:02AM -0700, Florian Fainelli wrote:
+> > > > >> When CONFIG_ARM64_MODULE_PLTS is enabled, the first allocation using the
+> > > > >> module space fails, because the module is too big, and then the module
+> > > > >> allocation is attempted from vmalloc space. Silence the first allocation
+> > > > >> failure in that case by setting __GFP_NOWARN.
+> > > > >>
+> > > > >> Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> > > > >> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
+> > > > >> ---
+> > > > >>  arch/arm64/kernel/module.c | 7 ++++++-
+> > > > >>  1 file changed, 6 insertions(+), 1 deletion(-)
+> > > > > 
+> > > > > I'm not sure what the merge plan is for these, but the arm64 bit here
+> > > > > looks fine to me:
+> > > > > 
+> > > > > Acked-by: Will Deacon <will.deacon@arm.com>
+> > > > 
+> > > > Thanks, not sure either, would you or Catalin want to pick this series?
 > > > 
-> > > On Tue, May 02, 2017 at 08:53:32AM +0900, Minchan Kim wrote:
-> > > > @@ -1144,7 +1144,7 @@ void swap_free(swp_entry_t entry)
-> > > >  /*
-> > > >   * Called after dropping swapcache to decrease refcnt to swap entries.
-> > > >   */
-> > > > -void swapcache_free(swp_entry_t entry)
-> > > > +void __swapcache_free(swp_entry_t entry)
-> > > >  {
-> > > >  	struct swap_info_struct *p;
-> > > >  
-> > > > @@ -1156,7 +1156,7 @@ void swapcache_free(swp_entry_t entry)
-> > > >  }
-> > > >  
-> > > >  #ifdef CONFIG_THP_SWAP
-> > > > -void swapcache_free_cluster(swp_entry_t entry)
-> > > > +void __swapcache_free_cluster(swp_entry_t entry)
-> > > >  {
-> > > >  	unsigned long offset = swp_offset(entry);
-> > > >  	unsigned long idx = offset / SWAPFILE_CLUSTER;
-> > > > @@ -1182,6 +1182,14 @@ void swapcache_free_cluster(swp_entry_t entry)
-> > > >  }
-> > > >  #endif /* CONFIG_THP_SWAP */
-> > > >  
-> > > > +void swapcache_free(struct page *page, swp_entry_t entry)
-> > > > +{
-> > > > +	if (!PageTransHuge(page))
-> > > > +		__swapcache_free(entry);
-> > > > +	else
-> > > > +		__swapcache_free_cluster(entry);
-> > > > +}
-> > > 
-> > > I don't think this is cleaner :/
+> > > We'd need an Ack from Russell on the arch/arm/ part before we could take
+> > > this series.
+> > 
+> > The first patch touches mm/vmalloc.c, so we could also merge the series
+> > via akpm's tree. Andrew, do you have any preference?
 > 
-> Let's see a example add_to_swap. Without it, it looks like that.
-> 
-> int add_to_swap(struct page *page)
-> {
->         entry = get_swap_page(page);
->         ..
->         ..
-> fail:
->         if (PageTransHuge(page))
->                 swapcache_free_cluster(entry);
->         else
->                 swapcache_free(entry);
-> }
-> 
-> It doesn't looks good to me because get_swap_page hides
-> where entry allocation is from cluster or slot but when
-> we free the entry allocated, we should be aware of the
-> internal and call right function. :(
+> Michal Hocko acked that one, so I think we can take the whole series via
+> arm64.
 
-This could be nicer indeed. I just don't like the underscore versions
-much, but symmetry with get_swap_page() would be nice.
+OK. I'll send the patches for -rc1.
 
-How about put_swap_page()? :)
+Thanks.
 
-That can call the appropriate swapcache_free function then.
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
