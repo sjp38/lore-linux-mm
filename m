@@ -1,157 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 82DF86B0038
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 05:18:51 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v4so11272426wmb.8
-        for <linux-mm@kvack.org>; Fri, 12 May 2017 02:18:51 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d63si3425587wmc.148.2017.05.12.02.18.49
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2265D6B0038
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 06:26:56 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x73so8185999wma.2
+        for <linux-mm@kvack.org>; Fri, 12 May 2017 03:26:56 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id b141si1912876wme.27.2017.05.12.03.26.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 May 2017 02:18:49 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4C9EwLE007293
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 05:18:48 -0400
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2acucvpfs3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 05:18:47 -0400
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Fri, 12 May 2017 03:18:47 -0600
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: mm: page allocation failures in swap_duplicate ->
- add_swap_count_continuation
-Date: Fri, 12 May 2017 11:18:42 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 12 May 2017 03:26:54 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 9F3C298B8C
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 10:26:53 +0000 (UTC)
+Date: Fri, 12 May 2017 11:26:53 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC summary] Enable Coherent Device Memory
+Message-ID: <20170512102652.ltvzzwejkfat7sdq@techsingularity.net>
+References: <1494569882.21563.8.camel@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <772d81b0-df36-8644-41ca-dc13d0c0f2b5@de.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1494569882.21563.8.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, arbab@linux.vnet.ibm.com, vbabka@suse.cz, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Folks,
+On Fri, May 12, 2017 at 04:18:02PM +1000, Balbir Singh wrote:
+> Why do we need to isolate memory?
+>  - CDM memory is not meant for normal usage, applications can request for it
+>    explictly. Oflload their compute to the device where the memory is
+>    (the offload is via a user space API like CUDA/openCL/...)
 
-recently I have seen page allocation failures during
-paging in the paging code:
-e.g. 
+It still remains unanswered to a large extent why this cannot be
+isolated after the fact via a standard mechanism. It may be easier if
+the onlining of CDM memory can be deferred at boot until userspace
+helpers can trigger the onlining and isolation.
 
-May 05 21:36:53  kernel: Call Trace:
-May 05 21:36:53  kernel: ([<0000000000112f62>] show_trace+0x62/0x78)
-May 05 21:36:53  kernel:  [<0000000000113050>] show_stack+0x68/0xe0 
-May 05 21:36:53  kernel:  [<00000000004fb97e>] dump_stack+0x7e/0xb0 
-May 05 21:36:53  kernel:  [<0000000000299262>] warn_alloc+0xf2/0x190 
-May 05 21:36:53  kernel:  [<000000000029a25a>] __alloc_pages_nodemask+0xeda/0xfe0 
-May 05 21:36:53  kernel:  [<00000000002fa570>] alloc_pages_current+0xb8/0x170 
-May 05 21:36:53  kernel:  [<00000000002f03fc>] add_swap_count_continuation+0x3c/0x280 
-May 05 21:36:53  kernel:  [<00000000002f068c>] swap_duplicate+0x4c/0x80 
-May 05 21:36:53  kernel:  [<00000000002dfbfa>] try_to_unmap_one+0x372/0x578 
-May 05 21:36:53  kernel:  [<000000000030131a>] rmap_walk_ksm+0x14a/0x1d8 
-May 05 21:36:53  kernel:  [<00000000002e0d60>] try_to_unmap+0x140/0x170 
-May 05 21:36:53  kernel:  [<00000000002abc9c>] shrink_page_list+0x944/0xad8 
-May 05 21:36:53  kernel:  [<00000000002ac720>] shrink_inactive_list+0x1e0/0x5b8 
-May 05 21:36:53  kernel:  [<00000000002ad642>] shrink_node_memcg+0x5e2/0x800 
-May 05 21:36:53  kernel:  [<00000000002ad954>] shrink_node+0xf4/0x360 
-May 05 21:36:53  kernel:  [<00000000002aeb00>] kswapd+0x330/0x810 
-May 05 21:36:53  kernel:  [<0000000000189f14>] kthread+0x144/0x168 
-May 05 21:36:53  kernel:  [<00000000008011ea>] kernel_thread_starter+0x6/0xc 
-May 05 21:36:53  kernel:  [<00000000008011e4>] kernel_thread_starter+0x0/0xc 
+> How do we isolate the memory - NUMA or HMM-CDM?
+>  - Since the memory is coherent, NUMA provides the mechanism to isolate to
+>    a large extent via mempolicy. With NUMA we also get autonuma/kswapd/etc
+>    running.
 
-This seems to be new in 4.11 but the relevant code did not seem to have
-changed.
+This has come up before with respect to autonuma and there appears to be
+confusion. autonuma doesn't run on nodes as such. The page table hinting
+happens in per-task context but should skip VMAs that are controlled by
+a policy. While some care is needed from the application, it's managable
+and would perform better than special casing the marking of pages placed
+on a CDM-controlled node.
 
-Something like this 
+As for kswapd, there isn't a user-controllable method for controlling
+this. However, if a device onlining the memory set the watermarks to 0,
+it would allow the full CDM memory to be used by the application and kswapd
+would never be woken.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1781308..b2dd53e 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3039,7 +3039,7 @@ int swap_duplicate(swp_entry_t entry)
-        int err = 0;
- 
-        while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
--               err = add_swap_count_continuation(entry, GFP_ATOMIC);
-+               err = add_swap_count_continuation(entry, GFP_ATOMIC | __GFP_NOWARN);
-        return err;
- }
- 
+KSM is potentially more problematic and initially may have to be disabled
+entirely to determine if it actually matters for CDM-aware applications or
+not. KSM normally comes into play with virtual machines are involved so it
+would have to be decided if CDM is being exposed to guests with pass-thru
+or some other mechanism. Initially, just disable it unless the use cases
+are known.
 
-seems not appropriate, because this code does not know if the caller can
-handle returned errors.
+>    Something we would like to avoid. NUMA gives the application
+>    a transparent view of memory, in the sense that all mm features work,
+>    like direct page cache allocation in coherent device memory, limiting
+>    memory via cgroups if required, etc. With CPUSets, its
+>    possible for us to isolate allocation. One challenge is that the
+>    admin on the system may use them differently and applications need to
+>    be aware of running in the right cpuset to allocate memory from the
+>    CDM node.
 
-Would something like the following (white space damaged cut'n'paste be ok?
-(the try_to_unmap_one change looks fine, not sure if copy_one_pte does the
-right thing)
+An admin and application has to deal with this complexity regardless.
+Particular care would be needed for file-backed data as an application
+would have to ensure the data was not already cache resident. For
+example, creating a data file and then doing computation on it may be
+problematic. Unconditionally, the application is going to have to deal
+with migration.
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 45e91dd..4577494 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -391,7 +391,7 @@ extern swp_entry_t get_swap_page_of_type(int);
- extern int get_swap_pages(int n, swp_entry_t swp_entries[]);
- extern int add_swap_count_continuation(swp_entry_t, gfp_t);
- extern void swap_shmem_alloc(swp_entry_t);
--extern int swap_duplicate(swp_entry_t);
-+extern int swap_duplicate(swp_entry_t, gfp_t);
- extern int swapcache_prepare(swp_entry_t);
- extern void swap_free(swp_entry_t);
- extern void swapcache_free(swp_entry_t);
-@@ -447,7 +447,7 @@ static inline void swap_shmem_alloc(swp_entry_t swp)
- {
- }
- 
--static inline int swap_duplicate(swp_entry_t swp)
-+int swap_duplicate(swp_entry_t entry, gfp_t gfp_mask)
- {
-        return 0;
- }
-diff --git a/mm/memory.c b/mm/memory.c
-index 235ba51..3ae6f33 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -898,7 +898,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-                swp_entry_t entry = pte_to_swp_entry(pte);
- 
-                if (likely(!non_swap_entry(entry))) {
--                       if (swap_duplicate(entry) < 0)
-+                       if (swap_duplicate(entry, __GFP_NOWARN) < 0)
-                                return entry.val;
- 
-                        /* make sure dst_mm is on swapoff's mmlist. */
-diff --git a/mm/rmap.c b/mm/rmap.c
-index f683801..777feb6 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1433,7 +1433,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-                                goto discard;
-                        }
- 
--                       if (swap_duplicate(entry) < 0) {
-+                       if (swap_duplicate(entry, __GFP_NOWARN) < 0) {
-                                set_pte_at(mm, address, pvmw.pte, pteval);
-                                ret = SWAP_FAIL;
-                                page_vma_mapped_walk_done(&pvmw);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1781308..1f86268 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3034,12 +3034,12 @@ void swap_shmem_alloc(swp_entry_t entry)
-  * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
-  * might occur if a page table entry has got corrupted.
-  */
--int swap_duplicate(swp_entry_t entry)
-+int swap_duplicate(swp_entry_t entry, gfp_t gfp_mask)
- {
-        int err = 0;
- 
-        while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
--               err = add_swap_count_continuation(entry, GFP_ATOMIC);
-+               err = add_swap_count_continuation(entry, GFP_ATOMIC | gfp_mask);
-        return err;
- }
+Identifying issues like this are why an end-to-end application that
+takes advantage of the feature is important. Otherwise, there is a risk
+that APIs are exposed to userspace that are Linux-specific,
+device-specific and unusable.
 
+>    Putting all applications in the cpuset with the CDM node is
+>    not the right thing to do, which means the application needs to move itself
+>    to the right cpuset before requesting for CDM memory. It's not impossible
+>    to use CPUsets, just hard to configure correctly.
+
+They optionally could also use move_pages.
+
+>   - With HMM, we would need a HMM variant HMM-CDM, so that we are not marking
+>    the pages as unavailable, page cache cannot do directly to coherent memory.
+>    Audit of mm paths is required. Most of the other things should work.
+>    User access to HMM-CDM memory behind ZONE_DEVICE is via a device driver.
+
+The main reason why I would prefer HMM-CDM is two-fold. The first is
+that using these accelerators still has use cases that are not very well
+defined but if an application could use either CDM or HMM transparently
+then it may be better overall.
+
+The second reason is because there are technologies like near-memory coming
+in the future and there is no infrastructure in place to take advantage like
+that. I haven't even heard of plans from developers working with vendors of
+such devices on how they intend to support it. Hence, the desired policies
+are unknown such as whether the near memory should be isolated or if there
+should be policies that promote/demote data between NUMA nodes instead of
+reclaim. While I'm not involved in enabling such technology, I worry that
+there will be collisiosn in the policies required for CDM and those required
+for near-memory but once the API is exposed to userspace, it becomes fixed.
+
+> Do we need to isolate node attributes independent of coherent device memory?
+>  - Christoph Lameter thought it would be useful to isolate node attributes,
+>    specifically ksm/autonuma for low latency suff.
+
+Whatever about KSM, I would have suggested that autonuma have a prctl
+flag to disable autonuma on a per-task basis. It would be sufficient for
+anonymous memory at least. It would have some hazards if a
+latency-sensitive application shared file-backed data with a normal
+application but latency-sensitive applications generally have to take
+care to isolate themselves properly.
+
+> Why do we need migration?
+>  - Depending on where the memory is being accessed from, we would like to
+>    migrate pages between system and coherent device memory. HMM provides
+>    DMA offload capability that is useful in both cases.
+
+That suggests that HMM would be a better idea.
+
+> What is the larger picture - end to end?
+>  - Applications can allocate memory on the device or in system memory,
+>    offload the compute via user space API. Migration can be used for performance
+>    if required since it helps to keep the memory local to the compute.
+> 
+
+The end-to-end is what matters because there is an expectation that
+applications will have to use libraries to control the actual acceleration
+and collection of results. The same libraries should be responsible for
+doing the migration if necessary. While I accept that bringing up the
+library would be inconvenient as supporting tools will be needed for the
+application, it's better than quickly exposting CDM devices as NUMA as this
+suggests, applying the policies and then finding the same supporting tools
+and libraries were needed anyway and the proposed policies did not help.
+
+> Comments from the thread
+> 
+> 1. If we go down the NUMA path, we need to live with the limitations of
+>    what comes with the cpuless NUMA node
+> 2. The changes made to cpusets and mempolicies, make the code more complex
+> 3. We need a good end to end story
+> 
+> The comments from the thread were responded to
+> 
+> How do we go about implementing CDM then?
+> 
+> The recommendation from John Hubbard/Mel Gorman and Michal Hocko is to
+> use HMM-CDM to solve the problem. Jerome/Balbir and Ben H prefer NUMA-CDM.
+> There were suggestions that NUMA might not be ready or is the best approach
+> in the long term, but we are yet to identify what changes to NUMA would
+> enable it to support NUMA-CDM.
+> 
+
+Primarily, I would suggest that HMM-CDM be taken as far as possible on the
+hope/expectation that an application could transparently use either CDM
+(memory visible to both CPU and device) or HMM (special care required)
+with a common library API. This may be unworkable ultimately but it's
+impossible to know unless someone is fully up to date with exactly how
+these devices are to be used by appliications.
+
+If NUMA nodes are still required then the initial path appears to
+be controlling the onlining of memory from the device, isolating from
+userspace with existing mechanisms and using library awareness to control
+the migration. If DMA offloading is required then the device would also
+need to control that which may or may not push it towards HMM again.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
